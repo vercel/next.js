@@ -26,6 +26,7 @@ export interface RawBinding {
   buildInfo(): NapiBuildInfo
   projectNew(options: NapiProjectOptions): Promise<NativeProject>
   projectBuild(project: NativeProject): Promise<void>
+  projectShutdown(project: NativeProject): Promise<void>
 }
 
 /**

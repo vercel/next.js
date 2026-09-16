@@ -1,0 +1,1 @@
+window.CLASSIC = 1

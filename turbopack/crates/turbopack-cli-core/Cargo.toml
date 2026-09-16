@@ -1,0 +1,30 @@
+[package]
+name = "turbopack-cli-core"
+version = "0.1.0"
+description = "Core contexts, transforms, and dev/build wiring for the standalone CLI."
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bincode = { workspace = true }
+mime = { workspace = true }
+serde = { workspace = true }
+swc_core = { workspace = true }
+swc_html_ast = "26"
+swc_html_parser = "26"
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"] }
+turbopack-resolve = { workspace = true }

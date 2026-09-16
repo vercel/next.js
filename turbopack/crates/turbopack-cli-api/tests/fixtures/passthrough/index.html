@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>passthrough</title>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="preload" href="/src/big.woff2" as="font" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="https://cdn.example.com/remote.css" />
+    <link rel="stylesheet" href="/src/app.css" />
+  </head>
+  <body>
+    <script>
+      window.INLINE = 1
+    </script>
+    <script src="/src/classic.js"></script>
+    <script type="module" src="https://cdn.example.com/remote.js"></script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

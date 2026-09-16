@@ -1,8 +1,26 @@
 #!/usr/bin/env node
+import { realpathSync } from 'fs'
 import path from 'path'
 
 import type { NapiProjectOptions } from './binding'
 import { loadTurbopackConfig, resolveProjectOptions } from './config'
+import { createProject } from './index'
+
+/**
+ * Absolute, symlink-free project root. Turbopack's `DiskFileSystem` requires an already
+ * canonicalized root and refuses to read a directory through a symlink, so `path.resolve` alone
+ * is not enough — on macOS `/tmp` is a symlink to `/private/tmp`, and checkouts often live behind
+ * one too. Falls back to the resolved path if the directory does not exist, so the failure
+ * surfaces as a missing-entry error rather than an ENOENT here.
+ */
+function canonicalRoot(dir: string): string {
+  const resolved = path.resolve(dir)
+  try {
+    return realpathSync(resolved)
+  } catch {
+    return resolved
+  }
+}
 
 function flag(
   args: string[],
@@ -30,7 +48,7 @@ function flagOverrides(args: string[]): Partial<NapiProjectOptions> {
 
 /** Bundle JavaScript and other static assets into a deployment-ready output */
 async function build(args: string[]): Promise<void> {
-  const root = path.resolve(flag(args, 'root', process.cwd())!)
+  const root = canonicalRoot(flag(args, 'root', process.cwd())!)
   const distFlag = flag(args, 'dist')
   const overrides = flagOverrides(args)
 
@@ -40,10 +58,12 @@ async function build(args: string[]): Promise<void> {
     options.entries = ['index.html']
   if (distFlag) options.distDir = distFlag
 
-  // Time ONLY the turbopack build (compile + emit) — not project setup, the public/ copy, or the
-  // cache flush. This is the "built in N ms" number other bundlers report.
+  const project = await createProject(options)
+
+  // Time ONLY the turbopack build (compile + emit) — not project setup, the public/ copy, or
+  // the cache flush. This is the "built in N ms" number other bundlers report.
   const started = Date.now()
-  // This is where the project build goes!
+  await project.build()
   const buildMs = Date.now() - started
 
   const outDir = path.resolve(root, options.distDir ?? 'dist')
@@ -53,7 +73,7 @@ async function build(args: string[]): Promise<void> {
       `${configPath ? `  (config: ${path.basename(configPath)})` : ''}\n`
   )
 
-  // Clean up the project here
+  await project.shutdown()
   process.exit(0)
 }
 

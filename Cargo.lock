@@ -8914,6 +8914,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_html_ast"
+version = "26.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66332cb009b266aeefe2f88d24a01237fe4caaab288c02cacae16a6f4142b007"
+dependencies = [
+ "is-macro",
+ "string_enum",
+ "swc_atoms",
+ "swc_common",
+]
+
+[[package]]
+name = "swc_html_parser"
+version = "26.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "630727fc984947b3b2304c9ed84a385522eb034b2a983cb04161baadb4c3bf47"
+dependencies = [
+ "rustc-hash 2.1.1",
+ "swc_atoms",
+ "swc_common",
+ "swc_html_ast",
+ "swc_html_utils",
+]
+
+[[package]]
+name = "swc_html_utils"
+version = "17.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce2f51482abdf97cf252137a1683f7df9000f0521532bfb0fee9d8ec46a468d"
+dependencies = [
+ "once_cell",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "swc_atoms",
+]
+
+[[package]]
 name = "swc_macros_common"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10465,6 +10503,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-cli-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode 2.0.1",
+ "serde",
+ "tempfile",
+ "tokio",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-fs",
+ "turbo-unix-path",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-cli-core",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-css",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-runtime",
+ "turbopack-env",
+ "turbopack-node",
+ "turbopack-nodejs",
+]
+
+[[package]]
+name = "turbopack-cli-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode 2.0.1",
+ "mime",
+ "serde",
+ "swc_core",
+ "swc_html_ast",
+ "swc_html_parser",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-fs",
+ "turbo-tasks-hash",
+ "turbopack",
+ "turbopack-core",
+ "turbopack-node",
+ "turbopack-resolve",
+]
+
+[[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
 dependencies = [
@@ -10796,6 +10882,8 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-backend",
  "turbo-tasks-malloc",
+ "turbopack-cli-api",
+ "turbopack-cli-core",
  "turbopack-core",
  "vergen-gitcl",
 ]

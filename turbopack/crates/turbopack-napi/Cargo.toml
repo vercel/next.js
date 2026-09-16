@@ -32,6 +32,9 @@ turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbopack-core = { workspace = true }
 
+turbopack-cli-api = { path = "../turbopack-cli-api" }
+turbopack-cli-core = { path = "../turbopack-cli-core" }
+
 [build-dependencies]
 anyhow = { workspace = true }
 napi-build = { workspace = true }

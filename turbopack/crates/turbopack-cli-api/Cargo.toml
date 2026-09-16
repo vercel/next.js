@@ -1,0 +1,39 @@
+[package]
+name = "turbopack-cli-api"
+version = "0.1.0"
+description = "Project structures and the dev + build drivers for the raw Turbopack CLI"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bincode = { workspace = true }
+serde = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
+turbopack = { workspace = true }
+turbopack-browser = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-ecmascript-runtime = { workspace = true }
+turbopack-env = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"] }
+turbopack-nodejs = { workspace = true }
+
+turbopack-cli-core = { path = "../turbopack-cli-core" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
