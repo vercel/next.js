@@ -26,13 +26,13 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
 };
 
 /// The root-served file name for a service worker registered at `scope`. One worker is supported
@@ -226,7 +226,8 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
 
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let scope = self.scope.clone();
         let reference = self.resolved_cell();
@@ -245,12 +246,13 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
 )]
 pub struct ServiceWorkerAssetReferenceCodeGen {
     scope: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ServiceWorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
@@ -274,7 +276,7 @@ impl ServiceWorkerAssetReferenceCodeGen {
             s => format!("{base_path}{s}"),
         };
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::Call(call_expr) = expr {
                 match call_expr.args.first() {
                     Some(ExprOrSpread { spread: None, .. }) => {
