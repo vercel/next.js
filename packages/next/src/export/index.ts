@@ -1119,8 +1119,8 @@ async function collectSegmentPathsImpl(
       // separators before converting the path to a static export filename.
       results.push(
         relative(segmentsDirectory, join(directory, segmentFile.name))
-       .split(sep)
-       .join('/')
+          .split(sep)
+          .join('/')
       )
     })
   )
