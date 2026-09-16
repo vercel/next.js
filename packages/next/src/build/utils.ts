@@ -1519,23 +1519,16 @@ startServer({
   )
 
   if (skippedTraceFiles.size > 0) {
-    const sample = [...skippedTraceFiles]
-    const sampleSize = Math.min(5, sample.length)
-    for (let i = 0; i < sampleSize; i++) {
-      const randomIndex = i + Math.floor(Math.random() * (sample.length - i))
-      ;[sample[i], sample[randomIndex]] = [sample[randomIndex], sample[i]]
-    }
-
     const count = skippedTraceFiles.size
-    const sampleOutput = sample
-      .slice(0, sampleSize)
+    const skippedFilesOutput = [...skippedTraceFiles]
+      .slice(0, 100)
       .map((file) => `  - ${path.relative(tracingRoot, file)}`)
       .join('\n')
     const warning = [
       `${count} traced files were not included in the standalone output`,
       'because their paths are outside of `outputFileTracingRoot`.',
-      'Random sample:',
-      sampleOutput,
+      'First 100 skipped files:',
+      skippedFilesOutput,
       'Set `outputFileTracingRoot` to a common parent directory',
       'to include these files.',
     ].join('\n')

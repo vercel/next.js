@@ -54,7 +54,7 @@ describe('build trace with extra entries in monorepo', () => {
       expect(cliOutput).toMatch(
         /\d+ traced files were not included in the standalone output/
       )
-      expect(cliOutput).toContain('Random sample:')
+      expect(cliOutput).toContain('First 100 skipped files:')
       expect(cliOutput).toContain('outputFileTracingRoot')
     })
   })
