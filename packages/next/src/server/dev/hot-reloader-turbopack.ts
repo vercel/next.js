@@ -569,7 +569,7 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
-    if (process.env.NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
+    if (process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
       await project.shutdown()
     } else {
       await project.onExit()
