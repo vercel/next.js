@@ -3088,6 +3088,14 @@ async function renderAppPage(
   let didExecuteServerAction = false
   let formState: null | any = null
   if (isPossibleActionRequest) {
+    if (!getServerActionRequestMetadata(req).isFetchAction) {
+      // A native form submission replaces the document, so it needs a full
+      // HTML render rather than a continuation of the cached shell. The
+      // request store retains the resume data cache for the action and render.
+      renderOpts.postponed = undefined
+      postponedState = null
+    }
+
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       req,
