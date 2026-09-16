@@ -630,6 +630,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
+    deprecated: z
+      .strictObject({
+        looseRouteMatching: z.literal(true).optional(),
+      })
+      .optional(),
     deploymentId: z.string().optional(),
     supportsImmutableAssets: z.boolean().optional(),
     outputHashSalt: z.string().optional(),
