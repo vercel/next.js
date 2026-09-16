@@ -186,10 +186,47 @@ function affectedRanges(advisories: Advisory[]): string[] {
   return ranges
 }
 
-async function readGitHubAdvisories() {
+// Count only advisories affecting the running version for the startup prompt.
+// Full release selection remains in the explicit upgrade command.
+export async function getSecurityAdvisory(version: string) {
+  if (!semver.valid(version)) {
+    throw new Error('The running Next.js version is not valid semver.')
+  }
+
+  if (semver.prerelease(version)) {
+    return null
+  }
+
+  let advisories: Advisory[]
+  let reference: string
+
+  try {
+    const result = await readGitHubAdvisories(version)
+    advisories = result.advisories
+    reference = result.reference
+  } catch {
+    advisories = await readNpmAdvisories([version])
+    reference = NPM_ADVISORIES
+  }
+
+  if (
+    !affectedRanges(advisories).some((range) =>
+      semver.satisfies(version, range)
+    )
+  ) {
+    return null
+  }
+
+  return { reference }
+}
+
+async function readGitHubAdvisories(version: string | null) {
   const advisories: Advisory[] = []
   const visited = new Set<string>()
-  let url: string | undefined = ADVISORIES
+  const affects = version === null ? 'next' : `next@${version}`
+  const firstPage = new URL(ADVISORIES)
+  firstPage.searchParams.set('affects', affects)
+  let url: string | undefined = firstPage.href
 
   for (let page = 0; url; page++) {
     if (page === 100) {
@@ -217,7 +254,7 @@ async function readGitHubAdvisories() {
         parsed.origin !== 'https://api.github.com' ||
         parsed.pathname !== '/advisories' ||
         parsed.searchParams.get('ecosystem') !== 'npm' ||
-        parsed.searchParams.get('affects') !== 'next' ||
+        parsed.searchParams.get('affects') !== affects ||
         parsed.searchParams.get('type') !== 'reviewed' ||
         visited.has(next)
       ) {
@@ -228,7 +265,7 @@ async function readGitHubAdvisories() {
     url = next
   }
 
-  return { advisories }
+  return { advisories, reference: firstPage.href }
 }
 
 async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
@@ -287,7 +324,7 @@ async function readSecuritySnapshot(
   let githubFailure: unknown
 
   try {
-    githubRanges = affectedRanges((await readGitHubAdvisories()).advisories)
+    githubRanges = affectedRanges((await readGitHubAdvisories(null)).advisories)
 
     if (
       !githubRanges.some((range) => semver.satisfies(installedVersion, range))
