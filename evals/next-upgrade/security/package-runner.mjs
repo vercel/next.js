@@ -27,17 +27,17 @@ const record = (event) =>
   )
 
 if (
-  config.routeBuildToCandidate &&
   runner === 'npm' &&
   ['run', 'run-script'].includes(args[0]) &&
-  args[1] === 'build'
+  config.candidateScripts.includes(args[1])
 ) {
+  const script = args[1]
   const separator = args.indexOf('--')
   const result = spawnSync(
     process.execPath,
     [
       join(tools, 'entry.mjs'),
-      'build',
+      script,
       ...(separator === -1 ? [] : args.slice(separator + 1)),
     ],
     { stdio: 'inherit', env: process.env }

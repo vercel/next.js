@@ -71,7 +71,7 @@ export async function setupUpgradeScenario(
     assessmentPath: string
     assessment: object
     installedVersion: string | undefined
-    routeBuildToCandidate?: boolean
+    candidateScripts?: string[]
     skillInstructionsPath?: string
   }
 ) {
@@ -154,7 +154,7 @@ export async function setupUpgradeScenario(
       prepareFixture: Boolean(options.installedVersion),
       remote,
       repository,
-      routeBuildToCandidate: options.routeBuildToCandidate,
+      candidateScripts: options.candidateScripts ?? [],
       skillInstructions: options.skillInstructionsPath
         ? `${security}/skill-instructions.md`
         : undefined,
