@@ -615,6 +615,9 @@ export function createAppPageEntrypoint({
     let shellCacheKey: string | null = null
     if (
       nextConfig.cacheComponents &&
+      // A closed matcher has no fallback shell. Its generated outputs must
+      // retain their concrete cache keys.
+      prerenderInfo?.fallback !== false &&
       // Never-prerenderable params must stay out of the key even when Partial
       // Prefetching is disabled.
       (nextConfig.partialPrefetching ||
