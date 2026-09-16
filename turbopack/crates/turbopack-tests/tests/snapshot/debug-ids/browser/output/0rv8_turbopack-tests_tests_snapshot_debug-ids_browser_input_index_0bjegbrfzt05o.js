@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="77867742-97a1-7739-5b4e-e0fc46a40a42")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="a2e275cf-b0e6-9c71-f03e-dc2b3870d36c")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -437,16 +437,14 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
-// The flat format alternates one or more module IDs with their factory function.
-// Strict factories can be prepended as a nested array.
+// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
+// The CompressedModuleFactories format is
+// - 1 or more module ids
+// - a module factory function
+// So walking this is a little complex but the flat structure is also fast to
+// traverse, we can use `typeof` operators to distinguish the two cases.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
-    const strictFactories = chunkModules[i];
-    if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
-        i++;
-    }
     while(i < chunkModules.length){
         let end = i + 1;
         // Find our factory function
@@ -485,7 +483,7 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
                 newModuleId?.(id);
             }
         }
-        i = end + 1;
+        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
     }
 }
 /**
@@ -698,6 +696,25 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
+// Paths of every JS chunk whose module factories have been installed into this
+// runtime instance (page, worker, …), in registration order.
+//
+// Web workers get a fresh runtime realm, so module factories cannot be handed to
+// them directly (functions are not structured-cloneable). Instead `createWorker`
+// passes this list along with the worker's own chunks, and the worker re-imports
+// them — cheap, because the browser has them cached already. This is what lets
+// worker chunk groups use normal (nested) availability info instead of
+// `AvailabilityInfo::root()`, which is what breaks the self-referencing-worker
+// chunking cycle.
+const loadedJsChunkPaths = new Set();
+function registerLoadedJsChunk(chunk) {
+    loadedJsChunkPaths.add(getPathFromScript(chunk));
+}
+// Shared runtime primitive consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function getLoadedChunkPaths() {
+    return Array.from(loadedJsChunkPaths);
+}
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents = new Map();
 // Registry mapping a component chunk's path to its size in bytes, used by the
@@ -977,6 +994,9 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
+// Shared runtime primitive: the JS chunks already loaded in this runtime, used
+// by the bundled worker helper so a child worker can re-import them.
+browserContextPrototype.G = getLoadedChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -1735,7 +1755,6 @@ function formatDependencyChain(dependencyChain) {
 }
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
-/// <reference path="../../../shared/runtime/hmr-runtime.ts" />
 const devContextPrototype = Context.prototype;
 /**
  * This file contains runtime types and functions that are shared between all
@@ -2125,6 +2144,8 @@ function registerChunk(registration) {
         let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
+        // Only factory-bearing registrations are useful to pass on to a worker.
+        registerLoadedJsChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -2423,6 +2444,10 @@ let DEV_BACKEND;
                 const baseChunkUrl = chunkUrl.split('?')[0];
                 const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
                 const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
+                if (previousLinks.length === 0) {
+                    reject(new Error(`No link element found for chunk ${chunkUrl}`));
+                    return;
+                }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.crossOrigin = CROSS_ORIGIN;
@@ -2457,20 +2482,9 @@ let DEV_BACKEND;
                     // loaded instantly.
                     resolve();
                 };
-                if (previousLinks.length === 0) {
-                    // The chunk's <link> was already removed from the DOM (the importing
-                    // component unmounted via navigation or a `dynamic(ssr: false)`
-                    // boundary, so `unloadChunk` removed it), but its chunk list stays
-                    // subscribed and can still receive a 'total' update. Mirror the
-                    // 'added' branch of `applyChunkListUpdate` and load the fresh
-                    // stylesheet instead of rejecting with "No link element found for
-                    // chunk" (an unhandledRejection that forced a full page reload).
-                    document.head.appendChild(link);
-                } else {
-                    // Make sure to insert the new CSS right after the previous one, so that
-                    // its precedence is higher.
-                    previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
-                }
+                // Make sure to insert the new CSS right after the previous one, so that
+                // its precedence is higher.
+                previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
             });
         },
         restart: ()=>self.location.reload()
@@ -2497,5 +2511,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=77867742-97a1-7739-5b4e-e0fc46a40a42
+//# debugId=a2e275cf-b0e6-9c71-f03e-dc2b3870d36c
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
