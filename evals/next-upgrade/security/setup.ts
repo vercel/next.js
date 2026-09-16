@@ -19,25 +19,41 @@ export async function setupSecurity(sandbox: Sandbox) {
   const crossMajorTarget = '15.5.24'
   const scenarios: Record<
     string,
-    { target: string; range: string; versions: string[]; duplicate: boolean }
+    {
+      target: string
+      range: string
+      versions: string[]
+      duplicate: boolean
+      lookupBlocked: boolean
+    }
   > = {
     'security-cross-major': {
       target: crossMajorTarget,
       range: `>=13.0.0 <${crossMajorTarget}`,
       versions: ['13.5.11', '14.2.35', crossMajorTarget, '16.0.0'],
       duplicate: false,
+      lookupBlocked: false,
     },
     'security-duplicate': {
       target: sameMajorTarget,
       range: `>=15.0.0 <${sameMajorTarget}`,
       versions: ['15.5.23', sameMajorTarget, '16.0.0'],
       duplicate: true,
+      lookupBlocked: false,
+    },
+    'security-lookup-blocked': {
+      target: sameMajorTarget,
+      range: `>=15.0.0 <${sameMajorTarget}`,
+      versions: ['15.5.23', sameMajorTarget, '16.0.0'],
+      duplicate: false,
+      lookupBlocked: true,
     },
     'security-same-major': {
       target: sameMajorTarget,
       range: `>=15.0.0 <${sameMajorTarget}`,
       versions: ['15.5.23', sameMajorTarget, '16.0.0'],
       duplicate: false,
+      lookupBlocked: false,
     },
   }
   const scenario = scenarios[fixture]

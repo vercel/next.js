@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const tools = dirname(dirname(fileURLToPath(import.meta.url)))
-const { duplicate, target } = JSON.parse(
+const { duplicate, lookupBlocked, target } = JSON.parse(
   readFileSync(
     join(dirname(fileURLToPath(import.meta.url)), 'assessment.json'),
     'utf8'
@@ -12,6 +12,16 @@ const { duplicate, target } = JSON.parse(
 )
 const args = process.argv.slice(2)
 appendFileSync(join(tools, 'provider.jsonl'), JSON.stringify({ args }) + '\n')
+
+if (
+  lookupBlocked &&
+  ((args[0] === 'pr' && args[1] === 'list') ||
+    (args[0] === 'search' && args[1] === 'prs') ||
+    (args[0] === 'api' && args.some((arg) => /\/pulls(?:[/?]|$)/.test(arg))))
+) {
+  console.error('Could not list open pull requests')
+  process.exit(1)
+}
 
 const repo = {
   name: 'fixture',

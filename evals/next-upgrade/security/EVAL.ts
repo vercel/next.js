@@ -223,7 +223,11 @@ export function securityChecks(
   })
 }
 
-export function duplicateSecurityChecks(source: string, target: string) {
+function stoppedSecurityChecks(
+  source: string,
+  target: string,
+  reason: 'duplicate' | 'lookup-blocked'
+) {
   const tools = '/tmp/next-upgrade-eval'
   const git = (...args: string[]) =>
     execFileSync('git', args, { encoding: 'utf8' }).trim()
@@ -276,7 +280,7 @@ export function duplicateSecurityChecks(source: string, target: string) {
     ).toBe(false)
   })
 
-  test('recognizes the existing security upgrade', async () => {
+  test('checks existing security upgrade work before changing files', async () => {
     expect(records('invocations.jsonl')).toContainEqual(
       expect.objectContaining({
         args: ['upgrade', '--ai'],
@@ -297,7 +301,17 @@ export function duplicateSecurityChecks(source: string, target: string) {
       target
     )
     await expect(transcript).toSatisfyCriterion(
-      `The agent found the existing equivalent open security upgrade pull request and stopped. It did not run the codemod, change files, commit, push, or create another pull request.`
+      reason === 'duplicate'
+        ? `The agent found the existing equivalent open security upgrade pull request and stopped. It did not run the codemod, change files, commit, push, or create another pull request.`
+        : `The agent could not complete the required open pull request lookup and stopped before changing files. It reported the lookup blocker and did not run the codemod, commit, push, or create a pull request.`
     )
   })
+}
+
+export function duplicateSecurityChecks(source: string, target: string) {
+  stoppedSecurityChecks(source, target, 'duplicate')
+}
+
+export function blockedSecurityLookupChecks(source: string, target: string) {
+  stoppedSecurityChecks(source, target, 'lookup-blocked')
 }
