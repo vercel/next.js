@@ -1,4 +1,9 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Bundled in entry-base so it gets the right JSX runtime. */
+
+import type {
+  MinLedgerValue,
+  SetLedgerValue,
+} from '../../shared/lib/ledger-decoding'
 import type {
   InitialRSCPayload,
   PrefetchFlightResponse,
@@ -8,7 +13,6 @@ import {
   PrefetchHint,
   StaticPrefetchDisabled,
 } from '../../shared/lib/app-router-types'
-import type { SetLedgerValue } from '../../shared/lib/ledger-decoding'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -49,16 +53,6 @@ import {
 } from '../../shared/lib/rsc-transport'
 
 /**
- * The RSC data and vary params for a single segment of the page: the
- * requested segment of a response, an ancestor whose data is bundled into a
- * descendant's response, or the head.
- */
-type SegmentSource = {
-  rsc: React.ReactNode
-  varyParams: SetLedgerValue<string> | null
-}
-
-/**
  * Server-side equivalent of the client's SegmentBundle linked list: the data
  * of ancestors bundled into a descendant's response, nearest ancestor first.
  * The chain is contiguous — it grows only through consecutive
@@ -70,7 +64,7 @@ type SegmentSource = {
  * carries identity only.
  */
 type SegmentBundleNode = {
-  data: SegmentSource | null
+  data: TransportSegmentData | null
   next: SegmentBundleNode | null
 }
 
@@ -404,7 +398,6 @@ export async function collectPrefetchHints(
   const transportData = initialRSCPayload.t
   const rootNode = transportData.t
   const buildId = initialRSCPayload.b
-  const head = transportData.h.r
 
   // The hints every node starts from. The static-prefetch-attempt hint is
   // page-global (the tracking that feeds it is), so it goes on every node,
@@ -431,7 +424,7 @@ export async function collectPrefetchHints(
   // The page's staleTime iterable, forwarded into each segment response. When
   // Cache Components is off the page carries no `s`, so wrap the eager value.
   const staleTimeIterable =
-    initialRSCPayload.s ?? createStaleTimeIterable(staleTime)
+    initialRSCPayload.s ?? createFallbackStaleTime(staleTime)
 
   // The page's runtime-data-access flag, forwarded into each segment
   // response's `needsRuntimeRequest`. This pass only measures sizes, so a
@@ -470,7 +463,7 @@ export async function collectPrefetchHints(
     HEAD_REQUEST_KEY,
     rootSpine,
     null, // no bundled ancestors
-    { rsc: head, varyParams: initialRSCPayload.t.h.v },
+    initialRSCPayload.t.h,
     rootVaryParamsIterable,
     clientModules,
     // Fallback-ness doesn't affect size, so pass false.
@@ -542,7 +535,7 @@ async function collectPrefetchHintsImpl(
   isClientParamParsingEnabled: boolean,
   node: FullTransportNode,
   buildId: string | undefined,
-  staleTimeIterable: AsyncIterable<number>,
+  staleTimeIterable: MinLedgerValue,
   clientModules: ManifestNode,
   // TODO: Consider persisting the computed requestKey into the hints output
   // so it doesn't need to be recomputed during the build. This might also
@@ -591,7 +584,7 @@ async function collectPrefetchHintsImpl(
     const [, buffer] = await renderSegmentPrefetch(
       buildId,
       staleTimeIterable,
-      { rsc: nodeRsc, varyParams: node.d.v },
+      node.d,
       requestKey,
       spine,
       null,
@@ -886,7 +879,6 @@ async function PrefetchTreeData({
   const transportData = initialRSCPayload.t
   const rootNode = transportData.t
   const buildId = initialRSCPayload.b
-  const head = transportData.h.r
 
   // Root params are forwarded once at the top level of each segment
   // response, same as the page response's own root vary params; the client
@@ -896,7 +888,7 @@ async function PrefetchTreeData({
   // The page's staleTime iterable, forwarded into each segment response. When
   // Cache Components is off the page carries no `s`, so wrap the eager value.
   const staleTimeIterable =
-    initialRSCPayload.s ?? createStaleTimeIterable(staleTime)
+    initialRSCPayload.s ?? createFallbackStaleTime(staleTime)
 
   // The page's runtime-data-access flag, forwarded into each segment
   // response's `needsRuntimeRequest`. When the page carries no `u` (e.g.
@@ -917,10 +909,7 @@ async function PrefetchTreeData({
   // a prefetch response for each segment. When prefetch inlining is enabled,
   // small segments are bundled into their children's responses based on the
   // hint bits.
-  const headData: SegmentSource = {
-    rsc: head,
-    varyParams: initialRSCPayload.t.h.v,
-  }
+  const headData: TransportSegmentData = initialRSCPayload.t.h
   const rootSpine: SegmentSpine = {
     segment: createPrefetchTransportSegment(
       rootNode.s,
@@ -987,7 +976,7 @@ function collectSegmentDataImpl(
   isClientParamParsingEnabled: boolean,
   node: FullTransportNode,
   buildId: string | undefined,
-  staleTimeIterable: AsyncIterable<number>,
+  staleTimeIterable: MinLedgerValue,
   clientModules: ManifestNode,
   requestKey: SegmentRequestKey,
   // The identity path from the root down to this segment, used by each
@@ -997,7 +986,7 @@ function collectSegmentDataImpl(
   prefetchInlining: boolean,
   hintTree: PrefetchHints | null,
   parentBundle: SegmentBundleNode | null,
-  headData: SegmentSource | null,
+  headData: TransportSegmentData | null,
   rootVaryParamsIterable: SetLedgerValue<string> | null,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
@@ -1026,7 +1015,6 @@ function collectSegmentDataImpl(
 
   // The params this segment's own output varies on, forwarded into its
   // response as-is. Root params are forwarded separately, once per response.
-  const varyParams = node.d.v
 
   // If static prefetching is disabled for this segment
   // (prefetch: 'force-disabled' / instant = false), it still participates in
@@ -1056,7 +1044,7 @@ function collectSegmentDataImpl(
     // bundle it into its response.
     if (nodeRsc !== null) {
       childBundle = {
-        data: rsc !== null ? { rsc, varyParams } : null,
+        data: rsc !== null ? node.d : null,
         next: parentBundle,
       }
     }
@@ -1083,7 +1071,7 @@ function collectSegmentDataImpl(
           renderSegmentPrefetch(
             buildId,
             staleTimeIterable,
-            { rsc, varyParams },
+            node.d,
             requestKey,
             spine,
             bundle,
@@ -1184,11 +1172,11 @@ function collectSegmentDataImpl(
  */
 async function renderSegmentPrefetch(
   buildId: string | undefined,
-  staleTime: AsyncIterable<number>,
+  staleTime: MinLedgerValue,
   // Data for the requested (terminal) segment. Null for the standalone head
   // response, which has no tree position (its tree is the bare root
   // identity). Disabled segments are skipped by the caller.
-  terminal: SegmentSource | null,
+  terminal: TransportSegmentData | null,
   requestKey: SegmentRequestKey,
   // The identity path from the root to the terminal segment (the root
   // itself for the standalone head response).
@@ -1198,7 +1186,7 @@ async function renderSegmentPrefetch(
   bundle: SegmentBundleNode | null,
   // The head's data, when it's bundled into this response (or when this IS
   // the standalone head response).
-  head: SegmentSource | null,
+  head: TransportSegmentData | null,
   rootVaryParams: SetLedgerValue<string> | null,
   clientModules: ManifestNode,
   isUpgradeableISRFallback: boolean,
@@ -1394,8 +1382,8 @@ async function renderSegmentPrefetch(
 // that actually generates the prefetch stream because we need to include
 // the result in the stream itself.
 function createStagedSegmentData(
-  data: SegmentSource,
-  staleTime: AsyncIterable<number>,
+  data: TransportSegmentData,
+  staleTime: MinLedgerValue,
   clientModules: ManifestNode,
   // The response's streamInfoStage gate; the completeness probe must not
   // start until it resolves, i.e. until the input stream is fully unblocked.
@@ -1409,26 +1397,26 @@ function createStagedSegmentData(
     // If the data is fully static, this will resolve synchronously.
     // Otherwise, the promise stays unresolved forever, and so does
     // whatever field it's encoded into in the outer response.
-    await prerender(data.rsc, clientModules, {
+    await prerender(data.r, clientModules, {
       filterStackFrame,
       onError() {},
     })
     resolve()
   })
   return {
-    r: data.rsc,
+    r: data.r,
     p: contentIsComplete,
-    v: data.varyParams,
-    s: staleTime,
+    v: data.v,
+    s: data.s ?? staleTime,
   }
 }
 
-// Wraps a known staleTime value in the same async-iterable shape as the page
-// response's `s`, so segment responses carry staleTime uniformly (and
-// rewindably) whether or not Cache Components supplied a real `s` iterable.
-// Re-consumable: each consumer gets a fresh generator (one segment response's
-// render, and there can be several).
-function createStaleTimeIterable(staleTime: number): AsyncIterable<number> {
+// Used by render paths without a tracked total. The iterable must be
+// re-consumable because it is forwarded into multiple segment responses.
+function createFallbackStaleTime(staleTime: number): MinLedgerValue {
+  if (process.env.__NEXT_LEDGERS) {
+    return Promise.resolve(staleTime)
+  }
   return {
     async *[Symbol.asyncIterator]() {
       yield staleTime

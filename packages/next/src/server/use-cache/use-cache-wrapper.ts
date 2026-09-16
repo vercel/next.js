@@ -1,3 +1,4 @@
+import { addToLedger } from '../app-render/ledgers'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
@@ -953,6 +954,11 @@ function propagateCacheLifeAndTagsToRevalidateStore(
   if (revalidateStore.stale > metadata.stale) {
     revalidateStore.stale = metadata.stale
   }
+  // A scoped total must see this contribution even if another segment has
+  // already lowered the page-wide minimum.
+  if (revalidateStore.staleTimeAccumulator !== undefined) {
+    addToLedger(revalidateStore.staleTimeAccumulator, metadata.stale)
+  }
 
   if (revalidateStore.revalidate > metadata.revalidate) {
     revalidateStore.revalidate = metadata.revalidate
@@ -967,8 +973,13 @@ function propagateCacheStaleTimeToRequestStore(
   requestStore: RequestStore,
   metadata: CacheResultMetadata
 ): void {
-  if (requestStore.stale !== undefined && requestStore.stale > metadata.stale) {
-    requestStore.stale = metadata.stale
+  if (requestStore.stale !== undefined) {
+    if (requestStore.stale > metadata.stale) {
+      requestStore.stale = metadata.stale
+    }
+    if (requestStore.staleTimeAccumulator !== undefined) {
+      addToLedger(requestStore.staleTimeAccumulator, metadata.stale)
+    }
   }
 }
 

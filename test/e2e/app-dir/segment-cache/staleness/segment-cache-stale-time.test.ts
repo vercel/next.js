@@ -281,4 +281,60 @@ describe('segment cache (staleness)', () => {
       }
     )
   })
+
+  // @gate ledgers
+  it('expires sibling segments according to their own stale times', async () => {
+    let page: Playwright.Page
+    const startTime = Date.now()
+    const browser = await next.browser('/per-segment-stale-time-test', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startTime)
+      },
+    })
+    const act = createRouterAct(page)
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/per-segment-stale-time"]'
+      )
+      await toggle.click()
+    })
+
+    // Hide the link before advancing time so it cannot prefetch outside act.
+    await browser
+      .elementByCss('input[data-link-accordion="/per-segment-stale-time"]')
+      .click()
+    await page.clock.setFixedTime(startTime + 180 * 1000)
+
+    // The page's two-minute lifetime has elapsed, but the sidebar's
+    // four-minute lifetime has not. A page-wide minimum would expire both.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/per-segment-stale-time"]'
+      )
+      await toggle.click()
+    }, [
+      { includes: 'Short-lived content' },
+      { includes: 'Long-lived content', block: 'reject' },
+    ])
+
+    await browser
+      .elementByCss('input[data-link-accordion="/per-segment-stale-time"]')
+      .click()
+    await page.clock.setFixedTime(startTime + 250 * 1000)
+
+    // Now the sidebar has expired, while the page refreshed at three minutes
+    // is still fresh. This also checks that the longer lifetime was recorded.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/per-segment-stale-time"]'
+      )
+      await toggle.click()
+    }, [
+      { includes: 'Long-lived content' },
+      { includes: 'Short-lived content', block: 'reject' },
+    ])
+  })
 })

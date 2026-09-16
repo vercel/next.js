@@ -15,7 +15,7 @@ import { PAGE_SEGMENT_KEY } from './segment'
  * carries no information about that slot.
  */
 
-import type { SetLedgerValue } from './ledger-decoding'
+import type { MinLedgerValue, SetLedgerValue } from './ledger-decoding'
 import type React from 'react'
 import type {
   DynamicParamTypesShort,
@@ -103,17 +103,12 @@ export type TransportSegmentData = {
    */
   v: SetLedgerValue<string> | null
   /**
-   * staleTime in seconds — present only in per-segment prefetch responses,
-   * where staleness is tracked per node. Navigation responses carry
-   * staleness at the response level instead (the wrapper's `s` iterable or
-   * the Next-Router-Stale-Time header).
-   *
-   * An async iterable rather than a plain number because the final value is
-   * only known late in the stream, and the iterable form survives a
-   * truncated/rewound shell decode (read via thenable status from the
-   * buffered response). The client takes the last yielded value.
+   * staleTime in seconds. Built-in captures track each segment independently;
+   * the userspace implementation forwards the page-wide iterable into each
+   * per-segment prefetch response. An empty built-in total uses the configured
+   * default, independently of the other segments' stale times.
    */
-  s?: AsyncIterable<number>
+  s?: MinLedgerValue
 }
 
 /**
