@@ -221,7 +221,8 @@ export async function initialize(opts: {
     // Check only development; production startup does not query advisories.
     if (
       developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'latest'
+      developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
+      developmentConfig.experimental.agenticAutoUpgrade === 'future'
     ) {
       const { nudgeForUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')

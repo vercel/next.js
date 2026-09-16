@@ -325,19 +325,22 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
   })
 
-  it('uses the configured policy for a bare AI upgrade', async () => {
-    jest.mocked(loadConfig).mockResolvedValue({
-      default: { experimental: { agenticAutoUpgrade: 'latest' } },
-    } as never)
+  it.each(['latest', 'future'] as const)(
+    'uses the configured %s policy for a bare AI upgrade',
+    async (policy) => {
+      jest.mocked(loadConfig).mockResolvedValue({
+        default: { experimental: { agenticAutoUpgrade: policy } },
+      } as never)
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: true,
-    })
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      })
 
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
-  })
+      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+    }
+  )
 
   it('passes the latest target to the existing agent', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
