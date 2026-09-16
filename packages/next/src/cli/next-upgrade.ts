@@ -1,17 +1,113 @@
 import { spawn } from 'child_process'
+
+import * as Log from '../build/output/log'
+import createSpinner from '../build/spinner'
+import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { dim } from '../lib/picocolors'
+import { runChildProcess } from '../lib/upgrade/run-child-process'
 
-interface NextUpgradeOptions {
+type NextUpgradeOptions = {
   revision: string
   verbose: boolean
+  ai: boolean | string | undefined
 }
 
-export function spawnNextUpgrade(
+export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions
 ) {
   const baseDir = getProjectDir(directory)
+
+  if (options.ai) {
+    try {
+      // A delegated canary uses itself. Local runs and evals use their invoked build.
+      const useCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI === '1'
+      delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+
+      if (!useCurrentCli) {
+        Log.info(dim('Preparing upgrade...'))
+        const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
+        const aiArgument =
+          typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
+        const args = [
+          ...runnerArgs,
+          'next@canary',
+          'upgrade',
+          baseDir,
+          aiArgument,
+        ]
+
+        if (options.verbose) {
+          args.push('--verbose')
+        }
+
+        process.exitCode = await runChildProcess(command, args, {
+          cwd: baseDir,
+          stdio: 'inherit',
+          env: { ...process.env, __NEXT_UPGRADE_USE_CURRENT_CLI: '1' },
+        })
+        return
+      }
+
+      // A workspace root must not launch an upgrade for an unspecified app.
+      if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
+        throw new Error(
+          'No Next.js app found in this directory. Run the command from an app directory or pass its path.'
+        )
+      }
+
+      // TODO: Once `agenticAutoUpgrade` can be read without validating a
+      // legacy app's config against the current Next.js version, use it for
+      // bare `--ai` before falling back to security.
+      const upgradeType =
+        typeof options.ai === 'string' ? options.ai : 'security'
+
+      if (upgradeType !== 'security') {
+        throw new Error(
+          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security".`
+        )
+      }
+
+      // Resolve the requested target before preparing an agent session.
+      const { prepareUpgrade } =
+        require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
+      const assessmentSpinner = createSpinner('Checking for security updates')
+      const result = await prepareUpgrade(baseDir).finally(() =>
+        assessmentSpinner?.stop()
+      )
+
+      if (result.status !== 'ready') {
+        Log.info(result.reason)
+        return
+      }
+
+      Log.info(
+        `Security update: Next.js ${result.installedVersion} → ${result.targetVersion}`
+      )
+
+      // TODO: Once every eligible security target supports
+      // `experimental.agenticAutoUpgrade`, ask the agent to enable it after
+      // verification so future upgrade reminders can use the same policy.
+
+      // Pass resolved inputs directly; the agent owns repairs and verification.
+      const prompt = `Upgrade ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion}.
+References: ${JSON.stringify(result.references)}
+Preserve existing permissions.`
+
+      Log.bootstrap(prompt)
+    } catch (error) {
+      Log.error(
+        'Could not prepare the security upgrade:',
+        error instanceof Error ? error.message : error
+      )
+      process.exitCode = 1
+    }
+
+    return
+  }
+
   const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
     getNpxCommand(baseDir).split(' ')
 
@@ -22,6 +118,7 @@ export function spawnNextUpgrade(
     'upgrade',
     options.revision,
   ]
+
   if (options.verbose) {
     upgradeProcessCommandArgs.push('--verbose')
   }

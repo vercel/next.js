@@ -8,7 +8,7 @@ const args = process.argv.slice(2)
 const executable = join(tools, 'next/node_modules/next/dist/bin/next')
 
 if (args[0] === 'upgrade') {
-  process.env.__NEXT_UPGRADE_LOCAL = '1'
+  process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
   appendFileSync(
     join(tools, 'invocations.jsonl'),
     JSON.stringify({
