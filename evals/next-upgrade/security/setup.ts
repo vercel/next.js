@@ -19,25 +19,46 @@ export async function setupSecurity(sandbox: Sandbox) {
   const crossMajorTarget = '15.5.24'
   const scenarios: Record<
     string,
-    { target: string; range: string; versions: string[]; duplicate: boolean }
+    {
+      target: string
+      range: string
+      versions: string[]
+      duplicate: boolean
+      installedVersion: string | undefined
+      severity: string | undefined
+    }
   > = {
     'security-cross-major': {
       target: crossMajorTarget,
       range: `>=13.0.0 <${crossMajorTarget}`,
       versions: ['13.5.11', '14.2.35', crossMajorTarget, '16.0.0'],
       duplicate: false,
+      installedVersion: undefined,
+      severity: undefined,
     },
     'security-duplicate': {
       target: sameMajorTarget,
       range: `>=15.0.0 <${sameMajorTarget}`,
       versions: ['15.5.23', sameMajorTarget, '16.0.0'],
       duplicate: true,
+      installedVersion: undefined,
+      severity: undefined,
+    },
+    'security-nudge-original-task': {
+      target: sameMajorTarget,
+      range: `>=15.0.0 <${sameMajorTarget}`,
+      versions: ['15.5.23', sameMajorTarget, '16.0.0'],
+      duplicate: false,
+      installedVersion: '15.5.23',
+      severity: 'high',
     },
     'security-same-major': {
       target: sameMajorTarget,
       range: `>=15.0.0 <${sameMajorTarget}`,
       versions: ['15.5.23', sameMajorTarget, '16.0.0'],
       duplicate: false,
+      installedVersion: undefined,
+      severity: undefined,
     },
   }
   const scenario = scenarios[fixture]
@@ -64,9 +85,20 @@ export async function setupSecurity(sandbox: Sandbox) {
       join(__dirname, 'package-runner.mjs'),
       'utf8'
     ),
+    [`${security}/prepare-candidate.mjs`]: readFileSync(
+      join(__dirname, 'prepare-candidate.mjs'),
+      'utf8'
+    ),
     [config]: `[url "file://${remote}"]\n\tinsteadOf = ${repository}\n`,
     [`${toolsDirectory}/baseline.json`]: JSON.stringify({ head: baseline }),
   })
+
+  if (scenario.installedVersion) {
+    await run('node', [
+      `${security}/prepare-candidate.mjs`,
+      scenario.installedVersion,
+    ])
+  }
 
   await run('git', ['branch', '-M', 'main'])
   await run('git', ['clone', '--bare', '.', remote])
@@ -84,8 +116,11 @@ export async function setupSecurity(sandbox: Sandbox) {
   await sandbox.writeFiles({
     [`${security}/package-runner.json`]: JSON.stringify({
       baseRunner: `${toolsDirectory}/package-runner.mjs`,
+      candidateModules: `${toolsDirectory}/next/node_modules`,
+      candidateNext: `${toolsDirectory}/next/node_modules/next`,
       codemodVersion,
       git,
+      prepareFixture: Boolean(scenario.installedVersion),
       remote,
       repository,
     }),

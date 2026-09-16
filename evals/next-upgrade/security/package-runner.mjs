@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { appendFileSync, readFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -143,4 +150,26 @@ const result = spawnSync(
   }
 )
 if (result.error) throw result.error
+
+if (
+  result.status === 0 &&
+  runner === 'npm' &&
+  args.length === 1 &&
+  args[0] === 'install' &&
+  config.prepareFixture
+) {
+  rmSync('node_modules/next', { force: true, recursive: true })
+  symlinkSync(config.candidateNext, 'node_modules/next', 'dir')
+
+  const candidateNextScope = join(config.candidateModules, '@next')
+  const projectNextScope = join('node_modules', '@next')
+  mkdirSync(projectNextScope, { recursive: true })
+  for (const name of readdirSync(candidateNextScope)) {
+    if (!name.startsWith('swc-')) continue
+    const target = join(projectNextScope, name)
+    rmSync(target, { force: true, recursive: true })
+    symlinkSync(join(candidateNextScope, name), target, 'dir')
+  }
+}
+
 process.exit(result.status ?? 1)
