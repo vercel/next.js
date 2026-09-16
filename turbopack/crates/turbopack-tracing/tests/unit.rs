@@ -173,6 +173,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::pixelmatch("pixelmatch")]
 #[case::pkg_dir_outside_base("pkg-dir-outside-base")]
 #[case::pkg_file_outside_base("pkg-file-outside-base")]
+#[case::pkg_project_root_static("pkg-project-root-static")]
 // #[case::pkginfo("pkginfo")]
 // #[case::pnpm_symlinks("pnpm-symlinks")]
 // #[case::prisma_photon("prisma-photon")]

@@ -1992,18 +1992,20 @@ where
         ResolveErrorMode::Error
     };
 
-    let get_traced_project_dir = async || -> Result<FileSystemPath> {
-        // readFileSync("./foo") should always be relative to the project root, but this is
-        // dangerous inside of node_modules as it can cause a lot of false positives in the
-        // tracing, if some package does `path.join(dynamic)`, it would include
-        // everything from the project root as well.
-        //
-        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
-        // shouldn't assume a `process.cwd()` for all of node_modules), fallback to
-        // the source file directory. This still allows relative file accesses, just
-        // not from the project root.
-        if state.allow_project_root_tracing
-            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
+    let get_traced_project_dir = async |pattern: &mut Pattern| -> Result<FileSystemPath> {
+        // Relative filesystem references are resolved from the project root at runtime. Inside
+        // node_modules, only trace fully static alternatives from there: a dynamic pattern could
+        // otherwise include much or all of the project. Dynamic-only patterns continue to fall
+        // back to the package directory, preserving package-local tracing without exposing the
+        // project root.
+        if let Some(cwd) = compile_time_info.environment().cwd().owned().await?
+            && (state.allow_project_root_tracing
+                || pattern
+                    .filter_static()
+                    .map(|static_pattern| {
+                        *pattern = static_pattern;
+                    })
+                    .is_some())
         {
             Ok(cwd)
         } else {
@@ -2162,7 +2164,7 @@ where
                         }
                     }
 
-                    let pat = js_value_to_pattern(&args[0]);
+                    let mut pat = js_value_to_pattern(&args[0]);
                     if !pat.has_constant_parts() {
                         let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
@@ -2190,7 +2192,7 @@ where
                     ) {
                         origin.into_trait_ref().await?.origin_path().parent()
                     } else {
-                        get_traced_project_dir().await?
+                        get_traced_project_dir(&mut pat).await?
                     };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
@@ -2501,7 +2503,7 @@ where
         WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if !args.is_empty() {
-                let pat = js_value_to_pattern(&args[0]);
+                let mut pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
@@ -2517,7 +2519,7 @@ where
                 }
                 analysis.add_reference(
                     FileSourceReference::new(
-                        get_traced_project_dir().await?,
+                        get_traced_project_dir(&mut pat).await?,
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
@@ -2538,7 +2540,7 @@ where
         WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if !args.is_empty() {
-                let pat = js_value_to_pattern(&args[0]);
+                let mut pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
@@ -2554,7 +2556,7 @@ where
                 }
                 analysis.add_reference(
                     DirAssetReference::new(
-                        get_traced_project_dir().await?,
+                        get_traced_project_dir(&mut pat).await?,
                         Pattern::new(pat),
                         get_issue_source(),
                         rcstr!("fs.readdir"),
@@ -2595,7 +2597,7 @@ where
                 )
                 .await?;
 
-            let pat = js_value_to_pattern(&linked_func_call);
+            let mut pat = js_value_to_pattern(&linked_func_call);
             if !pat.has_constant_parts() {
                 let (args, hints) = explain_args(args);
                 handler.span_warn_with_code(
@@ -2611,7 +2613,7 @@ where
             }
             analysis.add_reference(
                 DirAssetReference::new(
-                    get_traced_project_dir().await?,
+                    get_traced_project_dir(&mut pat).await?,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.resolve"),
@@ -2647,7 +2649,7 @@ where
                     ImportAttributes::empty_ref(),
                 )
                 .await?;
-            let pat = js_value_to_pattern(&linked_func_call);
+            let mut pat = js_value_to_pattern(&linked_func_call);
             if !pat.has_constant_parts() {
                 let (args, hints) = explain_args(args);
                 handler.span_warn_with_code(
@@ -2663,7 +2665,7 @@ where
             }
             analysis.add_reference(
                 DirAssetReference::new(
-                    get_traced_project_dir().await?,
+                    get_traced_project_dir(&mut pat).await?,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.join"),
@@ -2685,7 +2687,7 @@ where
 
             if !args.is_empty() {
                 let mut show_dynamic_warning = false;
-                let pat = js_value_to_pattern(&args[0]);
+                let mut pat = js_value_to_pattern(&args[0]);
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg = JsValue::member(
                         state.arena.get_or_default(),
@@ -2725,7 +2727,7 @@ where
                 if !dynamic || !ignore_dynamic_requests {
                     analysis.add_reference(
                         FileSourceReference::new(
-                            get_traced_project_dir().await?,
+                            get_traced_project_dir(&mut pat).await?,
                             Pattern::new(pat),
                             collect_affecting_sources,
                             IssueSource::from_swc_offsets(
@@ -2945,7 +2947,7 @@ where
                 match s {
                     "views" => {
                         if let Pattern::Constant(p) = &pat {
-                            let abs_pattern = if p.starts_with("/ROOT/") {
+                            let mut abs_pattern = if p.starts_with("/ROOT/") {
                                 pat
                             } else {
                                 let linked_func_call = state
@@ -2967,7 +2969,7 @@ where
                             };
                             analysis.add_reference(
                                 DirAssetReference::new(
-                                    get_traced_project_dir().await?,
+                                    get_traced_project_dir(&mut abs_pattern).await?,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
                                     rcstr!("express().set"),
@@ -3018,7 +3020,7 @@ where
         {
             let args = linked_args().await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
-                let abs_pattern = if p.starts_with("/ROOT/") {
+                let mut abs_pattern = if p.starts_with("/ROOT/") {
                     Pattern::Constant(format!("{p}/intl").into())
                 } else {
                     let linked_func_call = state
@@ -3039,7 +3041,7 @@ where
                 };
                 analysis.add_reference(
                     DirAssetReference::new(
-                        get_traced_project_dir().await?,
+                        get_traced_project_dir(&mut abs_pattern).await?,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
                         rcstr!("strong-globalize.SetRootDir"),
@@ -3095,7 +3097,10 @@ where
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                let context_dir = get_traced_project_dir().await?;
+                // Every `includeDirs` entry below is a constant, so the traced directory is the
+                // same for all of them and can be computed once from a static pattern.
+                let mut static_pattern = Pattern::Constant(rcstr!(""));
+                let context_dir = get_traced_project_dir(&mut static_pattern).await?;
                 let resolved_dirs = parts
                     .iter()
                     .filter_map(|object_part| match object_part {
