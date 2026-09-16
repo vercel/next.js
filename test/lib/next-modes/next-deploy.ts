@@ -20,9 +20,11 @@ export class NextDeployInstance extends NextInstance {
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
+  private readonly expectDeploymentFailure: boolean
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
+    this.expectDeploymentFailure = opts.expectDeploymentFailure ?? false
 
     if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
       this.env = {
@@ -85,7 +87,11 @@ export class NextDeployInstance extends NextInstance {
       stderr: 'inherit',
     })
 
-    if (deployRes.exitCode !== 0) {
+    if (this.expectDeploymentFailure && deployRes.exitCode === 0) {
+      throw new Error('Expected deployment to fail, but it succeeded')
+    }
+
+    if (deployRes.exitCode !== 0 && !this.expectDeploymentFailure) {
       throw new Error(
         `Custom deploy script failed: ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
       )
@@ -109,6 +115,60 @@ export class NextDeployInstance extends NextInstance {
     }
 
     return { url }
+  }
+
+  private async captureFailedDeployment(
+    result: { exitCode: number; stdout: string },
+    env: NodeJS.ProcessEnv,
+    flags: string[]
+  ): Promise<void> {
+    if (result.exitCode === 0) {
+      throw new Error('Expected deployment to fail, but it succeeded')
+    }
+
+    // An upload/authentication failure is not an expected build failure.
+    let url: URL
+    try {
+      url = new URL(result.stdout.trim())
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        throw new Error('Expected an HTTP(S) deployment URL')
+      }
+    } catch (cause) {
+      throw new Error('Failed deployment did not return a valid URL', { cause })
+    }
+
+    const inspection = await execa(
+      'vercel',
+      ['inspect', url.href, '--format=json', ...flags],
+      { env, reject: false }
+    )
+    let readyState: string
+    try {
+      readyState = JSON.parse(inspection.stdout).readyState
+    } catch (cause) {
+      throw new Error(
+        `Failed to inspect expected failed deployment: ${inspection.stderr}`,
+        { cause }
+      )
+    }
+    if (readyState !== 'ERROR') {
+      throw new Error(`Expected deployment state ERROR, received ${readyState}`)
+    }
+
+    const logs = await execa(
+      'vercel',
+      ['inspect', '--logs', url.href, ...flags],
+      { env, reject: false }
+    )
+    // `vercel inspect` itself exits 1 for an ERROR deployment, including
+    // when its build logs were retrieved successfully.
+    if (logs.exitCode !== 0 && logs.exitCode !== 1) {
+      throw new Error(`Failed to get build output logs: ${logs.stderr}`)
+    }
+    this._url = url.href
+    this._parsedUrl = url
+    this._cliOutput = logs.stdout + logs.stderr
+    // Failed builds do not produce the post-build ID markers or a server.
   }
 
   private async fetchBuildLogsUsingCustomScript(): Promise<string> {
@@ -266,6 +326,11 @@ export class NextDeployInstance extends NextInstance {
 
     // Check if using an existing deployment URL (takes priority)
     if (existingDeployUrl) {
+      if (this.expectDeploymentFailure) {
+        throw new Error(
+          'expectDeploymentFailure requires a new deployment, not NEXT_TEST_DEPLOY_URL'
+        )
+      }
       try {
         this._url = new URL(existingDeployUrl).toString()
       } catch (err) {
@@ -320,13 +385,17 @@ export class NextDeployInstance extends NextInstance {
       this._parsedUrl = new URL(this._url)
 
       // Configure proxy address if needed
-      await this.configureProxyAddress()
+      if (!this.expectDeploymentFailure) {
+        await this.configureProxyAddress()
+      }
 
       require('console').log(`Deployment URL: ${this._url}`)
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-      this.parseIdsFromCliOutput()
+      if (!this.expectDeploymentFailure) {
+        this.parseIdsFromCliOutput()
+      }
       return
     }
 
@@ -507,6 +576,11 @@ export class NextDeployInstance extends NextInstance {
         stderr: 'inherit',
       }
     )
+
+    if (this.expectDeploymentFailure) {
+      await this.captureFailedDeployment(deployRes, vercelEnv, vercelFlags)
+      return
+    }
 
     if (deployRes.exitCode !== 0) {
       throw new Error(

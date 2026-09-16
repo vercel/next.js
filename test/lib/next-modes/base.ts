@@ -66,6 +66,11 @@ export interface NextInstanceOpts {
   startServerTimeout?: number
   disableAutoSkewProtection?: boolean
   /**
+   * In deploy mode, require deployment to fail and expose its build logs through
+   * cliOutput so the test can assert the diagnostic. Ignored in local modes.
+   */
+  expectDeploymentFailure?: boolean
+  /**
    * Delete the `pnpm-workspace.yaml` that `createNextInstall` writes for
    * supply-chain gating of installs. For tests that assert on Next.js
    * workspace-root detection, which the file affects.
