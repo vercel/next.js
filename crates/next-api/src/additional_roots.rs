@@ -189,12 +189,7 @@ pub(crate) async fn create_additional_root_file_systems(
         }
         configured_names.insert(folded_name, additional_root.key.clone());
 
-        let configured_path = additional_root.path.clone();
-        let canonical = match tokio::task::spawn_blocking(move || {
-            canonicalize_to_rcstr(Path::new(&*configured_path))
-        })
-        .await?
-        {
+        let canonical = match canonicalize_to_rcstr(Path::new(&*additional_root.path)) {
             Ok(canonical) => canonical,
             Err(_) if additional_root.ignore_if_missing => continue,
             Err(error) => {
