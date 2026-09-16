@@ -1,6 +1,10 @@
 import { promisify } from 'node:util'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { bindSnapshot } from '../app-render/async-local-storage'
+import {
+  getCacheSignal,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 type Execution = {
   state: ExecutionState
@@ -519,29 +523,11 @@ function patchedNextTick<TArgs extends any[]>(
   ...args: TArgs
 ): void
 function patchedNextTick() {
-  if (currentExecution === null) {
-    return originalNextTick.apply(
-      null,
-      // @ts-expect-error: this is valid, but typescript doesn't get it
-      arguments
-    )
-  }
-
   if (arguments.length === 0 || typeof arguments[0] !== 'function') {
-    // Let the original nextTick error for invalid arguments
-    // so that we don't have to mirror the error message.
-    originalNextTick.apply(
+    return originalNextTick.apply(
       null,
       // @ts-expect-error: explicitly passing arguments that we know are invalid
       arguments
-    )
-
-    // We expect the above call to throw. If it didn't, something's broken.
-    bail(
-      currentExecution,
-      new InvariantError(
-        'Expected process.nextTick to reject invalid arguments'
-      )
     )
   }
 
@@ -553,6 +539,8 @@ function patchedNextTick() {
   const args: any[] | null =
     arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null
 
+  // Capture can start after this tick is queued. Track it before that happens
+  // so its errors cannot interrupt processing of the fast-immediate queue.
   pendingNextTicks += 1
   return originalNextTick(safelyRunNextTickCallback, callback, args)
 }
@@ -561,14 +549,13 @@ function safelyRunNextTickCallback(
   callback: (...args: any[]) => any,
   args: any[] | null
 ) {
+  // Keep the entry state because bail() clears capture before throwing.
+  const wasCapturing = currentExecution !== null
   pendingNextTicks -= 1
   debug?.(
     `scheduler :: process.nextTick executing (still pending: ${pendingNextTicks})`
   )
 
-  // Synchronous errors in nextTick break out of `processTicksAndRejections` and cause us
-  // to move on to the next timer without having executed the whole nextTick queue,
-  // which breaks our entire scheduling mechanism. See `performWork` for more details.
   try {
     if (args !== null) {
       callback.apply(null, args)
@@ -576,16 +563,45 @@ function safelyRunNextTickCallback(
       callback()
     }
   } catch (err) {
-    // We want to make sure `nextTick` is cheap, so unlike `performWork`,
-    // we only queue the microtask if an error actually occurs.
-    // This (observably) changes the timing of `uncaughtException` even more,
-    // because it'll run after microtasks queued from the nextTick,
-    // but hopefully this is niche enough to not affect any real world code.
-    queueMicrotask(() => {
-      debug?.(`scheduler :: rethrowing sync error from nextTick in a microtask`)
+    if (wasCapturing || currentExecution !== null) {
+      // Rethrowing in a microtask keeps the exception from interrupting Node's
+      // tick-processing loop. We queue it only after an error, unlike
+      // performWork, to avoid an extra microtask for every successful tick.
+      // This means uncaughtException is reported after microtasks already
+      // queued by the callback.
+      queueMicrotask(() => {
+        debug?.(
+          `scheduler :: rethrowing sync error from nextTick in a microtask`
+        )
+        throw err
+      })
+    } else {
+      // Preserve native error timing outside fast-immediate capture.
       throw err
-    })
+    }
   }
+}
+
+/**
+ * This helper reuses the active `Execution` or starts one while a render waits
+ * for cache readiness. It returns null when native scheduling should continue.
+ *
+ * After a cache read resolves, React can render outlined elements in later
+ * `setImmediate` callbacks. Rendering those elements can start additional cache
+ * reads. These callbacks run as fast immediates before `cacheReady()` accepts a
+ * zero read count.
+ */
+function getOrCreateExecution(): Execution | null {
+  if (currentExecution === null) {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (
+      workUnitStore?.phase === 'render' &&
+      getCacheSignal(workUnitStore)?.hasPendingCacheReadyListeners()
+    ) {
+      DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+    }
+  }
+  return currentExecution
 }
 
 function patchedSetImmediate<TArgs extends any[]>(
@@ -594,7 +610,8 @@ function patchedSetImmediate<TArgs extends any[]>(
 ): NodeJS.Immediate
 function patchedSetImmediate(callback: (args: void) => void): NodeJS.Immediate
 function patchedSetImmediate(): NodeJS.Immediate {
-  if (currentExecution === null) {
+  const execution = getOrCreateExecution()
+  if (execution === null) {
     return originalSetImmediate.apply(
       null,
       // @ts-expect-error: this is valid, but typescript doesn't get it
@@ -613,7 +630,7 @@ function patchedSetImmediate(): NodeJS.Immediate {
 
     // We expect the above call to throw. If it didn't, something's broken.
     bail(
-      currentExecution,
+      execution,
       new InvariantError('Expected setImmediate to reject invalid arguments')
     )
   }
@@ -634,7 +651,7 @@ function patchedSetImmediate(): NodeJS.Immediate {
     args,
     immediateObject,
   }
-  currentExecution.queuedImmediates.push(queueItem)
+  execution.queuedImmediates.push(queueItem)
 
   immediateObject[INTERNALS].queueItem = queueItem
 
@@ -645,7 +662,7 @@ function patchedSetImmediatePromise<T = void>(
   value: T,
   options?: import('node:timers').TimerOptions
 ): Promise<T> {
-  if (currentExecution === null) {
+  if (getOrCreateExecution() === null) {
     return originalSetImmediatePromisify(value, options)
   }
 

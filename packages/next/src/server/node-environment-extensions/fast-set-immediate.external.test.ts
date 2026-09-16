@@ -541,6 +541,82 @@ describe('patched function behavior', () => {
 })
 
 describe('async context propagation', () => {
+  it('shares capture across promise continuations without leaking it to the next task', async () => {
+    const { log, logs } = createLogger()
+    const context = new AsyncLocalStorage<string>()
+    const shared = createPromiseWithResolvers<void>()
+    const done = createPromiseWithResolvers<void>()
+    const scheduleTimeout = createAtomicTimerGroup()
+
+    for (const name of ['A', 'B']) {
+      context
+        .run(name, async () => {
+          await shared.promise
+          log(`${name} resumed :: ${context.getStore()}`)
+          if (name === 'A') {
+            DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+          }
+          setImmediate(() => {
+            log(`${name} immediate :: ${context.getStore()}`)
+            if (name === 'A') {
+              setImmediate(() =>
+                log(`A nested immediate :: ${context.getStore()}`)
+              )
+            }
+          })
+        })
+        .catch(done.reject)
+    }
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log('first timer')
+        shared.resolve()
+      } catch (error) {
+        done.reject(error)
+      }
+    })
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log(`next timer :: ${context.getStore()}`)
+        context.run('B', () => {
+          setImmediate(() => {
+            log(`B native immediate :: ${context.getStore()}`)
+            done.resolve()
+          })
+        })
+      } catch (error) {
+        done.reject(error)
+      }
+    })
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log('last timer')
+      } catch (error) {
+        done.reject(error)
+      }
+    })
+
+    await done.promise
+
+    expect(logs).toEqual([
+      'first timer',
+      'A resumed :: A',
+      'B resumed :: B',
+      'A immediate :: A',
+      'B immediate :: B',
+      'A nested immediate :: A',
+      'next timer :: undefined',
+      'last timer',
+      'B native immediate :: B',
+    ])
+  })
+
   it('propagates AsyncLocalStorage to setImmediate', async () => {
     const { log, logs } = createLogger()
     const done = createPromiseWithResolvers<void>()
@@ -915,6 +991,132 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       },
     }
   }
+
+  it('preserves native nextTick error timing without capture', async () => {
+    const { log, logs } = createLogger()
+    const done = createPromiseWithResolvers<void>()
+    const scheduleTimeout = createAtomicTimerGroup()
+    const error = new Error('native nextTick error')
+    const triggeredErrors: TriggeredUncaught[] = []
+
+    using _ = trackUncaughtErrors((receivedError, kind) => {
+      log(kind)
+      triggeredErrors.push({ error: receivedError, kind })
+    })
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log('first timer')
+        process.nextTick(() => {
+          log('nextTick')
+          throw error
+        })
+        process.nextTick(() => log('remaining nextTick'))
+        setImmediate(() => {
+          log('native immediate')
+          done.resolve()
+        })
+      } catch (caughtError) {
+        done.reject(caughtError)
+      }
+    })
+
+    scheduleTimeout(() => {
+      try {
+        log('next timer')
+        expectNoPendingImmediates()
+      } catch (caughtError) {
+        done.reject(caughtError)
+      }
+    })
+
+    await done.promise
+
+    expectNoPendingImmediates()
+    expect(triggeredErrors[0]?.error).toBe(error)
+    expect(triggeredErrors).toEqual([{ error, kind: 'uncaughtException' }])
+    expect(logs).toEqual([
+      'first timer',
+      'nextTick',
+      'uncaughtException',
+      'next timer',
+      'remaining nextTick',
+      'native immediate',
+    ])
+  })
+
+  it.each(['before execution', 'inside the callback'])(
+    'drains immediates when capture starts %s of a previously queued nextTick that throws',
+    async (captureStart) => {
+      const { log, logs } = createLogger()
+      const done = createPromiseWithResolvers<void>()
+      const scheduleTimeout = createAtomicTimerGroup()
+      const error = new Error('native nextTick error')
+      const triggeredErrors: TriggeredUncaught[] = []
+
+      using _ = trackUncaughtErrors((receivedError, kind) => {
+        log(kind)
+        triggeredErrors.push({ error: receivedError, kind })
+      })
+
+      const startCapture = () => {
+        DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+        setImmediate(() => {
+          log('immediate 1')
+          setImmediate(() => log('immediate 2'))
+        })
+      }
+
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
+          log('first timer')
+          process.nextTick(() => {
+            try {
+              log('nextTick')
+              if (captureStart === 'inside the callback') {
+                startCapture()
+              }
+            } catch (caughtError) {
+              done.reject(caughtError)
+              return
+            }
+            throw error
+          })
+          if (captureStart === 'before execution') {
+            startCapture()
+          }
+        } catch (caughtError) {
+          done.reject(caughtError)
+        }
+      })
+
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
+          log('next timer')
+          unpatchedSetImmediate(() => done.resolve())
+        } catch (caughtError) {
+          done.reject(caughtError)
+        }
+      })
+
+      await done.promise
+
+      expectNoPendingImmediates()
+      expect(triggeredErrors[0]?.error).toBe(error)
+      expect(triggeredErrors).toEqual([{ error, kind: 'uncaughtException' }])
+      expect(logs).toEqual([
+        'first timer',
+        'nextTick',
+        'uncaughtException',
+        'immediate 1',
+        'immediate 2',
+        'next timer',
+      ])
+    }
+  )
 
   it('sync errors trigger uncaughtException', async () => {
     const { log, logs } = createLogger()
