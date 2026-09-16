@@ -52,6 +52,7 @@ use crate::{
     resolve::BindingUsage,
 };
 
+pub mod async_dependencies;
 pub mod async_module_info;
 pub mod binding_usage_info;
 pub mod chunk_group_info;
@@ -2040,7 +2041,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
 
 #[cfg(test)]
 pub mod tests {
-    use anyhow::Result;
+    use anyhow::{Context, Result};
     use rustc_hash::FxHashMap;
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
@@ -3016,6 +3017,432 @@ pub mod tests {
 
         fn chunking_type(&self) -> Option<ChunkingType> {
             Some(self.chunking_type.clone())
+        }
+    }
+
+    #[turbo_tasks::value]
+    struct GroupLayout {
+        count: usize,
+        #[turbo_tasks(trace_ignore)]
+        of: FxHashMap<String, usize>,
+    }
+
+    /// Builds a module graph from an adjacency list and returns the dependencies of one async
+    /// target as a sorted list of module names.
+    ///
+    /// `deps` is `module -> [dependency]`; `async_edges` marks `(from, to)` pairs as
+    /// [`ChunkingType::Async`]. Everything is addressed by name so that a test reads as the graph
+    /// it describes rather than as turbo-tasks setup.
+    async fn async_dependencies_of(
+        entry: &str,
+        deps: Vec<(&'static str, Vec<&'static str>)>,
+        async_edges: Vec<(&'static str, &'static str)>,
+        target: &'static str,
+    ) -> Vec<String> {
+        use crate::module_graph::async_dependencies::compute_async_dependencies;
+
+        let entry: RcStr = entry.into();
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn run(
+                entry: RcStr,
+                deps: Vec<(RcStr, Vec<RcStr>)>,
+                async_edges: Vec<(RcStr, RcStr)>,
+                target: RcStr,
+            ) -> Result<Vc<Vec<RcStr>>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+                let repo = TestRepo::new_with_chunking_types(
+                    &root,
+                    deps.iter().map(|(m, d)| (m.clone(), d.clone())),
+                    async_edges
+                        .iter()
+                        .map(|(a, b)| (a.clone(), b.clone(), ChunkingType::Async)),
+                );
+                let make = async |name: &str| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                        .await
+                };
+
+                let graph = ModuleGraph::from_graphs(
+                    vec![SingleModuleGraph::new_with_entries(
+                        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                            modules: vec![make(&entry).await?],
+                            heuristics: EntryHeuristics::default(),
+                        }])
+                        .resolved_cell(),
+                        false,
+                        false,
+                    )],
+                    None,
+                )
+                .connect()
+                .to_resolved()
+                .await?;
+
+                // Ask about every module mentioned anywhere, so the result is exactly the
+                // dependency set.
+                let mut names: Vec<RcStr> = deps
+                    .iter()
+                    .flat_map(|(m, d)| std::iter::once(m.clone()).chain(d.iter().cloned()))
+                    .collect();
+                names.sort();
+                names.dedup();
+                let mut candidates = Vec::new();
+                for name in &names {
+                    candidates.push((make(name).await?, name.clone()));
+                }
+
+                let deps = compute_async_dependencies(*graph).await?;
+                let mut reached = deps
+                    .intersect(make(&target).await?, candidates)
+                    .with_context(|| format!("{target} is not an async target"))?;
+                reached.sort();
+                Ok(Vc::cell(reached))
+            }
+
+            let reached = run(
+                entry,
+                deps.into_iter()
+                    .map(|(m, d)| (m.into(), d.into_iter().map(Into::into).collect()))
+                    .collect(),
+                async_edges
+                    .into_iter()
+                    .map(|(a, b)| (a.into(), b.into()))
+                    .collect(),
+                target.into(),
+            )
+            .read_strongly_consistent()
+            .await?;
+            Ok(reached.iter().map(|s| s.to_string()).collect())
+        })
+        .await
+        .unwrap()
+    }
+
+    /// Like [`async_dependencies_of`], but reports the interned-group structure: the number of
+    /// groups, and for each named module the index of the group holding it.
+    ///
+    /// Behavioural tests cannot observe sharing — two modules in one group and two modules in
+    /// separate groups answer every membership query identically — so the sharing invariant
+    /// needs its own assertions.
+    async fn async_dependency_groups(
+        entry: &str,
+        deps: Vec<(&'static str, Vec<&'static str>)>,
+        async_edges: Vec<(&'static str, &'static str)>,
+    ) -> (usize, FxHashMap<String, usize>) {
+        use crate::module_graph::async_dependencies::compute_async_dependencies;
+
+        let entry: RcStr = entry.into();
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn run(
+                entry: RcStr,
+                deps: Vec<(RcStr, Vec<RcStr>)>,
+                async_edges: Vec<(RcStr, RcStr)>,
+            ) -> Result<Vc<GroupLayout>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+                let repo = TestRepo::new_with_chunking_types(
+                    &root,
+                    deps.iter().map(|(m, d)| (m.clone(), d.clone())),
+                    async_edges
+                        .iter()
+                        .map(|(a, b)| (a.clone(), b.clone(), ChunkingType::Async)),
+                );
+                let make = async |name: &str| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                        .await
+                };
+                let graph = ModuleGraph::from_graphs(
+                    vec![SingleModuleGraph::new_with_entries(
+                        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                            modules: vec![make(&entry).await?],
+                            heuristics: EntryHeuristics::default(),
+                        }])
+                        .resolved_cell(),
+                        false,
+                        false,
+                    )],
+                    None,
+                )
+                .connect()
+                .to_resolved()
+                .await?;
+
+                let async_deps = compute_async_dependencies(*graph).await?;
+                let mut names: Vec<RcStr> = deps
+                    .iter()
+                    .flat_map(|(m, d)| std::iter::once(m.clone()).chain(d.iter().cloned()))
+                    .collect();
+                names.sort();
+                names.dedup();
+                let mut of = FxHashMap::default();
+                for name in &names {
+                    if let Some(idx) = async_deps.group_of(make(name).await?) {
+                        of.insert(name.to_string(), idx);
+                    }
+                }
+                Ok(GroupLayout {
+                    count: async_deps.group_count(),
+                    of,
+                }
+                .cell())
+            }
+
+            let layout = run(
+                entry,
+                deps.into_iter()
+                    .map(|(m, d)| (m.into(), d.into_iter().map(Into::into).collect()))
+                    .collect(),
+                async_edges
+                    .into_iter()
+                    .map(|(a, b)| (a.into(), b.into()))
+                    .collect(),
+            )
+            .read_strongly_consistent()
+            .await?;
+            Ok((layout.count, layout.of.clone()))
+        })
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_basic() {
+        // entry -async-> lazy -> {shared, deep}; `shared` is also reachable from the entry.
+        let reached = async_dependencies_of(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["shared.js", "lazy.js"]),
+                ("lazy.js", vec!["shared.js", "deep.js"]),
+            ],
+            vec![("entry.js", "lazy.js")],
+            "lazy.js",
+        )
+        .await;
+        // The target itself and everything below it, but never back up into the parent.
+        assert_eq!(reached, vec!["deep.js", "lazy.js", "shared.js"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_stop_at_nested_async() {
+        // A nested async import starts its own chunk group, so it is not part of the outer
+        // target's closure — but the nested target itself still is, as the edge's source.
+        let reached = async_dependencies_of(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["outer.js"]),
+                ("outer.js", vec!["a.js", "inner.js"]),
+                ("inner.js", vec!["b.js"]),
+            ],
+            vec![("entry.js", "outer.js"), ("outer.js", "inner.js")],
+            "outer.js",
+        )
+        .await;
+        assert_eq!(
+            reached,
+            vec!["a.js", "outer.js"],
+            "b.js is behind a nested async edge"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_nested_target_has_own_set() {
+        let reached = async_dependencies_of(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["outer.js"]),
+                ("outer.js", vec!["a.js", "inner.js"]),
+                ("inner.js", vec!["b.js"]),
+            ],
+            vec![("entry.js", "outer.js"), ("outer.js", "inner.js")],
+            "inner.js",
+        )
+        .await;
+        assert_eq!(reached, vec!["b.js", "inner.js"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_cycle() {
+        // Every member of a cycle reaches every other, so all of them are in the closure.
+        let reached = async_dependencies_of(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["lazy.js"]),
+                ("lazy.js", vec!["a.js"]),
+                ("a.js", vec!["b.js"]),
+                ("b.js", vec!["a.js", "tail.js"]),
+            ],
+            vec![("entry.js", "lazy.js")],
+            "lazy.js",
+        )
+        .await;
+        assert_eq!(reached, vec!["a.js", "b.js", "lazy.js", "tail.js"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_cycle_containing_the_target() {
+        // The target is itself part of a cycle.
+        let reached = async_dependencies_of(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["lazy.js"]),
+                ("lazy.js", vec!["a.js"]),
+                ("a.js", vec!["lazy.js", "tail.js"]),
+            ],
+            vec![("entry.js", "lazy.js")],
+            "lazy.js",
+        )
+        .await;
+        assert_eq!(reached, vec!["a.js", "lazy.js", "tail.js"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_diamond() {
+        // Both branches reach `shared`, which must appear once and be reachable.
+        let reached = async_dependencies_of(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["lazy.js"]),
+                ("lazy.js", vec!["left.js", "right.js"]),
+                ("left.js", vec!["shared.js"]),
+                ("right.js", vec!["shared.js"]),
+                ("shared.js", vec!["leaf.js"]),
+            ],
+            vec![("entry.js", "lazy.js")],
+            "lazy.js",
+        )
+        .await;
+        assert_eq!(
+            reached,
+            vec!["lazy.js", "leaf.js", "left.js", "right.js", "shared.js"]
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_two_targets_share_a_library() {
+        // The point of the DAG: `lib` and its subtree belong to both closures.
+        let deps = vec![
+            ("entry.js", vec!["one.js", "two.js"]),
+            ("one.js", vec!["lib.js"]),
+            ("two.js", vec!["lib.js"]),
+            ("lib.js", vec!["dep.js"]),
+        ];
+        let async_edges = vec![("entry.js", "one.js"), ("entry.js", "two.js")];
+        let one =
+            async_dependencies_of("entry.js", deps.clone(), async_edges.clone(), "one.js").await;
+        let two = async_dependencies_of("entry.js", deps, async_edges, "two.js").await;
+        assert_eq!(one, vec!["dep.js", "lib.js", "one.js"]);
+        assert_eq!(two, vec!["dep.js", "lib.js", "two.js"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_cycle_entered_from_two_targets() {
+        // `a` and `b` form a cycle, entered by `t1` through `a` and by `t2` through `b`. Both
+        // members are reachable from both targets, so both targets must see both.
+        //
+        // This is the case that forces a fixed point rather than a single BFS pass: `a` is
+        // visited from `t1` before `t2`'s bit reaches `b`, so `a` has to be revisited once `b`
+        // grows, via the back edge.
+        let deps = vec![
+            ("entry.js", vec!["t1.js", "t2.js"]),
+            ("t1.js", vec!["a.js"]),
+            ("t2.js", vec!["b.js"]),
+            ("a.js", vec!["b.js"]),
+            ("b.js", vec!["a.js"]),
+        ];
+        let async_edges = vec![("entry.js", "t1.js"), ("entry.js", "t2.js")];
+        let from_t1 =
+            async_dependencies_of("entry.js", deps.clone(), async_edges.clone(), "t1.js").await;
+        let from_t2 = async_dependencies_of("entry.js", deps, async_edges, "t2.js").await;
+        assert_eq!(from_t1, vec!["a.js", "b.js", "t1.js"]);
+        assert_eq!(from_t2, vec!["a.js", "b.js", "t2.js"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependency_groups_shared_library() {
+        // `lib` and `dep` are reached by both targets, so they share one group; `one` and `two`
+        // are each reached only by themselves, so they get one group each.
+        let (count, of) = async_dependency_groups(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["one.js", "two.js"]),
+                ("one.js", vec!["lib.js"]),
+                ("two.js", vec!["lib.js"]),
+                ("lib.js", vec!["dep.js"]),
+            ],
+            vec![("entry.js", "one.js"), ("entry.js", "two.js")],
+        )
+        .await;
+        assert_eq!(
+            of["lib.js"], of["dep.js"],
+            "same reaching set => same group"
+        );
+        assert_ne!(of["one.js"], of["two.js"], "different reaching sets");
+        assert_ne!(
+            of["one.js"], of["lib.js"],
+            "target is reached by fewer targets than lib"
+        );
+        assert_eq!(count, 3, "one, two, and the shared lib+dep group");
+        assert!(
+            !of.contains_key("entry.js"),
+            "no async target reaches the entry"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependency_groups_cycle_is_one_group() {
+        // Cycle members all reach each other, so they necessarily share a reaching set. This
+        // falls out of the interning rather than needing cycle-specific handling.
+        let (_, of) = async_dependency_groups(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["lazy.js"]),
+                ("lazy.js", vec!["a.js"]),
+                ("a.js", vec!["b.js"]),
+                ("b.js", vec!["a.js"]),
+            ],
+            vec![("entry.js", "lazy.js")],
+        )
+        .await;
+        assert_eq!(of["a.js"], of["b.js"], "cycle members share a group");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependency_groups_scale_with_sharing() {
+        // Three targets over one shared library: the library's modules collapse into a single
+        // group instead of being stored once per target.
+        let (count, of) = async_dependency_groups(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["t1.js", "t2.js", "t3.js"]),
+                ("t1.js", vec!["lib.js"]),
+                ("t2.js", vec!["lib.js"]),
+                ("t3.js", vec!["lib.js"]),
+                ("lib.js", vec!["l1.js", "l2.js", "l3.js"]),
+            ],
+            vec![
+                ("entry.js", "t1.js"),
+                ("entry.js", "t2.js"),
+                ("entry.js", "t3.js"),
+            ],
+        )
+        .await;
+        // 3 target groups + 1 group holding all 4 library modules.
+        assert_eq!(count, 4);
+        for m in ["l1.js", "l2.js", "l3.js"] {
+            assert_eq!(of[m], of["lib.js"], "{m} shares the library group");
         }
     }
 
