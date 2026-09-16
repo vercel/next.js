@@ -19,17 +19,17 @@ function parseUrlForPages(
   const res = []
   const extPattern = new RegExp(
     `\\.(${pageExtensions
-      .map((ext) => ext.replace(/\\./g, '\\.'))
+      .map((ext) => ext.replace(/\./g, '\\.'))
+      .join('|')})$`
+  )
+  const indexRegex = new RegExp(
+    `^index\\.(${pageExtensions
+      .map((ext) => ext.replace(/\./g, '\\.'))
       .join('|')})$`
   )
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extPattern.test(dirent.name)) {
-      const indexRegex = new RegExp(
-        `^index\\.(${pageExtensions
-          .map((ext) => ext.replace(/\\./g, '\\.'))
-          .join('|')})$`
-      )
       if (indexRegex.test(dirent.name)) {
         res.push(`${urlprefix}${dirent.name.replace(indexRegex, '')}`)
       }
@@ -62,40 +62,25 @@ function parseUrlForAppDir(
     withFileTypes: true,
   })
   const res = []
-  const extPattern = new RegExp(
-    `\\.(${pageExtensions
-      .map((ext) => ext.replace(/\\./g, '\\.'))
+  
+  const pageRouteRegex = new RegExp(
+    `^(?:page|route)\\.(${pageExtensions
+      .map((ext) => ext.replace(/\./g, '\\.'))
       .join('|')})$`
   )
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    if (extPattern.test(dirent.name)) {
-      const pageRegex = new RegExp(
-        `^page\\.(${pageExtensions
-          .map((ext) => ext.replace(/\\./g, '\\.'))
-          .join('|')})$`
-      )
-      const layoutRegex = new RegExp(
-        `^layout\\.(${pageExtensions
-          .map((ext) => ext.replace(/\\./g, '\\.'))
-          .join('|')})$`
-      )
-      if (pageRegex.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(pageRegex, '')}`)
-      } else if (!layoutRegex.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(extPattern, '')}`)
-      }
-    } else {
+    if (pageRouteRegex.test(dirent.name)) {
+      res.push(`${urlprefix}${dirent.name.replace(pageRouteRegex, '')}`)
+    } else if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(
-          ...parseUrlForAppDir(
-            urlprefix + dirent.name + '/',
-            dirPath,
-            pageExtensions
-          )
+      res.push(
+        ...parseUrlForAppDir(
+          urlprefix + dirent.name + '/',
+          dirPath,
+          pageExtensions
         )
-      }
+      )
     }
   })
   return res
