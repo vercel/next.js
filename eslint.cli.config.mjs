@@ -21,7 +21,7 @@ export default defineConfig([
       'evals/evals/**/*',
       'evals/next-upgrade/evals/**/*',
       'evals/next-upgrade/results/**/*',
-      'evals/next-upgrade/security/EVAL.ts',
+      'evals/next-upgrade/shared/**/*',
       'examples/**/*',
       'test/**/*',
       '**/*.d.ts',

@@ -1,9 +1,15 @@
 #!/usr/bin/env node
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const tools = dirname(dirname(fileURLToPath(import.meta.url)))
+const { duplicate, target } = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), 'assessment.json'),
+    'utf8'
+  )
+)
 const args = process.argv.slice(2)
 appendFileSync(join(tools, 'provider.jsonl'), JSON.stringify({ args }) + '\n')
 
@@ -17,6 +23,25 @@ const repo = {
   default_branch: 'main',
   owner: { login: 'next-upgrade-eval' },
 }
+const pullRequest = {
+  number: 42,
+  title: `Upgrade Next.js to ${target}`,
+  body: '<!-- next-upgrade: security; path="." -->',
+  url: 'https://github.com/next-upgrade-eval/fixture/pull/42',
+  html_url: 'https://github.com/next-upgrade-eval/fixture/pull/42',
+  state: 'OPEN',
+  headRefName: 'security-upgrade',
+  baseRefName: 'main',
+  head: { ref: 'security-upgrade' },
+  base: { ref: 'main' },
+}
+const pullRequestFiles = [
+  {
+    filename: 'package.json',
+    status: 'modified',
+    patch: `@@ -9,1 +9,1 @@\n-    "next": "15.5.23"\n+    "next": "${target}"`,
+  },
+]
 let result
 
 if (args[0] === 'auth' && args[1] === 'status') {
@@ -28,14 +53,25 @@ if (args[0] === 'auth' && args[1] === 'status') {
   (args[0] === 'pr' && args[1] === 'list') ||
   (args[0] === 'search' && args[1] === 'prs')
 ) {
-  result = []
+  result = duplicate ? [pullRequest] : []
+} else if (args[0] === 'pr' && args[1] === 'view' && duplicate) {
+  result = pullRequest
+} else if (args[0] === 'pr' && args[1] === 'diff' && duplicate) {
+  process.stdout.write(`${pullRequestFiles[0].patch}\n`)
+  process.exit(0)
 } else if (args[0] === 'api') {
   const endpoint = args
     .find((arg) => /^(\/)?repos\//.test(arg))
     ?.replace(/^\//, '')
   if (endpoint === 'repos/next-upgrade-eval/fixture') result = repo
+  else if (
+    endpoint?.startsWith('repos/next-upgrade-eval/fixture/pulls/42/files')
+  )
+    result = duplicate ? pullRequestFiles : []
+  else if (endpoint?.startsWith('repos/next-upgrade-eval/fixture/pulls/42'))
+    result = duplicate ? pullRequest : undefined
   else if (endpoint?.startsWith('repos/next-upgrade-eval/fixture/pulls'))
-    result = []
+    result = duplicate ? [pullRequest] : []
   else if (args.includes('user') || args.includes('/user'))
     result = { login: 'upgrade-eval' }
 }

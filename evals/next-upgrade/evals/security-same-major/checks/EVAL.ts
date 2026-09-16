@@ -1,1 +1,1 @@
-../../../security/EVAL.ts
+../../../shared/security-checks.ts
