@@ -414,6 +414,9 @@ async fn chunk_group_content_operation(
                         // TODO currently not implemented
                         GraphTraversalAction::Exclude
                     }
+                    ChunkingType::Worker { .. } => {
+                        GraphTraversalAction::Exclude
+                    }
                 })
             },
             |_, node, state| {

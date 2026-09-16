@@ -7,6 +7,7 @@ pub mod chunking;
 pub(crate) mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
+pub mod worker_type;
 
 use std::{fmt::Display, hash::Hash};
 
@@ -383,6 +384,12 @@ pub enum ChunkingType {
         inherit_async: bool,
         merge_tag: Option<RcStr>,
     },
+    /// A worker loader is placed into the referencing chunk and the module is loaded in a
+    /// separate worker chunk group. The loader is created late during chunking with the
+    /// current availability info, so self-referencing workers unroll like async imports.
+    Worker {
+        ty: crate::chunk::worker_type::WorkerType,
+    },
     /// The module not placed in chunk group, but its references are still followed. This is used
     /// for NFT, to list all unbundled files that are still needed at runtime (some static assets,
     /// or externals and their transitive dependencies).
@@ -406,6 +413,7 @@ impl Display for ChunkingType {
             }
             ChunkingType::Async => write!(f, "Async"),
             ChunkingType::PerEntry => write!(f, "PerEntry"),
+            ChunkingType::Worker { ty } => write!(f, "Worker({ty:?})"),
             ChunkingType::Isolated {
                 _ty,
                 merge_tag: Some(merge_tag),
@@ -493,6 +501,7 @@ impl ChunkingType {
             },
             ChunkingType::Async => ChunkingType::Async,
             ChunkingType::PerEntry => ChunkingType::PerEntry,
+            ChunkingType::Worker { ty } => ChunkingType::Worker { ty: *ty },
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
                 merge_tag: merge_tag.clone(),
