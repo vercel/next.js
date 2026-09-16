@@ -54,6 +54,12 @@ export async function setupUpgrade(sandbox: Sandbox) {
     `${toolsDirectory}/next`,
     `${toolsDirectory}/next.tgz`,
   ])
+  await run('npm', [
+    'install',
+    '--prefix',
+    `${toolsDirectory}/codemod`,
+    `${toolsDirectory}/codemod.tgz`,
+  ])
   await run('chmod', ['+x', `${toolsDirectory}/entry.mjs`])
   const path = await run('sh', ['-c', 'printf %s "$PATH"'])
   const bin = `${toolsDirectory}/bin`

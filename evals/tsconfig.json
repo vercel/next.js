@@ -12,6 +12,7 @@
     "lib",
     "experiments",
     "next-upgrade/experiments",
-    "next-upgrade/lib"
+    "next-upgrade/lib",
+    "next-upgrade/security/setup.ts"
   ]
 }
