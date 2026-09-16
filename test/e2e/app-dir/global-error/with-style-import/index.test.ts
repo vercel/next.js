@@ -7,14 +7,9 @@ async function testDev(browser, errorRegex) {
 }
 
 describe('app dir - global error - with style import', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render global error with correct styles', async () => {
     const browser = await next.browser('/')

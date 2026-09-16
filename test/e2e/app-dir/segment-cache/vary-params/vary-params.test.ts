@@ -822,4 +822,30 @@ describe('segment cache - vary params', () => {
       { includes: 'Root param page content - param: bbb' }
     )
   })
+
+  it('does not reuse a "use cache" segment across root param values', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/cached-root-params/en', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    expect(await browser.elementById('cached-root-param').text()).toBe(
+      'Locale: en'
+    )
+
+    // Not prefetched, so the navigation fetches /de and must not reuse the
+    // page segment cached for /en.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/cached-root-params/de"]'
+      )
+      await link.click()
+    })
+
+    expect(await browser.elementById('cached-root-param').text()).toBe(
+      'Locale: de'
+    )
+  })
 })

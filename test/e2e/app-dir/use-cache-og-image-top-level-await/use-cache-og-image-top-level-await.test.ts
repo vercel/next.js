@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// The prerendered output can't be observed in a deployment, and without
-// it nothing distinguishes broken from fixed behavior.
-// @force-gate !deploy
 describe('use-cache-og-image-top-level-await', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,

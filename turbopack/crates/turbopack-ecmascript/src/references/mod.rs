@@ -68,8 +68,8 @@ use tokio::sync::OnceCell;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -134,9 +134,9 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
-            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
-            module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
+            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
+            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -3117,11 +3117,11 @@ where
                         )
                         .to_resolved()
                     })
-                    .try_join()
-                    .await?;
+                    .join()
+                    .await;
 
                 for resolved_dir_ref in resolved_dirs {
-                    analysis.add_reference(resolved_dir_ref);
+                    analysis.add_reference(resolved_dir_ref?);
                 }
 
                 return Ok(());
@@ -3739,19 +3739,22 @@ async fn handle_free_var_reference(
                             state.origin
                         },
                         request.clone(),
-                        IssueSource::from_swc_offsets(
-                            state.source,
-                            span.lo.to_u32(),
-                            span.hi.to_u32(),
-                        ),
-                        Default::default(),
-                        export.clone().map(ModulePart::export),
-                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
-                        // level function could set ImportUsage properly here
-                        ImportUsage::TopLevel,
-                        state.import_externals,
-                        state.module_fragments_enabled,
-                        None,
+                        EsmAssetReferenceOptions {
+                            issue_source: IssueSource::from_swc_offsets(
+                                state.source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
+                            annotations: Default::default(),
+                            export_name: export.clone().map(ModulePart::export),
+                            // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                            // level function could set ImportUsage properly here
+                            import_usage: ImportUsage::TopLevel,
+                            import_externals: state.import_externals,
+                            module_fragments_enabled: state.module_fragments_enabled,
+                            export_usage_passthrough: None,
+                            resolve_override: None,
+                        },
                     )
                     .await?
                     .resolved_cell())
