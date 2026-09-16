@@ -1176,7 +1176,9 @@ export const verifySession = cache(async () => {
 })
 ```
 
-You can then invoke the `verifySession()` function in your data requests, Server Actions, Route Handlers:
+You can then invoke the `verifySession()` function in your data requests, Server Actions, and Route Handlers:
+
+> **Good to know**: React's [`cache`](https://react.dev/reference/react/cache) deduplicates within a React render pass. Server Actions and Route Handlers are not part of a render pass, so the wrapper does nothing and every call runs the function.
 
 ```tsx filename="app/lib/dal.ts" switcher
 export const getUser = cache(async () => {
