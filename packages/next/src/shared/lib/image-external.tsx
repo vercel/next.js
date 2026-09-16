@@ -1,3 +1,4 @@
+'use turbopack: no side effects'
 import type { ImageLoaderProps } from './image-config'
 import type { ImageProps, ImageLoader, StaticImageData } from './get-img-props'
 
