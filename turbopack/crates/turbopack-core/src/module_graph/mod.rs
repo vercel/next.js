@@ -3236,9 +3236,13 @@ pub mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_async_dependencies_stop_at_nested_async() {
-        // A nested async import starts its own chunk group, so it is not part of the outer
-        // target's closure — but the nested target itself still is, as the edge's source.
+    async fn test_async_dependencies_cross_nested_async() {
+        // Async edges are followed: `outer`'s dependencies include what lies behind the nested
+        // async import of `inner`.
+        //
+        // The availability derived from this set replaces the parent chain, and a nested chunk
+        // group chains onto it — so anything the nested group might observe has to be present
+        // here, or the nested loader would re-chunk modules its parent already had.
         let reached = async_dependencies_of(
             "entry.js",
             vec![
@@ -3250,11 +3254,7 @@ pub mod tests {
             "outer.js",
         )
         .await;
-        assert_eq!(
-            reached,
-            vec!["a.js", "outer.js"],
-            "b.js is behind a nested async edge"
-        );
+        assert_eq!(reached, vec!["a.js", "b.js", "inner.js", "outer.js"]);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3371,6 +3371,81 @@ pub mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependencies_intersect_keeps_candidates_sharing_a_module() {
+        // Callers pass several candidates keyed on the same module: an availability set can hold
+        // both `Module(m)` and `AsyncLoader(m)`, and every member of a batch keys on the same
+        // batch item. All of them must come back, not just one.
+        use crate::module_graph::async_dependencies::compute_async_dependencies;
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn run() -> Result<Vc<Vec<RcStr>>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+                let repo = TestRepo::new_with_chunking_types(
+                    &root,
+                    [
+                        (rcstr!("entry.js"), vec![rcstr!("lazy.js")]),
+                        (rcstr!("lazy.js"), vec![rcstr!("dep.js")]),
+                    ],
+                    [(rcstr!("entry.js"), rcstr!("lazy.js"), ChunkingType::Async)],
+                );
+                let make = async |name: &str| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                        .await
+                };
+                let graph = ModuleGraph::from_graphs(
+                    vec![SingleModuleGraph::new_with_entries(
+                        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                            modules: vec![make("entry.js").await?],
+                            heuristics: EntryHeuristics::default(),
+                        }])
+                        .resolved_cell(),
+                        false,
+                        false,
+                    )],
+                    None,
+                )
+                .connect()
+                .to_resolved()
+                .await?;
+
+                let dep = make("dep.js").await?;
+                // Three distinct candidates, all keyed on the same module.
+                let found = compute_async_dependencies(*graph)
+                    .await?
+                    .intersect(
+                        make("lazy.js").await?,
+                        vec![
+                            (dep, rcstr!("as-module")),
+                            (dep, rcstr!("as-async-loader")),
+                            (dep, rcstr!("as-batch-member")),
+                        ],
+                    )
+                    .context("lazy.js should be an async target")?;
+                let mut found: Vec<RcStr> = found;
+                found.sort();
+                Ok(Vc::cell(found))
+            }
+
+            let found = run().read_strongly_consistent().await?;
+            assert_eq!(
+                found.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                vec!["as-async-loader", "as-batch-member", "as-module"],
+                "every candidate keyed on the module must be returned"
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_async_dependency_groups_shared_library() {
         // `lib` and `dep` are reached by both targets, so they share one group; `one` and `two`
         // are each reached only by themselves, so they get one group each.
@@ -3417,6 +3492,30 @@ pub mod tests {
         )
         .await;
         assert_eq!(of["a.js"], of["b.js"], "cycle members share a group");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_dependency_groups_nested_target() {
+        // Because async edges are followed, everything under `inner` is reachable from `outer`
+        // too. `inner` and `b` are reached by both targets and share a group; `a` is reached only
+        // by `outer`.
+        let (count, of) = async_dependency_groups(
+            "entry.js",
+            vec![
+                ("entry.js", vec!["outer.js"]),
+                ("outer.js", vec!["a.js", "inner.js"]),
+                ("inner.js", vec!["b.js"]),
+            ],
+            vec![("entry.js", "outer.js"), ("outer.js", "inner.js")],
+        )
+        .await;
+        assert_eq!(
+            of["inner.js"], of["b.js"],
+            "both reached by outer and inner"
+        );
+        assert_eq!(of["outer.js"], of["a.js"], "both reached only by outer");
+        assert_ne!(of["outer.js"], of["inner.js"]);
+        assert_eq!(count, 2, "one group for outer+a, one for inner+b");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -46,22 +46,21 @@ pub struct ManifestAsyncModule {
     pub availability_info: AvailabilityInfo,
 }
 
-#[turbo_tasks::value_impl]
 impl ManifestAsyncModule {
-    #[turbo_tasks::function]
+    /// Creates the manifest module for an async import of `module`.
+    ///
+    /// Not a cached function: its key would be the *unfiltered* availability, which is exactly
+    /// what the filter below collapses, so a cache entry here could never serve a hit that
+    /// [`Self::new_deduped`] does not already serve.
     pub async fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Self>> {
-        let availability_info = availability_info_for_async_chunk_group(
-            module,
-            chunking_context,
-            module_graph,
-            availability_info,
-        )
-        .await?;
+        let availability_info =
+            availability_info_for_async_chunk_group(module, module_graph, availability_info)
+                .await?;
         Ok(Self::new_deduped(
             *module,
             *module_graph,
@@ -69,7 +68,10 @@ impl ManifestAsyncModule {
             availability_info,
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ManifestAsyncModule {
     #[turbo_tasks::function]
     fn new_deduped(
         module: ResolvedVc<Box<dyn ChunkableModule>>,

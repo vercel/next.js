@@ -49,16 +49,27 @@ impl AsyncDependencies {
         candidates: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, T)>,
     ) -> Option<Vec<T>> {
         let group_indices = self.per_target.get(&target)?;
-        let mut wanted: FxHashMap<ResolvedVc<Box<dyn Module>>, T> =
-            candidates.into_iter().collect();
+
+        // Several candidates can share a module: an `AvailableModuleItem::Module(m)` and an
+        // `AvailableModuleItem::AsyncLoader(m)` both key on `m`, and every member of a batch keys
+        // on the same batch item. Keep them all rather than collecting into a map.
+        let mut wanted: FxHashMap<ResolvedVc<Box<dyn Module>>, Vec<T>> = FxHashMap::default();
+        let mut remaining = 0usize;
+        for (module, value) in candidates {
+            wanted.entry(module).or_default().push(value);
+            remaining += 1;
+        }
+
         let mut found = Vec::new();
         for &group_idx in group_indices {
-            if wanted.is_empty() {
+            if remaining == 0 {
+                // Everything asked about has been located; later groups cannot add more.
                 break;
             }
             for module in self.groups[group_idx as usize].iter() {
-                if let Some(value) = wanted.remove(module) {
-                    found.push(value);
+                if let Some(values) = wanted.remove(module) {
+                    remaining -= values.len();
+                    found.extend(values);
                 }
             }
         }
@@ -92,21 +103,24 @@ pub async fn compute_async_dependencies(
         let graph = module_graph.await?;
 
         // Every module reached by a `ChunkingType::Async` edge starts its own chunk group.
-        //
-        // This also pre-populates `module_targets` with every reachable module, so the traversal
-        // below can take disjoint borrows of the parent and node entries instead of cloning the
-        // parent's bitmap on every edge.
         let mut targets: FxIndexSet<ResolvedVc<Box<dyn Module>>> = FxIndexSet::default();
-        let mut module_targets: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-            FxHashMap::default();
+        let mut module_targets: FxIndexMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+            FxIndexMap::default();
         graph.traverse_edges_bfs(
             graph.all_chunk_group_entry_modules(),
             |parent_info, node| {
-                if let Some((_, ref_data)) = parent_info
-                    && matches!(ref_data.chunking_type, ChunkingType::Async)
-                {
-                    targets.insert(node);
+                if let Some((_, ref_data)) = parent_info {
+                    match ref_data.chunking_type {
+                        ChunkingType::Async => {
+                            targets.insert(node);
+                        }
+                        ChunkingType::Traced { .. } => {
+                            return Ok(GraphTraversalAction::Skip);
+                        }
+                        _ => {}
+                    }
                 }
+                // ensure every reachable module has an initialized bitmap
                 module_targets.entry(node).or_default();
                 Ok(GraphTraversalAction::Continue)
             },
@@ -132,12 +146,8 @@ pub async fn compute_async_dependencies(
                     // An entry: its own bit is already seeded.
                     return Ok(GraphTraversalAction::Continue);
                 };
-                // Async edges start a new chunk group rather than extending this one, and traced
-                // edges are ignored during chunking.
-                if matches!(
-                    ref_data.chunking_type,
-                    ChunkingType::Async | ChunkingType::Traced { .. }
-                ) {
+                if matches!(ref_data.chunking_type, ChunkingType::Traced { .. }) {
+                    // Traced edges are ignored during chunking entirely so we can save some
                     return Ok(GraphTraversalAction::Skip);
                 }
                 if parent == node {

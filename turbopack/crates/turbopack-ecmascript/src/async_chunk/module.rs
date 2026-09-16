@@ -37,29 +37,32 @@ pub struct AsyncLoaderModule {
     pub availability_info: AvailabilityInfo,
 }
 
-#[turbo_tasks::value_impl]
 impl AsyncLoaderModule {
-    #[turbo_tasks::function]
+    /// Creates the loader for an async import of `module`.
+    ///
+    /// Not a cached function: its key would be the *unfiltered* availability, which is exactly
+    /// what the filter below collapses, so a cache entry here could never serve a hit that
+    /// [`Self::new_deduped`] does not already serve. Caching it would allocate one cell per
+    /// parent chunk group for nothing.
     pub async fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Self>> {
-        let availability_info = availability_info_for_async_chunk_group(
-            module,
-            chunking_context,
-            module_graph,
-            availability_info,
-        )
-        .await?;
+        let availability_info =
+            availability_info_for_async_chunk_group(module, module_graph, availability_info)
+                .await?;
         Ok(Self::new_deduped(
             *module,
             *chunking_context,
             availability_info,
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl AsyncLoaderModule {
     #[turbo_tasks::function]
     fn new_deduped(
         module: ResolvedVc<Box<dyn ChunkableModule>>,

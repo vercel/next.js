@@ -1,20 +1,16 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
-use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Vc, trace::TraceRawVcs};
 
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingContext, ChunkingType,
+        ChunkableModule,
         available_modules::{AvailableModuleItem, AvailableModulesSet},
     },
     module::{Module, Modules},
-    module_graph::{
-        GraphTraversalAction, ModuleGraph,
-        module_batch::{ChunkableModuleOrBatch, ModuleOrBatch},
-    },
+    module_graph::{ModuleGraph, async_dependencies::compute_async_dependencies},
 };
 
 bitfield! {
@@ -148,7 +144,6 @@ impl AvailabilityInfo {
 /// is dropped, which is what lets sibling entries share a cell.
 pub async fn availability_info_for_async_chunk_group(
     module: ResolvedVc<Box<dyn ChunkableModule>>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     availability_info: AvailabilityInfo,
 ) -> Result<AvailabilityInfo> {
@@ -156,67 +151,34 @@ pub async fn availability_info_for_async_chunk_group(
         return Ok(availability_info);
     };
     let available = available_modules.await?;
-    let batches = module_graph
-        .module_batches(chunking_context.batching_config())
-        .await?;
+    if available.is_empty() {
+        return Ok(availability_info);
+    }
 
-    // Walk the subgraph reachable from the target, keeping the available items among it.
-    // `active_page_entries` is passed through so the same `Collected` edges are active here as in
-    // `chunk_group_content`.
-    let entry = batches.get_entry_index(ResolvedVc::upcast(module)).await?;
-    let active_page_entries: Option<FxHashSet<ResolvedVc<Box<dyn Module>>>> =
-        if let Some(entry_group) = availability_info.entry_group() {
-            Some(entry_group.await?.iter().copied().collect())
-        } else {
-            None
-        };
-    let mut filtered: FxIndexSet<AvailableModuleItem> = FxIndexSet::default();
-    batches.traverse_edges_from_entries_dfs(
-        [entry],
-        active_page_entries.as_ref(),
-        &mut filtered,
-        |parent_info, &node, filtered| {
-            // Placeholder nodes carry no module; keep descending past them.
-            if matches!(node, ModuleOrBatch::None(_)) {
-                return Ok(GraphTraversalAction::Continue);
+    // Pair every available item with the module to look up in the dependency index. A batch is
+    // reachable if any of its modules is, so it contributes one candidate per member.
+    let mut candidates: Vec<(ResolvedVc<Box<dyn Module>>, AvailableModuleItem)> = Vec::new();
+    for &item in available.iter() {
+        match item {
+            AvailableModuleItem::Module(m) | AvailableModuleItem::AsyncLoader(m) => {
+                candidates.push((ResolvedVc::upcast(m), item));
             }
-
-            // Traced modules are ignored during chunking entirely.
-            if let Some((_, edge)) = parent_info
-                && matches!(edge.ty, ChunkingType::Traced { .. })
-            {
-                return Ok(GraphTraversalAction::Exclude);
-            }
-
-            // The chunk group stops at async edges, probing only the `AsyncLoader` item, but a
-            // nested chunk group chains its availability onto this one — so keep walking past the
-            // edge and collect what lies behind it too.
-            if let Some((_, edge)) = parent_info
-                && matches!(edge.ty, ChunkingType::Async)
-                && let Some(chunkable) = edge.module.and_then(ResolvedVc::try_downcast)
-            {
-                let item = AvailableModuleItem::AsyncLoader(chunkable);
-                if available.contains(&item) {
-                    filtered.insert(item);
+            AvailableModuleItem::Batch(batch) => {
+                for &m in batch.await?.modules.iter() {
+                    candidates.push((ResolvedVc::upcast(m), item));
                 }
             }
+        }
+    }
 
-            let Some(chunkable_node) = ChunkableModuleOrBatch::from_module_or_batch(node) else {
-                return Ok(GraphTraversalAction::Exclude);
-            };
-            let item: AvailableModuleItem = chunkable_node.into();
-            if available.contains(&item) {
-                filtered.insert(item);
-            }
-            // Keep descending even through available nodes: `chunk_group_content` prunes there,
-            // but a nested chunk group inheriting this set may not.
-            Ok(GraphTraversalAction::Continue)
-        },
-        |_, _, _| {},
-    )?;
+    let dependencies = compute_async_dependencies(*module_graph).await?;
+    let filtered: FxIndexSet<AvailableModuleItem> = dependencies
+        .intersect(ResolvedVc::upcast(module), candidates)
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
 
-    let flattened = available_modules_set(filtered.into_iter().collect())
-        .connect()
+    let flattened = Vc::<AvailableModulesSet>::cell(filtered)
         .to_resolved()
         .await?;
     let mut availability_info = availability_info.with_flattened_modules(flattened);
@@ -224,14 +186,4 @@ pub async fn availability_info_for_async_chunk_group(
         availability_info = availability_info.without_entry_group();
     }
     Ok(availability_info)
-}
-
-/// Re-exposes an already-computed set as an operation.
-///
-/// [`AvailabilityInfo`] stores its set behind an [`OperationVc`], whose identity is the task call
-/// it came from. Keying that task on the set *contents* is what makes two parents with equal
-/// filtered availability share one [`AvailableModulesSet`] cell.
-#[turbo_tasks::function(operation)]
-fn available_modules_set(items: Vec<AvailableModuleItem>) -> Vc<AvailableModulesSet> {
-    Vc::cell(items.into_iter().collect())
 }
