@@ -5,7 +5,7 @@ import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
-import type { MinLedger } from './ledgers'
+import type { MinLedger, BitLedger } from './ledgers'
 import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
@@ -180,41 +180,25 @@ export interface PrerenderStoreModernServer
   readonly stagedRendering: StagedRenderingController | null
 
   /**
-   * When not null, records whether the render has accessed a data source
-   * that hangs during a static prerender but would resolve during a runtime
-   * prerender — cookies, headers, fallback params, searchParams, and cache
-   * entries excluded only from static prerenders. Call sites go through
-   * `trackRuntimeDataAccessed`, which resolves the promise `true` on the
-   * first access; it's resolved `false` when the prerender completes without
-   * one. Promise resolution is idempotent, so the flag is monotonic with no
-   * extra state.
-   *
-   * The promise is embedded in the RSC payload (`InitialRSCPayload['u']`)
-   * so the fulfillment row's stream position records the stage the access
-   * happened in; the per-segment prefetch encoding (`collectSegmentData`)
-   * extracts it from the page data to tell the client whether a runtime
-   * prefetch request could be skipped. Tracking is page-global: an access
-   * anywhere in the page poisons all segments (per-segment granularity is
-   * recovered downstream for segments whose content is provably complete).
-   * Shared between the payload prerender store and the render store because
-   * request-data props are created during payload construction, before the
-   * render store exists. Null for warmup, route-handler, and error prerender
-   * stores.
+   * Records accesses that could reveal more content during a runtime
+   * prefetch. Built-in renders write a Bit Ledger captured by each segment;
+   * the userspace fallback resolves a page-wide promise on first access.
+   * Shared with the payload store because request-data props are created
+   * before rendering. Null in warmup, route-handler, and error renders.
    */
-  readonly runtimeDataAccessed: PromiseWithResolvers<boolean> | null
+  readonly runtimeDataAccessed: BitLedger | null
 
   /**
    * Mutable single-boolean companion to `runtimeDataAccessed`, holding this
    * prerender's `PrefetchHint.ShouldAttemptStaticPrefetch` measurement
    * directly — the value that becomes the route's build-constant hint:
    * starts `true`, and a disqualifying runtime-data access flips it to
-   * `false`. Not every access that resolves the promise disqualifies —
+   * `false`. Not every tracked access disqualifies —
    * fallback-param accesses on a fallback-upgradeable route are transient
    * and leave the hint intact (see `trackRuntimeDataAccessed`, which applies
    * the rule at access time using `isFallbackUpgradeable` below). A plain
    * boolean suffices because the hint needs no stream positioning: unlike
-   * `runtimeDataAccessed`, whose fulfillment position encodes which stage
-   * the access happened in, this is read once after the prerender settles.
+   * `runtimeDataAccessed`, which travels incrementally with the data, this is read once after the prerender settles.
    * Held in a cell so it can be shared. Same sharing and null rules as
    * `runtimeDataAccessed`.
    */

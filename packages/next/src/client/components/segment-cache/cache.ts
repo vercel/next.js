@@ -1,4 +1,5 @@
 import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
+import { readBitLedger } from '../../../shared/lib/ledger-decoding'
 import type React from 'react'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
@@ -193,6 +194,7 @@ export type RSCSegmentData = {
    * Null means the response-level staleness governs this segment.
    */
   staleTimeSeconds: number | null
+  needsRuntimeRequest: boolean | null
 }
 
 type RouteTreeShared<TData> = {
@@ -3310,7 +3312,7 @@ function writeServerResponseIntoCache(
   const isUpgradeableISRFallback = response.f === true
   const responseNeedsRuntimeRequest =
     response.u !== undefined
-      ? readFulfilledValue(response.u, false, /* rejectedValue */ true)
+      ? readBitLedger(response.u, false, /* rejectedValue */ true)
       : null
 
   const routeTree = navigationSeed.root.tree
@@ -3364,7 +3366,7 @@ function writeServerResponseIntoCache(
       contentFetchStrategy,
       isUpgradeableISRFallback,
       requiresRuntimeCompleteness,
-      responseNeedsRuntimeRequest
+      headData.needsRuntimeRequest ?? responseNeedsRuntimeRequest
     )
     if (writtenHeadEntry !== null) {
       writtenEntries.push(writtenHeadEntry)
@@ -3430,7 +3432,7 @@ function writeTreeDataIntoCache(
       contentFetchStrategy,
       isUpgradeableISRFallback,
       requiresRuntimeCompleteness,
-      responseNeedsRuntimeRequest
+      data.needsRuntimeRequest ?? responseNeedsRuntimeRequest
     )
     if (writtenEntry !== null) {
       writtenEntries.push(writtenEntry)
@@ -3498,15 +3500,11 @@ function writeSegmentDataIntoCache(
   // Whether the response is an upgradeable fallback shell. Always false for
   // live-render responses — they are never ISR fallbacks.
   isUpgradeableISRFallback: boolean,
-  // The response's runtime-data verdict: whether the render that produced
-  // this payload accessed runtime data (page-global; combined with the
-  // segment's own `isPartial` to decide the tier the entry records below).
-  // Null when the response carries no verdict (`u`) — live renders emit
-  // none; per-segment prefetch responses and prerendered page payloads
-  // (including the truncated initial payload) do — in which case the entry
-  // records the payload's tier unrefined.
   requiresRuntimeCompleteness: boolean,
-  responseNeedsRuntimeRequest: boolean | null
+  // Whether a runtime request could reveal more content for this segment.
+  // Built-in captures provide a scoped verdict; the fallback uses the page's
+  // verdict. Null means no verdict was recorded by this render.
+  needsRuntimeRequest: boolean | null
 ): FulfilledSegmentCacheEntry | null {
   // The strategy tier recorded on the entry — the tier of the content that
   // actually satisfied it, which spans both axes: shell-vs-concrete AND
@@ -3526,7 +3524,7 @@ function writeSegmentDataIntoCache(
   // tier it was requested at, so a follow-up runtime request can still
   // supersede it.
   let recordedFetchStrategy: FetchStrategy
-  if (responseNeedsRuntimeRequest === null) {
+  if (needsRuntimeRequest === null) {
     // The response carries no verdict — a live render's, or the synthesized
     // initial-payload subset's (see create-initial-router-state): record
     // the payload's tier as-is. A verdict is honored wherever it appears:
@@ -3534,7 +3532,7 @@ function writeSegmentDataIntoCache(
     // probe), and refining on it is correct — a prerendered response whose
     // verdict is `false` is genuinely runtime-complete content.
     recordedFetchStrategy = contentFetchStrategy ?? fetchStrategy
-  } else if (responseNeedsRuntimeRequest && isPartial) {
+  } else if (needsRuntimeRequest && isPartial) {
     // A runtime request would provide more than this payload, so no runtime
     // tier is recorded — but the entry must still honor the payload's
     // CONTENT grade. In the coincident-shell case the payload that satisfied
