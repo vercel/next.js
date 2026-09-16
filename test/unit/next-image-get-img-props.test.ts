@@ -1,5 +1,8 @@
 /* eslint-env jest */
-import { getImageProps } from 'next/image'
+import React from 'react'
+import ReactDOMServer from 'react-dom/server'
+import cheerio from 'cheerio'
+import Image, { getImageProps } from 'next/image'
 
 let deploymentId: string | undefined
 let assetToken: string | undefined
@@ -154,6 +157,21 @@ describe('getImageProps()', () => {
       ],
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
+    expect(props.fetchPriority).toBeUndefined()
+
+    // When using <Image priority />, fetchPriority="high" is automatically assigned
+    const element = React.createElement(Image, {
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+      priority: true,
+    })
+    const html = ReactDOMServer.renderToString(element)
+    const $ = cheerio.load(html)
+    expect($('#my-image').attr('fetchpriority')).toBe('high')
+    expect($('link[rel="preload"][as="image"]').attr('fetchpriority')).toBe('high')
   })
   it('should handle fetchPriority', async () => {
     const { props } = getImageProps({
