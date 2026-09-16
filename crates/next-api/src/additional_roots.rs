@@ -60,11 +60,7 @@ pub struct AdditionalRootConfig {
 enum AdditionalRootInvalidName {
     Empty,
     TooLong,
-    DotOrDotDot,
-    NonAscii,
-    AsciiControlCharacter,
-    ReservedCharacter(RcStr),
-    TrailingSpaceOrPeriod,
+    InvalidCharacter,
     WindowsDeviceName,
 }
 
@@ -75,20 +71,9 @@ impl AdditionalRootInvalidName {
             Self::TooLong => {
                 StyledString::Text(rcstr!("the name must be at most 40 ASCII characters"))
             }
-            Self::DotOrDotDot => StyledString::Text(rcstr!("the name must not be `.` or `..`")),
-            Self::NonAscii => {
-                StyledString::Text(rcstr!("the name must contain only ASCII characters"))
-            }
-            Self::AsciiControlCharacter => StyledString::Text(rcstr!(
-                "the name must not contain NUL or ASCII control characters"
+            Self::InvalidCharacter => StyledString::Text(rcstr!(
+                "the name must contain only ASCII letters, digits, underscores, and hyphens"
             )),
-            Self::ReservedCharacter(character) => StyledString::Line(vec![
-                StyledString::Text(rcstr!("the name contains the reserved character ")),
-                StyledString::Code(character.clone()),
-            ]),
-            Self::TrailingSpaceOrPeriod => {
-                StyledString::Text(rcstr!("the name must not end in a space or period"))
-            }
             Self::WindowsDeviceName => {
                 StyledString::Text(rcstr!("the name must not be a Windows device name"))
             }
@@ -268,36 +253,23 @@ fn validate_additional_root_name(name: &str) -> Result<(), AdditionalRootInvalid
     if name.len() > 40 {
         return Err(AdditionalRootInvalidName::TooLong);
     }
-    if name == "." || name == ".." {
-        return Err(AdditionalRootInvalidName::DotOrDotDot);
-    }
-    if !name.is_ascii() {
-        return Err(AdditionalRootInvalidName::NonAscii);
-    }
-    if name.bytes().any(|byte| byte.is_ascii_control()) {
-        return Err(AdditionalRootInvalidName::AsciiControlCharacter);
-    }
-    if let Some(byte) = name.bytes().find(|byte| {
-        matches!(
-            byte,
-            b'<' | b'>' | b':' | b'"' | b'/' | b'\\' | b'|' | b'?' | b'*'
-        )
-    }) {
-        return Err(AdditionalRootInvalidName::ReservedCharacter(RcStr::from(
-            char::from(byte).to_string(),
-        )));
-    }
-    if name.ends_with([' ', '.']) {
-        return Err(AdditionalRootInvalidName::TrailingSpaceOrPeriod);
+    if !name
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        return Err(AdditionalRootInvalidName::InvalidCharacter);
     }
 
-    let basename = name.split('.').next().unwrap_or(name);
-    let basename = basename.to_ascii_uppercase();
+    let uppercase_name = name.to_ascii_uppercase();
     let is_device_number =
         |suffix: &str| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9');
-    let is_device_name = matches!(basename.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || basename.strip_prefix("COM").is_some_and(is_device_number)
-        || basename.strip_prefix("LPT").is_some_and(is_device_number);
+    let is_device_name = matches!(uppercase_name.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || uppercase_name
+            .strip_prefix("COM")
+            .is_some_and(is_device_number)
+        || uppercase_name
+            .strip_prefix("LPT")
+            .is_some_and(is_device_number);
     if is_device_name {
         return Err(AdditionalRootInvalidName::WindowsDeviceName);
     }
@@ -443,40 +415,56 @@ mod tests {
 
     #[test]
     fn validates_additional_root_names() {
-        for valid in ["linkedPackages", "packages-1", "with space", "COM10"] {
+        for valid in [
+            "linkedPackages",
+            "packages-1",
+            "with_underscore",
+            "letters-AND_123",
+            "COM10",
+        ] {
             assert_eq!(validate_additional_root_name(valid), Ok(()), "{valid}");
         }
 
-        for invalid in [
-            "",
+        assert_eq!(
+            validate_additional_root_name(""),
+            Err(AdditionalRootInvalidName::Empty)
+        );
+        assert_eq!(
+            validate_additional_root_name("this-name-is-more-than-forty-ascii-characters-long"),
+            Err(AdditionalRootInvalidName::TooLong)
+        );
+
+        for invalid_character in [
             ".",
             "..",
-            "this-name-is-more-than-forty-ascii-characters-long",
             "nön-ascii",
             "control\u{1f}",
             "delete\u{7f}",
             "with/slash",
+            "with space",
             "trailing ",
             "trailing.",
-            "CON",
-            "nul.txt",
-            "cOm1.data",
-            "LPT9",
         ] {
-            assert!(validate_additional_root_name(invalid).is_err(), "{invalid}");
+            assert_eq!(
+                validate_additional_root_name(invalid_character),
+                Err(AdditionalRootInvalidName::InvalidCharacter),
+                "{invalid_character}"
+            );
         }
 
-        let reason = AdditionalRootInvalidName::ReservedCharacter(rcstr!("/"));
+        for device_name in ["CON", "prn", "Aux", "NUL", "cOm1", "LPT9"] {
+            assert_eq!(
+                validate_additional_root_name(device_name),
+                Err(AdditionalRootInvalidName::WindowsDeviceName),
+                "{device_name}"
+            );
+        }
+
         assert_eq!(
-            validate_additional_root_name("with/slash"),
-            Err(reason.clone())
-        );
-        assert_eq!(
-            reason.description(),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("the name contains the reserved character ")),
-                StyledString::Code(rcstr!("/")),
-            ])
+            AdditionalRootInvalidName::InvalidCharacter.description(),
+            StyledString::Text(rcstr!(
+                "the name must contain only ASCII letters, digits, underscores, and hyphens"
+            ))
         );
     }
 }

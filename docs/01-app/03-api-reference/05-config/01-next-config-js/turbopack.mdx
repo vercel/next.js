@@ -140,10 +140,8 @@ If a root path is not found when `next build` or `next dev` starts, a warning wi
 
 To ensure portability of your configuration across a variety of platforms, including Windows, a root name must meet all of these requirements:
 
-- It contains 1 to 40 ASCII characters.
-- It is not `.` or `..`.
-- It does not contain ASCII control characters or reserved characters (`<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, and `*`).
-- It does not end in a space or period.
+- It contains 1 to 40 characters.
+- Each character must be an ASCII letter (`a-z` or `A-Z`), a digit (`0-9`), an underscore (`_`), or a hyphen (`-`).
 - It is not a Windows device name.
 - It does not duplicate an earlier name under ASCII case-insensitive comparison.
 

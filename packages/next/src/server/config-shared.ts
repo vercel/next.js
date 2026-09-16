@@ -500,9 +500,8 @@ export interface ExperimentalConfig {
    * Additional filesystem roots that symlinked dependencies may resolve into.
    * Relative paths are resolved from the current working directory.
    *
-   * Root names must contain 1-40 ASCII characters, must not be `.` or `..`,
-   * control characters, or Windows-reserved characters, must not end in a
-   * space or period, and must not be Windows device names. Names must also be
+   * Root names must contain 1-40 characters, using only ASCII letters, digits,
+   * underscores, or hyphens. They must not be Windows device names and must be
    * unique under ASCII case-insensitive comparison. Invalid roots produce a
    * warning and are ignored.
    */
