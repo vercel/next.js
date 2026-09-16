@@ -1670,10 +1670,17 @@ fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout>
         // Mixed-type block: the value size follows the header's type byte, and each entry
         // carries its own type.
         ensure!(block.len() >= 7, "mixed-type fixed key block too short");
+        // Validate the value footprint byte
+        let value_footprint = be::read_u8(&block[6..]) as usize;
+        ensure!(
+            value_footprint <= MAX_INLINE_VALUE_SIZE,
+            "mixed-type fixed key block claims a {value_footprint} byte value footprint, over the \
+             {MAX_INLINE_VALUE_SIZE} byte maximum"
+        );
         Ok(FixedValueLayout {
             value_type: None,
             // +1 for the per-entry type byte, which is part of the stride.
-            val_size: be::read_u8(&block[6..]) as usize + 1,
+            val_size: value_footprint as usize + 1,
             header_size: 7,
         })
     } else {
