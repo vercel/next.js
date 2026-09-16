@@ -88,8 +88,8 @@ pub(crate) struct NftJson {
     version: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
     entry_hash: Option<RcStr>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    additional_roots: Option<Vec<NftAdditionalRoot>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    additional_roots: Vec<NftAdditionalRoot>,
 }
 
 pub(crate) struct NftJsonBuilder {
@@ -200,21 +200,16 @@ impl NftJsonBuilder {
             }
         }
 
-        let additional_roots = if !self.additional_roots.is_empty() {
-            Some(
-                self.additional_roots
-                    .into_iter()
-                    .zip(roots)
-                    .map(|(root, list)| NftAdditionalRoot {
-                        file_list: list,
-                        name: root.name,
-                        path: root.path,
-                    })
-                    .collect(),
-            )
-        } else {
-            None
-        };
+        let additional_roots = self
+            .additional_roots
+            .into_iter()
+            .zip(roots)
+            .map(|(root, list)| NftAdditionalRoot {
+                file_list: list,
+                name: root.name,
+                path: root.path,
+            })
+            .collect();
         NftJson {
             file_list: base,
             version: 1,
