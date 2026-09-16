@@ -10,7 +10,7 @@ import type {
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
-import { getImageSize } from '../../../server/image-optimizer'
+import { getImageSize } from '../../../server/image-optimizer/get-image-size'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { fillStaticMetadataSegment } from '../../../lib/metadata/get-metadata-route'

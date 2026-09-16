@@ -22,6 +22,7 @@ verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
 verify_determinism = ["turbo-tasks/verify_determinism"]
+hanging_detection = ["turbo-tasks/hanging_detection"]
 task_dirty_cause = ["turbo-tasks/task_dirty_cause"]
 trace_aggregation_update_stats = []
 trace_aggregation_update_queue = []
@@ -43,7 +44,7 @@ bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 fs-err = { workspace = true }
-hashbrown = { workspace = true, features = ["raw"] }
+hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
 lzzzz = { workspace = true, optional = true }

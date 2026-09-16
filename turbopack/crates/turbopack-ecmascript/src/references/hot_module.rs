@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        ArrowExpr, BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
+        ArrowExpr, ArrowFunctionBody, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt, FunctionBody,
         Ident, Stmt,
     },
     quote,
@@ -244,10 +244,9 @@ impl ModuleHotReferenceCodeGen {
                             *call_expr.args[1].expr = Expr::Arrow(ArrowExpr {
                                 span: DUMMY_SP,
                                 params: vec![],
-                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                     span: DUMMY_SP,
                                     stmts: wrapper_stmts,
-                                    ..Default::default()
                                 })),
                                 ..Default::default()
                             });
@@ -258,10 +257,9 @@ impl ModuleHotReferenceCodeGen {
                                 expr: Box::new(Expr::Arrow(ArrowExpr {
                                     span: DUMMY_SP,
                                     params: vec![],
-                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                    body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                         span: DUMMY_SP,
                                         stmts: wrapper_stmts,
-                                        ..Default::default()
                                     })),
                                     ..Default::default()
                                 })),

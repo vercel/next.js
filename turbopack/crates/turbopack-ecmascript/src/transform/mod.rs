@@ -9,7 +9,7 @@ use swc_core::{
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{
-            ArrowExpr, BlockStmtOrExpr, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
+            ArrowExpr, ArrowFunctionBody, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
             Stmt,
         },
         preset_env::{self, Feature, FeatureOrModule, Targets},
@@ -488,7 +488,7 @@ impl Visit for ReactCompilerAnnotationFinder {
         if self.found {
             return;
         }
-        if let BlockStmtOrExpr::BlockStmt(body) = &*node.body
+        if let ArrowFunctionBody::FunctionBody(body) = &*node.body
             && has_react_compiler_opt_in_directive(&body.stmts)
         {
             self.found = true;

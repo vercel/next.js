@@ -270,7 +270,10 @@ impl From<Lit> for ConstantValue {
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
-            Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
+            Lit::JSXText(v) => {
+                // TODO
+                ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned()))
+            }
         }
     }
 }

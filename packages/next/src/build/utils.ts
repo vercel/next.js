@@ -699,6 +699,7 @@ export async function isPageStatic({
   cacheComponents,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
@@ -718,6 +719,7 @@ export async function isPageStatic({
   cacheComponents: boolean
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -904,6 +906,7 @@ export async function isPageStatic({
               cacheComponents,
               authInterrupts,
               useCacheTimeout,
+              durableUseCacheEntries,
               staticPageGenerationTimeout,
               segments,
               distDir,

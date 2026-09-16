@@ -42,19 +42,6 @@ pub async fn replace_well_known<'a>(
                 Modified::Yes,
             )
         }
-        JsValue::Call(total, call) => {
-            // var fs = require('fs'), fs = __importStar(fs);
-            // TODO(WEB-552) this is not correct and has many false positives!
-            if call.args().len() == 1
-                && let JsValue::WellKnownObject(_) = &call.args()[0]
-            {
-                return Ok((
-                    call.args()[0].clone_in(arena.get_or_default()),
-                    Modified::Yes,
-                ));
-            }
-            (JsValue::Call(total, call), Modified::No)
-        }
         JsValue::Member(_, mut obj, mut prop) if matches!(&*obj, JsValue::WellKnownObject(_)) => {
             let JsValue::WellKnownObject(kind) = take(&mut *obj) else {
                 unreachable!()

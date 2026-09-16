@@ -7,7 +7,7 @@ use bumpalo::boxed::Box as BumpBox;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use swc_core::{
-    common::{BytePos, Span, Spanned, SyntaxContext, pass::AstNodePath},
+    common::{BytePos, Mark, Span, Spanned, SyntaxContext, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::atom,
@@ -833,6 +833,52 @@ fn is_expression_statement(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool
     false
 }
 
+fn is_in_boolean_context(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    unresolved_mark: Mark,
+) -> bool {
+    for parent in ast_path.iter().rev() {
+        match parent {
+            // Transparent expression wrappers.
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            // A plain call argument may reach Boolean().
+            AstParentNodeRef::ExprOrSpread(arg, ExprOrSpreadField::Expr)
+                if arg.spread.is_none() => {}
+            // Logical results inherit their consumer's context.
+            AstParentNodeRef::BinExpr(
+                BinExpr {
+                    op: BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing,
+                    ..
+                },
+                BinExprField::Left | BinExprField::Right,
+            ) => {}
+            // Only logical negation coerces to boolean.
+            AstParentNodeRef::UnaryExpr(expr, UnaryExprField::Arg) => {
+                return expr.op == UnaryOp::Bang;
+            }
+            // Only the first argument to global Boolean is coerced.
+            AstParentNodeRef::CallExpr(call, CallExprField::Args(0)) => {
+                return matches!(
+                    &call.callee,
+                    Callee::Expr(callee)
+                        if matches!(&**callee, Expr::Ident(ident) if is_global(ident, "Boolean", unresolved_mark))
+                );
+            }
+            // Control-flow tests coerce their value to boolean.
+            AstParentNodeRef::IfStmt(_, IfStmtField::Test)
+            | AstParentNodeRef::CondExpr(_, CondExprField::Test)
+            | AstParentNodeRef::ForStmt(_, ForStmtField::Test)
+            | AstParentNodeRef::WhileStmt(_, WhileStmtField::Test)
+            | AstParentNodeRef::DoWhileStmt(_, DoWhileStmtField::Test) => return true,
+            // A selected ternary branch becomes the ternary's result. Needed for the if(ternary)
+            AstParentNodeRef::CondExpr(_, CondExprField::Cons | CondExprField::Alt) => {}
+            // Any other parent consumes the actual value.
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// Returns the [`MemberExpr`] where the current node is the object:
 /// `<node>.<prop>` or `<node>[<expr>]`.
 fn member_access_parent<'r>(
@@ -1123,7 +1169,7 @@ impl<'a> Analyzer<'a, '_> {
                 arrow_expr,
                 ArrowExprField::Body,
             ));
-            self.visit_block_stmt_or_expr(body, &mut ast_path);
+            self.visit_arrow_function_body(body, &mut ast_path);
         }
 
         {
@@ -1157,8 +1203,9 @@ impl<'a> Analyzer<'a, '_> {
             is_generator: _,
             params,
             return_type,
-            span: _,
             type_params,
+            this_param: _,
+            span: _,
             ctxt: _,
         } = function;
         for (i, param) in params.iter().enumerate() {
@@ -1180,7 +1227,7 @@ impl<'a> Analyzer<'a, '_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::Function(function, FunctionField::Body));
 
-            self.visit_opt_block_stmt(body, &mut ast_path);
+            self.visit_opt_function_body(body, &mut ast_path);
         }
 
         {
@@ -1259,27 +1306,29 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::BlockStmt(_),
+                            body: ArrowFunctionBody::FunctionBody(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(
-                                BlockStmtOrExprField::BlockStmt,
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::FunctionBody,
                             ));
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::Expr(_),
+                            body: ArrowFunctionBody::Expr(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::Expr,
+                            ));
                             Some(path)
                         }
                         _ => None,
@@ -1343,7 +1392,7 @@ impl<'a> Analyzer<'a, '_> {
                     export_usage,
                 });
             }
-            Callee::Expr(box expr) => {
+            Callee::Expr(expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
                     let obj_value =
                         BumpBox::new_in(self.eval_context.eval(self.arena, obj), self.arena);
@@ -1769,28 +1818,30 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            let obj_value = BumpBox::new_in(
-                self.eval_context.eval(self.arena, &member_expr.obj),
+        let obj_value = BumpBox::new_in(
+            self.eval_context.eval(self.arena, &member_expr.obj),
+            self.arena,
+        );
+        let prop_value = match &member_expr.prop {
+            // TODO avoid clone
+            MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
+            MemberProp::PrivateName(_) => None,
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
+                self.eval_context.eval(self.arena, expr),
                 self.arena,
-            );
-            let prop_value = match &member_expr.prop {
-                // TODO avoid clone
-                MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
-                MemberProp::PrivateName(_) => None,
-                MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
-                    self.eval_context.eval(self.arena, expr),
-                    self.arena,
-                )),
-            };
-            if let Some(prop_value) = prop_value {
-                self.add_effect(Effect::Member {
-                    obj: obj_value,
-                    prop: prop_value,
-                    ast_path: as_parent_path_in(self.arena, ast_path),
-                    span: member_expr.span(),
-                });
-            }
+            )),
+        };
+        if let Some(prop_value) = prop_value {
+            self.add_effect(Effect::Member {
+                obj: obj_value,
+                prop: prop_value,
+                ast_path: as_parent_path_in(self.arena, ast_path),
+                span: member_expr.span(),
+                in_truthiness_context: is_in_boolean_context(
+                    ast_path,
+                    self.eval_context.unresolved_mark,
+                ),
+            });
         }
 
         member_expr.visit_children_with_ast_path(self, ast_path);
@@ -1801,7 +1852,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         bin_expr: &'ast BinExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
+        if bin_expr.op == BinaryOp::In {
             let left_value = BumpBox::new_in(
                 self.eval_context.eval(self.arena, &bin_expr.left),
                 self.arena,
@@ -1934,7 +1985,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ast_path.with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
                 expr.body.visit_with_ast_path(this, &mut ast_path);
                 // If body is a single expression treat it as a Block with an return statement
-                if let BlockStmtOrExpr::Expr(inner_expr) = &*expr.body {
+                if let ArrowFunctionBody::Expr(inner_expr) = &*expr.body {
                     let implicit_return_value = this.eval_context.eval(this.arena, inner_expr);
                     this.add_return_value(implicit_return_value);
                 }
@@ -2320,6 +2371,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
+            Pat::Assign(assign) => {
+                let mut value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
+                value.add_alt(
+                    self.arena,
+                    self.eval_context.eval(self.arena, &assign.right),
+                );
+                self.with_pat_value(Some(value), |this| {
+                    pat.visit_children_with_ast_path(this, ast_path);
+                });
+            }
+
             _ => pat.visit_children_with_ast_path(self, ast_path),
         }
     }
@@ -2680,32 +2744,37 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.effects.extend(self.arena, take(&mut effects));
     }
 
+    fn visit_function_body<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast FunctionBody,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let mut effects = take(&mut self.effects);
+        let hoisted_effects = take(&mut self.hoisted_effects);
+
+        let (_, returns_unconditionally) = self.enter_block(LexicalContext::Block, |this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
+        // By handling this logic here instead of in enter_fn, we naturally skip it
+        // for arrow functions with single expression bodies, since they just don't hit this
+        // path.
+        if !returns_unconditionally {
+            self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
+        }
+        self.effects
+            .extend(self.arena, take(&mut self.hoisted_effects));
+        effects.extend(self.arena, take(&mut self.effects));
+        self.hoisted_effects = hoisted_effects;
+        self.effects = effects;
+    }
+
     fn visit_block_stmt<'ast: 'r, 'r>(
         &mut self,
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         match self.cur_lexical_context() {
-            LexicalContext::Function { .. } => {
-                let mut effects = take(&mut self.effects);
-                let hoisted_effects = take(&mut self.hoisted_effects);
-
-                let (_, returns_unconditionally) =
-                    self.enter_block(LexicalContext::Block, |this| {
-                        n.visit_children_with_ast_path(this, ast_path);
-                    });
-                // By handling this logic here instead of in enter_fn, we naturally skip it
-                // for arrow functions with single expression bodies, since they just don't hit this
-                // path.
-                if !returns_unconditionally {
-                    self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
-                }
-                self.effects
-                    .extend(self.arena, take(&mut self.hoisted_effects));
-                effects.extend(self.arena, take(&mut self.effects));
-                self.hoisted_effects = hoisted_effects;
-                self.effects = effects;
-            }
+            LexicalContext::Function { .. } => unreachable!("function bodies use FunctionBody"),
             LexicalContext::ControlFlow { .. } => {
                 self.with_block(LexicalContext::Block, |this| {
                     n.visit_children_with_ast_path(this, ast_path)
@@ -3062,6 +3131,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     let pat_value = Some(JsValue::member(
                         self.arena,
                         pat_value.clone_in(self.arena),
@@ -3081,7 +3157,7 @@ impl<'a> Analyzer<'a, '_> {
                         ObjectPatPropField::Assign,
                     ));
                     let AssignPatProp { key, value, .. } = assign;
-                    let key_value = key.sym.clone().into();
+                    let key_value = JsValue::from(key.sym.clone());
                     {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
                             assign,
@@ -3089,9 +3165,16 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     self.add_value(
                         key.to_id(),
-                        if let Some(box value) = value {
+                        if let Some(value) = value {
                             let value = self.eval_context.eval(self.arena, value);
                             JsValue::alternatives(BumpVec::from_iter_in(
                                 self.arena,

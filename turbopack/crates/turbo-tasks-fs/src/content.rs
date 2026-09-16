@@ -20,7 +20,7 @@ use turbo_tasks_hash::{
 };
 
 use crate::{
-    FileSystemEntryType, FileSystemPath,
+    FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -199,6 +199,21 @@ impl LinkTarget {
     /// A dangling link returns [`FileSystemEntryType::NotFound`].
     pub async fn target_type(&self) -> Result<FileSystemEntryType> {
         Ok(*self.file_system_path().get_type().await?)
+    }
+
+    /// The type of the file this link ultimately points at.
+    ///
+    /// This follows a chain of links. A dangling link returns
+    /// [`FileSystemEntryType::NotFound`], while any other unresolvable link returns
+    /// [`FileSystemEntryType::Error`].
+    pub async fn resolved_type(&self) -> Result<FileSystemEntryType> {
+        match self.file_system_path().realpath().await? {
+            Ok(path) => Ok(*path.get_type().await?),
+            Err(error) => Ok(match error.kind() {
+                RealPathErrorType::NotFound => FileSystemEntryType::NotFound,
+                _ => FileSystemEntryType::Error,
+            }),
+        }
     }
 }
 

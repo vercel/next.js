@@ -823,6 +823,7 @@ export async function buildAppStaticPaths({
   cacheComponents,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   segments,
   isrFlushToDisk,
@@ -845,6 +846,7 @@ export async function buildAppStaticPaths({
   cacheComponents: boolean
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   segments: readonly Readonly<AppSegment>[]
   distDir: string
@@ -910,6 +912,7 @@ export async function buildAppStaticPaths({
       experimental: {
         authInterrupts,
         useCacheTimeout,
+        durableUseCacheEntries,
       },
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,

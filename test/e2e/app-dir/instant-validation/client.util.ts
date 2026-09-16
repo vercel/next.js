@@ -416,7 +416,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                "cause": [
                  {
                    "label": "Caused by: Error",
-                   "message": "Bail out to client-side rendering: next/dynamic",
+                   "message": "Browser-only rendering was requested by \`browser()\`.",
                    "source": null,
                    "stack": [],
                  },
@@ -448,10 +448,9 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                at body (<anonymous>)
                at html (<anonymous>)
                at c (<anonymous>) {
-             [cause]: Error: Bail out to client-side rendering: next/dynamic
+             [cause]: Error: Browser-only rendering was requested by \`browser()\`.
                  at ignore-listed frames {
-               reason: 'next/dynamic',
-               digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
+               [cause]: 'next/dynamic'
              }
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-csr-bailout-blocks-children".

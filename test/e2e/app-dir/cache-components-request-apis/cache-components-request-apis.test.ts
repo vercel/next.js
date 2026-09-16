@@ -38,14 +38,10 @@ function createExpectError(cliOutput: string) {
 
 describe(`Request Promises`, () => {
   describe('On Prerender Completion', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-static',
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextDev) {
       it('does not run in dev', () => {})
@@ -61,10 +57,14 @@ describe(`Request Promises`, () => {
       const expectError = createExpectError(next.cliOutput)
 
       expectError(
-        'Error: During prerendering, `params` rejects when the prerender is complete'
+        'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
       expectError(
-        'Error: During prerendering, `searchParams` rejects when the prerender is complete'
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
+
+      expectError(
+        'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )
       expectError(
         'Error: During prerendering, `cookies()` rejects when the prerender is complete'
@@ -72,21 +72,16 @@ describe(`Request Promises`, () => {
       expectError(
         'Error: During prerendering, `headers()` rejects when the prerender is complete'
       )
-      expectError(
-        'Error: During prerendering, `connection()` rejects when the prerender is complete'
-      )
     })
   })
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('On Prerender Interruption', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-dynamic',
       skipStart: true,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextDev) {
       it('does not run in dev', () => {})
@@ -100,11 +95,12 @@ describe(`Request Promises`, () => {
       const expectError = createExpectError(next.cliOutput)
 
       expectError(
-        'Error: During prerendering, `params` rejects when the prerender is complete'
-      )
-      expectError(
         'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
+      expectError(
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
+
       expectError(
         'Error: During prerendering, `cookies()` rejects when the prerender is complete'
       )

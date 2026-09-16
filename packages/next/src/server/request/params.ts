@@ -101,12 +101,12 @@ export function createParamsFromClient(
           )
         }
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -178,12 +178,12 @@ export function createServerParamsForRoute(
       }
       case 'request':
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -427,36 +427,36 @@ function createRuntimePrerenderParams(
     return makeUntrackedParams(userspaceParams)
   }
 
+  // Root params are allowed in shells, so we allow them to resolve without a delay.
+  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+    return makeUntrackedParams(userspaceParams)
+  }
+
+  // Non-root params are URL data, and we need to recover a param-less session shell,
+  // so we delay all params until the runtime stage (even if they're static)
+  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    // If there's no staging, we're in a prospective runtime prerender.
-    if (workUnitStore.isSessionShell) {
-      // If we're warming up for a session shell, params should be hanging,
-      // because they'll be a hanging input in the final prerender.
+    // If there's no stage controller, we're in a prospective runtime prerender.
+    // Make sure we don't unblock content that won't be reached in the final prerender.
+    if (workUnitStore.finalStage < paramsStage) {
       return makeHangingParams(underlyingParams, workStore, workUnitStore)
     } else {
       return makeUntrackedParams(userspaceParams)
     }
   }
 
-  // We don't have fallbackParams in runtime prerenders, so we don't know
-  // when params are static. However, root params are static by definition,
-  // so we can at least check for that.
-  // Note that resolving them without a delay is valid because root params are
-  // allowed in shells.
-  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
-    return makeUntrackedParams(userspaceParams)
+  // If params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (stagedRendering.finalStage && stagedRendering.finalStage < paramsStage) {
+    return makeHangingParams(underlyingParams, workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      paramsStage,
+      'params',
+      userspaceParams
+    )
   }
-
-  // Semantically, we should resolve static params in the static stage.
-  // But params are link data, and we need to recover a param-less session shell,
-  // so we delay all params until the runtime stage instead.
-  const staticParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  return stagedRendering.delayUntilStage(
-    staticParamsStage,
-    'params',
-    userspaceParams
-  )
 }
 
 function createRenderParamsForPage(
@@ -501,11 +501,11 @@ function createRenderParamsForPage(
 
   // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
   if (process.env.NODE_ENV === 'development') {
-    const fallbackParams = workUnitStore.fallbackParams
+    const stagedFallbackParams = workUnitStore.stagedFallbackParams
     return createRenderParamsInDev(
       underlyingParams,
       userspaceParams,
-      fallbackParams,
+      stagedFallbackParams,
       workStore,
       workUnitStore
     )
@@ -556,7 +556,9 @@ function createStagedRenderParamsImpl(
 
   // If we have fallback params, then they should always resolve in the runtime link data stage.
   // We do this indirectly via the shared params parent for better debug info.
-  if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
+  if (
+    hasFallbackRouteParams(underlyingParams, workUnitStore.stagedFallbackParams)
+  ) {
     return createParamsPromiseFromTrigger(
       asyncApiPromises.sharedParamsParent,
       userspaceParams
@@ -586,7 +588,11 @@ function createStagedRenderParamsImpl(
       // If static params are accessed, we can recover a static shell or a session shell, but not both.
       return trackPromiseUsed(
         promise,
-        trackIncompatibleShellContent.bind(null, workUnitStore)
+        trackIncompatibleShellContent.bind(
+          null,
+          workUnitStore,
+          'static `params`'
+        )
       )
     } else {
       return promise
@@ -657,14 +663,14 @@ function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   userpaceParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     userpaceParams,
-    hasFallbackRouteParams(underlyingParams, fallbackParams),
+    hasFallbackRouteParams(underlyingParams, stagedFallbackParams),
     workStore,
     requestStore
   )
@@ -686,7 +692,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
           // rendering when it's finally awaited.
           const workUnitStore = workUnitAsyncStorage.getStore()
           if (workUnitStore !== undefined) {
-            trackFallbackParamsAccessed(workUnitStore)
+            trackFallbackParamsAccessed(workUnitStore, '`params`')
           }
 
           const store = dynamicAccessAsyncStorage.getStore()
@@ -724,9 +730,9 @@ function makeHangingParams(
       prerenderStore.renderSignal,
       workStore.route,
       '`params`',
-      // This promise is created for every segment on a fallback route whether
-      // or not it reads params, so recording the access at creation would mark
-      // every render. The access is tracked in the proxy traps instead.
+      // Passing `null` for the store disables tracking of params usage.
+      // Caches need the additional logic from `fallbackParamsProxyHandler`,
+      // so we track params usage there instead.
       null
     ),
     fallbackParamsProxyHandler

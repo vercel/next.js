@@ -15,6 +15,8 @@ export function registerHeadAndReportingTests(
     isNextDev,
     isClientNav,
     navigateTo,
+    warmCachesAndNavigateTo,
+    restartDevServerToEnsureColdCaches,
     expectNoDevValidationErrors,
     getCliOutputSinceMark,
     prerender,
@@ -645,11 +647,13 @@ export function registerHeadAndReportingTests(
           const result = await prerender(
             '/shells/(default)/invalid-runtime-params/[slug]'
           )
-          // TODO(app-shells): missing fallback params in build validation
-          // It seems like `workUnitStore.fallbackParams` is undefined
-          // during the validation render, which makes us treat these params as static.
-          // In partialPrefetching, static params are also delayed until the runtime stage,
-          // which ultimately makes the validation fail, but also hides the underlying issue.
+          // TODO(app-shells): Verify fallback params in build validation.
+          //
+          // This assertion can pass even if
+          // `workUnitStore.stagedFallbackParams` is missing. Without that set,
+          // validation treats these params as static. Partial Prefetching still
+          // delays them to the runtime stage, so the expected error does not
+          // detect the missing fallback params.
 
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
@@ -883,6 +887,166 @@ export function registerHeadAndReportingTests(
         }
       })
 
+      describe('excluded caches', () => {
+        describe('invalid - unguarded cache with a shorter-than-shell staleTime', () => {
+          // Caches with `stale < MIN_SHELL_STALE` are not allowed in app shells
+          // (although they are allowed in runtime prefetches).
+
+          // TODO(app-shells): We're reporting caches that only resolve in a prefetch
+          // as URL data (same as `prefetch()`) which is a bit misleading.
+          // The suggested fixes might also be confusing, because they don't mention
+          // that increasing `stale` would help.
+          // We should improve this.
+
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const routeInBrowser = '/shells/invalid-non-shell-cache'
+          const routeInBuild = '/shells/(default)/invalid-non-shell-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(routeInBrowser)
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
+               > 23 |   await nonShellCache()
+                    |         ^",
+                 "stack": [
+                   "PrefetchContent app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9)",
+                   "Page app/shells/(default)/invalid-non-shell-cache/page.tsx (17:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(routeInBuild)
+              expect(extractBuildValidationError(result.cliOutput))
+                .toMatchInlineSnapshot(`
+                  "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered URL data during prerendering or a navigation.
+
+                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+                  Ways to fix this:
+                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                    - [block] Set \`export const instant = false\` to allow a blocking route
+
+                  Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                      at main (<anonymous>)
+                      at body (<anonymous>)
+                      at html (<anonymous>)
+                  Build-time instant validation failed for route "/shells/invalid-non-shell-cache".
+                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                    - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-non-shell-cache" in your browser to investigate the error.
+                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                  Stopping prerender due to instant validation errors."
+                `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(routeInBrowser)
+
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
+               > 23 |   await nonShellCache()
+                    |         ^",
+                 "stack": [
+                   "PrefetchContent app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9)",
+                   "Page app/shells/(default)/invalid-non-shell-cache/page.tsx (17:7)",
+                 ],
+               }
+              `)
+            })
+          }
+        })
+
+        describe('valid - cache with a shorter-than-shell staleTime with suspense', () => {
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const routeInBrowser = '/shells/valid-non-shell-cache'
+          const routeInBuild = '/shells/(default)/valid-non-shell-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(routeInBuild)
+              expectNoBuildValidationErrors(result)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            })
+          }
+        })
+
+        describe('valid - unguarded non-prerenderable cache', () => {
+          // Caches with `expire < MIN_PRERENDERABLE_EXPIRE` are not allowed
+          // in static prerenders, but they're allowed in runtime prerenders,
+          // so they can be used in runtime app shells.
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const routeInBrowser = '/shells/valid-non-prerenderable-cache'
+          const routeInBuild = '/shells/(default)/valid-non-prerenderable-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(routeInBuild)
+              expectNoBuildValidationErrors(result)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            })
+          }
+        })
+      })
+
       it('invalid - unguarded navigation() in a shell', async () => {
         if (isNextDev) {
           const browser = await navigateTo(
@@ -1097,6 +1261,139 @@ export function registerHeadAndReportingTests(
           )
           expectNoBuildValidationErrors(result)
         }
+      })
+
+      describe('excluded caches', () => {
+        describe('valid - unguarded cache with a shorter-than-shell staleTime', () => {
+          // Caches with `stale < MIN_SHELL_STALE` are allowed in static prerenders.
+          // Without Partial Prefetching, we don't use shells, so shell-related properties
+          // do not matter.
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+          const route =
+            '/suspense-in-root/non-app-shell/valid-unguarded-non-shell-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(route)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(route)
+              expectNoBuildValidationErrors(result)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(route)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            })
+          }
+        })
+
+        describe('invalid - unguarded non-prerenderable cache with short expire', () => {
+          // Caches with `expire < MIN_PRERENDERABLE_EXPIRE` are not allowed
+          // in static prerenders.
+
+          // TODO(app-shells): We currently report these caches as runtime data.
+          // The suggested fixes might be confusing, because they don't mention
+          // that increasing `expire` would help.
+
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const route =
+            '/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(route)
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered runtime data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
+               > 22 |   await nonPrerenderableCache()
+                    |         ^",
+                 "stack": [
+                   "SessionContent app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9)",
+                   "Page app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (16:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(route)
+              expect(extractBuildValidationError(result.cliOutput))
+                .toMatchInlineSnapshot(`
+               "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered runtime data during prerendering or a navigation.
+
+               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at a (<anonymous>)
+               Build-time instant validation failed for route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(route)
+
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered runtime data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
+               > 22 |   await nonPrerenderableCache()
+                    |         ^",
+                 "stack": [
+                   "SessionContent app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9)",
+                   "Page app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (16:7)",
+                 ],
+               }
+              `)
+            })
+          }
+        })
       })
     })
   }

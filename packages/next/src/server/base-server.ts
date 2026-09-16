@@ -159,7 +159,10 @@ import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
-import { createOpaqueFallbackRouteParams } from './request/fallback-params'
+import {
+  createOpaqueFallbackRouteParams,
+  getStagedFallbackParams,
+} from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
 import {
@@ -605,13 +608,20 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
+        parallelRouteMetadata:
+          this.nextConfig.experimental.parallelRouteMetadata ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        reactBrowserBailout:
+          this.nextConfig.experimental.reactBrowserBailout ?? false,
         serverComponentsHmrCancellation:
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          this.nextConfig.experimental.durableUseCacheEntries
+        ),
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -1606,15 +1616,26 @@ export default abstract class Server<
           parsedUrl.pathname = parsedMatchedPath.pathname
           addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
+        const pathnameNoBasePath = removePathPrefix(
+          parsedUrl.pathname,
+          this.nextConfig.basePath || ''
+        )
         const normalizeResult = normalizeLocalePath(
-          removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
+          pathnameNoBasePath,
           this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {
           addRequestMeta(req, 'locale', normalizeResult.detectedLocale)
         }
-        parsedUrl.pathname = normalizeResult.pathname
+        // The resolver already selected an App route using this literal
+        // pathname, so keep its locale segment for App Router param parsing.
+        if (getRequestMeta(req, 'didMatchLocalePrefixedPath')) {
+          parsedUrl.pathname = pathnameNoBasePath
+          removeRequestMeta(req, 'localeInferredFromDefault')
+        } else {
+          parsedUrl.pathname = normalizeResult.pathname
+        }
 
         for (const key of Object.keys(parsedUrl.query)) {
           delete parsedUrl.query[key]
@@ -2739,44 +2760,39 @@ export default abstract class Server<
 
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
-          // Replicate, on demand, the per-URL fallback set a production build
-          // writes to the prerender manifest. Production matches the requested
-          // URL to the most-specific prerendered route and defers that route's
-          // `fallbackRouteParams` (so `generateStaticParams`-covered params
-          // resolve in the static shell and only the uncovered ones are
-          // deferred). The dev prerender manifest isn't populated for these
-          // ad-hoc routes, but `getStaticPaths` already computed every
-          // prerendered route here, so we do the same match: among the routes
-          // whose canonical regex matches this URL, pick the one with the
-          // fewest fallback params (the most-specific) and thread it via the
-          // `fallbackParams` meta. A fully-covered concrete route (e.g.
-          // `/blog/a`) has zero fallback params and is the most-specific match
-          // for its own URL, so it must be considered alongside the others: it
-          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
-          // statically-known params out of the deferred set.
-          let perUrlFallbackRouteParams: NonNullable<
-            (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
-          > | null = null
+          // The source selection includes concrete routes with no fallback
+          // params. Otherwise it could choose a generic fallback for a fully
+          // generated URL.
+          let matchedRoute: PrerenderedRoute | undefined
           for (const route of pathsResults.prerenderedRoutes) {
-            const fallbackRouteParams = route.fallbackRouteParams ?? []
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
               continue
             }
             if (
-              perUrlFallbackRouteParams === null ||
-              fallbackRouteParams.length < perUrlFallbackRouteParams.length
+              matchedRoute === undefined ||
+              (route.fallbackRouteParams?.length ?? 0) <
+                (matchedRoute.fallbackRouteParams?.length ?? 0)
             ) {
-              perUrlFallbackRouteParams = fallbackRouteParams
+              matchedRoute = route
             }
           }
-          if (
-            perUrlFallbackRouteParams &&
-            perUrlFallbackRouteParams.length > 0
-          ) {
+          if (matchedRoute) {
+            // Explicit shell requests render the matched artifact. Ordinary
+            // requests stage and validate the same required or completed shell
+            // target.
             addRequestMeta(
               req,
-              'fallbackParams',
-              createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
+              'fallbackRouteParams',
+              matchedRoute.fallbackRouteParams
+                ? createOpaqueFallbackRouteParams(
+                    matchedRoute.fallbackRouteParams
+                  )
+                : null
+            )
+            addRequestMeta(
+              req,
+              'stagedFallbackParams',
+              getStagedFallbackParams(matchedRoute)
             )
           }
         }

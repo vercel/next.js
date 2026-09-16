@@ -84,11 +84,13 @@ use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     version::{
-        NotFoundVersion, OptionVersionedContent, PartialUpdate, TotalUpdate, Update, Version,
-        VersionState, VersionedContent,
+        NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
 };
-#[cfg(feature = "process_pool")]
+use turbopack_ecmascript::async_chunk::proxy::{
+    activation_key_from_chunk_path, lazy_compilation_state,
+};
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
@@ -96,7 +98,7 @@ use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
-    aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
+    aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -104,6 +106,7 @@ use crate::{
     middleware::MiddlewareEndpoint,
     next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
+    path_utils::convention_file_base_name,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
         Route,
@@ -290,13 +293,18 @@ impl DebugBuildPathsRouteKeys {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
-    /// An absolute root path (Unix or Windows path) from which all files must be nested under.
-    /// Trying to access a file outside this root will fail, so think of this as a chroot.
-    /// E.g. `/home/user/projects/my-repo`.
+    /// An [canonicalized][std::fs::canonicalize] root path (Unix or Windows path) from which all
+    /// files must be nested under. Trying to access a file outside this root will fail, so think
+    /// of this as a weak chroot. E.g. `/home/user/projects/my-repo`.
+    ///
+    /// This serves two purposes:
+    /// - It gives us a root to configure the file system watcher with.
+    /// - It ensures the cache is portable when the root path is moved, since every other path is
+    ///   relative to it.
     pub root_path: RcStr,
 
-    /// A path which contains the app/pages directories, relative to [`Project::project_path`],
-    /// always Unix path. E.g. `apps/my-app`
+    /// A path which contains the app/pages directories, relative to [`Project::project_path`].
+    /// Always a Unix-style (`/`-separated) path. E.g. `apps/my-app`.
     pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
@@ -305,8 +313,7 @@ pub struct ProjectOptions {
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
+    /// A map of environment variables which should get injected at compile time.
     pub define_env: DefineEnv,
 
     /// Filesystem watcher options.
@@ -327,9 +334,8 @@ pub struct ProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
 
-    /// When the code is minified, this opts out of the default mangling of
-    /// local names for variables, functions etc., which can be useful for
-    /// debugging/profiling purposes.
+    /// When the code is minified, this opts out of the default mangling of local names for
+    /// variables, functions etc., which can be useful for debugging/profiling purposes.
     pub no_mangling: bool,
 
     /// Whether to write the route hashes manifest.
@@ -338,8 +344,8 @@ pub struct ProjectOptions {
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
 
-    /// Debug build paths for selective builds.
-    /// When set, only routes matching these paths will be included in the build.
+    /// Debug build paths for selective builds. When set, only routes matching these paths will be
+    /// included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
 
     /// App-router page routes that should be built after non-deferred routes.
@@ -351,57 +357,42 @@ pub struct ProjectOptions {
     /// The version of Next.js that is running.
     pub next_version: RcStr,
 
-    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
 }
 
+/// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
+/// [`ProjectContainer::update`].
+///
+/// Refer to [`ProjectOptions`] for documentation on this struct's fields.
 #[derive(Default)]
 pub struct PartialProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
     pub root_path: Option<RcStr>,
 
-    /// A path inside the root_path which contains the app/pages directories.
     pub project_path: Option<RcStr>,
 
-    /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
 
-    /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<(RcStr, RcStr)>>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
     pub define_env: Option<DefineEnv>,
 
-    /// Filesystem watcher options.
     pub watch: Option<WatchOptions>,
 
-    /// The mode in which Next.js is running.
     pub dev: Option<bool>,
 
-    /// The server actions encryption key.
     pub encryption_key: Option<RcStr>,
 
-    /// The build id.
     pub build_id: Option<RcStr>,
 
-    /// Options for draft mode.
     pub preview_props: Option<DraftModeOptions>,
 
-    /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<RcStr>,
 
-    /// When the code is minified, this opts out of the default mangling of
-    /// local names for variables, functions etc., which can be useful for
-    /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
 
-    /// Whether to write the route hashes manifest.
     pub write_routes_hashes_manifest: Option<bool>,
 
-    /// Debug build paths for selective builds.
-    /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
@@ -467,6 +458,17 @@ impl ProjectContainer {
 #[turbo_tasks::function(operation, root)]
 fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
     project.project()
+}
+
+/// Activates the lazy dynamic import that `chunk_path` names, returning whether it named one. The
+/// caller has to rebuild the owning entrypoint before serving the request.
+#[turbo_tasks::function(operation, root)]
+pub async fn activate_lazy_chunk_operation(chunk_path: RcStr) -> Result<Vc<bool>> {
+    let Some(key) = activation_key_from_chunk_path(&chunk_path) else {
+        return Ok(Vc::cell(false));
+    };
+    lazy_compilation_state(key).await?.activate();
+    Ok(Vc::cell(true))
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1233,7 +1235,7 @@ impl Project {
         let node_backend = match strategy {
             #[cfg(feature = "worker_pool")]
             TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
-            #[cfg(feature = "process_pool")]
+            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
             TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
         };
 
@@ -1370,6 +1372,7 @@ impl Project {
                 Route::AppRoute {
                     original_name: _,
                     endpoint,
+                    ..
                 } => {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),
@@ -1611,6 +1614,9 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             per_page_module_graph: self.per_page_module_graph(),
+            lazy_dynamic_imports: self
+                .next_config()
+                .turbopack_lazy_dynamic_imports(*self.next_mode().await?),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -2036,7 +2042,7 @@ impl Project {
 
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(fs_path, _) = &*middleware.await? {
-            let is_proxy = fs_path.file_stem() == Some("proxy");
+            let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
                 is_proxy,
@@ -2215,7 +2221,7 @@ impl Project {
             .as_ref()
             .map(|_| AppProject::client_transition_name());
 
-        let is_proxy = fs_path.file_stem() == Some("proxy");
+        let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
         let config = parse_segment_config_from_source(
             source,
             if is_proxy {
@@ -2537,98 +2543,25 @@ impl Project {
         }
     }
 
-    /// Aggregate counterpart to [`Self::hmr_version_state`]: one [`VersionState`]
-    /// covering every server HMR-eligible chunk. See [`Self::server_hmr_update`].
-    #[turbo_tasks::function(session_dependent)]
-    pub async fn server_hmr_version_state(self: ResolvedVc<Self>) -> Result<Vc<VersionState>> {
-        #[tracing::instrument(level = "info", name = "get server HMR version", skip_all)]
-        #[turbo_tasks::function(operation, root)]
-        async fn server_hmr_version_operation(
-            this: ResolvedVc<Project>,
-        ) -> Result<Vc<Box<dyn Version>>> {
-            let Some(map) = this.await?.versioned_content_map else {
-                bail!("must be in dev mode to hmr")
-            };
-            let root = this.server_hmr_root_path().owned().await?;
-            AggregateHmrVersion::from_map(*map, root).await
-        }
-        let version_op = server_hmr_version_operation(self);
-
-        // INVALIDATION: untracked initial read; the subscription drives invalidation.
-        let state = VersionState::new(
-            version_op
-                .read_trait_strongly_consistent()
-                .untracked()
-                .await?,
-        )
-        .await?;
-        Ok(state)
-    }
-
-    /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
-    /// combined `ChunkListUpdate` is the union of the server entry chunk diffs.
-    ///
-    /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
-    /// the module deltas for its shared chunks via the merger) or a bare
-    /// `EcmascriptMergedUpdate`; both are folded into one `ChunkListUpdate` that
-    /// the runtime applies exactly as it would a single chunk list.
-    ///
-    /// All-or-nothing restart: any chunk needing `Total`/`Missing` escalates
-    /// the whole batch to `Total` (the runtime can't partially restart). New
-    /// chunks absent from `from` are skipped; the runtime require()s them on
-    /// demand.
+    /// Server entry chunks shared by all pull baselines.
     #[turbo_tasks::function]
-    pub async fn server_hmr_update(self: Vc<Self>, from: Vc<VersionState>) -> Result<Vc<Update>> {
+    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
         let root = self.server_hmr_root_path().owned().await?;
-        let chunks_versioned_content = map.hmr_chunks_in_path(root).await?;
+        Ok(map.server_hmr_chunks_in_path(root))
+    }
 
-        // No chunks to diff yet (e.g. before any endpoints have been written).
-        if chunks_versioned_content.is_empty() {
-            return Ok(Update::None.cell());
-        }
-
-        // Build `to` up front so we can return it on every escape hatch below.
-        let to_aggregate = AggregateHmrVersion::from_chunks(&chunks_versioned_content).await?;
-        let to_ref = Vc::upcast::<Box<dyn Version>>(to_aggregate)
-            .into_trait_ref()
-            .await?;
-
-        let DiffResult {
-            chunk_updates,
-            has_new_chunks,
-        } = diff_chunks_against(&chunks_versioned_content, from).await?;
-
-        // Nothing to apply, but `from` still needs to advance to `to`. Reaching
-        // here means `from` held a version we couldn't diff against (it wasn't an
-        // `AggregateHmrVersion`), so `diff_chunks_against` gave up and returned
-        // nothing. An empty `Partial` moves the subscription's state forward so
-        // the *next* change produces a real diff; returning `Total` instead would
-        // force a needless full re-evaluation.
-        if chunk_updates.is_empty() && !has_new_chunks {
-            return Ok(ChunkListUpdateBuilder::default().build(to_ref).cell());
-        }
-
-        let mut builder = ChunkListUpdateBuilder::default();
-        for (_path, update) in chunk_updates {
-            match &*update {
-                Update::None => {}
-                Update::Missing | Update::Total(_) => {
-                    return Ok(Update::Total(TotalUpdate { to: to_ref }).cell());
-                }
-                Update::Partial(PartialUpdate { instruction, .. }) => {
-                    builder.add_instruction(instruction);
-                }
-            }
-        }
-
-        if builder.is_empty() && !has_new_chunks {
-            return Ok(Update::None.cell());
-        }
-
-        Ok(builder.build(to_ref).cell())
+    #[turbo_tasks::function]
+    pub async fn server_hmr_chunks_for_entries(
+        self: Vc<Self>,
+        entry_paths: Vec<RcStr>,
+    ) -> Result<Vc<ServerHmrChunkLists>> {
+        let mut chunk_lists =
+            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
+        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
+        Ok(chunk_lists.cell())
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.
@@ -2755,7 +2688,7 @@ impl Project {
             .await?;
 
         let asset_context =
-            externals_tracing_module_context(get_tracing_compile_time_info(), false);
+            externals_tracing_module_context(get_tracing_compile_time_info(), false, None);
 
         Ok(Vc::cell(
             cache_handler
@@ -2780,7 +2713,12 @@ impl Project {
     /// Other endpoints use [`Project::additional_traced_modules`].
     #[turbo_tasks::function]
     pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let hook_modules = require_hook_modules(self.project_path().owned().await?)
+        let asset_context = Vc::upcast(externals_tracing_module_context(
+            get_tracing_compile_time_info(),
+            false,
+            None,
+        ));
+        let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
             .owned()
             .await?;
         let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)

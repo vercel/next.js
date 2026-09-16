@@ -1,6 +1,6 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
@@ -24,6 +24,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_canonicalization;
 pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
@@ -82,9 +83,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
-    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
-    trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
+    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -106,13 +107,14 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::graph::EvalContext,
+    analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
@@ -241,10 +243,16 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    /// Whether to shorten ("mangle") the export names this module exposes to other modules, to
+    /// reduce output size. Defaults to false. See
+    /// `references::esm::mangle::mangled_export_names`.
+    pub mangle_export_names: bool,
     /// Whether to scope hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
     /// Whether to enable cross-module constant inlining. Defaults to false.
     pub cross_module_constants: bool,
+    /// Whether dynamic import targets are compiled after their runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -423,10 +431,41 @@ pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Default, Debug)]
+pub struct EnvVarInfo {
+    /// List of environment variables accessed at runtime (not inlined) in the module.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    // TODO add this back once we can do it without regressing performance
+    // Whether the module potentially references all environment variables (because of a
+    // non-statically analyzeable `process.env`).
+    // pub runtime_all: Option<IssueSource>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum EnvVarAccessMode {
+    /// The value is read.
+    Read,
+    /// Only the existence of the variable is checked, we only care about unset vs falsy vs truthy.
+    Existence,
+}
+
+#[turbo_tasks::value_impl]
+impl EnvVarInfo {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+
+    #[turbo_tasks::function]
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
@@ -590,6 +629,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         analyze_ecmascript_module(self, None)
     }
 
+    #[turbo_tasks::function]
+    async fn env_var_info(self: Vc<Self>) -> Result<Vc<EnvVarInfo>> {
+        Ok(*self.analyze().await?.env_var_info)
+    }
+
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
     #[turbo_tasks::function]
@@ -746,6 +790,45 @@ impl EcmascriptModuleAsset {
     }
 }
 
+/// Computes a module's side effects from parse data only.
+///
+/// This intentionally stays independent of [`EcmascriptModuleAsset::analyze`], since side-effect
+/// information is needed while resolving references during analysis.
+#[turbo_tasks::function]
+async fn compute_ecmascript_module_side_effects(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Vc<ModuleSideEffects>> {
+    let options = module.options().await?;
+    let parsed = module.failsafe_parse().await?;
+    let ParseResult::Ok {
+        program,
+        globals,
+        eval_context,
+        comments,
+        ..
+    } = &*parsed
+    else {
+        return Ok(ModuleSideEffects::SideEffectful.cell());
+    };
+
+    let directives = parse_module_turbopack_directives(program);
+    let side_effects = if directives.no_side_effects {
+        ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module && options.cross_module_constants {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // constant folding would not be safe.
+        ModuleSideEffects::SideEffectFree
+    } else if options.infer_module_side_effects {
+        GLOBALS.set(globals, || {
+            compute_module_evaluation_side_effects(program, comments, eval_context.unresolved_mark)
+        })
+    } else {
+        ModuleSideEffects::SideEffectful
+    };
+
+    Ok(side_effects.cell())
+}
+
 impl EcmascriptModuleAsset {
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
@@ -837,7 +920,7 @@ impl Module for EcmascriptModuleAsset {
         {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
-            SideEffectsDeclaration::None => self.analyze().await?.side_effects,
+            SideEffectsDeclaration::None => *compute_ecmascript_module_side_effects(self).await?,
         })
         .cell())
     }

@@ -686,6 +686,51 @@ describe('app-dir - server source maps', () => {
     )
   })
 
+  it('does not print a stack frame for the error message line', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-location-message')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-location-message'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-location-message: connect ECONNREFUSED ::1:45999' +
+          '\n    at logError (app/rsc-error-log-location-message/page.js:7:5)' +
+          '\n    at Page (app/rsc-error-log-location-message/page.js:12:3)' +
+          '\n   5 |   // test match this error only.' +
+          '\n   6 |   console.error(' +
+          "\n>  7 |     new Error('rsc-error-log-location-message: connect ECONNREFUSED ::1:45999')" +
+          '\n     |     ^' +
+          '\n   8 |   )' +
+          '\n   9 | }'
+      )
+      // `stacktrace-parser` reads the `<name>: <message>` line as a frame when
+      // the message ends with text that looks like a file location. A real
+      // anonymous frame also reads `at <unknown>`, so this assertion names the
+      // message to keep the two apart.
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('at <unknown> (Error: rsc-error-log-location-message')
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        //
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-location-message/page.js:7:5)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'at <unknown> (Error: rsc-error-log-location-message'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('handles invalid sourcemaps gracefully', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length

@@ -24,7 +24,7 @@ const cacheHandler = {
 
   async getExpiration(tags) {
     console.log('WiringModernCacheHandler::getExpiration', JSON.stringify(tags))
-    return Infinity
+    return defaultCacheHandler.getExpiration(tags)
   },
 
   async updateTags(tags) {

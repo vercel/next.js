@@ -4,8 +4,7 @@ const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
-const { linkPackages } =
-  require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
+const { linkPackages } = require('./link-packed-packages')
 const yaml = require('js-yaml')
 const {
   getPnpmSecuritySettings,
@@ -141,6 +140,78 @@ async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
 }
 
 /**
+ * pnpm's hoisted linker does not expose the `@pkg+name@file` virtual-store
+ * path used by the default linker. Verify the exact local tarball through the
+ * lockfile instead.
+ *
+ * @param {string} installDir
+ * @param {string} packageName
+ * @param {string} expectedTarballPath
+ * @returns {Promise<boolean>}
+ */
+async function lockfileResolvesLocalTarball(
+  installDir,
+  packageName,
+  expectedTarballPath
+) {
+  const lockfile = /** @type {Record<string, any>} */ (
+    yaml.load(
+      await fs.readFile(path.join(installDir, 'pnpm-lock.yaml'), 'utf8')
+    )
+  )
+  const expectedRealpath = await fs.realpath(expectedTarballPath)
+
+  for (const [key, pkg] of Object.entries(lockfile.packages || {})) {
+    const tarball = pkg?.resolution?.tarball
+    if (
+      !key.startsWith(`${packageName}@file:`) ||
+      typeof tarball !== 'string' ||
+      !tarball.startsWith('file:')
+    ) {
+      continue
+    }
+
+    const resolvedTarball = path.resolve(
+      installDir,
+      tarball.slice('file:'.length)
+    )
+    if ((await fs.realpath(resolvedTarball)) === expectedRealpath) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * @param {import('next/dist/trace').Span} parentSpan
+ * @returns {Promise<Map<string, string>>}
+ */
+async function packPackages(parentSpan) {
+  const repositoryDirectory = path.join(__dirname, '../..')
+  await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+    execa(
+      'pnpm',
+      [
+        'turbo',
+        'run',
+        'pack-for-isolated-tests',
+        '--output-logs',
+        'new-only',
+        '--ui',
+        'stream',
+      ],
+      {
+        cwd: repositoryDirectory,
+        stdio: ['ignore', 'inherit', 'inherit'],
+      }
+    )
+  )
+  return parentSpan
+    .traceChild('linkPackages')
+    .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+}
+
+/**
  *
  * @param {object} param0
  * @param {import('@next/telemetry').Span} param0.parentSpan
@@ -182,26 +253,7 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa(
-            'pnpm',
-            [
-              'turbo',
-              'run',
-              'pack-for-isolated-tests',
-              '--output-logs',
-              'new-only',
-              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
-              // so Turborepo's tui isn't interactive anyway.
-              '--ui',
-              'stream',
-            ],
-            {
-              cwd: origRepoDir,
-              stdio: ['ignore', 'inherit', 'inherit'],
-            }
-          )
-        )
+        pkgPaths = await packPackages(rootSpan)
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
@@ -235,19 +287,25 @@ async function createNextInstall({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
-
-        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
-          linkPackages({
-            repoDir: origRepoDir,
-          })
-        )
       }
 
       const combinedDependencies = {
         next: pkgPaths.get('next'),
         ...Object.keys(dependencies).reduce((prev, pkg) => {
           const pkgPath = pkgPaths.get(pkg)
-          prev[pkg] = pkgPath || dependencies[pkg]
+          const version = dependencies[pkg]
+          if (version === 'workspace:*') {
+            if (pkgPath) {
+              prev[pkg] = pkgPath
+            } else {
+              throw new Error(
+                `"${pkg}" is declared as "workspace:*" but no packed tarball was found for it. ` +
+                  `Only packages in this repository with a "pack-for-isolated-tests" script can be used with "workspace:*".`
+              )
+            }
+          } else {
+            prev[pkg] = pkgPath || version
+          }
           return prev
         }, {}),
       }
@@ -353,7 +411,9 @@ async function createNextInstall({
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
 
         // `@next/env` is a dependency of `next`, so it only resolves to the
-        // local tarball if the overrides were applied.
+        // local tarball if the overrides were applied. Every generic isolated
+        // install reaches this guard, but the lockfile fallback short-circuits
+        // off when the default linker exposes its virtual-store path.
         if (!combinedDependencies['@next/env']) {
           const envDir = await fs.realpath(
             path.join(
@@ -361,7 +421,18 @@ async function createNextInstall({
               '../@next/env'
             )
           )
-          if (!envDir.includes('@next+env@file')) {
+          const envTarballPath = pkgPaths.get('@next/env')
+          if (
+            !envDir.includes('@next+env@file') &&
+            !(
+              envTarballPath &&
+              (await lockfileResolvesLocalTarball(
+                installDir,
+                '@next/env',
+                envTarballPath
+              ))
+            )
+          ) {
             throw new Error(
               `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
                 'the workspace overrides were not applied to the install'
@@ -385,4 +456,5 @@ async function createNextInstall({
 module.exports = {
   createNextInstall,
   getPkgPaths: linkPackages,
+  packPackages,
 }

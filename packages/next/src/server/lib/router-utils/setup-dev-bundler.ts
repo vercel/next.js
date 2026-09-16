@@ -30,6 +30,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
+import { getConventionFileBaseName } from '../../../build/get-convention-file-base-name'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
@@ -88,6 +89,7 @@ import {
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
   MIDDLEWARE_FILENAME,
@@ -97,6 +99,10 @@ import { parseUrl } from '../../../lib/url'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app-pages-error'
+import { MissingCanonicalInterceptionRoutesError } from '../../../shared/lib/errors/missing-canonical-interception-routes-error'
+import { IncompatibleParallelRouteSlotsError } from '../../../shared/lib/errors/incompatible-parallel-route-slots-error'
+import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -384,24 +390,37 @@ async function startWatcher(
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
 
-  await new Promise<void>(async (resolve, reject) => {
-    if (pagesDir) {
-      // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir, (_, files) => {
-        if (files?.length) {
-          return
-        }
+  const pages = pagesDir ? [pagesDir] : []
+  const app = appDir ? [appDir] : []
+  const directories = [...pages, ...app]
 
-        if (!resolved) {
-          resolve()
-          resolved = true
+  // Snapshot the route directories before watching starts. Watchpack can report
+  // its first aggregation while a directory scan is still in flight, so route
+  // discovery needs this snapshot to avoid observing a partial filesystem.
+  const initialFiles = (
+    await Promise.all(
+      directories.map(async (directory) => {
+        try {
+          return await recursiveReadDir(directory, {
+            relativePathnames: false,
+          })
+        } catch (err: any) {
+          // The directory can be removed while the dev server boots. Watchpack
+          // reports that as a removal later on.
+          if (err.code !== 'ENOENT') throw err
+          return []
         }
       })
-    }
+    )
+  ).flat()
+  const initialPageFiles = initialFiles.filter(validFileMatcher.isPageFile)
 
-    const pages = pagesDir ? [pagesDir] : []
-    const app = appDir ? [appDir] : []
-    const directories = [...pages, ...app]
+  await new Promise<void>(async (resolve, reject) => {
+    if (initialFiles.length === 0) {
+      // Watchpack doesn't emit an event when all route directories are empty.
+      resolve()
+      resolved = true
+    }
 
     const rootDir = pagesDir || appDir
     const files = [
@@ -448,6 +467,7 @@ async function startWatcher(
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
+    let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
 
@@ -455,20 +475,40 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
+    // Startup only waits this long for Watchpack to observe the files found by
+    // the snapshot above, so a file it never reports cannot stall the server.
+    const initialScanDeadline = initialWatchTime + 30_000
     wp.on('aggregated', async () => {
       const isInitialScan = !hadInitialScan
-      hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
+
+      // Watchpack can emit an aggregation while its initial directory scan is
+      // still in flight. Ignore partial startup passes so route definitions and
+      // errors are not published until every initial page file is observable.
+      // Bounded by a deadline so an unwatchable file can never block startup.
+      if (
+        !resolved &&
+        performance.now() + performance.timeOrigin < initialScanDeadline &&
+        initialPageFiles.some(
+          (file) => fs.existsSync(file) && !knownFiles.has(file)
+        )
+      ) {
+        return
+      }
+      hadInitialScan = true
+
       const appPaths: Record<string, string[]> = {}
+      const defaultAppPaths = new Set<string>()
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
       const duplicatePagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const appRouteFilePaths = new Map<string, string>()
+      const parallelRouteLayoutFiles = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
       const appRouteHandlers: Array<RouteInfo & { page: string }> = []
       const pageApiRoutes: RouteInfo[] = []
@@ -505,7 +545,8 @@ async function startWatcher(
           continue
         }
 
-        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+        const { base: fileBase, dir: fileDir } = path.parse(fileName)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const isAtConventionLevel =
           fileDir === dir || fileDir === path.join(dir, 'src')
@@ -716,10 +757,20 @@ async function startWatcher(
 
           // Handle layouts separately - they don't get added to appPaths
           if (validFileMatcher.isAppLayoutPage(fileName)) {
+            const layoutPath =
+              normalizedPageName
+                .replace(/%5F/g, '_')
+                .replace(/\/layout$/, '') || '/'
+            parallelRouteLayoutFiles.set(layoutPath, fileName)
             const layoutRoute = ensureLeadingSlash(
               normalizeAppPath(normalizedPageName).replace(/\/layout$/, '')
             )
             layoutRoutes.push({ route: layoutRoute, filePath: fileName })
+            continue
+          }
+
+          if (validFileMatcher.isAppDefaultPage(fileName)) {
+            defaultAppPaths.add(normalizedPageName.replace(/%5F/g, '_'))
             continue
           }
 
@@ -1049,7 +1100,72 @@ async function startWatcher(
         }
       }
 
-      normalizeCatchAllRoutes(appPagePaths)
+      const { unmatchedAppPages, incompatibleParallelRouteSlots } =
+        normalizeCatchAllRoutes(appPagePaths, undefined, {
+          strictRouteMatching: nextConfig.experimental.strictRouteMatching,
+          defaultAppPaths,
+        })
+      const missingCanonicalInterceptionRoutes = nextConfig.experimental
+        .strictRouteMatching
+        ? findMissingCanonicalInterceptionRoutes(appPagePaths)
+        : []
+      const routeMatchingErrors: Error[] = []
+      if (missingCanonicalInterceptionRoutes.length > 0) {
+        routeMatchingErrors.push(
+          new MissingCanonicalInterceptionRoutesError(
+            missingCanonicalInterceptionRoutes
+          )
+        )
+      }
+      if (incompatibleParallelRouteSlots.length > 0) {
+        routeMatchingErrors.push(
+          new IncompatibleParallelRouteSlotsError(
+            incompatibleParallelRouteSlots.map((incompatibleRoute) => ({
+              ...incompatibleRoute,
+              layoutFile: path.relative(
+                dir,
+                parallelRouteLayoutFiles.get(incompatibleRoute.layoutPath) ??
+                  path.join(appDir!, incompatibleRoute.layoutPath, 'layout')
+              ),
+            }))
+          )
+        )
+      }
+      if (unmatchedAppPages.length > 0) {
+        routeMatchingErrors.push(
+          new UnmatchedAppPagesError(
+            unmatchedAppPages.map((appPath) => {
+              const filePath = appRouteFilePaths.get(appPath)
+              return filePath
+                ? normalizePathSep(path.relative(dir, filePath))
+                : appPath
+            })
+          )
+        )
+      }
+      const routeMatchingError = routeMatchingErrors[0] ?? null
+      const routeMatchingErrorsKey =
+        routeMatchingErrors.map((error) => error.message).join('\n\n') || null
+      if (
+        numConflicting === 0 &&
+        routeMatchingErrorsKey !== null &&
+        routeMatchingErrorsKey !== previousRouteMatchingErrors
+      ) {
+        for (const error of routeMatchingErrors) {
+          Log.error(error.message)
+        }
+      }
+      // Turbopack reports route-matching failures as app-structure issues.
+      // Webpack needs an HMR server error so dev can finish booting and surface
+      // the problem to connected clients instead of throwing from this watcher.
+      if (!opts.turbo) {
+        if (numConflicting === 0 && routeMatchingError) {
+          hotReloader.setHmrServerError(routeMatchingError)
+        } else if (numConflicting === 0 && previousRouteMatchingErrors) {
+          hotReloader.clearHmrServerError()
+        }
+      }
+      previousRouteMatchingErrors = routeMatchingErrorsKey
       for (const pageAppPaths of Object.values(appPagePaths)) {
         pageAppPaths.sort(compareAppPaths)
       }
@@ -1122,6 +1238,13 @@ async function startWatcher(
 
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
+
+      const routeKinds = new Map(
+        [...pageRouteDefinitions, ...appRouteDefinitions].map((definition) => [
+          definition.pathname,
+          definition.kind,
+        ])
+      )
 
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
@@ -1205,6 +1328,9 @@ async function startWatcher(
               routeKeys: regex.routeKeys,
               match: getRouteMatcher(regex),
               page,
+              kind:
+                routeKinds.get(page) ??
+                (isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES),
             }
           }
         )
@@ -1234,6 +1360,9 @@ async function startWatcher(
                 : new RegExp(route.dataRouteRegex),
               groups: routeRegex.groups,
             }),
+            kind: isAPIRoute(route.page)
+              ? RouteKind.PAGES_API
+              : RouteKind.PAGES,
           })
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)

@@ -772,6 +772,9 @@ export default class DevServer extends Server {
           deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            this.nextConfig.experimental.durableUseCacheEntries
+          ),
           staticPageGenerationTimeout:
             this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
@@ -886,12 +889,12 @@ export default class DevServer extends Server {
         }
         this.staticPathsCache.set(pathname, value)
 
-        // Since generateStaticParams runs in the background, the fallbackParams
-        // accessed during a render are derived from the previous result served
-        // by the static paths cache. Now that the cache holds the new result,
-        // trigger a refresh so the next render picks up the new fallbackParams
-        // (e.g. so blocking-route validation reflects params that just became
-        // statically known).
+        // Since generateStaticParams runs in the background, the
+        // stagedFallbackParams accessed during a render are derived from the
+        // previous result served by the static paths cache. Now that the cache
+        // holds the new result, trigger a refresh so the next render picks up
+        // the new stagedFallbackParams (e.g. so blocking-route validation
+        // reflects params that just became statically known).
         if (
           isAppPath &&
           this.nextConfig.cacheComponents &&

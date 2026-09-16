@@ -88,6 +88,7 @@ export async function buildDevValidationSnapshot(
       .additionalClientReferenceManifestPages
       ? [...ctx.workStore.additionalClientReferenceManifestPages]
       : [],
+    reactBrowserBailout: ctx.renderOpts.experimental.reactBrowserBailout,
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
     renderOpts: {
       images: ctx.renderOpts.images,

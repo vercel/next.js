@@ -61,7 +61,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::asset_fs_inline_path_enc_es_5("asset-fs-inline-path-enc-es-5")]
 #[case::asset_fs_inline_path_enc_es_node_prefix("asset-fs-inline-path-enc-es-node-prefix")]
 #[case::asset_fs_inline_path_shadow("asset-fs-inline-path-shadow")]
-// #[case::asset_fs_inline_path_ts("asset-fs-inline-path-ts")]
+#[case::asset_fs_inline_path_ts("asset-fs-inline-path-ts")]
 #[case::asset_fs_inline_path_ts_no_interop("asset-fs-inline-path-ts-no-interop")]
 #[case::asset_fs_inline_tpl("asset-fs-inline-tpl")]
 #[case::asset_fs_inlining("asset-fs-inlining")]

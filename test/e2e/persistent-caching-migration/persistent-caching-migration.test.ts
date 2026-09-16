@@ -18,8 +18,11 @@ const CASES = [
 
 describe('persistent-caching-migration', () => {
   for (const [option, error] of CASES) {
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
+    // @force-gate !deploy
     describe(option, () => {
-      const { skipped, next, isTurbopack, isNextStart } = nextTestSetup({
+      const { next, isTurbopack, isNextStart } = nextTestSetup({
         files: {
           'next.config.js': `module.exports = {
   experimental: {
@@ -27,13 +30,8 @@ describe('persistent-caching-migration', () => {
   },
 }`,
         },
-        skipDeployment: true,
         skipStart: true,
       })
-
-      if (skipped) {
-        return
-      }
 
       if (!isTurbopack) {
         it.skip('only for turbopack', () => {})

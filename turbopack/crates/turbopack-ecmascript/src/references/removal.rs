@@ -13,12 +13,13 @@ use swc_core::{
     ecma::{
         ast::{
             ArrayPat, ArrowExpr, AssignPat, AssignPatProp, BindingIdent, BlockStmt, ClassDecl,
-            Decl, EmptyStmt, Expr, FnDecl, Ident, KeyValuePatProp, Lit, ObjectPat, ObjectPatProp,
-            Pat, RestPat, Stmt, Str, SwitchCase, VarDecl, VarDeclKind, VarDeclarator,
+            Decl, EmptyStmt, Expr, FnDecl, FunctionBody, Ident, KeyValuePatProp, Lit, ObjectPat,
+            ObjectPatProp, Pat, RestPat, Stmt, Str, SwitchCase, VarDecl, VarDeclKind,
+            VarDeclarator,
         },
         visit::{
             AstParentKind, VisitMut, VisitMutWith,
-            fields::{BlockStmtField, SwitchCaseField},
+            fields::{BlockStmtField, FunctionBodyField, SwitchCaseField},
         },
     },
     quote,
@@ -101,6 +102,10 @@ impl AstModifier for UnreachableRangeModifier {
         self.replace(&mut block.stmts, self.start_index);
     }
 
+    fn visit_mut_function_body(&self, body: &mut FunctionBody) {
+        self.replace(&mut body.stmts, self.start_index);
+    }
+
     fn visit_mut_switch_case(&self, case: &mut SwitchCase) {
         self.replace(&mut case.cons, self.start_index);
     }
@@ -174,6 +179,18 @@ impl RemovalCodeGen {
                         unreachable!();
                     };
                     if let &AstParentKind::BlockStmt(BlockStmtField::Stmts(start_index)) = last {
+                        vec![(
+                            parent.to_vec(),
+                            Box::new(UnreachableRangeModifier {
+                                comment_replacement: comment_replacement.clone(),
+                                comments: comments.clone(),
+                                start_index,
+                            }) as Box<dyn AstModifier>,
+                        )]
+                    } else if let &AstParentKind::FunctionBody(FunctionBodyField::Stmts(
+                        start_index,
+                    )) = last
+                    {
                         vec![(
                             parent.to_vec(),
                             Box::new(UnreachableRangeModifier {

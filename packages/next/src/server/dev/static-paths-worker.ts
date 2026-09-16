@@ -54,6 +54,7 @@ export async function loadStaticPaths({
   deploymentId,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   sriEnabled,
 }: {
@@ -78,6 +79,7 @@ export async function loadStaticPaths({
   deploymentId: string
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
@@ -149,6 +151,7 @@ export async function loadStaticPaths({
       deploymentId,
       authInterrupts,
       useCacheTimeout,
+      durableUseCacheEntries,
       staticPageGenerationTimeout,
       rootParamKeys,
     })
