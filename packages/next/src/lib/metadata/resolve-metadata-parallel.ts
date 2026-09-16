@@ -24,8 +24,8 @@ import {
 } from '../../server/lib/app-dir-module'
 import { createServerParamsForMetadata } from '../../server/request/params'
 import { DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/default'
-import { PARALLEL_ROUTE_DEFAULT_NULL_PATH } from '../../client/components/builtin/default-null'
+import { isParallelRouteDefaultPath } from '../../client/components/builtin/default'
+import { isParallelRouteDefaultNullPath } from '../../client/components/builtin/default-null'
 import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import * as Log from '../../build/output/log'
@@ -602,8 +602,9 @@ function isPageTree(tree: LoaderTree): boolean {
 function isBuiltinFallback(tree: LoaderTree): boolean {
   const { defaultPage } = tree[2]
   return (
-    defaultPage?.[1].endsWith(PARALLEL_ROUTE_DEFAULT_PATH) === true ||
-    defaultPage?.[1].endsWith(PARALLEL_ROUTE_DEFAULT_NULL_PATH) === true
+    defaultPage !== undefined &&
+    (isParallelRouteDefaultPath(defaultPage[1]) ||
+      isParallelRouteDefaultNullPath(defaultPage[1]))
   )
 }
 

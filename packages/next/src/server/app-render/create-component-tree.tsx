@@ -28,7 +28,7 @@ import { createComponentStylesAndScripts } from './create-component-styles-and-s
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { validateRevalidate } from '../lib/patch-fetch'
-import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/default'
+import { isParallelRouteDefaultPath } from '../../client/components/builtin/default'
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
@@ -611,7 +611,8 @@ async function createComponentTreeInternal(
             // to provide more helpful debug information during development mode.
             const parsedTree = parseLoaderTree(parallelRoute)
             if (
-              parsedTree.conventionPath?.endsWith(PARALLEL_ROUTE_DEFAULT_PATH)
+              parsedTree.conventionPath &&
+              isParallelRouteDefaultPath(parsedTree.conventionPath)
             ) {
               missingSlots.add(parallelRouteKey)
             }
