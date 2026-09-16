@@ -24,7 +24,7 @@ export async function setupUpgrade(sandbox: Sandbox) {
   if (!fixture) throw new Error('Select one upgrade eval case')
   const fixtureDirectory = join(__dirname, '../evals', fixture)
   const baselineFiles = Object.fromEntries(
-    ['.gitignore', 'package-lock.json'].flatMap((name) => {
+    ['.gitignore'].flatMap((name) => {
       const file = join(fixtureDirectory, name)
       return existsSync(file) ? [[name, readFileSync(file, 'utf8')]] : []
     })
@@ -55,6 +55,12 @@ export async function setupUpgrade(sandbox: Sandbox) {
     '--prefix',
     `${toolsDirectory}/next`,
     `${toolsDirectory}/next.tgz`,
+  ])
+  await run('npm', [
+    'install',
+    '--prefix',
+    `${toolsDirectory}/codemod`,
+    `${toolsDirectory}/codemod.tgz`,
   ])
   await run('chmod', ['+x', `${toolsDirectory}/entry.mjs`])
   const path = await run('sh', ['-c', 'printf %s "$PATH"'])

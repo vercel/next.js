@@ -55,7 +55,14 @@ if (
   const result = spawnSync(
     process.execPath,
     [join(tools, 'entry.mjs'), ...invocation.args],
-    { stdio: 'inherit', env: process.env }
+    {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NEXT_UPGRADE_EVAL_PACKAGE_RUNNER: runner,
+        NEXT_UPGRADE_EVAL_REQUESTED_PACKAGE: invocation.requestedPackage,
+      },
+    }
   )
   if (result.error) throw result.error
   process.exit(result.status ?? 1)
