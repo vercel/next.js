@@ -5,9 +5,10 @@ import { setupLatest } from '../latest/setup'
 import { setupFuture } from '../future/setup'
 
 export function upgradeExperiment(
-  harness: 'codex' | 'claude-code'
+  harness: 'codex' | 'claude-code',
+  selectedFixture: string | undefined = undefined
 ): ExperimentConfig {
-  const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
+  const fixture = selectedFixture ?? process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture) throw new Error('Select one upgrade eval case')
   const security = fixture.startsWith('security-')
   const latest = fixture.startsWith('latest-')
@@ -25,10 +26,10 @@ export function upgradeExperiment(
     timeout: future ? 3600 : 1800,
     copyFiles: 'changed',
     setup: async (sandbox) => {
-      const setup = await setupUpgrade(sandbox)
-      if (security) await setupSecurity(sandbox)
-      if (latest) await setupLatest(sandbox)
-      if (future) await setupFuture(sandbox)
+      const setup = await setupUpgrade(sandbox, fixture)
+      if (security) await setupSecurity(sandbox, fixture)
+      if (latest) await setupLatest(sandbox, fixture)
+      if (future) await setupFuture(sandbox, fixture)
       return setup
     },
   }
