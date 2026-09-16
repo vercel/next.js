@@ -760,13 +760,8 @@ export abstract class RouteModule<
 
     let localeResult: PathLocale | undefined
     let detectedLocale: string | undefined
-    const isPagesRoute =
-      this.definition.kind === RouteKind.PAGES ||
-      this.definition.kind === RouteKind.PAGES_API
 
-    // `i18n` is a Pages Router feature. App routes own their locale segment,
-    // so their pathname must remain intact for dynamic param matching.
-    if (i18n && isPagesRoute) {
+    if (i18n) {
       localeResult = normalizeLocalePath(
         parsedUrl.pathname || '/',
         i18n.locales
@@ -789,7 +784,7 @@ export abstract class RouteModule<
 
     const serverUtils = getServerUtils({
       page: normalizedSrcPage,
-      i18n: isPagesRoute ? i18n : undefined,
+      i18n,
       basePath,
       rewrites,
       pageIsDynamic,
@@ -814,7 +809,7 @@ export abstract class RouteModule<
 
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.
-    if (defaultLocale && !detectedLocale && isPagesRoute) {
+    if (defaultLocale && !detectedLocale) {
       parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}`
     }
     const locale =
@@ -831,7 +826,7 @@ export abstract class RouteModule<
 
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
-    if (i18n && isPagesRoute) {
+    if (i18n) {
       parsedUrl.pathname = normalizeLocalePath(
         parsedUrl.pathname || '/',
         i18n.locales
@@ -883,7 +878,10 @@ export abstract class RouteModule<
     // for app router since the searchParams is populated from the
     // URL so we don't want to strip the rewrite params from the URL
     // so that searchParams can include them.
-    if (isPagesRoute) {
+    if (
+      this.definition.kind === RouteKind.PAGES ||
+      this.definition.kind === RouteKind.PAGES_API
+    ) {
       for (const key of [
         ...rewriteParamKeys,
         ...Object.keys(serverUtils.defaultRouteMatches || {}),
