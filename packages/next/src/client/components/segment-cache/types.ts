@@ -31,7 +31,7 @@ export const enum PrefetchPriority {
   Background = 0,
 }
 
-export const enum FetchStrategy {
+export enum FetchStrategy {
   // Deliberately ordered so we can easily compare two segments
   // and determine if one segment is "more specific" than another
   // (i.e. if it's likely that it contains more data). See

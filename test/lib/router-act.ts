@@ -75,7 +75,7 @@ let currentBatch: Batch | null = null
 
 type ExpectedResponseConfig = {
   includes: string
-  block?: boolean | 'reject'
+  block?: boolean | 'reject' | 'simulate-server-error'
   kind?: ResponseKind
 }
 
@@ -447,6 +447,7 @@ export function createRouterAct(
       // Wait until the first request is initiated, up to some timeout.
       if (expectedResponses !== null && !batch.didReceiveRouterRequest) {
         await new Promise<void>((resolve, reject) => {
+          let remainingWaitForInFlight = 5_000
           let timerId: ReturnType<typeof setTimeout>
           const onExpiry = () => {
             // Before timing out, check for App Shell requests in flight
@@ -456,11 +457,24 @@ export function createRouterAct(
             // doesn't complete until its shell responses arrive, so the
             // first observable request may be legitimately gated on one.
             // Keep the watchdog alive until it settles.
-            if (inFlightAppShellRequests.size > 0) {
+            if (
+              inFlightAppShellRequests.size > 0 &&
+              remainingWaitForInFlight > 0
+            ) {
               timerId = setTimeout(onExpiry, 500)
+              remainingWaitForInFlight -= 500
               return
             }
-            error.message = 'Timed out waiting for a request to be initiated.'
+            let message = 'Timed out waiting for a request to be initiated.'
+            if (inFlightAppShellRequests.size > 0) {
+              message +=
+                '\n\nNOTE: There are still pending requests from before this act() call:\n' +
+                [...inFlightAppShellRequests]
+                  .map((request) => `  - ${request.url()}`)
+                  .join('\n')
+            }
+            error.message = message
+            console.log('router act :: timeout')
             reject(error)
           }
           timerId = setTimeout(onExpiry, 500)
@@ -513,6 +527,7 @@ export function createRouterAct(
           const url = item.url
 
           let shouldBlock = false
+          let shouldSimulateError = false
           const fulfilled = await item.result
           if (item.didProcess) {
             // This response was already processed by an inner `act` call.
@@ -635,7 +650,11 @@ ${fulfilled.body}
                     claimedExpectations.add(expectedResponse)
                     actualResponses.push(expectedResponse)
                     if (block) {
-                      shouldBlock = true
+                      if (block === 'simulate-server-error') {
+                        shouldSimulateError = true
+                      } else {
+                        shouldBlock = true
+                      }
                     }
                     continue
                   }
@@ -705,11 +724,19 @@ ${fulfilled.body}
           } else {
             if (route !== null) {
               const request = route.request()
-              await route.fulfill({
-                body: fulfilled.body,
-                headers: fulfilled.headers,
-                status: fulfilled.status,
-              })
+              if (shouldSimulateError) {
+                await route.fulfill({
+                  body: 'Internal server error',
+                  headers: {},
+                  status: 500,
+                })
+              } else {
+                await route.fulfill({
+                  body: fulfilled.body,
+                  headers: fulfilled.headers,
+                  status: fulfilled.status,
+                })
+              }
               const browserResponse = await request.response()
               if (browserResponse !== null) {
                 // For error responses (>= 400), the browser may not consume the body
