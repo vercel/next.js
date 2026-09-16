@@ -22,8 +22,10 @@ window.next = {
 // for the page loader
 declare let __turbopack_load__: any
 
-// Map of page route -> promise that settles once the page's chunks finish
-// loading. The route loader consumes these promises in production builds.
+type PageChunkData = string | { path: string }
+
+// Map of page route -> promise that settles once the page's executable chunks
+// finish loading. The route loader consumes these promises in production.
 // Creating the map eagerly also lets the route loader detect Turbopack.
 const turbopackPageChunkPromises = new Map<string, Promise<unknown>>()
 ;(self as any).__TURBOPACK_PAGE_CHUNK_PROMISES__ = turbopackPageChunkPromises
@@ -33,15 +35,31 @@ initialize({})
     // for the page loader
     ;(self as any).__turbopack_load_page_chunks__ = (
       page: string,
-      chunksData: any
+      chunksData: PageChunkData[]
     ) => {
-      const chunkPromises = chunksData.map((c: unknown) =>
-        __turbopack_load__(c)
-      )
+      const chunkLoads = chunksData.map((chunkData) => ({
+        chunkData,
+        promise: __turbopack_load__(chunkData),
+      }))
 
-      const chunksPromise = Promise.all(chunkPromises).catch((err) =>
+      // Preserve loading and error reporting for every chunk. CSS remains
+      // subject to the route timeout, and the shared runtime is already active,
+      // so only executable page chunks postpone that timeout.
+      Promise.all(chunkLoads.map(({ promise }) => promise)).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)
       )
+      const chunksPromise = Promise.all(
+        chunkLoads
+          .filter(({ chunkData }) => {
+            const chunkPath =
+              typeof chunkData === 'string' ? chunkData : chunkData.path
+            return (
+              !chunkPath.endsWith('.css') &&
+              !/(?:^|\/)turbopack-[^/]+\.js$/.test(chunkPath)
+            )
+          })
+          .map(({ promise }) => promise)
+      ).catch(() => {})
       turbopackPageChunkPromises.set(page, chunksPromise)
     }
 
