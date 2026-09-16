@@ -19,6 +19,8 @@ fn init() {
     use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
     use turbo_tasks_malloc::TurboMalloc;
 
+    init_tracing();
+
     let prev_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         handle_panic(info);
@@ -41,4 +43,74 @@ fn init() {
         .build()
         .unwrap();
     create_custom_tokio_runtime(rt);
+}
+
+/// Holds the trace writer's flush guard for the life of the process. Dropping it flushes the
+/// buffered trace to disk, so `project_shutdown` takes it rather than letting the process exit
+/// with a truncated file.
+static TRACE_GUARD: std::sync::Mutex<
+    Option<turbopack_trace_utils::trace_writer::TraceWriterGuard>,
+> = std::sync::Mutex::new(None);
+
+/// Enable tracing when `TURBOPACK_TRACING` is set, mirroring `turbopack-cli`. Writes a raw trace
+/// to `<cwd>/.turbopack/trace.log`, which `turbopack-trace-server` reads.
+///
+/// The CLI entry point has had this for a long time; the napi addon did not, which left the
+/// standalone CLI unprofilable through the normal tooling.
+fn init_tracing() {
+    use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+    use turbopack_trace_utils::{
+        filter_layer::FilterLayer,
+        raw_trace::RawTraceLayer,
+        trace_writer::TraceWriter,
+        tracing_presets::{
+            TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
+        },
+    };
+
+    let Some(mut trace) = std::env::var("TURBOPACK_TRACING")
+        .ok()
+        .filter(|v| !v.is_empty())
+    else {
+        return;
+    };
+    match trace.as_str() {
+        "overview" | "1" => trace = TRACING_OVERVIEW_TARGETS.join(","),
+        "turbopack" => trace = TRACING_TURBOPACK_TARGETS.join(","),
+        "turbo-tasks" => trace = TRACING_TURBO_TASKS_TARGETS.join(","),
+        _ => {}
+    }
+
+    let internal_dir = std::env::current_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        .join(".turbopack");
+    if let Err(err) = std::fs::create_dir_all(&internal_dir) {
+        eprintln!(
+            "turbopack: unable to create {}: {err}",
+            internal_dir.display()
+        );
+        return;
+    }
+    let trace_path = internal_dir.join("trace.log");
+    let file = match std::fs::File::create(&trace_path) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("turbopack: unable to write {}: {err}", trace_path.display());
+            return;
+        }
+    };
+    eprintln!("turbopack: tracing to {}", trace_path.display());
+
+    let (trace_writer, guard) = TraceWriter::new(file);
+    *TRACE_GUARD.lock().unwrap() = Some(guard);
+
+    Registry::default()
+        .with(FilterLayer::try_new(&trace).unwrap())
+        .with(RawTraceLayer::new(trace_writer))
+        .init();
+}
+
+/// Flush the trace file, if tracing is on.
+pub fn flush_tracing() {
+    drop(TRACE_GUARD.lock().unwrap().take());
 }

@@ -10511,6 +10511,7 @@ dependencies = [
  "serde",
  "tempfile",
  "tokio",
+ "tracing",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -10878,6 +10879,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -10885,6 +10887,7 @@ dependencies = [
  "turbopack-cli-api",
  "turbopack-cli-core",
  "turbopack-core",
+ "turbopack-trace-utils",
  "vergen-gitcl",
 ]
 

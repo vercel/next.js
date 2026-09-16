@@ -145,5 +145,6 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     project.turbo_tasks.stop_and_wait().await;
+    crate::flush_tracing();
     Ok(())
 }

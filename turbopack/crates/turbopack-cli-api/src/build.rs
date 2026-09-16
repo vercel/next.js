@@ -1,9 +1,10 @@
 //! Build driver: compile each HTML entry's local `<script>` / `<link>` references and emit the
 //! rewritten HTML plus its content-hashed chunks into the output directory.
 
-use std::{env::current_dir, path::PathBuf, sync::Arc};
+use std::{env::current_dir, future::IntoFuture, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
+use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
@@ -258,6 +259,8 @@ async fn build_internal(container: ResolvedVc<ProjectContainer>) -> Result<()> {
         true,
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
+    // Force graph construction (module discovery, parse, analyze) before timing the rest.
+    module_graph.connect().to_resolved().await?;
     let binding_usage = compute_binding_usage_info(module_graph, true);
     let unused_references = binding_usage
         .connect()
@@ -355,11 +358,15 @@ async fn build_internal(container: ResolvedVc<ProjectContainer>) -> Result<()> {
     }
 
     // Expand the transitive output-asset graph (HTML + all chunks) and write each to disk.
-    let all_assets = all_assets_from_entries(Vc::<OutputAssets>::cell(roots)).await?;
+    let all_assets = all_assets_from_entries(Vc::<OutputAssets>::cell(roots))
+        .into_future()
+        .instrument(tracing::info_span!("build: expand output graph"))
+        .await?;
     all_assets
         .iter()
         .map(|asset| async move { asset.content().write(asset.path().owned().await?).await })
         .try_join()
+        .instrument(tracing::info_span!("build: generate content and write"))
         .await?;
 
     Ok(())
