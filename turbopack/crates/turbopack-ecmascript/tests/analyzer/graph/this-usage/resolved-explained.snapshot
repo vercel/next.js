@@ -1,0 +1,59 @@
+*anonymous function 455* = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 333* = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 597* = (...) => *arrow function 603*
+
+*arrow function 603* = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 643* = (...) => ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+Klass = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+arrowAtTopLevel = (...) => ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+doesNotUseThis = (...) => 1
+
+o = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+obj = {...???*0*, ...???*1*, ...???*2*, ...???*3*}
+- *0* unsupported object part
+  ⚠️  This value might have side effects
+- *1* unsupported object part
+  ⚠️  This value might have side effects
+- *2* unsupported object part
+  ⚠️  This value might have side effects
+- *3* unsupported object part
+  ⚠️  This value might have side effects
+
+usesThis = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+v = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+viaArrow = (...) => *arrow function 333*
+
+viaEval = (...) => FreeVar(eval)("this")
+
+viaNestedArrows = (...) => *arrow function 597*
+
+viaNestedFunction = (...) => *anonymous function 455*
+
+viaWith = (...) => FreeVar(x)

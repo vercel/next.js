@@ -1,13 +1,14 @@
 [
     (
         "*arrow function 138*",
-        Function(
-            2,
-            138,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 138,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "BaseClass",

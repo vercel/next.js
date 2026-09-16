@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -43,7 +44,7 @@ use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, HoistedStmtKey},
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
@@ -88,6 +89,12 @@ pub enum ReferencedAssetIdent {
         namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
+        /// Whether the named export can be captured once instead of read through the namespace at
+        /// every use. This is false for namespace imports, live bindings, and circuit breakers.
+        can_value_bind: bool,
+        /// Whether calling the named export could observe `this`, in which case a member call has
+        /// to keep the namespace as the receiver. Conservatively true.
+        maybe_uses_this: bool,
         /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
@@ -151,6 +158,8 @@ impl ReferencedAssetIdent {
                 namespace_ident,
                 ctxt,
                 export,
+                can_value_bind: _,
+                maybe_uses_this: _,
                 import_source: _,
             } => {
                 if let Some(export) = export {
@@ -231,14 +240,14 @@ impl ReferencedAsset {
                     let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
-                        Some(EsmExport::LocalBinding(_name, liveness)) => {
+                        Some(EsmExport::LocalBinding(binding)) => {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
                             return Ok(Some(ReferencedAssetIdent::LocalBinding {
                                 ident: export.clone(),
                                 ctxt,
-                                liveness: *liveness,
+                                liveness: binding.liveness,
                             }));
                         }
                         Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
@@ -287,11 +296,15 @@ impl ReferencedAsset {
                                         // but in the module containing the reexport
                                         ctxt: None,
                                         export,
+                                        can_value_bind,
+                                        maybe_uses_this,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
+                                        can_value_bind,
+                                        maybe_uses_this,
                                         import_source,
                                     }),
                                     ident => ident,
@@ -306,6 +319,11 @@ impl ReferencedAsset {
                 }
 
                 let import_source = ImportSource::Module { asset: *asset };
+                let capture = if let Some(export) = &export {
+                    can_capture_export_value(**asset, export.clone(), chunking_context).await?
+                } else {
+                    ExportCapture::unknown().await?
+                };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
@@ -319,6 +337,8 @@ impl ReferencedAsset {
                         }
                         None => None,
                     },
+                    can_value_bind: capture.can_value_bind,
+                    maybe_uses_this: capture.maybe_uses_this,
                     import_source,
                 })
             }
@@ -331,6 +351,9 @@ impl ReferencedAsset {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
                     export,
+                    can_value_bind: false,
+                    // An external's value is opaque, so a member call keeps the receiver.
+                    maybe_uses_this: true,
                     import_source,
                 })
             }
@@ -375,6 +398,84 @@ impl ReferencedAsset {
         // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
+}
+
+/// Whether an imported export can be safely captured in a local value binding.
+#[turbo_tasks::value]
+pub struct ExportCapture {
+    /// Whether the export can be read once into a local instead of at every use.
+    pub can_value_bind: bool,
+    /// Whether calling the export could observe `this`. Conservatively true.
+    pub maybe_uses_this: bool,
+}
+
+impl ExportCapture {
+    /// Nothing is known about the export, so it must be read through the namespace and called
+    /// with it as the receiver.
+    fn unknown() -> Vc<Self> {
+        ExportCapture {
+            can_value_bind: false,
+            maybe_uses_this: true,
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::function]
+async fn can_capture_export_value(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export: RcStr,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<ExportCapture>> {
+    let imported_module = module;
+    let mut module = module;
+    let mut export = export;
+    let mut visited = FxHashSet::default();
+    let binding = loop {
+        if !visited.insert((module, export.clone())) {
+            break None;
+        }
+        let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
+            break None;
+        };
+        let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+        match expanded.exports.get(&export) {
+            Some(EsmExport::LocalBinding(binding)) => {
+                break Some(binding.clone());
+            }
+            Some(EsmExport::ImportedBinding(reference, name, _)) => {
+                let ReferencedAsset::Some(reexported_module) =
+                    ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
+                else {
+                    break None;
+                };
+                module = reexported_module;
+                export = name.clone();
+            }
+            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => break None,
+        }
+    };
+    // A hop that could not be followed says nothing about the value, so stay conservative on both
+    // questions.
+    let Some(binding) = binding else {
+        return Ok(ExportCapture::unknown());
+    };
+
+    // `maybe_uses_this` describes the value the binding was declared with. A binding that can be
+    // reassigned may hold something else by the time it is called, so the answer only holds for
+    // constants.
+    if binding.liveness != Liveness::Constant {
+        return Ok(ExportCapture::unknown());
+    }
+
+    let export_usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(imported_module))
+        .await?;
+    Ok(ExportCapture {
+        can_value_bind: !export_usage.is_circuit_breaker,
+        maybe_uses_this: binding.maybe_uses_this,
+    }
+    .cell())
 }
 
 impl ReferencedAsset {
@@ -830,7 +931,7 @@ impl EsmAssetReference {
                         span: DUMMY_SP,
                     });
                     return Ok(CodeGeneration::hoisted_stmt(
-                        format!("throw {request}").into(),
+                        HoistedStmtKey::Named(format!("throw {request}").into()),
                         stmt,
                     ));
                 }
@@ -850,7 +951,7 @@ impl EsmAssetReference {
                         // Insert a placeholder to inline the merged module at the right place
                         // relative to the other references (so to keep reference order).
                         result.push(CodeGenerationHoistedStmt::new(
-                            format!("hoisted {merged_index}").into(),
+                            HoistedStmtKey::Named(format!("hoisted {merged_index}").into()),
                             quote!(
                                 "__turbopack_merged_esm__($id);" as Stmt,
                                 id: Expr = Lit::Num(merged_index.into()).into(),
@@ -889,6 +990,8 @@ impl EsmAssetReference {
                                 namespace_ident,
                                 ctxt,
                                 export: _,
+                                can_value_bind: _,
+                                maybe_uses_this: _,
                                 import_source,
                             }) => {
                                 let span = this
@@ -903,7 +1006,8 @@ impl EsmAssetReference {
                                     DUMMY_SP,
                                     ctxt.unwrap_or_default(),
                                 );
-                                let (key, mut call_expr) = match import_source {
+                                let (key, mut call_expr): (HoistedStmtKey, _) = match import_source
+                                {
                                     ImportSource::Module { asset } => {
                                         let id = asset.chunk_item_id(chunking_context).await?;
                                         // Include ctxt in the key to prevent incorrect
@@ -911,7 +1015,9 @@ impl EsmAssetReference {
                                         // same target but have different syntax contexts (which
                                         // would cause hygiene to rename one of them).
                                         (
-                                            format!("{} {:?}", id, ctxt).into(),
+                                            HoistedStmtKey::Named(
+                                                format!("{} {:?}", id, ctxt).into(),
+                                            ),
                                             quote!(
                                                 "$turbopack_import($id)" as Expr,
                                                 turbopack_import: Expr = TURBOPACK_IMPORT.into(),
@@ -947,7 +1053,7 @@ impl EsmAssetReference {
                                                 id: Expr = Expr::Lit(request.to_string().into())
                                             )
                                         };
-                                        (name.sym.as_str().into(), call)
+                                        (HoistedStmtKey::Named(name.sym.as_str().into()), call)
                                     }
                                     ImportSource::External {
                                         request,
@@ -969,7 +1075,7 @@ impl EsmAssetReference {
                                             turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                                             id: Expr = Expr::Lit(request.to_string().into())
                                         );
-                                        (name.sym.as_str().into(), call)
+                                        (HoistedStmtKey::Named(name.sym.as_str().into()), call)
                                     }
                                     // fallback in case we introduce a new `ExternalType`
                                     #[allow(unreachable_patterns)]

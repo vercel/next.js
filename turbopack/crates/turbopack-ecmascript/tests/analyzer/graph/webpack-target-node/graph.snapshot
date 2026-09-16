@@ -1,10 +1,11 @@
 [
     (
         "*arrow function 1213*",
-        Function(
-            4,
-            1213,
-            Call(
+        Function {
+            total_nodes: 4,
+            func_ident: 1213,
+            maybe_uses_this: false,
+            return_value: Call(
                 3,
                 Variable(
                     (
@@ -20,30 +21,32 @@
                     },
                 ],
             ),
-        ),
+        },
     ),
     (
         "*arrow function 131*",
-        Function(
-            2,
-            131,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 131,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "*arrow function 389*",
-        Function(
-            2,
-            389,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 389,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "handler",
                     #4,
                 ),
             ),
-        ),
+        },
     ),
     (
         "__unused_webpack_module",
@@ -131,16 +134,17 @@
     ),
     (
         "handler",
-        Function(
-            3,
-            760,
-            Promise(
+        Function {
+            total_nodes: 3,
+            func_ident: 760,
+            maybe_uses_this: false,
+            return_value: Promise(
                 2,
                 Constant(
                     Undefined,
                 ),
             ),
-        ),
+        },
     ),
     (
         "hello",

@@ -1,10 +1,11 @@
 [
     (
         "*anonymous function 170*",
-        Function(
-            3,
-            170,
-            Array {
+        Function {
+            total_nodes: 3,
+            func_ident: 170,
+            maybe_uses_this: false,
+            return_value: Array {
                 total_nodes: 2,
                 items: [
                     Variable(
@@ -16,14 +17,15 @@
                 ],
                 mutable: true,
             },
-        ),
+        },
     ),
     (
         "*anonymous function 254*",
-        Function(
-            5,
-            254,
-            MemberCall(
+        Function {
+            total_nodes: 5,
+            func_ident: 254,
+            maybe_uses_this: false,
+            return_value: MemberCall(
                 4,
                 FreeVar(
                     "require",
@@ -44,20 +46,21 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 88*",
-        Function(
-            2,
-            88,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 88,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "file",
                     #3,
                 ),
             ),
-        ),
+        },
     ),
     (
         "a",
@@ -235,10 +238,11 @@
     ),
     (
         "func",
-        Function(
-            5,
-            308,
-            MemberCall(
+        Function {
+            total_nodes: 5,
+            func_ident: 308,
+            maybe_uses_this: false,
+            return_value: MemberCall(
                 4,
                 FreeVar(
                     "require",
@@ -259,6 +263,6 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
 ]

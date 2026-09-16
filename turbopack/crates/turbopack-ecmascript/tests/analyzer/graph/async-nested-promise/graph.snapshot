@@ -85,23 +85,25 @@
     ),
     (
         "findRow",
-        Function(
-            3,
-            268,
-            Promise(
+        Function {
+            total_nodes: 3,
+            func_ident: 268,
+            maybe_uses_this: false,
+            return_value: Promise(
                 2,
                 Constant(
                     Null,
                 ),
             ),
-        ),
+        },
     ),
     (
         "findRowConditional",
-        Function(
-            8,
-            576,
-            Promise(
+        Function {
+            total_nodes: 8,
+            func_ident: 576,
+            maybe_uses_this: false,
+            return_value: Promise(
                 7,
                 Tenary(
                     6,
@@ -133,14 +135,15 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "findRowWrapped",
-        Function(
-            4,
-            384,
-            Promise(
+        Function {
+            total_nodes: 4,
+            func_ident: 384,
+            maybe_uses_this: false,
+            return_value: Promise(
                 3,
                 Call(
                     2,
@@ -153,14 +156,15 @@
                     [],
                 ),
             ),
-        ),
+        },
     ),
     (
         "findRowWrappedTwice",
-        Function(
-            4,
-            441,
-            Promise(
+        Function {
+            total_nodes: 4,
+            func_ident: 441,
+            maybe_uses_this: false,
+            return_value: Promise(
                 3,
                 Call(
                     2,
@@ -173,7 +177,7 @@
                     [],
                 ),
             ),
-        ),
+        },
     ),
     (
         "notAwaited",

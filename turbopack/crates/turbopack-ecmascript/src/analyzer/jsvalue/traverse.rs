@@ -94,7 +94,7 @@ impl<'a> JsValue<'a> {
                 }
                 modified
             }
-            JsValue::Function(_, _, return_value) => {
+            JsValue::Function { return_value, .. } => {
                 let modified = visitor(return_value);
 
                 if modified {
@@ -300,7 +300,7 @@ impl<'a> JsValue<'a> {
             JsValue::MemberCall(_, call) => {
                 call.for_each_children(visitor);
             }
-            JsValue::Function(_, _, return_value) => {
+            JsValue::Function { return_value, .. } => {
                 visitor(return_value);
             }
             JsValue::Member(_, obj, prop) | JsValue::In(_, obj, prop) => {

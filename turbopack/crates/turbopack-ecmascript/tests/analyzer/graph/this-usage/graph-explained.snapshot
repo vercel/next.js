@@ -1,0 +1,53 @@
+*anonymous function 455* = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 333* = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 597* = (...) => *arrow function 603*
+
+*arrow function 603* = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 643* = (...) => ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+Klass (const after eval) = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+arrowAtTopLevel (const after eval) = *arrow function 643*
+
+doesNotUseThis (const after eval) = (...) => 1
+
+o = arguments[0]
+
+obj (const after eval) = {...???*0*, ...???*1*, ...???*2*, ...???*3*}
+- *0* unsupported object part
+  ⚠️  This value might have side effects
+- *1* unsupported object part
+  ⚠️  This value might have side effects
+- *2* unsupported object part
+  ⚠️  This value might have side effects
+- *3* unsupported object part
+  ⚠️  This value might have side effects
+
+usesThis (const after eval) = (...) => ???*0*["x"]
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+v = arguments[0]
+
+viaArrow (const after eval) = (...) => *arrow function 333*
+
+viaEval (const after eval) = (...) => FreeVar(eval)("this")
+
+viaNestedArrows (const after eval) = (...) => *arrow function 597*
+
+viaNestedFunction (const after eval) = (...) => *anonymous function 455*
+
+viaWith (const after eval) = (...) => FreeVar(x)

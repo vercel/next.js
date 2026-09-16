@@ -1,10 +1,11 @@
 [
     (
         "*arrow function 173*",
-        Function(
-            4,
-            173,
-            Alternatives {
+        Function {
+            total_nodes: 4,
+            func_ident: 173,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 3,
                 values: [
                     Unknown {
@@ -18,7 +19,7 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "ComponentMod",
@@ -76,16 +77,17 @@
     ),
     (
         "getClientComponentLoaderMetrics",
-        Function(
-            2,
-            415,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 415,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "metrics",
                     #7,
                 ),
             ),
-        ),
+        },
     ),
     (
         "metrics",
@@ -171,10 +173,11 @@
     ),
     (
         "wrapClientComponentLoader",
-        Function(
-            4,
-            95,
-            Object {
+        Function {
+            total_nodes: 4,
+            func_ident: 95,
+            maybe_uses_this: false,
+            return_value: Object {
                 total_nodes: 3,
                 parts: [
                     KeyValue(
@@ -195,6 +198,6 @@
                 ],
                 mutability: Mutable,
             },
-        ),
+        },
     ),
 ]

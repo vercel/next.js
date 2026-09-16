@@ -1364,10 +1364,11 @@
     ),
     (
         "md5cmn",
-        Function(
-            17,
-            1414,
-            Call(
+        Function {
+            total_nodes: 17,
+            func_ident: 1414,
+            maybe_uses_this: false,
+            return_value: Call(
                 16,
                 FreeVar(
                     "safeAdd",
@@ -1443,14 +1444,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "md5ff",
-        Function(
-            9,
-            1530,
-            Call(
+        Function {
+            total_nodes: 9,
+            func_ident: 1530,
+            maybe_uses_this: false,
+            return_value: Call(
                 8,
                 Variable(
                     (
@@ -1496,7 +1498,7 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "olda",
@@ -1643,10 +1645,11 @@
     ),
     (
         "wordsToMd5",
-        Function(
-            6,
-            83,
-            Array {
+        Function {
+            total_nodes: 6,
+            func_ident: 83,
+            maybe_uses_this: false,
+            return_value: Array {
                 total_nodes: 5,
                 items: [
                     Variable(
@@ -1676,7 +1679,7 @@
                 ],
                 mutable: true,
             },
-        ),
+        },
     ),
     (
         "x#3",

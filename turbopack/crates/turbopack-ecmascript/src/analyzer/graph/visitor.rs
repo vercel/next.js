@@ -4,7 +4,7 @@ use std::{
 };
 
 use bumpalo::boxed::Box as BumpBox;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     common::{BytePos, Mark, Span, Spanned, SyntaxContext, pass::AstNodePath},
@@ -219,6 +219,10 @@ mod analyzer_state {
         cjs_export_value: bool,
         /// Tracked `const x = require(...)` namespace bindings
         require_bindings: Option<FxHashMap<Id, BytePos>>,
+        /// Ids of functions that may observe `this`, keyed like
+        /// [`LexicalContext::Function::id`]. A function is recorded when a `this` binds to it, or
+        /// when its body can reach `this` without naming it (direct `eval`, `with`).
+        fns_maybe_using_this: FxHashSet<u32>,
     }
 
     impl<'a> Analyzer<'a, '_> {
@@ -295,6 +299,33 @@ mod analyzer_state {
                     )
                 })
                 .count()
+        }
+
+        /// Returns the id of the innermost function that `this` binds to, if any.
+        ///
+        /// Unlike [`Self::cur_fn_ident`] this skips functions that do not bind `this` (arrows), so
+        /// a `this` inside an arrow is attributed to the enclosing function it actually refers to.
+        /// A class body binds `this` without being a function, so the walk stops there rather than
+        /// attributing to a function further out.
+        fn this_binding_fn_ident(&self) -> Option<u32> {
+            for context in self.state.lexical_stack.iter().rev() {
+                match context {
+                    LexicalContext::Function {
+                        id,
+                        binds_this: true,
+                    } => return Some(*id),
+                    LexicalContext::ClassBody => return None,
+                    _ => {}
+                }
+            }
+            None
+        }
+
+        /// Records that the innermost function binding `this` may observe it.
+        pub(super) fn mark_this_maybe_used(&mut self) {
+            if let Some(id) = self.this_binding_fn_ident() {
+                self.state.fns_maybe_using_this.insert(id);
+            }
         }
 
         /// Adds a return value to the current function.
@@ -400,6 +431,8 @@ mod analyzer_state {
                 fn_id,
                 function.is_async(),
                 function.is_generator(),
+                // The body has been walked, so any `this` inside it is recorded by now.
+                self.state.fns_maybe_using_this.contains(&fn_id),
                 match return_values.len() {
                     0 => JsValue::Constant(ConstantValue::Undefined),
                     1 => return_values.into_iter().next().unwrap(),
@@ -1717,6 +1750,16 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // A direct `eval` runs in the enclosing scope, so the evaluated code can read `this`
+        // without it appearing anywhere in the source.
+        if let Callee::Expr(callee) = &n.callee
+            && let Expr::Ident(ident) = unparen(callee)
+            && ident.sym == atom!("eval")
+            && is_unresolved_id(&ident.to_id(), self.eval_context.unresolved_mark)
+        {
+            self.mark_this_maybe_used();
+        }
+
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
         // it so unused entries drop (its `exports` argument is guarded below).
         let is_cjs_define_property = if self.cjs_exports_enabled()
@@ -2497,6 +2540,17 @@ impl VisitAstPath for Analyzer<'_, '_> {
         }
     }
 
+    fn visit_with_stmt<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast WithStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        // A `with` block can resolve a bare name to a property of the scrutinee, so the body may
+        // read `this` without naming it.
+        self.mark_this_maybe_used();
+        node.visit_children_with_ast_path(self, ast_path);
+    }
+
     fn visit_this_expr<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ThisExpr,
@@ -2505,6 +2559,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
         if !self.analyze_mode.is_code_gen() {
             return;
         }
+
+        self.mark_this_maybe_used();
 
         if !self.is_this_bound() {
             // 'this' is free; in CommonJS a top-level `this` aliases `exports`.

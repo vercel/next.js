@@ -1,20 +1,22 @@
 [
     (
         "*arrow function 19*",
-        Function(
-            2,
-            19,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 19,
+            maybe_uses_this: false,
+            return_value: Constant(
                 False,
             ),
-        ),
+        },
     ),
     (
         "run",
-        Function(
-            4,
-            48,
-            Alternatives {
+        Function {
+            total_nodes: 4,
+            func_ident: 48,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 3,
                 values: [
                     Constant(
@@ -34,7 +36,7 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "shouldRun",

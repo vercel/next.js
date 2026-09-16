@@ -76,16 +76,17 @@
     ),
     (
         "generateBinPath",
-        Function(
-            2,
-            387,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 387,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "binPath",
                     #4,
                 ),
             ),
-        ),
+        },
     ),
     (
         "knownWindowsPackages",
@@ -238,10 +239,11 @@
     ),
     (
         "pkgAndSubpathForCurrentPlatform",
-        Function(
-            6,
-            217,
-            Object {
+        Function {
+            total_nodes: 6,
+            func_ident: 217,
+            maybe_uses_this: false,
+            return_value: Object {
                 total_nodes: 5,
                 parts: [
                     KeyValue(
@@ -277,7 +279,7 @@
                 ],
                 mutability: Mutable,
             },
-        ),
+        },
     ),
     (
         "subpath#3",

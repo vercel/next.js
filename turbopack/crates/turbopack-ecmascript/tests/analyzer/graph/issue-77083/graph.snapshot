@@ -1,10 +1,11 @@
 [
     (
         "runGetClassesOrUseCache",
-        Function(
-            4,
-            52,
-            Alternatives {
+        Function {
+            total_nodes: 4,
+            func_ident: 52,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 3,
                 values: [
                     Constant(
@@ -24,6 +25,6 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
 ]

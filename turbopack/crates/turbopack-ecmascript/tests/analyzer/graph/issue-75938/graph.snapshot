@@ -1,10 +1,11 @@
 [
     (
         "*arrow function 276*",
-        Function(
-            3,
-            276,
-            New(
+        Function {
+            total_nodes: 3,
+            func_ident: 276,
+            maybe_uses_this: false,
+            return_value: New(
                 2,
                 Variable(
                     (
@@ -14,14 +15,15 @@
                 ),
                 [],
             ),
-        ),
+        },
     ),
     (
         "*arrow function 362*",
-        Function(
-            4,
-            362,
-            MemberCall(
+        Function {
+            total_nodes: 4,
+            func_ident: 362,
+            maybe_uses_this: false,
+            return_value: MemberCall(
                 3,
                 Variable(
                     (
@@ -38,17 +40,18 @@
                 ),
                 [],
             ),
-        ),
+        },
     ),
     (
         "*arrow function 471*",
-        Function(
-            2,
-            471,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 471,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "HelloWorld",
@@ -60,10 +63,11 @@
     ),
     (
         "Home",
-        Function(
-            11,
-            227,
-            Call(
+        Function {
+            total_nodes: 11,
+            func_ident: 227,
+            maybe_uses_this: false,
+            return_value: Call(
                 10,
                 Member(
                     3,
@@ -134,7 +138,7 @@
                     },
                 ],
             ),
-        ),
+        },
     ),
     (
         "cb",

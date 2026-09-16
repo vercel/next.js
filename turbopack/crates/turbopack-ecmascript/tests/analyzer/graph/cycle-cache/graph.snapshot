@@ -1,267 +1,287 @@
 [
     (
         "*arrow function 425*",
-        Function(
-            2,
-            425,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 425,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 431*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 431*",
-        Function(
-            2,
-            431,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 431,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 437*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 437*",
-        Function(
-            2,
-            437,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 437,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 443*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 443*",
-        Function(
-            2,
-            443,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 443,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 449*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 449*",
-        Function(
-            2,
-            449,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 449,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 468*",
-        Function(
-            2,
-            468,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 468,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 474*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 474*",
-        Function(
-            2,
-            474,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 474,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 480*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 480*",
-        Function(
-            2,
-            480,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 480,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 486*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 486*",
-        Function(
-            2,
-            486,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 486,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 492*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 492*",
-        Function(
-            2,
-            492,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 492,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         2.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 511*",
-        Function(
-            2,
-            511,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 511,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 517*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 517*",
-        Function(
-            2,
-            517,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 517,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 523*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 523*",
-        Function(
-            2,
-            523,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 523,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 529*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 529*",
-        Function(
-            2,
-            529,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 529,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 535*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 535*",
-        Function(
-            2,
-            535,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 535,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         2.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 554*",
-        Function(
-            2,
-            554,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 554,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 560*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 560*",
-        Function(
-            2,
-            560,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 560,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 566*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 566*",
-        Function(
-            2,
-            566,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 566,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 572*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 572*",
-        Function(
-            2,
-            572,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 572,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 578*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 578*",
-        Function(
-            2,
-            578,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 578,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "a",
