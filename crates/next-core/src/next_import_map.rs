@@ -1536,6 +1536,15 @@ fn insert_next_api_esm_aliases(
 
     insert_exact_alias_or_js(
         import_map,
+        rcstr!("next/legacy/image"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/esm/client/legacy/image"),
+        ),
+    );
+
+    insert_exact_alias_or_js(
+        import_map,
         rcstr!("next/cache"),
         request_to_import_mapping(
             project_path,

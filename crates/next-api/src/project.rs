@@ -1820,6 +1820,7 @@ impl Project {
             ("next/image", "/next/dist/esm/api/image.js"),
             ("next/future/image", "/next/future/image.js"),
             ("next/legacy/image", "/next/legacy/image.js"),
+            ("next/legacy/image", "/next/dist/esm/client/legacy/image.js"),
             ("next/script", "/next/script.js"),
             ("next/script", "/next/dist/esm/api/script.js"),
             ("next/dynamic", "/next/dynamic.js"),
@@ -1923,6 +1924,7 @@ impl Project {
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, _)) = parent
                 && let Some(&feature) = matching.get(&node)
+                && matching.get(&parent_node) != Some(&feature)
             {
                 pairs.insert((feature, parent_node));
             }
