@@ -41,15 +41,20 @@ export class CacheSignal {
       )
     }
 
-    // After a cache resolves, React will schedule new rendering work:
-    // - in a microtask (when prerendering)
-    // - in setImmediate (when rendering)
-    // To cover both of these, we have to make sure that we let immediates execute at least once after each cache resolved.
-    // We don't know when the pending timeout was scheduled (and if it's about to resolve),
-    // so by scheduling a new one, we can be sure that we'll go around the event loop at least once.
+    // After a cache read finishes, React can schedule more rendering work:
+    // - React's prerender API schedules rendering in microtasks.
+    // - Streaming render APIs can use setImmediate callbacks.
+    //
+    // This work can start more cache reads. We wait for an immediate followed
+    // by a timer before checking the count again.
+    //
+    // The immediate gives native rendering callbacks a chance to run when fast
+    // immediates are not active. The timer runs after fast immediates finish,
+    // including further immediates queued while React renders outlined
+    // elements.
     if (this.pendingTimeoutCleanup) {
-      // We cancel the timeout in beginRead, so this shouldn't ever be active here,
-      // but we still cancel it defensively.
+      // Multiple cacheReady() calls can get here without an intervening
+      // beginRead(). We cancel the earlier check before scheduling another one.
       this.pendingTimeoutCleanup()
     }
     this.pendingTimeoutCleanup = scheduleImmediateAndTimeoutWithCleanup(
@@ -92,6 +97,10 @@ export class CacheSignal {
         this.noMorePendingCaches()
       }
     })
+  }
+
+  hasPendingCacheReadyListeners(): boolean {
+    return this.listeners.length > 0
   }
 
   beginRead() {
