@@ -62,13 +62,6 @@ async function getCodeHashes(
       })
 
       it('lists non-inlined runtime env vars', async () => {
-        // TODO ideally app/next-image/page wouldn't include NEXT_DEPLOYMENT_ID.
-        // But currently the import chain
-        // next/image.js
-        // -> packages/next/src/shared/lib/get-img-props.ts
-        // -> packages/next/src/shared/lib/deployment-id.ts
-        // reads NEXT_DEPLOYMENT_ID
-
         const data = await getCodeHashes(next)
         expect(
           Object.fromEntries(
@@ -104,11 +97,20 @@ async function getCodeHashes(
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
              "exist NEXT_PRIVATE_DEBUG_VALIDATION",
            ],
-           "app/next-image/page": [
+           "app/next-image-props/page": [
              "NEXT_OTEL_VERBOSE",
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "NEXT_DEPLOYMENT_ID",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/next-image/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "exist NEXT_PRIVATE_DEBUG_CACHE",
              "exist __NEXT_DEV_SERVER",
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
