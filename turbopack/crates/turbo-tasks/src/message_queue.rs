@@ -1,19 +1,9 @@
-use std::{
-    any::Any,
-    collections::VecDeque,
-    fmt::Display,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-    },
-    time::Duration,
-};
+use std::{any::Any, collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
 
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use serde::Serialize;
-use tokio::sync::{Mutex, mpsc};
-
-use crate::event::Event;
+use tokio::sync::{Mutex as TokioMutex, Notify, mpsc};
 
 pub trait CompilationEvent: Sync + Send + Any {
     fn type_name(&self) -> &'static str;
@@ -24,7 +14,7 @@ pub trait CompilationEvent: Sync + Send + Any {
 
 const MAX_QUEUE_SIZE: usize = 256;
 
-type ArcMx<T> = Arc<Mutex<T>>;
+type ArcMx<T> = Arc<TokioMutex<T>>;
 type CompilationEventChannel = mpsc::Sender<Arc<dyn CompilationEvent>>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -33,16 +23,20 @@ enum EventChannelType {
     Type(String),
 }
 
+struct DeliveryStateInner {
+    closed: bool,
+    pending: usize,
+}
+
+struct DeliveryState {
+    inner: Mutex<DeliveryStateInner>,
+    idle: Notify,
+}
+
 pub struct CompilationEventQueue {
     event_history: ArcMx<VecDeque<Arc<dyn CompilationEvent>>>,
     subscribers: Arc<DashMap<EventChannelType, Vec<CompilationEventChannel>>>,
-    /// Number of spawned delivery tasks that have not completed yet.
-    pending_deliveries: Arc<AtomicUsize>,
-    /// Signaled when a delivery task completes.
-    deliveries_idle: Arc<Event>,
-    /// Set by [`CompilationEventQueue::flush_and_close`]: new subscriptions close after replaying
-    /// the event history.
-    closed: Arc<AtomicBool>,
+    delivery_state: Arc<DeliveryState>,
 }
 
 impl Default for CompilationEventQueue {
@@ -54,11 +48,15 @@ impl Default for CompilationEventQueue {
         );
 
         Self {
-            event_history: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_QUEUE_SIZE))),
+            event_history: Arc::new(TokioMutex::new(VecDeque::with_capacity(MAX_QUEUE_SIZE))),
             subscribers: Arc::new(subscribers),
-            pending_deliveries: Arc::new(AtomicUsize::new(0)),
-            deliveries_idle: Arc::new(Event::new(|| || "compilation event delivery".to_string())),
-            closed: Arc::new(AtomicBool::new(false)),
+            delivery_state: Arc::new(DeliveryState {
+                inner: Mutex::new(DeliveryStateInner {
+                    closed: false,
+                    pending: 0,
+                }),
+                idle: Notify::new(),
+            }),
         }
     }
 }
@@ -71,15 +69,16 @@ impl CompilationEventQueue {
         let event_history = self.event_history.clone();
         let subscribers = self.subscribers.clone();
         let message_clone = message.clone();
-        let pending_deliveries = self.pending_deliveries.clone();
-        let deliveries_idle = self.deliveries_idle.clone();
-
-        // Register the in-flight delivery before checking `closed`: a concurrent
-        // `flush_and_close` sets `closed` and then waits for `pending_deliveries` to reach
-        // zero, so this order guarantees that a send is either awaited before the close or
-        // observes the closed queue (and only records history).
-        self.pending_deliveries.fetch_add(1, Ordering::AcqRel);
-        let deliver = !self.closed.load(Ordering::Acquire);
+        let delivery_state = self.delivery_state.clone();
+        let deliver = {
+            let mut state = delivery_state.inner.lock();
+            if state.closed {
+                false
+            } else {
+                state.pending += 1;
+                true
+            }
+        };
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
@@ -123,8 +122,13 @@ impl CompilationEventQueue {
                 }
             }
 
-            pending_deliveries.fetch_sub(1, Ordering::AcqRel);
-            deliveries_idle.notify(usize::MAX);
+            if deliver {
+                let mut state = delivery_state.inner.lock();
+                state.pending -= 1;
+                if state.pending == 0 {
+                    delivery_state.idle.notify_one();
+                }
+            }
         });
 
         Ok(())
@@ -135,14 +139,16 @@ impl CompilationEventQueue {
     /// afterwards are only recorded in the history, and new subscriptions close after replaying
     /// it.
     pub async fn flush_and_close(&self) {
-        self.closed.store(true, Ordering::Release);
         loop {
-            // Create the listener before checking the counter so no completion is missed.
-            let listener = self.deliveries_idle.listen();
-            if self.pending_deliveries.load(Ordering::Acquire) == 0 {
-                break;
+            let idle = self.delivery_state.idle.notified();
+            {
+                let mut state = self.delivery_state.inner.lock();
+                state.closed = true;
+                if state.pending == 0 {
+                    break;
+                }
             }
-            listener.await;
+            idle.await;
         }
         // Dropping the senders closes the subscriber channels once they are drained.
         self.subscribers.clear();
@@ -155,14 +161,14 @@ impl CompilationEventQueue {
         let (tx, rx) = mpsc::channel(MAX_QUEUE_SIZE);
         let subscribers = self.subscribers.clone();
         let event_history = self.event_history.clone();
-        let closed = self.closed.clone();
+        let delivery_state = self.delivery_state.clone();
         let tx_clone = tx.clone();
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
             // Store the sender (unless the queue was closed)
             if let Some(event_types) = event_types {
-                if !closed.load(Ordering::Acquire) {
+                if !delivery_state.inner.lock().closed {
                     for event_type in event_types.iter() {
                         let mut type_subscribers = subscribers
                             .entry(EventChannelType::Type(event_type.clone()))
@@ -177,7 +183,7 @@ impl CompilationEventQueue {
                     }
                 }
             } else {
-                if !closed.load(Ordering::Acquire) {
+                if !delivery_state.inner.lock().closed {
                     let mut global_subscribers =
                         subscribers.entry(EventChannelType::Global).or_default();
                     global_subscribers.push(tx_clone.clone());
@@ -189,7 +195,7 @@ impl CompilationEventQueue {
             }
             // If the queue was closed, tx_clone was never stored and is dropped here, closing
             // the receiver after the history replay.
-            if closed.load(Ordering::Acquire) {
+            if delivery_state.inner.lock().closed {
                 // The queue was closed while subscribing: make sure no sender stored above
                 // lingers (flush_and_close may have cleared the map before we inserted).
                 subscribers.clear();
