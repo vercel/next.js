@@ -1139,7 +1139,9 @@ For example, create a separate file for your DAL that includes a `verifySession(
 ```tsx filename="app/lib/dal.ts" switcher
 import 'server-only'
 
+import { cache } from 'react'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
@@ -1150,14 +1152,16 @@ export const verifySession = cache(async () => {
     redirect('/login')
   }
 
-  return { isAuth: true, userId: session.userId }
+  return { isAuth: true, userId: session.userId, role: session.role }
 })
 ```
 
 ```js filename="app/lib/dal.js" switcher
 import 'server-only'
 
+import { cache } from 'react'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
@@ -1168,11 +1172,13 @@ export const verifySession = cache(async () => {
     redirect('/login')
   }
 
-  return { isAuth: true, userId: session.userId }
+  return { isAuth: true, userId: session.userId, role: session.role }
 })
 ```
 
-You can then invoke the `verifySession()` function in your data requests, Server Actions, Route Handlers:
+You can then invoke the `verifySession()` function in your data requests, Server Actions, and Route Handlers:
+
+> **Good to know:** React's [`cache`](https://react.dev/reference/react/cache) only memoizes during a React render pass. Server Actions and Route Handlers do not render, so a `cache`-wrapped function runs again on every call there — it is not an error, and there is no warning. Call it once and pass the result down if you need the value more than once.
 
 ```tsx filename="app/lib/dal.ts" switcher
 export const getUser = cache(async () => {
@@ -1224,6 +1230,34 @@ export const getUser = cache(async () => {
     return null
   }
 })
+```
+
+`verifySession()` redirects, which suits pages. Callers that need to _respond_ rather than navigate — Route Handlers, for example — want a variant that reports failure instead of redirecting:
+
+```tsx filename="app/lib/dal.ts" switcher
+export async function getSession() {
+  const cookie = (await cookies()).get('session')?.value
+  const session = await decrypt(cookie)
+
+  if (!session?.userId) {
+    return null
+  }
+
+  return { isAuth: true, userId: session.userId, role: session.role }
+}
+```
+
+```js filename="app/lib/dal.js" switcher
+export async function getSession() {
+  const cookie = (await cookies()).get('session')?.value
+  const session = await decrypt(cookie)
+
+  if (!session?.userId) {
+    return null
+  }
+
+  return { isAuth: true, userId: session.userId, role: session.role }
+}
 ```
 
 > **Tip**:
@@ -1316,7 +1350,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function Dashboard() {
   const session = await verifySession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
+  const userRole = session?.role // Assuming you included 'role' in the session payload
 
   if (userRole === 'admin') {
     return <AdminDashboard />
@@ -1333,7 +1367,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function Dashboard() {
   const session = await verifySession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
+  const userRole = session?.role // Assuming you included 'role' in the session payload
 
   if (userRole === 'admin') {
     return <AdminDashboard />
@@ -1416,7 +1450,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function AdminActions() {
   const session = await verifySession()
-  const userRole = session?.user?.role
+  const userRole = session?.role
 
   if (userRole !== 'admin') {
     return null
@@ -1436,7 +1470,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function AdminActions() {
   const session = await verifySession()
-  const userRole = session?.user?.role
+  const userRole = session?.role
 
   if (userRole !== 'admin') {
     return null
@@ -1470,7 +1504,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction(formData: FormData) {
   const session = await verifySession()
-  const userRole = session?.user?.role
+  const userRole = session?.role
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
@@ -1487,7 +1521,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction() {
   const session = await verifySession()
-  const userRole = session.user.role
+  const userRole = session?.role // Assuming you included 'role' in the session payload
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
@@ -1502,14 +1536,16 @@ export async function serverAction() {
 
 Treat [Route Handlers](/docs/app/api-reference/file-conventions/route) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to access the Route Handler.
 
+Use `getSession()` rather than `verifySession()` here. A Route Handler should answer with a status code a programmatic caller can act on, not redirect it to a login page.
+
 For example:
 
 ```ts filename="app/api/route.ts" switcher
-import { verifySession } from '@/app/lib/dal'
+import { getSession } from '@/app/lib/dal'
 
 export async function GET() {
   // User authentication and role verification
-  const session = await verifySession()
+  const session = await getSession()
 
   // Check if the user is authenticated
   if (!session) {
@@ -1518,7 +1554,7 @@ export async function GET() {
   }
 
   // Check if the user has the 'admin' role
-  if (session.user.role !== 'admin') {
+  if (session?.role !== 'admin') {
     // User is authenticated but does not have the right permissions
     return new Response(null, { status: 403 })
   }
@@ -1528,11 +1564,11 @@ export async function GET() {
 ```
 
 ```js filename="app/api/route.js" switcher
-import { verifySession } from '@/app/lib/dal'
+import { getSession } from '@/app/lib/dal'
 
 export async function GET() {
   // User authentication and role verification
-  const session = await verifySession()
+  const session = await getSession()
 
   // Check if the user is authenticated
   if (!session) {
@@ -1541,7 +1577,7 @@ export async function GET() {
   }
 
   // Check if the user has the 'admin' role
-  if (session.user.role !== 'admin') {
+  if (session?.role !== 'admin') {
     // User is authenticated but does not have the right permissions
     return new Response(null, { status: 403 })
   }
