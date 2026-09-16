@@ -3,7 +3,11 @@ module.exports = {
     'prettier --with-node-modules --ignore-path .prettierignore --write',
     'eslint --config eslint.config.mjs --fix',
   ],
-  '*.{json,md,css,html,yml,yaml,scss}': [
+  '*.md': [
+    'prettier --with-node-modules --ignore-path .prettierignore --write',
+    'alex --quiet',
+  ],
+  '*.{json,css,html,yml,yaml,scss}': [
     'prettier --with-node-modules --ignore-path .prettierignore --write',
   ],
   '*.rs': ['rustfmt --edition 2024 --'],
