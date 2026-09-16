@@ -159,22 +159,17 @@ describe('Middleware custom matchers', () => {
       }
     )
 
-    itif(!isModeDeploy)(
-      'should match has cookie on client routing',
-      async () => {
-        const browser = await next.browser('/routes')
-        await browser.addCookie({ name: 'loggedIn', value: 'true' })
-        await browser.refresh()
-        await browser.eval('window.__TEST_NO_RELOAD = true')
-        await browser.elementById('has-match-3').click()
-        const fromMiddleware = await browser
-          .elementById('from-middleware')
-          .text()
-        expect(fromMiddleware).toBe('true')
-        const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-        expect(noReload).toBe(true)
-      }
-    )
+    it('should match has cookie on client routing', async () => {
+      const browser = await next.browser('/routes')
+      await browser.addCookie({ name: 'loggedIn', value: 'true' })
+      await browser.refresh()
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+      await browser.elementById('has-match-3').click()
+      const fromMiddleware = await browser.elementById('from-middleware').text()
+      expect(fromMiddleware).toBe('true')
+      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+      expect(noReload).toBe(true)
+    })
   }
   runTests()
 })

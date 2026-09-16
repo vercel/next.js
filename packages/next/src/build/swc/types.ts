@@ -14,6 +14,12 @@ import type {
   TraceQueryResult,
   MemoryEvictionMode,
   ServerHmrVersion as NativeServerHmrVersion,
+  projectCompilationEventsSubscribe,
+  projectFeatureUsage,
+  projectInvalidateFileSystemCache,
+  projectOnExit,
+  projectShutdown,
+  projectUpdateInfoSubscribe,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
@@ -336,6 +342,8 @@ export interface Project {
    * end of the build, after `writeAllEntrypointsToDisk`. The Rust implementation
    * walks the whole-app module graph and will error if invoked from a
    * development project, because dev builds do not produce a complete graph.
+   *
+   * @see {@link projectFeatureUsage}
    */
   featureUsage(): Promise<BuildFeatureUsage[]>
 
@@ -359,6 +367,7 @@ export interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
 
   getSourceMap(filePath: string): Promise<string | null>
+
   getSourceMapSync(filePath: string): string | null
 
   traceSource(
@@ -366,19 +375,24 @@ export interface Project {
     currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
+  /** @see {@link projectUpdateInfoSubscribe} */
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<UpdateMessage>
 
+  /** @see {@link projectCompilationEventsSubscribe} */
   compilationEventsSubscribe(
     eventTypes?: string[]
   ): AsyncIterableIterator<CompilationEvent>
 
+  /** @see {@link projectInvalidateFileSystemCache} */
   invalidateFileSystemCache(): Promise<void>
 
-  shutdown(): Promise<void>
+  /** @see {@link projectShutdown} */
+  shutdown(): ReturnType<typeof projectShutdown>
 
-  onExit(): Promise<void>
+  /** @see {@link projectOnExit} */
+  onExit(): ReturnType<typeof projectOnExit>
 }
 
 export type Route =

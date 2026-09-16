@@ -30,9 +30,6 @@ function runTests(
   })
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('app-dir - custom-cache-handler - cjs', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -44,9 +41,6 @@ describe('app-dir - custom-cache-handler - cjs', () => {
   runTests('cjs module exports', { next, isNextDev })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('app-dir - custom-cache-handler - cjs-default-export', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -58,9 +52,6 @@ describe('app-dir - custom-cache-handler - cjs-default-export', () => {
   runTests('cjs default export', { next, isNextDev })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('app-dir - custom-cache-handler - esm', () => {
   const { next, isNextDev } = nextTestSetup({
     files: {
@@ -82,9 +73,6 @@ describe('app-dir - custom-cache-handler - esm', () => {
   runTests('esm default export', { next, isNextDev })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('app-dir - custom-cache-handler - esm import.meta.resolve', () => {
   const { next, isNextDev } = nextTestSetup({
     files: {

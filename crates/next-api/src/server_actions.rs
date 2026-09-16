@@ -634,10 +634,10 @@ async fn module_hash(
         } else {
             None
         };
-        let code = chunk_item.code(async_info);
+        let factory = chunk_item.code(async_info).await?;
         RcStr::from(deterministic_hash(
             "",
-            (ident_str, code.source_code_hash().await?),
+            (ident_str, factory.code.to_code().source_code_hash().await?),
             HashAlgorithm::Xxh3Hash128Hex,
         ))
     } else {
