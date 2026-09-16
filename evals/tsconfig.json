@@ -8,5 +8,10 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["lib", "experiments"]
+  "include": [
+    "lib",
+    "experiments",
+    "next-upgrade/experiments",
+    "next-upgrade/lib"
+  ]
 }
