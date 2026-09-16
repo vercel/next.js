@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { load } from 'cheerio'
+import { fetchViaRawHttp } from 'next-test-utils'
 
 describe('i18n-app-pages-domain-routing', () => {
   const { next } = nextTestSetup({
@@ -11,7 +12,8 @@ describe('i18n-app-pages-domain-routing', () => {
   })
 
   function fetchFromDomain(pathname: string, host = 'nl.example.local') {
-    return next.fetch(pathname, {
+    // Global fetch derives Host from the URL, so use raw HTTP to test domains.
+    return fetchViaRawHttp(next.url, pathname, {
       headers: { host },
     })
   }
