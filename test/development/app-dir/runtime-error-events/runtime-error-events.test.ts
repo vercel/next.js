@@ -273,7 +273,7 @@ describe('runtime-error-events', () => {
 
   it('clears server-only errors without reloading the document', async () => {
     const observer = await observe(next.url)
-    const original = await next.readFile('app/server-console/page.tsx')
+    const original = await next.readFile('app/server-console/content.tsx')
     const browser = await next.browser('/server-console')
     let lateObserver: Awaited<ReturnType<typeof observe>> | undefined
     try {
@@ -286,7 +286,7 @@ describe('runtime-error-events', () => {
       const documentId = await browser.eval(() => Reflect.get(self, '__next_r'))
       const previousCount = observer.messages.length
       await next.patchFile(
-        'app/server-console/page.tsx',
+        'app/server-console/content.tsx',
         original
           .replace("error !== 'disabled'", "error === 'recur'")
           .replace('Before edit', 'After edit')
@@ -330,7 +330,7 @@ describe('runtime-error-events', () => {
       observer.close()
       lateObserver?.close()
       await browser.close()
-      await next.patchFile('app/server-console/page.tsx', original)
+      await next.patchFile('app/server-console/content.tsx', original)
     }
   })
 
