@@ -2,6 +2,11 @@
 
 This fixture contains scenarios that **SHOULD throw `MissingDefaultParallelRouteError`** during build.
 
+It opts out of strict route matching because strict matching removes these
+incomplete routes before the legacy loader-tree validation can run. Once strict
+matching is the only mode, this fixture should be removed in favor of the
+equivalent strict diagnostic.
+
 ## Why These Should Error
 
 All scenarios in this fixture have:
