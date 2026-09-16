@@ -43,49 +43,66 @@ function deserialize(text) {
   });
 }
 
+// Next.js constructs the `cacheHandler` class once per request, so the Redis
+// client must live at module scope: creating it in the constructor would open
+// a new connection on every request and never close it.
+const client = createClient({
+  url: process.env.REDIS_URL ?? "redis://localhost:6379",
+  // Fail commands immediately while the connection is down instead of queueing
+  // them until Redis is back. Combined with the `isReady` check in
+  // `getClient`, a request never waits on an unavailable Redis.
+  disableOfflineQueue: true,
+});
+
+// Redis won't work without error handling. Do not throw here, otherwise the
+// client won't reconnect after a connection drop.
+client.on("error", (error) => {
+  if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+    console.warn("Redis client error:", error);
+  }
+});
+
+// Connecting to Redis during `next build` can cause issues, so we only connect
+// at runtime. The client keeps retrying in the background if Redis is
+// unavailable, so nothing awaits this promise: `connect()` does not settle
+// until a connection succeeds, and awaiting it would block requests for as
+// long as Redis is down.
+if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+  client.connect().catch((error) => {
+    console.warn("Failed to connect to Redis:", error);
+  });
+}
+
+// Return the client when it's connected, or `null` when Redis is unavailable
+// so the app keeps working (without a shared cache) instead of hanging or
+// crashing. The client reconnects on its own once Redis is reachable again.
+function getClient() {
+  return client.isReady ? client : null;
+}
+
 module.exports = class CacheHandler {
   constructor(options) {
     this.options = options;
-
-    this.client = createClient({
-      url: process.env.REDIS_URL ?? "redis://localhost:6379",
-    });
-
-    // Redis won't work without error handling. Do not throw here, otherwise
-    // the client won't reconnect after a connection drop.
-    this.client.on("error", (error) => {
-      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.warn("Redis client error:", error);
-      }
-    });
-
-    // Connecting to Redis during `next build` can cause issues, so we only
-    // connect at runtime. `this.connection` resolves once the client is ready.
-    this.connection =
-      process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
-        ? Promise.resolve()
-        : this.client.connect().catch((error) => {
-            console.warn("Failed to connect to Redis:", error);
-          });
-  }
-
-  // Resolve a connected client, or `null` when Redis is unavailable so the
-  // app keeps working (without a shared cache) instead of crashing.
-  async getClient() {
-    await this.connection;
-    return this.client.isReady ? this.client : null;
   }
 
   async get(key) {
-    const client = await this.getClient();
+    const client = getClient();
     if (!client) return null;
 
-    const entry = await client.get(CACHE_PREFIX + key);
-    return entry ? deserialize(entry) : null;
+    try {
+      const entry = await client.get(CACHE_PREFIX + key);
+      return entry ? deserialize(entry) : null;
+    } catch (error) {
+      // A dropped connection mid-request degrades to a cache miss.
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.warn("Redis get failed:", error);
+      }
+      return null;
+    }
   }
 
   async set(key, data, ctx) {
-    const client = await this.getClient();
+    const client = getClient();
     if (!client || !data) return;
 
     // Collect tags from both sources: `ctx.tags` (fetch entries) and the
@@ -105,30 +122,42 @@ module.exports = class CacheHandler {
       ? { expiration: { type: "EX", value: Math.max(1, Math.ceil(expire)) } }
       : {};
 
-    await client.set(
-      CACHE_PREFIX + key,
-      serialize({ value: data, lastModified: Date.now(), tags }),
-      options,
-    );
+    try {
+      await client.set(
+        CACHE_PREFIX + key,
+        serialize({ value: data, lastModified: Date.now(), tags }),
+        options,
+      );
 
-    // Index this key under each of its tags so `revalidateTag` can find it.
-    await Promise.all(tags.map((tag) => client.sAdd(TAG_PREFIX + tag, key)));
+      // Index this key under each of its tags so `revalidateTag` can find it.
+      await Promise.all(tags.map((tag) => client.sAdd(TAG_PREFIX + tag, key)));
+    } catch (error) {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.warn("Redis set failed:", error);
+      }
+    }
   }
 
   async revalidateTag(tags) {
-    const client = await this.getClient();
+    const client = getClient();
     if (!client) return;
 
-    // `tags` is either a single tag or an array of tags.
-    for (const tag of [tags].flat()) {
-      const tagKey = TAG_PREFIX + tag;
-      const keys = await client.sMembers(tagKey);
+    try {
+      // `tags` is either a single tag or an array of tags.
+      for (const tag of [tags].flat()) {
+        const tagKey = TAG_PREFIX + tag;
+        const keys = await client.sMembers(tagKey);
 
-      if (keys.length) {
-        await client.del(keys.map((key) => CACHE_PREFIX + key));
+        if (keys.length) {
+          await client.del(keys.map((key) => CACHE_PREFIX + key));
+        }
+
+        await client.del(tagKey);
       }
-
-      await client.del(tagKey);
+    } catch (error) {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.warn("Redis revalidateTag failed:", error);
+      }
     }
   }
 
