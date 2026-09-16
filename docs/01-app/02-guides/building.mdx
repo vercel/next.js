@@ -120,7 +120,7 @@ app/
         └── page.tsx
 ```
 
-The page uses the ID to fetch the product:
+The page reads the `id` param to fetch the product:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page(props: PageProps<'/products/[id]'>) {
@@ -186,9 +186,9 @@ This guide uses production builds to show how each change affects the route tabl
 
 During development, `next dev` shows all validation errors in the dev overlay and terminal with stack frames that resolve to your source. It reruns validation as you edit. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
-### Stream request-time work
+### A streaming product page
 
-Choose the `[stream]` option by adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
+The error's `[stream]` option prerenders fallback UI while the params and product data load at request time. Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
 
 ```tsx filename="app/products/[id]/loading.tsx" switcher
 export default function Loading() {
@@ -204,7 +204,7 @@ export default function Loading() {
 
 `loading.js` wraps the page in a `<Suspense>` boundary and uses the loading component as its fallback. Next.js prerenders this fallback as the product route's static shell. The page reads the params and fetches the product at request time, then replaces the fallback with the completed content.
 
-For more granular streaming, add an explicit `<Suspense>` boundary around only the component that needs request-time data. More of the page can then remain in the static shell. See [Streaming](/docs/app/guides/streaming).
+For more granular streaming, add an explicit `<Suspense>` boundary around only the component that needs request-time data. More of the page can then stay in the static shell. See [Streaming](/docs/app/guides/streaming).
 
 Rebuild only the product route:
 
@@ -225,7 +225,7 @@ Route (app)
 
 The `◐` symbol shows that the route serves a static shell and streams the remaining content.
 
-### Prerender product pages
+### Prerendered product pages
 
 The route now has a shared static shell. To prerender pages for known products, keep `loading.js` and use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide their IDs:
 
@@ -280,11 +280,11 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The unmarked `/products/[id]` row groups the fallback and generated product paths. Each indented row shows its own build result. The generated product paths remain `◐` because their IDs are known during the build, but the product lookup is still uncached. Each page serves the static shell and streams the product data.
+The unmarked `/products/[id]` row groups the fallback and generated product paths. Each indented row shows its own build result. The generated product paths stay `◐` because their IDs are known during the build, but the product lookup is still uncached. Each page serves the static shell and streams the product data.
 
 > **Good to know**: `generateStaticParams` is optional. Use it when a set of pathnames is known at build time and worth prerendering. With Cache Components, it must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
-### Cache reusable data
+### Cached product data
 
 The first build error also suggested `[cache]` for uncached data. Add `use cache` to make the product lookup reusable. Next.js can then include the result when it prerenders a known product:
 
@@ -361,11 +361,9 @@ Route (app)           Revalidate  Expire
 
 The default [`use cache` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) revalidates after 15 minutes. The route's default [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) is one year, so the table shows `15m` and `1y`. You can configure both values in `next.config.ts`.
 
-### Allow the route to block
+### A blocking product page
 
-Static-shell validation helps protect instant navigation performance. Choose `[block]` when a route is intentionally allowed to wait for request-time work, such as before it redirects, or when you want to defer its refactor while [adopting Cache Components incrementally](/docs/app/guides/migrating-to-cache-components#adopting-incrementally).
-
-For this example, suppose the product route will be refactored in a later migration pass. Keep `generateStaticParams`, remove the `loading` file and `use cache`, and set `instant = false`:
+Suppose the product route will be refactored in a later migration pass. Keep `generateStaticParams`, remove the `loading` file and `use cache`, and choose the error's `[block]` option by setting `instant = false`:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export const instant = false
@@ -401,9 +399,9 @@ export default async function Page({ params }) {
 }
 ```
 
-The `instant = false` export does not change the rendering model. It opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also disables static-shell validation, allowing the build to accept an empty HTML prerender. The route continues to use PPR.
+The `instant = false` export opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also disables static-shell validation, allowing the build to accept an empty HTML prerender. The route continues to use PPR.
 
-Next.js attempts to prerender each path from `generateStaticParams`. The uncached product request blocks the whole page, so the build produces empty HTML for each row:
+Next.js attempts to prerender each path from `generateStaticParams` and the fallback for unlisted IDs. The uncached product request blocks the whole page, so every prerender attempt produces empty HTML:
 
 ```bash filename="Terminal"
 Route (app)
@@ -418,20 +416,9 @@ Route (app)
 ƒ  (Dynamic)  server-rendered on demand
 ```
 
-Here, the indented `/products/[id]` row is the fallback for IDs not returned by `generateStaticParams`. Its prerender is empty, so it uses `ƒ`.
+The indented `/products/[id]` row is the fallback for IDs not returned by `generateStaticParams`. The other indented rows are the generated product paths. Every row uses `ƒ` because its prerender is empty.
 
-Without `generateStaticParams`, the build prints only the fallback row:
-
-```bash filename="Terminal"
-Route (app)
-┌ ○ /_not-found
-└ ◐ /products/[id]
-
-○  (Static)             prerendered as static content
-◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
-```
-
-The fallback uses `◐` because it represents the PPR shell for the dynamic route pattern, even when its HTML is empty.
+Use `instant = false` when a route is intentionally allowed to wait for request-time work, or when you want to defer its refactor while [adopting Cache Components incrementally](/docs/app/guides/migrating-to-cache-components#adopting-incrementally).
 
 Synchronous values such as [`Math.random()`](/docs/messages/blocking-prerender-random), [`new Date()`](/docs/messages/blocking-prerender-current-time), and [`crypto.randomUUID()`](/docs/messages/blocking-prerender-crypto) still produce prerender errors.
 
