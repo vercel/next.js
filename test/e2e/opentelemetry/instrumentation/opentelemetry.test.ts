@@ -279,8 +279,13 @@ describe.each(
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount':
-                            isNextDev && !isTurbopack ? 8 : 7,
+                          'next.clientComponentLoadCount': isNextDev
+                            ? isTurbopack
+                              ? 7
+                              : 8
+                            : isTurbopack
+                              ? 6
+                              : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -964,8 +969,13 @@ describe.each(
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount':
-                            isNextDev && !isTurbopack ? 12 : 10,
+                          'next.clientComponentLoadCount': isNextDev
+                            ? isTurbopack
+                              ? 10
+                              : 12
+                            : isTurbopack
+                              ? 8
+                              : 10,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -1093,8 +1103,13 @@ describe.each(
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount':
-                            isNextDev && !isTurbopack ? 9 : 8,
+                          'next.clientComponentLoadCount': isNextDev
+                            ? isTurbopack
+                              ? 8
+                              : 9
+                            : isTurbopack
+                              ? 7
+                              : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -2348,8 +2363,13 @@ describe('opentelemetry with custom server', () => {
                   },
                   {
                     attributes: {
-                      'next.clientComponentLoadCount':
-                        isNextDev && !isTurbopack ? 8 : 7,
+                      'next.clientComponentLoadCount': isNextDev
+                        ? isTurbopack
+                          ? 7
+                          : 8
+                        : isTurbopack
+                          ? 6
+                          : 7,
                       'next.span_type': 'NextNodeServer.clientComponentLoading',
                     },
                     kind: 0,
