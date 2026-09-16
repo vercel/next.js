@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir edge runtime root layout', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not emit metadata files into bad paths', async () => {
     await next.fetch('/favicon.ico')
