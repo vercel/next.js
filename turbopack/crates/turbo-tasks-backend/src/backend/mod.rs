@@ -1289,11 +1289,7 @@ impl TurboTasksBackend {
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
             fn compressed_size(data: &[u8]) -> Result<usize> {
-                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-                    data,
-                    &mut Vec::new(),
-                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
-                )?)
+                Ok(lz4::block::compress(data, None, false)?.len())
             }
 
             fn add_data(&mut self, data: &[u8]) {

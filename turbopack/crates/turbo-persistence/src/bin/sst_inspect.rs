@@ -17,7 +17,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
 use fs_err::{self as fs, File};
-use lzzzz::lz4::decompress;
+use lz4::block::decompress_to_buffer;
 use memmap2::Mmap;
 use turbo_persistence::{
     BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
@@ -348,9 +348,16 @@ fn read_block(
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
         let bytes_written = match compression {
-            Compression::Lz4 => {
-                decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
-            }
+            Compression::Lz4 => decompress_to_buffer(
+                compressed_data,
+                Some(
+                    uncompressed_length
+                        .try_into()
+                        .context("LZ4 uncompressed length exceeds i32::MAX")?,
+                ),
+                &mut buffer,
+            )
+            .context("LZ4 decompression failed")?,
             Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
                 .context("zstd decompression failed")?,
         };
