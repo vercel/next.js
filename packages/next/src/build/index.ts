@@ -2221,7 +2221,7 @@ export default async function build(
           }
         }
 
-        if (config.experimental.strictRouteMatching && pageKeys.app) {
+        if (config.future.strictRouteMatching && pageKeys.app) {
           const emittedAppPaths = new Set(
             emittedAppPageKeys?.map((appPageKey) =>
               normalizeAppPath(appPageKey)

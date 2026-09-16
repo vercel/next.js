@@ -104,6 +104,7 @@ pub struct NextConfig {
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     env: FxIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
+    future: FutureConfig,
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
@@ -197,6 +198,24 @@ impl NextConfig {
         new.experimental.turbopack_input_source_maps = Some(false);
         new.cell()
     }
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+struct FutureConfig {
+    strict_route_matching: Option<bool>,
 }
 
 #[derive(
@@ -1436,9 +1455,6 @@ pub struct ExperimentalConfig {
     global_not_found: Option<bool>,
     /// Only include children in a parallel route layout when ordinary route content declares it.
     explicit_parallel_route_children: Option<bool>,
-    /// Omit catch-all-derived route matchers whose loader trees contain an unmatched parallel
-    /// route.
-    strict_route_matching: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -2038,7 +2054,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn strict_route_matching(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.strict_route_matching.unwrap_or_default())
+        Vc::cell(self.future.strict_route_matching.unwrap_or_default())
     }
 
     #[turbo_tasks::function]

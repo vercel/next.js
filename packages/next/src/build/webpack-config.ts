@@ -2561,7 +2561,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: (config as any).future,
+    future: config.future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,

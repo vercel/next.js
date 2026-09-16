@@ -450,6 +450,10 @@ function assignDefaultsAndValidate(
   const result = {
     ...defaultConfig,
     ...config,
+    future: {
+      ...defaultConfig.future,
+      ...config.future,
+    },
     experimental: {
       ...defaultConfig.experimental,
       ...config.experimental,
@@ -460,7 +464,7 @@ function assignDefaultsAndValidate(
   // ordinary route branch. Restoring the legacy implicit children slot must
   // therefore also restore the legacy matcher behavior.
   if (!result.experimental.explicitParallelRouteChildren) {
-    result.experimental.strictRouteMatching = false
+    result.future.strictRouteMatching = false
   }
 
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a

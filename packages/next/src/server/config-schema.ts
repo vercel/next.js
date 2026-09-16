@@ -480,7 +480,6 @@ export const experimentalSchema = {
     .optional(),
   globalNotFound: z.boolean().optional(),
   explicitParallelRouteChildren: z.boolean().optional(),
-  strictRouteMatching: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
@@ -644,6 +643,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     enablePrerenderSourceMaps: z.boolean().optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
+    future: z
+      .strictObject({
+        strictRouteMatching: z.boolean().optional(),
+      })
+      .optional(),
     exportPathMap: z
       .function()
       .args(

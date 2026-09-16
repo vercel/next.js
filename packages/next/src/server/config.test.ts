@@ -194,18 +194,28 @@ describe('loadConfig', () => {
   })
 
   describe('parallel route matching flags', () => {
+    it('keeps strict route matching disabled by default', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(result.future.strictRouteMatching).toBe(false)
+    })
+
     it('allows explicit children detection without strict route matching', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
             explicitParallelRouteChildren: true,
+          },
+          future: {
             strictRouteMatching: false,
           },
         },
       })
 
       expect(result.experimental.explicitParallelRouteChildren).toBe(true)
-      expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(result.future.strictRouteMatching).toBe(false)
     })
 
     it('disables strict route matching when explicit children detection is disabled', async () => {
@@ -213,13 +223,15 @@ describe('loadConfig', () => {
         customConfig: {
           experimental: {
             explicitParallelRouteChildren: false,
+          },
+          future: {
             strictRouteMatching: true,
           },
         },
       })
 
       expect(result.experimental.explicitParallelRouteChildren).toBe(false)
-      expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(result.future.strictRouteMatching).toBe(false)
     })
   })
 

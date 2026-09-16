@@ -434,7 +434,7 @@ export async function createEntrypoints(
     // TODO: find a better place to do this
     const { unmatchedAppPages, incompatibleParallelRouteSlots } =
       normalizeCatchAllRoutes(appPathsPerRoute, {
-        strictRouteMatching: config.experimental.strictRouteMatching,
+        strictRouteMatching: config.future.strictRouteMatching,
         defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
       })
     // Only App Router pages can make an intercepted URL directly renderable.
@@ -446,8 +446,7 @@ export async function createEntrypoints(
         return pageAppPaths.length > 0 ? [[route, pageAppPaths]] : []
       })
     )
-    const missingCanonicalInterceptionRoutes = config.experimental
-      .strictRouteMatching
+    const missingCanonicalInterceptionRoutes = config.future.strictRouteMatching
       ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
       : []
     const routeMatchingErrors: Error[] = []
@@ -531,7 +530,7 @@ export async function createEntrypoints(
     async (page) => {
       if (
         pagesType === PAGE_TYPES.APP &&
-        config.experimental.strictRouteMatching &&
+        config.future.strictRouteMatching &&
         !(normalizeAppPath(page) in appPathsPerRoute)
       ) {
         return
@@ -607,7 +606,7 @@ export async function createEntrypoints(
           : null
       const normalizedAppPage = normalizeAppPath(page)
       const isFinalRouteMatcher =
-        config.experimental.strictRouteMatching &&
+        config.future.strictRouteMatching &&
         matchedAppPaths?.length &&
         matchedAppPaths.some(
           (appPath) => normalizeAppPath(appPath) === normalizedAppPage
@@ -651,7 +650,7 @@ export async function createEntrypoints(
                 .explicitParallelRouteChildren
                 ? true
                 : undefined,
-              strictRouteMatching: config.experimental.strictRouteMatching
+              strictRouteMatching: config.future.strictRouteMatching
                 ? true
                 : undefined,
               isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,
@@ -741,7 +740,7 @@ export async function createEntrypoints(
                   .explicitParallelRouteChildren
                   ? true
                   : undefined,
-                strictRouteMatching: config.experimental.strictRouteMatching
+                strictRouteMatching: config.future.strictRouteMatching
                   ? true
                   : undefined,
                 isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,

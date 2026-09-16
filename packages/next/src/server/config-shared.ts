@@ -485,6 +485,18 @@ export function resolveCssChunkingMode(
   return 'loose'
 }
 
+export interface FutureConfig {
+  /**
+   * Omits catch-all-derived App Router matchers that cannot construct a
+   * complete parallel route tree for their URL. This requires
+   * `experimental.explicitParallelRouteChildren`; setting that option to
+   * `false` also disables strict route matching.
+   *
+   * @default false
+   */
+  strictRouteMatching?: boolean
+}
+
 export interface ExperimentalConfig {
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -1438,14 +1450,6 @@ export interface ExperimentalConfig {
   explicitParallelRouteChildren?: boolean
 
   /**
-   * Omits catch-all-derived App Router matchers that cannot construct a
-   * complete parallel route tree for their URL. This requires
-   * `explicitParallelRouteChildren`; setting that option to `false` also
-   * disables strict route matching.
-   */
-  strictRouteMatching?: boolean
-
-  /**
    * @experimental Use the Rust port of the React compiler (Turbopack only).
    * Requires `reactCompiler` to be enabled.
    */
@@ -2118,6 +2122,11 @@ export interface NextConfig {
   agentRules?: boolean
 
   /**
+   * Configure behavior planned for a future major version of Next.js.
+   */
+  future?: FutureConfig
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -2296,6 +2305,9 @@ export const defaultConfig = Object.freeze({
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+  future: {
+    strictRouteMatching: false,
+  },
   experimental: {
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
@@ -2389,7 +2401,6 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
-    strictRouteMatching: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     disableResumeDataCacheCompression: false,

@@ -40,7 +40,6 @@ export async function buildConfiguration(
     sassOptions: any
     productionBrowserSourceMaps: boolean
     transpilePackages: NextConfigComplete['transpilePackages']
-    // @ts-expect-error TODO: remove any
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
     disableStaticImages: NextConfigComplete['images']['disableStaticImages']

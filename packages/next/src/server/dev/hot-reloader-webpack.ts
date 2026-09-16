@@ -1006,7 +1006,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               'appPaths' in entryData ? entryData.appPaths : null
             const isFinalRouteMatcher =
               pageType === PAGE_TYPES.APP &&
-              this.config.experimental.strictRouteMatching &&
+              this.config.future.strictRouteMatching &&
               !!entryAppPaths?.length
 
             let pageRuntime = staticInfo?.runtime
@@ -1068,7 +1068,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                         .explicitParallelRouteChildren
                         ? true
                         : undefined,
-                      strictRouteMatching: this.config.experimental
+                      strictRouteMatching: this.config.future
                         .strictRouteMatching
                         ? true
                         : undefined,
@@ -1203,8 +1203,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       .explicitParallelRouteChildren
                       ? true
                       : undefined,
-                    strictRouteMatching: this.config.experimental
-                      .strictRouteMatching
+                    strictRouteMatching: this.config.future.strictRouteMatching
                       ? true
                       : undefined,
                     isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,

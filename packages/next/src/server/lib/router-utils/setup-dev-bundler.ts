@@ -1102,10 +1102,10 @@ async function startWatcher(
 
       const { unmatchedAppPages, incompatibleParallelRouteSlots } =
         normalizeCatchAllRoutes(appPagePaths, undefined, {
-          strictRouteMatching: nextConfig.experimental.strictRouteMatching,
+          strictRouteMatching: nextConfig.future.strictRouteMatching,
           defaultAppPaths,
         })
-      const missingCanonicalInterceptionRoutes = nextConfig.experimental
+      const missingCanonicalInterceptionRoutes = nextConfig.future
         .strictRouteMatching
         ? findMissingCanonicalInterceptionRoutes(appPagePaths)
         : []
