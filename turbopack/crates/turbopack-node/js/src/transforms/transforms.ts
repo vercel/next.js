@@ -14,6 +14,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
+      buildDirectories?: string[]
     }
   | {
       type: 'emittedError'
