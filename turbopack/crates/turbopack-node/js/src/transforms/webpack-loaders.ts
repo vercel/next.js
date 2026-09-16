@@ -24,6 +24,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
+      buildDirectories?: string[]
     }
   | {
       type: 'emittedError'
@@ -169,6 +170,7 @@ const transform = (
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
     const buildDependencies = new Set<string>()
+    const buildDirectories = new Set<string>()
 
     const logs: Array<{
       time: number
@@ -199,7 +201,22 @@ const transform = (
               : {}
           },
           addBuildDependency(dependency: string) {
-            buildDependencies.add(pathResolve(contextDir, dependency))
+            const resolved = pathResolve(contextDir, dependency)
+            const pathLike =
+              path.isAbsolute(dependency) || /^\.{1,2}[\\/]/.test(dependency)
+            try {
+              if (fs.statSync(resolved).isDirectory()) {
+                buildDirectories.add(resolved)
+              } else {
+                buildDependencies.add(resolved)
+              }
+            } catch {
+              if (pathLike && /[\\/]$/.test(dependency)) {
+                buildDirectories.add(resolved)
+              } else {
+                buildDependencies.add(resolved)
+              }
+            }
           },
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
@@ -559,6 +576,7 @@ const transform = (
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
           buildFilePaths: [...buildDependencies].sort(),
+          buildDirectories: [...buildDirectories].sort(),
         })
         if (err) {
           // Resolve loader paths to include in the error message using
