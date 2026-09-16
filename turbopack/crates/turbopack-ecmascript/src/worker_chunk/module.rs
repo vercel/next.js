@@ -2,7 +2,6 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
@@ -10,14 +9,12 @@ use turbopack_core::{
         ModuleId, availability_info::AvailabilityInfo, worker_type::WorkerType,
     },
     context::AssetContext,
-    file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{ExportUsage, ModuleResolveResult},
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
 };
 
 use super::entry_module::WorkerEntryModule;
@@ -26,7 +23,6 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
-    embed_js::embed_fs,
     references::esm::generated_export_key,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
@@ -166,22 +162,18 @@ impl WorkerLoaderModule {
 
     /// `createWorker` is stored in a module; for each worker we need to
     /// load, we require this module and then use it.
+    ///
+    /// Delegates to the shared memoized helper that [`WorkerEntryModule`] also references, so
+    /// both resolve to the identical module (and therefore the identical chunk item id). The
+    /// marker is what puts this helper into the module graph — this loader is created during
+    /// chunking and so cannot contribute graph edges of its own.
     #[turbo_tasks::function]
     async fn create_worker_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        let helper = match this.worker_type {
-            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
-                rcstr!("worker/browser/createWorker.ts")
-            }
-            WorkerType::NodeWorkerThread => rcstr!("worker/node/createWorker.ts"),
-        };
-        Ok(this
-            .asset_context
-            .process(
-                Vc::upcast(FileSource::new(embed_fs().root().await?.join(&helper)?)),
-                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
-            )
-            .module())
+        Ok(super::entry_module::create_worker_module(
+            *this.asset_context,
+            this.worker_type,
+        ))
     }
 
     /// Returns output assets including the worker entrypoint for web workers.
@@ -222,20 +214,12 @@ impl Module for WorkerLoaderModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        // Only the `createWorker` runtime helper. The edge to the worker's own
-        // entry module lives on `WorkerEntryModule` (the graph-level marker this
-        // loader is created from during chunking), so repeating it here would
-        // duplicate the isolated chunk-group edge.
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
-                self.create_worker_module(),
-                rcstr!("createWorker"),
-                ExportUsage::named(rcstr!("default")),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
+        // Both of this loader's dependencies — the worker's own entry module and the
+        // `createWorker` runtime helper — are declared by the `WorkerEntryModule` marker that
+        // this loader is created from during chunking. This loader is not part of the module
+        // graph, so references declared here would never be traversed anyway.
+        Vc::cell(vec![])
     }
 
     #[turbo_tasks::function]
