@@ -58,6 +58,11 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
     task
 }
 
+fn release_construction_ref<'e, C: ExecuteContext<'e>>(task_id: TaskId, ctx: &mut C) {
+    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+    task.update_and_get_transient_ref_count(-1);
+}
+
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum ConnectChildOperation {
@@ -72,6 +77,7 @@ impl ConnectChildOperation {
     pub fn run(
         parent_task_id: Option<TaskId>,
         child_task_id: TaskId,
+        release_construction_ref: bool,
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
@@ -85,6 +91,10 @@ impl ConnectChildOperation {
             // Quick skip if the child was already connected before
             // We defer the insert until after the aggregation queue is processed.
             if new_children.contains(&child_task_id) {
+                drop(parent_task);
+                if release_construction_ref {
+                    self::release_construction_ref(child_task_id, &mut ctx);
+                }
                 return;
             }
 
@@ -98,6 +108,10 @@ impl ConnectChildOperation {
                     unreachable!();
                 };
                 new_children.insert(child_task_id);
+                drop(parent_task);
+                if release_construction_ref {
+                    self::release_construction_ref(child_task_id, &mut ctx);
+                }
                 return;
             }
         }
@@ -118,6 +132,7 @@ impl ConnectChildOperation {
             }
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
+                release_construction_ref,
             });
         } else {
             // First connect of this child: its id is minted but the storage entry may not exist
@@ -151,6 +166,9 @@ impl ConnectChildOperation {
                 )
             {
                 ctx.schedule_task(&child_task, ctx.get_current_task_priority());
+            }
+            if release_construction_ref {
+                child_task.update_and_get_transient_ref_count(-1);
             }
         }
 
