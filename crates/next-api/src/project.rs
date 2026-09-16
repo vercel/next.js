@@ -439,17 +439,17 @@ pub struct Instrumentation {
 #[derive(
     Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, TraceRawVcs, Encode, Decode,
 )]
-struct ProjectContainerState {
-    options: ProjectOptions,
+struct ProjectFileSystemState {
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
 }
 
-#[turbo_tasks::value(serialization = "skip", evict = "never", eq = "manual", cell = "new")]
+#[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
-    state: State<Option<ProjectContainerState>>,
-    additional_roots: State<FxIndexMap<RcStr, AdditionalDiskFileSystem>>,
+    options_state: State<Option<ProjectOptions>>,
+    file_systems_state: State<Option<ProjectFileSystemState>>,
+    additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
@@ -466,11 +466,17 @@ impl ProjectContainer {
             } else {
                 None
             },
-            state: State::new(None),
-            additional_roots: State::new(FxIndexMap::default()),
+            options_state: State::new(None),
+            file_systems_state: State::new(None),
+            additional_roots_state: State::new(Vec::new()),
         }
         .cell())
     }
+}
+
+#[turbo_tasks::function(operation, root)]
+fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
+    project.project()
 }
 
 /// Constructs and activates the initial project container state, including its filesystem
@@ -480,11 +486,12 @@ async fn prepare_project_container_state(
     options: ProjectOptions,
 ) -> Result<Vec<ReadRef<PlainIssue>>> {
     let container = container_vc.await?;
-    // Operations created during initialization may begin running immediately. Keep both states
-    // advisory-locked until each has been populated so those operations cannot observe partial
-    // initialization when dependency tracking (and therefore invalidation) is disabled.
-    let additional_roots_guard = container.additional_roots.advisory_lock().await;
-    let state_guard = container.state.advisory_lock().await;
+    // Operations created during initialization may begin running immediately. Keep
+    // `file_systems_state` and `additional_roots_state` advisory-locked until each has been
+    // populated so those operations cannot observe partial initialization when dependency tracking
+    // (and therefore invalidation) is disabled.
+    let additional_roots_guard = container.additional_roots_state.advisory_lock().await;
+    let file_systems_state_guard = container.file_systems_state.advisory_lock().await;
 
     let map = disk_file_system_map_operation(container_vc);
     let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
@@ -533,39 +540,31 @@ async fn prepare_project_container_state(
     let enable_watch = options.watch.enable;
     let configured_additional_roots = options.additional_roots.clone();
     let project_root = options.root_path.clone();
+    let project_path = options.project_path.clone();
 
-    // Install the main filesystem state before resolving it. Its root operation reads this state,
-    // while the filesystem itself only stores (and does not resolve) the filesystem map.
-    container.state.set(Some(ProjectContainerState {
-        options,
-        project_file_system: project_fs_op,
-        output_file_system: output_fs_op,
-    }));
-    drop(state_guard);
+    // The project filesystem's root operation reads the options state, while the filesystem itself
+    // only stores (and does not resolve) the filesystem map.
+    container.options_state.set(Some(options));
+    container
+        .file_systems_state
+        .set(Some(ProjectFileSystemState {
+            project_file_system: project_fs_op,
+            output_file_system: output_fs_op,
+        }));
+    drop(file_systems_state_guard);
     let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
     let project_fs = project_fs_op.read_strongly_consistent().await?;
 
-    let (project_path, config_file_name) = {
-        let state = container.state.get_untracked();
-        let options = &state
-            .as_ref()
-            .expect("ProjectContainer state was just initialized")
-            .options;
-        (
-            options.project_path.clone(),
-            config_json
-                .get("configFileName")
-                .and_then(|value| value.as_str())
-                .unwrap_or("next.config.js")
-                .to_owned(),
-        )
-    };
+    let config_file_name = config_json
+        .get("configFileName")
+        .and_then(|value| value.as_str())
+        .unwrap_or("next.config.js");
     let config_path = FileSystemPath::new_normalized_unchecked(
         ResolvedVc::upcast(project_fs_vc),
         RcStr::default(),
     )
     .join(&project_path)?
-    .join(&config_file_name)?;
+    .join(config_file_name)?;
     let additional_roots = create_additional_root_file_systems(
         container_vc,
         configured_additional_roots,
@@ -585,8 +584,8 @@ async fn prepare_project_container_state(
     // This state must be populated before the lazy additional filesystem operations or the
     // filesystem map are first resolved.
     container
-        .additional_roots
-        .set(additional_roots.roots_by_name);
+        .additional_roots_state
+        .set(additional_roots.roots_by_name.into_iter().collect());
     drop(additional_roots_guard);
 
     // perform complete invalidations of all paths and watcher setup after finalizing the `map`
@@ -616,6 +615,11 @@ async fn prepare_project_container_state(
         .read_strongly_consistent()
         .await?
         .invalidate_with_reason(invalidation_reason);
+
+    project_operation(container_vc)
+        .resolve()
+        .strongly_consistent()
+        .await?;
 
     Ok(additional_roots.issues)
 }
@@ -653,13 +657,11 @@ pub(crate) fn disk_file_system_operation(
 #[turbo_tasks::function(operation, root)]
 async fn project_root_path_operation(container: ResolvedVc<ProjectContainer>) -> Result<Vc<RcStr>> {
     let container = container.await?;
-    let _guard = container.state.advisory_lock().await;
     let root_path = container
-        .state
+        .options_state
         .get()
         .as_ref()
         .context("Unexpected: ProjectContainer is uninitialized")?
-        .options
         .root_path
         .clone();
     Ok(Vc::cell(root_path))
@@ -671,10 +673,11 @@ pub(crate) async fn additional_root_path_operation(
     key: RcStr,
 ) -> Result<Vc<RcStr>> {
     let container = container.await?;
-    let _guard = container.additional_roots.advisory_lock().await;
-    let roots = container.additional_roots.get();
+    let _guard = container.additional_roots_state.advisory_lock().await;
+    let roots = container.additional_roots_state.get();
     let root = roots
-        .get(&key)
+        .iter()
+        .find_map(|(name, root)| (name == &key).then_some(root))
         .with_context(|| format!("Unexpected: additional root {key} is missing"))?;
     Ok(Vc::cell(root.canonical_path.clone()))
 }
@@ -685,19 +688,19 @@ async fn disk_file_system_map_operation(
 ) -> Result<Vc<DiskFileSystemMap>> {
     let (project_file_system, additional_file_systems) = {
         let container = container.await?;
-        let _additional_roots_guard = container.additional_roots.advisory_lock().await;
-        let _state_guard = container.state.advisory_lock().await;
-        let state = container.state.get();
-        let state = state
+        let _additional_roots_guard = container.additional_roots_state.advisory_lock().await;
+        let _file_systems_state_guard = container.file_systems_state.advisory_lock().await;
+        let file_systems = container.file_systems_state.get();
+        let file_systems = file_systems
             .as_ref()
             .context("Unexpected: ProjectContainer is uninitialized")?;
         (
-            state.project_file_system,
+            file_systems.project_file_system,
             container
-                .additional_roots
+                .additional_roots_state
                 .get()
-                .values()
-                .map(|root| root.file_system)
+                .iter()
+                .map(|(_, root)| root.file_system)
                 .collect::<Vec<_>>(),
         )
     };
@@ -864,51 +867,57 @@ impl ProjectContainer {
 
             // Filesystem roots and watcher options are initialization-only. Changing them requires
             // restarting the process so their process-local watchers can be recreated safely.
-            let mut state = this.state.get_untracked();
-            let state = state
-                .as_mut()
+            let mut new_options = this
+                .options_state
+                .get_untracked()
+                .clone()
                 .context("ProjectContainer need to be initialized with initialize()")?;
-            let old_define_env = state.options.define_env.clone();
-            let options = &mut state.options;
+            let old_define_env = new_options.define_env.clone();
 
             if let Some(next_config) = next_config {
-                options.next_config = next_config;
+                new_options.next_config = next_config;
             }
             if let Some(env) = env {
-                options.env = env;
+                new_options.env = env;
             }
             if let Some(define_env) = define_env {
-                options.define_env = define_env;
+                new_options.define_env = define_env;
             }
             if let Some(dev) = dev {
-                options.dev = dev;
+                new_options.dev = dev;
             }
             if let Some(encryption_key) = encryption_key {
-                options.encryption_key = encryption_key;
+                new_options.encryption_key = encryption_key;
             }
             if let Some(build_id) = build_id {
-                options.build_id = build_id;
+                new_options.build_id = build_id;
             }
             if let Some(preview_props) = preview_props {
-                options.preview_props = preview_props;
+                new_options.preview_props = preview_props;
             }
             if let Some(browserslist_query) = browserslist_query {
-                options.browserslist_query = browserslist_query;
+                new_options.browserslist_query = browserslist_query;
             }
             if let Some(no_mangling) = no_mangling {
-                options.no_mangling = no_mangling;
+                new_options.no_mangling = no_mangling;
             }
             if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
-                options.write_routes_hashes_manifest = write_routes_hashes_manifest;
+                new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
             }
             if let Some(debug_build_paths) = debug_build_paths {
-                options.debug_build_paths = Some(debug_build_paths);
+                new_options.debug_build_paths = Some(debug_build_paths);
             }
 
             span.record(
                 "env_diff",
-                define_env_diff_report(&old_define_env, &options.define_env).as_str(),
+                define_env_diff_report(&old_define_env, &new_options.define_env).as_str(),
             );
+            this.options_state.set(Some(new_options));
+
+            project_operation(self)
+                .resolve()
+                .strongly_consistent()
+                .await?;
             Ok(())
         }
         .instrument(span_clone)
@@ -942,11 +951,15 @@ impl ProjectContainer {
         let output_file_system;
         let additional_roots;
         {
-            let state = self.state.get();
-            let state = state
+            let _file_systems_state_guard = self.file_systems_state.advisory_lock().await;
+            let options = self.options_state.get();
+            let options = options
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
-            let options = &state.options;
+            let file_systems = self.file_systems_state.get();
+            let file_systems = file_systems
+                .as_ref()
+                .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
             define_env = ProjectDefineEnv {
                 client: ResolvedVc::cell(options.define_env.client.iter().cloned().collect()),
@@ -970,9 +983,9 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
-            project_file_system = state.project_file_system;
-            output_file_system = state.output_file_system;
-            additional_roots = self.additional_roots.get().clone();
+            project_file_system = file_systems.project_file_system;
+            output_file_system = file_systems.output_file_system;
+            additional_roots = self.additional_roots_state.get().iter().cloned().collect();
         }
 
         let root_path = ResolvedVc::cell(root_path_str);
