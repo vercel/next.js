@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
@@ -108,6 +108,15 @@ pub enum NextSegmentRegion {
     Multiple(Vec<RcStr>),
 }
 
+#[derive(
+    PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode, Serialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum NextSegmentRsc {
+    Server,
+    Client,
+}
+
 impl NextSegmentRegion {
     pub fn to_vec(&self) -> Vec<RcStr> {
         match self {
@@ -120,6 +129,7 @@ impl NextSegmentRegion {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
+    pub rsc: Option<NextSegmentRsc>,
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
@@ -157,6 +167,8 @@ impl NextSegmentConfig {
     /// the parent's values.
     pub fn apply_parent_config(&mut self, parent: &Self) {
         let NextSegmentConfig {
+            // A layout's RSC classification does not apply to its child page.
+            rsc: _,
             dynamic,
             dynamic_params,
             revalidate,
@@ -206,6 +218,7 @@ impl NextSegmentConfig {
             Ok(())
         }
         let Self {
+            rsc,
             dynamic,
             dynamic_params,
             revalidate,
@@ -223,6 +236,9 @@ impl NextSegmentConfig {
             generate_sitemaps: _,
             generate_static_params: _,
         } = self;
+        // Carry the leaf page's RSC classification up through its loader-tree branch. Unlike route
+        // segment config, classifications in different parallel branches are not conflicts.
+        *rsc = (*rsc).or(parallel_config.rsc);
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
             dynamic_params,
@@ -519,7 +535,7 @@ pub async fn parse_segment_config_from_source(
     // Arena for the `JsValue`s produced while evaluating config expressions;
     // freed when this function returns.
     let arena = ThreadLocal::new();
-    let config = WrapFuture::new(
+    let mut config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
 
@@ -633,6 +649,12 @@ pub async fn parse_segment_config_from_source(
             },
             _ => false,
         });
+
+    config.rsc = Some(if is_client_entry {
+        NextSegmentRsc::Client
+    } else {
+        NextSegmentRsc::Server
+    });
 
     if mode == ParseSegmentMode::App && is_client_entry {
         if let Some(span) = config.generate_static_params {
