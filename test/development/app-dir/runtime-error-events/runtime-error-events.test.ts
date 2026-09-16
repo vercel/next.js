@@ -140,8 +140,8 @@ describe('runtime-error-events', () => {
     'reports %s errors without a catching boundary',
     async (kind) => {
       const observer = await observe(next.url)
+      const browser = await next.browser('/events')
       try {
-        const browser = await next.browser('/events')
         await browser.elementByCss(`#${kind}`).click()
         await waitForError(observer, '/events', `${kind} failed`, undefined)
         expect(await browser.elementByCss('#content').text()).toBe(
@@ -149,57 +149,10 @@ describe('runtime-error-events', () => {
         )
       } finally {
         observer.close()
+        await browser.close()
       }
     }
   )
-
-  it('distinguishes custom global fallback from the default global fallback', async () => {
-    await next.renameFile('app/global-error.bak', 'app/global-error.tsx')
-    const observer = await observe(next.url)
-    try {
-      const browser = await next.browser('/render')
-      await browser.elementByCss('#throw').click()
-      await waitForError(observer, '/render', 'render failed', 'custom-global')
-      expect(await browser.elementByCss('#fallback').text()).toBe(
-        'Custom global fallback'
-      )
-    } finally {
-      observer.close()
-      await next.renameFile('app/global-error.tsx', 'app/global-error.bak')
-    }
-  })
-
-  it('reports the default boundary when the custom global fallback itself throws', async () => {
-    await next.renameFile('app/global-error.bak', 'app/global-error.tsx')
-    const original = await next.readFile('app/global-error.tsx')
-    const observer = await observe(next.url)
-    try {
-      await next.patchFile(
-        'app/global-error.tsx',
-        original.replace(
-          'return <html>',
-          "throw new Error('global fallback failed'); return <html>"
-        )
-      )
-      const browser = await next.browser('/render')
-      await browser.elementByCss('#throw').click()
-      await waitForError(
-        observer,
-        '/render',
-        'global fallback failed',
-        'default-global'
-      )
-      await retry(async () => {
-        expect(
-          await browser.elementByCss('html#__next_error__ h1').text()
-        ).toBe('This page couldn’t load')
-      })
-    } finally {
-      observer.close()
-      await next.patchFile('app/global-error.tsx', original)
-      await next.renameFile('app/global-error.tsx', 'app/global-error.bak')
-    }
-  })
 
   it('identifies two previews at the same pathname and replays state to late observers', async () => {
     const browserName = (process.env.BROWSER_NAME || 'chrome').toLowerCase()
@@ -321,9 +274,9 @@ describe('runtime-error-events', () => {
   it('clears server-only errors without reloading the document', async () => {
     const observer = await observe(next.url)
     const original = await next.readFile('app/server-console/page.tsx')
+    const browser = await next.browser('/server-console')
     let lateObserver: Awaited<ReturnType<typeof observe>> | undefined
     try {
-      const browser = await next.browser('/server-console')
       const state = await waitForError(
         observer,
         '/server-console',
@@ -335,7 +288,7 @@ describe('runtime-error-events', () => {
       await next.patchFile(
         'app/server-console/page.tsx',
         original
-          .replace("console.error(new Error('server console failed'))", '')
+          .replace("error !== 'disabled'", "error === 'recur'")
           .replace('Before edit', 'After edit')
       )
       await retry(async () => {
@@ -355,12 +308,18 @@ describe('runtime-error-events', () => {
       ).toEqual([])
 
       // Clearing must also reset deduplication so the same error can recur.
+      // Trigger the recurrence with a client navigation instead of reverting
+      // the source: a second live edit of an already-edited module makes the
+      // reported state depend on bundler-specific reload behavior.
       const clearedCount = observer.messages.length
-      await next.patchFile('app/server-console/page.tsx', original)
-      await retry(() => {
+      await browser.elementByCss('#recur').click()
+      await retry(async () => {
+        const currentDocumentId = await browser.eval(() =>
+          Reflect.get(self, '__next_r')
+        )
         expect(observer.messages.slice(clearedCount)).toContainEqual(
           expect.objectContaining({
-            clientId: state.clientId,
+            htmlRequestId: currentDocumentId,
             errors: expect.arrayContaining([
               expect.objectContaining({ message: 'server console failed' }),
             ]),
@@ -370,6 +329,7 @@ describe('runtime-error-events', () => {
     } finally {
       observer.close()
       lateObserver?.close()
+      await browser.close()
       await next.patchFile('app/server-console/page.tsx', original)
     }
   })
@@ -564,6 +524,86 @@ describe('runtime-error-events', () => {
       expect(
         state.errors.filter((error) => error.message === 'promoted error')
       ).toHaveLength(1)
+    } finally {
+      observer.close()
+    }
+  })
+})
+
+describe('runtime-error-events with a custom global fallback', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    nextConfig: {
+      experimental: {
+        exposeRuntimeErrorsToHMR: true,
+      },
+    },
+  })
+
+  beforeAll(async () => {
+    // Special App Router files are expected to exist when the dev compiler
+    // starts. Keep this fixture stable so this test only exercises runtime
+    // error reporting, not adding a compiler entry while running.
+    await next.renameFile('app/global-error.bak', 'app/global-error.tsx')
+    await next.start()
+  })
+
+  it('distinguishes custom global fallback from the default global fallback', async () => {
+    const observer = await observe(next.url)
+    try {
+      const browser = await next.browser('/render')
+      await browser.elementByCss('#throw').click()
+      await waitForError(observer, '/render', 'render failed', 'custom-global')
+      expect(await browser.elementByCss('#fallback').text()).toBe(
+        'Custom global fallback'
+      )
+    } finally {
+      observer.close()
+    }
+  })
+})
+
+describe('runtime-error-events with a throwing custom global fallback', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    nextConfig: {
+      experimental: {
+        exposeRuntimeErrorsToHMR: true,
+      },
+    },
+  })
+
+  beforeAll(async () => {
+    await next.renameFile('app/global-error.bak', 'app/global-error.tsx')
+    const original = await next.readFile('app/global-error.tsx')
+    await next.patchFile(
+      'app/global-error.tsx',
+      original.replace(
+        'return <html>',
+        "throw new Error('global fallback failed'); return <html>"
+      )
+    )
+    await next.start()
+  })
+
+  it('reports the default boundary when the custom global fallback itself throws', async () => {
+    const observer = await observe(next.url)
+    try {
+      const browser = await next.browser('/render')
+      await browser.elementByCss('#throw').click()
+      await waitForError(
+        observer,
+        '/render',
+        'global fallback failed',
+        'default-global'
+      )
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('html#__next_error__ h1').text()
+        ).toBe('This page couldn’t load')
+      })
     } finally {
       observer.close()
     }
