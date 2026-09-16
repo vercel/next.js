@@ -134,7 +134,7 @@ impl NftJsonBuilder {
         })
     }
 
-    fn classify(&self, path: &FileSystemPath) -> Result<AssetLocation> {
+    fn location_for_path(&self, path: &FileSystemPath) -> Result<AssetLocation> {
         let Some(root) = self.root_configs.get(&path.fs) else {
             bail!("NFT cannot handle filepath '{path}' because it is outside every accepted root")
         };
@@ -152,10 +152,10 @@ impl NftJsonBuilder {
     }
 
     pub fn add(&mut self, path: FileSystemPath, hash: RcStr, content: &AssetContent) -> Result<()> {
-        let location = self.classify(&path)?;
+        let location = self.location_for_path(&path)?;
         let symlink_target = match content {
             AssetContent::File(_) => None,
-            AssetContent::Redirect(content) => Some(self.classify(&content.target)?),
+            AssetContent::Redirect(content) => Some(self.location_for_path(&content.target)?),
         };
         self.asset_refs.push(AssetReference {
             location,
