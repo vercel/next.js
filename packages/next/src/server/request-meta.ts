@@ -202,6 +202,11 @@ export interface RequestMeta {
   invokePath?: string
 
   /**
+   * True when an App route matched the locale-prefixed invocation pathname.
+   */
+  didMatchLocalePrefixedPath?: boolean
+
+  /**
    * The specific page output we should be matching
    */
   invokeOutput?: string
