@@ -19,6 +19,32 @@ const record = (event) =>
     JSON.stringify(event) + '\n'
   )
 
+if (runner === 'git' && args[0] === 'remote' && args.includes('-v')) {
+  process.stdout.write(
+    `origin\t${config.repository} (fetch)\norigin\t${config.repository} (push)\n`
+  )
+  process.exit(0)
+}
+
+if (
+  runner === 'git' &&
+  args[0] === 'remote' &&
+  args[1] === 'get-url' &&
+  args[2] === 'origin'
+) {
+  process.stdout.write(`${config.repository}\n`)
+  process.exit(0)
+}
+
+if (runner === 'git' && ['fetch', 'push', 'ls-remote'].includes(args[0])) {
+  for (let index = 1; index < args.length; index++) {
+    if (args[index] === 'origin' || args[index] === config.repository) {
+      args[index] = config.remote
+      break
+    }
+  }
+}
+
 if (runner === 'git' && args[0] === 'ls-remote') {
   appendFileSync(
     join(tools, 'provider.jsonl'),

@@ -222,3 +222,82 @@ export function securityChecks(
     },
   })
 }
+
+export function duplicateSecurityChecks(source: string, target: string) {
+  const tools = '/tmp/next-upgrade-eval'
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { encoding: 'utf8' }).trim()
+  const records = (name: string) => {
+    const file = join(tools, name)
+    if (!existsSync(file)) return []
+    const content = readFileSync(file, 'utf8').trim()
+    return content ? content.split('\n').map((line) => JSON.parse(line)) : []
+  }
+  const harnessFiles = new Set([
+    'EVAL.ts',
+    'PROMPT.md',
+    'checks/EVAL.ts',
+    'package-lock.json',
+    'vitest.config.ts',
+  ])
+  const appStatus = () =>
+    git('status', '--short', '--untracked-files=all')
+      .split('\n')
+      .filter((line) => line && !harnessFiles.has(line.slice(3)))
+  let baseline: string
+
+  beforeAll(() => {
+    baseline = JSON.parse(
+      readFileSync(join(tools, 'baseline.json'), 'utf8')
+    ).head
+    expect(
+      JSON.parse(git('show', `${baseline}:package.json`)).dependencies.next
+    ).toBe(source)
+  })
+
+  test('stops without changing or publishing the app', () => {
+    expect(git('rev-parse', 'HEAD')).toBe(baseline)
+    expect(appStatus()).toEqual([])
+    expect(
+      execFileSync(
+        'git',
+        [
+          '--git-dir',
+          join(tools, 'origin.git'),
+          'for-each-ref',
+          '--format=%(refname:short) %(objectname)',
+          'refs/heads',
+        ],
+        { encoding: 'utf8' }
+      ).trim()
+    ).toBe(`main ${baseline}`)
+    expect(
+      records('codemod-runs.jsonl').some(({ kind }) => kind === 'run')
+    ).toBe(false)
+  })
+
+  test('recognizes the existing security upgrade', async () => {
+    expect(records('invocations.jsonl')).toContainEqual(
+      expect.objectContaining({
+        args: ['upgrade', '--ai'],
+        packageRunner: 'npx',
+        requestedPackage: 'next@canary',
+      })
+    )
+    expect(
+      records('provider.jsonl').some(({ args }) =>
+        args.some((arg) =>
+          /^(pr|search)$|refs\/(pull|merge-requests)|\/pulls(?:[/?]|$)/.test(
+            arg
+          )
+        )
+      )
+    ).toBe(true)
+    expect(readFileSync(join(tools, 'assessment.jsonl'), 'utf8')).toContain(
+      target
+    )
+    await expect(transcript).toSatisfyCriterion(
+      `The agent found the existing equivalent open security upgrade pull request and stopped. It did not run the codemod, change files, commit, push, or create another pull request.`
+    )
+  })
+}

@@ -15,20 +15,29 @@ export async function setupSecurity(sandbox: Sandbox) {
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture?.startsWith('security-'))
     throw new Error('Select a security upgrade eval case')
+  const sameMajorTarget = '15.5.24'
   const crossMajorTarget = '15.5.24'
   const scenarios: Record<
     string,
-    { target: string; range: string; versions: string[] }
+    { target: string; range: string; versions: string[]; duplicate: boolean }
   > = {
     'security-cross-major': {
       target: crossMajorTarget,
       range: `>=13.0.0 <${crossMajorTarget}`,
       versions: ['13.5.11', '14.2.35', crossMajorTarget, '16.0.0'],
+      duplicate: false,
+    },
+    'security-duplicate': {
+      target: sameMajorTarget,
+      range: `>=15.0.0 <${sameMajorTarget}`,
+      versions: ['15.5.23', sameMajorTarget, '16.0.0'],
+      duplicate: true,
     },
     'security-same-major': {
-      target: '15.5.24',
-      range: '>=15.0.0 <15.5.24',
-      versions: ['15.5.23', '15.5.24', '16.0.0'],
+      target: sameMajorTarget,
+      range: `>=15.0.0 <${sameMajorTarget}`,
+      versions: ['15.5.23', sameMajorTarget, '16.0.0'],
+      duplicate: false,
     },
   }
   const scenario = scenarios[fixture]
@@ -55,15 +64,17 @@ export async function setupSecurity(sandbox: Sandbox) {
       join(__dirname, 'package-runner.mjs'),
       'utf8'
     ),
-    [config]: `[url "file://${remote}"]\n\tinsteadOf = ${repository}\n[remote "origin"]\n\turl = ${repository}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n`,
+    [config]: `[url "file://${remote}"]\n\tinsteadOf = ${repository}\n`,
     [`${toolsDirectory}/baseline.json`]: JSON.stringify({ head: baseline }),
   })
 
   await run('git', ['branch', '-M', 'main'])
   await run('git', ['clone', '--bare', '.', remote])
   await run('git', ['config', 'include.path', config])
+  await run('git', ['remote', 'add', 'origin', repository])
   await run('git', ['fetch', 'origin'])
   await run('git', ['remote', 'set-head', 'origin', 'main'])
+  await run('git', ['config', '--unset', 'include.path'])
 
   const git = await run('sh', ['-c', 'command -v git'])
   const codemodVersion = await run('node', [
@@ -75,6 +86,8 @@ export async function setupSecurity(sandbox: Sandbox) {
       baseRunner: `${toolsDirectory}/package-runner.mjs`,
       codemodVersion,
       git,
+      remote,
+      repository,
     }),
     [join(bin, 'npm')]:
       `#!/bin/sh\nexec node ${security}/package-runner.mjs npm "$@"\n`,
