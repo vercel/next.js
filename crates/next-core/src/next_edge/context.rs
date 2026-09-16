@@ -29,7 +29,6 @@ use crate::{
     next_config::NextConfig,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
-    next_shared::resolve::NextSharedRuntimeResolvePlugin,
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
@@ -113,11 +112,7 @@ pub async fn get_edge_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?,
-    )];
+    let after_resolve_plugins = vec![];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();

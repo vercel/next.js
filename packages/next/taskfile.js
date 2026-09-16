@@ -15,6 +15,7 @@ export async function next__polyfill_module(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@next/polyfill-module')))
     .target('dist/build/polyfills')
+    .target('dist/esm/build/polyfills')
 }
 
 export async function browser_polyfills(task, opts) {

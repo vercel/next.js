@@ -64,6 +64,9 @@ pub async fn get_next_client_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    insert_next_dist_esm_aliases(&mut import_map, project_path.clone());
+    insert_next_api_esm_aliases(&mut import_map, project_path.clone(), true);
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -281,6 +284,9 @@ pub async fn get_next_server_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    insert_next_dist_esm_aliases(&mut import_map, project_path.clone());
+    insert_next_api_esm_aliases(&mut import_map, project_path.clone(), false);
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -391,40 +397,16 @@ pub async fn get_next_edge_import_map(
 
     // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
 
-    // Alias next/dist imports to next/dist/esm assets
-    insert_wildcard_alias_map(
-        &mut import_map,
-        project_path.clone(),
-        fxindexmap! {rcstr!("next/dist/build/") => rcstr!("next/dist/esm/build/*"),
-        rcstr!("next/dist/client/") => rcstr!("next/dist/esm/client/*"),
-        rcstr!("next/dist/shared/") => rcstr!("next/dist/esm/shared/*"),
-        rcstr!("next/dist/pages/") => rcstr!("next/dist/esm/pages/*"),
-        rcstr!("next/dist/lib/") => rcstr!("next/dist/esm/lib/*"),
-        rcstr!("next/dist/server/") => rcstr!("next/dist/esm/server/*"),
-        rcstr!("next/dist/api/") => rcstr!("next/dist/esm/api/*"),},
-    );
+    insert_next_dist_esm_aliases(&mut import_map, project_path.clone());
+    insert_next_api_esm_aliases(&mut import_map, project_path.clone(), false);
 
-    // Alias the usage of next public APIs
+    // Alias built-in @vercel/og to edge bundle for edge runtime
     insert_exact_alias_map(
         &mut import_map,
         project_path.clone(),
-        fxindexmap! {rcstr!("next/app") => rcstr!("next/dist/api/app"),
-        rcstr!("next/document") => rcstr!("next/dist/api/document"),
-        rcstr!("next/dynamic") => rcstr!("next/dist/api/dynamic"),
-        rcstr!("next/error") => rcstr!("next/dist/api/error"),
-        rcstr!("next/form") => rcstr!("next/dist/api/form"),
-        rcstr!("next/head") => rcstr!("next/dist/api/head"),
-        rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
-        rcstr!("next/image") => rcstr!("next/dist/api/image"),
-        rcstr!("next/link") => rcstr!("next/dist/api/link"),
-        rcstr!("next/navigation") => rcstr!("next/dist/api/navigation"),
-        rcstr!("next/router") => rcstr!("next/dist/api/router"),
-        rcstr!("next/script") => rcstr!("next/dist/api/script"),
-        rcstr!("next/server") => rcstr!("next/dist/api/server"),
-        rcstr!("next/og") => rcstr!("next/dist/api/og"),
-
-        // Alias built-in @vercel/og to edge bundle for edge runtime
-        rcstr!("next/dist/compiled/@vercel/og/index.node.js") => rcstr!("next/dist/compiled/@vercel/og/index.edge.js"),},
+        fxindexmap! {
+            rcstr!("next/dist/compiled/@vercel/og/index.node.js") => rcstr!("next/dist/compiled/@vercel/og/index.edge.js"),
+        },
     );
 
     insert_next_shared_aliases(
@@ -584,21 +566,23 @@ pub async fn get_next_client_resolved_map(
     // filesystem root so it matches wherever `next` resolves from (node_modules, pnpm store,
     // or monorepo `packages/next`).
     let fs_root = root.root().owned().await?;
-    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() + 1);
+    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() * 2 + 6);
     for module in BROWSER_VARIANT_MODULES {
-        glob_mappings.push((
-            fs_root.clone(),
-            Glob::new(
-                format!("**/next/dist/{module}.js").into(),
-                GlobOptions::default(),
-            )
-            .to_resolved()
-            .await?,
-            request_to_import_mapping(
-                context_path.clone(),
-                format!("next/dist/{module}.browser").into(),
-            ),
-        ));
+        for dist_prefix in ["dist", "dist/esm"] {
+            glob_mappings.push((
+                fs_root.clone(),
+                Glob::new(
+                    format!("**/next/{dist_prefix}/{module}.js").into(),
+                    GlobOptions::default(),
+                )
+                .to_resolved()
+                .await?,
+                request_to_import_mapping(
+                    context_path.clone(),
+                    format!("next/dist/esm/{module}.browser").into(),
+                ),
+            ));
+        }
     }
 
     // When the Instant Navigation Testing API is disabled (production build
@@ -607,21 +591,28 @@ pub async fn get_next_client_resolved_map(
     // machinery does not ship in the browser bundle. This mirrors the webpack
     // alias in `create-compiler-aliases.ts`.
     if !expose_testing_api {
-        glob_mappings.push((
-            fs_root.clone(),
-            Glob::new(
-                rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
-                GlobOptions::default(),
-            )
-            .to_resolved()
-            .await?,
-            request_to_import_mapping(
-                context_path.clone(),
-                rcstr!(
-                    "next/dist/client/components/segment-cache/navigation-testing-lock.disabled"
+        for dist_prefix in ["dist", "dist/esm"] {
+            glob_mappings.push((
+                fs_root.clone(),
+                Glob::new(
+                    format!(
+                        "**/next/{dist_prefix}/client/components/segment-cache/\
+                         navigation-testing-lock.js"
+                    )
+                    .into(),
+                    GlobOptions::default(),
+                )
+                .to_resolved()
+                .await?,
+                request_to_import_mapping(
+                    context_path.clone(),
+                    rcstr!(
+                        "next/dist/esm/client/components/segment-cache/navigation-testing-lock.\
+                         disabled"
+                    ),
                 ),
-            ),
-        ));
+            ));
+        }
     }
 
     // When `experimental.concurrentRouterQueue` is enabled, resolve the
@@ -630,32 +621,34 @@ pub async fn get_next_client_resolved_map(
     // interface module nor the sequential implementation is bundled at all.
     // This mirrors the webpack alias in `create-compiler-aliases.ts`.
     if concurrent_router_queue {
-        glob_mappings.push((
-            fs_root.clone(),
-            Glob::new(
-                rcstr!("**/next/dist/client/components/navigator.js"),
-                GlobOptions::default(),
-            )
-            .to_resolved()
-            .await?,
-            request_to_import_mapping(
-                context_path.clone(),
-                rcstr!("next/dist/client/components/concurrent-router-queue"),
-            ),
-        ));
-        glob_mappings.push((
-            fs_root,
-            Glob::new(
-                rcstr!("**/next/dist/client/app-call-server.js"),
-                GlobOptions::default(),
-            )
-            .to_resolved()
-            .await?,
-            request_to_import_mapping(
-                context_path.clone(),
-                rcstr!("next/dist/client/concurrent-call-server"),
-            ),
-        ));
+        for dist_prefix in ["dist", "dist/esm"] {
+            glob_mappings.push((
+                fs_root.clone(),
+                Glob::new(
+                    format!("**/next/{dist_prefix}/client/components/navigator.js").into(),
+                    GlobOptions::default(),
+                )
+                .to_resolved()
+                .await?,
+                request_to_import_mapping(
+                    context_path.clone(),
+                    rcstr!("next/dist/esm/client/components/concurrent-router-queue"),
+                ),
+            ));
+            glob_mappings.push((
+                fs_root.clone(),
+                Glob::new(
+                    format!("**/next/{dist_prefix}/client/app-call-server.js").into(),
+                    GlobOptions::default(),
+                )
+                .to_resolved()
+                .await?,
+                request_to_import_mapping(
+                    context_path.clone(),
+                    rcstr!("next/dist/esm/client/concurrent-call-server"),
+                ),
+            ));
+        }
     }
 
     Ok(ResolvedMap {
@@ -896,12 +889,12 @@ async fn apply_vendored_react_aliases_server(
     let mut react_alias = FxIndexMap::default();
     if runtime == NextRuntime::NodeJs && react_condition == "client" {
         react_alias.extend(fxindexmap! {// file:///./../../../packages/next/src/compiled/react/package.json
-            rcstr!("react") =>                                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react"),
-            rcstr!("react/compiler-runtime") =>                 /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
-            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-            rcstr!("react/jsx-runtime") =>                      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+            rcstr!("react") =>                                  /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react"),
+            rcstr!("react/compiler-runtime") =>                 /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
+            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+            rcstr!("react/jsx-runtime") =>                      /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
             // file:///./../../../packages/next/src/compiled/react-dom/package.json
-            rcstr!("react-dom") =>                              /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
+            rcstr!("react-dom") =>                              /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react-dom"),
             rcstr!("react-dom/client") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/client").into(),
             rcstr!("react-dom/server") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.node").into(),
             rcstr!("react-dom/server.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser").into(),
@@ -911,22 +904,22 @@ async fn apply_vendored_react_aliases_server(
             rcstr!("react-dom/static.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser").into(),
             rcstr!("react-dom/static.edge") =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            rcstr!("react-server-dom-webpack/client") =>        /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
+            rcstr!("react-server-dom-webpack/client") =>        /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
             rcstr!("react-server-dom-webpack/server") =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
             rcstr!("react-server-dom-webpack/server.node") =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
             rcstr!("react-server-dom-webpack/static") =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.node").into(),
-            rcstr!("react-server-dom-turbopack/client") =>      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
+            rcstr!("react-server-dom-turbopack/client") =>      /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
             rcstr!("react-server-dom-turbopack/server") =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
             rcstr!("react-server-dom-turbopack/server.node") => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
             rcstr!("react-server-dom-turbopack/static.edge") => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge").into(),})
     } else if runtime == NextRuntime::NodeJs && react_condition == "server" {
         react_alias.extend(fxindexmap! {// file:///./../../../packages/next/src/compiled/react/package.json
-            rcstr!("react") =>                                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react"),
-            rcstr!("react/compiler-runtime") =>                 /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
-            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-            rcstr!("react/jsx-runtime") =>                      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+            rcstr!("react") =>                                  /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react"),
+            rcstr!("react/compiler-runtime") =>                 /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
+            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+            rcstr!("react/jsx-runtime") =>                      /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
             // file:///./../../../packages/next/src/compiled/react-dom/package.json
-            rcstr!("react-dom") =>                              /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-dom"),
+            rcstr!("react-dom") =>                              /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-dom"),
             rcstr!("react-dom/client") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/client").into(),
             rcstr!("react-dom/server") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.node").into(),
             rcstr!("react-dom/server.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser").into(),
@@ -937,13 +930,13 @@ async fn apply_vendored_react_aliases_server(
             rcstr!("react-dom/static.edge") =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
             rcstr!("react-server-dom-webpack/client") =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node").into(),
-            rcstr!("react-server-dom-webpack/server") =>        /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            rcstr!("react-server-dom-webpack/server.node") =>   /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            rcstr!("react-server-dom-webpack/static") =>        /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
+            rcstr!("react-server-dom-webpack/server") =>        /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-webpack/server.node") =>   /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-webpack/static") =>        /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
             rcstr!("react-server-dom-turbopack/client") =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node").into(),
-            rcstr!("react-server-dom-turbopack/server") =>      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            rcstr!("react-server-dom-turbopack/server.node") => /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            rcstr!("react-server-dom-turbopack/static") =>      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
+            rcstr!("react-server-dom-turbopack/server") =>      /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-turbopack/server.node") => /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-turbopack/static") =>      /* ✅ */ rcstr!("next/dist/esm/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
 
             // Needed to make `react-dom/server` work.
             // TODO: really?
@@ -1096,7 +1089,7 @@ async fn insert_next_shared_aliases(
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     ty: ContextType,
-    is_runtime_edge: bool,
+    _is_runtime_edge: bool,
 ) -> Result<()> {
     let package_root = next_js_fs().root().owned().await?;
 
@@ -1289,12 +1282,10 @@ async fn insert_next_shared_aliases(
             request_to_import_mapping(project_path.clone(), loader_file.clone()),
         );
 
-        if is_runtime_edge {
-            import_map.insert_exact_alias(
-                rcstr!("next/dist/esm/shared/lib/image-loader"),
-                request_to_import_mapping(project_path.clone(), loader_file),
-            );
-        }
+        import_map.insert_exact_alias(
+            rcstr!("next/dist/esm/shared/lib/image-loader"),
+            request_to_import_mapping(project_path.clone(), loader_file),
+        );
     }
 
     Ok(())
@@ -1493,6 +1484,68 @@ fn insert_wildcard_alias_map(
             request_to_import_mapping(project_path.clone(), request),
         );
     }
+}
+
+/// Use the ESM build of Next.js internals in code bundled by Turbopack.
+fn insert_next_dist_esm_aliases(import_map: &mut ImportMap, project_path: FileSystemPath) {
+    insert_wildcard_alias_map(
+        import_map,
+        project_path,
+        fxindexmap! {
+            rcstr!("next/dist/api/") => rcstr!("next/dist/esm/api/*"),
+            rcstr!("next/dist/build/") => rcstr!("next/dist/esm/build/*"),
+            rcstr!("next/dist/client/") => rcstr!("next/dist/esm/client/*"),
+            rcstr!("next/dist/lib/") => rcstr!("next/dist/esm/lib/*"),
+            rcstr!("next/dist/pages/") => rcstr!("next/dist/esm/pages/*"),
+            rcstr!("next/dist/server/") => rcstr!("next/dist/esm/server/*"),
+            rcstr!("next/dist/shared/") => rcstr!("next/dist/esm/shared/*"),
+        },
+    );
+}
+
+/// Maps Next.js public utility imports directly to their ESM entrypoints. Turbopack bundles these
+/// modules in client, server, and edge contexts, so resolving through the CommonJS package-root
+/// files would pull CommonJS variants of their `next/dist` dependencies into the module graph.
+fn insert_next_api_esm_aliases(
+    import_map: &mut ImportMap,
+    project_path: FileSystemPath,
+    is_client: bool,
+) {
+    for (name, request) in fxindexmap! {
+        rcstr!("app") => rcstr!("next/dist/esm/api/app"),
+        rcstr!("document") => rcstr!("next/dist/esm/api/document"),
+        rcstr!("dynamic") => rcstr!("next/dist/esm/api/dynamic"),
+        rcstr!("error") => rcstr!("next/dist/esm/api/error"),
+        rcstr!("form") => rcstr!("next/dist/esm/api/form"),
+        rcstr!("head") => rcstr!("next/dist/esm/api/head"),
+        rcstr!("headers") => rcstr!("next/dist/esm/api/headers"),
+        rcstr!("image") => rcstr!("next/dist/esm/api/image"),
+        rcstr!("link") => rcstr!("next/dist/esm/api/link"),
+        rcstr!("navigation") => rcstr!("next/dist/esm/api/navigation"),
+        rcstr!("og") => rcstr!("next/dist/esm/api/og"),
+        rcstr!("router") => rcstr!("next/dist/esm/api/router"),
+        rcstr!("script") => rcstr!("next/dist/esm/api/script"),
+        rcstr!("server") => rcstr!("next/dist/esm/api/server"),
+    } {
+        insert_exact_alias_or_js(
+            import_map,
+            format!("next/{name}").into(),
+            request_to_import_mapping(project_path.clone(), request),
+        );
+    }
+
+    insert_exact_alias_or_js(
+        import_map,
+        rcstr!("next/cache"),
+        request_to_import_mapping(
+            project_path,
+            if is_client {
+                rcstr!("next/dist/esm/api/cache.browser")
+            } else {
+                rcstr!("next/dist/esm/api/cache")
+            },
+        ),
+    );
 }
 
 /// Inserts an alias to an alternative of import mappings into an import map.

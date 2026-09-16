@@ -52,12 +52,8 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
-    next_shared::{
-        resolve::NextSharedRuntimeResolvePlugin,
-        webpack_rules::{
-            WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
-            webpack_loader_options,
-        },
+    next_shared::webpack_rules::{
+        WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target, webpack_loader_options,
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -193,11 +189,7 @@ pub async fn get_client_resolve_options_context(
         // A request starting with `/` is resolved from the project directory, which is not
         // necessarily the root of the filesystem (e.g. in a monorepo).
         server_relative_root: Some(project_path.clone()),
-        after_resolve_plugins: vec![ResolvedVc::upcast(
-            NextSharedRuntimeResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )],
+        after_resolve_plugins: vec![],
         ..Default::default()
     };
 
