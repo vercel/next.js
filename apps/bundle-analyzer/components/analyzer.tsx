@@ -1,12 +1,11 @@
 'use client'
 
 import {
-  Component,
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState,
-  type ErrorInfo,
   type ReactNode,
 } from 'react'
 import useSWR from 'swr'
@@ -15,7 +14,6 @@ import {
   type CompareLayoutModel,
 } from '@/components/compare-layout'
 import { DiffTable } from '@/components/diff-table'
-import { ErrorState } from '@/components/error-state'
 import { Sidebar } from '@/components/sidebar'
 import { TopBar, Environment, CompareView } from '@/components/top-bar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
@@ -84,38 +82,10 @@ function AnalyzerBoundary({
   if (!mounted) return <AnalyzerFallback view={defaultView} />
 
   return (
-    <AnalyzerErrorBoundary>
-      <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
-        {children}
-      </Suspense>
-    </AnalyzerErrorBoundary>
+    <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
+      {children}
+    </Suspense>
   )
-}
-
-class AnalyzerErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: unknown }
-> {
-  state: { error: unknown } = { error: null }
-
-  static getDerivedStateFromError(error: unknown) {
-    return { error }
-  }
-
-  componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.error(error, info.componentStack)
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <main className="h-screen bg-background">
-          <ErrorState error={this.state.error} />
-        </main>
-      )
-    }
-    return this.props.children
-  }
 }
 
 function AnalyzerFallback({ view }: { view: CompareView }) {
@@ -123,10 +93,6 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
 }
 
 function useAnalyzerModel(compare: boolean) {
-  const [environmentFilter, setEnvironmentFilter] = useState<Environment>(
-    Environment.Client
-  )
-  const [typeFilter, setTypeFilter] = useState(['js', 'css', 'json'])
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
   )
@@ -136,13 +102,35 @@ function useAnalyzerModel(compare: boolean) {
 
   const { data: history, isLoading: isHistoryLoading } = useHistoryIndex()
   const routeState = useAnalyzerRoute(compare, history?.snapshots)
-  const { baselineSnapshot, comparisonSnapshot, compareView, selectedRoute } =
-    routeState
+  const {
+    baselineSnapshot,
+    comparisonSnapshot,
+    compareView,
+    environmentFilter,
+    searchQuery,
+    selectedRoute,
+    typeFilter,
+  } = routeState
+  const [searchInput, setSearchInput] = useState(searchQuery)
+  const setSearchQueryRef = useRef(routeState.setSearchQuery)
+  setSearchQueryRef.current = routeState.setSearchQuery
   const [pendingView, setPendingView] = useState<CompareView | null>(null)
 
   useEffect(() => {
     if (pendingView === compareView) setPendingView(null)
   }, [compareView, pendingView])
+
+  useEffect(() => {
+    setSearchInput(searchQuery)
+  }, [searchQuery])
+
+  useEffect(() => {
+    if (searchInput === searchQuery) return
+    const timeout = setTimeout(() => {
+      setSearchQueryRef.current(searchInput)
+    }, 250)
+    return () => clearTimeout(timeout)
+  }, [searchInput, searchQuery])
 
   const activeView = pendingView ?? compareView
   const isViewPending = pendingView != null && pendingView !== compareView
@@ -197,7 +185,6 @@ function useAnalyzerModel(compare: boolean) {
     client?: boolean
     traced?: boolean
   } | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
   // Selected source in compare mode, identified by its full source path
   // (the diff row's `key`). Source indices differ between the two builds,
   // so we can't reuse `selectedSourceIndex`.
@@ -300,7 +287,7 @@ function useAnalyzerModel(compare: boolean) {
     moduleDepthMap,
     modulesData,
     currentRouteTotals,
-    searchQuery,
+    searchQuery: searchInput,
     selectedRoute,
     selectedSourceIndex,
     setCompareSelectedKey,
@@ -308,13 +295,13 @@ function useAnalyzerModel(compare: boolean) {
       setPendingView(view)
       routeState.setView(view)
     },
-    setEnvironmentFilter,
+    setEnvironmentFilter: routeState.setEnvironmentFilter,
     setFocusedSourceIndex,
     setHoveredNodeInfo,
     setIsMouseInTreemap,
-    setSearchQuery,
+    setSearchQuery: setSearchInput,
     setSelectedSourceIndex,
-    setTypeFilter,
+    setTypeFilter: routeState.setTypeFilter,
     sidebarWidth,
     singleSourceListing,
     startResizing,
