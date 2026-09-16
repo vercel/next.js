@@ -34,12 +34,17 @@ import { RequestInsightsPanel } from '../components/request-insights/request-ins
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
 import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
+import {
+  startSelectingComponents,
+  useComponentSelection,
+} from '../components/select-components/selection-store'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
   const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
+  const { selections } = useComponentSelection()
 
   const { hasNormal, hasInstant, hasAny } = getIssueBucketState(
     normalErrorCount,
@@ -67,6 +72,15 @@ const MenuPanel = () => {
   return (
     <DevtoolMenu
       items={[
+        {
+          label: 'Select Components',
+          value: selections.length || <ChevronRight />,
+          onClick: () => {
+            setPanel(null)
+            startSelectingComponents()
+          },
+          attributes: { 'data-select-components': true },
+        },
         hasAny && {
           title: `${titleParts.join(' · ')} found. Click to view details in the dev overlay.`,
           label,

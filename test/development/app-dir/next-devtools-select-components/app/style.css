@@ -1,0 +1,249 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f6f4ed;
+  color: #292e24;
+  font-family: Arial, Helvetica, sans-serif;
+}
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 52px;
+}
+a {
+  color: inherit;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+.site-header {
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 13px;
+  border-bottom: 1px solid #dedfd5;
+}
+.wordmark {
+  color: #dc2626;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  text-decoration: none;
+}
+.wordmark span {
+  font-size: 12px;
+  vertical-align: top;
+  margin-left: 3px;
+}
+.edition,
+.eyebrow,
+.hero-footnote,
+.product-label,
+.product-number {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+}
+.collection {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 24px;
+  padding: 38px 0 32px;
+}
+.hero-card {
+  background: #e6ebd4;
+  padding: 38px;
+  position: relative;
+  min-height: 456px;
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #697a3d;
+}
+h1 {
+  font-size: clamp(35px, 4.8vw, 65px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -3px;
+  margin: 47px 0 20px;
+}
+.hero-card h1 {
+  color: #2563eb;
+  font-size: clamp(42px, 5.8vw, 78px);
+}
+.hero-card p {
+  max-width: 340px;
+  font-size: 18px;
+  color: #000000;
+  line-height: 1.6;
+}
+.hero-card a {
+  display: inline-flex;
+  gap: 30px;
+  background: #292e24;
+  color: white;
+  font-size: 12px;
+  padding: 15px 18px;
+  text-decoration: none;
+  margin-top: 13px;
+}
+.hero-card a span {
+  font-size: 17px;
+  line-height: 14px;
+}
+.hero-footnote {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 45px;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.product-card {
+  background: #fffef9;
+  border: 1px solid #e3e2d7;
+}
+.product-art {
+  height: 300px;
+  position: relative;
+  overflow: hidden;
+  background: #e8e1d3;
+  display: grid;
+  place-items: center;
+}
+.product-label {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  font-size: 9px;
+  color: #6d695f;
+}
+.product-number {
+  position: absolute;
+  bottom: 20px;
+  right: 22px;
+  color: #7f7565;
+  font-size: 9px;
+}
+.bag {
+  width: 185px;
+  height: 165px;
+  border-radius: 7px 7px 27px 27px;
+  background: #af5339;
+  transform: rotate(-9deg);
+  box-shadow:
+    14px 22px 23px #3a2e2426,
+    inset -10px 0 14px #73382440;
+  position: relative;
+  margin-top: 50px;
+  display: grid;
+  place-items: center;
+}
+.bag:after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border: 1px solid #d88c6e66;
+  border-radius: 4px 4px 20px 20px;
+}
+.bag span {
+  color: #f7dfbd;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.bag-handle {
+  position: absolute;
+  top: -54px;
+  left: 45px;
+  width: 95px;
+  height: 78px;
+  border: 15px solid #a74d34;
+  border-bottom: none;
+  border-radius: 50px 50px 0 0;
+}
+.product-details {
+  padding: 25px;
+}
+.product-details > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+h2 {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+#product-title {
+  color: #2563eb;
+}
+.price {
+  font-size: 13px;
+}
+.product-details p {
+  font-size: 11px;
+  color: #7a7c6f;
+  margin: 9px 0 22px;
+}
+.product-details button {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid #dadbd0;
+  font-size: 12px;
+  padding: 12px 15px;
+}
+.product-details button > span:last-child {
+  margin-left: auto;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 40px;
+  color: #777c6e;
+  font-size: 10px;
+}
+footer button {
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  color: inherit;
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  main {
+    padding: 0 22px;
+  }
+  .site-header > span {
+    display: none;
+  }
+  .collection {
+    grid-template-columns: 1fr;
+  }
+  .hero-card {
+    padding: 28px;
+  }
+  .hero-footnote {
+    margin-top: 30px;
+  }
+  footer {
+    gap: 18px;
+  }
+}
