@@ -1,7 +1,7 @@
-use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{cell::RefCell, ffi::c_char, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
-use lz4::block as lz4;
+use lz4::liblz4::{LZ4_compress_default, LZ4_compressBound, LZ4_decompress_safe};
 
 /// Compression algorithm used for a family's SST blocks and blob values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -35,16 +35,31 @@ fn decompress_block(
          zero-copy mmap path"
     );
     let bytes_written = match compression {
-        Compression::Lz4 => lz4::decompress_to_buffer(
-            block,
-            Some(
-                expected_len
-                    .try_into()
-                    .context("LZ4 uncompressed length exceeds i32::MAX")?,
-            ),
-            dest,
-        )
-        .map_err(anyhow::Error::from),
+        Compression::Lz4 => {
+            let compressed_len = block
+                .len()
+                .try_into()
+                .context("LZ4 compressed length exceeds i32::MAX")?;
+            let dest_len = dest
+                .len()
+                .try_into()
+                .context("LZ4 uncompressed length exceeds i32::MAX")?;
+            // Safety: both pointers are valid for the checked lengths passed to liblz4, the
+            // destination is writable, and liblz4 does not retain either pointer.
+            let bytes_written = unsafe {
+                LZ4_decompress_safe(
+                    block.as_ptr().cast::<c_char>(),
+                    dest.as_mut_ptr().cast::<c_char>(),
+                    compressed_len,
+                    dest_len,
+                )
+            };
+            ensure!(
+                bytes_written >= 0,
+                "LZ4 decompression failed with code {bytes_written}"
+            );
+            Ok(bytes_written as usize)
+        }
         Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
             decompressor
                 .decompress_to_buffer(block, dest)
@@ -125,24 +140,44 @@ impl Compressor {
         Ok(Self { compression, zstd })
     }
 
-    /// Compresses `block` into the start of `buffer` and returns the compressed length.
-    ///
-    /// The buffer may be longer than the returned length. Keeping the initialized LZ4 scratch
-    /// space avoids zero-filling the destination again on every block.
+    /// Compresses `block` into `buffer`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn compress_into_buffer(
         &mut self,
         block: &[u8],
         buffer: &mut Vec<u8>,
-    ) -> Result<usize> {
+    ) -> Result<()> {
         match self.compression {
             Compression::Lz4 => {
-                let bound = lz4::compress_bound(block.len()).context("LZ4 input is too large")?;
-                if buffer.len() < bound {
-                    buffer.resize(bound, 0);
-                }
-                lz4::compress_to_buffer(block, None, false, &mut buffer[..bound])
-                    .context("LZ4 compression failed")
+                let input_len = block
+                    .len()
+                    .try_into()
+                    .context("LZ4 input length exceeds i32::MAX")?;
+                // Safety: LZ4_compressBound only reads its integer argument.
+                let bound = unsafe { LZ4_compressBound(input_len) };
+                ensure!(bound > 0, "LZ4 input is too large");
+
+                buffer.clear();
+                buffer.reserve(bound as usize);
+                // Safety: the input pointer is valid for input_len bytes. reserve() established at
+                // least bound bytes of spare capacity, whose pointer is writable. liblz4 does not
+                // retain either pointer and reports how many destination bytes it initialized.
+                let bytes_written = unsafe {
+                    LZ4_compress_default(
+                        block.as_ptr().cast::<c_char>(),
+                        buffer.spare_capacity_mut().as_mut_ptr().cast::<c_char>(),
+                        input_len,
+                        bound,
+                    )
+                };
+                ensure!(
+                    bytes_written > 0 && bytes_written <= bound,
+                    "LZ4 compression failed with invalid output length {bytes_written}"
+                );
+                // Safety: liblz4 initialized exactly bytes_written bytes, and the check above
+                // verifies that they fit within the reserved bound.
+                unsafe { buffer.set_len(bytes_written as usize) };
+                Ok(())
             }
             Compression::Zstd3 => {
                 buffer.clear();
@@ -151,7 +186,8 @@ impl Compressor {
                     .as_mut()
                     .expect("zstd compressor not initialized")
                     .compress_to_buffer(block, buffer)
-                    .context("zstd compression failed")
+                    .context("zstd compression failed")?;
+                Ok(())
             }
         }
     }
@@ -167,16 +203,24 @@ mod tests {
         for compression in [Compression::Lz4, Compression::Zstd3] {
             let mut compressor = Compressor::new(compression).unwrap();
             let mut compressed = Vec::new();
-            let compressed_len = compressor
+            compressor
                 .compress_into_buffer(&input, &mut compressed)
                 .unwrap();
-            let output = decompress_into_arc(
-                compression,
-                input.len() as u32,
-                &compressed[..compressed_len],
-            )
-            .unwrap();
+            let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
             assert_eq!(&*output, input);
         }
+    }
+
+    #[test]
+    fn truncated_lz4_block_returns_an_error() {
+        let input = b"turbo persistence compression ".repeat(1024);
+        let mut compressed = Vec::new();
+        Compressor::new(Compression::Lz4)
+            .unwrap()
+            .compress_into_buffer(&input, &mut compressed)
+            .unwrap();
+        compressed.truncate(compressed.len() / 2);
+
+        assert!(decompress_into_arc(Compression::Lz4, input.len() as u32, &compressed).is_err());
     }
 }

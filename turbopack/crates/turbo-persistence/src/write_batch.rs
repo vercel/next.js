@@ -488,10 +488,9 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut compressed = Vec::new();
         let compression = self.family_configs[usize_from_u32(family)].compression;
-        let compressed_len = Compressor::new(compression)?
+        Compressor::new(compression)?
             .compress_into_buffer(value, &mut compressed)
             .context("Compression of value for blob file failed")?;
-        compressed.truncate(compressed_len);
 
         let mut buffer = Vec::with_capacity(8 + compressed.len());
         buffer.write_u32::<BE>(value.len() as u32)?;
