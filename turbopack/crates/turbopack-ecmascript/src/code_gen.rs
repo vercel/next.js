@@ -2,6 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     base::SwcComments,
+    common::SyntaxContext,
     ecma::{
         ast::{
             BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
@@ -98,7 +99,7 @@ impl CodeGeneration {
         }
     }
 
-    pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Self {
+    pub fn hoisted_stmt(key: impl Into<HoistedStmtKey>, stmt: Stmt) -> Self {
         CodeGeneration {
             hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
             ..Default::default()
@@ -113,15 +114,55 @@ impl CodeGeneration {
     }
 }
 
+/// Identifies a hoisted statement, so that a statement which is already present is emitted once.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum HoistedStmtKey {
+    /// A fixed name, unique by construction (`__turbopack_esm__`, `import.meta`, …).
+    Named(RcStr),
+    /// The declarations that read one imported namespace.
+    ///
+    /// The namespace identifier is derived from the target module's chunk item id, so it names an
+    /// actual dependency and is shared by exactly the declarations that should merge.
+    ValueBindings {
+        namespace_ident: RcStr,
+        ctxt: Option<SyntaxContext>,
+    },
+}
+
+impl HoistedStmtKey {
+    /// Whether a later statement sharing this key is merged into the one already emitted, rather
+    /// than dropped.
+    ///
+    /// A duplicate key normally means the statement is already present, so the first one wins.
+    /// Value bindings are the exception: one source import is split into a separate reference per
+    /// named export, so several statements legitimately declare different bindings against the
+    /// same namespace.
+    pub fn is_mergeable(&self) -> bool {
+        match self {
+            HoistedStmtKey::Named(_) => false,
+            HoistedStmtKey::ValueBindings { .. } => true,
+        }
+    }
+}
+
+impl From<RcStr> for HoistedStmtKey {
+    fn from(name: RcStr) -> Self {
+        HoistedStmtKey::Named(name)
+    }
+}
+
 #[derive(Clone)]
 pub struct CodeGenerationHoistedStmt {
-    pub key: RcStr,
+    pub key: HoistedStmtKey,
     pub stmt: Stmt,
 }
 
 impl CodeGenerationHoistedStmt {
-    pub fn new(key: RcStr, stmt: Stmt) -> Self {
-        CodeGenerationHoistedStmt { key, stmt }
+    pub fn new(key: impl Into<HoistedStmtKey>, stmt: Stmt) -> Self {
+        CodeGenerationHoistedStmt {
+            key: key.into(),
+            stmt,
+        }
     }
 }
 
