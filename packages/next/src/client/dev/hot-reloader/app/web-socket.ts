@@ -54,6 +54,8 @@ export function createWebSocket(
 
   function init() {
     if (webSocket) {
+      webSocket.onerror = null
+      webSocket.onclose = null
       webSocket.close()
     }
 
@@ -156,7 +158,7 @@ export function createWebSocket(
   function handleVisibilityChange() {
     if (
       document.visibilityState === 'visible' &&
-      webSocket.readyState !== WebSocket.OPEN
+      webSocket.readyState === WebSocket.CLOSED
     ) {
       reconnections = 0
       clearTimeout(timer)
@@ -165,7 +167,7 @@ export function createWebSocket(
   }
 
   function handleOnlineEvent() {
-    if (webSocket.readyState !== WebSocket.OPEN) {
+    if (webSocket.readyState === WebSocket.CLOSED) {
       reconnections = 0
       clearTimeout(timer)
       init()
