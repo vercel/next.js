@@ -232,11 +232,16 @@ export class ImmediateTracker {
     return this.sentinel !== null
   }
 
+  /**
+   * Calls `callback` asynchronously in a native immediate, even when no
+   * immediates are pending. The returned function cancels the subscription
+   * without stopping tracking.
+   */
   onIdle(callback: () => void): () => void {
     const listeners = this.listeners
     listeners.add(callback)
     if (this.sentinel === null) {
-      this.scheduleSentinel()
+      this.scheduleIdleCheck()
     } else {
       this.sentinel.ref()
     }
@@ -248,7 +253,7 @@ export class ImmediateTracker {
     }
   }
 
-  scheduleSentinel(): void {
+  scheduleIdleCheck(): void {
     // Do not clear the previous sentinel here. Node 20.19.6 can reenter this
     // patch during exception recovery with the sentinel still at its
     // outstanding queue head. Clearing it breaks Node's queue traversal. We
@@ -691,7 +696,7 @@ function patchedSetImmediate(): NodeJS.Immediate {
       // @ts-expect-error: this is valid, but typescript doesn't get it
       arguments
     )
-    immediateAsyncStorage.getStore()?.scheduleSentinel()
+    immediateAsyncStorage.getStore()?.scheduleIdleCheck()
     return immediate
   }
 
@@ -740,7 +745,7 @@ function patchedSetImmediatePromise<T = void>(
 ): Promise<T> {
   if (currentExecution === null) {
     const promise = originalSetImmediatePromisify(value, options)
-    immediateAsyncStorage.getStore()?.scheduleSentinel()
+    immediateAsyncStorage.getStore()?.scheduleIdleCheck()
     return promise
   }
 
