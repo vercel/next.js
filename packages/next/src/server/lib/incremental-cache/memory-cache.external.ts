@@ -46,6 +46,7 @@ export function getMemoryCache(maxMemoryCacheSize: number) {
           1,
           value.html.length +
             getBufferSize(value.rscData) +
+            (value.markdown?.length || 0) +
             (value.postponed?.length || 0) +
             getSegmentDataSize(value.segmentData)
         )

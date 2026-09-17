@@ -74,6 +74,8 @@ export interface CachedAppPageValue {
   // expects that type instead of a string
   html: RenderResult
   rscData: Buffer | undefined
+  /** Markdown-for-Agents body, generated when the HTML is prerendered. */
+  markdown?: string | undefined
   status: number | undefined
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
@@ -116,6 +118,7 @@ export interface IncrementalCachedAppPageValue {
   // the string value
   html: string
   rscData: Buffer | undefined
+  markdown?: string | undefined
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
   status: number | undefined

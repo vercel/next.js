@@ -93,6 +93,7 @@ export type ServerOnInstrumentationRequestError = (
 
 export interface RenderOptsPartial {
   dir?: string
+  markdownAgents?: NextConfigComplete['markdownAgents']
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   basePath: string

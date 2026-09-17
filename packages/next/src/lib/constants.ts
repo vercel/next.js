@@ -18,6 +18,8 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
 export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
 export const RSC_SUFFIX = '.rsc'
+/** Incremental-cache sibling of `.html` for Markdown-for-Agents. */
+export const MARKDOWN_CACHE_SUFFIX = '.md'
 export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'

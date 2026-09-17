@@ -56,6 +56,7 @@ If no sibling file exists, Next.js converts the rendered HTML:
 - Adds YAML frontmatter from the document title and description
 - Appends JSON-LD when present
 - Sets `Vary: Accept` so caches keep HTML and Markdown apart
+- Stores the Markdown next to HTML/RSC in the route cache (build and ISR). Static pages are not converted on every agent request. Dynamic pages still convert at request time.
 
 ## Actions
 

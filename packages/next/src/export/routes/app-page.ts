@@ -15,6 +15,7 @@ import {
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
+  MARKDOWN_CACHE_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
@@ -28,6 +29,9 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import { loadAuthoredRepresentation } from '../../server/lib/markdown-for-agents/authored'
+import { buildCachedMarkdown } from '../../server/lib/markdown-for-agents/cache'
+import { normalizeMarkdownAgentsConfig } from '../../server/lib/markdown-for-agents/config'
 import {
   deflateResumeDataCache,
   stringifyResumeDataCache,
@@ -195,6 +199,30 @@ export async function exportAppPage(
 
     // Writing static HTML to a file.
     fileWriter.append(htmlFilepath, html)
+
+    const markdownAgentsConfig = normalizeMarkdownAgentsConfig(
+      renderOpts.markdownAgents
+    )
+    if (markdownAgentsConfig.enabled) {
+      const authored = renderOpts.dir
+        ? await loadAuthoredRepresentation({
+            dir: renderOpts.dir,
+            page,
+          })
+        : {}
+      const markdown = buildCachedMarkdown({
+        html,
+        url: pathname,
+        config: markdownAgentsConfig,
+        authored,
+      })
+      if (markdown) {
+        fileWriter.append(
+          htmlFilepath.replace(/\.html$/, MARKDOWN_CACHE_SUFFIX),
+          markdown
+        )
+      }
+    }
 
     const isParallelRoute = /\/@\w+/.test(page)
     const isNonSuccessfulStatusCode = res.statusCode > 300

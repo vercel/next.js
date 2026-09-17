@@ -7,6 +7,8 @@ Enable [Markdown for Agents](/docs/app/api-reference/file-conventions/page-markd
 
 This is **not MDX**. MDX compiles Markdown into React pages. `markdownAgents` is a response representation for agents. Authored files are `page.md` / `page.txt` **next to** `page.tsx` in the same folder. They are not routes.
 
+Static and ISR pages prerender Markdown into the same route cache as HTML and RSC. Dynamic pages convert on the request.
+
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 

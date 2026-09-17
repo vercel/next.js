@@ -13,5 +13,6 @@ export {
   type NegotiatedType,
 } from './accept'
 export { loadAuthoredRepresentation } from './authored'
+export { buildCachedMarkdown } from './cache'
 export { transformPageRepresentation } from './transform'
 export type { AgentAction, AgentActionField } from './actions'

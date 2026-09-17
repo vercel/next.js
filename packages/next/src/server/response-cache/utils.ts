@@ -31,6 +31,7 @@ export async function fromResponseCacheEntry(
               html: await cacheEntry.value.html.toUnchunkedString(true),
               postponed: cacheEntry.value.postponed,
               rscData: cacheEntry.value.rscData,
+              markdown: cacheEntry.value.markdown,
               headers: cacheEntry.value.headers,
               status: cacheEntry.value.status,
               segmentData: cacheEntry.value.segmentData,
@@ -69,6 +70,7 @@ export async function toResponseCacheEntry(
                 HTML_CONTENT_TYPE_HEADER
               ),
               rscData: response.value.rscData,
+              markdown: response.value.markdown,
               headers: response.value.headers,
               status: response.value.status,
               postponed: response.value.postponed,

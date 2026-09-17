@@ -7,7 +7,10 @@ import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import { getCacheControlHeader } from './lib/cache-control'
-import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
+import {
+  HTML_CONTENT_TYPE_HEADER,
+  MARKDOWN_CONTENT_TYPE_HEADER,
+} from '../lib/constants'
 import { getRequestMeta } from './request-meta'
 import {
   appendVary,
@@ -16,6 +19,7 @@ import {
 import { canonicalPagePath } from './lib/markdown-for-agents/actions'
 import { loadAuthoredRepresentation } from './lib/markdown-for-agents/authored'
 import { normalizeMarkdownConfig } from './lib/markdown-for-agents/config'
+import { estimateTokens } from './lib/markdown-for-agents/html-to-markdown'
 import {
   representationsForMode,
   shouldBufferHtmlForAgents,
@@ -56,6 +60,7 @@ export async function sendRenderResult({
   markdownAgents,
   dir,
   page,
+  precomputedMarkdown,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -66,6 +71,8 @@ export async function sendRenderResult({
   markdownAgents?: MarkdownAgentsConfig
   dir?: string
   page?: string
+  /** Prerendered Markdown from the App page cache. */
+  precomputedMarkdown?: string
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -128,41 +135,68 @@ export async function sendRenderResult({
     const wantsAlternate = Boolean(chosen && chosen !== 'html')
 
     if (wantsAlternate) {
-      let html = payload ?? ''
-      let consumedDynamic = false
-      if (
-        shouldBufferHtmlForAgents(markdownAgentsConfig, authored, chosen) &&
-        result.isDynamic &&
-        payload === null
-      ) {
-        html = await result.toUnchunkedString(true)
-        consumedDynamic = true
-      }
-
-      const transformed = transformPageRepresentation({
-        accept: acceptHeader,
-        html,
-        url,
-        config: markdownAgentsConfig,
-        authored,
-        forced: markdownAgentsConfig.suffix ? (forced ?? null) : null,
-      })
-      if (transformed) {
-        payload = transformed.body
+      if (chosen === 'markdown' && precomputedMarkdown) {
+        const originalHtml = payload
+        payload = precomputedMarkdown
         markdownApplied = true
-        res.setHeader('Content-Type', transformed.contentType)
-        if (transformed.markdownTokens != null) {
-          res.setHeader('x-markdown-tokens', String(transformed.markdownTokens))
-        }
-        if (transformed.originalTokens != null) {
-          res.setHeader('x-original-tokens', String(transformed.originalTokens))
+        res.setHeader('Content-Type', MARKDOWN_CONTENT_TYPE_HEADER)
+        if (markdownAgentsConfig.tokenHeaders) {
+          res.setHeader(
+            'x-markdown-tokens',
+            String(estimateTokens(precomputedMarkdown))
+          )
+          if (originalHtml) {
+            res.setHeader(
+              'x-original-tokens',
+              String(estimateTokens(originalHtml))
+            )
+          }
         }
         res.removeHeader('ETag')
         res.removeHeader('Last-Modified')
-      } else if (consumedDynamic) {
-        // The render stream is spent. Send the HTML we already read —
-        // never pipeToNodeResponse on a consumed stream.
-        payload = html
+      } else {
+        let html = payload ?? ''
+        let consumedDynamic = false
+        if (
+          shouldBufferHtmlForAgents(markdownAgentsConfig, authored, chosen) &&
+          result.isDynamic &&
+          payload === null
+        ) {
+          html = await result.toUnchunkedString(true)
+          consumedDynamic = true
+        }
+
+        const transformed = transformPageRepresentation({
+          accept: acceptHeader,
+          html,
+          url,
+          config: markdownAgentsConfig,
+          authored,
+          forced: markdownAgentsConfig.suffix ? (forced ?? null) : null,
+        })
+        if (transformed) {
+          payload = transformed.body
+          markdownApplied = true
+          res.setHeader('Content-Type', transformed.contentType)
+          if (transformed.markdownTokens != null) {
+            res.setHeader(
+              'x-markdown-tokens',
+              String(transformed.markdownTokens)
+            )
+          }
+          if (transformed.originalTokens != null) {
+            res.setHeader(
+              'x-original-tokens',
+              String(transformed.originalTokens)
+            )
+          }
+          res.removeHeader('ETag')
+          res.removeHeader('Last-Modified')
+        } else if (consumedDynamic) {
+          // The render stream is spent. Send the HTML we already read —
+          // never pipeToNodeResponse on a consumed stream.
+          payload = html
+        }
       }
     }
   }

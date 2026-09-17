@@ -77,6 +77,8 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { appendVary } from '../../server/lib/markdown-for-agents/accept' with { 'turbopack-transition': 'next-server-utility' }
+import { loadAuthoredRepresentation } from '../../server/lib/markdown-for-agents/authored' with { 'turbopack-transition': 'next-server-utility' }
+import { buildCachedMarkdown } from '../../server/lib/markdown-for-agents/cache' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeMarkdownConfig } from '../../server/lib/markdown-for-agents/config' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
@@ -282,7 +284,11 @@ export function createAppPageEntrypoint({
         markdownAgents: nextConfig.markdownAgents,
         dir: projectDir,
         page,
+        precomputedMarkdown:
+          options.precomputedMarkdown ?? cachedMarkdownForRequest,
       })
+
+    let cachedMarkdownForRequest: string | undefined
 
     // We use the resolvedPathname instead of the parsedUrl.pathname because it
     // is not rewritten as resolvedPathname is. This will ensure that the correct
@@ -917,6 +923,7 @@ export function createAppPageEntrypoint({
                     routeModule.relativeProjectDir
                   )
                 : `${process.cwd()}/${routeModule.relativeProjectDir}`,
+            markdownAgents: nextConfig.markdownAgents,
             isDraftMode,
             botType,
             isOnDemandRevalidate,
@@ -1090,12 +1097,35 @@ export function createAppPageEntrypoint({
           throw err
         }
 
+        let markdown: string | undefined
+        const markdownAgentsConfig = normalizeMarkdownConfig(
+          nextConfig.markdownAgents
+        )
+        if (markdownAgentsConfig.enabled && !result.isDynamic) {
+          try {
+            const html = result.toUnchunkedString()
+            const authored = await loadAuthoredRepresentation({
+              dir: projectDir,
+              page,
+            })
+            markdown = buildCachedMarkdown({
+              html,
+              url: resolvedPathname,
+              config: markdownAgentsConfig,
+              authored,
+            })
+          } catch {
+            markdown = undefined
+          }
+        }
+
         return {
           value: {
             kind: CachedRouteKind.APP_PAGE,
             html: result,
             headers,
             rscData: metadata.flightData,
+            markdown,
             postponed: metadata.postponed,
             status: metadata.statusCode,
             segmentData: metadata.segmentData,
@@ -1739,6 +1769,9 @@ export function createAppPageEntrypoint({
           res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
         }
         const { value: cachedData } = cacheEntry
+        if (cachedData?.kind === CachedRouteKind.APP_PAGE) {
+          cachedMarkdownForRequest = cachedData.markdown
+        }
 
         // Coerce the cache control parameter from the render.
         let cacheControl: CacheControl | undefined

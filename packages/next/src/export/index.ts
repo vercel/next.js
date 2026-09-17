@@ -483,12 +483,14 @@ async function exportAppImpl(
 
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
+    dir,
     previewProps,
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    markdownAgents: nextConfig.markdownAgents,
     partialPrefetching: nextConfig.partialPrefetching,
     validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
