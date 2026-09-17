@@ -7,6 +7,10 @@ import path from 'path'
 const NextESLintRule = rules['no-html-link-for-pages']
 
 const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
+const withCustomExtensionsDir = path.join(
+  __dirname,
+  'with-custom-extensions-dir'
+)
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomExtensions: new Linter({
+    cwd: withCustomExtensionsDir,
     configType: 'eslintrc',
   }),
 }
@@ -494,5 +502,85 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('flags <a> for a page file matching custom pageExtensions', function () {
+    const code = `
+import Link from 'next/link';
+export default function Page() {
+  return (
+    <div>
+      <a href='/about'>About</a>
+    </div>
+  );
+}
+`
+    const [report] = linters.withCustomExtensions.verify(code, linterConfig, {
+      filename: path.join(
+        withCustomExtensionsDir,
+        'pages/about.page.tsx'
+      ),
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('flags <a> for a nested page file matching custom pageExtensions', function () {
+    const code = `
+import Link from 'next/link';
+export default function Page() {
+  return (
+    <div>
+      <a href='/list/about'>Nested About</a>
+    </div>
+  );
+}
+`
+    const [report] = linters.withCustomExtensions.verify(code, linterConfig, {
+      filename: path.join(
+        withCustomExtensionsDir,
+        'pages/list/about.page.tsx'
+      ),
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/list/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('does not flag Link usage when custom pageExtensions are configured', function () {
+    const code = `
+import Link from 'next/link';
+export default function Page() {
+  return (
+    <div>
+      <Link href='/about'>About</Link>
+    </div>
+  );
+}
+`
+    const report = linters.withCustomExtensions.verify(code, linterConfig, {
+      filename: path.join(
+        withCustomExtensionsDir,
+        'pages/about.page.tsx'
+      ),
+    })
+    assert.deepEqual(report, [])
+  })
+  it('resolves sorted pageExtensions from next.config.mjs and falls back to defaults', () => {
+    const { resolvePageExtensions } =
+      require('../../../packages/eslint-plugin-next/src/utils/url') as typeof import('../../../packages/eslint-plugin-next/src/utils/url')
+
+    assert.deepEqual(resolvePageExtensions(withCustomExtensionsDir), [
+      'other.jsx',
+      'page.tsx',
+    ])
+    assert.deepEqual(resolvePageExtensions(withoutPagesDir), [
+      'js',
+      'jsx',
+      'ts',
+      'tsx',
+    ])
   })
 })
