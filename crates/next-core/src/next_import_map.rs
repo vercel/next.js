@@ -1513,6 +1513,8 @@ fn insert_next_api_esm_aliases(
 ) {
     for (name, request) in fxindexmap! {
         rcstr!("app") => rcstr!("next/dist/esm/api/app"),
+        rcstr!("client") => rcstr!("next/dist/esm/client/index"),
+        rcstr!("compat/router") => rcstr!("next/dist/esm/client/compat/router"),
         rcstr!("constants") => rcstr!("next/dist/esm/api/constants"),
         rcstr!("document") => rcstr!("next/dist/esm/api/document"),
         rcstr!("dynamic") => rcstr!("next/dist/esm/api/dynamic"),
@@ -1528,6 +1530,7 @@ fn insert_next_api_esm_aliases(
         rcstr!("router") => rcstr!("next/dist/esm/api/router"),
         rcstr!("script") => rcstr!("next/dist/esm/api/script"),
         rcstr!("server") => rcstr!("next/dist/esm/api/server"),
+        rcstr!("web-vitals") => rcstr!("next/dist/esm/client/web-vitals"),
     } {
         insert_exact_alias_or_js(
             import_map,
