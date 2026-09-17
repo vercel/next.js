@@ -29,6 +29,7 @@ export interface CommonWorkUnitStore {
   /** NOTE: Will be mutated as phases change */
   phase: WorkUnitPhase
   readonly implicitTags: ImplicitTags
+  emittedChunkIds?: Set<string>
 }
 
 export interface RequestStore extends CommonWorkUnitStore {
