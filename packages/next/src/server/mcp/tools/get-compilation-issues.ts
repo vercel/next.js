@@ -25,46 +25,35 @@ export function registerGetCompilationIssuesTool(
     },
     async () => {
       mcpTelemetryTracker.recordToolCall('mcp/get_compilation_issues')
-
-      try {
-        const project = getProject()
-        if (!project) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error:
-                    'Turbopack project is not available. This tool requires the Turbopack bundler.',
-                }),
-              },
-            ],
-          }
-        }
-
-        const { issues } = await project.getAllCompilationIssues()
-        const formattedIssues = formatCompilationIssues(issues)
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({ issues: formattedIssues }),
-            },
-          ],
-        }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            },
-          ],
-        }
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(await getCompilationIssues(getProject)),
+          },
+        ],
       }
     }
   )
+}
+
+export async function getCompilationIssues(
+  getProject: () => Project | undefined
+) {
+  try {
+    const project = getProject()
+    if (!project) {
+      return {
+        error:
+          'Turbopack project is not available. This tool requires the Turbopack bundler.',
+      }
+    }
+    const { issues } = await project.getAllCompilationIssues()
+    const formattedIssues = formatCompilationIssues(issues)
+    return { issues: formattedIssues }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
 }

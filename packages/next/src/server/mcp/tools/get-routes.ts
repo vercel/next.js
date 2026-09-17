@@ -37,111 +37,88 @@ export function registerGetRoutesTool(
       },
     },
     async (request) => {
-      // Track telemetry
       mcpTelemetryTracker.recordToolCall('mcp/get_routes')
-
-      try {
-        const routerType =
-          request.routerType === 'app' || request.routerType === 'pages'
-            ? request.routerType
-            : undefined
-
-        const { projectPath, nextConfig, pagesDir, appDir } = options
-
-        // Check if we have any directories to scan
-        if (!pagesDir && !appDir) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: 'No pages or app directory found in the project.',
-                }),
-              },
-            ],
-          }
-        }
-
-        const isSrcDir =
-          (pagesDir && pagesDir.includes('/src/')) ||
-          (appDir && appDir.includes('/src/'))
-
-        const commonOpts = {
-          pageExtensions: nextConfig.pageExtensions,
-          isDev: true,
-          baseDir: projectPath,
-          isSrcDir: !!isSrcDir,
-        } as const
-
-        // Discover app and pages routes independently so a failure in one
-        // router doesn't prevent the other from returning results.
-        let appRoutes: string[] = []
-        let pageRoutes: string[] = []
-
-        const wantApp = routerType !== 'pages' && appDir
-        const wantPages = routerType !== 'app' && pagesDir
-
-        const [appResult, pagesResult] = await Promise.all([
-          wantApp
-            ? discoverRoutes({ ...commonOpts, appDir }).catch(() => null)
-            : null,
-          wantPages
-            ? discoverRoutes({ ...commonOpts, pagesDir }).catch(() => null)
-            : null,
-        ])
-
-        if (appResult) {
-          appRoutes = [...appResult.appRoutes, ...appResult.appRouteHandlers]
-            .map((r) => r.route)
-            .sort()
-        }
-
-        if (pagesResult) {
-          pageRoutes = [...pagesResult.pageRoutes, ...pagesResult.pageApiRoutes]
-            .map((r) => r.route)
-            .sort()
-        }
-
-        if (appRoutes.length === 0 && pageRoutes.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  appRouter: [],
-                  pagesRouter: [],
-                }),
-              },
-            ],
-          }
-        }
-
-        // Format the output with grouped routes
-        const output = {
-          appRouter: appRoutes.length > 0 ? appRoutes : undefined,
-          pagesRouter: pageRoutes.length > 0 ? pageRoutes : undefined,
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(output, null, 2),
-            },
-          ],
-        }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            },
-          ],
-        }
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(await getRoutes(options, request), null, 2),
+          },
+        ],
       }
     }
   )
+}
+
+export async function getRoutes(
+  options: {
+    projectPath: string
+    nextConfig: NextConfigComplete
+    pagesDir: string | undefined
+    appDir: string | undefined
+  },
+  request: { routerType?: 'app' | 'pages' } = {}
+) {
+  try {
+    const routerType =
+      request.routerType === 'app' || request.routerType === 'pages'
+        ? request.routerType
+        : undefined
+    const { projectPath, nextConfig, pagesDir, appDir } = options
+    // Check if we have any directories to scan
+    if (!pagesDir && !appDir) {
+      return {
+        error: 'No pages or app directory found in the project.',
+      }
+    }
+    const isSrcDir =
+      (pagesDir && pagesDir.includes('/src/')) ||
+      (appDir && appDir.includes('/src/'))
+    const commonOpts = {
+      pageExtensions: nextConfig.pageExtensions,
+      isDev: true,
+      baseDir: projectPath,
+      isSrcDir: !!isSrcDir,
+    } as const
+    // Discover app and pages routes independently so a failure in one
+    // router doesn't prevent the other from returning results.
+    let appRoutes: string[] = []
+    let pageRoutes: string[] = []
+    const wantApp = routerType !== 'pages' && appDir
+    const wantPages = routerType !== 'app' && pagesDir
+    const [appResult, pagesResult] = await Promise.all([
+      wantApp
+        ? discoverRoutes({ ...commonOpts, appDir }).catch(() => null)
+        : null,
+      wantPages
+        ? discoverRoutes({ ...commonOpts, pagesDir }).catch(() => null)
+        : null,
+    ])
+    if (appResult) {
+      appRoutes = [...appResult.appRoutes, ...appResult.appRouteHandlers]
+        .map((r) => r.route)
+        .sort()
+    }
+    if (pagesResult) {
+      pageRoutes = [...pagesResult.pageRoutes, ...pagesResult.pageApiRoutes]
+        .map((r) => r.route)
+        .sort()
+    }
+    if (appRoutes.length === 0 && pageRoutes.length === 0) {
+      return {
+        appRouter: [],
+        pagesRouter: [],
+      }
+    }
+    // Format the output with grouped routes
+    const output = {
+      appRouter: appRoutes.length > 0 ? appRoutes : undefined,
+      pagesRouter: pageRoutes.length > 0 ? pageRoutes : undefined,
+    }
+    return output
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
 }

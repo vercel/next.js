@@ -14,7 +14,7 @@ import { getOwnerStack } from './errors/stitched-error'
 
 const isTerminalLoggingEnabled = getIsTerminalLoggingEnabled()
 const shouldForwardLogs =
-  isTerminalLoggingEnabled || !!process.env.__NEXT_MCP_SERVER
+  isTerminalLoggingEnabled || !!process.env.__NEXT_DEV_SERVER
 
 const methods: Array<LogMethod> = [
   'log',
@@ -130,8 +130,8 @@ export const logQueue: {
     })
   },
   onSocketReady: (socket: WebSocket) => {
-    // When MCP or terminal logging is enabled, we enable the socket connection,
-    // otherwise it will not proceed.
+    // The development server records browser logs for Dev Tools, independently
+    // of whether they are also printed in the terminal.
     if (!shouldForwardLogs) {
       return
     }

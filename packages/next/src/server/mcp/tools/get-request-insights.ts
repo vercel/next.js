@@ -19,39 +19,35 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     },
     async (request) => {
       mcpTelemetryTracker.recordToolCall('mcp/get_request_insights')
-
-      if (!isRequestInsightsEnabled()) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error:
-                  'Request Insights is not enabled. Set experimental.requestInsights = true in next.config.js and restart next dev.',
-              }),
-            },
-          ],
-        }
-      }
-
-      const snapshot = getRequestInsightsSnapshot()
-      const requests = snapshot.requests.filter((insight) => {
-        return (
-          (request.requestId === undefined ||
-            insight.requestId === request.requestId) &&
-          (request.htmlRequestId === undefined ||
-            insight.htmlRequestId === request.htmlRequestId)
-        )
-      })
-
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ requests }, null, 2),
+            text: JSON.stringify(await getRequestInsights(request), null, 2),
           },
         ],
       }
     }
   )
+}
+
+export async function getRequestInsights(
+  request: { requestId?: string; htmlRequestId?: string } = {}
+) {
+  if (!isRequestInsightsEnabled()) {
+    return {
+      error:
+        'Request Insights is not enabled. Set experimental.requestInsights = true in next.config.js and restart next dev.',
+    }
+  }
+  const snapshot = getRequestInsightsSnapshot()
+  const requests = snapshot.requests.filter((insight) => {
+    return (
+      (request.requestId === undefined ||
+        insight.requestId === request.requestId) &&
+      (request.htmlRequestId === undefined ||
+        insight.htmlRequestId === request.htmlRequestId)
+    )
+  })
+  return { requests }
 }

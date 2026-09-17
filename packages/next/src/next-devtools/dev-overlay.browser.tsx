@@ -57,6 +57,7 @@ import {
   dispatchHmrMessage,
   shouldDeferHmrReload,
 } from './dev-overlay/webmcp'
+import { registerDevToolsTools } from './dev-overlay/webmcp-devtools'
 import type {
   RequestInsight,
   RequestInsightsSnapshot,
@@ -289,6 +290,14 @@ function DevOverlayRoot({
   useEffect(() => {
     currentOverlayState = { ...state, routerType }
   }, [state, routerType])
+
+  useEffect(() => {
+    return registerDevToolsTools({
+      getErrorState: getSerializedOverlayState,
+      getPageMetadata: getSegmentTrieData,
+      getHtmlRequestId: () => self.__next_r,
+    })
+  }, [])
 
   useLayoutEffect(() => {
     const portalNode = shadowRoot.host

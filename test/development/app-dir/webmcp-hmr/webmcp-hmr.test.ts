@@ -61,7 +61,10 @@ describe('webmcp-hmr', () => {
             )
             ;(window as any).callWebMcpTool = (name: string) =>
               tools.get(name).execute({})
-            ;(window as any).webMcpToolNames = () => [...tools.keys()].sort()
+            ;(window as any).webMcpToolNames = () =>
+              [...tools.keys()]
+                .filter((name) => name === 'pause_hmr' || name === 'resume_hmr')
+                .sort()
           }, api)
         },
       })
