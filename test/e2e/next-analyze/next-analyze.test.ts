@@ -121,7 +121,7 @@ describe('next experimental-analyze', () => {
 
       const toolList = await callMcp(mcpUrl, 'tools/list', {})
       expect(toolList.tools.map((tool: { name: string }) => tool.name)).toEqual(
-        ['get_bundle_overview']
+        ['get_bundle_overview', 'query_bundle_sources']
       )
 
       const overview = await callMcpTool(mcpUrl, 'get_bundle_overview', {
@@ -142,6 +142,39 @@ describe('next experimental-analyze', () => {
         })
       ).toEqual(overview)
 
+      const concurrent = await Promise.all([
+        callMcpTool(mcpUrl, 'get_bundle_overview', { routeFilter: 'NOT' }, 101),
+        callMcpTool(mcpUrl, 'get_bundle_overview', { routeFilter: '/' }, 102),
+        callMcpTool(
+          mcpUrl,
+          'query_bundle_sources',
+          { route: '/', limit: 1 },
+          103
+        ),
+      ])
+      expect(concurrent[0].routes[0].route).toBe('/_not-found')
+      expect(concurrent[1].routes).toHaveLength(2)
+      expect(concurrent[2].sources).toHaveLength(1)
+
+      const sources = await callMcpTool(mcpUrl, 'query_bundle_sources', {
+        route: '/',
+        search: 'project',
+        limit: 1,
+      })
+      expect(sources.pagination).toMatchObject({ limit: 1, returned: 1 })
+      expect(sources.sources[0]).toMatchObject({
+        sourcePath: expect.any(String),
+        rawSize: expect.any(Number),
+        compressedSize: expect.any(Number),
+      })
+
+      const packages = await callMcpTool(mcpUrl, 'query_bundle_sources', {
+        route: '/',
+        groupBy: 'package',
+        limit: 1,
+      })
+      expect(packages.groupBy).toBe('package')
+      expect(packages.sources).toHaveLength(1)
     } finally {
       serveProcess?.kill()
       await exit.catch(() => {})
