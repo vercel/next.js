@@ -109,7 +109,9 @@ describe('analyzer data parser', () => {
     expect(analyze.sourceChildren(0)).toEqual([1])
 
     const modules = new ModulesData(modulesBuffer())
-    expect(modules.getModuleIndiciesFromPath('[project]/src/a.ts')).toHaveLength(2)
+    expect(
+      modules.getModuleIndiciesFromPath('[project]/src/a.ts')
+    ).toHaveLength(2)
     expect(modules.moduleDependents(0)).toEqual([1])
     expect(modules.asyncModuleDependents(1)).toEqual([0])
     expect(modules.moduleDependencies(1)).toEqual([0])
@@ -125,12 +127,12 @@ describe('analyzer data parser', () => {
     expect(() => new AnalyzeData(frame({}, []))).toThrow('analyze.data sources')
   })
 
-  it('rejects source parent cycles', () => {
+  it('rejects source child cycles', () => {
     const section = edges([[1], [0]])
     const cyclic = frame(
       {
         sources: [
-          { parent_source_index: 1, path: 'a' },
+          { parent_source_index: null, path: 'a' },
           { parent_source_index: 0, path: 'b' },
         ],
         chunk_parts: [],
@@ -144,11 +146,11 @@ describe('analyzer data parser', () => {
           offset: edges([]).byteLength + edges([[], []]).byteLength,
           length: section.byteLength,
         },
-        source_roots: [],
+        source_roots: [0],
       },
       [edges([]), edges([[], []]), section]
     )
-    expect(() => new AnalyzeData(cyclic)).toThrow('source parent cycle')
+    expect(() => new AnalyzeData(cyclic)).toThrow('source children')
   })
 
   it('rejects malformed adjacency sections', () => {

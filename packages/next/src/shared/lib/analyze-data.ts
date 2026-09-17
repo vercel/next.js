@@ -313,6 +313,24 @@ export class AnalyzeData {
         throw new Error('Invalid analyze.data source')
       }
     }
+    const childParents = new Array(sources.length).fill(-1)
+    for (let parent = 0; parent < sources.length; parent++) {
+      for (const child of this.sourceChildren(parent)) {
+        if (
+          childParents[child] !== -1 ||
+          sources[child].parent_source_index !== parent
+        ) {
+          throw new Error('Invalid analyze.data source children')
+        }
+        childParents[child] = parent
+      }
+    }
+    for (let index = 0; index < sources.length; index++) {
+      const parent = sources[index].parent_source_index
+      if (parent !== null && childParents[index] !== parent) {
+        throw new Error('Invalid analyze.data source children')
+      }
+    }
     for (const part of parts) {
       if (
         !Number.isInteger(part?.source_index) ||
