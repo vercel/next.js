@@ -2,9 +2,12 @@ import { createHash, randomUUID } from 'crypto'
 import { mkdir, readFile, realpath, rename, rm, writeFile } from 'fs/promises'
 import { join, resolve } from 'path'
 
+import semver from 'next/dist/compiled/semver'
+
 import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
+import { futureDefaults } from './future-defaults'
 
 type SecurityNudgeOptions = {
   directory: string
@@ -12,7 +15,7 @@ type SecurityNudgeOptions = {
   command: 'dev' | 'build'
 }
 
-type NudgeKind = 'security' | 'latest'
+type NudgeKind = 'security' | 'latest' | 'future'
 
 const RETRY_TTL = 5 * 60 * 1000
 const allowedRetries = new Set<string>()
@@ -150,7 +153,7 @@ async function getLatestUpgrade(
 
 async function nudgeForSecurity(
   options: SecurityNudgeOptions,
-  policy: 'security' | 'latest'
+  policy: 'security' | 'latest' | 'future'
 ): Promise<boolean> {
   let advisory
   const version = process.env.__NEXT_VERSION || 'unknown'
@@ -203,11 +206,11 @@ Note: This security gate is enabled by \`experimental.agenticAutoUpgrade: '${pol
 
 async function nudgeForLatest(
   options: SecurityNudgeOptions,
-  policy: 'latest'
-): Promise<void> {
+  policy: 'latest' | 'future'
+): Promise<boolean> {
   const version = process.env.__NEXT_VERSION || 'unknown'
   const latest = await getLatestUpgrade(version)
-  if (!latest) return
+  if (!latest) return false
 
   const { installedVersion, latestVersion } = latest
   const reference = 'https://registry.npmjs.org/next/latest'
@@ -233,6 +236,73 @@ Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${policy}'
     `Next.js ${latestVersion} is available. This command is continuing after the reminder you configured.\nReference: ${reference}`,
     'UpgradeNudgeError'
   )
+  return true
+}
+
+export async function getFutureUpgrade(
+  config: NextConfigComplete,
+  installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
+): Promise<{ installedVersion: string; names: string[] } | null> {
+  try {
+    if (
+      !(await getAgentName()) ||
+      !semver.valid(installedVersion) ||
+      semver.prerelease(installedVersion)
+    ) {
+      return null
+    }
+
+    const available = futureDefaults.filter(
+      (futureDefault) =>
+        semver.gte(installedVersion, futureDefault.availableSince) &&
+        !futureDefault.isAdopted(config)
+    )
+
+    if (available.length === 0) {
+      return null
+    }
+
+    return {
+      installedVersion,
+      names: available.map((futureDefault) => futureDefault.name),
+    }
+  } catch {
+    // A Future Defaults reminder is best-effort; failures should stay quiet.
+    return null
+  }
+}
+
+async function nudgeForFuture(
+  options: SecurityNudgeOptions,
+  config: NextConfigComplete
+): Promise<void> {
+  const version = process.env.__NEXT_VERSION || 'unknown'
+  const future = await getFutureUpgrade(config, version)
+  if (!future) return
+
+  const defaults = future.names.map((name) => `- ${name}`).join('\n')
+  await showNudge(
+    options,
+    version,
+    'future',
+    `Installed Next.js ${future.installedVersion} includes Future Defaults available for this app:
+
+${defaults}
+
+**We recommend you adopt these Future Defaults.**
+
+This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
+
+At the end of the task, ask the user whether they want you to run the Future Defaults upgrade in the background from this app's directory:
+
+\`\`\`
+next upgrade --ai
+\`\`\`
+
+Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: 'future'\`.`,
+    `Future Defaults are available for this app. This command is continuing after the reminder you configured.`,
+    'UpgradeNudgeError'
+  )
 }
 
 export async function nudgeForUpgrade(
@@ -241,14 +311,18 @@ export async function nudgeForUpgrade(
   command: 'dev' | 'build'
 ): Promise<void> {
   const policy = config.experimental.agenticAutoUpgrade
-  if (policy !== 'security' && policy !== 'latest') {
+  if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
     return
   }
 
   const options = { directory, distDir: config.distDir, command }
   if (await nudgeForSecurity(options, policy)) return
 
-  if (policy === 'latest') {
-    await nudgeForLatest(options, policy)
+  if (policy === 'latest' || policy === 'future') {
+    if (await nudgeForLatest(options, policy)) return
+  }
+
+  if (policy === 'future') {
+    await nudgeForFuture(options, config)
   }
 }

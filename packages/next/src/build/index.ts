@@ -1074,6 +1074,7 @@ export default async function build(
   let appType: RoutesManifest['appType']
 
   let loadedConfig: NextConfigComplete | undefined
+  let pendingUpgradeNudge: Promise<void> | undefined
   let staticWorker: StaticWorker
 
   // Turbopack compile warnings are deferred until after static generation.
@@ -1146,11 +1147,15 @@ export default async function build(
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
         config.experimental.agenticAutoUpgrade === 'security' ||
-        config.experimental.agenticAutoUpgrade === 'latest'
+        config.experimental.agenticAutoUpgrade === 'latest' ||
+        config.experimental.agenticAutoUpgrade === 'future'
       ) {
         const { nudgeForUpgrade } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        await nudgeForUpgrade(dir, config, 'build')
+        pendingUpgradeNudge = nudgeForUpgrade(dir, config, 'build')
+        // Build work proceeds in parallel, but a fatal security result must be
+        // observed before the command reports successful completion.
+        void pendingUpgradeNudge.catch(() => {})
       }
 
       // Resolve selective build paths now that the page extensions are known.
@@ -4700,8 +4705,27 @@ export default async function build(
           noMangling: NextBuildContext.noMangling ?? false,
         })
       }
+
+      await pendingUpgradeNudge
     })
   } catch (e) {
+    // A build can fail before the success path awaits this check. Surface an
+    // independent nudge failure so its retry receipt never hides the full
+    // reminder on the next build.
+    if (pendingUpgradeNudge) {
+      try {
+        await pendingUpgradeNudge
+      } catch (nudgeError) {
+        if (nudgeError !== e) {
+          Log.error(
+            nudgeError instanceof Error
+              ? nudgeError.message
+              : String(nudgeError)
+          )
+        }
+      }
+    }
+
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
       telemetry.record(

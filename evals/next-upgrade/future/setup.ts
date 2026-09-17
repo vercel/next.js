@@ -13,6 +13,10 @@ export async function setupFuture(sandbox: Sandbox) {
       source: '16.3.5',
       target: '16.3.5',
     },
+    'future-cache-components-nudge': {
+      source: '16.3.5',
+      target: '16.3.5',
+    },
   }
   const scenario = fixture ? scenarios[fixture] : undefined
   if (!scenario) throw new Error('Unknown Future Defaults eval case')
@@ -22,9 +26,14 @@ export async function setupFuture(sandbox: Sandbox) {
     assessmentPath: join(__dirname, 'assessment.mjs'),
     assessment: scenario,
     installedVersion: undefined,
-    skillInstructionsPath: join(
-      __dirname,
-      '../../../skills/next-cache-components-adoption/SKILL.md'
-    ),
+    candidateScripts:
+      fixture === 'future-cache-components-nudge' ? ['dev'] : undefined,
+    skillInstructionsPath:
+      fixture === 'future-cache-components-nudge'
+        ? undefined
+        : join(
+            __dirname,
+            '../../../skills/next-cache-components-adoption/SKILL.md'
+          ),
   })
 }

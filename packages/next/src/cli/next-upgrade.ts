@@ -138,7 +138,9 @@ async function resolveAIUpgradeType(
   )
   const policy = config.experimental?.agenticAutoUpgrade
 
-  return policy === 'security' || policy === 'latest' ? policy : 'security'
+  return policy === 'security' || policy === 'latest' || policy === 'future'
+    ? policy
+    : 'security'
 }
 
 export async function spawnNextUpgrade(

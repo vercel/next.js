@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-import { nudgeForUpgrade } from 'next/dist/lib/upgrade/nudge'
+import { getFutureUpgrade, nudgeForUpgrade } from 'next/dist/lib/upgrade/nudge'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import {
   getLatestUpgradeVersion,
@@ -23,8 +23,12 @@ jest.mock('next/dist/build/output/log', () => ({
 
 let directory: string
 
-const config = (policy: 'security' | 'latest') =>
+const config = (
+  policy: 'security' | 'latest' | 'future',
+  values: Record<string, unknown> = {}
+) =>
   ({
+    ...values,
     distDir: '.next',
     experimental: { agenticAutoUpgrade: policy },
   }) as never
@@ -259,22 +263,77 @@ describe('composed latest nudge', () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue('16.0.0')
   })
 
-  it('stops on security before latest when both apply', async () => {
-    jest.mocked(getSecurityAdvisory).mockResolvedValue({
-      reference: 'https://api.github.com/advisories?affects=next%4015.0.0',
+  it.each(['latest', 'future'] as const)(
+    'preserves the %s policy when security takes priority',
+    async (policy) => {
+      jest.mocked(getSecurityAdvisory).mockResolvedValue({
+        reference: 'https://api.github.com/advisories?affects=next%4015.0.0',
+      })
+
+      const nudge = nudgeForUpgrade(directory, config(policy), 'build')
+      await expect(nudge).rejects.toMatchObject({
+        name: 'SecurityFatalError',
+        exitCode: 1,
+        message: expect.stringContaining('```\nnext upgrade --ai\n```'),
+      })
+      await expect(nudge).rejects.toMatchObject({
+        message: expect.stringContaining(
+          `experimental.agenticAutoUpgrade: '${policy}'`
+        ),
+      })
+
+      expect(warn).not.toHaveBeenCalled()
+      expect(getLatestUpgradeVersion).not.toHaveBeenCalled()
+    }
+  )
+})
+
+describe('composed future nudge', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.mocked(getAgentName).mockResolvedValue('codex')
+    jest.mocked(getSecurityAdvisory).mockResolvedValue(null)
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
+  })
+
+  it('does not offer Future Defaults from a prerelease', async () => {
+    await expect(
+      getFutureUpgrade(
+        config('future', { cacheComponents: false }),
+        '16.4.0-canary.1'
+      )
+    ).resolves.toBeNull()
+  })
+
+  it('names available Future Defaults using the adapter', async () => {
+    await expect(
+      getFutureUpgrade(config('future', { cacheComponents: false }), '16.4.0')
+    ).resolves.toEqual({
+      installedVersion: '16.4.0',
+      names: ['Cache Components'],
     })
+  })
+
+  it('stays silent when all available Future Defaults are adopted', async () => {
+    await expect(
+      getFutureUpgrade(config('future', { cacheComponents: true }), '16.4.0')
+    ).resolves.toBeNull()
+  })
+
+  it('stops for a required latest upgrade before Future Defaults', async () => {
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue('17.0.0')
 
     await expect(
-      nudgeForUpgrade(directory, config('latest'), 'build')
+      nudgeForUpgrade(
+        directory,
+        config('future', { cacheComponents: false }),
+        'build'
+      )
     ).rejects.toMatchObject({
-      name: 'SecurityFatalError',
-      exitCode: 1,
-      message: expect.stringContaining(
-        "experimental.agenticAutoUpgrade: 'latest'"
+      name: 'UpgradeNudgeError',
+      message: expect.stringMatching(
+        /next upgrade --ai\n```[\s\S]*agenticAutoUpgrade: 'future'/
       ),
     })
-
-    expect(warn).not.toHaveBeenCalled()
-    expect(getLatestUpgradeVersion).not.toHaveBeenCalled()
   })
 })
