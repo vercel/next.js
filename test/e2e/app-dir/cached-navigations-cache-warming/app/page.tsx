@@ -1,27 +1,30 @@
 import { setTimeout } from 'node:timers/promises'
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { connection } from 'next/server'
+
+type Props = {
+  searchParams: Promise<{ cacheKey?: string | string[] }>
+}
 
 async function cachedRead(name: string) {
   'use cache'
   return name
 }
 
-async function CachedChild() {
-  return <p id="content">{await cachedRead('content')}</p>
+async function CachedChild({ cacheKey }: { cacheKey: string }) {
+  return <p id="content">{await cachedRead(`${cacheKey}:content`)}</p>
 }
 
-async function DynamicChild() {
+async function DynamicChild({ cacheKey }: { cacheKey: string }) {
   await connection()
   await setTimeout(100)
-  return <p id="dynamic-content">{await cachedRead('dynamic')}</p>
+  return <p id="dynamic-content">{await cachedRead(`${cacheKey}:dynamic`)}</p>
 }
 
-function LargeTree({ depth }: { depth: number }) {
+function LargeTree({ depth, cacheKey }: { depth: number; cacheKey: string }) {
   if (depth === 0) {
-    return <CachedChild />
+    return <CachedChild cacheKey={cacheKey} />
   }
 
   // Flight defers the child after this text exceeds its size threshold of 3200.
@@ -29,34 +32,35 @@ function LargeTree({ depth }: { depth: number }) {
   return (
     <section>
       {'x'.repeat(3201)}
-      <LargeTree depth={depth - 1} />
+      <LargeTree depth={depth - 1} cacheKey={cacheKey} />
     </section>
   )
 }
 
-async function Content() {
-  await cookies()
-  const first = await cachedRead('first')
+async function Content({ searchParams }: Props) {
+  const { cacheKey } = await searchParams
+  if (typeof cacheKey !== 'string' || cacheKey.length === 0) {
+    throw new Error('A non-empty cacheKey search parameter is required')
+  }
+  const first = await cachedRead(`${cacheKey}:first`)
   return (
     <div>
+      <Link href={{ pathname: '/hub', query: { cacheKey } }} prefetch={false}>
+        Go to hub
+      </Link>
       <p>{first}</p>
-      <LargeTree depth={3} />
+      <LargeTree depth={3} cacheKey={cacheKey} />
       <Suspense fallback={<p id="dynamic-fallback">Loading dynamic...</p>}>
-        <DynamicChild />
+        <DynamicChild cacheKey={cacheKey} />
       </Suspense>
     </div>
   )
 }
 
-export default function Page() {
+export default function Page({ searchParams }: Props) {
   return (
-    <>
-      <Link href="/hub" prefetch={false}>
-        Go to hub
-      </Link>
-      <Suspense fallback={<p>Loading...</p>}>
-        <Content />
-      </Suspense>
-    </>
+    <Suspense fallback={<p>Loading...</p>}>
+      <Content searchParams={searchParams} />
+    </Suspense>
   )
 }
