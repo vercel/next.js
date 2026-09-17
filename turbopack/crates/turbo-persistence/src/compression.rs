@@ -17,9 +17,9 @@ pub enum Compression {
 }
 
 thread_local! {
-    /// Reuse lz4_flex's hash table across independent blocks. lz4_flex transparently upgrades a
-    /// small table when a large input requires it.
-    static LZ4_COMPRESS_TABLE: RefCell<CompressTable> = RefCell::new(CompressTable::small());
+    /// Reuse lz4_flex's large hash table across independent blocks. Starting large improves
+    /// compression speed and produces faster-to-decode streams for typical persistence blocks.
+    static LZ4_COMPRESS_TABLE: RefCell<CompressTable> = RefCell::new(CompressTable::large());
 
     /// Zstd decompression contexts are reusable and relatively expensive to create. Keep one per
     /// worker thread to avoid allocation on every block read without a global lock.
