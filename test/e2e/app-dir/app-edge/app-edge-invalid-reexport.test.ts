@@ -2,7 +2,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('app-dir edge SSR invalid reexport', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: {
       'app/layout.tsx': new FileRef(path.join(__dirname, 'app', 'layout.tsx')),
       'app/export': new FileRef(path.join(__dirname, 'app', 'export')),
@@ -13,7 +13,7 @@ describe('app-dir edge SSR invalid reexport', () => {
   })
 
   it('should warn or error about the re-export of a pages runtime/preferredRegion config', async () => {
-    if (isNextDev) {
+    if (isNextDev || !isTurbopack) {
       await next.start()
     } else {
       await expect(next.start()).rejects.toThrow()
