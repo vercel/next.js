@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="2d608e0e-117a-b3df-ba47-4b62cd6af7f4")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="ba2b1fb5-735e-4751-08a4-cbdad966b76a")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -201,7 +201,7 @@ contextPrototype.s = esmExport;
  * ])
  * ```
  *
- * or the **namespace object** of a module that has already been imported, which is used directly:
+ * or the **namespace value** of a module that has already been imported, which is used directly:
  *
  * ```js
  * var ns1 = context.i(76061)
@@ -210,7 +210,8 @@ contextPrototype.s = esmExport;
  *
  * The producer picks the namespace form when it has generated the import anyway -- because some
  * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
- * apart by type: a namespace object is always an object, a module id never is.
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
  *
  * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
  * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
@@ -240,13 +241,13 @@ contextPrototype.s = esmExport;
         const end = i;
         // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
         i++;
-        // An already-imported namespace is passed as an object; a module id never is, so the type is
-        // enough to tell them apart. `esmImport` may return a promise for an async module, but
-        // re-exports of async modules keep going through `context.s`, so the producer never routes them
-        // here and this stays synchronous.
-        const namespace = typeof head === 'object' && head !== null ? head : // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
+        // Module ids are always strings or numbers. Other values are already-imported namespaces;
+        // notably, interop with a CommonJS function export produces a callable namespace function.
+        // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+        // going through `context.s`, so the producer never routes them here and this stays synchronous.
+        const namespace = typeof head === 'string' || typeof head === 'number' ? // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
         // argument. Passed here only to satisfy the declared type.
-        this.i(head, false);
+        this.i(head, false) : head;
         if (end - start === 1) {
             const pairs = list[start].split(',');
             for(let j = 0; j < pairs.length; j += 2){
@@ -2584,5 +2585,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=2d608e0e-117a-b3df-ba47-4b62cd6af7f4
+//# debugId=ba2b1fb5-735e-4751-08a4-cbdad966b76a
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
