@@ -39,7 +39,7 @@ describe('@next/third-parties basic usage', () => {
     expect(gtmInlineScript.length).toBe(1)
 
     const gtmScript = await browser.elementsByCss(
-      '[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
+      '[src^="https://www.googletagmanager.com/gtag/js?id=GTM-XYZ"]'
     )
 
     expect(gtmScript.length).toBe(1)

@@ -35,7 +35,7 @@ describe('@next/third-parties basic usage', () => {
     await browser.waitForElementByCss('script#_next-gtm')
     await browser.elementByCss('script#_next-gtm-init')
     await browser.elementByCss(
-      'script[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
+      'script[src^="https://www.googletagmanager.com/gtag/js?id=GTM-XYZ"]'
     )
 
     const dataLayer = await browser.eval('window.dataLayer')
