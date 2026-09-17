@@ -944,6 +944,89 @@ impl PageEndpoint {
         )
     }
 
+    /// The `next/dynamic` imports declared in this endpoint's own client module graph, mapped to
+    /// the client chunks that provide them.
+    ///
+    /// This is not the full set a rendered page needs, see
+    /// [`PageEndpoint::client_dynamic_import_chunks_including_app`].
+    #[turbo_tasks::function]
+    async fn client_dynamic_import_chunks(self: Vc<Self>) -> Result<Vc<DynamicImportedChunks>> {
+        let this = self.await?;
+
+        // Only the HTML endpoint renders components, so it is the only one that can render a
+        // `next/dynamic` loadable.
+        if !matches!(this.ty, PageEndpointType::Html) {
+            return Ok(DynamicImportedChunks::default().cell());
+        }
+
+        let project = this.pages_project.project();
+        // The SSR and Client Graphs are not connected in Pages Router.
+        // `get_next_dynamic_imports_for_endpoint` only needs the client graph anyway.
+        let client_module_graph = self.client_module_graph();
+        let next_dynamic_imports =
+            NextDynamicGraphs::new(client_module_graph, *project.per_page_module_graph().await?)
+                .get_next_dynamic_imports_for_endpoint(self.client_module())
+                .await?;
+
+        Ok(*collect_next_dynamic_chunks(
+            client_module_graph,
+            project.client_chunking_context(),
+            next_dynamic_imports,
+            NextDynamicChunkAvailability::AvailabilityInfo(
+                self.client_chunk_group().await?.availability_info,
+            ),
+        )
+        .await?)
+    }
+
+    /// Every `next/dynamic` import that can be rendered while this page is rendered, mapped to the
+    /// client chunks that provide it. This is what the page's react-loadable manifest has to
+    /// describe.
+    ///
+    /// Unlike webpack, which emits a single manifest for the whole build, Turbopack emits one
+    /// manifest per page, and `pages/_app` is a separate endpoint with its own client chunk group.
+    /// That chunk group is loaded for every page, and `_app` is rendered around every page, so the
+    /// `next/dynamic` imports it declares have to be listed in each page's manifest as well.
+    /// Otherwise their module ids are missing from `__NEXT_DATA__.dynamicIds`, the client doesn't
+    /// wait for the chunks before hydrating, renders the loadable's fallback instead and React
+    /// discards the server rendered markup.
+    #[turbo_tasks::function]
+    async fn client_dynamic_import_chunks_including_app(
+        self: Vc<Self>,
+    ) -> Result<Vc<DynamicImportedChunks>> {
+        let this = self.await?;
+        let own_chunks = self.client_dynamic_import_chunks();
+
+        // Only the HTML endpoint renders `_app` around the page. `/_app` itself is rendered as
+        // part of every other page, so it must not (and, to avoid recursing into this very task,
+        // cannot) ask for its own entries. `/_document` is never hydrated, so webpack doesn't
+        // report ids for it either.
+        if !matches!(this.ty, PageEndpointType::Html)
+            || this.pathname == "/_app"
+            || this.pathname == "/_document"
+        {
+            return Ok(own_chunks);
+        }
+
+        let app_chunks = this
+            .pages_project
+            .app_page_endpoint()
+            .client_dynamic_import_chunks()
+            .await?;
+        if app_chunks.is_empty() {
+            return Ok(own_chunks);
+        }
+
+        let own_chunks = own_chunks.await?;
+        let mut merged = FxIndexMap::default();
+        merged.reserve(app_chunks.len() + own_chunks.len());
+        merged.extend(app_chunks.iter().map(|(k, v)| (*k, *v)));
+        // The page's own entries win, they were resolved against the page's own chunk group.
+        merged.extend(own_chunks.iter().map(|(k, v)| (*k, *v)));
+
+        Ok(Vc::cell(merged))
+    }
+
     #[turbo_tasks::function]
     async fn internal_ssr_chunk(
         self: Vc<Self>,
@@ -965,17 +1048,11 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
-            // The SSR and Client Graphs are not connected in Pages Router.
-            // We are only interested in get_next_dynamic_imports_for_endpoint at the
-            // moment, which only needs the client graph anyway.
+            // The SSR and Client Graphs are not connected in Pages Router, this one is only used
+            // for chunking the server side rendering entry below.
             let ssr_module_graph = self.ssr_module_graph();
 
-            let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                let client_availability_info = self.client_chunk_group().await?.availability_info;
-
-                let client_module_graph = self.client_module_graph();
-                let per_page_module_graph = *project.per_page_module_graph().await?;
-
+            if let PageEndpointType::Html = this.ty {
                 // We only validate the global css imports when there is not a `app` folder at the
                 // root of the project.
                 if project.app_project().await?.is_none() {
@@ -998,38 +1075,19 @@ impl PageEndpoint {
                         .module();
 
                     validate_pages_css_imports(
-                        client_module_graph,
-                        per_page_module_graph,
+                        self.client_module_graph(),
+                        *project.per_page_module_graph().await?,
                         self.client_module(),
                         app_module,
                     )
                     .await?;
                 }
+            }
 
-                let next_dynamic_imports =
-                    NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
-                        .get_next_dynamic_imports_for_endpoint(self.client_module())
-                        .await?;
-                Some((next_dynamic_imports, client_availability_info))
-            } else {
-                None
-            };
-
-            let dynamic_import_entries = if let Some((
-                next_dynamic_imports,
-                client_availability_info,
-            )) = next_dynamic_imports
-            {
-                collect_next_dynamic_chunks(
-                    self.client_module_graph(),
-                    project.client_chunking_context(),
-                    next_dynamic_imports,
-                    NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
-                )
-                .await?
-            } else {
-                DynamicImportedChunks::default().resolved_cell()
-            };
+            let dynamic_import_entries = self
+                .client_dynamic_import_chunks_including_app()
+                .to_resolved()
+                .await?;
 
             let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),
