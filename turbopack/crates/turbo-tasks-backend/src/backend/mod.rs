@@ -1256,19 +1256,15 @@ impl TurboTasksBackend {
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
-            fn compressed_size(data: &[u8]) -> Result<usize> {
-                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-                    data,
-                    &mut Vec::new(),
-                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
-                )?)
+            fn compressed_size(data: &[u8]) -> usize {
+                lz4_flex::block::compress(data).len()
             }
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.data_compressed += Self::compressed_size(data);
                 }
                 self.data_count += 1;
             }
@@ -1277,7 +1273,7 @@ impl TurboTasksBackend {
                 self.meta += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.meta_compressed += Self::compressed_size(data);
                 }
                 self.meta_count += 1;
             }

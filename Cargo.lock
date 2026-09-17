@@ -3795,13 +3795,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
-name = "lzzzz"
-version = "2.0.0"
+name = "lz4_flex"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb42ba2edf1f0491b2e2c85fd49cf2a7adad3cab92ea0e29bff82d6fdafcefda"
-dependencies = [
- "cc",
-]
+checksum = "ecbdfe44b1bd960b68170b417450a628c43f7cf56bb3c5317e61cb230ee7f226"
 
 [[package]]
 name = "mach2"
@@ -9085,7 +9082,7 @@ dependencies = [
  "either",
  "fs-err",
  "jiff",
- "lzzzz",
+ "lz4_flex",
  "memmap2",
  "nohash-hasher",
  "parking_lot",
@@ -9205,7 +9202,7 @@ dependencies = [
  "indexmap 2.14.0",
  "indoc",
  "jiff",
- "lzzzz",
+ "lz4_flex",
  "parking_lot",
  "rand 0.10.1",
  "regex",
