@@ -6,5 +6,7 @@ pub mod ptr_eq_arc;
 pub mod shard_amount;
 pub mod stopwatch;
 pub mod swap_retain;
+#[cfg(test)]
+pub(crate) mod test_temp_dir;
 
 pub use swap_retain::swap_retain;
