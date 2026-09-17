@@ -217,7 +217,7 @@ trait ValueBlockCache<B: SharedBytes> {
         self,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
-        compression: Compression,
+        compression: CompressionConfig,
     ) -> Result<B>;
     fn read_uncached(
         self,
@@ -260,7 +260,7 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
         self,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
-        compression: Compression,
+        compression: CompressionConfig,
     ) -> Result<ArcBytes> {
         read_block_lookup(self.backing, meta, block_index, compression)
     }
@@ -293,7 +293,7 @@ impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
         self,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
-        compression: Compression,
+        compression: CompressionConfig,
     ) -> Result<RcBytes> {
         read_block_iter(self.backing, meta, block_index, compression)
     }
@@ -1127,7 +1127,7 @@ fn read_block_iter(
     backing: &StaticSortedFileIterBacking,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
-    compression: Compression,
+    compression: CompressionConfig,
 ) -> Result<RcBytes> {
     let (uncompressed_length, checksum, block) = get_raw_block_iter(backing, meta, block_index)?;
     verify_checksum(meta, &block, checksum, block_index)?;

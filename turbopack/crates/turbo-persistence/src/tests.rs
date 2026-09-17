@@ -149,7 +149,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
-            compression: Compression::Lz4,
+            compression: Compression::Lz4.into(),
         }],
         access_mode: if mmap {
             AccessMode::Mmap
@@ -2457,12 +2457,9 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in StaticSortedFileIter::open(
-                path,
-                sst,
-                Compression::Lz4.into(),
-                AccessMode::Mmap,
-            )? {
+            for item in
+                StaticSortedFileIter::open(path, sst, Compression::Lz4.into(), AccessMode::Mmap)?
+            {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
