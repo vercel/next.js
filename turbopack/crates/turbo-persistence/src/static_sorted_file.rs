@@ -1680,7 +1680,7 @@ fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout>
         Ok(FixedValueLayout {
             value_type: None,
             // +1 for the per-entry type byte, which is part of the stride.
-            val_size: value_footprint as usize + 1,
+            val_size: value_footprint + 1,
             header_size: 7,
         })
     } else {
