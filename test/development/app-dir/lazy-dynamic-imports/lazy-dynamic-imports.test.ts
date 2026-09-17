@@ -10,8 +10,11 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       patchFileDelay: 500,
     })
 
-    async function assetsContaining(marker: string): Promise<string[]> {
-      const root = path.join(next.testDir, next.distDir, 'static')
+    async function assetsContaining(
+      marker: string,
+      outputDir: 'static' | 'server' = 'static'
+    ): Promise<string[]> {
+      const root = path.join(next.testDir, next.distDir, outputDir)
       const matches: string[] = []
 
       async function walk(dir: string) {
@@ -466,6 +469,60 @@ export const invalid = ;`
         expect(await browser.eval('performance.timeOrigin')).toBe(timeOrigin)
       } finally {
         await next.patchFile(cssPath, originalCss)
+      }
+    })
+
+    it('activates dynamic imports reached during server rendering', async () => {
+      const hostPath = path.join('app', 'ssr-dynamic', 'host.tsx')
+      const targetPath = path.join('app', 'ssr-dynamic', 'ssr-target.tsx')
+      const originalHost = await next.readFile(hostPath)
+      const originalTarget = await next.readFile(targetPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `${originalTarget}\nexport const invalid = ;`
+        )
+        expect(await next.render('/ssr-dynamic')).toContain(
+          'SSR target not rendered'
+        )
+        expect(
+          await assetsContaining('ssr-lazy-marker-4f31', 'server')
+        ).toHaveLength(0)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+
+      await retry(async () => {
+        expect(await next.render('/ssr-dynamic?target=ssr')).toContain(
+          'ssr-lazy-marker-4f31'
+        )
+      })
+      expect(
+        await assetsContaining('ssr-lazy-marker-4f31', 'server')
+      ).not.toHaveLength(0)
+      expect(await assetsContaining('ssr-lazy-marker-4f31')).toHaveLength(0)
+
+      try {
+        await next.patchFile(
+          hostPath,
+          originalHost.replace('<SsrTarget />', '<SsrTarget key="edited" />')
+        )
+        await retry(async () => {
+          expect(await next.render('/ssr-dynamic?target=ssr')).toContain(
+            'ssr-lazy-marker-4f31'
+          )
+        })
+      } finally {
+        await next.patchFile(hostPath, originalHost)
+      }
+
+      const renders = await Promise.all([
+        next.render('/ssr-dynamic?target=concurrent'),
+        next.render('/ssr-dynamic?target=concurrent'),
+      ])
+      for (const html of renders) {
+        expect(html).toContain('concurrent-lazy-marker-6c20')
       }
     })
   }
