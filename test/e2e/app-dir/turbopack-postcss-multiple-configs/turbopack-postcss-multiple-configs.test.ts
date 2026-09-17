@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// Per-directory PostCSS configs and function-valued plugins require Turbopack.
-// Gate the entire suite before setup: deploy mode creates its build in setup,
-// even with skipStart, so a runtime guard would still deploy with Webpack.
+// Per-directory PostCSS config resolution is a Turbopack-only feature
+// (turbopackLocalPostcssConfig). Webpack does not support this feature and does
+// not accept function-valued PostCSS plugins, so skip non-Turbopack runs.
 // @force-gate turbopack
 describe('turbopack-postcss-multiple-configs', () => {
   const { next } = nextTestSetup({

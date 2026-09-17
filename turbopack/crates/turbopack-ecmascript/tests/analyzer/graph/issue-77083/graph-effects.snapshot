@@ -228,42 +228,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Labeled,
-                        ),
-                        LabeledStmt(
-                            Body,
-                        ),
-                    ],
+                    AstPathId(
+                        13,
+                    ),
                 ),
             },
         },

@@ -10,14 +10,12 @@ use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ScopeHoistingContext,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::{
-        AstPath,
-        esm::{
-            EsmAssetReference,
-            base::{ReferencedAsset, ReferencedAssetIdent},
-        },
+    references::esm::{
+        EsmAssetReference,
+        base::{ReferencedAsset, ReferencedAssetIdent},
     },
 };
 
@@ -25,7 +23,7 @@ use crate::{
 pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,
-    ast_path: AstPath,
+    ast_path: AstPathId,
     keep_this: bool,
 }
 
@@ -33,7 +31,7 @@ impl EsmBinding {
     pub fn new(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: AstPath,
+        ast_path: AstPathId,
     ) -> Self {
         EsmBinding {
             reference,
@@ -47,7 +45,7 @@ impl EsmBinding {
     pub fn new_keep_this(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: AstPath,
+        ast_path: AstPathId,
     ) -> Self {
         EsmBinding {
             reference,
@@ -59,6 +57,7 @@ impl EsmBinding {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
@@ -89,15 +88,18 @@ impl EsmBinding {
                 .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module),
         };
 
-        let mut ast_path = self.ast_path.0.clone();
+        // Walk up from the binding towards the root, stopping at the innermost node kind we
+        // know how to rewrite.
+        let mut ast_path = self.ast_path;
         loop {
-            match ast_path.last() {
+            match trie.get(ast_path) {
                 // Shorthand properties get special treatment because we need to rewrite them to
                 // normal key-value pairs.
                 Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
-                    ast_path.pop();
+                    ast_path = trie.parent_or_root(ast_path);
                     visitors.push(create_visitor!(
                         exact,
+                        trie,
                         ast_path,
                         visit_mut_prop,
                         |prop: &mut Prop| {
@@ -128,10 +130,10 @@ impl EsmBinding {
                 }
                 // Any other expression can be replaced with the import accessor.
                 Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
-                    ast_path.pop();
+                    ast_path = trie.parent_or_root(ast_path);
                     let in_call = !self.keep_this
                         && matches!(
-                            ast_path.last(),
+                            trie.get(ast_path),
                             Some(swc_core::ecma::visit::AstParentKind::Callee(
                                 CalleeField::Expr
                             ))
@@ -139,6 +141,7 @@ impl EsmBinding {
 
                     visitors.push(create_visitor!(
                         exact,
+                        trie,
                         ast_path,
                         visit_mut_expr,
                         |expr: &mut Expr| {
@@ -161,10 +164,11 @@ impl EsmBinding {
                 // We need to handle LHS because of code like
                 // (function (RouteKind1){})(RouteKind || RouteKind = {})
                 Some(swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)) => {
-                    ast_path.pop();
+                    ast_path = trie.parent_or_root(ast_path);
 
                     visitors.push(create_visitor!(
                         exact,
+                        trie,
                         ast_path,
                         visit_mut_simple_assign_target,
                         |l: &mut SimpleAssignTarget| {
@@ -191,7 +195,7 @@ impl EsmBinding {
                     break;
                 }
                 Some(_) => {
-                    ast_path.pop();
+                    ast_path = trie.parent_or_root(ast_path);
                 }
                 None => break,
             }
