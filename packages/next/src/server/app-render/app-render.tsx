@@ -601,7 +601,9 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
         layout: components['global-not-found']!,
         page: [
           () => null,
-          'next/dist/esm/client/components/builtin/empty-stub',
+          process.env.TURBOPACK
+            ? 'next/dist/esm/client/components/builtin/empty-stub'
+            : 'next/dist/client/components/builtin/empty-stub',
         ],
       }
     : {
