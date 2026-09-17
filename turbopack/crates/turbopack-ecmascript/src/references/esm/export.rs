@@ -750,7 +750,12 @@ async fn build_compact_reexports(
     // the module's own code uses, and group order is known -- unless there is only one group, which
     // has no relative order to get wrong. The one-group exception is what lets the common facade
     // case replace its import entirely.
+    //
+    // A scope-hoisted factory contains several logical modules. Another registration in the same
+    // factory may still read a namespace imported by this one, so suppression is only safe when
+    // this module owns its factory. The compact registration still uses the retained namespace.
     let subsume_imports = mode == ExportRegistrationMode::Reexport
+        && scope_hoisting_context.module().is_none()
         && (positions_known || groups.len() == 1)
         && !groups.iter().any(|group| group.locally_bound);
 
