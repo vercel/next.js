@@ -1,0 +1,256 @@
+{
+  "chosenInterfaceFirst": "CLI",
+  "interfacesUsed": ["CLI", "MCP (raw Streamable HTTP JSON-RPC tools/call)"],
+  "preference": "CLI",
+  "preferenceReasons": [
+    "The CLI could query the supplied pre-generated analyzer directory immediately after the repository build, without installing fixture dependencies or starting a long-lived server.",
+    "CLI responses were direct JSON, which was easier to capture and inspect than MCP's SSE envelope containing string-escaped JSON.",
+    "MCP returned equivalent package totals and importer-chain evidence and is attractive for an interactive tool client, but raw HTTP use required more setup and response decoding.",
+    "Starting MCP rebuilt the fixture and selected the new snapshot by default, whereas the CLI's explicit analyze directory made the analyzed dataset easier to keep stable."
+  ],
+  "findings": [
+    {
+      "packageOrSource": "highlight.js on /dashboard (client)",
+      "evidence": "query_bundle_sources grouped by package reports 939,555 raw and 351,248 compressed bytes, the largest non-framework client package on /dashboard. explain_bundle_source for one 124,288-byte language module reports an unambiguous synchronous chain language module -> highlight.js/lib/index.js -> highlight.js/es/index.js -> dashboard page; the same chain and nearly identical totals were returned by CLI and MCP.",
+      "rawBytes": 939555,
+      "compressedBytes": 351248,
+      "whyLikelyOptimizable": "The analyzer proves the package-wide language index is synchronously reachable from the route and contributes almost a megabyte raw. Importing/registering only required language modules, or loading highlighting only when needed, should avoid shipping unrelated language implementations.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "chart.js on /dashboard (client)",
+      "evidence": "Package grouping reports 192,225 raw and 64,893 compressed bytes. explain_bundle_source reports 161,700 raw and 52,935 compressed bytes for chart.js/dist/chart.js and an unambiguous synchronous importer chain through chart.js/auto/auto.js to the dashboard page.",
+      "rawBytes": 192225,
+      "compressedBytes": 64893,
+      "whyLikelyOptimizable": "The analyzer shows the auto-registration entry is synchronously in the route. A selective Chart.js registration/import or route interaction-based dynamic loading could reduce the controllers/elements/plugins shipped initially.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "lodash on /dashboard (client)",
+      "evidence": "Package grouping reports 69,770 raw and 24,943 compressed bytes. explain_bundle_source selects lodash/lodash.js unambiguously and shows a direct synchronous edge from that full build to the dashboard page.",
+      "rawBytes": 69770,
+      "compressedBytes": 24943,
+      "whyLikelyOptimizable": "The analyzer identifies the monolithic Lodash build as the selected source rather than smaller method modules. Per-method imports, native equivalents, or an import-optimization transform are likely to retain only used functionality.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "moment on /dashboard (client)",
+      "evidence": "Package grouping reports 61,328 raw and 19,333 compressed bytes. explain_bundle_source selects moment/moment.js unambiguously and shows a direct synchronous edge to the dashboard page.",
+      "rawBytes": 61328,
+      "compressedBytes": 19333,
+      "whyLikelyOptimizable": "A full date-time library is synchronously paid on the dashboard. If the route uses limited formatting, a smaller API/runtime-native formatter or deferred loading may remove most of this cost.",
+      "confidence": "medium"
+    }
+  ],
+  "missedOrUnclearAreas": [
+    "The analyzer establishes reachability and byte attribution, not which exports or runtime features the UI actually needs; source inspection is intentionally deferred until after this analyzer-only report exists.",
+    "The dashboard page source is reported as 30,138 client raw bytes but only 505 compressed bytes. This unusual ratio may affect parsing/build cost, but it is not a strong transfer-size opportunity and cannot be interpreted safely from analyzer data alone.",
+    "The overview's total environment includes client, server, and traced assets, so route totals are not equivalent to browser transfer. Findings therefore use the client package view.",
+    "Compressed source sizes are analyzer estimates because attributed parts are compressed independently.",
+    "The MCP startup created a newer snapshot with about 147 KB more raw bytes on every route. compare_bundles shows the increase is broad and nearly uniform; without source-based investigation it is treated as build/snapshot variance rather than an app optimization finding.",
+    "No baseline with an implemented optimization was available, so savings are upper bounds represented by current package contributions rather than measured post-change deltas."
+  ],
+  "failedQueries": [
+    {
+      "query": 2,
+      "interface": "CLI",
+      "tool": "query_bundle_sources",
+      "input": {},
+      "failure": "Invalid arguments: route is required."
+    },
+    {
+      "query": 5,
+      "interface": "CLI",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "source": "[project]/node_modules/.pnpm/highlight.js@11.12.0/node_modules/highlight.js/lib/languages/mathematica.js"
+      },
+      "failure": "Invalid arguments: the key is sourcePath, not source."
+    },
+    {
+      "query": 13,
+      "interface": "MCP",
+      "tool": "compare_bundles",
+      "input": {},
+      "failure": "Invalid arguments: baselineSnapshot is required."
+    },
+    {
+      "operation": "MCP fixture dependency install (first attempt; not counted as an analyzer query)",
+      "failure": "Frozen pnpm install failed because the fixture's file dependency resolved to missing /vercel/sandbox/repo/repo/packages/next-swc. A temporary checkout self-symlink was added and the retry succeeded."
+    }
+  ],
+  "queries": [
+    {
+      "query": 1,
+      "interface": "CLI",
+      "tool": "get_bundle_overview",
+      "input": {},
+      "outcome": "success; 4 routes, /dashboard largest at 5,296,420 raw / 1,939,446 compressed bytes"
+    },
+    {
+      "query": 2,
+      "interface": "CLI",
+      "tool": "query_bundle_sources",
+      "input": {},
+      "outcome": "failure; route required"
+    },
+    {
+      "query": 3,
+      "interface": "CLI",
+      "tool": "query_bundle_sources",
+      "input": { "route": "/dashboard" },
+      "outcome": "success; 50 of 830 source rows returned"
+    },
+    {
+      "query": 4,
+      "interface": "CLI",
+      "tool": "query_bundle_sources",
+      "input": {
+        "route": "/dashboard",
+        "environment": "client",
+        "groupBy": "package",
+        "limit": 100
+      },
+      "outcome": "success; complete 27-row package/source aggregation"
+    },
+    {
+      "query": 5,
+      "interface": "CLI",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "source": "highlight.js mathematica module path"
+      },
+      "outcome": "failure; sourcePath required"
+    },
+    {
+      "query": 6,
+      "interface": "CLI",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "sourcePath": "highlight.js mathematica module path",
+        "environment": "client"
+      },
+      "outcome": "success; synchronous chain via highlight.js indexes"
+    },
+    {
+      "query": 7,
+      "interface": "CLI",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "sourcePath": "lodash/lodash.js",
+        "environment": "client"
+      },
+      "outcome": "success; direct synchronous route edge"
+    },
+    {
+      "query": 8,
+      "interface": "CLI",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "sourcePath": "moment/moment.js",
+        "environment": "client"
+      },
+      "outcome": "success; direct synchronous route edge"
+    },
+    {
+      "query": 9,
+      "interface": "CLI",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "sourcePath": "chart.js/dist/chart.js",
+        "environment": "client"
+      },
+      "outcome": "success; synchronous chain through chart.js/auto/auto.js"
+    },
+    {
+      "query": 10,
+      "interface": "CLI",
+      "tool": "query_bundle_sources",
+      "input": {
+        "route": "/",
+        "environment": "client",
+        "groupBy": "package",
+        "limit": 100
+      },
+      "outcome": "success; no dashboard-only third-party packages present"
+    },
+    {
+      "query": 11,
+      "interface": "MCP",
+      "tool": "get_bundle_overview",
+      "input": {},
+      "outcome": "success via HTTP 200 SSE; current rebuilt snapshot returned"
+    },
+    {
+      "query": 12,
+      "interface": "MCP",
+      "tool": "query_bundle_sources",
+      "input": {
+        "route": "/dashboard",
+        "environment": "client",
+        "groupBy": "package",
+        "limit": 100
+      },
+      "outcome": "success; package totals corroborate CLI"
+    },
+    {
+      "query": 13,
+      "interface": "MCP",
+      "tool": "compare_bundles",
+      "input": {},
+      "outcome": "failure; baselineSnapshot required"
+    },
+    {
+      "query": 14,
+      "interface": "MCP",
+      "tool": "compare_bundles",
+      "input": { "baselineSnapshot": "20260917-201045-7afb1d3" },
+      "outcome": "success; 4 route changes and 589,779 aggregate raw-byte increase"
+    },
+    {
+      "query": 15,
+      "interface": "MCP",
+      "tool": "explain_bundle_source",
+      "input": {
+        "route": "/dashboard",
+        "sourcePath": "highlight.js mathematica module path",
+        "environment": "client"
+      },
+      "outcome": "success; corroborated CLI importer chain"
+    }
+  ],
+  "queryCount": 15,
+  "overallAssessment": "The analyzer makes a strong, evidence-backed case that /dashboard has four actionable client-side dependency costs. The standout is highlight.js, followed by Chart.js; selective imports/registration offer the largest likely wins. Lodash and Moment are smaller but still concrete synchronous costs. CLI is the more reproducible low-friction interface for scripted analysis of supplied data, while MCP exposes equivalent capabilities for integrated interactive clients.",
+  "groundTruthComparison": {
+    "correctHits": [
+      {
+        "finding": "highlight.js",
+        "sourceConfirmation": "The dashboard imports the top-level highlight.js entry but highlights only one JavaScript snippet. A core build plus explicit JavaScript language registration would avoid the analyzer-observed all-languages index chain."
+      },
+      {
+        "finding": "chart.js",
+        "sourceConfirmation": "The dashboard imports chart.js/auto and renders only one bar chart. Selectively registering the bar controller, elements, scales, and required plugins directly addresses the analyzer-observed auto-entry cost."
+      },
+      {
+        "finding": "lodash",
+        "sourceConfirmation": "The dashboard imports the full default Lodash build and calls only groupBy once on a four-item static array. A per-method import or small native reduction can remove the monolithic client dependency."
+      },
+      {
+        "finding": "moment",
+        "sourceConfirmation": "The dashboard imports Moment solely for moment().format('LLLL'). Intl.DateTimeFormat or a smaller formatter can satisfy this narrow use."
+      }
+    ],
+    "misses": [
+      "The analyzer-only report did not explicitly recommend shrinking the 'use client' boundary. Source shows the entire dashboard is a client component even though only Chart lifecycle/canvas behavior requires the client; splitting a small chart island from server-renderable grouping, timestamp, and highlighted markup could remove or relocate additional client work.",
+      "The analyzer-only report noted but did not turn the 30,138 raw / 505 compressed dashboard source into a finding. Source reveals this is normal concise application code in the checked-out fixture, so treating the raw attribution as an optimization would not have been useful."
+    ],
+    "falsePositives": [],
+    "summary": "All four package findings are correct and map to concrete over-broad imports or replaceable narrow uses. The main miss is architectural: the analyzer evidence showed a route-wide client entry, but the initial report stopped at package-level fixes instead of proposing a smaller client-component boundary."
+  }
+}
