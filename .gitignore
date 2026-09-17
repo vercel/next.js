@@ -31,6 +31,9 @@ pids
 .nyc_output
 coverage
 
+# local Content-Signal fork agent scratch (not part of the upstream PR)
+.content-signals-work/
+
 # test output
 test/**/out/*
 test/**/next-env.d.ts
