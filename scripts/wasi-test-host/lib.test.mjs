@@ -173,7 +173,7 @@ test('allocates thread ids atomically from shared state', () => {
   assert.throws(() => nextThreadId(new Int32Array(1)), /shared Int32Array/)
 })
 
-test('transfers the compiled module and shared memory through the thread manager', () => {
+test('transfers the compiled module and shared memory through the thread manager', async () => {
   const workers = []
   class FakeWorker {
     messages = []
@@ -230,7 +230,7 @@ test('transfers the compiled module and shared memory through the thread manager
     shared: true,
   })
   const threadIds = new Int32Array(new SharedArrayBuffer(4))
-  const { threadSpawn, manager } = createThreadRuntime({
+  const { threadSpawn, manager } = await createThreadRuntime({
     module,
     memory,
     threadIds,
@@ -256,7 +256,7 @@ test('transfers the compiled module and shared memory through the thread manager
   assert.equal(workers[0].unreferenced, true)
 })
 
-test('reports synchronous worker creation failures through the old ABI', () => {
+test('reports synchronous worker creation failures through the old ABI', async () => {
   class FailingThreadManager {
     pthreads = Object.create(null)
     init() {}
@@ -266,7 +266,7 @@ test('reports synchronous worker creation failures through the old ABI', () => {
     }
   }
   const errors = []
-  const { threadSpawn } = createThreadRuntime({
+  const { threadSpawn } = await createThreadRuntime({
     module: {},
     memory: new WebAssembly.Memory({
       initial: 1,
