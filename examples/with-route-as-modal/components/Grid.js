@@ -8,9 +8,9 @@ export default function PostCardGrid() {
     <div className={styles.postCardGridWrapper}>
       <h2>With QueryString Routing, and a reload won't use the modal</h2>
       <div className={styles.postCardGrid}>
-        {data.map((id, index) => (
+        {data.map((id) => (
           <Link
-            key={index}
+            key={id}
             href={`/?postId=${id}`}
             as={`/post/${id}`}
             className={styles.postCard}
@@ -22,9 +22,9 @@ export default function PostCardGrid() {
 
       <h2>With Dynamic Routing, and reloads will keep the modal</h2>
       <div className={styles.postCardGrid}>
-        {data.map((id, index) => (
+        {data.map((id) => (
           <Link
-            key={index}
+            key={id}
             href="/article/[articleId]"
             as={`/article/${id}`}
             className={styles.postCard}
