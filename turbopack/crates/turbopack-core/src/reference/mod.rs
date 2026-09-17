@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
@@ -135,9 +136,8 @@ pub async fn referenced_modules_and_affecting_sources(
             let trait_ref = reference.into_trait_ref().await?;
             let resolve_result = reference.resolve_reference().await?;
             if let Some(chunking_type) = &trait_ref.chunking_type() {
-                let mut modules = resolve_result
-                    .primary_modules_raw_iter()
-                    .collect::<Vec<_>>();
+                let mut modules: SmallVec<[_; 2]> =
+                    resolve_result.primary_modules_raw_iter().collect();
                 modules.extend(
                     resolve_result
                         .affecting_sources_iter()
@@ -225,7 +225,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 pub struct ResolvedReference {
     pub chunking_type: ChunkingType,
     pub binding_usage: BindingUsage,
-    pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub modules: SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>,
 }
 
 #[turbo_tasks::value(transparent)]
