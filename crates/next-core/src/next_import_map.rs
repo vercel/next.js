@@ -1513,6 +1513,7 @@ fn insert_next_api_esm_aliases(
 ) {
     for (name, request) in fxindexmap! {
         rcstr!("app") => rcstr!("next/dist/esm/api/app"),
+        rcstr!("constants") => rcstr!("next/dist/esm/api/constants"),
         rcstr!("document") => rcstr!("next/dist/esm/api/document"),
         rcstr!("dynamic") => rcstr!("next/dist/esm/api/dynamic"),
         rcstr!("error") => rcstr!("next/dist/esm/api/error"),
