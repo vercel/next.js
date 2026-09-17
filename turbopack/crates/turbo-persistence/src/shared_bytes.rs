@@ -2,7 +2,7 @@ use std::ops::{Deref, Range};
 
 use memmap2::Mmap;
 
-use crate::Compression;
+use crate::CompressionConfig;
 /// Bytes that fit in this many bytes are stored directly inside an `ArcBytes`/`RcBytes` rather
 /// than as a pointer into ref-counted backing storage.
 ///
@@ -54,7 +54,7 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
 
     /// Creates an instance from a decompressed block.
     fn from_decompressed(
-        compression: Compression,
+        compression: CompressionConfig,
         uncompressed_length: u32,
         block: &[u8],
     ) -> anyhow::Result<Self>;

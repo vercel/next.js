@@ -20,7 +20,7 @@ use fs_err::File;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, CompressionConfig, MAX_INLINE_VALUE_SIZE, checksum_block,
     mmap_helper::advise_mmap_for_persistence,
     offline::{SstInfo, collect_sst_info},
     static_sorted_file::{
@@ -225,7 +225,7 @@ fn read_block(
     block_offsets_start: usize,
     block_index: u16,
     sequence_number: u32,
-    compression: Compression,
+    compression: CompressionConfig,
 ) -> Result<RawBlock> {
     let offset = block_offsets_start + block_index as usize * size_of::<u32>();
 
@@ -266,11 +266,18 @@ fn read_block(
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
         let bytes_written = match compression {
-            Compression::Lz4 => {
+            CompressionConfig::Lz4 => {
                 decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
             }
-            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
-                .context("zstd decompression failed")?,
+            CompressionConfig::Zstd3 => {
+                zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                    .context("zstd decompression failed")?
+            }
+            CompressionConfig::Zstd3WithDictionary(dictionary) => {
+                zstd::bulk::Decompressor::with_dictionary(dictionary)?
+                    .decompress_to_buffer(compressed_data, &mut buffer)
+                    .context("zstd dictionary decompression failed")?
+            }
         };
         assert_eq!(
             bytes_written, uncompressed_length as usize,
@@ -398,8 +405,11 @@ fn iter_key_block_entry_types(
 }
 
 /// Analyze an SST file and return entry type statistics
-fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
-    let compression = info.compression;
+fn analyze_sst_file(
+    db_path: &Path,
+    info: &SstInfo,
+    compression: CompressionConfig,
+) -> Result<SstStats> {
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -788,11 +798,18 @@ fn main() -> Result<()> {
     // Parse arguments
     let mut db_path: Option<PathBuf> = None;
     let mut verbose = false;
+    let mut source_dictionary: Option<PathBuf> = None;
 
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
             "--verbose" | "-v" => verbose = true,
+            "--source-dictionary" => {
+                i += 1;
+                source_dictionary = Some(PathBuf::from(
+                    args.get(i).context("--source-dictionary requires a path")?,
+                ));
+            }
             arg if !arg.starts_with('-') => {
                 if db_path.is_none() {
                     db_path = Some(PathBuf::from(arg));
@@ -815,6 +832,7 @@ fn main() -> Result<()> {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -v, --verbose    Show per-SST file details (default: family totals only)");
+            eprintln!("      --source-dictionary <PATH>  Dictionary used by zstd input caches");
             eprintln!();
             eprintln!("Entry types:");
             eprintln!(
@@ -851,6 +869,13 @@ fn main() -> Result<()> {
         bail!("Not a directory: {}", db_path.display());
     }
 
+    let source_dictionary = source_dictionary
+        .map(|path| {
+            fs_err::read(&path).with_context(|| format!("Failed to read {}", path.display()))
+        })
+        .transpose()?
+        .map(|bytes| Box::leak(bytes.into_boxed_slice()) as &'static [u8]);
+
     // Collect SST info grouped by family
     let family_sst_info = collect_sst_info(&db_path)?;
 
@@ -867,7 +892,25 @@ fn main() -> Result<()> {
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();
 
         for info in sst_list {
-            match analyze_sst_file(&db_path, info) {
+            let compression = match (info.compression, info.dictionary_id, source_dictionary) {
+                (Compression::Lz4, 0, _) => CompressionConfig::Lz4,
+                (Compression::Zstd3, 0, _) => CompressionConfig::Zstd3,
+                (Compression::Zstd3, id, Some(dictionary))
+                    if Some(id)
+                        == CompressionConfig::Zstd3WithDictionary(dictionary).dictionary_id() =>
+                {
+                    CompressionConfig::Zstd3WithDictionary(dictionary)
+                }
+                (_, id, _) => {
+                    eprintln!(
+                        "Warning: Missing or wrong source dictionary for {:08}.sst (dictionary ID \
+                         {id})",
+                        info.sequence_number
+                    );
+                    continue;
+                }
+            };
+            match analyze_sst_file(&db_path, info, compression) {
                 Ok(stats) => {
                     family_stats.merge(&stats);
                     if verbose {

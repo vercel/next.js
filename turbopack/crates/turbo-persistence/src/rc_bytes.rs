@@ -9,7 +9,7 @@ use std::{
 use memmap2::Mmap;
 
 use crate::{
-    Compression,
+    CompressionConfig,
     compression::decompress_into_rc,
     shared_bytes::{INLINE_CAPACITY, SharedBytes, is_subslice_of},
 };
@@ -174,7 +174,7 @@ impl SharedBytes for RcBytes {
     }
 
     fn from_decompressed(
-        compression: Compression,
+        compression: CompressionConfig,
         uncompressed_length: u32,
         block: &[u8],
     ) -> anyhow::Result<Self> {
