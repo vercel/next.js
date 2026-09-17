@@ -1,5 +1,3 @@
-import { io } from '../client/request/io.browser'
-
 const notAvailableInClient = (name: string) => {
   return function notAvailable(): never {
     throw new Error(`\`${name}\` is only available in a Server Component.`)
@@ -9,6 +7,8 @@ const notAvailableInClient = (name: string) => {
 export function unstable_cache<T extends (...args: any[]) => any>(
   callback: T
 ): T {
+  // Legacy behavior: allow importing/using unstable_cache from client bundles
+  // without pulling in server internals.
   if (typeof callback !== 'function') return callback
   return function cached(this: unknown, ...args: Parameters<T>) {
     return callback.apply(this, args)
@@ -17,7 +17,7 @@ export function unstable_cache<T extends (...args: any[]) => any>(
 
 export function unstable_noStore() {}
 
-export { io }
+export { io } from '../client/request/io.browser'
 
 export const updateTag = notAvailableInClient('updateTag')
 export const revalidateTag = notAvailableInClient('revalidateTag')
