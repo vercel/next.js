@@ -1,7 +1,0 @@
-{
-  "name": "react-grab-frontend",
-  "version": "0.2.0",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "license": "MIT"
-}

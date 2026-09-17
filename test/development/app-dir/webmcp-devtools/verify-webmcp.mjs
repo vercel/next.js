@@ -153,12 +153,6 @@ try {
     )
   })
   report.initialCatalog = catalog
-  assert.ok(
-    !catalog.tools.some(
-      (tool) => tool.name === 'nextjs_get_selected_components'
-    ),
-    'The selection tool must stay absent until the user selects components'
-  )
   for (const name of expectedTools) {
     const tool = catalog.tools.find((entry) => entry.name === name)
     run('webmcp', 'list', name, '--frame', tool.frameId)

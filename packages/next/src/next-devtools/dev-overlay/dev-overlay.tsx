@@ -10,7 +10,6 @@ import { PanelRouter } from './menu/panel-router'
 import { PanelRouterContext, type PanelStateKind } from './menu/context'
 import { useDevOverlayContext } from '../dev-overlay.browser'
 import { ACTION_INSTANT_ERRORS_CLEAR, type DispatcherEvent } from './shared'
-import { SelectComponents } from './components/select-components/select-components'
 
 export const RenderErrorContext = createContext<{
   runtimeErrors: ReadyRuntimeError[]
@@ -56,7 +55,6 @@ export function DevOverlay() {
     <ShadowPortal>
       <ScaleUpdater />
       <ComponentStyles />
-      <SelectComponents />
 
       <RenderError state={state} isAppDir={true}>
         {({

@@ -134,8 +134,7 @@ describe('client-dev-overlay', () => {
     const devtoolsMenu = await browser.elementByCss('#nextjs-dev-tools-menu')
     if (isTurbopack) {
       expect(await devtoolsMenu.innerText()).toMatchInlineSnapshot(`
-       "Select Components
-       Issues
+       "Issues
        1
        Route
        Static
@@ -145,8 +144,7 @@ describe('client-dev-overlay', () => {
       `)
     } else {
       expect(await devtoolsMenu.innerText()).toMatchInlineSnapshot(`
-       "Select Components
-       Issues
+       "Issues
        1
        Route
        Static
@@ -194,8 +192,7 @@ describe('client-dev-overlay with Cache Components', () => {
     // Should also include Turbopack info
     if (isTurbopack) {
       expect(menuText).toMatchInlineSnapshot(`
-       "Select Components
-       Issues
+       "Issues
        1
        Route
        Static
@@ -207,8 +204,7 @@ describe('client-dev-overlay with Cache Components', () => {
       `)
     } else {
       expect(menuText).toMatchInlineSnapshot(`
-       "Select Components
-       Issues
+       "Issues
        1
        Route
        Static

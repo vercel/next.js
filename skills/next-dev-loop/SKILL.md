@@ -97,9 +97,7 @@ before continuing this loop. A version number alone does not prove support.
 
 Use the current page's contributing files to scope source inspection.
 Check runtime errors with `nextjs_inspect` and `{"view":"errors"}` to
-establish a baseline. If the user has selected components and the page
-advertises `nextjs_get_selected_components`, fetch its schema and use the
-selected source locations to narrow the edit further. Selection is optional.
+establish a baseline.
 
 ### during the edit — pause and resume hot updates
 
