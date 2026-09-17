@@ -2580,6 +2580,15 @@ function addConfiguredExperimentalFeature<
   }
 }
 
+/**
+ * The `future` counterpart of `addConfiguredExperimentalFeature`. It is kept
+ * separate rather than folded into that function because it differs in both
+ * halves of what the function does: it diffs the value against
+ * `defaultConfig.future` instead of `defaultConfig.experimental`, so an option
+ * left at its default isn't reported as configured, and it tags the entry with
+ * `stage: 'future'`, which is what makes the startup log render it under the
+ * `future` heading instead of the experimental one.
+ */
 function addConfiguredFutureFeature<KeyType extends keyof FutureConfig>(
   configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
   key: KeyType,

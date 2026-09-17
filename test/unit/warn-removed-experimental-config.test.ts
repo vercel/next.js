@@ -135,53 +135,6 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       )
     )
   })
-
-  // Promoting an option from the `experimental` stage to the `future` stage is
-  // just a move to a nested key, which this helper already supports. No
-  // `future`-specific helper is needed.
-  it('should move an option into `future`', () => {
-    const config = {
-      experimental: {
-        someOption: 'value',
-      },
-    } as any
-
-    warnOptionHasBeenMovedOutOfExperimental(
-      config,
-      'someOption',
-      'future.someOption',
-      'next.config.js',
-      false
-    )
-
-    expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        '⚠ `experimental.someOption` has been moved to `future.someOption`. Please update your next.config.js file accordingly.'
-      )
-    )
-    // `config.future` is created on demand.
-    expect(config.future).toEqual({ someOption: 'value' })
-  })
-
-  it('should move an option into an existing `future` config', () => {
-    const config = {
-      experimental: { someOption: 'value' },
-      future: { otherOption: true },
-    } as any
-
-    warnOptionHasBeenMovedOutOfExperimental(
-      config,
-      'someOption',
-      'future.renamedOption',
-      'next.config.js',
-      false
-    )
-
-    expect(config.future).toEqual({
-      otherOption: true,
-      renamedOption: 'value',
-    })
-  })
 })
 
 describe('warnOptionHasBeenDeprecated', () => {
