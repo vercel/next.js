@@ -128,6 +128,8 @@ pub fn read_blob(
         expected_checksum,
         &format!("blob file {}", path.display()),
     )?;
+    // Blob writers always compress payloads; unlike SST blocks, the blob format currently has no
+    // zero-length sentinel for an uncompressed payload.
     ensure!(
         uncompressed_length > 0,
         "Blob file {} has an invalid uncompressed length of zero",
