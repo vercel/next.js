@@ -10,6 +10,7 @@ import {
   resolveViewport,
 } from './resolve-metadata'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
+import { HIDDEN_METADATA_WRAPPER_TAG } from './constants'
 import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
@@ -121,14 +122,22 @@ export function createMetadataComponents({
         </MetadataBoundary>
       )
     }
-    return (
-      <div hidden>
-        <MetadataBoundary>
-          <Suspense name="Next.Metadata">
-            <Metadata />
-          </Suspense>
-        </MetadataBoundary>
-      </div>
+    // React requires a host element around a top-level Suspense boundary, and
+    // this one ends up as the first child of <body>. It must not be a <div>:
+    // React hydrates <body> children by tag name and claims the first element
+    // whose tag matches, so a third-party script that prepends its own <div>
+    // to <body> before hydration (consent managers do exactly this) would be
+    // taken for this wrapper, hydration would fail, and the whole document
+    // would be regenerated on the client — deleting the third party's DOM.
+    // A custom element is a tag nothing else prepends.
+    return React.createElement(
+      HIDDEN_METADATA_WRAPPER_TAG,
+      { hidden: true },
+      <MetadataBoundary>
+        <Suspense name="Next.Metadata">
+          <Metadata />
+        </Suspense>
+      </MetadataBoundary>
     )
   }
 
