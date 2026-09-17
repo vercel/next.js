@@ -12,6 +12,8 @@ type SecurityNudgeOptions = {
   command: 'dev' | 'build'
 }
 
+type NudgeKind = 'security' | 'latest'
+
 const RETRY_TTL = 5 * 60 * 1000
 const allowedRetries = new Set<string>()
 
@@ -34,13 +36,14 @@ async function writeRetry(path: string, issuedAt: number): Promise<void> {
   }
 }
 
-async function allowSecurityRetry(
+async function allowNudgeRetry(
   { directory, distDir, command }: SecurityNudgeOptions,
-  version: string
+  version: string,
+  kind: NudgeKind
 ): Promise<boolean> {
   const project = await realpath(directory)
   const identity = createHash('sha256')
-    .update(`${project}\0${version}\0${command}`)
+    .update(`${project}\0${version}\0${command}\0${kind}`)
     .digest('hex')
 
   if (allowedRetries.has(identity)) {
@@ -94,13 +97,67 @@ async function allowSecurityRetry(
   return false
 }
 
-async function nudgeForSecurity(options: SecurityNudgeOptions): Promise<void> {
+async function showNudge(
+  options: SecurityNudgeOptions,
+  version: string,
+  kind: NudgeKind,
+  prompt: string,
+  warning: string,
+  errorName: string
+): Promise<void> {
+  let retryAllowed = false
+  try {
+    retryAllowed = await allowNudgeRetry(options, version, kind)
+  } catch {
+    Log.warn(
+      'Could not prepare an upgrade retry. This command will remain blocked.'
+    )
+  }
+
+  if (retryAllowed) {
+    Log.warn(warning)
+    return
+  }
+
+  const error = new Error(prompt)
+  error.name = errorName
+  Object.assign(error, { exitCode: 1 })
+  throw error
+}
+
+async function getLatestUpgrade(
+  installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
+): Promise<{ installedVersion: string; latestVersion: string } | null> {
+  try {
+    if (!(await getAgentName())) {
+      return null
+    }
+
+    const { getLatestUpgradeVersion } =
+      require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+    const latestVersion = await getLatestUpgradeVersion(installedVersion)
+
+    if (!latestVersion) {
+      return null
+    }
+
+    return { installedVersion, latestVersion }
+  } catch {
+    // A release reminder is best-effort; lookup failures should stay quiet.
+    return null
+  }
+}
+
+async function nudgeForSecurity(
+  options: SecurityNudgeOptions,
+  policy: 'security' | 'latest'
+): Promise<boolean> {
   let advisory
   const version = process.env.__NEXT_VERSION || 'unknown'
 
   try {
     if (!(await getAgentName())) {
-      return
+      return false
     }
 
     // Reuse upgrade's advisory readers only after detecting an agent.
@@ -111,32 +168,19 @@ async function nudgeForSecurity(options: SecurityNudgeOptions): Promise<void> {
     Log.warn(
       'Could not check Next.js security advisories. Continuing without an upgrade assessment.'
     )
-    return
+    return false
   }
 
   if (!advisory) {
-    return
+    return false
   }
 
   const { reference } = advisory
-  let retryAllowed = false
-  try {
-    retryAllowed = await allowSecurityRetry(options, version)
-  } catch {
-    Log.warn(
-      'Could not prepare a security retry. This command will remain blocked.'
-    )
-  }
-
-  if (retryAllowed) {
-    Log.warn(
-      `Your version of Next.js is affected by a published security advisory. This command is continuing after the reminder you configured.\nReference: ${reference}`
-    )
-    return
-  }
-
-  const error =
-    new Error(`Your version of Next.js is affected by a published security advisory and can be automatically upgraded.
+  await showNudge(
+    options,
+    version,
+    'security',
+    `Your version of Next.js is affected by a published security advisory and can be automatically upgraded.
 
 **We strongly recommend you upgrade Next.js.**
 
@@ -150,10 +194,45 @@ next upgrade --ai
 
 Reference: ${reference}
 
-Note: This security gate is enabled by \`experimental.agenticAutoUpgrade: 'security'\`.`)
-  error.name = 'SecurityFatalError'
-  Object.assign(error, { exitCode: 1 })
-  throw error
+Note: This security gate is enabled by \`experimental.agenticAutoUpgrade: '${policy}'\`.`,
+    `Your version of Next.js is affected by a published security advisory. This command is continuing after the reminder you configured.\nReference: ${reference}`,
+    'SecurityFatalError'
+  )
+  return true
+}
+
+async function nudgeForLatest(
+  options: SecurityNudgeOptions,
+  policy: 'latest'
+): Promise<void> {
+  const version = process.env.__NEXT_VERSION || 'unknown'
+  const latest = await getLatestUpgrade(version)
+  if (!latest) return
+
+  const { installedVersion, latestVersion } = latest
+  const reference = 'https://registry.npmjs.org/next/latest'
+  await showNudge(
+    options,
+    version,
+    'latest',
+    `Next.js ${latestVersion} is available. You're using ${installedVersion}.
+
+**We recommend you upgrade Next.js.**
+
+This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
+
+At the end of the task, ask the user whether they want you to run the latest upgrade in the background from this app's directory:
+
+\`\`\`
+next upgrade --ai
+\`\`\`
+
+Reference: ${reference}
+
+Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${policy}'\`.`,
+    `Next.js ${latestVersion} is available. This command is continuing after the reminder you configured.\nReference: ${reference}`,
+    'UpgradeNudgeError'
+  )
 }
 
 export async function nudgeForUpgrade(
@@ -161,9 +240,15 @@ export async function nudgeForUpgrade(
   config: NextConfigComplete,
   command: 'dev' | 'build'
 ): Promise<void> {
-  if (config.experimental.agenticAutoUpgrade !== 'security') {
+  const policy = config.experimental.agenticAutoUpgrade
+  if (policy !== 'security' && policy !== 'latest') {
     return
   }
 
-  await nudgeForSecurity({ directory, distDir: config.distDir, command })
+  const options = { directory, distDir: config.distDir, command }
+  if (await nudgeForSecurity(options, policy)) return
+
+  if (policy === 'latest') {
+    await nudgeForLatest(options, policy)
+  }
 }

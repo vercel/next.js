@@ -8,8 +8,12 @@ import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
+import loadConfig from '../server/config'
+import { normalizeConfig } from '../server/config-shared'
+import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 
 type NextUpgradeOptions = {
   revision: string
@@ -18,6 +22,28 @@ type NextUpgradeOptions = {
 }
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
+
+async function resolveAIUpgradeType(
+  directory: string,
+  option: NextUpgradeOptions['ai']
+): Promise<string> {
+  if (typeof option === 'string') {
+    return option
+  }
+
+  // Read and normalize the app's config without validating legacy options
+  // against the current Next.js schema.
+  const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
+    rawConfig: true,
+  })
+  const config = await normalizeConfig(
+    PHASE_PRODUCTION_BUILD,
+    interopDefault(rawConfig)
+  )
+  const policy = config.experimental?.agenticAutoUpgrade
+
+  return policy === 'security' || policy === 'latest' ? policy : 'security'
+}
 
 export async function spawnNextUpgrade(
   directory: string | undefined,
@@ -63,11 +89,7 @@ export async function spawnNextUpgrade(
         )
       }
 
-      // TODO: Once `agenticAutoUpgrade` can be read without validating a
-      // legacy app's config against the current Next.js version, use it for
-      // bare `--ai` before falling back to security.
-      const upgradeType =
-        typeof options.ai === 'string' ? options.ai : 'security'
+      const upgradeType = await resolveAIUpgradeType(baseDir, options.ai)
 
       if (upgradeType !== 'security' && upgradeType !== 'latest') {
         throw new Error(
@@ -134,6 +156,8 @@ export async function spawnNextUpgrade(
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
+      // TODO: Persist `latest` after the selected stable target includes the
+      // `experimental.agenticAutoUpgrade` implementation.
       const reason =
         upgradeType === 'security'
           ? 'the installed version is affected by a published security advisory'
