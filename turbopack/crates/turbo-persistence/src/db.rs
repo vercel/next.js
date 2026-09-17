@@ -1786,7 +1786,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 fn drop(&mut self) {
                                     if !std::thread::panicking() {
                                         assert!(
-                                            self.writer.is_none(),
+                                            self.writer
+                                                .as_ref()
+                                                .is_none_or(|(_, writer)| writer.has_failed()),
                                             "Collector dropped with an open writer"
                                         );
                                     }
