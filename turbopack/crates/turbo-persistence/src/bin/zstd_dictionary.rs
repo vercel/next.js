@@ -6,7 +6,7 @@ use std::{
     io::{BufWriter, Write},
     path::{Path, PathBuf},
     sync::Arc,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, ensure};
@@ -19,7 +19,7 @@ use turbo_persistence::{
 };
 use xxhash_rust::xxh3::xxh3_64;
 
-const SCHEMA_VERSION: u32 = 2;
+const SCHEMA_VERSION: u32 = 3;
 const DICTIONARY_SIZE: usize = 64 * 1024;
 const SAMPLE_BUDGET_MULTIPLIER: usize = 1000;
 const SAMPLE_BYTE_BUDGET: usize = DICTIONARY_SIZE * SAMPLE_BUDGET_MULTIPLIER;
@@ -83,7 +83,7 @@ struct Candidate {
     info: DictionaryInfo,
     compressor: zstd::bulk::Compressor<'static>,
     decompressor: zstd::bulk::Decompressor<'static>,
-    setup_ns: u64,
+    setup_duration: Duration,
 }
 
 struct Sample {
@@ -114,8 +114,8 @@ struct CompressionMetric {
     raw_compressed_bytes: u64,
     estimated_stored_bytes: u64,
     raw_compression_ratio: Option<f64>,
-    encode_ns: u64,
-    decode_ns: u64,
+    encode_duration: Duration,
+    decode_duration: Duration,
 }
 
 impl CompressionMetric {
@@ -123,8 +123,8 @@ impl CompressionMetric {
         self.input_bytes += other.input_bytes;
         self.raw_compressed_bytes += other.raw_compressed_bytes;
         self.estimated_stored_bytes += other.estimated_stored_bytes;
-        self.encode_ns += other.encode_ns;
-        self.decode_ns += other.decode_ns;
+        self.encode_duration += other.encode_duration;
+        self.decode_duration += other.decode_duration;
     }
 
     fn finalize(&mut self) {
@@ -137,7 +137,7 @@ impl CompressionMetric {
 struct CandidateResult {
     dictionary: DictionaryInfo,
     combined: CompressionMetric,
-    setup_ns: u64,
+    setup_duration: Duration,
 }
 
 #[derive(Serialize)]
@@ -365,7 +365,7 @@ fn make_candidates(paths: &[PathBuf]) -> Result<Vec<Candidate>> {
         info: dictionary_info(None, &[], true)?,
         compressor: zstd::bulk::Compressor::new(3)?,
         decompressor: zstd::bulk::Decompressor::new()?,
-        setup_ns: started.elapsed().as_nanos() as u64,
+        setup_duration: started.elapsed(),
     });
     let mut names = BTreeSet::new();
     for path in paths {
@@ -387,7 +387,7 @@ fn make_candidates(paths: &[PathBuf]) -> Result<Vec<Candidate>> {
             info,
             compressor: zstd::bulk::Compressor::with_dictionary(3, &dictionary)?,
             decompressor: zstd::bulk::Decompressor::with_dictionary(&dictionary)?,
-            setup_ns: started.elapsed().as_nanos() as u64,
+            setup_duration: started.elapsed(),
         });
     }
     Ok(result)
@@ -405,13 +405,13 @@ fn evaluate_sample(
             .compressor
             .compress(&sample.data)
             .with_context(|| format!("Failed to compress with {}", candidate.info.name))?;
-        let encode_ns = started.elapsed().as_nanos() as u64;
+        let encode_duration = started.elapsed();
         let started = Instant::now();
         let decompressed = candidate
             .decompressor
             .decompress(&compressed, sample.data.len())
             .with_context(|| format!("Failed to decompress with {}", candidate.info.name))?;
-        let decode_ns = started.elapsed().as_nanos() as u64;
+        let decode_duration = started.elapsed();
         ensure!(
             decompressed.as_slice() == sample.data.as_ref(),
             "Round-trip mismatch with {}",
@@ -421,8 +421,8 @@ fn evaluate_sample(
         let metric = &mut result.combined;
         metric.input_bytes += sample.data.len() as u64;
         metric.raw_compressed_bytes += compressed.len() as u64;
-        metric.encode_ns += encode_ns;
-        metric.decode_ns += decode_ns;
+        metric.encode_duration += encode_duration;
+        metric.decode_duration += decode_duration;
         metric.estimated_stored_bytes +=
             estimated_value_bytes(sample.data.len(), compressed.len()) as u64;
     }
@@ -447,7 +447,7 @@ fn empty_results(candidates: &[Candidate]) -> Vec<CandidateResult> {
         .map(|candidate| CandidateResult {
             dictionary: candidate.info.clone(),
             combined: CompressionMetric::default(),
-            setup_ns: candidate.setup_ns,
+            setup_duration: candidate.setup_duration,
         })
         .collect()
 }
@@ -685,8 +685,8 @@ fn print_evaluation(report: &EvaluationReport) {
             result.combined.raw_compressed_bytes,
             result.combined.raw_compression_ratio.unwrap_or_default() * 100.0,
             result.combined.estimated_stored_bytes,
-            result.combined.encode_ns as f64 / 1_000_000.0,
-            result.combined.decode_ns as f64 / 1_000_000.0,
+            result.combined.encode_duration.as_secs_f64() * 1_000.0,
+            result.combined.decode_duration.as_secs_f64() * 1_000.0,
         );
     }
     println!("Note: {}", report.threshold_note);
