@@ -450,6 +450,9 @@ pub struct ProjectContainer {
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip)]
+    initialization_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
@@ -469,6 +472,7 @@ impl ProjectContainer {
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
+            initialization_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
     }
@@ -486,12 +490,9 @@ async fn prepare_project_container_state(
     options: ProjectOptions,
 ) -> Result<Vec<ReadRef<PlainIssue>>> {
     let container = container_vc.await?;
-    // Operations created during initialization may begin running immediately. Keep
-    // `file_systems_state` and `additional_roots_state` advisory-locked until each has been
-    // populated so those operations cannot observe partial initialization when dependency tracking
-    // (and therefore invalidation) is disabled.
-    let additional_roots_guard = container.additional_roots_state.advisory_lock().await;
-    let file_systems_state_guard = container.file_systems_state.advisory_lock().await;
+    // Operations created during initialization may begin running immediately. Keep operations that
+    // require the complete filesystem map blocked until both filesystem states are populated.
+    let initialization_guard = container.initialization_lock.lock().await;
 
     let map = disk_file_system_map_operation(container_vc);
     let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
@@ -551,7 +552,6 @@ async fn prepare_project_container_state(
             project_file_system: project_fs_op,
             output_file_system: output_fs_op,
         }));
-    drop(file_systems_state_guard);
     let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
     let project_fs = project_fs_op.read_strongly_consistent().await?;
 
@@ -586,7 +586,7 @@ async fn prepare_project_container_state(
     container
         .additional_roots_state
         .set(additional_roots.roots_by_name.into_iter().collect());
-    drop(additional_roots_guard);
+    drop(initialization_guard);
 
     // perform complete invalidations of all paths and watcher setup after finalizing the `map`
     fn invalidation_reason(path: &Path) -> impl InvalidationReason + Clone + use<> {
@@ -673,7 +673,7 @@ pub(crate) async fn additional_root_path_operation(
     key: RcStr,
 ) -> Result<Vc<RcStr>> {
     let container = container.await?;
-    let _guard = container.additional_roots_state.advisory_lock().await;
+    let _guard = container.initialization_lock.lock().await;
     let roots = container.additional_roots_state.get();
     let root = roots
         .iter()
@@ -688,8 +688,7 @@ async fn disk_file_system_map_operation(
 ) -> Result<Vc<DiskFileSystemMap>> {
     let (project_file_system, additional_file_systems) = {
         let container = container.await?;
-        let _additional_roots_guard = container.additional_roots_state.advisory_lock().await;
-        let _file_systems_state_guard = container.file_systems_state.advisory_lock().await;
+        let _guard = container.initialization_lock.lock().await;
         let file_systems = container.file_systems_state.get();
         let file_systems = file_systems
             .as_ref()
@@ -951,7 +950,6 @@ impl ProjectContainer {
         let output_file_system;
         let additional_roots;
         {
-            let _file_systems_state_guard = self.file_systems_state.advisory_lock().await;
             let options = self.options_state.get();
             let options = options
                 .as_ref()
