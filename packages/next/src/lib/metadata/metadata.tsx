@@ -84,8 +84,10 @@ export function createMetadataComponents({
     )
   }
 
-  async function Metadata() {
-    const tags = await getResolvedMetadata(
+  // Metadata resolution must start while rendering so it observes the current
+  // work unit store.
+  function getSelectedMetadata() {
+    return getResolvedMetadata(
       tree,
       pathnameForMetadata,
       searchParams,
@@ -105,30 +107,35 @@ export function createMetadataComponents({
       // We're going to throw the error from the metadata outlet so we just render null here instead
       return null
     })
+  }
 
-    return tags
+  async function Metadata() {
+    return await getSelectedMetadata()
   }
   Metadata.displayName = 'Next.Metadata'
 
+  function MetadataBlocker() {
+    return serveStreamingMetadata
+      ? null
+      : getSelectedMetadata().then(() => null)
+  }
+
   function MetadataWrapper() {
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return (
-        <MetadataBoundary>
-          <Metadata />
-        </MetadataBoundary>
-      )
-    }
+    // Keep the same component structure in streaming and blocking renders.
+    // The blocker only holds the shell open when metadata must not stream.
+    // React requires top-level suspenseful metadata to be nested under a host
+    // element. Otherwise it becomes part of the document preamble and blocks
+    // shell flushing instead of streaming. Metadata tags are hoisted out, so
+    // this hidden wrapper remains empty.
     return (
-      <div hidden>
-        <MetadataBoundary>
+      <MetadataBoundary>
+        <div hidden>
           <Suspense name="Next.Metadata">
             <Metadata />
           </Suspense>
-        </MetadataBoundary>
-      </div>
+        </div>
+        <MetadataBlocker />
+      </MetadataBoundary>
     )
   }
 
@@ -145,12 +152,10 @@ export function createMetadataComponents({
       getResolvedViewport(tree, searchParams, interpolatedParams, errorType),
     ]).then(() => null)
 
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
     if (!serveStreamingMetadata) {
       return <OutletBoundary>{pendingOutlet}</OutletBoundary>
     }
+
     return (
       <OutletBoundary>
         <Suspense name="Next.MetadataOutlet">{pendingOutlet}</Suspense>
