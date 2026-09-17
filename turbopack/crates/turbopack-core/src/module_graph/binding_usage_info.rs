@@ -55,6 +55,11 @@ pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
     // Whether this module exists in an import cycle and has been selected to break the cycle.
     pub is_circuit_breaker: bool,
+    /// Whether `is_circuit_breaker` reflects a cycle that was actually found, or is just the
+    /// conservative answer given when no export-usage analysis ran. Code generation that only
+    /// needs to be careful around real cycles would otherwise have to treat every module as
+    /// one.
+    pub export_usage_known: bool,
     /// Whether this module is read through a namespace value somewhere, which means one of those
     /// reads may still use an original export name. See [`PartialNamespaceModules`].
     pub namespace_object_may_escape: bool,
@@ -66,6 +71,7 @@ impl ModuleExportUsage {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
+            export_usage_known: false,
             namespace_object_may_escape: true,
         }
         .cell())
@@ -100,6 +106,7 @@ impl BindingUsageInfo {
         Ok(ModuleExportUsage {
             export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
+            export_usage_known: true,
             namespace_object_may_escape,
         }
         .cell())
