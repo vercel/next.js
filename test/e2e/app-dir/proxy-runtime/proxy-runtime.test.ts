@@ -2,15 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('proxy-runtime', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should error when proxy file has runtime config export', async () => {
     let cliOutput: string
@@ -21,7 +16,8 @@ describe('proxy-runtime', () => {
       await next.browser('/').catch(() => {})
       cliOutput = next.cliOutput
     } else {
-      cliOutput = (await next.build()).cliOutput
+      await expect(next.start()).rejects.toThrow()
+      cliOutput = next.cliOutput
     }
 
     // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
@@ -41,6 +37,6 @@ The exported configuration object in a source file needs to have a very specific
       )
     }
 
-    await next.stop()
-  })
+    if (isNextDev) await next.stop()
+  }, 240_000)
 })
