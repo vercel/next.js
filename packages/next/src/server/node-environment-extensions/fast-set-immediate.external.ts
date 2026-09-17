@@ -1,10 +1,9 @@
 import { promisify } from 'node:util'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { bindSnapshot } from '../app-render/async-local-storage'
 import {
-  getCacheSignal,
-  workUnitAsyncStorage,
-} from '../app-render/work-unit-async-storage.external'
+  bindSnapshot,
+  getOrCreateGlobalAsyncLocalStorage,
+} from '../app-render/async-local-storage'
 
 type Execution = {
   state: ExecutionState
@@ -192,6 +191,94 @@ export function expectNoPendingImmediates() {
 }
 
 export { originalSetImmediate as unpatchedSetImmediate }
+
+const immediateAsyncStorage =
+  getOrCreateGlobalAsyncLocalStorage<ImmediateTracker>(
+    'immediate-async-storage'
+  )
+
+export function trackPendingImmediates<TArgs extends any[], TResult>(
+  callback: (...args: TArgs) => TResult
+): (...args: TArgs) => TResult {
+  return (...args) =>
+    immediateAsyncStorage.run(new ImmediateTracker(), callback, ...args)
+}
+
+export function getImmediateTracker(): ImmediateTracker {
+  const tracker = immediateAsyncStorage.getStore()
+  if (tracker === undefined) {
+    throw new InvariantError('Expected a pending-immediate tracking scope')
+  }
+  return tracker
+}
+
+/**
+ * Tracks native immediates for one render's async scope without changing their
+ * scheduling.
+ *
+ * A sentinel notifies idle subscribers after the last tracked immediate and its
+ * microtasks and nextTicks finish. New native immediates postpone notification.
+ *
+ * Subscribers can cancel their wait without stopping tracking. Tracking
+ * continues between subscriptions, including when asynchronous cache reads
+ * resume the render.
+ */
+export class ImmediateTracker {
+  private sentinel: NodeJS.Immediate | null = null
+  private sentinelVersion = 0
+  private listeners = new Set<() => void>()
+
+  hasPendingImmediates(): boolean {
+    return this.sentinel !== null
+  }
+
+  onIdle(callback: () => void): () => void {
+    const listeners = this.listeners
+    listeners.add(callback)
+    if (this.sentinel === null) {
+      this.scheduleSentinel()
+    } else {
+      this.sentinel.ref()
+    }
+    return () => {
+      listeners.delete(callback)
+      if (this.listeners.size === 0) {
+        this.sentinel?.unref()
+      }
+    }
+  }
+
+  scheduleSentinel(): void {
+    // Do not clear the previous sentinel here. Node 20.19.6 can reenter this
+    // patch during exception recovery with the sentinel still at its
+    // outstanding queue head. Clearing it breaks Node's queue traversal. We
+    // unref it and ignore its outdated version instead.
+    this.sentinel?.unref()
+    // The sentinel runs after the last native immediate and its microtasks and
+    // nextTicks. New immediates replace it, so outlined elements can schedule
+    // further rendering before we notify listeners.
+    this.sentinel = originalSetImmediate(
+      this.notifyListeners,
+      ++this.sentinelVersion
+    )
+    if (this.listeners.size === 0) {
+      this.sentinel.unref()
+    }
+  }
+
+  private notifyListeners = (version: number) => {
+    if (version !== this.sentinelVersion) {
+      return
+    }
+    this.sentinel = null
+    const listeners = this.listeners
+    this.listeners = new Set()
+    for (const callback of listeners) {
+      listeners.delete(callback)
+      callback()
+    }
+  }
+}
 
 /**
  * Wait until all nextTicks and microtasks spawned from the current task are done,
@@ -523,11 +610,29 @@ function patchedNextTick<TArgs extends any[]>(
   ...args: TArgs
 ): void
 function patchedNextTick() {
-  if (arguments.length === 0 || typeof arguments[0] !== 'function') {
+  if (currentExecution === null) {
     return originalNextTick.apply(
+      null,
+      // @ts-expect-error: this is valid, but typescript doesn't get it
+      arguments
+    )
+  }
+
+  if (arguments.length === 0 || typeof arguments[0] !== 'function') {
+    // Let the original nextTick error for invalid arguments so that we don't
+    // have to mirror the error message.
+    originalNextTick.apply(
       null,
       // @ts-expect-error: explicitly passing arguments that we know are invalid
       arguments
+    )
+
+    // We expect the above call to throw. If it didn't, something's broken.
+    bail(
+      currentExecution,
+      new InvariantError(
+        'Expected process.nextTick to reject invalid arguments'
+      )
     )
   }
 
@@ -539,8 +644,6 @@ function patchedNextTick() {
   const args: any[] | null =
     arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null
 
-  // Capture can start after this tick is queued. Track it before that happens
-  // so its errors cannot interrupt processing of the fast-immediate queue.
   pendingNextTicks += 1
   return originalNextTick(safelyRunNextTickCallback, callback, args)
 }
@@ -549,8 +652,6 @@ function safelyRunNextTickCallback(
   callback: (...args: any[]) => any,
   args: any[] | null
 ) {
-  // Keep the entry state because bail() clears capture before throwing.
-  const wasCapturing = currentExecution !== null
   pendingNextTicks -= 1
   debug?.(
     `scheduler :: process.nextTick executing (still pending: ${pendingNextTicks})`
@@ -563,45 +664,16 @@ function safelyRunNextTickCallback(
       callback()
     }
   } catch (err) {
-    if (wasCapturing || currentExecution !== null) {
-      // Rethrowing in a microtask keeps the exception from interrupting Node's
-      // tick-processing loop. We queue it only after an error, unlike
-      // performWork, to avoid an extra microtask for every successful tick.
-      // This means uncaughtException is reported after microtasks already
-      // queued by the callback.
-      queueMicrotask(() => {
-        debug?.(
-          `scheduler :: rethrowing sync error from nextTick in a microtask`
-        )
-        throw err
-      })
-    } else {
-      // Preserve native error timing outside fast-immediate capture.
+    // Rethrowing in a microtask keeps the exception from interrupting Node's
+    // tick-processing loop. We queue it only after an error, unlike
+    // performWork, to avoid an extra microtask for every successful tick. This
+    // means uncaughtException is reported after microtasks already queued by
+    // the callback.
+    queueMicrotask(() => {
+      debug?.(`scheduler :: rethrowing sync error from nextTick in a microtask`)
       throw err
-    }
+    })
   }
-}
-
-/**
- * This helper reuses the active `Execution` or starts one while a render waits
- * for cache readiness. It returns null when native scheduling should continue.
- *
- * After a cache read resolves, React can render outlined elements in later
- * `setImmediate` callbacks. Rendering those elements can start additional cache
- * reads. These callbacks run as fast immediates before `cacheReady()` accepts a
- * zero read count.
- */
-function getOrCreateExecution(): Execution | null {
-  if (currentExecution === null) {
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (
-      workUnitStore?.phase === 'render' &&
-      getCacheSignal(workUnitStore)?.hasPendingCacheReadyListeners()
-    ) {
-      DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-    }
-  }
-  return currentExecution
 }
 
 function patchedSetImmediate<TArgs extends any[]>(
@@ -610,13 +682,15 @@ function patchedSetImmediate<TArgs extends any[]>(
 ): NodeJS.Immediate
 function patchedSetImmediate(callback: (args: void) => void): NodeJS.Immediate
 function patchedSetImmediate(): NodeJS.Immediate {
-  const execution = getOrCreateExecution()
+  const execution = currentExecution
   if (execution === null) {
-    return originalSetImmediate.apply(
+    const immediate = originalSetImmediate.apply(
       null,
       // @ts-expect-error: this is valid, but typescript doesn't get it
       arguments
     )
+    immediateAsyncStorage.getStore()?.scheduleSentinel()
+    return immediate
   }
 
   if (arguments.length === 0 || typeof arguments[0] !== 'function') {
@@ -662,8 +736,10 @@ function patchedSetImmediatePromise<T = void>(
   value: T,
   options?: import('node:timers').TimerOptions
 ): Promise<T> {
-  if (getOrCreateExecution() === null) {
-    return originalSetImmediatePromisify(value, options)
+  if (currentExecution === null) {
+    const promise = originalSetImmediatePromisify(value, options)
+    immediateAsyncStorage.getStore()?.scheduleSentinel()
+    return promise
   }
 
   return new Promise<T>((resolve, reject) => {

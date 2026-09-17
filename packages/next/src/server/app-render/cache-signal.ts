@@ -6,6 +6,7 @@
  */
 
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { ImmediateTracker } from '../node-environment-extensions/fast-set-immediate.external'
 
 export class CacheSignal {
   private count = 0
@@ -16,7 +17,7 @@ export class CacheSignal {
 
   private subscribedSignals: Set<CacheSignal> | null = null
 
-  constructor() {
+  constructor(private readonly immediateTracker: ImmediateTracker | null) {
     if (process.env.NEXT_RUNTIME === 'edge') {
       // we rely on `process.nextTick`, which is not supported in edge
       throw new InvariantError(
@@ -41,24 +42,29 @@ export class CacheSignal {
       )
     }
 
-    // After a cache read finishes, React can schedule more rendering work:
-    // - React's prerender API schedules rendering in microtasks.
+    // Wait for rendering work that can start more cache reads. After a cache
+    // read finishes, React can schedule more Flight rendering:
+    // - The prerender API uses microtasks.
     // - Streaming render APIs can use setImmediate callbacks.
     //
-    // This work can start more cache reads. We wait for an immediate followed
-    // by a timer before checking the count again.
+    // React can render outlined elements across multiple immediates. Those
+    // elements can start further cache reads.
     //
-    // The immediate gives native rendering callbacks a chance to run when fast
-    // immediates are not active. The timer runs after fast immediates finish,
-    // including further immediates queued while React renders outlined
-    // elements.
+    // We give that work time to run before checking the count:
+    // - With a tracker, we wait for the render's pending native immediates.
+    // - Without one, an immediate gives native callbacks a chance to run.
+    //
+    // The timer checks the count after microtasks, nextTicks, and fast
+    // immediates finish. If the tracker sees new native immediates before the
+    // timer runs, we wait for those too and check again.
     if (this.pendingTimeoutCleanup) {
       // Multiple cacheReady() calls can get here without an intervening
       // beginRead(). We cancel the earlier check before scheduling another one.
       this.pendingTimeoutCleanup()
     }
     this.pendingTimeoutCleanup = scheduleImmediateAndTimeoutWithCleanup(
-      this.invokeListenersIfNoPendingReads
+      this.invokeListenersIfNoPendingReads,
+      this.immediateTracker
     )
   }
 
@@ -97,10 +103,6 @@ export class CacheSignal {
         this.noMorePendingCaches()
       }
     })
-  }
-
-  hasPendingCacheReadyListeners(): boolean {
-    return this.listeners.length > 0
   }
 
   beginRead() {
@@ -187,16 +189,45 @@ export class CacheSignal {
   }
 }
 
-function scheduleImmediateAndTimeoutWithCleanup(cb: () => void): () => void {
-  // If we decide to clean up the timeout, we want to remove
-  // either the immediate or the timeout, whichever is still pending.
-  let clearPending: () => void
+function scheduleImmediateAndTimeoutWithCleanup(
+  callback: () => void,
+  immediateTracker: ImmediateTracker | null
+): () => void {
+  let cancelled = false
+  let unsubscribe: (() => void) | null = null
+  let immediate: NodeJS.Immediate | null = null
+  let timeout: ReturnType<typeof setTimeout> | null = null
 
-  const immediate = setImmediate(() => {
-    const timeout = setTimeout(cb, 0)
-    clearPending = clearTimeout.bind(null, timeout)
-  })
-  clearPending = clearImmediate.bind(null, immediate)
+  function scheduleTimeout() {
+    unsubscribe = null
+    if (!cancelled) {
+      timeout = setTimeout(() => {
+        timeout = null
+        // New rendering work can arrive after the sentinel and before this
+        // timer. Wait again rather than accepting a stale idle observation.
+        if (immediateTracker?.hasPendingImmediates()) {
+          unsubscribe = immediateTracker.onIdle(scheduleTimeout)
+        } else {
+          callback()
+        }
+      }, 0)
+    }
+  }
 
-  return () => clearPending()
+  if (immediateTracker === null) {
+    immediate = setImmediate(scheduleTimeout)
+  } else {
+    unsubscribe = immediateTracker.onIdle(scheduleTimeout)
+  }
+
+  return () => {
+    cancelled = true
+    unsubscribe?.()
+    if (immediate !== null) {
+      clearImmediate(immediate)
+    }
+    if (timeout !== null) {
+      clearTimeout(timeout)
+    }
+  }
 }

@@ -252,6 +252,10 @@ import {
 import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import {
+  getImmediateTracker,
+  trackPendingImmediates,
+} from '../node-environment-extensions/fast-set-immediate.external'
+import {
   createResponseVaryParamsAccumulator,
   finishAccumulatingVaryParams,
   getMetadataVaryParamsAccumulator,
@@ -1118,7 +1122,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
     requestStore.resumeDataCache = prerenderResumeDataCache
 
-    const cacheSignal = new CacheSignal()
+    const cacheSignal = new CacheSignal(getImmediateTracker())
     trackPendingModules(cacheSignal)
     requestStore.cacheSignal = cacheSignal
 
@@ -1682,7 +1686,7 @@ async function prospectiveRuntimeServerPrerender(
 
   // The cacheSignal helps us track whether caches are still filling or we are ready
   // to cut the render off.
-  const cacheSignal = new CacheSignal()
+  const cacheSignal = new CacheSignal(getImmediateTracker())
 
   const initialServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
@@ -3385,6 +3389,10 @@ function prepareAppPage(
   }
 }
 
+const renderToHTMLOrFlightWithTrackedImmediates = trackPendingImmediates(
+  renderToHTMLOrFlightImpl
+)
+
 export const renderToHTMLOrFlight: AppPageRender = (
   req,
   res,
@@ -3412,7 +3420,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   return workAsyncStorage.run(
     workStore,
-    renderToHTMLOrFlightImpl,
+    workStore.cacheComponentsEnabled
+      ? renderToHTMLOrFlightWithTrackedImmediates
+      : renderToHTMLOrFlightImpl,
     req,
     res,
     url,
@@ -3428,6 +3438,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
     fallbackRouteParams
   )
 }
+
+const prerenderToHTMLOrFlightWithTrackedImmediates = trackPendingImmediates(
+  prerenderToHTMLOrFlightImpl
+)
 
 export const prerenderToHTMLOrFlight: AppPageRender = (
   req,
@@ -3460,7 +3474,9 @@ export const prerenderToHTMLOrFlight: AppPageRender = (
 
   return workAsyncStorage.run(
     workStore,
-    prerenderToHTMLOrFlightImpl,
+    workStore.cacheComponentsEnabled
+      ? prerenderToHTMLOrFlightWithTrackedImmediates
+      : prerenderToHTMLOrFlightImpl,
     req,
     res,
     url,
@@ -3899,7 +3915,7 @@ async function renderToStream(
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
 
-          const cacheSignal = new CacheSignal()
+          const cacheSignal = new CacheSignal(getImmediateTracker())
           trackPendingModules(cacheSignal)
           requestStore.cacheSignal = cacheSignal
 
@@ -5383,7 +5399,7 @@ function setUpStagedDevRender(
 ): StagedDevRenderSetup {
   const shouldRenderWithAppShell = navigationHasAppShell(navigationKind)
 
-  const cacheSignal = new CacheSignal()
+  const cacheSignal = new CacheSignal(getImmediateTracker())
   trackPendingModules(cacheSignal)
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
   const stageController = new StagedRenderingController({
@@ -6699,6 +6715,9 @@ function toDevValidationInputs(
   }
 }
 
+const runValidationInDevWithTrackedImmediates =
+  trackPendingImmediates(runValidationInDev)
+
 /**
  * Worker entry point for Cached Components dev validation, reached from the
  * validation worker via `ComponentMod.routeModule.runValidationInDev`. The
@@ -6788,7 +6807,7 @@ export async function runValidationInDevFromSnapshot(
 
   return workAsyncStorage.run(
     workStore,
-    runValidationInDev,
+    runValidationInDevWithTrackedImmediates,
     message.prefetchMode,
     instantInputs,
     staticInputs,
@@ -7209,7 +7228,7 @@ async function warmupClientModulesForStagedValidation(
 
   // This is mostly needed for dynamic `import()`s in client components.
   // Promises passed to client were already awaited above (assuming that they came from cached functions)
-  const cacheSignal = new CacheSignal()
+  const cacheSignal = new CacheSignal(getImmediateTracker())
   trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
   workUnitAsyncStorage.run(
@@ -7910,7 +7929,7 @@ async function renderWithRestartOnCacheMissInValidation(
   // Initial render (prospective — may warm caches)
   //===============================================
 
-  const cacheSignal = new CacheSignal()
+  const cacheSignal = new CacheSignal(getImmediateTracker())
   trackPendingModules(cacheSignal)
 
   // The prerender we rean before the validation probably already filled some caches,
@@ -8856,7 +8875,7 @@ async function prerenderToStream(
 
       // The cacheSignal helps us track whether caches are still filling or we are ready
       // to cut the render off.
-      const cacheSignal = new CacheSignal()
+      const cacheSignal = new CacheSignal(getImmediateTracker())
 
       // If a prefilled immutable render resume data cache is provided, e.g.
       // when prerendering an optional fallback shell after having prerendered
