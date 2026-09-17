@@ -469,19 +469,25 @@ function ValidComparisonContent({
     jsonFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const baselineRouteSummaries = useSuspenseData<RouteSummary[]>(
+  const { data: baselineRouteSummaries } = useSWR<RouteSummary[]>(
     `${baselineBaseDir}/route-summaries.json`,
     jsonFetcher,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    }
   )
   const baselineRouteTotals = useMemo(
     () =>
-      new Map(
-        baselineRouteSummaries.map(({ route, size, compressed_size }) => [
-          route,
-          { size, compressedSize: compressed_size },
-        ])
-      ),
+      baselineRouteSummaries
+        ? new Map(
+            baselineRouteSummaries.map(({ route, size, compressed_size }) => [
+              route,
+              { size, compressedSize: compressed_size },
+            ])
+          )
+        : null,
     [baselineRouteSummaries]
   )
   const routeDiff = useMemo(() => {
