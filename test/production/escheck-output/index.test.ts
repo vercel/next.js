@@ -1,9 +1,51 @@
 import { nextTestSetup } from 'e2e-utils'
 import { execSync } from 'child_process'
+import { readFileSync, readdirSync } from 'fs'
+import { join } from 'path'
+import ts from 'typescript'
 
 const dependencies = {
   'es-check': '9.6.4',
   browserslist: '4.28.1',
+}
+
+function findJsFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name)
+
+    if (entry.isDirectory()) {
+      return findJsFiles(path)
+    }
+
+    return path.endsWith('.js') ? [path] : []
+  })
+}
+
+function hasArrowFunction(source: string): boolean {
+  const sourceFile = ts.createSourceFile(
+    'output.js',
+    source,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.JS
+  )
+  let found = false
+
+  function visit(node: ts.Node) {
+    if (found) {
+      return
+    }
+
+    if (ts.isArrowFunction(node)) {
+      found = true
+      return
+    }
+
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sourceFile)
+  return found
 }
 
 describe('escheck-output', () => {
@@ -95,6 +137,12 @@ describe('escheck-output', () => {
 
       console.log(esCheckOutput)
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+
+      const filesWithArrowFunctions = findJsFiles(
+        join(next.testDir, '.next/static')
+      ).filter((path) => hasArrowFunction(readFileSync(path, 'utf8')))
+
+      expect(filesWithArrowFunctions).toEqual([])
     })
   })
 })
