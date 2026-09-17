@@ -1,4 +1,4 @@
-import { AnalyzeData, type SourceIndex } from './analyze-data'
+import { AnalyzeData, type SourceIndex } from '@/lib/analyze-data'
 import { formatBytes } from './utils'
 
 /**

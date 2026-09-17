@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "@/lib/analyze-data": ["../../packages/next/src/shared/lib/analyze-data"],
       "@/*": ["./*"]
     }
   },
