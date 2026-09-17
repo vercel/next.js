@@ -136,7 +136,7 @@ describe('turbopack additional roots', () => {
 
         const stagedRoot = path.join(
           standaloneDirectory,
-          'nextAdditionalRoots',
+          'next_additional_roots',
           'linkedPackages'
         )
         expect(

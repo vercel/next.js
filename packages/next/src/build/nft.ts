@@ -56,7 +56,7 @@ export interface NftAdditionalRoot extends NftFileList {
   /**
    * Stable unique identifier provided in `next.config.js`. This can be used to
    * generate the output path where these files are copied, such as
-   * `nextAdditionalRoots/${name}`.
+   * `next_additional_roots/${name}`.
    *
    * This uses a character set that is valid on most filesystems, and identifiers
    * are guaranteed not to overlap on case-insensitive filesystems.
@@ -176,7 +176,7 @@ function mapAdditionalRootPath(
   }
   return {
     source,
-    destination: path.join('nextAdditionalRoots', root.name, relativePath),
+    destination: path.join('next_additional_roots', root.name, relativePath),
   }
 }
 
