@@ -44,7 +44,7 @@ impl KeySpace {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
                 compression: CompressionConfig::Zstd3WithDictionary(include_bytes!(
-                    "taskdata.zdict"
+                    "taskdata-dictionary/taskdata.zdict"
                 )),
             },
             KeySpace::TaskCache => FamilyConfig {

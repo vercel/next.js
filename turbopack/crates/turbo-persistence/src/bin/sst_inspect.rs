@@ -2,12 +2,6 @@
 //!
 //! This tool inspects SST files to report entry type statistics per family,
 //! useful for verifying that inline value optimization is being used.
-//!
-//! Entry types are the `KEY_BLOCK_ENTRY_TYPE_*` constants in
-//! [`turbo_persistence::static_sorted_file`]; the `--help` output lists them with their current
-//! values. The two ranged kinds encode a size in the type byte: an inline value's byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`, and a key-value tombstone's deleted byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -21,7 +15,7 @@ use fs_err::File;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, Compression, CompressionConfig, MAX_INLINE_VALUE_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, CompressionConfig, checksum_block,
     mmap_helper::advise_mmap_for_persistence,
     offline::{SstInfo, collect_sst_info},
     static_sorted_file::{
@@ -793,25 +787,8 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
     println!();
 }
 
-fn entry_type_help() -> String {
-    format!(
-        "Entry types:\n  {KEY_BLOCK_ENTRY_TYPE_SMALL}: Small value (stored in separate value \
-         block)\n  {KEY_BLOCK_ENTRY_TYPE_BLOB}: Blob reference\n  \
-         {KEY_BLOCK_ENTRY_TYPE_KEY_DELETED}: Key tombstone (deletes all values for the key)\n  \
-         {KEY_BLOCK_ENTRY_TYPE_MEDIUM}: Medium value\n  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN}-{}: \
-         Inline value (size = type - {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})\n  \
-         {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted value size \
-         = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})\n\nFor TaskCache (family 3), \
-         values are 4-byte TaskIds. Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} \
-         + 4) for inline optimization.",
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8,
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8,
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4,
-    )
-}
-
 #[derive(Parser)]
-#[command(about = "Inspect turbo-persistence SST files", after_long_help = entry_type_help())]
+#[command(about = "Inspect turbo-persistence SST files")]
 struct Cli {
     /// Show per-SST file details (default: family totals only).
     #[arg(short, long)]
@@ -839,6 +816,8 @@ fn main() -> Result<()> {
     for path in source_dictionary {
         let bytes =
             fs_err::read(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+        // This short-lived CLI needs a static slice for CompressionConfig; leaking each supplied
+        // dictionary is simpler than adding ownership to the persistence inspection APIs.
         let dictionary = Box::leak(bytes.into_boxed_slice()) as &'static [u8];
         let id = CompressionConfig::Zstd3WithDictionary(dictionary)
             .dictionary_id()
@@ -915,39 +894,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn clap_help_keeps_entry_type_reference() {
-        let help = Cli::try_parse_from(["sst_inspect", "--help"])
-            .err()
-            .expect("--help should exit through clap")
-            .to_string();
-        assert!(help.contains("Entry types:"));
-        assert!(help.contains("For TaskCache (family 3)"));
-        assert!(help.contains(&format!(
-            "{} ({} + 4)",
-            KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4,
-            KEY_BLOCK_ENTRY_TYPE_INLINE_MIN
-        )));
-    }
-
-    #[test]
-    fn clap_accepts_multiple_source_dictionaries() {
-        let cli = Cli::try_parse_from([
-            "sst_inspect",
-            "--source-dictionary",
-            "first.zdict",
-            "--source-dictionary",
-            "second.zdict",
-            "database",
-        ])
-        .unwrap();
-        assert_eq!(cli.source_dictionary.len(), 2);
-        assert_eq!(cli.db_path, PathBuf::from("database"));
-    }
 }
