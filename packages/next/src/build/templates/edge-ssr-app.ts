@@ -34,6 +34,9 @@ import { CloseController } from '../../server/web/web-on-close'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import { appendVary } from '../../server/lib/markdown-for-agents/accept'
+import { normalizeMarkdownConfig } from '../../server/lib/markdown-for-agents/config'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -255,7 +258,7 @@ async function requestHandler(
     ;(req as any).fetchMetrics = metadata.fetchMetrics
 
     // Set content type
-    const contentType = result.contentType || 'text/html; charset=utf-8'
+    const contentType = result.contentType || HTML_CONTENT_TYPE_HEADER
     headers.set('Content-Type', contentType)
     headers.set('x-edge-runtime', '1')
 
@@ -278,6 +281,16 @@ async function requestHandler(
           headers.set(key, String(value))
         }
       }
+    }
+
+    if (
+      normalizeMarkdownConfig(nextConfig.markdownAgents).enabled &&
+      contentType === HTML_CONTENT_TYPE_HEADER
+    ) {
+      headers.set(
+        'Vary',
+        appendVary(headers.get('Vary') ?? varyHeader, 'Accept')
+      )
     }
 
     // Handle static response

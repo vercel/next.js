@@ -76,6 +76,8 @@ import {
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
+import { appendVary } from '../../server/lib/markdown-for-agents/accept' with { 'turbopack-transition': 'next-server-utility' }
+import { normalizeMarkdownConfig } from '../../server/lib/markdown-for-agents/config' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -277,7 +279,7 @@ export function createAppPageEntrypoint({
     ) =>
       sendRenderResult({
         ...options,
-        markdown: nextConfig.markdown,
+        markdownAgents: nextConfig.markdownAgents,
         dir: projectDir,
         page,
       })
@@ -749,10 +751,16 @@ export function createAppPageEntrypoint({
     }
 
     try {
-      const varyHeader = routeModule.getVaryHeader(
+      let varyHeader = routeModule.getVaryHeader(
         resolvedPathname,
         interceptionRoutePatterns
       )
+      if (
+        !isRSCRequest &&
+        normalizeMarkdownConfig(nextConfig.markdownAgents).enabled
+      ) {
+        varyHeader = appendVary(varyHeader, 'Accept')
+      }
       res.setHeader('Vary', varyHeader)
       let parentSpan: Span | undefined
       const invokeRouteModule = async (

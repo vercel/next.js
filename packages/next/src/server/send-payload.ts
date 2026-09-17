@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
 import type { CacheControl } from './lib/cache-control'
-import type { MarkdownConfig } from './lib/markdown-for-agents/config'
+import type { MarkdownAgentsConfig } from './lib/markdown-for-agents/config'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
@@ -13,9 +13,14 @@ import {
   appendVary,
   negotiateRepresentation,
 } from './lib/markdown-for-agents/accept'
+import { canonicalPagePath } from './lib/markdown-for-agents/actions'
 import { loadAuthoredRepresentation } from './lib/markdown-for-agents/authored'
 import { normalizeMarkdownConfig } from './lib/markdown-for-agents/config'
-import { transformPageRepresentation } from './lib/markdown-for-agents/transform'
+import {
+  representationsForMode,
+  shouldBufferHtmlForAgents,
+  transformPageRepresentation,
+} from './lib/markdown-for-agents/transform'
 
 export function sendEtagResponse(
   req: IncomingMessage,
@@ -48,7 +53,7 @@ export async function sendRenderResult({
   generateEtags,
   poweredByHeader,
   cacheControl,
-  markdown,
+  markdownAgents,
   dir,
   page,
 }: {
@@ -58,7 +63,7 @@ export async function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   cacheControl: CacheControl | undefined
-  markdown?: MarkdownConfig
+  markdownAgents?: MarkdownAgentsConfig
   dir?: string
   page?: string
 }): Promise<void> {
@@ -81,17 +86,13 @@ export async function sendRenderResult({
     : result.toUnchunkedString()
   let markdownApplied = false
 
-  const markdownConfig = normalizeMarkdownConfig(markdown)
+  const markdownAgentsConfig = normalizeMarkdownConfig(markdownAgents)
   const isRsc = Boolean(getRequestMeta(req, 'isRSCRequest'))
   const forced = getRequestMeta(req, 'markdownRepresentation')
   const acceptHeader =
     typeof req.headers.accept === 'string' ? req.headers.accept : undefined
-  const wantsAlternate =
-    Boolean(forced) ||
-    negotiateRepresentation(acceptHeader, ['html', 'markdown', 'plain']) !==
-      'html'
   if (
-    markdownConfig.enabled &&
+    markdownAgentsConfig.enabled &&
     !isRsc &&
     result.contentType === HTML_CONTENT_TYPE_HEADER
   ) {
@@ -106,13 +107,10 @@ export async function sendRenderResult({
     )
   }
   if (
-    markdownConfig.enabled &&
+    markdownAgentsConfig.enabled &&
     !isRsc &&
-    wantsAlternate &&
     result.contentType === HTML_CONTENT_TYPE_HEADER
   ) {
-    const html =
-      payload ?? (result.isDynamic ? await result.toUnchunkedString(true) : '')
     const match = getRequestMeta(req, 'match')
     const authored = dir
       ? await loadAuthoredRepresentation({
@@ -121,27 +119,51 @@ export async function sendRenderResult({
           page: match?.definition.page || page,
         })
       : {}
-    const url = (req.url || '/').split('?')[0] || '/'
-    const transformed = transformPageRepresentation({
-      accept: acceptHeader,
-      html,
-      url,
-      config: markdownConfig,
-      authored,
-      forced: markdownConfig.suffix ? (forced ?? null) : null,
-    })
-    if (transformed) {
-      payload = transformed.body
-      markdownApplied = true
-      res.setHeader('Content-Type', transformed.contentType)
-      if (transformed.markdownTokens != null) {
-        res.setHeader('x-markdown-tokens', String(transformed.markdownTokens))
+    const url = canonicalPagePath((req.url || '/').split('?')[0] || '/')
+    const available = representationsForMode(markdownAgentsConfig, authored)
+    const chosen =
+      markdownAgentsConfig.suffix && forced && available.includes(forced)
+        ? forced
+        : negotiateRepresentation(acceptHeader, available)
+    const wantsAlternate = Boolean(chosen && chosen !== 'html')
+
+    if (wantsAlternate) {
+      let html = payload ?? ''
+      let consumedDynamic = false
+      if (
+        shouldBufferHtmlForAgents(markdownAgentsConfig, authored, chosen) &&
+        result.isDynamic &&
+        payload === null
+      ) {
+        html = await result.toUnchunkedString(true)
+        consumedDynamic = true
       }
-      if (transformed.originalTokens != null) {
-        res.setHeader('x-original-tokens', String(transformed.originalTokens))
+
+      const transformed = transformPageRepresentation({
+        accept: acceptHeader,
+        html,
+        url,
+        config: markdownAgentsConfig,
+        authored,
+        forced: markdownAgentsConfig.suffix ? (forced ?? null) : null,
+      })
+      if (transformed) {
+        payload = transformed.body
+        markdownApplied = true
+        res.setHeader('Content-Type', transformed.contentType)
+        if (transformed.markdownTokens != null) {
+          res.setHeader('x-markdown-tokens', String(transformed.markdownTokens))
+        }
+        if (transformed.originalTokens != null) {
+          res.setHeader('x-original-tokens', String(transformed.originalTokens))
+        }
+        res.removeHeader('ETag')
+        res.removeHeader('Last-Modified')
+      } else if (consumedDynamic) {
+        // The render stream is spent. Send the HTML we already read —
+        // never pipeToNodeResponse on a consumed stream.
+        payload = html
       }
-      res.removeHeader('ETag')
-      res.removeHeader('Last-Modified')
     }
   }
 

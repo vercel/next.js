@@ -1,5 +1,5 @@
 import { extractFromHtml, htmlBodyToMarkdown } from './html-to-markdown'
-import { inferActionsFromHtml } from './actions'
+import { inferActionsFromHtml, renderActionsMarkdown } from './actions'
 import { composeMarkdownDocument } from './compose'
 import { normalizeMarkdownConfig } from './config'
 import { transformPageRepresentation } from './transform'
@@ -82,6 +82,24 @@ describe('html to markdown', () => {
     expect(doc).toContain('POST /hello')
     expect(doc).toContain('email=ada%40example.com')
     expect(doc).toContain('"@type":"WebPage"')
+  })
+
+  it('emits a copy-pasteable Server Action POST on the canonical path', () => {
+    const html = `<form method="post" action="javascript:throw new Error(1)" data-agent-action="subscribe" enctype="multipart/form-data">
+      <input type="hidden" name="$ACTION_ID_abc123def">
+      <input type="email" name="email" required>
+    </form>`
+    const actions = inferActionsFromHtml(html, '/about.md')
+    expect(actions[0]).toMatchObject({
+      href: '/about',
+      actionId: 'abc123def',
+      contentType: 'multipart/form-data',
+    })
+    const md = renderActionsMarkdown(actions, '/about.md')
+    expect(md).toContain("curl -X POST '/about'")
+    expect(md).toContain('$ACTION_ID_abc123def')
+    expect(md).not.toContain('javascript:')
+    expect(md).not.toContain('POST /about.md')
   })
 })
 

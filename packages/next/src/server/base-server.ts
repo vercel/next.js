@@ -133,6 +133,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { MarkdownPathnameNormalizer } from './normalizers/request/markdown'
+import { appendVary } from './lib/markdown-for-agents/accept'
 import { normalizeMarkdownConfig } from './lib/markdown-for-agents/config'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
@@ -570,7 +571,7 @@ export default abstract class Server<
         : undefined,
       markdown:
         this.enabledDirectories.app &&
-        normalizeMarkdownConfig(this.nextConfig.markdown).suffix
+        normalizeMarkdownConfig(this.nextConfig.markdownAgents).suffix
           ? new MarkdownPathnameNormalizer()
           : undefined,
     }
@@ -2370,18 +2371,30 @@ export default abstract class Server<
   ): void {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
+    const varyAccept =
+      isAppPath &&
+      !isRSCRequest &&
+      normalizeMarkdownConfig(this.nextConfig.markdownAgents).enabled
 
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader(
+        'vary',
+        varyAccept
+          ? appendVary(`${baseVaryHeader}, ${NEXT_URL}`, 'Accept')
+          : `${baseVaryHeader}, ${NEXT_URL}`
+      )
       addedNextUrlToVary = true
     } else if (isAppPath || isRSCRequest) {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.appendHeader('vary', baseVaryHeader)
+      res.appendHeader(
+        'vary',
+        varyAccept ? appendVary(baseVaryHeader, 'Accept') : baseVaryHeader
+      )
     }
 
     if (!addedNextUrlToVary) {

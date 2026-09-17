@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  markdown: {
+  markdownAgents: {
     enabled: true,
     mode: 'prefer-authored',
     actions: true,

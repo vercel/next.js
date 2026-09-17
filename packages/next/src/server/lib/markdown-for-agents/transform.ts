@@ -33,6 +33,28 @@ export function representationsForMode(
   return types
 }
 
+/**
+ * True when auto-converting HTML is required. Authored `page.md` / `page.txt`
+ * must not consume a dynamic render stream.
+ */
+export function shouldBufferHtmlForAgents(
+  config: NormalizedMarkdownConfig,
+  authored: AuthoredRepresentation,
+  chosen: NegotiatedType | null
+): boolean {
+  if (!chosen || chosen === 'html') return false
+  if (chosen === 'plain' && authored.plain) return false
+  if (chosen === 'markdown' && authored.markdown) return false
+  if (
+    chosen === 'markdown' &&
+    authored.plain &&
+    config.mode === 'prefer-authored'
+  ) {
+    return false
+  }
+  return config.mode !== 'authored'
+}
+
 export function buildMarkdownFromHtml(
   html: string,
   url: string,

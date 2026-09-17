@@ -10,10 +10,15 @@ export type AgentAction = {
   id: string
   summary: string
   method: 'GET' | 'POST'
-  /** Absolute or same-origin path. Defaults to the page URL. */
+  /** Canonical page path (no `.md` / `.txt` suffix). */
   href?: string
   contentType?: 'application/x-www-form-urlencoded' | 'multipart/form-data'
   fields: AgentActionField[]
+  /**
+   * Current-deployment Server Action id from `$ACTION_ID_<hash>`.
+   * Required for a progressive-enhancement POST to invoke the action.
+   */
+  actionId?: string
 }
 
 const FORM_RE = /<form\b([^>]*)>([\s\S]*?)<\/form>/gi
@@ -35,6 +40,30 @@ function slug(value: string): string {
     .replace(/^-|-$/g, '')
 }
 
+/** Strip `.md` / `.txt` so action examples always target the HTML page URL. */
+export function canonicalPagePath(url: string): string {
+  let path = (url.split('?')[0] || '/').replace(/\/+$/, '') || '/'
+  if (path === '/index.md' || path === '/index.txt') return '/'
+  if (path.endsWith('.mdx')) return path
+  if (path.endsWith('.md') || path.endsWith('.txt')) {
+    path = path.replace(/\.(md|txt)$/, '') || '/'
+  }
+  return path || '/'
+}
+
+function resolveHref(actionAttr: string | undefined, pageUrl: string): string {
+  const canonical = canonicalPagePath(pageUrl)
+  if (
+    !actionAttr ||
+    actionAttr === '#' ||
+    /^javascript:/i.test(actionAttr) ||
+    actionAttr.startsWith('blob:')
+  ) {
+    return canonical
+  }
+  return actionAttr
+}
+
 export function inferActionsFromHtml(
   html: string,
   pageUrl: string
@@ -46,7 +75,7 @@ export function inferActionsFromHtml(
     const formAttrs = form[1]
     const formBody = form[2]
     const method = (attr(formAttrs, 'method') || 'POST').toUpperCase()
-    const href = attr(formAttrs, 'action') || pageUrl
+    const href = resolveHref(attr(formAttrs, 'action'), pageUrl)
     const id =
       attr(formAttrs, 'data-agent-action') ||
       attr(formAttrs, 'name') ||
@@ -58,11 +87,18 @@ export function inferActionsFromHtml(
       `Submit the ${id} form`
     const enc = (attr(formAttrs, 'enctype') || '').toLowerCase()
     const fields: AgentActionField[] = []
+    let actionId: string | undefined
+    let hasFile = false
     INPUT_RE.lastIndex = 0
     let input: RegExpExecArray | null
     while ((input = INPUT_RE.exec(formBody))) {
       const attrs = input[2]
       const type = (attr(attrs, 'type') || input[1] || 'text').toLowerCase()
+      const name = attr(attrs, 'name') || ''
+      if (type === 'hidden' && name.startsWith('$ACTION_ID_')) {
+        actionId = name.slice('$ACTION_ID_'.length)
+        continue
+      }
       if (
         type === 'hidden' ||
         type === 'submit' ||
@@ -71,8 +107,8 @@ export function inferActionsFromHtml(
       ) {
         continue
       }
-      const name = attr(attrs, 'name')
       if (!name) continue
+      if (type === 'file') hasFile = true
       fields.push({
         name,
         type,
@@ -80,33 +116,82 @@ export function inferActionsFromHtml(
         description: attr(attrs, 'aria-label') || attr(attrs, 'placeholder'),
       })
     }
+    const isServerAction = Boolean(actionId)
     actions.push({
       id: slug(id) || `action-${actions.length + 1}`,
       summary,
       method: method === 'GET' ? 'GET' : 'POST',
       href,
       contentType:
-        enc === 'multipart/form-data'
+        isServerAction || hasFile || enc === 'multipart/form-data'
           ? 'multipart/form-data'
           : 'application/x-www-form-urlencoded',
       fields,
+      actionId,
     })
   }
   return actions
 }
 
+function sampleValue(field: AgentActionField): string {
+  if (field.type === 'email') return 'ada@example.com'
+  if (field.type === 'number') return '1'
+  return field.name
+}
+
 function encodeExample(fields: AgentActionField[]): string {
   return fields
-    .map((field) => {
-      const sample =
-        field.type === 'email'
-          ? 'ada@example.com'
-          : field.type === 'number'
-            ? '1'
-            : field.name
-      return `${encodeURIComponent(field.name)}=${encodeURIComponent(sample)}`
-    })
+    .map(
+      (field) =>
+        `${encodeURIComponent(field.name)}=${encodeURIComponent(sampleValue(field))}`
+    )
     .join('&')
+}
+
+function multipartExample(action: AgentAction): string {
+  const boundary = '----NextAgentForm'
+  const parts: string[] = []
+  if (action.actionId) {
+    parts.push(
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="$ACTION_ID_${action.actionId}"`,
+      '',
+      ''
+    )
+  }
+  for (const field of action.fields) {
+    parts.push(
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="${field.name}"`,
+      '',
+      sampleValue(field)
+    )
+  }
+  parts.push(`--${boundary}--`)
+  return parts.join('\r\n')
+}
+
+function curlExample(action: AgentAction, href: string): string {
+  const lines = [`curl -X ${action.method} '${href}'`]
+  if (action.actionId) {
+    lines[0] += ` \\`
+    lines.push(`  -F '$ACTION_ID_${action.actionId}=' \\`)
+    for (let i = 0; i < action.fields.length; i++) {
+      const field = action.fields[i]
+      const suffix = i === action.fields.length - 1 ? '' : ' \\'
+      lines.push(`  -F '${field.name}=${sampleValue(field)}'${suffix}`)
+    }
+    if (!action.fields.length) {
+      lines[lines.length - 1] = lines[lines.length - 1].replace(/ \\$/, '')
+    }
+  } else if (action.method !== 'GET' && action.fields.length) {
+    lines[0] += ` \\`
+    lines.push(`  -H 'Content-Type: application/x-www-form-urlencoded' \\`)
+    lines.push(`  --data '${encodeExample(action.fields)}'`)
+  } else if (action.method === 'GET' && action.fields.length) {
+    return `curl '${href}?${encodeExample(action.fields)}'`
+  }
+  return lines.join('\n')
 }
 
 export function renderActionsMarkdown(
@@ -123,6 +208,9 @@ export function renderActionsMarkdown(
       `    contentType: ${JSON.stringify(action.contentType || 'application/x-www-form-urlencoded')}`
     )
     yamlLines.push(`    summary: ${JSON.stringify(action.summary)}`)
+    if (action.actionId) {
+      yamlLines.push(`    actionId: ${JSON.stringify(action.actionId)}`)
+    }
     yamlLines.push('    fields:')
     if (!action.fields.length) {
       yamlLines.push('      []')
@@ -143,7 +231,9 @@ export function renderActionsMarkdown(
   const sections = [
     '## Actions',
     '',
-    'POST (or GET) the **same URL as this page**. Send cookies when the action needs a session. Auth and CSRF rules on the HTML form still apply.',
+    'Invoke these operations with HTTP on the **same URL as this page** (no extra path). Send cookies when a session is required. Auth and CSRF rules from the HTML form still apply.',
+    '',
+    'Server Actions must be `multipart/form-data` and include the `$ACTION_ID_…` field from the current HTML. Copy the `curl` example; the id is for this deployment.',
     '',
     '```yaml',
     yamlLines.join('\n'),
@@ -152,20 +242,35 @@ export function renderActionsMarkdown(
   ]
 
   for (const action of actions) {
-    const href = action.href || pageUrl
+    const href = action.href || canonicalPagePath(pageUrl)
     const contentType =
       action.contentType || 'application/x-www-form-urlencoded'
-    const body = encodeExample(action.fields)
     sections.push(`### \`${action.id}\``)
     sections.push('')
     sections.push(action.summary)
     sections.push('')
+    sections.push('```bash')
+    sections.push(curlExample(action, href))
+    sections.push('```')
+    sections.push('')
     sections.push('```http')
-    sections.push(`${action.method} ${href}`)
-    sections.push(`Content-Type: ${contentType}`)
-    if (body && action.method !== 'GET') {
-      sections.push('')
-      sections.push(body)
+    if (action.method === 'GET' && action.fields.length) {
+      sections.push(`GET ${href}?${encodeExample(action.fields)}`)
+    } else {
+      sections.push(`${action.method} ${href}`)
+      if (contentType === 'multipart/form-data') {
+        sections.push(
+          'Content-Type: multipart/form-data; boundary=----NextAgentForm'
+        )
+        sections.push('')
+        sections.push(multipartExample(action))
+      } else {
+        sections.push(`Content-Type: ${contentType}`)
+        if (action.fields.length && action.method !== 'GET') {
+          sections.push('')
+          sections.push(encodeExample(action.fields))
+        }
+      }
     }
     sections.push('```')
     sections.push('')

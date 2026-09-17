@@ -3,7 +3,7 @@ title: page.md
 description: Colocate Markdown or plain text with a page for Accept-based content negotiation.
 related:
   links:
-    - app/api-reference/config/next-config-js/markdown
+    - app/api-reference/config/next-config-js/markdownAgents
     - app/api-reference/file-conventions/page
     - app/guides/backend-for-frontend
 ---
@@ -23,7 +23,7 @@ Enable it in `next.config.ts`:
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  markdown: true,
+  markdownAgents: true,
 }
 
 export default nextConfig
@@ -41,7 +41,7 @@ curl -H "Accept: text/markdown" https://example.com/about
 
 `page.md` is returned as `text/markdown; charset=utf-8`. `page.txt` is returned as `text/plain` when the client prefers plain text, otherwise as a Markdown body.
 
-When `markdown.mode` is `'prefer-authored'` (the default once enabled):
+When `markdownAgents.mode` is `'prefer-authored'` (the default once enabled):
 
 1. `page.md`
 2. `page.txt`
@@ -59,7 +59,7 @@ If no sibling file exists, Next.js converts the rendered HTML:
 
 ## Actions
 
-When `markdown.actions` is true (default), conversion appends an **Actions** section for each `<form>` on the page. Agents POST to the **same URL**. Mark forms for a stable id:
+When `markdownAgents.actions` is true (default), conversion appends an **Actions** section for each `<form>` on the page. Agents POST to the **same URL**. Mark forms for a stable id:
 
 ```tsx filename="app/subscribe/page.tsx"
 export default function Page() {
@@ -83,23 +83,22 @@ export default function Page() {
 }
 ```
 
-The Markdown includes YAML agents can parse and a copy-pasteable HTTP example:
+The Markdown includes YAML plus a copy-pasteable `curl` example. Server Actions are invoked with `multipart/form-data` and the `$ACTION_ID_…` field from the **current** HTML (it can change across deploys). POST the same path you fetched — not `/subscribe.md`.
 
-```http
-POST /subscribe
-Content-Type: application/x-www-form-urlencoded
-
-email=ada%40example.com
+```bash
+curl -X POST '/subscribe' \
+  -F '$ACTION_ID_<hash>=' \
+  -F 'email=ada@example.com'
 ```
 
-Server Action IDs are not published. Auth, cookies, and CSRF rules from the HTML form still apply.
+Auth, cookies, and CSRF rules from the HTML form still apply.
 
 ## Suffix mode
 
-The default is the canonical path plus `Accept`. Set `markdown.suffix: true` to also serve `/about.md` and `/about.txt`. `/index.md` maps to `/`.
+The default is the canonical path plus `Accept`. `page.md` next to `page.tsx` is not a URL. Set `markdownAgents.suffix: true` only if you also want `/about.md` as an alias. `/index.md` maps to `/`.
 
 ## Version History
 
 | Version   | Changes                                                          |
 | --------- | ---------------------------------------------------------------- |
-| `v16.4.0` | `markdown` config, `page.md` / `page.txt`, optional `.md` suffix |
+| `v16.4.0` | `markdownAgents` config, colocated `page.md` / `page.txt`, optional URL suffix |

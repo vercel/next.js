@@ -19,9 +19,9 @@ export type MarkdownForAgentsOptions = {
    */
   actions?: boolean
   /**
-   * Also expose Markdown at the same pathname with a `.md` or `.txt` suffix
-   * (`/about.md`). The canonical URL without a suffix remains the default.
-   * Off by default.
+   * Optional URL aliases: `/about.md` and `/about.txt` map to `/about`.
+   * Off by default. Authored files are always `page.md` / `page.txt` next to
+   * `page.tsx` and do not create routes by themselves.
    */
   suffix?: boolean
   /** Include YAML frontmatter (title, description, canonical). Default true. */
@@ -36,7 +36,10 @@ export type MarkdownForAgentsOptions = {
   stripTags?: string[]
 }
 
-export type MarkdownConfig = boolean | MarkdownForAgentsOptions
+export type MarkdownAgentsConfig = boolean | MarkdownForAgentsOptions
+
+/** @deprecated Use MarkdownAgentsConfig. */
+export type MarkdownConfig = MarkdownAgentsConfig
 
 export type NormalizedMarkdownConfig = {
   enabled: boolean
@@ -64,8 +67,8 @@ const DEFAULT_STRIP_TAGS = [
   'footer',
 ]
 
-export function normalizeMarkdownConfig(
-  input: MarkdownConfig | undefined
+export function normalizeMarkdownAgentsConfig(
+  input: MarkdownAgentsConfig | undefined
 ): NormalizedMarkdownConfig {
   if (!input) {
     return {
@@ -98,3 +101,5 @@ export function normalizeMarkdownConfig(
 function unique(values: string[]): string[] {
   return [...new Set(values.map((v) => v.toLowerCase()))]
 }
+
+export { normalizeMarkdownAgentsConfig as normalizeMarkdownConfig }

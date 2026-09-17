@@ -1,6 +1,8 @@
 export {
-  normalizeMarkdownConfig,
-  type MarkdownConfig,
+  normalizeMarkdownAgentsConfig,
+  normalizeMarkdownAgentsConfig as normalizeMarkdownConfig,
+  type MarkdownAgentsConfig,
+  type MarkdownAgentsConfig as MarkdownConfig,
   type MarkdownForAgentsMode,
   type MarkdownForAgentsOptions,
   type NormalizedMarkdownConfig,

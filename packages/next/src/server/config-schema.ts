@@ -797,7 +797,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         z.literal(false),
       ])
       .optional(),
-    markdown: z
+    markdownAgents: z
       .union([
         z.boolean(),
         z.strictObject({
