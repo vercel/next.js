@@ -5,6 +5,7 @@ export default function Page() {
     <Script
       src="https://code.jquery.com/jquery-3.7.1.min.js"
       crossOrigin="use-credentials"
+      fetchPriority="low"
     />
   )
 }
