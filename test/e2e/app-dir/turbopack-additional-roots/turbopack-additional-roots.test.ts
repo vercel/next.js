@@ -94,29 +94,46 @@ describe('turbopack additional roots', () => {
         '.next/server/app/page.js.nft.json'
       )
       const nft = await fs.readJson(nftPath)
-      const rootIndex = nft.additionalRoots.findIndex(
-        (root: any) => root.name === 'linkedPackages'
-      )
-      const root = nft.additionalRoots[rootIndex]
+      const crossRootSymlinks = nft.symlinks
+        .filter((symlink: [number, string, number?]) => symlink.length === 3)
+        .map(
+          ([fileIndex, target, additionalRootIndex]: [
+            number,
+            string,
+            number,
+          ]) => ({
+            file: nft.files[fileIndex],
+            target,
+            additionalRoot: nft.additionalRoots[additionalRootIndex].name,
+          })
+        )
 
-      expect(rootIndex).toBeGreaterThanOrEqual(0)
-      expect(path.resolve(path.dirname(nftPath), root.path)).toBe(
-        await fs.realpath(externalRoot)
-      )
-      expect(nft.fileHashes).toHaveLength(nft.files.length)
-      expect(root.fileHashes).toHaveLength(root.files.length)
-      expect(root.symlinks).toEqual([])
-      expect(
-        root.files.some((file: string) =>
-          file.endsWith('node_modules/sibling/index.js')
-        )
-      ).toBe(true)
-      expect(
-        nft.symlinks.some(
-          (symlink: [number, string, number?]) =>
-            symlink.length === 3 && symlink[2] === rootIndex
-        )
-      ).toBe(true)
+      expect(crossRootSymlinks).toMatchInlineSnapshot(`
+       [
+         {
+           "additionalRoot": "linkedPackages",
+           "file": "../../node_modules/sibling-639f6b1f4617eee0",
+           "target": "node_modules/sibling",
+         },
+       ]
+      `)
+      expect(nft.additionalRoots).toMatchInlineSnapshot(`
+       [
+         {
+           "fileHashes": [
+             "68a5d859aeaab2b7418a1215c0bb0d26",
+             "65e26ffbe84715407dd7bfe827f6444d",
+           ],
+           "files": [
+             "node_modules/sibling/index.js",
+             "node_modules/sibling/package.json",
+           ],
+           "name": "linkedPackages",
+           "path": "../../../../additional-root",
+           "symlinks": [],
+         },
+       ]
+      `)
     })
 
     it('runs after relocating standalone output away from the source root', async () => {
