@@ -1,4 +1,18 @@
 import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { configSchema } from './config-schema'
+
+describe('future config schema', () => {
+  it('accepts an empty or missing future config', () => {
+    expect(configSchema.safeParse({}).success).toBe(true)
+    expect(configSchema.safeParse({ future: {} }).success).toBe(true)
+  })
+
+  it('rejects unknown future config keys', () => {
+    expect(
+      configSchema.safeParse({ future: { someUnknownKey: true } }).success
+    ).toBe(false)
+  })
+})
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -12,6 +26,15 @@ describe('loadConfig', () => {
     const configModule = await import('./config')
     loadConfig = configModule.default
   })
+
+  it('defaults future config to an empty object', async () => {
+    const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+      customConfig: {},
+    })
+
+    expect(result.future).toEqual({})
+  })
+
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {

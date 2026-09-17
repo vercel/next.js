@@ -3,7 +3,7 @@ import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
-import { experimentalSchema } from '../config-schema'
+import { experimentalSchema, futureSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
@@ -78,9 +78,11 @@ export function logExperimentalInfo({
     Log.bootstrap(`- Partial Prefetching enabled`)
   }
 
-  if (experimentalFeatures?.length) {
+  if (experimentalFeatures?.some(({ stage }) => stage !== 'future')) {
     Log.bootstrap(`- Experiments (use with caution):`)
     for (const exp of experimentalFeatures) {
+      if (exp.stage === 'future') continue
+
       const isValid = Object.prototype.hasOwnProperty.call(
         experimentalSchema,
         exp.key
@@ -105,6 +107,37 @@ export function logExperimentalInfo({
         Log.bootstrap(
           `  ? ${strikethrough(exp.key)} (invalid experimental key)`
         )
+      }
+    }
+  }
+
+  if (experimentalFeatures?.some(({ stage }) => stage === 'future')) {
+    Log.bootstrap(`- Future features:`)
+    for (const exp of experimentalFeatures) {
+      if (exp.stage !== 'future') continue
+
+      const isValid = Object.prototype.hasOwnProperty.call(
+        futureSchema,
+        exp.key
+      )
+      if (isValid) {
+        const symbol =
+          typeof exp.value === 'boolean'
+            ? exp.value === true
+              ? bold('✓')
+              : bold('⨯')
+            : '·'
+
+        const suffix =
+          typeof exp.value === 'number' || typeof exp.value === 'string'
+            ? `: ${JSON.stringify(exp.value)}`
+            : ''
+
+        const reason = exp.reason ? ` (${exp.reason})` : ''
+
+        Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
+      } else {
+        Log.bootstrap(`  ? ${strikethrough(exp.key)} (invalid future key)`)
       }
     }
   }

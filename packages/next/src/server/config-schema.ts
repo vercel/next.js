@@ -512,6 +512,8 @@ export const experimentalSchema = {
   reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
 }
 
+export const futureSchema = {}
+
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     adapterPath: z.string().optional(),
@@ -653,6 +655,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     enablePrerenderSourceMaps: z.boolean().optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
+    future: z.strictObject(futureSchema).optional(),
     exportPathMap: z
       .function()
       .args(

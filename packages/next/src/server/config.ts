@@ -450,6 +450,10 @@ function assignDefaultsAndValidate(
   const result = {
     ...defaultConfig,
     ...config,
+    future: {
+      ...defaultConfig.future,
+      ...config.future,
+    },
     experimental: {
       ...defaultConfig.experimental,
       ...config.experimental,
@@ -2159,6 +2163,19 @@ async function loadConfigImpl(
       }
     }
 
+    if (loadedConfig.future) {
+      for (const name of Object.keys(loadedConfig.future)) {
+        const value = (loadedConfig.future as Record<string, unknown>)[name]
+        if (value !== (defaultConfig.future as Record<string, unknown>)[name]) {
+          configuredExperimentalFeatures.push({
+            key: name,
+            value,
+            stage: 'future',
+          })
+        }
+      }
+    }
+
     // Clone a new userConfig each time to avoid mutating the original
     const userConfig = cloneObject(loadedConfig) as NextConfig
 
@@ -2369,9 +2386,10 @@ async function loadConfigImpl(
 }
 
 export type ConfiguredExperimentalFeature = {
-  key: keyof ExperimentalConfig
-  value: ExperimentalConfig[keyof ExperimentalConfig]
+  key: string
+  value: unknown
   reason?: string
+  stage?: 'experimental' | 'future'
 }
 
 function enforceExperimentalFeatures(

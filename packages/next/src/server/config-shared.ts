@@ -1687,6 +1687,12 @@ export type ValidationLevel =
   | 'experimental-error'
   | 'experimental-manual-error'
 
+/**
+ * Features that have graduated from experimental and are expected to become
+ * stable, but may still change in a major release.
+ */
+export interface FutureConfig {}
+
 export interface NextConfig {
   allowedDevOrigins?: string[]
 
@@ -2141,6 +2147,12 @@ export interface NextConfig {
   experimental?: ExperimentalConfig
 
   /**
+   * Enable features that have graduated from experimental and are expected to
+   * become stable, but may still change in a major release.
+   */
+  future?: FutureConfig
+
+  /**
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
    */
@@ -2314,6 +2326,7 @@ export const defaultConfig = Object.freeze({
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+  future: {},
   experimental: {
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
