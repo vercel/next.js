@@ -1,12 +1,7 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
-/**
- * CC0 Content Signals Policy comment block.
- * @see https://contentsignals.org/
- * @see https://blog.cloudflare.com/content-signals-policy/
- */
-export const CONTENT_SIGNALS_POLICY = `# As a condition of accessing this website, you agree to abide by the following content signals:
+const CONTENT_SIGNALS_POLICY = `# As a condition of accessing this website, you agree to abide by the following content signals:
 #
 # (a)  If a content-signal = yes, you may collect content for the corresponding use.
 # (b)  If a content-signal = no, you may not collect content for the corresponding use.
@@ -49,11 +44,10 @@ function resolveContentSignalPaths(
   ) {
     return [undefined]
   }
-  // Holes / empty strings in a path list are skipped, not treated as site-wide.
   return resolveArray(path).filter((p) => typeof p === 'string' && p.length > 0)
 }
 
-export function resolveContentSignal(input: ContentSignalInput): string {
+function resolveContentSignal(input: ContentSignalInput): string {
   const rules = Array.isArray(input) ? input : [input]
   let content = ''
   for (const rule of rules) {
@@ -86,9 +80,7 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
       content += `User-Agent: ${agent}\n`
     }
     const contentSignal =
-      rule.contentSignal !== undefined
-        ? rule.contentSignal
-        : data.contentSignal
+      rule.contentSignal !== undefined ? rule.contentSignal : data.contentSignal
     if (contentSignal !== undefined) {
       content += resolveContentSignal(contentSignal)
     }

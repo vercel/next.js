@@ -201,11 +201,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * @deprecated Use the new viewport configuration (`export const viewport: Viewport = { ... }`) instead.
    */
   themeColor?:
-    | null
-    | string
-    | ThemeColorDescriptor
-    | ThemeColorDescriptor[]
-    | undefined
+    null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
 
   /**
    * The color scheme for the document.
@@ -721,8 +717,7 @@ type RobotsContentSignalRule = RobotsContentSignal & {
 }
 
 type ContentSignalInput =
-  | RobotsContentSignalRule
-  | Array<RobotsContentSignalRule>
+  RobotsContentSignalRule | Array<RobotsContentSignalRule>
 
 type RobotsRuleBase = {
   allow?: string | string[] | undefined
@@ -870,11 +865,7 @@ interface Viewport extends ViewportLayout {
    * ```
    */
   themeColor?:
-    | null
-    | string
-    | ThemeColorDescriptor
-    | ThemeColorDescriptor[]
-    | undefined
+    null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
 
   /**
    * The color scheme for the document.

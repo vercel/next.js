@@ -121,9 +121,9 @@ Sitemap: https://acme.com/sitemap.xml
 
 ### Content Signals
 
-[Content Signals](https://contentsignals.org/) declare how crawlers may use content **after** they access it: search indexing, AI input (RAG / grounding), and AI training. They do not replace `Allow` / `Disallow`.
+[Content Signals](https://contentsignals.org/) declare how crawlers may use content after they access it: search indexing, AI input (RAG / grounding), and AI training. Use them together with `Allow` / `Disallow`.
 
-Set `contentSignal` on the robots file for a **site-wide** default, or on a rule (optionally with `path`) for **per-link** or per-user-agent signals. `true` becomes `yes`, `false` becomes `no`. Omitted keys express no preference.
+Set `contentSignal` on the robots file for a site-wide default, or on a rule (optionally with `path`) for per-link or per-user-agent signals. `true` becomes `yes`, `false` becomes `no`. Omitted keys express no preference.
 
 ```ts filename="app/robots.ts" switcher
 import type { MetadataRoute } from 'next'
@@ -166,7 +166,7 @@ Disallow: /private/
 Sitemap: https://acme.com/sitemap.xml
 ```
 
-Path-specific (per-link) signals, including the [discussion #85382](https://github.com/vercel/next.js/discussions/85382) shape:
+Path-specific (per-link) signals:
 
 ```ts filename="app/robots.ts" switcher
 import type { MetadataRoute } from 'next'
@@ -215,9 +215,9 @@ Allow: /
 Disallow: /projects
 ```
 
-A rule-level `contentSignal` **replaces** the file-level default for that user-agent group (keys are not merged). `contentSignal: {}` emits no `Content-Signal` line for that group. Set `contentSignalsPolicy: true` to prepend the CC0 policy comment from [contentsignals.org](https://contentsignals.org/).
+A rule-level `contentSignal` replaces the file-level default for that user-agent group. Keys are replaced rather than merged. `contentSignal: {}` emits no `Content-Signal` line for that group. Set `contentSignalsPolicy: true` to prepend the CC0 policy comment from [contentsignals.org](https://contentsignals.org/).
 
-> **Good to know**: Content Signals are usage preferences. Not every crawler honors them. Combine them with `Allow` / `Disallow` and, where needed, bot controls.
+> **Good to know**: Content Signals are usage preferences. Honor depends on the crawler. Combine them with `Allow` / `Disallow` and, where needed, bot controls.
 
 ### Non-standard directives
 
