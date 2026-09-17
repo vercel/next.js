@@ -11,11 +11,15 @@ describe('basepath-fallback-params', () => {
     expect(await browser.elementById('item-id').text()).toBe('expected-id')
   })
 
-  it('reads fallback params after a client navigation', async () => {
-    const browser = await next.browser('/dashboard')
-
-    await browser.elementByCss('a').click()
-
-    expect(await browser.elementById('item-id').text()).toBe('expected-id')
-  })
+  it.each([
+    ['prefetched', 'expected-id'],
+    ['unprefetched', 'another-id'],
+  ])(
+    'reads concrete params after a %s client navigation',
+    async (link, expected) => {
+      const browser = await next.browser('/dashboard')
+      await browser.elementById(link).click()
+      expect(await browser.elementById('item-id').text()).toBe(expected)
+    }
+  )
 })
