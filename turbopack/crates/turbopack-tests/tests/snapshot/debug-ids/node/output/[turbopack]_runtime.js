@@ -1433,18 +1433,20 @@ nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
-const chunksBeingEnsured = new Map();
-function loadChunkAsyncOnDemand(chunkData) {
-    const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
-    const ensureChunk = globalThis.__turbopack_ensure_chunk__;
-    if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
-        return loadChunkAsync.call(this, chunkData);
+if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
+    const chunksBeingEnsured = new Map();
+    function loadChunkAsyncOnDemand(chunkData) {
+        const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
+        const ensureChunk = globalThis.__turbopack_ensure_chunk__;
+        if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
+            return loadChunkAsync.call(this, chunkData);
+        }
+        const ensured = chunksBeingEnsured.get(chunkPath) ?? Promise.resolve().then(()=>ensureChunk(chunkPath)).finally(()=>chunksBeingEnsured.delete(chunkPath));
+        chunksBeingEnsured.set(chunkPath, ensured);
+        return ensured.then(()=>loadChunkAsync.call(this, chunkData));
     }
-    const ensured = chunksBeingEnsured.get(chunkPath) ?? Promise.resolve().then(()=>ensureChunk(chunkPath)).finally(()=>chunksBeingEnsured.delete(chunkPath));
-    chunksBeingEnsured.set(chunkPath, ensured);
-    return ensured.then(()=>loadChunkAsync.call(this, chunkData));
+    nodeDevContextPrototype.l = loadChunkAsyncOnDemand;
 }
-nodeDevContextPrototype.l = loadChunkAsyncOnDemand;
 /**
  * Instantiates a module in development mode using shared HMR logic.
  */ function instantiateModule(id, sourceType, sourceData) {
