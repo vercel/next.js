@@ -14,8 +14,7 @@ const TAG_PREFIX = "nextjs:use-cache-tag:";
 const client = createClient({
   url: process.env.REDIS_URL ?? "redis://localhost:6379",
   // Fail commands immediately while the connection is down instead of queueing
-  // them until Redis is back. Combined with the `isReady` check in
-  // `getClient`, a request never waits on an unavailable Redis.
+  // them until Redis is back.
   disableOfflineQueue: true,
 });
 
@@ -25,34 +24,40 @@ client.on("error", (error) => {
   }
 });
 
-// Connecting to Redis during `next build` can cause issues, so we only connect
-// at runtime. The client keeps retrying in the background if Redis is
-// unavailable, so nothing awaits this promise: `connect()` does not settle
-// until a connection succeeds, and awaiting it would block requests for as
-// long as Redis is down.
-if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
-  client.connect().catch((error) => {
-    console.warn("Failed to connect to Redis (remote cache):", error);
-  });
-}
+const connection =
+  process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
+    ? Promise.resolve()
+    : client.connect().catch((error) => {
+        console.warn("Failed to connect to Redis (remote cache):", error);
+      });
 
-// Return the client when it's connected, or `null` when Redis is unavailable
-// so `'use cache: remote'` degrades to a miss instead of hanging the request.
-// The client reconnects on its own once Redis is reachable again.
-function getClient() {
+// `connect()` stays pending for as long as Redis is unreachable, so cap the
+// wait: requests arriving during startup wait for the connection at most
+// once, and while Redis is down every request is served uncached instead of
+// blocking. The client keeps retrying in the background, so `isReady` flips
+// back on its own once Redis is reachable again.
+const CONNECT_TIMEOUT_MS = 1000;
+const ready = Promise.race([
+  connection,
+  // `unref()` so this timer never keeps the process alive.
+  new Promise((resolve) => setTimeout(resolve, CONNECT_TIMEOUT_MS).unref()),
+]);
+
+async function getClient() {
+  await ready;
   return client.isReady ? client : null;
 }
 
 module.exports = {
   async get(cacheKey) {
-    const redis = getClient();
+    const redis = await getClient();
     if (!redis) return undefined;
 
     let stored;
     try {
       stored = await redis.get(ENTRY_PREFIX + cacheKey);
     } catch (error) {
-      // A dropped connection mid-request degrades to a cache miss.
+      // A connection dropping mid-request degrades to a cache miss.
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
         console.warn("Redis get failed (remote cache):", error);
       }
@@ -86,7 +91,7 @@ module.exports = {
   },
 
   async set(cacheKey, pendingEntry) {
-    const redis = getClient();
+    const redis = await getClient();
     if (!redis) return;
 
     // The entry may still be streaming, so await it, then drain the stream.
@@ -118,19 +123,17 @@ module.exports = {
         }
       : {};
 
+    const value = JSON.stringify({
+      value: bytes.toString("base64"),
+      tags: entry.tags,
+      stale: entry.stale,
+      timestamp: entry.timestamp,
+      expire: entry.expire,
+      revalidate: entry.revalidate,
+    });
+
     try {
-      await redis.set(
-        ENTRY_PREFIX + cacheKey,
-        JSON.stringify({
-          value: bytes.toString("base64"),
-          tags: entry.tags,
-          stale: entry.stale,
-          timestamp: entry.timestamp,
-          expire: entry.expire,
-          revalidate: entry.revalidate,
-        }),
-        options,
-      );
+      await redis.set(ENTRY_PREFIX + cacheKey, value, options);
     } catch (error) {
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
         console.warn("Redis set failed (remote cache):", error);
@@ -145,19 +148,12 @@ module.exports = {
   // Return the most recent revalidation time across `tags`. Next treats an
   // entry as stale when this is newer than the entry's `timestamp`.
   async getExpiration(tags) {
-    const redis = getClient();
+    const redis = await getClient();
     if (!redis || !tags.length) return 0;
 
-    try {
-      const values = await redis.mGet(tags.map((tag) => TAG_PREFIX + tag));
-      const timestamps = values.filter(Boolean).map(Number);
-      return timestamps.length ? Math.max(...timestamps) : 0;
-    } catch (error) {
-      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.warn("Redis getExpiration failed (remote cache):", error);
-      }
-      return 0;
-    }
+    const values = await redis.mGet(tags.map((tag) => TAG_PREFIX + tag));
+    const timestamps = values.filter(Boolean).map(Number);
+    return timestamps.length ? Math.max(...timestamps) : 0;
   },
 
   // Record when each tag was last revalidated so `getExpiration` can report
@@ -171,16 +167,10 @@ module.exports = {
   // this revalidation, so a shorter TTL could drop it while such an entry is
   // still cached and serve it as fresh when it should be stale.
   async updateTags(tags) {
-    const redis = getClient();
+    const redis = await getClient();
     if (!redis) return;
 
     const now = String(Date.now());
-    try {
-      await Promise.all(tags.map((tag) => redis.set(TAG_PREFIX + tag, now)));
-    } catch (error) {
-      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.warn("Redis updateTags failed (remote cache):", error);
-      }
-    }
+    await Promise.all(tags.map((tag) => redis.set(TAG_PREFIX + tag, now)));
   },
 };

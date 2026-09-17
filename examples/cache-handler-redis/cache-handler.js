@@ -49,8 +49,7 @@ function deserialize(text) {
 const client = createClient({
   url: process.env.REDIS_URL ?? "redis://localhost:6379",
   // Fail commands immediately while the connection is down instead of queueing
-  // them until Redis is back. Combined with the `isReady` check in
-  // `getClient`, a request never waits on an unavailable Redis.
+  // them until Redis is back.
   disableOfflineQueue: true,
 });
 
@@ -63,20 +62,30 @@ client.on("error", (error) => {
 });
 
 // Connecting to Redis during `next build` can cause issues, so we only connect
-// at runtime. The client keeps retrying in the background if Redis is
-// unavailable, so nothing awaits this promise: `connect()` does not settle
-// until a connection succeeds, and awaiting it would block requests for as
-// long as Redis is down.
-if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
-  client.connect().catch((error) => {
-    console.warn("Failed to connect to Redis:", error);
-  });
-}
+// at runtime.
+const connection =
+  process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
+    ? Promise.resolve()
+    : client.connect().catch((error) => {
+        console.warn("Failed to connect to Redis:", error);
+      });
 
-// Return the client when it's connected, or `null` when Redis is unavailable
-// so the app keeps working (without a shared cache) instead of hanging or
-// crashing. The client reconnects on its own once Redis is reachable again.
-function getClient() {
+// `connect()` stays pending for as long as Redis is unreachable, so cap the
+// wait: requests arriving during startup wait for the connection at most
+// once, and while Redis is down every request is served uncached instead of
+// blocking. The client keeps retrying in the background, so `isReady` flips
+// back on its own once Redis is reachable again.
+const CONNECT_TIMEOUT_MS = 1000;
+const ready = Promise.race([
+  connection,
+  // `unref()` so this timer never keeps the process alive.
+  new Promise((resolve) => setTimeout(resolve, CONNECT_TIMEOUT_MS).unref()),
+]);
+
+// Resolve a connected client, or `null` when Redis is unavailable so the app
+// keeps working (without a shared cache) instead of hanging or crashing.
+async function getClient() {
+  await ready;
   return client.isReady ? client : null;
 }
 
@@ -86,23 +95,25 @@ module.exports = class CacheHandler {
   }
 
   async get(key) {
-    const client = getClient();
+    const client = await getClient();
     if (!client) return null;
 
+    let entry;
     try {
-      const entry = await client.get(CACHE_PREFIX + key);
-      return entry ? deserialize(entry) : null;
+      entry = await client.get(CACHE_PREFIX + key);
     } catch (error) {
-      // A dropped connection mid-request degrades to a cache miss.
+      // A connection dropping mid-request degrades to a cache miss.
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
         console.warn("Redis get failed:", error);
       }
       return null;
     }
+
+    return entry ? deserialize(entry) : null;
   }
 
   async set(key, data, ctx) {
-    const client = getClient();
+    const client = await getClient();
     if (!client || !data) return;
 
     // Collect tags from both sources: `ctx.tags` (fetch entries) and the
@@ -122,12 +133,10 @@ module.exports = class CacheHandler {
       ? { expiration: { type: "EX", value: Math.max(1, Math.ceil(expire)) } }
       : {};
 
+    const value = serialize({ value: data, lastModified: Date.now(), tags });
+
     try {
-      await client.set(
-        CACHE_PREFIX + key,
-        serialize({ value: data, lastModified: Date.now(), tags }),
-        options,
-      );
+      await client.set(CACHE_PREFIX + key, value, options);
 
       // Index this key under each of its tags so `revalidateTag` can find it.
       await Promise.all(tags.map((tag) => client.sAdd(TAG_PREFIX + tag, key)));
@@ -139,25 +148,19 @@ module.exports = class CacheHandler {
   }
 
   async revalidateTag(tags) {
-    const client = getClient();
+    const client = await getClient();
     if (!client) return;
 
-    try {
-      // `tags` is either a single tag or an array of tags.
-      for (const tag of [tags].flat()) {
-        const tagKey = TAG_PREFIX + tag;
-        const keys = await client.sMembers(tagKey);
+    // `tags` is either a single tag or an array of tags.
+    for (const tag of [tags].flat()) {
+      const tagKey = TAG_PREFIX + tag;
+      const keys = await client.sMembers(tagKey);
 
-        if (keys.length) {
-          await client.del(keys.map((key) => CACHE_PREFIX + key));
-        }
+      if (keys.length) {
+        await client.del(keys.map((key) => CACHE_PREFIX + key));
+      }
 
-        await client.del(tagKey);
-      }
-    } catch (error) {
-      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.warn("Redis revalidateTag failed:", error);
-      }
+      await client.del(tagKey);
     }
   }
 
