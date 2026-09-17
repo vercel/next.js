@@ -91,6 +91,21 @@ export async function sendRenderResult({
   if (
     markdownConfig.enabled &&
     !isRsc &&
+    result.contentType === HTML_CONTENT_TYPE_HEADER
+  ) {
+    // Always vary HTML routes when the feature is on so a cached HTML
+    // response is not reused for Accept: text/markdown.
+    res.setHeader(
+      'Vary',
+      appendVary(
+        res.getHeader('Vary') as string | string[] | undefined,
+        'Accept'
+      )
+    )
+  }
+  if (
+    markdownConfig.enabled &&
+    !isRsc &&
     wantsAlternate &&
     result.contentType === HTML_CONTENT_TYPE_HEADER
   ) {
@@ -113,13 +128,6 @@ export async function sendRenderResult({
       authored,
       forced: markdownConfig.suffix ? (forced ?? null) : null,
     })
-    res.setHeader(
-      'Vary',
-      appendVary(
-        res.getHeader('Vary') as string | string[] | undefined,
-        'Accept'
-      )
-    )
     if (transformed) {
       payload = transformed.body
       markdownApplied = true
