@@ -436,6 +436,6 @@ Route (app)
 ƒ  (Dynamic)  server-rendered on demand
 ```
 
-The indented `/products/[id]` row is the fallback for IDs not returned by `generateStaticParams`. The other indented rows are the generated product paths. The product lookup blocks the generated paths before they produce HTML, while `params` blocks the fallback first. Every prerender is empty and uses `ƒ`. If a shared layout provided a static shell, Next.js would preserve it and use `◐` instead.
+The indented `/products/[id]` row is the fallback for IDs not returned by `generateStaticParams`. The other indented rows are the generated product paths. The product lookup blocks the generated paths before they produce HTML, while `params` blocks the fallback first. Every prerender is empty and uses `ƒ`. When a shared layout wraps `children` in `<Suspense>`, Next.js preserves its fallback as the static shell and uses `◐` instead.
 
 Synchronous values such as [`Math.random()`](/docs/messages/blocking-prerender-random), [`new Date()`](/docs/messages/blocking-prerender-current-time), and [`crypto.randomUUID()`](/docs/messages/blocking-prerender-crypto) still produce prerender errors.
