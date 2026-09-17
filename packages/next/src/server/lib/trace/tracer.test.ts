@@ -29,6 +29,7 @@ import {
   BaseServerSpan,
   InstrumentationSpan,
   LoadComponentsSpan,
+  MiddlewareSpan,
   NextNodeServerSpan,
   NodeSpan,
   RouteModuleSpan,
@@ -228,6 +229,48 @@ describe('local span recording', () => {
         }),
       }),
     ])
+  })
+
+  it('detaches in-process middleware from the active local request span', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    await getTracer().trace(
+      BaseServerSpan.handleRequest,
+      async (requestSpan) => {
+        expect(requestSpan).toBeDefined()
+        expect(getTracer().getActiveScopeSpan()).toBe(requestSpan)
+
+        await getTracer().runWithDetachedContext(async () => {
+          expect(getTracer().getActiveScopeSpan()).toBeUndefined()
+          await new Promise<void>((resolve) => setImmediate(resolve))
+          expect(getTracer().getActiveScopeSpan()).toBeUndefined()
+
+          await getTracer().trace(
+            MiddlewareSpan.execute,
+            async (middlewareSpan) => {
+              expect(middlewareSpan).toBeDefined()
+              await new Promise<void>((resolve) => setImmediate(resolve))
+              expect(getTracer().getActiveScopeSpan()).toBe(middlewareSpan)
+            }
+          )
+          expect(getTracer().getActiveScopeSpan()).toBeUndefined()
+        })
+
+        expect(getTracer().getActiveScopeSpan()).toBe(requestSpan)
+      }
+    )
+
+    const requestSpan = getSpanRecords({
+      name: BaseServerSpan.handleRequest,
+    })[0]
+    const middlewareSpan = getSpanRecords({ name: MiddlewareSpan.execute })[0]
+    expect(requestSpan).toBeDefined()
+    expect(middlewareSpan).toEqual(
+      expect.objectContaining({
+        parentSpanId: undefined,
+      })
+    )
+    expect(middlewareSpan.traceId).not.toBe(requestSpan.traceId)
   })
 
   it('only exports non-vanilla spans when verbose tracing is enabled', () => {
