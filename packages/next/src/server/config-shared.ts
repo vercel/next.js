@@ -490,6 +490,12 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
+   * Enables parameter matching segment configuration in App Router layouts
+   * and pages using Cache Components.
+   */
+  paramMatching?: boolean
+
+  /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
@@ -1624,6 +1630,9 @@ export type ExportPathMap = {
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
+    /** Whether the route rejects novel values of any parameter. @internal */
+    _hasNotFoundParams?: boolean
+
     /**
      * @internal
      */
@@ -2315,6 +2324,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
+    paramMatching: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
