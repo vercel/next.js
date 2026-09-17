@@ -619,8 +619,8 @@ function patchedNextTick() {
   }
 
   if (arguments.length === 0 || typeof arguments[0] !== 'function') {
-    // Let the original nextTick error for invalid arguments so that we don't
-    // have to mirror the error message.
+    // Let the original nextTick error for invalid arguments
+    // so that we don't have to mirror the error message.
     originalNextTick.apply(
       null,
       // @ts-expect-error: explicitly passing arguments that we know are invalid
@@ -657,6 +657,9 @@ function safelyRunNextTickCallback(
     `scheduler :: process.nextTick executing (still pending: ${pendingNextTicks})`
   )
 
+  // Synchronous errors in nextTick break out of `processTicksAndRejections` and cause us
+  // to move on to the next timer without having executed the whole nextTick queue,
+  // which breaks our entire scheduling mechanism. See `performWork` for more details.
   try {
     if (args !== null) {
       callback.apply(null, args)
@@ -664,11 +667,11 @@ function safelyRunNextTickCallback(
       callback()
     }
   } catch (err) {
-    // Rethrowing in a microtask keeps the exception from interrupting Node's
-    // tick-processing loop. We queue it only after an error, unlike
-    // performWork, to avoid an extra microtask for every successful tick. This
-    // means uncaughtException is reported after microtasks already queued by
-    // the callback.
+    // We want to make sure `nextTick` is cheap, so unlike `performWork`,
+    // we only queue the microtask if an error actually occurs.
+    // This (observably) changes the timing of `uncaughtException` even more,
+    // because it'll run after microtasks queued from the nextTick,
+    // but hopefully this is niche enough to not affect any real world code.
     queueMicrotask(() => {
       debug?.(`scheduler :: rethrowing sync error from nextTick in a microtask`)
       throw err
@@ -682,8 +685,7 @@ function patchedSetImmediate<TArgs extends any[]>(
 ): NodeJS.Immediate
 function patchedSetImmediate(callback: (args: void) => void): NodeJS.Immediate
 function patchedSetImmediate(): NodeJS.Immediate {
-  const execution = currentExecution
-  if (execution === null) {
+  if (currentExecution === null) {
     const immediate = originalSetImmediate.apply(
       null,
       // @ts-expect-error: this is valid, but typescript doesn't get it
@@ -704,7 +706,7 @@ function patchedSetImmediate(): NodeJS.Immediate {
 
     // We expect the above call to throw. If it didn't, something's broken.
     bail(
-      execution,
+      currentExecution,
       new InvariantError('Expected setImmediate to reject invalid arguments')
     )
   }
@@ -725,7 +727,7 @@ function patchedSetImmediate(): NodeJS.Immediate {
     args,
     immediateObject,
   }
-  execution.queuedImmediates.push(queueItem)
+  currentExecution.queuedImmediates.push(queueItem)
 
   immediateObject[INTERNALS].queueItem = queueItem
 
