@@ -24,6 +24,10 @@ import {
   StaleRequestInsightsHistoryCursorError,
 } from './request-insights-journal'
 import { recordSpan } from './span-store'
+import { createLocalRenderTiming } from './react-render-timing'
+import { registerLocalSpanRecorder } from './local-span-recorder'
+import { AppRenderSpan } from './constants'
+import { getTracer } from './tracer'
 import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
@@ -890,6 +894,102 @@ describe('request insights', () => {
       ).toEqual(['two', 'tri'])
     } finally {
       stat.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it('journals captured React intervals after completion and live eviction', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerLocalSpanRecorder()
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const identity = {
+      requestId: 'react-stream',
+      htmlRequestId: 'react-stream',
+      url: '/react-timings',
+    }
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+      startRequestInsight(identity)
+      let render!: NonNullable<ReturnType<typeof createLocalRenderTiming>>
+      let parentSpanId!: string
+      runWithRequestInsightsIdentity(identity, () =>
+        getTracer().trace(AppRenderSpan.renderToReadableStream, (span) => {
+          parentSpanId = span!.spanContext().spanId
+          render = createLocalRenderTiming()!
+          render.start()
+        })
+      )
+      completeRequestInsight(identity)
+      const completed = getRequestInsightsSnapshot().requests[0]
+      const responseTiming = {
+        startTime: completed.startTime,
+        durationMs: completed.durationMs,
+      }
+
+      render.readFlightChunk('0:D"$1"\n0:D"$2"\n0:D"$3"\n')
+      render.readDebugChunk(
+        ':N1000\n1:{"time":2}\n2:{"name":"Page","env":"Server","owner":"$5","stack":[["Layout","file:///app/layout.tsx",12,7]]}\n3:{"time":5}\n5:{"name":"Layout"}\n'
+      )
+      await Promise.resolve()
+      expect(getRequestInsightsSnapshot().requests[0]).toMatchObject({
+        ...responseTiming,
+        spans: expect.arrayContaining([
+          expect.objectContaining({ name: 'ReactServerComponents.component' }),
+        ]),
+      })
+
+      for (let i = 0; i < MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; i++) {
+        const other = { requestId: `other-${i}` }
+        startRequestInsight(other)
+        recordSpan({ name: 'GET /', ...other })
+        completeRequestInsight(other)
+      }
+      render.readFlightChunk('f:D"$1"\nf:D"$2"\nf:D"$3"\n')
+      render.readDebugChunk('4:{"name":"' + 'x'.repeat(1024 * 1024))
+      render.finishFlight()
+      render.finishDebug()
+
+      const [stored] = await readRequestInsightsJournal(distDir, identity)
+      expect(stored).toMatchObject(responseTiming)
+      const intervals = stored.spans.filter(
+        (span) => span.name === 'ReactServerComponents.component'
+      )
+      expect(intervals).toHaveLength(2)
+      expect(stored.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'ReactServerComponents.incomplete',
+            parentSpanId,
+            attributes: expect.objectContaining({
+              'next.rsc.render_id':
+                intervals[0].attributes!['next.rsc.render_id'],
+              'next.rsc.incomplete_reason': 'budget',
+            }),
+          }),
+        ])
+      )
+      for (const interval of intervals) {
+        expect(interval).toMatchObject({
+          parentSpanId,
+          durationMs: 3,
+          attributes: {
+            'next.rsc.source.file': 'file:///app/layout.tsx',
+            'next.rsc.source.line': 12,
+            'next.rsc.source.column': 7,
+            'next.rsc.source.name': 'Layout',
+            'next.rsc.component_path': 'Layout › Page',
+          },
+        })
+      }
+      expect(intervals[0].spanId).not.toBe(intervals[1].spanId)
+      expect(
+        getRequestInsightsSnapshot().requests.some(
+          (request) => request.requestId === identity.requestId
+        )
+      ).toBe(false)
+    } finally {
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
