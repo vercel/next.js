@@ -1,5 +1,6 @@
 import {
   warnOptionHasBeenMovedOutOfExperimental,
+  warnOptionHasBeenMovedToFuture,
   warnOptionHasBeenDeprecated,
 } from 'next/dist/server/config'
 import stripAnsi from 'strip-ansi'
@@ -134,6 +135,105 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
         '⚠ `experimental.bundlePagesExternals` has been moved to `bundlePagesRouterDependencies`. Please update your next.config.js file accordingly.'
       )
     )
+  })
+})
+
+describe('warnOptionHasBeenMovedToFuture', () => {
+  let spy: jest.SpyInstance
+  beforeAll(() => {
+    spy = jest.spyOn(console, 'warn').mockImplementation((...args) => {
+      const [prefix, ...restArgs] = args
+      const formattedFirstArg = stripAnsi(prefix)
+      // pass the rest of the arguments to the spied console.warn
+      // @ts-expect-error accessing the mocked console.warn
+      console.warn.mock.calls.push([formattedFirstArg, ...restArgs])
+    })
+  })
+
+  beforeEach(() => {
+    spy.mockClear()
+  })
+
+  it('should not log a warning without the experimental config', () => {
+    warnOptionHasBeenMovedToFuture(
+      {},
+      'someOption',
+      'someOption',
+      'next.config.js',
+      false
+    )
+
+    warnOptionHasBeenMovedToFuture(
+      { experimental: {} },
+      'someOption',
+      'someOption',
+      'next.config.js',
+      false
+    )
+
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('should warn and move the option into `future`', () => {
+    const config = {
+      experimental: {
+        someOption: true,
+      },
+    } as any
+
+    warnOptionHasBeenMovedToFuture(
+      config,
+      'someOption',
+      'someOption',
+      'next.config.js',
+      false
+    )
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '⚠ `experimental.someOption` has been moved to `future.someOption`. Please update your next.config.js file accordingly.'
+      )
+    )
+    expect(config.future.someOption).toBe(true)
+    // The old value is left in place, like `warnOptionHasBeenMovedOutOfExperimental` does.
+    expect(config.experimental.someOption).toBe(true)
+  })
+
+  it('should merge into an existing `future` config', () => {
+    const config = {
+      experimental: { someOption: 'value' },
+      future: { otherOption: true },
+    } as any
+
+    warnOptionHasBeenMovedToFuture(
+      config,
+      'someOption',
+      'renamedOption',
+      'next.config.js',
+      false
+    )
+
+    expect(config.future).toEqual({
+      otherOption: true,
+      renamedOption: 'value',
+    })
+  })
+
+  it('should move the option without warning when silent', () => {
+    const config = {
+      experimental: { someOption: true },
+    } as any
+
+    warnOptionHasBeenMovedToFuture(
+      config,
+      'someOption',
+      'someOption',
+      'next.config.js',
+      true
+    )
+
+    expect(spy).not.toHaveBeenCalled()
+    expect(config.future.someOption).toBe(true)
   })
 })
 

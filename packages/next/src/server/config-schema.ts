@@ -15,6 +15,7 @@ import {
   type TurbopackRuleCondition,
   type TurbopackLoaderBuiltinCondition,
 } from './config-shared'
+import type { FutureConfig } from './config-shared'
 import type {
   Header,
   Rewrite,
@@ -190,6 +191,19 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     )
     .optional(),
 })
+
+/**
+ * Schema for the `future` config: the staging stage between `experimental` and
+ * stable, top-level options. Empty until the first option graduates out of
+ * `experimental`.
+ *
+ * The `satisfies` constraint makes a new `FutureConfig` option a type error
+ * until its validator is added here.
+ */
+export const futureSchema = {} satisfies Record<
+  keyof FutureConfig,
+  zod.ZodTypeAny
+>
 
 export const experimentalSchema = {
   outputHashSalt: z.string().optional(),
@@ -667,6 +681,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       )
       .returns(z.union([zExportMap, z.promise(zExportMap)]))
       .optional(),
+    future: z.strictObject(futureSchema).optional(),
     generateBuildId: z
       .function()
       .args()

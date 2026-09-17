@@ -3,7 +3,7 @@ import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
-import { experimentalSchema } from '../config-schema'
+import { experimentalSchema, futureSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
@@ -79,38 +79,63 @@ export function logExperimentalInfo({
   }
 
   if (experimentalFeatures?.length) {
-    Log.bootstrap(`- Experiments (use with caution):`)
-    for (const exp of experimentalFeatures) {
-      const isValid = Object.prototype.hasOwnProperty.call(
-        experimentalSchema,
-        exp.key
-      )
-      if (isValid) {
-        const symbol =
-          typeof exp.value === 'boolean'
-            ? exp.value === true
-              ? bold('✓')
-              : bold('⨯')
-            : '·'
+    // Features set in `future` are a separate, more stable stage than the ones
+    // set in `experimental`, so they get their own block.
+    const features = experimentalFeatures.filter(
+      (feature) => feature.stage !== 'future'
+    )
+    const futureFeatures = experimentalFeatures.filter(
+      (feature) => feature.stage === 'future'
+    )
 
-        const suffix =
-          typeof exp.value === 'number' || typeof exp.value === 'string'
-            ? `: ${JSON.stringify(exp.value)}`
-            : ''
+    if (features.length) {
+      Log.bootstrap(`- Experiments (use with caution):`)
+      for (const exp of features) {
+        logConfiguredFeature(exp, experimentalSchema, 'experimental')
+      }
+    }
 
-        const reason = exp.reason ? ` (${exp.reason})` : ''
-
-        Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
-      } else {
-        Log.bootstrap(
-          `  ? ${strikethrough(exp.key)} (invalid experimental key)`
-        )
+    if (futureFeatures.length) {
+      Log.bootstrap(`- Future features:`)
+      for (const feature of futureFeatures) {
+        logConfiguredFeature(feature, futureSchema, 'future')
       }
     }
   }
 
   // New line after the bootstrap info
   Log.info('')
+}
+
+function logConfiguredFeature(
+  feature: ConfiguredExperimentalFeature,
+  schema: object,
+  stageName: 'experimental' | 'future'
+) {
+  const isValid = Object.prototype.hasOwnProperty.call(schema, feature.key)
+
+  if (!isValid) {
+    Log.bootstrap(
+      `  ? ${strikethrough(feature.key)} (invalid ${stageName} key)`
+    )
+    return
+  }
+
+  const symbol =
+    typeof feature.value === 'boolean'
+      ? feature.value === true
+        ? bold('✓')
+        : bold('⨯')
+      : '·'
+
+  const suffix =
+    typeof feature.value === 'number' || typeof feature.value === 'string'
+      ? `: ${JSON.stringify(feature.value)}`
+      : ''
+
+  const reason = feature.reason ? ` (${feature.reason})` : ''
+
+  Log.bootstrap(`  ${symbol} ${feature.key}${suffix}${reason}`)
 }
 
 /**

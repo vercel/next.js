@@ -23,6 +23,7 @@ import {
 } from './config-shared'
 import type {
   ExperimentalConfig,
+  FutureConfig,
   NextConfigComplete,
   NextConfig,
   NextConfigRuntime,
@@ -314,6 +315,35 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   return config
 }
 
+/**
+ * Forwards an option that has been promoted from the `experimental` stage to
+ * the `future` stage, so that `experimental.<oldExperimentalKey>` keeps working
+ * while warning the user to move it to `future.<newFutureKey>`.
+ */
+export function warnOptionHasBeenMovedToFuture(
+  config: NextConfig,
+  oldExperimentalKey: string,
+  newFutureKey: string,
+  configFileName: string,
+  silent: boolean
+) {
+  if (config.experimental && oldExperimentalKey in config.experimental) {
+    if (!silent) {
+      Log.warn(
+        `\`experimental.${oldExperimentalKey}\` has been moved to \`future.${newFutureKey}\`. ` +
+          `Please update your ${configFileName} file accordingly.`
+      )
+    }
+
+    config.future ??= {}
+    ;(config.future as any)[newFutureKey] = (config.experimental as any)[
+      oldExperimentalKey
+    ]
+  }
+
+  return config
+}
+
 function warnCustomizedOption(
   config: NextConfig,
   key: string,
@@ -453,6 +483,10 @@ function assignDefaultsAndValidate(
     experimental: {
       ...defaultConfig.experimental,
       ...config.experimental,
+    },
+    future: {
+      ...defaultConfig.future,
+      ...config.future,
     },
   }
 
@@ -2159,6 +2193,18 @@ async function loadConfigImpl(
       }
     }
 
+    if (loadedConfig.future) {
+      for (const name of Object.keys(
+        loadedConfig.future
+      ) as (keyof FutureConfig)[]) {
+        addConfiguredFutureFeature(
+          configuredExperimentalFeatures,
+          name,
+          loadedConfig.future[name]
+        )
+      }
+    }
+
     // Clone a new userConfig each time to avoid mutating the original
     const userConfig = cloneObject(loadedConfig) as NextConfig
 
@@ -2369,9 +2415,16 @@ async function loadConfigImpl(
 }
 
 export type ConfiguredExperimentalFeature = {
-  key: keyof ExperimentalConfig
-  value: ExperimentalConfig[keyof ExperimentalConfig]
+  key: keyof ExperimentalConfig | keyof FutureConfig
+  value:
+    | ExperimentalConfig[keyof ExperimentalConfig]
+    | FutureConfig[keyof FutureConfig]
   reason?: string
+  /**
+   * Which config stage the option was set in. Omitted for options set in
+   * `experimental`, which is the default.
+   */
+  stage?: 'experimental' | 'future'
 }
 
 function enforceExperimentalFeatures(
@@ -2553,6 +2606,17 @@ function addConfiguredExperimentalFeature<
 ) {
   if (value !== (defaultConfig.experimental as Record<string, unknown>)[key]) {
     configuredExperimentalFeatures.push({ key, value, reason })
+  }
+}
+
+function addConfiguredFutureFeature<KeyType extends keyof FutureConfig>(
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
+  key: KeyType,
+  value: FutureConfig[KeyType],
+  reason?: string
+) {
+  if (value !== (defaultConfig.future as Record<string, unknown>)[key]) {
+    configuredExperimentalFeatures.push({ key, value, reason, stage: 'future' })
   }
 }
 

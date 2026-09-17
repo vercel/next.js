@@ -308,4 +308,47 @@ describe('loadConfig', () => {
       expect(result.experimental.durableUseCacheEntries).toBe(true)
     })
   })
+
+  describe('future config', () => {
+    it('defaults to an empty object', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(result.future).toEqual({})
+    })
+
+    it('keeps user-provided values', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: { future: { someFutureOption: true } as any },
+      })
+
+      expect(result.future).toEqual({ someFutureOption: true })
+    })
+  })
+})
+
+describe('configSchema', () => {
+  let configSchema: typeof import('./config-schema').configSchema
+
+  beforeEach(async () => {
+    jest.resetModules()
+    configSchema = (await import('./config-schema')).configSchema
+  })
+
+  it('accepts a config without a `future` key', () => {
+    expect(configSchema.safeParse({}).success).toBe(true)
+  })
+
+  it('accepts an empty `future` object', () => {
+    expect(configSchema.safeParse({ future: {} }).success).toBe(true)
+  })
+
+  it('rejects an unknown key inside `future`', () => {
+    const result = configSchema.safeParse({
+      future: { someUnknownFutureOption: true },
+    })
+
+    expect(result.success).toBe(false)
+  })
 })

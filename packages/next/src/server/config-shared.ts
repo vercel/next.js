@@ -1687,6 +1687,18 @@ export type ValidationLevel =
   | 'experimental-error'
   | 'experimental-manual-error'
 
+/**
+ * Options in the staging stage between `experimental` and stable.
+ *
+ * An option graduates out of `experimental` into `future` once it is expected
+ * to become a stable, top-level option: its shape is settled and it is safe to
+ * adopt. Unlike `experimental` options, `future` options are not expected to
+ * change or be removed in a minor release — but they may still change in a
+ * major release before they graduate to a top-level option.
+ */
+// No option has graduated into this stage yet, so the interface is empty.
+export interface FutureConfig {}
+
 export interface NextConfig {
   allowedDevOrigins?: string[]
 
@@ -2141,6 +2153,17 @@ export interface NextConfig {
   experimental?: ExperimentalConfig
 
   /**
+   * Enable features that are staged to become stable, top-level options.
+   *
+   * `future` is the stage after `experimental`: an option lands in
+   * `experimental.<option>`, moves to `future.<option>` once its shape is
+   * settled, and finally graduates to a top-level `<option>`. Options here are
+   * safe to adopt and are not expected to change in a minor release, but may
+   * still change in a major release.
+   */
+  future?: FutureConfig
+
+  /**
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
    */
@@ -2314,6 +2337,7 @@ export const defaultConfig = Object.freeze({
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+  future: {},
   experimental: {
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
