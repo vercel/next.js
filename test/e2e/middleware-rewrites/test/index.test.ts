@@ -237,6 +237,20 @@ describe('Middleware Rewrite', () => {
       expect(await browser.eval('window.beforeNav')).not.toBe(1)
     })
 
+    it('should render the 404 page when fallback getStaticProps returns notFound', async () => {
+      const browser = await next.browser('/')
+      await browser.eval(`next.router.push('/fallback-true-blog/not-found')`)
+
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'custom 404 page'
+        )
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/not-found'
+      )
+    })
+
     // TODO: middleware effect headers aren't available here
     it.skip('includes the locale in rewrites by default', async () => {
       const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)
