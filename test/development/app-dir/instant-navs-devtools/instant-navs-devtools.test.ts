@@ -921,6 +921,7 @@ describe('instant-nav-panel', () => {
       await clickStartCapturing(browser)
       await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
       await retry(async () => {
         expect(await browser.url()).toContain('/target-page/my-post')
       }, 10000)

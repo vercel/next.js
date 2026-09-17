@@ -305,53 +305,10 @@ describe('searchparams-reuse-loading', () => {
         )
         await id3FullPrefetchResponse
         interceptRequests = true
-        // The first link we click is "auto" prefetched.
-        await browser
-          .elementByCss(`[href="${searchParamsPagePath}?id=1"]`)
-          .click()
 
-        // We expect to click it and immediately see a loading state
-        expect(await browser.elementById('loading').text()).toBe('Loading...')
-        // We only resolve the dynamic request after we've confirmed loading exists,
-        // to avoid a race where the dynamic request handles the loading state instead.
-        let dynamicRequest = rscRequestPromise.get(
-          `${searchParamsPagePath}?id=1`
-        )
-
-        expect(dynamicRequest).toBeDefined()
-
-        // resolve the promise
-        await dynamicRequest.resolve()
-        dynamicRequest = undefined
-
-        // Confirm the params are correct
-        const params = await browser.waitForElementByCss('#params').text()
-        expect(params).toBe('{"id":"1"}')
-
-        await browser.elementByCss(`[href='${path}']`).click()
-
-        // Do the exact same thing again, for another prefetch auto link, to ensure
-        // loading works as expected and we get different search params
-        await browser
-          .elementByCss(`[href="${searchParamsPagePath}?id=2"]`)
-          .click()
-        expect(await browser.elementById('loading').text()).toBe('Loading...')
-        dynamicRequest = rscRequestPromise.get(`${searchParamsPagePath}?id=2`)
-        expect(dynamicRequest).toBeDefined()
-
-        // resolve the promise
-        await dynamicRequest.resolve()
-        dynamicRequest = undefined
-
-        const params2 = await browser.waitForElementByCss('#params').text()
-        expect(params2).toBe('{"id":"2"}')
-
-        // Dev mode doesn't perform full prefetches, so this test is conditional
-        await browser.elementByCss(`[href='${path}']`).click()
-
-        // A full prefetch should satisfy this navigation without a dynamic RSC
-        // request. Let an unexpected fallback complete so the assertion below
-        // reports the prefetch miss instead of hanging on an intercepted request.
+        // Exercise the full prefetch immediately after observing its response.
+        // Running the two stalled dynamic navigations first can exceed the
+        // prefetch cache's stale time on a slow CI worker.
         shouldStallDynamicRequests = false
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
@@ -362,6 +319,44 @@ describe('searchparams-reuse-loading', () => {
         expect(nonPrefetchRscRequests.has(`${searchParamsPagePath}?id=3`)).toBe(
           false
         )
+
+        await browser.elementByCss(`[href='${path}']`).click()
+        shouldStallDynamicRequests = true
+
+        // The first "auto" prefetched link should show its loading state while
+        // the dynamic request is stalled.
+        await browser
+          .elementByCss(`[href="${searchParamsPagePath}?id=1"]`)
+          .click()
+        expect(await browser.elementById('loading').text()).toBe('Loading...')
+
+        let dynamicRequest = rscRequestPromise.get(
+          `${searchParamsPagePath}?id=1`
+        )
+        expect(dynamicRequest).toBeDefined()
+
+        await dynamicRequest.resolve()
+        dynamicRequest = undefined
+
+        const params = await browser.waitForElementByCss('#params').text()
+        expect(params).toBe('{"id":"1"}')
+
+        await browser.elementByCss(`[href='${path}']`).click()
+
+        // Repeat with another auto-prefetched link to ensure the loading state
+        // is reused with different search params.
+        await browser
+          .elementByCss(`[href="${searchParamsPagePath}?id=2"]`)
+          .click()
+        expect(await browser.elementById('loading').text()).toBe('Loading...')
+        dynamicRequest = rscRequestPromise.get(`${searchParamsPagePath}?id=2`)
+        expect(dynamicRequest).toBeDefined()
+
+        await dynamicRequest.resolve()
+        dynamicRequest = undefined
+
+        const params2 = await browser.waitForElementByCss('#params').text()
+        expect(params2).toBe('{"id":"2"}')
       })
     })
 
