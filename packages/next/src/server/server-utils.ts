@@ -141,20 +141,6 @@ export function normalizeDynamicRouteParams(
     return false
   }
 
-  const isEncodedDefaultValueMatch = (
-    candidateValue: string | undefined,
-    defaultValue: string
-  ) => {
-    if (
-      !candidateValue ||
-      decodeQueryPathParameter(candidateValue) === candidateValue
-    ) {
-      return false
-    }
-
-    return isDefaultValueMatch(candidateValue, defaultValue)
-  }
-
   let hasValidParams = true
   let params: ParsedUrlQuery = {}
 
@@ -187,22 +173,13 @@ export function normalizeDynamicRouteParams(
       isOptional &&
       ignoreMissingOptional &&
       rawValues.length === 1 &&
-      (routeParamKeys?.has(key) === true ||
-        (Array.isArray(defaultValue)
-          ? defaultValue.some((defaultVal) =>
-              isEncodedDefaultValueMatch(rawValues[0], defaultVal)
-            )
-          : isEncodedDefaultValueMatch(
-              rawValues[0],
-              defaultValue as string
-            ))) &&
+      routeParamKeys?.has(key) === true &&
       isDefaultValue
 
     // The proxy represents an omitted optional catch-all with a single route
     // placeholder. Prefixed route params are decoded before reaching here, so
-    // use their provenance as well as encoding to identify that sentinel. A
-    // literal pathname match or a matching value among multiple segments is
-    // valid catch-all input.
+    // use their provenance to identify that sentinel. A literal pathname match
+    // or a matching value among multiple segments is valid catch-all input.
     if (isProxyOptionalDefaultValue) {
       delete query[key]
       continue
@@ -464,7 +441,8 @@ export function getServerUtils({
 
   function normalizeQueryParams(
     query: Record<string, string | string[] | undefined>,
-    routeParamKeys: Set<string>
+    routeParamKeys: Set<string>,
+    decodedRouteParamKeys?: Set<string>
   ) {
     // this is used to pass query information in rewrites
     // but should not be exposed in final query
@@ -481,9 +459,14 @@ export function getServerUtils({
 
       if (typeof value === 'undefined') continue
 
-      query[normalizedKey] = Array.isArray(value)
-        ? value.map((v) => decodeQueryPathParameter(v))
-        : decodeQueryPathParameter(value)
+      // Captures already present in the incoming URL were decoded by the
+      // platform. Params injected by matching a template pathname still need
+      // their pathname decode. Avoid decoding literal percent escapes twice.
+      query[normalizedKey] = decodedRouteParamKeys?.has(normalizedKey)
+        ? value
+        : Array.isArray(value)
+          ? value.map((v) => decodeQueryPathParameter(v))
+          : decodeQueryPathParameter(value)
     }
   }
 
@@ -499,7 +482,7 @@ export function getServerUtils({
      *
      * @param query - The query params to normalize.
      * @param ignoreMissingOptional - Whether to ignore missing optional params.
-     * @param routeParamKeys - Params supplied by an upstream route matcher.
+     * @param routeParamKeys - Unresolved params injected by an upstream route matcher.
      * @returns The normalized params and whether they are valid.
      */
     normalizeDynamicRouteParams: (

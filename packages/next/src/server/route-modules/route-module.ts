@@ -30,6 +30,7 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../shared/lib/constants'
 import { parseReqUrl } from '../../lib/url'
+import { normalizeNextQueryParam } from '../web/utils'
 import {
   normalizeLocalePath,
   type PathLocale,
@@ -843,14 +844,20 @@ export abstract class RouteModule<
 
     // attempt parsing from pathname
     if (!params && serverUtils.dynamicRouteMatcher) {
-      const paramsMatch = serverUtils.dynamicRouteMatcher(
-        normalizeDataPath(
-          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
-        )
+      const pathname = normalizeDataPath(
+        rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
       )
+      const paramsMatch = serverUtils.dynamicRouteMatcher(pathname)
+      // An adapter can invoke the route template with no query params when an
+      // optional catch-all is omitted. Those template segments are unresolved,
+      // so let the query resolve the omission instead of treating the template
+      // as literal pathname data. Ordinary requests still preserve literals.
+      const isUpstreamRouteTemplate =
+        getRequestMeta(req, 'minimalMode') === true &&
+        pathname === normalizedSrcPage
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         paramsMatch || {},
-        true
+        !isUpstreamRouteTemplate
       )
 
       if (paramsResult.hasValidParams) {
@@ -909,8 +916,20 @@ export abstract class RouteModule<
     serverUtils.normalizeCdnUrl(req, combinedParamKeys)
     // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
     // Outside of that environment, there is no reason to do any normalization to honor those query values.
+    const capturedRouteParamKeys = new Set<string>()
     if (!routerServerContext?.isWrappedByNextServer) {
-      serverUtils.normalizeQueryParams(query, routeParamKeys)
+      const initialQuery = parseReqUrl(
+        getRequestMeta(req, 'initURL') || ''
+      )?.query
+      for (const key of Object.keys(initialQuery || {})) {
+        const normalizedKey = normalizeNextQueryParam(key)
+        if (normalizedKey) capturedRouteParamKeys.add(normalizedKey)
+      }
+      serverUtils.normalizeQueryParams(
+        query,
+        routeParamKeys,
+        capturedRouteParamKeys
+      )
     } else {
       serverUtils.filterInternalQuery(query, [])
     }
@@ -919,13 +938,22 @@ export abstract class RouteModule<
     if (pageIsDynamic) {
       const routeParamsInQuery = new Set(
         Object.keys(serverUtils.defaultRouteMatches || {}).filter(
-          (key) => query[key] !== undefined
+          (key) => routeParamKeys.has(key) && query[key] !== undefined
+        )
+      )
+      // Adapters may inject params by matching the rewritten route template.
+      // A value captured from the incoming URL is literal input, even if it
+      // looks like a placeholder. Only params added after initURL was recorded
+      // can represent an omitted optional segment.
+      const placeholderRouteParamKeys = new Set(
+        Array.from(routeParamKeys).filter(
+          (key) => !capturedRouteParamKeys.has(key)
         )
       )
       const queryResult = serverUtils.normalizeDynamicRouteParams(
         query,
         true,
-        routeParamKeys
+        placeholderRouteParamKeys
       )
 
       const paramsResult = serverUtils.normalizeDynamicRouteParams(

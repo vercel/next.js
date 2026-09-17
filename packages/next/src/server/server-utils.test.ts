@@ -87,7 +87,9 @@ describe('normalizeDynamicRouteParams', () => {
       filterSlugs: ['%5B%5B...filterSlugs%5D%5D'],
     }
 
-    expect(normalizeDynamicRouteParams(query, true)).toEqual({
+    expect(
+      normalizeDynamicRouteParams(query, true, new Set(['filterSlugs']))
+    ).toEqual({
       params: { locale: 'en' },
       hasValidParams: true,
     })
@@ -110,7 +112,8 @@ describe('normalizeDynamicRouteParams', () => {
           locale: 'en',
           filterSlugs: '%255B%255B...filterSlugs%255D%255D',
         },
-        true
+        true,
+        new Set(['filterSlugs'])
       )
     ).toEqual({
       params: { locale: 'en' },
@@ -118,7 +121,11 @@ describe('normalizeDynamicRouteParams', () => {
     })
   })
 
-  it('should preserve a literal optional catch-all value that matches the route placeholder', () => {
+  it.each([
+    '[[...filterSlugs]]',
+    '%5B%5B...filterSlugs%5D%5D',
+    '%255B%255B...filterSlugs%255D%255D',
+  ])('should preserve the literal optional catch-all value %s', (value) => {
     const { normalizeDynamicRouteParams } = getServerUtils({
       page: '/[locale]/[[...filterSlugs]]',
       basePath: '',
@@ -129,19 +136,19 @@ describe('normalizeDynamicRouteParams', () => {
     })
     const query = {
       locale: 'en',
-      filterSlugs: ['[[...filterSlugs]]'],
+      filterSlugs: [value],
     }
 
     expect(normalizeDynamicRouteParams(query, true)).toEqual({
       params: {
         locale: 'en',
-        filterSlugs: ['[[...filterSlugs]]'],
+        filterSlugs: [value],
       },
       hasValidParams: true,
     })
     expect(query).toEqual({
       locale: 'en',
-      filterSlugs: ['[[...filterSlugs]]'],
+      filterSlugs: [value],
     })
   })
 
@@ -326,5 +333,29 @@ describe('normalizeDynamicRouteParams', () => {
       },
       hasValidParams: true,
     })
+  })
+})
+
+describe('normalizeQueryParams', () => {
+  it('preserves percent escapes in captures already decoded by the platform', () => {
+    const { normalizeQueryParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+    const query = {
+      nxtPlocale: 'en',
+      nxtPfilterSlugs: '%5B%5B...filterSlugs%5D%5D',
+    }
+    const keys = new Set<string>()
+    normalizeQueryParams(query, keys, new Set(['locale', 'filterSlugs']))
+    expect(query).toEqual({
+      locale: 'en',
+      filterSlugs: '%5B%5B...filterSlugs%5D%5D',
+    })
+    expect(keys).toEqual(new Set(['locale', 'filterSlugs']))
   })
 })
