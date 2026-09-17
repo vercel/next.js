@@ -168,7 +168,7 @@ graph TD
     Export(
         "GET",
     ): 0,
-    Exports: 1,
+    Exports: 4,
 }
 ```
 
@@ -196,6 +196,21 @@ export { };
 
 ```
 ## Part 1
+```js
+export { };
+
+```
+## Part 2
+```js
+export { };
+
+```
+## Part 3
+```js
+export { };
+
+```
+## Part 4
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
@@ -231,7 +246,7 @@ export { };
     Export(
         "GET",
     ): 0,
-    Exports: 1,
+    Exports: 4,
 }
 ```
 
@@ -259,6 +274,21 @@ export { };
 
 ```
 ## Part 1
+```js
+export { };
+
+```
+## Part 2
+```js
+export { };
+
+```
+## Part 3
+```js
+export { };
+
+```
+## Part 4
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
