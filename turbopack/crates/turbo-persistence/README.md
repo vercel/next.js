@@ -57,6 +57,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 4 bytes zstd dictionary ID (zero when no dictionary is configured)
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -375,6 +376,16 @@ Configuration options for compactions are:
 
 - max number of SST files that are merged at once
 - coverage when compaction is triggered (otherwise calling compact is a noop)
+
+## Training a zstd dictionary
+
+```sh
+cargo run -p turbo-persistence --release --bin zstd_dictionary -- \
+  --family <id> --output dictionary.zdict \
+  path/to/database-a path/to/database-b
+```
+
+This produces a new dictionary.
 
 ## Opening
 

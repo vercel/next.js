@@ -2,12 +2,6 @@
 //!
 //! This tool inspects SST files to report entry type statistics per family,
 //! useful for verifying that inline value optimization is being used.
-//!
-//! Entry types are the `KEY_BLOCK_ENTRY_TYPE_*` constants in
-//! [`turbo_persistence::static_sorted_file`]; the `--help` output lists them with their current
-//! values. The two ranged kinds encode a size in the type byte: an inline value's byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`, and a key-value tombstone's deleted byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -16,21 +10,20 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
-use fs_err::{self as fs, File};
+use clap::Parser;
+use fs_err::File;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
-    meta_file::MetaFile,
+    BLOCK_HEADER_SIZE, Compression, CompressionConfig, checksum_block,
     mmap_helper::advise_mmap_for_persistence,
-    read_current_version,
-    sst_filter::SstFilter,
+    offline::{SstInfo, collect_sst_info},
     static_sorted_file::{
-        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
+        BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
         KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
         KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
-        key_block_table_stride,
+        KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
@@ -129,13 +122,6 @@ impl SstStats {
     }
 }
 
-/// Information about an SST file from the meta file
-struct SstInfo {
-    sequence_number: u32,
-    block_count: u16,
-    compression: Compression,
-}
-
 /// Accumulates statistics for a single entry of the given type.
 fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
     *stats.entry_type_counts.entry(entry_type).or_insert(0) += 1;
@@ -220,79 +206,6 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
-/// Collect SST info from all active meta files in the database directory,
-/// mirroring the DB's own open logic: read CURRENT, filter by .del files,
-/// and apply SstFilter to skip superseded entries.
-fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
-    // Read the CURRENT sequence number — only files with seq <= current are valid.
-    let current = read_current_version(db_path)?
-        .context("CURRENT file is missing")?
-        .max_sequence_number;
-
-    // Read .del files to find sequences that were deleted but not yet cleaned up.
-    let mut deleted_seqs: HashSet<u32> = HashSet::new();
-    for entry in fs::read_dir(db_path)? {
-        let path = entry?.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("del") {
-            let content = fs::read(&path)?;
-            let mut cursor: &[u8] = &content;
-            while !cursor.is_empty() {
-                deleted_seqs.insert(cursor.read_u32::<BE>()?);
-            }
-        }
-    }
-
-    // Collect valid meta sequence numbers.
-    let mut meta_seqs: Vec<u32> = fs::read_dir(db_path)?
-        .filter_map(|e| e.ok())
-        .filter_map(|e| {
-            let path = e.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("meta") {
-                return None;
-            }
-            let seq: u32 = path.file_stem()?.to_str()?.parse().ok()?;
-            if seq > current || deleted_seqs.contains(&seq) {
-                return None;
-            }
-            Some(seq)
-        })
-        .collect();
-
-    if meta_seqs.is_empty() {
-        bail!("No active .meta files found in {}", db_path.display());
-    }
-
-    meta_seqs.sort_unstable();
-
-    let mut meta_files: Vec<MetaFile> = meta_seqs
-        .iter()
-        .map(|&seq| {
-            MetaFile::open(db_path, seq, None, turbo_persistence::AccessMode::Mmap)
-                .with_context(|| format!("Failed to open {seq:08}.meta"))
-        })
-        .collect::<Result<_>>()?;
-
-    // Apply SstFilter (newest first) to drop entries superseded by a newer meta file.
-    let mut sst_filter = SstFilter::new();
-    for meta in meta_files.iter_mut().rev() {
-        sst_filter.apply_filter(meta);
-    }
-
-    let mut family_sst_info: BTreeMap<u32, Vec<SstInfo>> = BTreeMap::new();
-    for meta in &meta_files {
-        let family = meta.family();
-        for entry in meta.entries() {
-            family_sst_info.entry(family).or_default().push(SstInfo {
-                sequence_number: entry.sequence_number(),
-                block_count: entry.block_count(),
-                compression: meta.compression(),
-            });
-        }
-    }
-
-    Ok(family_sst_info)
-}
-
 /// Information about a raw block read from disk.
 struct RawBlock {
     data: Box<[u8]>,
@@ -307,7 +220,7 @@ fn read_block(
     block_offsets_start: usize,
     block_index: u16,
     sequence_number: u32,
-    compression: Compression,
+    compression: CompressionConfig,
 ) -> Result<RawBlock> {
     let offset = block_offsets_start + block_index as usize * size_of::<u32>();
 
@@ -348,11 +261,18 @@ fn read_block(
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
         let bytes_written = match compression {
-            Compression::Lz4 => {
+            CompressionConfig::Lz4 => {
                 decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
             }
-            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
-                .context("zstd decompression failed")?,
+            CompressionConfig::Zstd3 => {
+                zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                    .context("zstd decompression failed")?
+            }
+            CompressionConfig::Zstd3WithDictionary(dictionary) => {
+                zstd::bulk::Decompressor::with_dictionary(dictionary)?
+                    .decompress_to_buffer(compressed_data, &mut buffer)
+                    .context("zstd dictionary decompression failed")?
+            }
         };
         assert_eq!(
             bytes_written, uncompressed_length as usize,
@@ -394,19 +314,18 @@ fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
 enum KeyBlockHeader {
     Variable {
         entry_count: u32,
-        /// Bytes per offset table entry, wider when the block hoists hashes into the table.
-        table_stride: usize,
     },
     Fixed {
         entry_count: u32,
         value_type: u8,
     },
     /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte ahead of its value in the block's tail region.
+    /// its own type byte between its key and its value.
     FixedMixedType {
         entry_count: u32,
-        /// Where the block's search and tail regions sit, derived by the shared reader helper.
-        regions: FixedRegions,
+        hash_len: usize,
+        key_size: usize,
+        stride: usize,
     },
 }
 
@@ -415,34 +334,36 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
     assert!(block.len() >= 4, "Key block too small");
     let block_type = block[0];
     let entry_count = ((block[1] as u32) << 16) | ((block[2] as u32) << 8) | (block[3] as u32);
-    let Some((layout, fixed)) = KeyBlockLayout::from_block_type(block_type) else {
-        bail!("Invalid key block type: {block_type}");
-    };
-    if !fixed {
-        return Ok(KeyBlockHeader::Variable {
-            entry_count,
-            table_stride: key_block_table_stride(layout.hash_len()),
-        });
-    }
-    assert!(block.len() >= 6, "Fixed key block header too small");
-    if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
-        assert!(block.len() >= 7, "Mixed-type key block header too small");
-        Ok(KeyBlockHeader::FixedMixedType {
-            entry_count,
-            // `FixedRegions` owns the search/tail split; `val_size` includes the per-entry type
-            // byte, which the header stores separately from the value size.
-            regions: FixedRegions::new(
-                entry_count as usize,
-                layout,
-                block[4] as usize,
-                block[6] as usize + 1,
-            ),
-        })
-    } else {
-        Ok(KeyBlockHeader::Fixed {
-            entry_count,
-            value_type: block[5],
-        })
+    match block_type {
+        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
+            Ok(KeyBlockHeader::Variable { entry_count })
+        }
+        BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
+            assert!(block.len() >= 6, "Fixed key block header too small");
+            if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+                assert!(block.len() >= 7, "Mixed-type key block header too small");
+                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
+                    8
+                } else {
+                    0
+                };
+                let key_size = block[4] as usize;
+                let val_size = block[6] as usize;
+                Ok(KeyBlockHeader::FixedMixedType {
+                    entry_count,
+                    hash_len,
+                    key_size,
+                    // +1 for the per-entry type byte.
+                    stride: hash_len + key_size + val_size + 1,
+                })
+            } else {
+                Ok(KeyBlockHeader::Fixed {
+                    entry_count,
+                    value_type: block[5],
+                })
+            }
+        }
+        _ => bail!("Invalid key block type: {block_type}"),
     }
 }
 
@@ -456,30 +377,34 @@ fn iter_key_block_entry_types(
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
     let entry_count = match header {
-        KeyBlockHeader::Variable { entry_count, .. }
+        KeyBlockHeader::Variable { entry_count }
         | KeyBlockHeader::Fixed { entry_count, .. }
         | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
     };
     (0..entry_count).map(move |i| match header {
-        // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
-        // leads the trailing type/position word, which follows any hoisted hash.
-        KeyBlockHeader::Variable { table_stride, .. } => {
-            block[KEY_BLOCK_HEADER_SIZE
-                + i as usize * table_stride
-                + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
-        }
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
+        // each entry is 4 bytes, first byte is the entry type.
+        KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
-        KeyBlockHeader::FixedMixedType { regions, .. } => {
-            // Entry data starts after the 7-byte mixed-type header; within the tail region the
-            // type byte precedes the value, after the key for `HashThenKey` blocks.
-            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
+        KeyBlockHeader::FixedMixedType {
+            hash_len,
+            key_size,
+            stride,
+            ..
+        } => {
+            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
+            // the entry's key and its value.
+            block[7 + i as usize * stride + hash_len + key_size]
         }
     })
 }
 
 /// Analyze an SST file and return entry type statistics
-fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
-    let compression = info.compression;
+fn analyze_sst_file(
+    db_path: &Path,
+    info: &SstInfo,
+    compression: CompressionConfig,
+) -> Result<SstStats> {
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -862,73 +787,44 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
     println!();
 }
 
+#[derive(Parser)]
+#[command(about = "Inspect turbo-persistence SST files")]
+struct Cli {
+    /// Show per-SST file details (default: family totals only).
+    #[arg(short, long)]
+    verbose: bool,
+    /// Dictionary used by zstd input SSTs. May be supplied multiple times; IDs are read from the
+    /// dictionaries.
+    #[arg(long)]
+    source_dictionary: Vec<PathBuf>,
+    /// Database directory containing CURRENT, meta, SST, and blob files.
+    db_path: PathBuf,
+}
+
 fn main() -> Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-
-    // Parse arguments
-    let mut db_path: Option<PathBuf> = None;
-    let mut verbose = false;
-
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--verbose" | "-v" => verbose = true,
-            arg if !arg.starts_with('-') => {
-                if db_path.is_none() {
-                    db_path = Some(PathBuf::from(arg));
-                }
-            }
-            _ => {
-                eprintln!("Unknown option: {}", args[i]);
-                std::process::exit(1);
-            }
-        }
-        i += 1;
-    }
-
-    let db_path = match db_path {
-        Some(p) => p,
-        None => {
-            eprintln!("Usage: {} [OPTIONS] <db_directory>", args[0]);
-            eprintln!();
-            eprintln!("Inspects turbo-persistence SST files to report entry type statistics.");
-            eprintln!();
-            eprintln!("Options:");
-            eprintln!("  -v, --verbose    Show per-SST file details (default: family totals only)");
-            eprintln!();
-            eprintln!("Entry types:");
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_SMALL}: Small value (stored in separate value block)"
-            );
-            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_BLOB}: Blob reference");
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_KEY_DELETED}: Key tombstone (deletes all values for the \
-                 key)"
-            );
-            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_MEDIUM}: Medium value");
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN}-{}: Inline value (size = type - \
-                 {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})",
-                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8
-            );
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted \
-                 value size = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})",
-                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8
-            );
-            eprintln!();
-            eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
-            eprintln!(
-                "Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} + 4) for inline \
-                 optimization.",
-                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4
-            );
-            std::process::exit(1);
-        }
-    };
+    let Cli {
+        verbose,
+        source_dictionary,
+        db_path,
+    } = Cli::parse();
 
     if !db_path.is_dir() {
         bail!("Not a directory: {}", db_path.display());
+    }
+
+    let mut source_dictionaries = BTreeMap::new();
+    for path in source_dictionary {
+        let bytes =
+            fs_err::read(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+        // This short-lived CLI needs a static slice for CompressionConfig; leaking each supplied
+        // dictionary is simpler than adding ownership to the persistence inspection APIs.
+        let dictionary = Box::leak(bytes.into_boxed_slice()) as &'static [u8];
+        let id = CompressionConfig::Zstd3WithDictionary(dictionary)
+            .dictionary_id()
+            .with_context(|| format!("Dictionary {} has no zstd dictionary ID", path.display()))?;
+        if source_dictionaries.insert(id, dictionary).is_some() {
+            bail!("Duplicate source dictionary ID {id}");
+        }
     }
 
     // Collect SST info grouped by family
@@ -947,7 +843,28 @@ fn main() -> Result<()> {
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();
 
         for info in sst_list {
-            match analyze_sst_file(&db_path, info) {
+            let compression = match (info.compression, info.dictionary_id) {
+                (Compression::Lz4, 0) => CompressionConfig::Lz4,
+                (Compression::Zstd3, 0) => CompressionConfig::Zstd3,
+                (Compression::Zstd3, id) => match source_dictionaries.get(&id) {
+                    Some(dictionary) => CompressionConfig::Zstd3WithDictionary(dictionary),
+                    None => {
+                        eprintln!(
+                            "Warning: Missing source dictionary ID {id} for {:08}.sst",
+                            info.sequence_number
+                        );
+                        continue;
+                    }
+                },
+                (Compression::Lz4, id) => {
+                    eprintln!(
+                        "Warning: LZ4 SST {:08}.sst has unexpected dictionary ID {id}",
+                        info.sequence_number
+                    );
+                    continue;
+                }
+            };
+            match analyze_sst_file(&db_path, info, compression) {
                 Ok(stats) => {
                     family_stats.merge(&stats);
                     if verbose {
