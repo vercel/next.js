@@ -121,7 +121,7 @@ describe('next experimental-analyze', () => {
 
       const toolList = await callMcp(mcpUrl, 'tools/list', {})
       expect(toolList.tools.map((tool: { name: string }) => tool.name)).toEqual(
-        ['get_bundle_overview', 'query_bundle_sources']
+        ['get_bundle_overview', 'query_bundle_sources', 'explain_bundle_source']
       )
 
       const overview = await callMcpTool(mcpUrl, 'get_bundle_overview', {
@@ -175,6 +175,18 @@ describe('next experimental-analyze', () => {
       })
       expect(packages.groupBy).toBe('package')
       expect(packages.sources).toHaveLength(1)
+
+      const explanation = await callMcpTool(mcpUrl, 'explain_bundle_source', {
+        route: '/',
+        sourcePath: sources.sources[0].sourcePath,
+        maxDepth: 2,
+      })
+      expect(explanation).toMatchObject({
+        route: '/',
+        sourcePath: sources.sources[0].sourcePath,
+        routeEntryDetection: { heuristic: true },
+        moduleCandidates: expect.any(Array),
+      })
     } finally {
       serveProcess?.kill()
       await exit.catch(() => {})
