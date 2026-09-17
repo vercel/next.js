@@ -120,6 +120,11 @@ export function RouteTypeahead({
     return routeDiff.rows.find((r) => r.key === selectedRoute) ?? null
   }, [routeDiff, selectedRoute])
 
+  const selectedSize = selectedRoute
+    ? (routeTotals?.get(selectedRoute)?.compressedSize ??
+      selectedRow?.compressedB)
+    : undefined
+
   const ctaText = selectedRoute ?? 'Select route...'
 
   return (
@@ -143,11 +148,20 @@ export function RouteTypeahead({
               <span className="min-w-0 flex-1 truncate" title={ctaText}>
                 {truncateMiddle(ctaText, 32)}
               </span>
-              {selectedRow ? (
-                <DeltaBadge row={selectedRow} useCompressed={useCompressed} />
-              ) : null}
             </div>
             <div className="ml-2 flex shrink-0 items-center gap-2">
+              {selectedSize != null ? (
+                <span className="font-sans text-xs tabular-nums text-muted-foreground">
+                  {formatBytes(selectedSize)}
+                </span>
+              ) : null}
+              {selectedRow ? (
+                <DeltaBadge
+                  row={selectedRow}
+                  useCompressed={useCompressed}
+                  className="ml-0"
+                />
+              ) : null}
               {shortcutLabel && <Kbd>{shortcutLabel}</Kbd>}
               <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
             </div>
