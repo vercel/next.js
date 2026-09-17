@@ -238,6 +238,36 @@ function affectedRanges(advisories: Advisory[]): string[] {
   return ranges
 }
 
+export async function getLatestUpgradeVersion(version: string) {
+  // TODO: Support prerelease upgrade policies once their target selection is
+  // defined for explicit upgrades and background reminders.
+  if (!semver.valid(version) || semver.prerelease(version)) {
+    return null
+  }
+
+  const { value } = await fetchJSON(`${NPM_REGISTRY}next/latest`)
+  const release = value as { version: string } | null
+
+  if (
+    !release ||
+    !semver.valid(release.version) ||
+    semver.prerelease(release.version) !== null ||
+    !semver.gt(release.version, version)
+  ) {
+    return null
+  }
+
+  // Patch releases remain available to explicit upgrades without a reminder.
+  if (
+    semver.major(release.version) === semver.major(version) &&
+    semver.minor(release.version) === semver.minor(version)
+  ) {
+    return null
+  }
+
+  return release.version
+}
+
 // Count only advisories affecting the running version for the startup prompt.
 // Full release selection remains in the explicit upgrade command.
 export async function getSecurityAdvisory(version: string) {

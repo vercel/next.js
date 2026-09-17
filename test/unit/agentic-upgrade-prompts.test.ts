@@ -6,6 +6,9 @@ import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import loadConfig from 'next/dist/server/config'
+import { normalizeConfig } from 'next/dist/server/config-shared'
+import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 
 jest.mock('fs/promises', () => ({
@@ -46,6 +49,13 @@ jest.mock('next/dist/lib/picocolors', () => ({
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
   prepareUpgrade: jest.fn(),
+}))
+jest.mock('next/dist/server/config', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}))
+jest.mock('next/dist/server/config-shared', () => ({
+  normalizeConfig: jest.fn(),
 }))
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
@@ -105,6 +115,12 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(rm).mockResolvedValue(undefined)
     jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
+    jest.mocked(loadConfig).mockResolvedValue({
+      default: { experimental: { agenticAutoUpgrade: false } },
+    } as never)
+    jest
+      .mocked(normalizeConfig)
+      .mockImplementation(async (_phase, config) => config)
   })
 
   afterEach(() => {
@@ -271,7 +287,26 @@ describe('agentic upgrade prompts', () => {
       ai: true,
     })
 
+    expect(loadConfig).toHaveBeenCalledWith(
+      PHASE_PRODUCTION_BUILD,
+      '/workspace/app',
+      { rawConfig: true }
+    )
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+  })
+
+  it('uses the configured policy for a bare AI upgrade', async () => {
+    jest.mocked(loadConfig).mockResolvedValue({
+      default: { experimental: { agenticAutoUpgrade: 'latest' } },
+    } as never)
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
+
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
   })
 
   it('passes the latest target to the existing agent', async () => {
@@ -288,6 +323,7 @@ describe('agentic upgrade prompts', () => {
       ai: 'latest',
     })
 
+    expect(loadConfig).not.toHaveBeenCalled()
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [

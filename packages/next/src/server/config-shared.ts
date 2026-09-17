@@ -489,8 +489,8 @@ export function resolveCssChunkingMode(
 }
 
 export interface ExperimentalConfig {
-  /** Enable the experimental agent-assisted security upgrade workflow. */
-  agenticAutoUpgrade?: 'security' | false
+  /** Nudge coding agents about security upgrades or newer stable releases. */
+  agenticAutoUpgrade?: 'security' | 'latest' | false
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */

@@ -1144,7 +1144,10 @@ export default async function build(
       loadedConfig = config
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
-      if (config.experimental.agenticAutoUpgrade === 'security') {
+      if (
+        config.experimental.agenticAutoUpgrade === 'security' ||
+        config.experimental.agenticAutoUpgrade === 'latest'
+      ) {
         const { nudgeForUpgrade } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
         await nudgeForUpgrade(dir, config, 'build')

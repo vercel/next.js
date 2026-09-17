@@ -11,6 +11,10 @@ const { target } = JSON.parse(
 globalThis.fetch = async (input, init) => {
   const url = String(input)
 
+  if (url.startsWith('https://api.github.com/advisories?')) {
+    return Response.json([])
+  }
+
   if (url !== 'https://registry.npmjs.org/next/latest') {
     return realFetch(input, init)
   }
