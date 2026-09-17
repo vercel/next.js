@@ -16,13 +16,15 @@ const loader = async function (content) {
     'directory-build-dependency.ts'
   )
   if (directoryBuildDependency) {
-    const packageDirectory = path.dirname(
-      require.resolve('build-dependency-package/package.json')
-    )
+    const packageEntry = require.resolve('build-dependency-package')
+    const packageDirectory = path.dirname(packageEntry)
     this.addBuildDependency(packageDirectory)
+    const packageValue = fs
+      .readFileSync(packageEntry, 'utf8')
+      .match(/'([^']+)'/)[1]
     return this.callback(
       null,
-      `export const utilFn = () => 'directory build dependency';`
+      `export const utilFn = () => 'directory build dependency: ${packageValue}';`
     )
   }
 

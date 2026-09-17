@@ -73,12 +73,21 @@ describe('turbopack-loader-file-dependencies', () => {
     })
   })
 
-  it('accepts a package directory as a build dependency', async () => {
-    const outputIndex = next.cliOutput.length
+  it('updates when a file in a build dependency directory changes', async () => {
     const $ = await next.render$('/directory')
-    expect($('p').text()).toContain('directory build dependency')
-    expect(next.cliOutput.slice(outputIndex)).not.toContain(
-      'Unsupported webpack loader build dependency'
+    expect($('p').text()).toContain('directory build dependency: package-one')
+
+    await next.patchFile(
+      'node_modules/build-dependency-package/one.js',
+      "module.exports = 'package-two'",
+      async () => {
+        await retry(async () => {
+          const $2 = await next.render$('/directory')
+          expect($2('p').text()).toContain(
+            'directory build dependency: package-two'
+          )
+        }, 10000)
+      }
     )
   })
 })
