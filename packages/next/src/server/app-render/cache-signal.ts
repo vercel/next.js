@@ -203,8 +203,8 @@ function scheduleImmediateAndTimeoutWithCleanup(
     if (!cancelled) {
       timeout = setTimeout(() => {
         timeout = null
-        // New rendering work can arrive after the sentinel and before this
-        // timer. Wait again rather than accepting a stale idle observation.
+        // Repeat the wait only if the tracker reports pending native
+        // immediates. The initial immediate wait has already completed.
         if (immediateTracker?.hasPendingImmediates()) {
           unsubscribe = immediateTracker.onIdle(scheduleTimeout)
         } else {
@@ -214,6 +214,9 @@ function scheduleImmediateAndTimeoutWithCleanup(
     }
   }
 
+  // Always wait for an immediate before the first readiness timer, even if no
+  // native work is tracked yet. The render can start in a timer scheduled after
+  // this call.
   if (immediateTracker === null) {
     immediate = setImmediate(scheduleTimeout)
   } else {
