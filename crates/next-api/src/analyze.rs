@@ -25,6 +25,21 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 
+#[turbo_tasks::value]
+#[derive(Clone, Copy, Serialize)]
+pub struct BundleTotals {
+    pub size: u64,
+    pub compressed_size: u64,
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Copy, Serialize)]
+pub struct RouteBundleSummary {
+    pub size: u64,
+    pub compressed_size: u64,
+    pub client: BundleTotals,
+}
+
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,
@@ -494,6 +509,67 @@ pub async fn analyze_output_assets(
 
     let rope = builder.build();
     Ok(FileContent::Content(File::from(rope)).cell())
+}
+
+#[turbo_tasks::function]
+pub async fn route_bundle_summary(
+    output_assets: Vc<OutputAssets>,
+    traced_files: Vc<FileSystemPathVec>,
+) -> Result<Vc<RouteBundleSummary>> {
+    let output_assets = all_assets_from_entries(output_assets);
+    let mut size = 0;
+    let mut compressed_size = 0;
+    let mut client_size = 0;
+    let mut client_compressed_size = 0;
+
+    for asset in output_assets
+        .await?
+        .iter()
+        .copied()
+        .map(Either::Left)
+        .chain(traced_files.await?.iter().cloned().map(Either::Right))
+    {
+        let (path, filename) = match &asset {
+            Either::Left(asset) => {
+                let path = asset.path().await?;
+                let filename = path.to_string_ref().await?;
+                (Cow::Owned(path.path.clone()), filename)
+            }
+            Either::Right(path) => {
+                let filename = path.to_string_ref().await?;
+                (Cow::Borrowed(&path.path), filename)
+            }
+        };
+        if path.ends_with(".map") || path.ends_with(".nft.json") {
+            continue;
+        }
+
+        let is_client = filename.starts_with("[client-fs]/");
+        let chunk_parts = match asset {
+            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
+            Either::Right(path) => split_traced_file_into_parts(path).await?,
+        };
+        for chunk_part in &chunk_parts {
+            let part_size = chunk_part.real_size + chunk_part.unaccounted_size;
+            let part_compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(part_size);
+            size += u64::from(part_size);
+            compressed_size += u64::from(part_compressed_size);
+            if is_client {
+                client_size += u64::from(part_size);
+                client_compressed_size += u64::from(part_compressed_size);
+            }
+        }
+    }
+
+    Ok(RouteBundleSummary {
+        size,
+        compressed_size,
+        client: BundleTotals {
+            size: client_size,
+            compressed_size: client_compressed_size,
+        },
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]
