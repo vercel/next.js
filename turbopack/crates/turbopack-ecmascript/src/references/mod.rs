@@ -1478,7 +1478,7 @@ async fn analyze_ecmascript_module_internal(
                             .get_inline_export(esm_reference_index, export.clone())
                             .await?
                     {
-                        analysis.add_code_gen(ConstantValueCodeGen::new_inline_export(
+                        analysis.add_code_gen(ConstantValueCodeGen::new(
                             c,
                             analysis.intern_path(&ast_path),
                         ));

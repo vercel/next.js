@@ -25,7 +25,7 @@ it('preserves analyzer-aware precedence and falls back to codegen-only inlining'
   expect(readAnnotationOff()).toBe('off')
 
   expect(readAnalyzed.toString()).toContain('TURBOPACK compile-time value')
-  expect(readLate.toString()).not.toContain('TURBOPACK compile-time value')
+  expect(readLate.toString()).toContain('TURBOPACK compile-time value')
   expect(readLate.toString()).not.toContain('late')
   expect(readAnnotationOff.toString()).not.toContain('annotationOff')
 
@@ -36,7 +36,9 @@ it('preserves analyzer-aware precedence and falls back to codegen-only inlining'
   expect(modules).not.toContainEqual(
     expect.stringMatching(/input\/forced-marker\.js/)
   )
-  expect(modules).toContainEqual(expect.stringMatching(/input\/late-marker\.js/))
+  expect(modules).toContainEqual(
+    expect.stringMatching(/input\/late-marker\.js/)
+  )
   expect(modules).toContainEqual(
     expect.stringMatching(/input\/annotation-off-marker\.js/)
   )
