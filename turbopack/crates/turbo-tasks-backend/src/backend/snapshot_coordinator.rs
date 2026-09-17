@@ -26,7 +26,10 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHashSet;
 use tracing::info_span;
 
-use crate::{backend::AnyOperation, utils::ptr_eq_arc::PtrEqArc};
+use crate::{
+    backend::{AnyOperation, task_page_map::StorageAccessToken},
+    utils::ptr_eq_arc::PtrEqArc,
+};
 
 /// High bit: set while a snapshot is requested or in flight.
 /// Low bits: count of operations currently executing (not suspended).
@@ -34,7 +37,7 @@ const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
 /// State protected by the mutex.
 struct State<O> {
-    /// `true` between `begin_snapshot` and `SnapshotPhase::drop`.
+    /// `true` between `begin_exclusion` and `SnapshotPhase::drop`.
     snapshot_requested: bool,
     /// Operations that called [`SnapshotCoordinator::suspend_point`] and have
     /// not yet resumed. Returned to the snapshotter via
@@ -53,7 +56,7 @@ pub struct SnapshotCoordinator<O = AnyOperation> {
     in_progress_operations: AtomicUsize,
     state: Mutex<State<O>>,
     /// Notified by the last operation to drain (count drops to `BIT` while
-    /// `SNAPSHOT_REQUESTED_BIT` is set). Awaited by [`begin_snapshot`].
+    /// `SNAPSHOT_REQUESTED_BIT` is set). Awaited by [`begin_exclusion`].
     operations_drained: Condvar,
     /// Notified by [`SnapshotPhase::drop`]. Awaited by operations that hit a
     /// suspend point or arrive while a snapshot is in flight.
@@ -97,7 +100,7 @@ impl<O> SnapshotCoordinator<O> {
         // Fast path: no snapshot in flight, single atomic increment.
         let prev = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
         if (prev & SNAPSHOT_REQUESTED_BIT) == 0 {
-            return OperationGuard { coord: Some(self) };
+            return OperationGuard { coord: self };
         }
         #[cold]
         fn wait_for_snapshot_to_complete<O>(this: &SnapshotCoordinator<O>) {
@@ -126,7 +129,7 @@ impl<O> SnapshotCoordinator<O> {
         // Slow path: a snapshot is in flight (or just requested). Back out
         // the increment, wait for the snapshot to complete, then re-increment.
         wait_for_snapshot_to_complete(self);
-        OperationGuard { coord: Some(self) }
+        OperationGuard { coord: self }
     }
 
     /// Suspend the current operation if a snapshot is requested. Otherwise a
@@ -174,22 +177,22 @@ impl<O> SnapshotCoordinator<O> {
         suspend_point_cold(self, suspend);
     }
 
-    /// Begin a snapshot. Sets the snapshot bit, blocks until all in-flight
-    /// operations have drained or suspended, and returns a [`SnapshotPhase`]
-    /// guard that releases the bit on drop.
+    /// Begin an exclusive snapshot, GC, eviction-removal, or shutdown phase. Sets the exclusion
+    /// bit, blocks until all in-flight operations have drained or suspended, and returns a
+    /// [`SnapshotPhase`] guard that releases the bit on drop.
     ///
     /// Concurrent callers panic via the debug assertion. Production callers
     /// must serialize themselves (see `snapshot_in_progress` lock in
     /// `mod.rs`); the coordinator does not own that mutex because some
     /// callers want to interleave additional work between phases.
-    pub fn begin_snapshot(&self) -> SnapshotPhase<'_, O> {
+    pub fn begin_exclusion(&self) -> SnapshotPhase<'_, O> {
         let mut state = self.state.lock();
         // Protocol violation: callers must serialize snapshots themselves.
         // Promoted from debug_assert: silently ignoring this leads directly
         // to a stuck counter and a hung process.
         assert!(
             !state.snapshot_requested,
-            "begin_snapshot called while another snapshot was already in flight"
+            "begin_exclusion called while another snapshot was already in flight"
         );
         state.snapshot_requested = true;
         // AcqRel so the writes leading up to setting the bit are visible to
@@ -199,7 +202,7 @@ impl<O> SnapshotCoordinator<O> {
             .fetch_or(SNAPSHOT_REQUESTED_BIT, Ordering::AcqRel);
         assert!(
             (active & SNAPSHOT_REQUESTED_BIT) == 0,
-            "snapshot bit was already set when begin_snapshot ran: {active:#x}"
+            "snapshot bit was already set when begin_exclusion ran: {active:#x}"
         );
         if (active & !SNAPSHOT_REQUESTED_BIT) != 0 {
             // The predicate is Acquire-loaded so we synchronize with the AcqRel decrement that woke
@@ -239,23 +242,18 @@ impl<O> SnapshotCoordinator<O> {
 /// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements the
 /// in-progress count on drop and notifies the snapshotter if it is waiting.
 pub struct OperationGuard<'a, O> {
-    coord: Option<&'a SnapshotCoordinator<O>>,
+    coord: &'a SnapshotCoordinator<O>,
 }
 
-impl<O> OperationGuard<'_, O> {
-    /// A guard that does nothing on drop. Useful for backends that don't
-    /// participate in the snapshot protocol (e.g. when persistence is
-    /// disabled).
-    pub fn noop() -> Self {
-        Self { coord: None }
+impl<'a, O> OperationGuard<'a, O> {
+    pub(crate) fn access_token(&self) -> StorageAccessToken<'a> {
+        StorageAccessToken::operation()
     }
 }
 
 impl<O> Drop for OperationGuard<'_, O> {
     fn drop(&mut self) {
-        let Some(coord) = self.coord else {
-            return;
-        };
+        let coord = self.coord;
         let prev = coord.in_progress_operations.fetch_sub(1, Ordering::AcqRel);
         // Underflow means a guard was dropped without a matching increment;
         // promoted from debug_assert because the alternative is silently
@@ -283,7 +281,7 @@ impl<O> Drop for OperationGuard<'_, O> {
     }
 }
 
-/// Guard returned by [`SnapshotCoordinator::begin_snapshot`]. Holds the
+/// Guard returned by [`SnapshotCoordinator::begin_exclusion`]. Holds the
 /// snapshot bit; on drop, releases it and wakes any operations parked on
 /// `snapshot_completed`.
 pub struct SnapshotPhase<'a, O> {
@@ -291,7 +289,11 @@ pub struct SnapshotPhase<'a, O> {
     suspended_operations: Vec<Arc<O>>,
 }
 
-impl<O> SnapshotPhase<'_, O> {
+impl<'a, O> SnapshotPhase<'a, O> {
+    pub(crate) fn access_token(&self) -> StorageAccessToken<'a> {
+        StorageAccessToken::exclusive()
+    }
+
     /// Operations that were suspended at the moment the snapshot started.
     /// The snapshotter must persist these so they can be replayed on the
     /// next startup.
@@ -369,7 +371,7 @@ mod tests {
     #[test]
     fn snapshot_with_no_ops_proceeds_immediately() {
         let coord = SnapshotCoordinator::<Op>::new();
-        let phase = coord.begin_snapshot();
+        let phase = coord.begin_exclusion();
         assert!(coord.snapshot_pending());
         assert!(phase.suspended_operations().is_empty());
         drop(phase);
@@ -387,13 +389,13 @@ mod tests {
         let snap_thread = thread::spawn({
             let started_snapshot = started_snapshot.clone();
             move || {
-                let _phase = coord2.begin_snapshot();
+                let _phase = coord2.begin_exclusion();
                 started_snapshot.store(1, Ordering::Release);
             }
         });
 
         // Wait for the snapshotter to set the bit. It can't make progress
-        // past begin_snapshot while we hold `g`, so started_snapshot must
+        // past begin_exclusion while we hold `g`, so started_snapshot must
         // still be 0.
         wait_for_snapshot_pending(&coord);
         assert_eq!(started_snapshot.load(Ordering::Acquire), 0);
@@ -407,7 +409,7 @@ mod tests {
     #[test]
     fn new_operation_blocks_during_snapshot() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
-        let phase = coord.begin_snapshot();
+        let phase = coord.begin_exclusion();
         let started_op = Arc::new(AtomicUsize::new(0));
         let arrived = Arc::new(AtomicUsize::new(0));
 
@@ -458,7 +460,7 @@ mod tests {
         let snap_thread = thread::spawn({
             let snapshotter_done = snapshotter_done.clone();
             move || {
-                let phase = coord_snap.begin_snapshot();
+                let phase = coord_snap.begin_exclusion();
                 assert_eq!(
                     phase.suspended_operations().len(),
                     1,
@@ -556,7 +558,7 @@ mod tests {
                     move || {
                         for _ in 0..200 {
                             let _ser = snapshot_lock.lock();
-                            let _phase = coord.begin_snapshot();
+                            let _phase = coord.begin_exclusion();
                             snap_count.fetch_add(1, Ordering::Relaxed);
                         }
                     }
@@ -624,7 +626,7 @@ mod tests {
                 move || {
                     for _ in 0..50 {
                         let _ser = snapshot_lock.lock();
-                        let _phase = coord.begin_snapshot();
+                        let _phase = coord.begin_exclusion();
                         // Pretend to do snapshot work.
                         thread::sleep(Duration::from_micros(10));
                     }
@@ -647,7 +649,7 @@ mod tests {
     #[should_panic(expected = "already in flight")]
     fn overlapping_exclusions_panic() {
         let coord = SnapshotCoordinator::<Op>::new();
-        let _first = coord.begin_snapshot();
-        let _second = coord.begin_snapshot();
+        let _first = coord.begin_exclusion();
+        let _second = coord.begin_exclusion();
     }
 }

@@ -254,6 +254,7 @@ async-trait = "0.1.64"
 base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
+boxcar = "0.2.14"
 bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
 byteorder = "1.5.0"
 bytes = "1.11.1"
@@ -345,6 +346,7 @@ smallvec = { version = "1.15.1", features = [
   "impl_bincode",
 ] }
 shrink-to-fit = "0.2.10"
+static_assertions = "1.1.0"
 strsim = "0.11.1"
 swc_sourcemap = "10.0.2"
 syn = "2.0.100"
