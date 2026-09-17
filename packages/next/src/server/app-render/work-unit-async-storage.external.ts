@@ -405,12 +405,9 @@ export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly rootParams: Params
 
   /**
-   * DEV-only: Tracks which root param names were read during this cache
-   * invocation. In development, private caches are persisted (keyed by the
-   * request's cookies and headers), so reads of different root param values
-   * must produce different entries.
+   * Tracks which root param names were read during this cache invocation.
    */
-  readonly readRootParamNames: Set<string> | undefined
+  readonly readRootParamNames: Set<string>
 }
 
 export type UseCacheStore = PublicUseCacheStore | PrivateUseCacheStore
