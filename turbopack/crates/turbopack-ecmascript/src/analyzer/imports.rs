@@ -426,6 +426,10 @@ pub(crate) struct ImportMap {
     /// Ordered list of imported symbols
     references: FxIndexSet<ImportMapReference>,
 
+    /// Top-level module item index that first inserted each reference. Kept parallel to
+    /// `references` so declaration order does not affect reference identity or deduplication.
+    reference_declaration_orders: Vec<usize>,
+
     /// True, when the module has an import declaration. imports.is_empty() is not sufficient
     /// because of side-effect only imports without imported bindings.
     has_imports: bool,
@@ -594,6 +598,25 @@ pub(crate) struct ImportMapReference {
 }
 
 impl ImportMap {
+    fn ensure_reference(
+        &mut self,
+        reference: ImportMapReference,
+        declaration_order: usize,
+    ) -> usize {
+        if let Some(i) = self.references.get_index_of(&reference) {
+            i
+        } else {
+            let i = self.references.len();
+            self.references.insert(reference);
+            self.reference_declaration_orders.push(declaration_order);
+            debug_assert_eq!(
+                self.references.len(),
+                self.reference_declaration_orders.len()
+            );
+            i
+        }
+    }
+
     pub fn is_esm(&self, specified_type: SpecifiedModuleType) -> bool {
         if self.has_exports {
             return true;
@@ -701,8 +724,9 @@ impl ImportMap {
     /// How this module's export registration can be emitted.
     ///
     /// A declaration contributes separate evaluation and binding references, so reference indices
-    /// do not preserve source order across imports. Their spans identify the declaration and tell
-    /// us whether an import would be reordered by hoisting the re-exported ones into one call.
+    /// do not preserve source order across imports. The parallel declaration-order table identifies
+    /// which references came from the same top-level module item without relying on spans, which
+    /// may be `DUMMY_SP` for transform-inserted imports.
     pub fn export_registration_mode(&self) -> ExportRegistrationMode {
         let has_local_exports = self
             .exports
@@ -723,28 +747,20 @@ impl ImportMap {
         // unrelated import.
         let reexport_declarations: FxHashSet<_> = reexports
             .iter()
-            .map(|i| {
-                let reference = &self.references[*i];
-                (reference.module_path.clone(), reference.span)
-            })
+            .map(|i| self.reference_declaration_orders[*i])
             .collect();
-        let first_reexport = reexport_declarations
-            .iter()
-            .map(|(_, span)| span.lo)
-            .min()
-            .unwrap();
+        let first_reexport = *reexport_declarations.iter().min().unwrap();
 
         // Every remaining declaration is an import this module needs in its own right -- including
-        // a side-effect-only `import './x'`, which contributes no imported binding. Compare source
-        // spans rather than reference indices: the analyser groups evaluation references before
-        // binding references, so their indices do not retain declaration order.
+        // a side-effect-only `import './x'`, which contributes no imported binding. Compare
+        // explicit top-level module item order rather than reference indices: the analyser
+        // groups evaluation references before binding references, so their indices do not
+        // retain declaration order.
         let last_other = self
-            .references
+            .reference_declaration_orders
             .iter()
-            .filter(|reference| {
-                !reexport_declarations.contains(&(reference.module_path.clone(), reference.span))
-            })
-            .map(|reference| reference.span.lo)
+            .filter(|order| !reexport_declarations.contains(order))
+            .copied()
             .max();
         let Some(last_other) = last_other else {
             // Nothing but re-export declarations: hoisting cannot reorder anything.
@@ -853,11 +869,13 @@ impl ImportMap {
             namespace_imports_to_specifier: FxIndexMap::default(),
             state: Default::default(),
             program_decl_usage: Default::default(),
+            current_module_item_order: 0,
         };
 
         // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
         if let Program::Module(m) = m {
-            for stmt in &m.body {
+            for (order, stmt) in m.body.iter().enumerate() {
+                analyzer.current_module_item_order = order;
                 match stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
                         if import.type_only {
@@ -1034,6 +1052,9 @@ struct Analyzer<'a> {
 
     program_decl_usage: ProgramDeclUsage,
 
+    /// Index of the top-level module item currently being analyzed.
+    current_module_item_order: usize,
+
     state: analyzer_state::AnalyzerState,
 }
 
@@ -1045,19 +1066,14 @@ impl Analyzer<'_> {
         imported_symbol: ImportedSymbol,
         annotations: Option<ImportAnnotations>,
     ) -> usize {
-        let r = ImportMapReference {
+        let reference = ImportMapReference {
             module_path,
             imported_symbol,
             span,
             annotations: annotations.map(Arc::new),
         };
-        if let Some(i) = self.data.references.get_index_of(&r) {
-            i
-        } else {
-            let i = self.data.references.len();
-            self.data.references.insert(r);
-            i
-        }
+        self.data
+            .ensure_reference(reference, self.current_module_item_order)
     }
 
     fn register_assignment_scope(&mut self, id: Id) {
@@ -1112,6 +1128,13 @@ impl Analyzer<'_> {
 }
 
 impl Visit for Analyzer<'_> {
+    fn visit_module(&mut self, module: &Module) {
+        for (order, item) in module.body.iter().enumerate() {
+            self.current_module_item_order = order;
+            item.visit_with(self);
+        }
+    }
+
     fn visit_import_decl(&mut self, _: &ImportDecl) {
         // We already handled import above. Skip as the Idents in here confuse the analysis
     }
@@ -1917,18 +1940,39 @@ mod tests {
     ) -> ImportMap {
         let mut map = ImportMap::default();
         for i in 0..n_refs {
-            map.references.insert(ImportMapReference {
-                module_path: format!("./m{i}").into(),
-                imported_symbol: ImportedSymbol::Symbol(Atom::from("x")),
-                annotations: None,
-                span: Span::new(BytePos(i as u32 + 1), BytePos(i as u32 + 2)),
-            });
+            map.ensure_reference(
+                ImportMapReference {
+                    module_path: format!("./m{i}").into(),
+                    imported_symbol: ImportedSymbol::Symbol(Atom::from("x")),
+                    annotations: None,
+                    span: Span::new(BytePos(i as u32 + 1), BytePos(i as u32 + 2)),
+                },
+                i,
+            );
         }
         for (name, export) in exports {
             map.exports.insert(name.into(), export);
         }
         map.reexport_namespaces = reexport_namespaces.to_vec();
         map
+    }
+
+    #[test]
+    fn reference_declaration_order_does_not_affect_deduplication() {
+        let mut map = ImportMap::default();
+        let reference = ImportMapReference {
+            module_path: "./transformed".into(),
+            imported_symbol: ImportedSymbol::Symbol("value".into()),
+            annotations: None,
+            span: DUMMY_SP,
+        };
+
+        let first = map.ensure_reference(reference.clone(), 2);
+        let duplicate = map.ensure_reference(reference, 7);
+
+        assert_eq!(first, duplicate);
+        assert_eq!(map.references.len(), 1);
+        assert_eq!(map.reference_declaration_orders, vec![2]);
     }
 
     #[test]
@@ -2018,16 +2062,19 @@ mod tests {
         // reference but no imported symbol, so it is not a re-export source and must not be hoisted
         // away.
         let mut map = map_with(
-            2,
+            1,
             vec![("a", Export::ImportedBinding(0, "a".into(), false))],
             &[],
         );
-        map.references.insert(ImportMapReference {
-            module_path: "./effect".into(),
-            imported_symbol: ImportedSymbol::ModuleEvaluation,
-            annotations: None,
-            span: DUMMY_SP,
-        });
+        map.ensure_reference(
+            ImportMapReference {
+                module_path: "./effect".into(),
+                imported_symbol: ImportedSymbol::ModuleEvaluation,
+                annotations: None,
+                span: DUMMY_SP,
+            },
+            1,
+        );
         assert_eq!(
             map.export_registration_mode(),
             ExportRegistrationMode::Mixed
@@ -2035,30 +2082,88 @@ mod tests {
     }
 
     #[test]
-    fn export_registration_mode_uses_declaration_spans_not_reference_indices() {
-        // The analyzer stores every declaration's evaluation reference before its binding
-        // references, so the index order here is not source order:
-        // `export { a } from './a'; import { b } from './b'; export { c } from './c'`.
+    fn analyzer_tracks_order_for_dummy_span_declarations() {
+        fn reexport(path: &str, name: &str) -> ModuleItem {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
+                span: DUMMY_SP,
+                specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
+                    span: DUMMY_SP,
+                    orig: ModuleExportName::Ident(Ident::new(
+                        name.into(),
+                        DUMMY_SP,
+                        Default::default(),
+                    )),
+                    exported: None,
+                    is_type_only: false,
+                })],
+                src: Some(Box::new(Str {
+                    span: DUMMY_SP,
+                    value: path.into(),
+                    raw: None,
+                })),
+                type_only: false,
+                with: None,
+            }))
+        }
+
+        let program = Program::Module(Module {
+            span: DUMMY_SP,
+            body: vec![
+                reexport("./a", "a"),
+                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: "./b".into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                })),
+                reexport("./b", "b"),
+            ],
+            shebang: None,
+        });
+        let globals = Default::default();
+        let map = GLOBALS.set(&globals, || ImportMap::analyze(Mark::new(), &program, None));
+
+        assert_eq!(map.reference_declaration_orders, vec![0, 1, 0, 2]);
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Mixed
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_does_not_use_spans_or_reference_indices_for_order() {
+        // The references are grouped evaluation-first rather than by declaration, and every
+        // declaration has DUMMY_SP, as can happen for transform-inserted imports:
+        // `export { a } from './a'; import './b'; export { b } from './b'`.
+        // The plain './b' import follows a re-export, so this must be Mixed. Span-based grouping
+        // incorrectly treats it as part of the later re-export declaration.
         let mut map = ImportMap::default();
-        for (path, symbol, position) in [
-            ("./a", ImportedSymbol::ModuleEvaluation, 1),
-            ("./b", ImportedSymbol::ModuleEvaluation, 2),
+        for (path, symbol, declaration_order) in [
+            ("./a", ImportedSymbol::ModuleEvaluation, 0),
+            ("./b", ImportedSymbol::ModuleEvaluation, 1),
+            ("./a", ImportedSymbol::Symbol("a".into()), 0),
             ("./b", ImportedSymbol::Symbol("b".into()), 2),
-            ("./c", ImportedSymbol::ModuleEvaluation, 3),
-            ("./a", ImportedSymbol::Symbol("a".into()), 1),
-            ("./c", ImportedSymbol::Symbol("c".into()), 3),
         ] {
-            map.references.insert(ImportMapReference {
-                module_path: path.into(),
-                imported_symbol: symbol,
-                annotations: None,
-                span: Span::new(BytePos(position), BytePos(position + 1)),
-            });
+            map.ensure_reference(
+                ImportMapReference {
+                    module_path: path.into(),
+                    imported_symbol: symbol,
+                    annotations: None,
+                    span: DUMMY_SP,
+                },
+                declaration_order,
+            );
         }
         map.exports
-            .insert("a".into(), Export::ImportedBinding(4, "a".into(), false));
+            .insert("a".into(), Export::ImportedBinding(2, "a".into(), false));
         map.exports
-            .insert("c".into(), Export::ImportedBinding(5, "c".into(), false));
+            .insert("b".into(), Export::ImportedBinding(3, "b".into(), false));
 
         assert_eq!(
             map.export_registration_mode(),
