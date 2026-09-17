@@ -1,7 +1,9 @@
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
-use lzzzz::lz4::{self, decompress};
+use lz4_flex::block::{
+    CompressTable, compress_into_with_table, decompress_into, get_maximum_output_size,
+};
 
 /// Compression algorithm used for a family's SST blocks and blob values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -14,7 +16,33 @@ pub enum Compression {
     Zstd3 = 1,
 }
 
+struct Lz4CompressTables {
+    small: CompressTable,
+    large: Option<CompressTable>,
+}
+
+impl Lz4CompressTables {
+    fn new() -> Self {
+        Self {
+            small: CompressTable::small(),
+            large: None,
+        }
+    }
+
+    fn for_input(&mut self, input_len: usize) -> &mut CompressTable {
+        if input_len < u16::MAX as usize {
+            &mut self.small
+        } else {
+            self.large.get_or_insert_with(CompressTable::large)
+        }
+    }
+}
+
 thread_local! {
+    /// Reuse lz4_flex's hash tables across independent blocks. Keep separate small and large tables
+    /// because lz4_flex upgrades a small table for large input but does not downgrade it again.
+    static LZ4_COMPRESS_TABLES: RefCell<Lz4CompressTables> = RefCell::new(Lz4CompressTables::new());
+
     /// Zstd decompression contexts are reusable and relatively expensive to create. Keep one per
     /// worker thread to avoid allocation on every block read without a global lock.
     static ZSTD_DECOMPRESSOR: RefCell<zstd::bulk::Decompressor<'static>> = RefCell::new(
@@ -35,7 +63,7 @@ fn decompress_block(
          zero-copy mmap path"
     );
     let bytes_written = match compression {
-        Compression::Lz4 => decompress(block, dest).map_err(anyhow::Error::from),
+        Compression::Lz4 => decompress_into(block, dest).map_err(anyhow::Error::from),
         Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
             decompressor
                 .decompress_to_buffer(block, dest)
@@ -116,27 +144,56 @@ impl Compressor {
         Ok(Self { compression, zstd })
     }
 
+    /// Compresses a one-shot block into an owned buffer.
+    ///
+    /// This is used for blobs, whose output buffer is not reused. lz4_flex's allocating unsafe
+    /// encoder writes directly into spare capacity, avoiding a potentially very large zero-fill.
+    pub(crate) fn compress_to_vec(&mut self, block: &[u8]) -> Result<Vec<u8>> {
+        match self.compression {
+            Compression::Lz4 => Ok(lz4_flex::block::compress(block)),
+            Compression::Zstd3 => {
+                let mut buffer = Vec::new();
+                self.compress_into_buffer(block, &mut buffer)?;
+                Ok(buffer)
+            }
+        }
+    }
+
+    /// Compresses `block` into reusable storage and returns only the valid compressed prefix.
+    ///
+    /// lz4_flex's table-reuse API requires an initialized output slice. The backing buffer
+    /// therefore keeps its initialized high-water length between calls: it is only zero-filled
+    /// when a larger maximum output size is first needed, not on every block.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn compress_into_buffer(
+    pub(crate) fn compress_into_buffer<'a>(
         &mut self,
         block: &[u8],
-        buffer: &mut Vec<u8>,
-    ) -> Result<()> {
+        buffer: &'a mut Vec<u8>,
+    ) -> Result<&'a [u8]> {
         match self.compression {
             Compression::Lz4 => {
-                lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT)
+                let max_output_size = get_maximum_output_size(block.len());
+                if buffer.len() < max_output_size {
+                    buffer.resize(max_output_size, 0);
+                }
+                let compressed_len = LZ4_COMPRESS_TABLES
+                    .with_borrow_mut(|tables| {
+                        compress_into_with_table(block, buffer, tables.for_input(block.len()))
+                    })
                     .context("LZ4 compression failed")?;
+                Ok(&buffer[..compressed_len])
             }
             Compression::Zstd3 => {
+                buffer.clear();
                 buffer.reserve(zstd::zstd_safe::compress_bound(block.len()));
                 self.zstd
                     .as_mut()
                     .expect("zstd compressor not initialized")
                     .compress_to_buffer(block, buffer)
                     .context("zstd compression failed")?;
+                Ok(buffer)
             }
         }
-        Ok(())
     }
 }
 
@@ -144,17 +201,132 @@ impl Compressor {
 mod tests {
     use super::*;
 
+    const LIBLZ4_FIXTURE_INPUT: &[u8] =
+        b"turbo persistence lz4 compatibility turbo persistence lz4 compatibility";
+    const LIBLZ4_FIXTURE: &[u8] = &[
+        255, 21, 116, 117, 114, 98, 111, 32, 112, 101, 114, 115, 105, 115, 116, 101, 110, 99, 101,
+        32, 108, 122, 52, 32, 99, 111, 109, 112, 97, 116, 105, 98, 105, 108, 105, 116, 121, 32, 36,
+        0, 11, 80, 105, 108, 105, 116, 121,
+    ];
+
+    fn patterned_input(len: usize, salt: usize) -> Vec<u8> {
+        let pattern = b"turbo-persistence:block/key/value/";
+        (0..len)
+            .map(|i| {
+                if i % 10 < 7 {
+                    pattern[(i + salt) % pattern.len()]
+                } else {
+                    ((i.wrapping_mul(31) + salt) & 0xff) as u8
+                }
+            })
+            .collect()
+    }
+
     #[test]
     fn compression_round_trips() {
         let input = b"turbo persistence compression ".repeat(1024);
         for compression in [Compression::Lz4, Compression::Zstd3] {
             let mut compressor = Compressor::new(compression).unwrap();
-            let mut compressed = Vec::new();
-            compressor
-                .compress_into_buffer(&input, &mut compressed)
+            let mut storage = Vec::new();
+            let compressed = compressor
+                .compress_into_buffer(&input, &mut storage)
                 .unwrap();
-            let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
+            let output = decompress_into_arc(compression, input.len() as u32, compressed).unwrap();
             assert_eq!(&*output, input);
         }
+    }
+
+    #[test]
+    fn lz4_decodes_liblz4_raw_block() {
+        let output = decompress_into_arc(
+            Compression::Lz4,
+            LIBLZ4_FIXTURE_INPUT.len() as u32,
+            LIBLZ4_FIXTURE,
+        )
+        .unwrap();
+        assert_eq!(&*output, LIBLZ4_FIXTURE_INPUT);
+    }
+
+    #[test]
+    fn repeated_lz4_compression_uses_only_the_valid_prefix() {
+        let inputs = [patterned_input(8 * 1024, 1), patterned_input(70 * 1024, 2)];
+        let mut compressor = Compressor::new(Compression::Lz4).unwrap();
+        let mut storage = Vec::new();
+
+        for _ in 0..4 {
+            for input in &inputs {
+                let compressed = compressor
+                    .compress_into_buffer(input, &mut storage)
+                    .unwrap();
+                assert!(compressed.len() < input.len());
+                assert_eq!(
+                    &*decompress_into_arc(Compression::Lz4, input.len() as u32, compressed)
+                        .unwrap(),
+                    input
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lz4_compression_table_is_independent_per_thread() {
+        let input = Arc::new(patterned_input(12 * 1024, 3));
+        let threads = (0..4)
+            .map(|_| {
+                let input = Arc::clone(&input);
+                std::thread::spawn(move || {
+                    let mut compressor = Compressor::new(Compression::Lz4).unwrap();
+                    let mut storage = Vec::new();
+                    for _ in 0..8 {
+                        let compressed = compressor
+                            .compress_into_buffer(&input, &mut storage)
+                            .unwrap();
+                        assert_eq!(
+                            &*decompress_into_arc(
+                                Compression::Lz4,
+                                input.len() as u32,
+                                compressed,
+                            )
+                            .unwrap(),
+                            &*input
+                        );
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for thread in threads {
+            thread.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn malformed_lz4_blocks_return_errors() {
+        let mut truncated = LIBLZ4_FIXTURE.to_vec();
+        truncated.truncate(truncated.len() / 2);
+        assert!(
+            decompress_into_arc(
+                Compression::Lz4,
+                LIBLZ4_FIXTURE_INPUT.len() as u32,
+                &truncated,
+            )
+            .is_err()
+        );
+        assert!(
+            decompress_into_arc(
+                Compression::Lz4,
+                (LIBLZ4_FIXTURE_INPUT.len() - 1) as u32,
+                LIBLZ4_FIXTURE,
+            )
+            .is_err()
+        );
+        assert!(
+            decompress_into_arc(
+                Compression::Lz4,
+                (LIBLZ4_FIXTURE_INPUT.len() + 1) as u32,
+                LIBLZ4_FIXTURE,
+            )
+            .is_err()
+        );
     }
 }
