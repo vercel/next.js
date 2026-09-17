@@ -71,6 +71,8 @@ export async function setupUpgradeScenario(
     assessmentPath: string
     assessment: object
     installedVersion: string | undefined
+    routeBuildToCandidate?: boolean
+    skillInstructionsPath?: string
   }
 ) {
   const run = async (command: string, args: string[]) => {
@@ -110,6 +112,14 @@ export async function setupUpgradeScenario(
       join(__dirname, 'prepare-candidate.mjs'),
       'utf8'
     ),
+    ...(options.skillInstructionsPath
+      ? {
+          [`${security}/skill-instructions.md`]: readFileSync(
+            options.skillInstructionsPath,
+            'utf8'
+          ),
+        }
+      : {}),
     [config]: `[url "file://${remote}"]\n\tinsteadOf = ${repository}\n`,
     [`${toolsDirectory}/baseline.json`]: JSON.stringify({ head: baseline }),
   })
@@ -144,6 +154,10 @@ export async function setupUpgradeScenario(
       prepareFixture: Boolean(options.installedVersion),
       remote,
       repository,
+      routeBuildToCandidate: options.routeBuildToCandidate,
+      skillInstructions: options.skillInstructionsPath
+        ? `${security}/skill-instructions.md`
+        : undefined,
     }),
     [join(bin, 'npm')]:
       `#!/bin/sh\nexec node ${security}/package-runner.mjs npm "$@"\n`,
