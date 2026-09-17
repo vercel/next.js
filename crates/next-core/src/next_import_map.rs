@@ -1523,6 +1523,7 @@ fn insert_next_api_esm_aliases(
         rcstr!("head") => rcstr!("next/dist/esm/api/head"),
         rcstr!("headers") => rcstr!("next/dist/esm/api/headers"),
         rcstr!("image") => rcstr!("next/dist/esm/api/image"),
+        rcstr!("legacy/image") => rcstr!("next/dist/esm/client/legacy/image"),
         rcstr!("link") => rcstr!("next/dist/esm/api/link"),
         rcstr!("navigation") => rcstr!("next/dist/esm/api/navigation"),
         rcstr!("offline") => rcstr!("next/dist/esm/client/components/use-offline"),
@@ -1538,15 +1539,6 @@ fn insert_next_api_esm_aliases(
             request_to_import_mapping(project_path.clone(), request),
         );
     }
-
-    insert_exact_alias_or_js(
-        import_map,
-        rcstr!("next/legacy/image"),
-        request_to_import_mapping(
-            project_path.clone(),
-            rcstr!("next/dist/esm/client/legacy/image"),
-        ),
-    );
 
     insert_exact_alias_or_js(
         import_map,
