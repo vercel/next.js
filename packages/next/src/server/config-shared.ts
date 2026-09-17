@@ -2516,7 +2516,6 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
-    | 'parallelRouteMetadata'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2563,6 +2562,8 @@ export interface NextConfigRuntime {
     trustHostHeader?: NextConfigComplete['experimental']['trustHostHeader']
     /** @internal */
     isExperimentalCompile?: NextConfigComplete['experimental']['isExperimentalCompile']
+    /** @internal */
+    parallelRouteMetadata?: NextConfigComplete['experimental']['parallelRouteMetadata']
   }
 }
 
