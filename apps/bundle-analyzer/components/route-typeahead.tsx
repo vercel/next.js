@@ -25,7 +25,11 @@ import {
   sortByImpact,
   type DiffRow,
   type DiffSummary,
+  type RouteSizeTotals,
 } from '@/lib/diff'
+import { formatBytes } from '@/lib/utils'
+
+export const OPEN_ROUTE_PICKER_EVENT = 'next-bundle-analyzer:open-route-picker'
 
 interface RouteTypeaheadProps {
   selectedRoute: string | null
@@ -39,6 +43,7 @@ interface RouteTypeaheadProps {
   routeDiff?: DiffSummary | null
   /** Whether to use compressed sizes when computing the delta column. */
   useCompressed?: boolean
+  routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
 }
 
 export function RouteTypeahead({
@@ -46,6 +51,7 @@ export function RouteTypeahead({
   onRouteSelected,
   routeDiff,
   useCompressed = true,
+  routeTotals,
 }: RouteTypeaheadProps) {
   const [open, setOpen] = useState(false)
   const [shortcutLabel, setShortcutLabel] = useState<string | null>(null)
@@ -71,18 +77,17 @@ export function RouteTypeahead({
       }
     }
 
+    const handleOpenRequest = () => setOpen(true)
+
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener(OPEN_ROUTE_PICKER_EVENT, handleOpenRequest)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener(OPEN_ROUTE_PICKER_EVENT, handleOpenRequest)
+    }
   }, [])
 
-  const routes = useSuspenseData<string[]>('/data/routes.json', jsonFetcher, {
-    onSuccess: (routeNames) => {
-      // Auto-select first route if none is selected
-      if (routeNames.length > 0 && selectedRoute == null) {
-        onRouteSelected(routeNames[0])
-      }
-    },
-  })
+  const routes = useSuspenseData<string[]>('/data/routes.json', jsonFetcher)
 
   // When a route diff is provided, sort routes by largest absolute impact so
   // the most-changed route bubbles to the top — matching the rest of the
@@ -97,8 +102,16 @@ export function RouteTypeahead({
         }))
       )
     }
-    return uniqueRouteItems(routes.map((name) => ({ name, row: null })))
-  }, [routes, routeDiff, useCompressed])
+    return uniqueRouteItems(
+      routes
+        .map((name) => ({ name, row: null, totals: routeTotals?.get(name) }))
+        .sort(
+          (left, right) =>
+            (right.totals?.compressedSize ?? 0) -
+            (left.totals?.compressedSize ?? 0)
+        )
+    )
+  }, [routes, routeDiff, routeTotals, useCompressed])
 
   // Find the currently selected route's diff row, used to render a delta
   // badge in the trigger button.
@@ -149,7 +162,7 @@ export function RouteTypeahead({
             <CommandList className="min-w-0">
               <CommandEmpty>No route found.</CommandEmpty>
               <CommandGroup className="min-w-0 [&_[cmdk-group-items]]:min-w-0">
-                {orderedItems.map(({ name, row }) => (
+                {orderedItems.map(({ name, row, totals }) => (
                   <CommandItem
                     key={name}
                     value={name}
@@ -179,6 +192,10 @@ export function RouteTypeahead({
                         useCompressed={useCompressed}
                         className="ml-auto"
                       />
+                    ) : totals ? (
+                      <span className="ml-auto shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
+                        {formatBytes(totals.compressedSize)}
+                      </span>
                     ) : null}
                   </CommandItem>
                 ))}
@@ -194,6 +211,7 @@ export function RouteTypeahead({
 interface RouteItem {
   name: string
   row: DiffRow | null
+  totals?: RouteSizeTotals
 }
 
 function truncateMiddle(value: string, maxLength: number): string {

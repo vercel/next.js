@@ -59,6 +59,47 @@ export function TableSkeleton() {
   )
 }
 
+export function RouteSummarySkeleton() {
+  return (
+    <main className="flex h-screen flex-col overflow-hidden bg-background">
+      <div className="flex h-14 flex-none items-center gap-3 border-b border-border px-4">
+        <Skeleton className="h-9 min-w-64 flex-1" />
+      </div>
+      <div className="flex flex-1 justify-center overflow-hidden px-6 py-12">
+        <div className="w-full max-w-3xl" aria-hidden="true">
+          <div className="mb-6 flex items-start justify-between gap-6">
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-md border bg-card">
+            {Array.from({ length: 15 }, (_, index) => (
+              <div
+                key={index}
+                className="flex h-12 items-center gap-4 border-b px-4 last:border-b-0"
+              >
+                <Skeleton className="h-3 w-5" />
+                <Skeleton
+                  className="h-3"
+                  style={{ width: `${35 + (index % 4) * 8}%` }}
+                />
+                <Skeleton className="ml-auto h-3 w-16" />
+                <Skeleton className="h-4 w-4" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
+  )
+}
+
 export function AnalyzerChromeSkeleton({
   view,
 }: {
