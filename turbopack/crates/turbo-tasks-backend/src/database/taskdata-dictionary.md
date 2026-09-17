@@ -20,17 +20,24 @@ environment.
 
 ## Held-out results
 
-The 38 holdout caches contained 1,462,462,144 uncompressed logical-value bytes.
+Evaluation approximates production compression units: small values are accumulated into SST-local
+8–12 KiB blocks, while medium values and blobs remain independent. The corrected evaluator was run
+against 4 held-out caches from a fresh 20-test smoke corpus, containing 11,778 compression units and
+176,698,226 uncompressed bytes.
 
-| Metric                      |       zstd3 |  Dictionary |       Delta |
-| --------------------------- | ----------: | ----------: | ----------: |
-| Raw compressed bytes        | 674,350,217 | 460,786,575 | **-31.67%** |
-| Median encode time (5 runs) |    18.646 s |     9.132 s | **-51.02%** |
-| Median decode time (5 runs) |     5.822 s |     3.030 s | **-47.91%** |
+| Metric                      |      zstd3 | Dictionary |       Delta |
+| --------------------------- | ---------: | ---------: | ----------: |
+| Raw compressed bytes        | 52,387,060 | 44,924,356 | **-14.25%** |
+| Median encode time (5 runs) |  772.23 ms |  822.26 ms |  **+6.48%** |
+| Median decode time (5 runs) |  225.30 ms |  192.72 ms | **-14.46%** |
 
-The copied holdout cache directories occupied 728,480,057 bytes. The raw compressed-byte delta is
-213,563,642 bytes, or 29.32% of that directory total; this is a directional total-cache estimate,
-not an exact rewritten-cache measurement.
+The copied holdout cache directories occupied 77,370,864 bytes. The raw compressed-byte delta is
+7,462,704 bytes, or 9.65% of that directory total; this is a directional total-cache estimate, not
+an exact rewritten-cache measurement.
+
+The original 38-cache evaluation treated every logical value as a compression unit and overstated
+the benefit, so those numbers are intentionally not retained here. The corrected result meets the
+accepted ≥2% size / ≤10% encode-regression / no-decode-regression gate.
 
 Timing is machine-specific single-process diagnostic data. The stable byte result is the primary
 receipt.

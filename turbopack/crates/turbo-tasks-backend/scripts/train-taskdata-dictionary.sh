@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -u -o pipefail
+set -euo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
 output_root=${1:-/tmp/taskdata-dictionary-corpus}
@@ -45,12 +45,14 @@ run_case() {
   mkdir -p "$case_root"
   log="$output_root/logs/$digest.log"
   echo "[$split] $relative"
+  set +e
   (
     cd "$repo_root"
     TMPDIR="$case_root" NEXT_TEST_SKIP_CLEANUP=1 \
       pnpm test-start-turbo "$relative"
   ) >"$log" 2>&1
   status=$?
+  set -e
   cache_index=0
   state_tmp="$output_root/state/$digest.tmp"
   : > "$state_tmp"
