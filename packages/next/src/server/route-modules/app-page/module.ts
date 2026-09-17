@@ -1,7 +1,12 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
-import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
+import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  type NextParsedUrlQuery,
+} from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
@@ -147,6 +152,19 @@ export class AppPageRouteModule extends RouteModule<
       req.headers[RSC_HEADER] = '1'
     } else {
       super.normalizeUrl(req, parsedUrl)
+    }
+
+    // A matched root path identifies `/index` as a platform-internal alias.
+    // Without it, `/index` may be a public rewrite source that must remain
+    // available when route preparation applies user rewrites below.
+    if (
+      getRequestMeta(req, 'minimalMode') &&
+      !getRequestMeta(req, 'rewrittenPathname') &&
+      req.headers[MATCHED_PATH_HEADER] === '/' &&
+      this.definition.pathname === '/' &&
+      parsedUrl.pathname === '/index'
+    ) {
+      parsedUrl.pathname = '/'
     }
 
     // Minimal adapters can bypass base-server request normalization and invoke
