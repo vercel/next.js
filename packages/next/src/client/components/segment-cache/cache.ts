@@ -1,7 +1,10 @@
+import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import type React from 'react'
-import type { Segment as FlightRouterStateSegment } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { VaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import {
+  readVaryParams,
+  type VaryParams,
+} from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
 import {
   NEXT_DID_POSTPONE_HEADER,
@@ -178,10 +181,9 @@ export type RSCSegmentData = {
    */
   isPartial: boolean
   /**
-   * The params this segment's output depends on (root params already
-   * unioned in), drained from the response's wire iterables at decode. Null
-   * means unknown — tracking wasn't enabled, or the decode had no root
-   * params to union in — so consumers key on all params.
+   * The source of the params this segment's output depends on (root params
+   * included). Null means unknown — tracking wasn't enabled, or the decode
+   * had no root params to union in — so consumers key on all params.
    */
   varyParams: VaryParams | null
   /**
@@ -194,9 +196,9 @@ export type RSCSegmentData = {
 
 type RouteTreeShared<TData> = {
   requestKey: SegmentRequestKey
-  // TODO: Remove the `segment` field, now that it can be reconstructed
-  // from `param`.
-  segment: FlightRouterStateSegment
+  // Structural segment identity. Page segments are bare; their query
+  // identity lives in varyPath. Legacy wire strings are built at the boundary.
+  segment: Segment
   // The vary path used for shell-scoped keying of this segment: the
   // segment's vary path with every non-root param replaced with Fallback
   // (see getShellSegmentVaryPath), so one shell-tier entry serves all param
@@ -204,14 +206,11 @@ type RouteTreeShared<TData> = {
   // don't have to recompute it on every shell request.
   shellVaryPath: SegmentVaryPath
   refreshState: RefreshState | null
-  // Render output for this segment, when the tree was created from a server
-  // response that rendered it. The type parameter encodes a lifecycle
-  // invariant: trees stored long-term in the route cache
-  // (RouteCacheEntry.tree / .metadata) are RouteTree<null> — structure only —
-  // so RSC payloads can never be pinned in memory outside the segment
-  // cache's eviction control. Trees that carry data must be transient:
-  // created for a navigation or cache-write, then dropped once the data is
-  // transferred into CacheNodes / SegmentCacheEntries.
+  // The payload distinguishes ownership/lifetime without changing structure:
+  // - RouteTree<null>: cached route structure.
+  // - RouteTree<RSCSegmentData | null>: a decoded server response.
+  // - RouteTree<CacheNode>: an active or retained render tree.
+  // Render payloads must not escape into the long-lived route cache.
   data: TData
   // Keyed by parallel route slot name. Stored as a Map rather than a plain
   // object because slot names are app-defined; with a plain object, every
@@ -458,7 +457,7 @@ export function getCurrentSegmentCacheVersion(): number {
  */
 export function invalidateEntirePrefetchCache(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: RouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
@@ -476,7 +475,7 @@ export function invalidateEntirePrefetchCache(
  */
 export function invalidateRouteCacheEntries(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: RouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
 
@@ -493,7 +492,7 @@ export function invalidateRouteCacheEntries(
  */
 export function invalidateSegmentCacheEntries(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: RouteTree<CacheNode>
 ): void {
   currentSegmentCacheVersion++
 
@@ -538,7 +537,7 @@ function notifyInvalidationListener(task: PrefetchTask): void {
 
 export function pingInvalidationListeners(
   nextUrl: string | null,
-  tree: FlightRouterState
+  cache: RouteTree<CacheNode>
 ): void {
   // The rough equivalent of pingVisibleLinks, but for onInvalidate callbacks.
   // This is called when the Next-Url or the base tree changes, since those
@@ -548,7 +547,7 @@ export function pingInvalidationListeners(
     const tasks = invalidationListeners
     invalidationListeners = null
     for (const task of tasks) {
-      if (isPrefetchTaskDirty(task, nextUrl, tree)) {
+      if (isPrefetchTaskDirty(task, nextUrl, cache)) {
         notifyInvalidationListener(task)
       }
     }
@@ -1697,23 +1696,22 @@ export function convertRootFlightRouterStateToRouteTree(
   )
 }
 
-export function convertReusedFlightRouterStateToRouteTree(
-  parentRouteTree: RouteTree<RSCSegmentData | null>,
+export function rebaseInactiveRouteTree<TParent, TData>(
+  parentRouteTree: RouteTree<TParent>,
   parallelRouteKey: string,
-  flightRouterState: FlightRouterState,
+  treeToRebase: RouteTree<TData>,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
-) {
-  // Create a RouteTree for a FlightRouterState that was reused from an older
-  // route. This happens during a navigation when a parallel route slot does not
-  // match the target route; we reuse whatever slot was already active.
+): RouteTree<null> {
+  // Reuse the structure of a retained slot under its target parent. Payloads
+  // belong to the previous render and are reused separately by render-tree.
 
-  // Unlike a FlightRouterState, the RouteTree type contains backreferences to
-  // the parent segments. Append the vary path to the parent's vary path.
+  // Rebuild the retained slot's vary paths under the target parent. Its own
+  // refresh context still selects the search params that rendered it.
   const parentPartialVaryPath = parentRouteTree.isPage
     ? getPartialPageVaryPath(parentRouteTree.varyPath)
     : getPartialLayoutVaryPath(parentRouteTree.varyPath)
-  const segment = flightRouterState[0]
+  const segment = treeToRebase.segment
   // And the request key.
   const parentRequestKey = parentRouteTree.requestKey
   const requestKeyPart = createSegmentRequestKeyPart(segment)
@@ -1722,13 +1720,60 @@ export function convertReusedFlightRouterStateToRouteTree(
     parallelRouteKey,
     requestKeyPart
   )
-  return convertFlightRouterStateToRouteTree(
-    flightRouterState,
+  return rebaseInactiveRouteTreeImpl(
+    treeToRebase,
     requestKey,
     parentPartialVaryPath,
     renderedSearch,
     acc
   )
+}
+
+function rebaseInactiveRouteTreeImpl<TData>(
+  treeToRebase: RouteTree<TData>,
+  requestKey: SegmentRequestKey,
+  parentPartialVaryPath: PartialSegmentVaryPath | null,
+  parentRenderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
+): RouteTree<null> {
+  const refreshState = treeToRebase.refreshState
+  const renderedSearch =
+    refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
+  const tree = createRouteTreeNode<null>(
+    treeToRebase.segment,
+    (treeToRebase.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0,
+    requestKey,
+    parentPartialVaryPath,
+    renderedSearch,
+    acc
+  )
+  tree.refreshState = refreshState
+  tree.prefetchHints = treeToRebase.prefetchHints
+  const partialVaryPath = tree.isPage
+    ? getPartialPageVaryPath(tree.varyPath)
+    : getPartialLayoutVaryPath(tree.varyPath)
+  if (treeToRebase.slots !== null) {
+    const slots = new Map<string, RouteTree<null>>()
+    for (const [parallelRouteKey, child] of treeToRebase.slots) {
+      const childRequestKey = appendSegmentRequestKeyPart(
+        requestKey,
+        parallelRouteKey,
+        createSegmentRequestKeyPart(child.segment)
+      )
+      slots.set(
+        parallelRouteKey,
+        rebaseInactiveRouteTreeImpl(
+          child,
+          childRequestKey,
+          partialVaryPath,
+          renderedSearch,
+          acc
+        )
+      )
+    }
+    tree.slots = slots
+  }
+  return tree
 }
 
 export function convertFlightRouterStateToRouteTree(
@@ -1806,8 +1851,8 @@ export function convertFlightRouterStateToRouteTree(
   return tree
 }
 
-export function convertRouteTreeToFlightRouterState(
-  routeTree: RouteTree<RSCSegmentData | null>
+export function convertRouteTreeToFlightRouterState<TData>(
+  routeTree: RouteTree<TData>
 ): FlightRouterState {
   const parallelRoutes: Record<string, FlightRouterState> = {}
   const slots = routeTree.slots
@@ -2736,7 +2781,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       // TODO: Consider also bounding retries with a counter on the task
       // object, so a prefetch that repeatedly fails to settle backs off
       // regardless of the reason.
-      invalidateRouteCacheEntries(key.nextUrl, task.treeAtTimeOfPrefetch)
+      invalidateRouteCacheEntries(key.nextUrl, task.renderTreeAtTimeOfPrefetch)
     }
 
     // Return a promise that resolves when the network connection closes, so
@@ -3412,7 +3457,7 @@ function writeSegmentDataIntoCache(
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
-  segmentVaryParams: Set<string> | null,
+  segmentVaryParams: VaryParams | null,
   tree: RouteTree<RSCSegmentData | null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
   // The strategy tier describing the CONTENT of the payload this write came
@@ -3530,37 +3575,45 @@ function writeSegmentDataIntoCache(
     payloadStrategy !== FetchStrategy.Full &&
     segmentVaryParams !== null
   ) {
-    let varyParams = segmentVaryParams
-    if (payloadStrategy === FetchStrategy.RuntimeShell && varyParams.has('?')) {
-      // SPECIAL CASE: for a RuntimeShell payload, the search params entry
-      // ('?') is dropped from the server's vary evidence before deriving the
-      // key, so the search component of the resulting path is marked as the
-      // fallback. This exists ONLY because of a known compromise in how the
-      // server reports search params: accessing `searchParams` records a
-      // dependency on '?' at access time, even when the render suspends on
-      // that access and cuts the content at the param fallback. A shell
-      // render's page and head segments therefore report '?' while the
-      // emitted bytes contain no search-dependent content. Trusting that
-      // report would key shell-grade content at a concrete search value,
-      // where shell-restricted reads (which generalize every non-root
-      // param — see getShellSegmentVaryPath) can never find it. A
-      // RuntimeShell payload's search-dependent content is reduced to
-      // fallbacks by construction, so its key must not vary on search
-      // regardless of the over-reported evidence. Every other component of
-      // the evidence is still honored as-is.
-      //
-      // Nothing else should rely on this branch; for every other payload
-      // grade — and every other param — the server's evidence
-      // is authoritative.
-      //
-      // TODO: Reconsider special-casing this on the server instead: don't
-      // report a param access that never resolved past the fallback cut in
-      // the emitted stage. A shell payload's evidence would then be
-      // accurate, and this branch could be deleted.
-      varyParams = new Set(varyParams)
-      varyParams.delete('?')
+    // Read the reported set now, when the key is chosen. The payload is fully
+    // buffered by the time it's written, so the source has settled; a read of
+    // null means the report is unavailable and every param varies.
+    let varyParams = readVaryParams(segmentVaryParams)
+    if (varyParams !== null) {
+      if (
+        payloadStrategy === FetchStrategy.RuntimeShell &&
+        varyParams.has('?')
+      ) {
+        // SPECIAL CASE: for a RuntimeShell payload, the search params entry
+        // ('?') is dropped from the server's vary evidence before deriving
+        // the key, so the search component of the resulting path is marked
+        // as the fallback. This exists ONLY because of a known compromise in
+        // how the server reports search params: accessing `searchParams`
+        // records a dependency on '?' at access time, even when the render
+        // suspends on that access and cuts the content at the param
+        // fallback. A shell render's page and head segments therefore report
+        // '?' while the emitted bytes contain no search-dependent content.
+        // Trusting that report would key shell-grade content at a concrete
+        // search value, where shell-restricted reads (which generalize every
+        // non-root param — see getShellSegmentVaryPath) can never find it. A
+        // RuntimeShell payload's search-dependent content is reduced to
+        // fallbacks by construction, so its key must not vary on search
+        // regardless of the over-reported evidence. Every other component of
+        // the evidence is still honored as-is.
+        //
+        // Nothing else should rely on this branch; for every other payload
+        // grade — and every other param — the server's evidence
+        // is authoritative.
+        //
+        // TODO: Reconsider special-casing this on the server instead: don't
+        // report a param access that never resolved past the fallback cut in
+        // the emitted stage. A shell payload's evidence would then be
+        // accurate, and this branch could be deleted.
+        varyParams = new Set(varyParams)
+        varyParams.delete('?')
+      }
+      fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
     }
-    fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
   }
 
   // The canonical path to (re-)key the entry at. When the derivation above

@@ -1,3 +1,4 @@
+import type { RouteTree } from './segment-cache/cache'
 import type {
   FlightRouterState,
   ScrollRef,
@@ -60,7 +61,7 @@ export function navigate(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
+  currentRenderTree: RouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
@@ -89,7 +90,7 @@ export function navigate(
         url,
         currentUrl,
         currentRenderedSearch,
-        currentCacheNode,
+        currentRenderTree,
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
@@ -105,7 +106,7 @@ export function navigate(
     url,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
+    currentRenderTree,
     currentFlightRouterState,
     nextUrl,
     freshnessPolicy,
@@ -122,7 +123,7 @@ function navigateImpl(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
+  currentRenderTree: RouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
@@ -147,8 +148,7 @@ function navigateImpl(
       currentUrl,
       currentRenderedSearch,
       nextUrl,
-      currentCacheNode,
-      currentFlightRouterState,
+      currentRenderTree,
       freshnessPolicy,
       scrollBehavior,
       navigateType,
@@ -185,8 +185,7 @@ function navigateImpl(
           currentUrl,
           currentRenderedSearch,
           nextUrl,
-          currentCacheNode,
-          currentFlightRouterState,
+          currentRenderTree,
           freshnessPolicy,
           scrollBehavior,
           navigateType,
@@ -210,7 +209,7 @@ function navigateImpl(
     currentUrl,
     currentRenderedSearch,
     nextUrl,
-    currentCacheNode,
+    currentRenderTree,
     currentFlightRouterState,
     freshnessPolicy,
     scrollBehavior,
@@ -231,8 +230,7 @@ export function navigateToKnownRoute(
   navigationSeed: NavigationSeed,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
+  currentRenderTree: RouteTree<CacheNode>,
   freshnessPolicy: FreshnessPolicy,
   nextUrl: string | null,
   scrollBehavior: ScrollBehavior,
@@ -345,8 +343,7 @@ export function navigateToKnownRoute(
     now,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
+    currentRenderTree,
     navigationSeed.routeTree,
     navigationSeed.metadataVaryPath,
     freshnessPolicy,
@@ -397,8 +394,7 @@ function navigateUsingPrefetchedRouteTree(
   currentUrl: URL,
   currentRenderedSearch: string,
   nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
+  currentRenderTree: RouteTree<CacheNode>,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
@@ -429,8 +425,7 @@ function navigateUsingPrefetchedRouteTree(
     prefetchSeed,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
+    currentRenderTree,
     freshnessPolicy,
     nextUrl,
     scrollBehavior,
@@ -463,7 +458,7 @@ async function navigateToUnknownRoute(
   currentUrl: URL,
   currentRenderedSearch: string,
   nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
+  currentRenderTree: RouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
@@ -479,7 +474,7 @@ async function navigateToUnknownRoute(
   //
   // To avoid duplication of logic, we're going to pretend that the tree
   // returned by the dynamic request is, in fact, a prefetch tree. Then we can
-  // use the same server response to write the actual data into the CacheNode
+  // use the same server response to write the actual data into the render
   // tree. So it's the same flow as the "happy path" (prefetch, then
   // navigation), except we use a single server response for both stages.
 
@@ -618,8 +613,7 @@ async function navigateToUnknownRoute(
     navigationSeed,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
+    currentRenderTree,
     freshnessPolicy,
     nextUrl,
     scrollBehavior,
@@ -677,7 +671,7 @@ export function completeSoftNavigation(
   url: URL,
   referringNextUrl: string | null,
   tree: FlightRouterState,
-  cache: CacheNode,
+  cache: RouteTree<CacheNode>,
   renderedSearch: string,
   canonicalUrl: string,
   navigateType: 'push' | 'replace',
@@ -737,7 +731,7 @@ export function completeSoftNavigation(
     //
     // If this navigation created new scroll targets (scrollRef !== null),
     // neutralize them. If it didn't, any prior scroll targets carried
-    // forward on the cache nodes via reuseSharedCacheNode remain active.
+    // forward on reused cache nodes remain active.
     if (scrollRef !== null) {
       scrollRef.current = false
     }
@@ -814,7 +808,7 @@ export function completeTraverseNavigation(
   state: AppRouterState,
   url: URL,
   renderedSearch: string,
-  cache: CacheNode,
+  cache: RouteTree<CacheNode>,
   tree: FlightRouterState,
   nextUrl: string | null
 ) {
@@ -854,7 +848,7 @@ async function ensurePrefetchThenNavigate(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
+  currentRenderTree: RouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
@@ -877,7 +871,7 @@ async function ensurePrefetchThenNavigate(
   const navigationLockPrefetch = beginNavigationLockPrefetch()
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
-    currentFlightRouterState,
+    currentRenderTree,
     fetchStrategy,
     PrefetchPriority.Default,
     null, // onInvalidate
@@ -897,7 +891,7 @@ async function ensurePrefetchThenNavigate(
     url,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
+    currentRenderTree,
     currentFlightRouterState,
     nextUrl,
     freshnessPolicy,

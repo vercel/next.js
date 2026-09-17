@@ -33,8 +33,8 @@ export function refreshReducer(
     process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
   if (!bypassCacheInvalidation) {
     const currentNextUrl = state.nextUrl
-    const currentRouterState = state.tree
-    invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
+    const currentRenderTree = state.cache
+    invalidateSegmentCacheEntries(currentNextUrl, currentRenderTree)
   }
   // A full refresh has no HMR generation to cancel.
   return refreshDynamicData(state, FreshnessPolicy.RefreshAll, undefined)
@@ -100,7 +100,6 @@ export function refreshDynamicData(
     currentUrl,
     currentRenderedSearch,
     state.cache,
-    currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
     scrollBehavior,

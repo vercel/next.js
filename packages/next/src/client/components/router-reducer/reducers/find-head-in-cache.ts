@@ -1,3 +1,4 @@
+import type { RouteTree } from '../../segment-cache/cache'
 import type {
   FlightRouterState,
   CacheNode,
@@ -6,21 +7,21 @@ import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import { createRouterCacheKey } from '../create-router-cache-key'
 
 export function findHeadInCache(
-  cache: CacheNode,
+  cache: RouteTree<CacheNode>,
   parallelRoutes: FlightRouterState[1]
-): [CacheNode, string, string] | null {
+): [RouteTree<CacheNode>, string, string] | null {
   return findHeadInCacheImpl(cache, parallelRoutes, '', '')
 }
 
 function findHeadInCacheImpl(
-  cache: CacheNode,
+  cache: RouteTree<CacheNode>,
   parallelRoutes: FlightRouterState[1],
   keyPrefix: string,
   keyPrefixWithoutSearchParams: string
-): [CacheNode, string, string] | null {
+): [RouteTree<CacheNode>, string, string] | null {
   const isLastItem = Object.keys(parallelRoutes).length === 0
   if (isLastItem) {
-    // Returns the entire Cache Node of the segment whose head we will render.
+    // Returns the render tree of the segment whose head we will render.
     return [cache, keyPrefix, keyPrefixWithoutSearchParams]
   }
 
@@ -45,8 +46,8 @@ function findHeadInCacheImpl(
         continue
       }
 
-      const childCacheNode = slots[key]
-      if (!childCacheNode) {
+      const childRenderTree = slots.get(key)
+      if (!childRenderTree) {
         continue
       }
 
@@ -54,7 +55,7 @@ function findHeadInCacheImpl(
       const cacheKeyWithoutSearchParams = createRouterCacheKey(segment, true)
 
       const item = findHeadInCacheImpl(
-        childCacheNode,
+        childRenderTree,
         childParallelRoutes,
         keyPrefix + '/' + cacheKey,
         keyPrefix + '/' + cacheKeyWithoutSearchParams
