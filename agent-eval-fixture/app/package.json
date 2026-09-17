@@ -1,0 +1,60 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "highlight.js": "^11.12.0",
+    "lodash": "^4.18.1",
+    "moment": "^2.31.0",
+    "next": "file:/vercel/sandbox/repo/packages/next",
+    "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+    "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+    "@next/swc": "file:/vercel/sandbox/repo/packages/next-swc"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.25",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@10.34.5",
+  "overrides": {
+    "next": "file:/vercel/sandbox/repo/packages/next",
+    "@next/mdx": "file:/vercel/sandbox/repo/packages/next-mdx",
+    "@next/env": "file:/vercel/sandbox/repo/packages/next-env",
+    "@next/bundle-analyzer": "file:/vercel/sandbox/repo/packages/next-bundle-analyzer",
+    "@next/swc": "file:/vercel/sandbox/repo/packages/next-swc",
+    "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+    "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0"
+  },
+  "resolutions": {
+    "next": "file:/vercel/sandbox/repo/packages/next",
+    "@next/mdx": "file:/vercel/sandbox/repo/packages/next-mdx",
+    "@next/env": "file:/vercel/sandbox/repo/packages/next-env",
+    "@next/bundle-analyzer": "file:/vercel/sandbox/repo/packages/next-bundle-analyzer",
+    "@next/swc": "file:/vercel/sandbox/repo/packages/next-swc",
+    "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+    "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "next": "file:/vercel/sandbox/repo/packages/next",
+      "@next/mdx": "file:/vercel/sandbox/repo/packages/next-mdx",
+      "@next/env": "file:/vercel/sandbox/repo/packages/next-env",
+      "@next/bundle-analyzer": "file:/vercel/sandbox/repo/packages/next-bundle-analyzer",
+      "@next/swc": "file:/vercel/sandbox/repo/packages/next-swc",
+      "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+      "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0"
+    }
+  }
+}

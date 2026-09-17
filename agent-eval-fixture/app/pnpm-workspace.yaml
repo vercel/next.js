@@ -1,0 +1,11 @@
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+overrides:
+  next: file:/vercel/sandbox/repo/packages/next
+  '@next/mdx': file:/vercel/sandbox/repo/packages/next-mdx
+  '@next/env': file:/vercel/sandbox/repo/packages/next-env
+  '@next/bundle-analyzer': file:/vercel/sandbox/repo/packages/next-bundle-analyzer
+  '@next/swc': file:/vercel/sandbox/repo/packages/next-swc
+  react: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
+  react-dom: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0

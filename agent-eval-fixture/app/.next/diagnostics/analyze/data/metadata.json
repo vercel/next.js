@@ -1,0 +1,13 @@
+{
+  "id": "20260917-201045-7afb1d3",
+  "createdAt": "2026-09-17T20:10:45.126Z",
+  "nextVersion": "16.4.0-canary.34",
+  "gitBranch": "main",
+  "gitSha": "7afb1d35580ba091061cfb371a398bf39dc30f8b",
+  "gitShortSha": "7afb1d3",
+  "gitDirty": true,
+  "gitMessage": "Initial commit from Create Next App",
+  "appDirOnly": false,
+  "noMangling": false,
+  "routeCount": 4
+}
