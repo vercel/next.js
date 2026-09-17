@@ -2,16 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('use-cache-segment-configs', () => {
-  const { next, skipped, isNextDev, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it("it should error when using segment configs that aren't supported by useCache", async () => {
     if (isNextDev) {

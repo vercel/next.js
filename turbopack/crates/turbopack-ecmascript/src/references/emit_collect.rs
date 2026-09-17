@@ -1,8 +1,8 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
-    ecma::ast::{Expr, Invalid},
-    quote,
+    common::DUMMY_SP,
+    ecma::ast::{Expr, IdentName, Invalid, MemberExpr, MemberProp},
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -27,11 +27,12 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
-    collect_module::EcmascriptCollectModule,
+    collect_module::{COLLECT_LIST_EXPORT, EcmascriptCollectModule},
     create_visitor,
     references::{
-        AstPath,
+        esm::{base::ReferencedAsset, mangle::generated_export_key},
         pattern_mapping::{PatternMapping, ResolveType},
         removal::RemovalCodeGen,
     },
@@ -141,17 +142,23 @@ impl EmittedModuleReference for EmitReference {
 }
 
 impl IntoCodeGenReference for EmitReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        mut path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        path.0.pop();
+        // The reference is on the import specifier; the statement to remove is its parent.
+        let path = trie.parent_or_root(path);
         (
             ResolvedVc::upcast(reference),
             CodeGen::RemovalCodeGen(RemovalCodeGen::new(
                 rcstr!("TURBOPACK collect"),
-                AstPathRange::Exact(path.0),
+                AstPathRange::Exact(path),
             )),
         )
     }
@@ -214,12 +221,17 @@ impl ModuleReference for CollectReference {
 }
 
 impl IntoCodeGenReference for CollectReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        mut path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        path.0.pop();
+        let path = trie.parent_or_root(path);
         (
             ResolvedVc::upcast(reference),
             CodeGen::CollectReferenceCodeGen(CollectReferenceCodeGen { reference, path }),
@@ -232,12 +244,13 @@ impl IntoCodeGenReference for CollectReference {
 )]
 pub struct CollectReferenceCodeGen {
     reference: ResolvedVc<CollectReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CollectReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -253,14 +266,28 @@ impl CollectReferenceCodeGen {
         .await?;
         let mut visitors = Vec::new();
 
+        // The collect module's own `getList` export is mangled like any other, so resolve the key
+        // it is actually emitted under rather than hard-coding the source name. Both sides ask the
+        // same module, so they always agree; when that module keeps its original names this is
+        // just `getList` again.
+        let export =
+            match ReferencedAsset::from_resolve_result(self.reference.resolve_reference()).await? {
+                ReferencedAsset::Some(module) => {
+                    generated_export_key(module, chunking_context, &COLLECT_LIST_EXPORT).await?
+                }
+                _ => COLLECT_LIST_EXPORT,
+            };
+
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
-                *expr = quote!(
-                    "$v.getList" as Expr,
-                    v: Expr = pm.create_require(Expr::Invalid(Invalid::default()))
-                );
+                *expr = Expr::Member(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: Box::new(pm.create_require(Expr::Invalid(Invalid::default()))),
+                    prop: MemberProp::Ident(IdentName::new(export.as_str().into(), DUMMY_SP)),
+                });
             }
         ));
 

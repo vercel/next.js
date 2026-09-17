@@ -17,8 +17,8 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
@@ -176,6 +176,16 @@ pub enum ExportUsage {
     All,
     /// Only side effects are used.
     Evaluation,
+    /// Use the same exports that are used from the referencing module. This is used by transparent
+    /// module proxies and re-exports that forward their export surface to another module.
+    ///
+    /// Namespace provenance that reached the referencing module is forwarded independently of the
+    /// used names. This keeps multi-hop namespace reads safe for export-name mangling.
+    Passthrough {
+        /// Whether this edge itself exposes a namespace object's original property names, even if
+        /// the referencing module was only consumed through statically known named exports.
+        namespace_object_may_escape: bool,
+    },
 }
 
 impl Display for ExportUsage {
@@ -194,6 +204,18 @@ impl Display for ExportUsage {
             }
             ExportUsage::All => write!(f, "all"),
             ExportUsage::Evaluation => write!(f, "evaluation"),
+            ExportUsage::Passthrough {
+                namespace_object_may_escape,
+                ..
+            } => write!(
+                f,
+                "passthrough{}",
+                if *namespace_object_may_escape {
+                    " namespace"
+                } else {
+                    ""
+                }
+            ),
         }
     }
 }
@@ -213,6 +235,14 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn passthrough(namespace_object_may_escape: bool) -> Vc<Self> {
+        Self::Passthrough {
+            namespace_object_may_escape,
+        }
+        .cell()
     }
 }
 
@@ -316,12 +346,15 @@ impl ModuleResolveResult {
     /// Returns primary modules (no duplicates). Emits errors for Unknown items.
     /// Duplicates are already marked at construction time so no extra dedup is
     /// needed here.
-    pub async fn primary_modules(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>> {
         self.primary
             .iter()
             .map(async |(_, item)| item.as_module().await)
-            .try_flat_join()
+            .join()
             .await
+            .into_iter()
+            .filter_map(Result::transpose)
+            .collect()
     }
 
     /// Returns the first module in the result, or None.
@@ -2043,30 +2076,35 @@ async fn resolve_internal_inline(
                 new_pat.push_front(rcstr!(".").into());
                 let relative = Request::relative(new_pat, query.clone(), fragment.clone(), true);
 
-                if !has_alias {
-                    ResolvingIssue {
-                        severity: resolve_error_severity(options).await?,
-                        request_type: "server relative import: not implemented yet".to_string(),
-                        request: relative.to_resolved().await?,
-                        file_path: lookup_path.clone(),
-                        resolve_options: options.to_resolved().await?,
-                        error_message: Some(
-                            "server relative imports are not implemented yet. Please try an \
-                             import relative to the file you are importing from."
-                                .to_string(),
-                        ),
-                        source: None,
+                // A `/`-rooted request is resolved from `server_relative_root`. It is not resolved
+                // relative to the importing file, and it does not fall back to a wider directory,
+                // so it can't reach outside of that root.
+                if let Some(root) = &options_value.server_relative_root {
+                    Box::pin(resolve_internal_inline(root.clone(), relative, options)).await?
+                } else {
+                    // Without a root configured there is nothing to resolve this from, so it isn't
+                    // supported. Guessing at the root of the filesystem would silently resolve or
+                    // silently fail depending on what happens to live there.
+                    if !has_alias {
+                        ResolvingIssue {
+                            severity: resolve_error_severity(options).await?,
+                            request_type: "server relative import: not implemented yet".to_string(),
+                            request: relative.to_resolved().await?,
+                            file_path: lookup_path.clone(),
+                            resolve_options: options.to_resolved().await?,
+                            error_message: Some(
+                                "server relative imports are not implemented yet. Please try an \
+                                 import relative to the file you are importing from."
+                                    .to_string(),
+                            ),
+                            source: None,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
-                }
 
-                Box::pin(resolve_internal_inline(
-                    lookup_path.root().owned().await?,
-                    relative,
-                    options,
-                ))
-                .await?
+                    ResolveResult::unresolvable().cell()
+                }
             }
             Request::Windows {
                 path: _,
@@ -3144,7 +3182,7 @@ async fn resolved(
         path.parent(),
         options,
         options_value,
-        |package_path| package_path.get_relative_path_to(&path_ref),
+        |package_path| package_path.get_relative_request_to(&path_ref),
         query.clone(),
         fragment.clone(),
     )
@@ -3956,7 +3994,7 @@ mod tests {
 
             // primary_modules() yields each module exactly once, in first-seen order.
             let modules = result.primary_modules().await?;
-            assert_eq!(modules, vec![m_a, m_b]);
+            assert_eq!(modules.as_slice(), [m_a, m_b]);
 
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
@@ -3990,7 +4028,7 @@ mod tests {
             .await?;
 
             assert_eq!(result.first_module().await?, Some(m));
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4032,7 +4070,7 @@ mod tests {
                 ModuleResolveResultItem::Module(m),
             );
             let result: ModuleResolveResult = builder.into();
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4069,7 +4107,7 @@ mod tests {
             let r2 = *ModuleResolveResult::module(m_b);
 
             let merged = ModuleResolveResult::alternatives(vec![r1, r2]).await?;
-            assert_eq!(merged.primary_modules().await?, vec![m_a, m_b]);
+            assert_eq!(merged.primary_modules().await?.as_slice(), [m_a, m_b]);
 
             // Verify every Duplicate(i) is well-formed
             for (i, (_, item)) in merged.primary.iter().enumerate() {

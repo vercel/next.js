@@ -23,6 +23,18 @@ pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsa
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
+/// Modules that are read through a *partial namespace object* — an
+/// [`ExportUsage::PartialNamespaceObject`] edge points at them.
+///
+/// The used export names are still known individually (that is why the usage stays
+/// [`ModuleExportUsageInfo::Exports`]), but the reads went through a namespace value: a namespace
+/// binding's member reads or destructuring, or the object a dynamic `import()` resolves to. Some of
+/// those reads are lowered to direct named accesses and some are not, and this set does not
+/// distinguish them — so a consumer that wants to rename the module's export keys has to assume the
+/// original names may still be read somewhere, and leave them alone.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
@@ -32,6 +44,7 @@ pub struct BindingUsageInfo {
 
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
+    partial_namespace_modules: ResolvedVc<PartialNamespaceModules>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -42,6 +55,9 @@ pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
     // Whether this module exists in an import cycle and has been selected to break the cycle.
     pub is_circuit_breaker: bool,
+    /// Whether this module is read through a namespace value somewhere, which means one of those
+    /// reads may still use an original export name. See [`PartialNamespaceModules`].
+    pub namespace_object_may_escape: bool,
 }
 #[turbo_tasks::value_impl]
 impl ModuleExportUsage {
@@ -50,6 +66,7 @@ impl ModuleExportUsage {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
+            namespace_object_may_escape: true,
         }
         .cell())
     }
@@ -78,9 +95,12 @@ impl BindingUsageInfo {
 
             bail!("export usage not found for module: {ident:?}");
         };
+        let namespace_object_may_escape =
+            self.partial_namespace_modules.contains_key(&module).await?;
         Ok(ModuleExportUsage {
             export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
+            namespace_object_may_escape,
         }
         .cell())
     }
@@ -108,6 +128,7 @@ pub async fn compute_binding_usage_info(
 
     async move {
         let mut used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
+        let mut partial_namespace_modules = FxHashSet::default();
         #[cfg(debug_assertions)]
         let mut debug_unused_references_name = FxHashSet::<(
             ResolvedVc<Box<dyn Module>>,
@@ -244,11 +265,43 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
-                let entry = used_exports.entry(target);
-                let is_first_visit = matches!(entry, Entry::Vacant(_));
-                if entry.or_default().add(&ref_data.binding_usage.export) || is_first_visit {
-                    // First visit, or the used exports changed. This can cause more imports to get
-                    // used downstream.
+                let is_first_visit = !used_exports.contains_key(&target);
+                let changed = match &ref_data.binding_usage.export {
+                    ExportUsage::Passthrough {
+                        namespace_object_may_escape,
+                    } => {
+                        // Passthrough edges always carry namespace provenance that already reached
+                        // their parent. Some edges (for example a forwarded CommonJS namespace)
+                        // additionally expose the target's original property names themselves.
+                        let namespace_changed = if *namespace_object_may_escape
+                            || partial_namespace_modules.contains(&parent)
+                        {
+                            partial_namespace_modules.insert(target)
+                        } else {
+                            false
+                        };
+                        let passthrough_usage = used_exports
+                            .get(&parent)
+                            .context("parent module must have usage info")?
+                            .clone();
+                        let usage_changed = used_exports
+                            .entry(target)
+                            .or_default()
+                            .add_usage_info(&passthrough_usage);
+                        namespace_changed || usage_changed
+                    }
+                    export_usage => {
+                        if matches!(export_usage, ExportUsage::PartialNamespaceObject(_)) {
+                            // `target` is read through a namespace value. We know which names are
+                            // used, but not that every read was lowered to a direct named access.
+                            partial_namespace_modules.insert(target);
+                        }
+                        used_exports.entry(target).or_default().add(export_usage)
+                    }
+                };
+                if changed || is_first_visit {
+                    // First visit, or the used exports/namespace provenance changed. Either can
+                    // cause more imports to become used downstream.
                     Ok(GraphTraversalAction::Continue)
                 } else {
                     Ok(GraphTraversalAction::Skip)
@@ -336,6 +389,7 @@ pub async fn compute_binding_usage_info(
             unused_references_edges,
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
+            partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
         }
         .cell())
     }
@@ -391,6 +445,34 @@ impl ModuleExportUsageInfo {
                 changed
             }
             (_, ExportUsage::Evaluation) => false,
+            (_, ExportUsage::Passthrough { .. }) => {
+                // Passthrough is normally resolved before `add`. If it reaches this fallback,
+                // preserve correctness by widening rather than panicking during graph analysis.
+                *self = Self::All;
+                true
+            }
+        }
+    }
+
+    /// Merge another module's resolved export usage into this one. Returns true if self changed.
+    fn add_usage_info(&mut self, usage: &Self) -> bool {
+        match (&mut *self, usage) {
+            (Self::All, _) | (_, Self::Evaluation) => false,
+            (_, Self::All) => {
+                *self = Self::All;
+                true
+            }
+            (Self::Evaluation, Self::Exports(exports)) => {
+                *self = Self::Exports(exports.clone());
+                true
+            }
+            (Self::Exports(left), Self::Exports(right)) => {
+                let mut changed = false;
+                for export in right {
+                    changed |= left.insert(export.clone());
+                }
+                changed
+            }
         }
     }
 
@@ -400,5 +482,41 @@ impl ModuleExportUsageInfo {
             Self::Evaluation => false,
             Self::Exports(exports) => exports.contains(export),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::rcstr;
+
+    use super::ModuleExportUsageInfo;
+    use crate::resolve::ExportUsage;
+
+    #[test]
+    fn resolved_usage_join_is_monotonic() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+        let first = ModuleExportUsageInfo::Exports([rcstr!("first")].into_iter().collect());
+        let second = ModuleExportUsageInfo::Exports([rcstr!("second")].into_iter().collect());
+
+        assert!(!usage.add_usage_info(&ModuleExportUsageInfo::Evaluation));
+        assert!(usage.add_usage_info(&first));
+        assert!(usage.is_export_used(&rcstr!("first")));
+        assert!(!usage.add_usage_info(&first));
+        assert!(usage.add_usage_info(&second));
+        assert!(usage.is_export_used(&rcstr!("second")));
+        assert!(!usage.add_usage_info(&ModuleExportUsageInfo::Evaluation));
+        assert!(usage.add_usage_info(&ModuleExportUsageInfo::All));
+        assert!(!usage.add_usage_info(&second));
+        assert!(matches!(usage, ModuleExportUsageInfo::All));
+    }
+
+    #[test]
+    fn unresolved_passthrough_falls_back_to_all() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+
+        assert!(usage.add(&ExportUsage::Passthrough {
+            namespace_object_may_escape: false,
+        }));
+        assert!(matches!(usage, ModuleExportUsageInfo::All));
     }
 }

@@ -2069,7 +2069,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
   SyntheticWheelEvent = createSyntheticEvent(WheelEventInterface),
   ToggleEventInterface = assign({}, EventInterface, {
     newState: 0,
-    oldState: 0
+    oldState: 0,
+    source: 0
   }),
   SyntheticToggleEvent = createSyntheticEvent(ToggleEventInterface),
   END_KEYCODES = [9, 13, 27, 32],
@@ -2215,19 +2216,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$318;
+  var JSCompiler_inline_result$jscomp$319;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_474 = "oninput" in document;
-    if (!isSupported$jscomp$inline_474) {
-      var element$jscomp$inline_475 = document.createElement("div");
-      element$jscomp$inline_475.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_474 =
-        "function" === typeof element$jscomp$inline_475.oninput;
+    var isSupported$jscomp$inline_475 = "oninput" in document;
+    if (!isSupported$jscomp$inline_475) {
+      var element$jscomp$inline_476 = document.createElement("div");
+      element$jscomp$inline_476.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_475 =
+        "function" === typeof element$jscomp$inline_476.oninput;
     }
-    JSCompiler_inline_result$jscomp$318 = isSupported$jscomp$inline_474;
-  } else JSCompiler_inline_result$jscomp$318 = !1;
+    JSCompiler_inline_result$jscomp$319 = isSupported$jscomp$inline_475;
+  } else JSCompiler_inline_result$jscomp$319 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$318 &&
+    JSCompiler_inline_result$jscomp$319 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -2439,6 +2440,7 @@ function makePrefixMap(styleProp, eventName) {
   return prefixes;
 }
 var vendorPrefixes = {
+    animationcancel: makePrefixMap("Animation", "AnimationCancel"),
     animationend: makePrefixMap("Animation", "AnimationEnd"),
     animationiteration: makePrefixMap("Animation", "AnimationIteration"),
     animationstart: makePrefixMap("Animation", "AnimationStart"),
@@ -2452,7 +2454,8 @@ var vendorPrefixes = {
 canUseDOM &&
   ((style = document.createElement("div").style),
   "AnimationEvent" in window ||
-    (delete vendorPrefixes.animationend.animation,
+    (delete vendorPrefixes.animationcancel.animation,
+    delete vendorPrefixes.animationend.animation,
     delete vendorPrefixes.animationiteration.animation,
     delete vendorPrefixes.animationstart.animation),
   "TransitionEvent" in window ||
@@ -2467,7 +2470,8 @@ function getVendorPrefixedEventName(eventName) {
       return (prefixedEventNames[eventName] = prefixMap[styleProp]);
   return eventName;
 }
-var ANIMATION_END = getVendorPrefixedEventName("animationend"),
+var ANIMATION_CANCEL = getVendorPrefixedEventName("animationcancel"),
+  ANIMATION_END = getVendorPrefixedEventName("animationend"),
   ANIMATION_ITERATION = getVendorPrefixedEventName("animationiteration"),
   ANIMATION_START = getVendorPrefixedEventName("animationstart"),
   TRANSITION_RUN = getVendorPrefixedEventName("transitionrun"),
@@ -9181,23 +9185,8 @@ function commitFragmentInstanceInsertionEffects(fiber) {
 }
 function commitFragmentInstanceDeletionEffects(fiber) {
   for (var parent = fiber.return; null !== parent; ) {
-    if (isFragmentInstanceParent(parent)) {
-      var fragmentInstance = parent.stateNode;
-      var childInstance = fiber.stateNode,
-        eventListeners = fragmentInstance._eventListeners;
-      if (null !== eventListeners)
-        for (var i = 0; i < eventListeners.length; i++) {
-          var _eventListeners$i4 = eventListeners[i];
-          childInstance.removeEventListener(
-            _eventListeners$i4.type,
-            _eventListeners$i4.attachedListener,
-            getAttachOptions(_eventListeners$i4.optionsOrUseCapture)
-          );
-        }
-      3 !== childInstance.nodeType &&
-        null != childInstance.reactFragments &&
-        childInstance.reactFragments.delete(fragmentInstance);
-    }
+    isFragmentInstanceParent(parent) &&
+      deleteChildFromFragmentInstance(fiber.stateNode, parent.stateNode);
     if (isFragmentInstanceHostBoundary(parent)) break;
     parent = parent.return;
   }
@@ -13692,22 +13681,23 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1677 = 0;
-  i$jscomp$inline_1677 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1677++
+  var i$jscomp$inline_1668 = 0;
+  i$jscomp$inline_1668 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1668++
 ) {
-  var eventName$jscomp$inline_1678 =
-      simpleEventPluginEvents[i$jscomp$inline_1677],
-    domEventName$jscomp$inline_1679 =
-      eventName$jscomp$inline_1678.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1680 =
-      eventName$jscomp$inline_1678[0].toUpperCase() +
-      eventName$jscomp$inline_1678.slice(1);
+  var eventName$jscomp$inline_1669 =
+      simpleEventPluginEvents[i$jscomp$inline_1668],
+    domEventName$jscomp$inline_1670 =
+      eventName$jscomp$inline_1669.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1671 =
+      eventName$jscomp$inline_1669[0].toUpperCase() +
+      eventName$jscomp$inline_1669.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1679,
-    "on" + capitalizedEvent$jscomp$inline_1680
+    domEventName$jscomp$inline_1670,
+    "on" + capitalizedEvent$jscomp$inline_1671
   );
 }
+registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
 registerSimpleEvent(ANIMATION_ITERATION, "onAnimationIteration");
 registerSimpleEvent(ANIMATION_START, "onAnimationStart");
@@ -13998,6 +13988,7 @@ function dispatchEventForPluginEventSystem(
           case "touchstart":
             SyntheticEventCtor = SyntheticTouchEvent;
             break;
+          case ANIMATION_CANCEL:
           case ANIMATION_END:
           case ANIMATION_ITERATION:
           case ANIMATION_START:
@@ -14038,7 +14029,10 @@ function dispatchEventForPluginEventSystem(
         var inCapturePhase = 0 !== (eventSystemFlags & 4),
           accumulateTargetOnly =
             !inCapturePhase &&
-            ("scroll" === domEventName || "scrollend" === domEventName),
+            ("scroll" === domEventName ||
+              "scrollend" === domEventName ||
+              "toggle" === domEventName ||
+              "beforetoggle" === domEventName),
           reactEventName = inCapturePhase
             ? null !== reactName
               ? reactName + "Capture"
@@ -15519,6 +15513,10 @@ function shouldAttemptEagerTransition() {
 var scheduleTimeout = "function" === typeof setTimeout ? setTimeout : void 0,
   cancelTimeout = "function" === typeof clearTimeout ? clearTimeout : void 0,
   localPromise = "function" === typeof Promise ? Promise : void 0,
+  localRequestAnimationFrame =
+    "function" === typeof requestAnimationFrame
+      ? requestAnimationFrame
+      : scheduleTimeout,
   scheduleMicrotask =
     "function" === typeof queueMicrotask
       ? queueMicrotask
@@ -15957,6 +15955,15 @@ FragmentInstance.prototype.addEventListener = function (
   listener,
   optionsOrUseCapture
 ) {
+  var signal = null,
+    cleanup = null;
+  if (
+    null != optionsOrUseCapture &&
+    "boolean" !== typeof optionsOrUseCapture &&
+    ((signal = optionsOrUseCapture.signal || null),
+    null !== signal && signal.aborted)
+  )
+    return;
   null === this._eventListeners && (this._eventListeners = []);
   var listeners = this._eventListeners;
   if (
@@ -15977,12 +15984,22 @@ FragmentInstance.prototype.addEventListener = function (
           ? listener.call(this, event)
           : listener.handleEvent(event);
       });
-    var attachOptions = getAttachOptions(optionsOrUseCapture);
+    null !== signal &&
+      ((cleanup = fragmentInstance.removeEventListener.bind(
+        fragmentInstance,
+        type,
+        listener,
+        optionsOrUseCapture
+      )),
+      signal.addEventListener("abort", cleanup, { once: !0 }),
+      (cleanup = signal.removeEventListener.bind(signal, "abort", cleanup)));
+    signal = getAttachOptions(optionsOrUseCapture);
     listeners.push({
       type: type,
       listener: listener,
       optionsOrUseCapture: optionsOrUseCapture,
-      attachedListener: attachedListener
+      attachedListener: attachedListener,
+      cleanup: cleanup
     });
     traverseVisibleInstancesAndTextInstances(
       this._fragmentFiber.child,
@@ -15990,7 +16007,7 @@ FragmentInstance.prototype.addEventListener = function (
       addEventListenerToChild,
       type,
       attachedListener,
-      attachOptions
+      signal
     );
   }
   this._eventListeners = listeners;
@@ -16021,6 +16038,7 @@ FragmentInstance.prototype.removeEventListener = function (
   ) {
     var _listeners$index = listeners[listener];
     optionsOrUseCapture = _listeners$index.attachedListener;
+    var cleanup = _listeners$index.cleanup;
     _listeners$index = getAttachOptions(_listeners$index.optionsOrUseCapture);
     traverseVisibleInstancesAndTextInstances(
       this._fragmentFiber.child,
@@ -16031,6 +16049,7 @@ FragmentInstance.prototype.removeEventListener = function (
       _listeners$index
     );
     listeners.splice(listener, 1);
+    null !== cleanup && cleanup();
   }
 };
 function removeEventListenerFromChild(
@@ -16047,13 +16066,15 @@ function removeEventListenerFromChild(
   return !1;
 }
 function getAttachOptions(opts) {
-  return null == opts || "boolean" === typeof opts || !0 !== opts.once
-    ? opts
-    : { capture: opts.capture, passive: opts.passive, signal: opts.signal };
+  return null != opts &&
+    "boolean" !== typeof opts &&
+    (!0 === opts.once || opts.signal instanceof AbortSignal)
+    ? { capture: opts.capture, passive: opts.passive }
+    : opts;
 }
 function normalizeListenerOptions(opts) {
   return null == opts
-    ? "0"
+    ? "c=0"
     : "boolean" === typeof opts
       ? "c=" + (opts ? "1" : "0")
       : "c=" + (opts.capture ? "1" : "0");
@@ -16196,9 +16217,8 @@ function observeChild(child, observer) {
 }
 FragmentInstance.prototype.unobserveUsing = function (observer) {
   var observers = this._observers;
-  null !== observers &&
-    observers.has(observer) &&
-    (observers.delete(observer),
+  if (null !== observers && observers.has(observer)) {
+    observers.delete(observer);
     traverseVisibleInstancesAndTextInstances(
       this._fragmentFiber.child,
       !1,
@@ -16206,13 +16226,49 @@ FragmentInstance.prototype.unobserveUsing = function (observer) {
       observer,
       void 0,
       void 0
-    ));
+    );
+    for (
+      var i = (observers = 0);
+      i < pendingIntersectionUnobserves.length;
+      i++
+    ) {
+      var pending = pendingIntersectionUnobserves[i];
+      pending.fragmentInstance === this && pending.observer === observer
+        ? observer.unobserve(pending.instance)
+        : (pendingIntersectionUnobserves[observers++] = pending);
+    }
+    pendingIntersectionUnobserves.length = observers;
+  }
 };
 function unobserveChild(child, observer) {
   if (6 === child.tag) return !1;
   child = getInstanceFromHostFiber(child);
   observer.unobserve(child);
   return !1;
+}
+var pendingIntersectionUnobserves = [],
+  intersectionUnobserveScheduled = !1;
+function schedulePendingIntersectionUnobserve(
+  fragmentInstance,
+  observer,
+  instance
+) {
+  pendingIntersectionUnobserves.push({
+    fragmentInstance: fragmentInstance,
+    observer: observer,
+    instance: instance
+  });
+  intersectionUnobserveScheduled ||
+    ((intersectionUnobserveScheduled = !0),
+    requestPostPaintCallback(function () {
+      intersectionUnobserveScheduled = !1;
+      var pending = pendingIntersectionUnobserves;
+      pendingIntersectionUnobserves = [];
+      for (var i = 0; i < pending.length; i++) {
+        var item = pending[i];
+        item.observer.unobserve(item.instance);
+      }
+    }));
 }
 FragmentInstance.prototype.getClientRects = function () {
   var rects = [];
@@ -16377,13 +16433,19 @@ function validateDocumentPositionWithFiberTree(
     return precedingBoundaryFiber;
   }
   if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
-    if (null === otherFiber)
-      return (
-        (otherFiber = otherNode.ownerDocument),
-        otherNode === otherFiber ||
-          otherNode === otherFiber.documentElement ||
-          otherNode === otherFiber.body
-      );
+    if (null === otherFiber) {
+      a: {
+        for (otherFiber = fragmentFiber.return; null !== otherFiber; ) {
+          if (3 === otherFiber.tag) {
+            otherFiber = otherFiber.stateNode.containerInfo;
+            break a;
+          }
+          otherFiber = otherFiber.return;
+        }
+        otherFiber = null;
+      }
+      return null !== otherFiber && otherNode.contains(otherFiber);
+    }
     a: {
       otherFiber = fragmentFiber;
       for (
@@ -16528,8 +16590,8 @@ function addFragmentHandleToInstance(instance, fragmentInstance) {
 function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
   var eventListeners = fragmentInstance._eventListeners;
   if (null !== eventListeners)
-    for (var i = 0; i < eventListeners.length; i++) {
-      var _eventListeners$i3 = eventListeners[i];
+    for (var i$jscomp$0 = 0; i$jscomp$0 < eventListeners.length; i$jscomp$0++) {
+      var _eventListeners$i3 = eventListeners[i$jscomp$0];
       childInstance.addEventListener(
         _eventListeners$i3.type,
         _eventListeners$i3.attachedListener,
@@ -16537,11 +16599,52 @@ function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
       );
     }
   3 !== childInstance.nodeType &&
-    (null !== fragmentInstance._observers &&
-      fragmentInstance._observers.forEach(function (observer) {
+    ((eventListeners = fragmentInstance._observers),
+    null !== eventListeners &&
+      eventListeners.forEach(function (observer) {
+        for (
+          var writeIdx = 0, i = 0;
+          i < pendingIntersectionUnobserves.length;
+          i++
+        ) {
+          var pending = pendingIntersectionUnobserves[i];
+          if (
+            pending.fragmentInstance !== fragmentInstance ||
+            pending.observer !== observer ||
+            pending.instance !== childInstance
+          )
+            pendingIntersectionUnobserves[writeIdx++] = pending;
+        }
+        pendingIntersectionUnobserves.length = writeIdx;
         observer.observe(childInstance);
       }),
     addFragmentHandleToInstance(childInstance, fragmentInstance));
+}
+function deleteChildFromFragmentInstance(childInstance, fragmentInstance) {
+  var eventListeners = fragmentInstance._eventListeners;
+  if (null !== eventListeners)
+    for (var i = 0; i < eventListeners.length; i++) {
+      var _eventListeners$i4 = eventListeners[i];
+      childInstance.removeEventListener(
+        _eventListeners$i4.type,
+        _eventListeners$i4.attachedListener,
+        getAttachOptions(_eventListeners$i4.optionsOrUseCapture)
+      );
+    }
+  3 !== childInstance.nodeType &&
+    ((eventListeners = fragmentInstance._observers),
+    null !== eventListeners &&
+      eventListeners.forEach(function (observer) {
+        "string" === typeof observer.rootMargin
+          ? schedulePendingIntersectionUnobserve(
+              fragmentInstance,
+              observer,
+              childInstance
+            )
+          : observer.unobserve(childInstance);
+      }),
+    null != childInstance.reactFragments &&
+      childInstance.reactFragments.delete(fragmentInstance));
 }
 function clearContainerSparingly(container) {
   var nextNode = container.firstChild;
@@ -16758,6 +16861,13 @@ function setFocusIfFocusable(node, focusOptions) {
     node.ownerDocument.removeEventListener("focus", handleFocus, !0);
   }
   return didFocus;
+}
+function requestPostPaintCallback(callback) {
+  localRequestAnimationFrame(function () {
+    localRequestAnimationFrame(function (time) {
+      return callback(time);
+    });
+  });
 }
 function resolveSingletonInstance(type, props, rootContainerInstance) {
   props = getOwnerDocumentFromRootContainer(rootContainerInstance);
@@ -18429,16 +18539,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2040 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2047 = React.version;
 if (
-  "19.3.0-canary-bd6ea412-20260824" !==
-  isomorphicReactPackageVersion$jscomp$inline_2040
+  "19.3.0-canary-ff8f88fc-20260915" !==
+  isomorphicReactPackageVersion$jscomp$inline_2047
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2040,
-      "19.3.0-canary-bd6ea412-20260824"
+      isomorphicReactPackageVersion$jscomp$inline_2047,
+      "19.3.0-canary-ff8f88fc-20260915"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18458,24 +18568,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2583 = {
+var internals$jscomp$inline_2590 = {
   bundleType: 0,
-  version: "19.3.0-canary-bd6ea412-20260824",
+  version: "19.3.0-canary-ff8f88fc-20260915",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-bd6ea412-20260824"
+  reconcilerVersion: "19.3.0-canary-ff8f88fc-20260915"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2584 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2591 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2584.isDisabled &&
-    hook$jscomp$inline_2584.supportsFiber
+    !hook$jscomp$inline_2591.isDisabled &&
+    hook$jscomp$inline_2591.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2584.inject(
-        internals$jscomp$inline_2583
+      (rendererID = hook$jscomp$inline_2591.inject(
+        internals$jscomp$inline_2590
       )),
-        (injectedHook = hook$jscomp$inline_2584);
+        (injectedHook = hook$jscomp$inline_2591);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18561,4 +18671,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-bd6ea412-20260824";
+exports.version = "19.3.0-canary-ff8f88fc-20260915";

@@ -38,13 +38,11 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     EcmascriptChunkPlaceable,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
 };
@@ -69,7 +67,7 @@ impl DirList {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn read_internal(
+    async fn read_internal(
         root: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
@@ -90,7 +88,8 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(path)
+                    // Webpack always checks the RegExp against a path prefixed with `./`
+                    if let Some(relative_path) = root_val.get_relative_request_to(path)
                         && regex.is_match(&relative_path)
                     {
                         list.insert(relative_path, DirListEntry::File(path.clone()));
@@ -193,7 +192,7 @@ impl RequireContextMap {
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+            let Some(origin_relative) = origin_path.get_relative_request_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 
@@ -313,9 +312,14 @@ impl ModuleReference for RequireContextAssetReference {
 }
 
 impl IntoCodeGenReference for RequireContextAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -332,13 +336,14 @@ impl IntoCodeGenReference for RequireContextAssetReference {
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct RequireContextAssetReferenceCodeGen {
-    path: AstPath,
+    path: AstPathId,
     reference: ResolvedVc<RequireContextAssetReference>,
 }
 
 impl RequireContextAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let module_id = self
@@ -351,6 +356,7 @@ impl RequireContextAssetReferenceCodeGen {
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {

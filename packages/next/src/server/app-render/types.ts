@@ -163,11 +163,14 @@ export interface RenderOptsPartial {
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     optimisticRouting: boolean
+    parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    reactBrowserBailout: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     cachedNavigations: boolean
 
     /**

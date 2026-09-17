@@ -14,7 +14,7 @@ module.exports = {}
 // flag defaults to false (PR #9199) and why the static export worker was fixed to
 // respect it instead of hardcoding threads on (PR #25063).
 describe('prerender worker threads', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // `bindings` is a direct dependency rather than one of the addon. The addon
@@ -52,28 +52,21 @@ module.exports = { experimental: { workerThreads: true } }
     expect(exitCode).not.toBe(0)
   })
 
-  // This documents a bug rather than intended behavior. `next build` runs Turbopack
-  // in a worker thread (`enableWorkerThreads: true` is hardcoded in
-  // packages/next/src/build/turbopack-build/index.ts) and that worker re-evaluates
-  // `next.config.js`, so requiring a non-context-aware addon from the config breaks
-  // the build even though `experimental.workerThreads` is off. It is the same class
-  // of failure PR #9199 and PR #25063 fixed, in a worker those PRs did not touch.
+  // Requiring the addon from `next.config.js` without an `isMainThread` guard is
+  // safe for both bundlers, because neither re-evaluates the config on a worker
+  // thread of the build process. Webpack's build worker is a forked child process,
+  // and Turbopack builds in the main process.
   //
-  // Webpack is unaffected, because its build worker is a forked child process.
-  //
-  // When Turbopack stops evaluating the config on a worker thread, this test will
-  // fail: drop the branch and assert the webpack outcome for both bundlers.
-  it('should currently fail under Turbopack when the config loads the addon', async () => {
+  // Turbopack used to run its build in a worker thread that re-evaluated the
+  // config, which broke this case even with `experimental.workerThreads` off --
+  // the same class of failure PR #9199 and PR #25063 fixed, in a worker those PRs
+  // did not touch.
+  it('should prerender when the config loads the addon unguarded', async () => {
     await next.patchFile('next.config.js', UNGUARDED_CONFIG)
 
     const { exitCode, cliOutput } = await next.build()
 
-    if (isTurbopack) {
-      expect(cliOutput).toContain('Module did not self-register')
-      expect(exitCode).not.toBe(0)
-    } else {
-      expect(cliOutput).not.toContain('Module did not self-register')
-      expect(exitCode).toBe(0)
-    }
+    expect(cliOutput).not.toContain('Module did not self-register')
+    expect(exitCode).toBe(0)
   })
 })

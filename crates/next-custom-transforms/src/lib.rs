@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 

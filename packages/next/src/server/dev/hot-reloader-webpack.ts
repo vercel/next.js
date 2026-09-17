@@ -466,7 +466,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       this.webpackHotMiddleware.onHMR(client, htmlRequestId)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      this.onDemandEntries?.onHMR(
+        client,
+        () => this.hmrServerError,
+        htmlRequestId
+      )
 
       const enableCacheComponents = this.config.cacheComponents
       // Clients with a request ID are inferred App Router clients. If Cache
@@ -687,7 +691,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       .traceAsyncFn(() =>
         recursiveDeleteSyncWithAsyncRetries(
           join(this.dir, this.config.distDir),
-          /^(cache|lock)/
+          new Set(['cache', 'lock'])
         )
       )
   }
@@ -998,6 +1002,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             const isInstrumentation =
               isInstrumentationHookFile(page) && pageType === PAGE_TYPES.ROOT
 
+            const entryAppPaths =
+              'appPaths' in entryData ? entryData.appPaths : null
+            const isFinalRouteMatcher =
+              pageType === PAGE_TYPES.APP &&
+              this.config.experimental.strictRouteMatching &&
+              !!entryAppPaths?.length
+
             let pageRuntime = staticInfo?.runtime
 
             runDependingOnPageType({
@@ -1051,6 +1062,17 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       ).toString('base64'),
                       isGlobalNotFoundEnabled: this.config.experimental
                         .globalNotFound
+                        ? true
+                        : undefined,
+                      explicitParallelRouteChildren: this.config.experimental
+                        .explicitParallelRouteChildren
+                        ? true
+                        : undefined,
+                      strictRouteMatching: this.config.experimental
+                        .strictRouteMatching
+                        ? true
+                        : undefined,
+                      isFinalRouteMatcher: isFinalRouteMatcher
                         ? true
                         : undefined,
                     }).import
@@ -1177,6 +1199,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       .globalNotFound
                       ? true
                       : undefined,
+                    explicitParallelRouteChildren: this.config.experimental
+                      .explicitParallelRouteChildren
+                      ? true
+                      : undefined,
+                    strictRouteMatching: this.config.experimental
+                      .strictRouteMatching
+                      ? true
+                      : undefined,
+                    isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,
                   })
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({

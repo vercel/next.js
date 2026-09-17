@@ -2,7 +2,6 @@
 
 import type {
   CompilationEvent,
-  NodeJsHmrUpdate,
   TurbopackResult,
   Update,
   UpdateMessage,
@@ -10,6 +9,7 @@ import type {
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
+export type ServerHmrVersion = { readonly __tag: unique symbol }
 export type NextTurboTasks = { readonly __tag: unique symbol }
 export type RefCell<_T = unknown> = { readonly __tag: unique symbol }
 export type FlushGuard = { readonly __tag: unique symbol }
@@ -79,13 +79,13 @@ export declare function codeFrameColumns(
 
 export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointWriteToDisk(endpoint: {
@@ -354,48 +354,25 @@ export interface NapiOptionEnvVar {
   value?: RcStr
 }
 
-/** [NapiProjectOptions] with all fields optional. */
+/**
+ * The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
+ * [`project_update`].
+ *
+ * Refer to [`NapiProjectOptions`] for documentation on this struct's fields.
+ */
 export interface NapiPartialProjectOptions {
-  /**
-   * An absolute root path  (Unix or Windows path) from which all files must be nested under.
-   * Trying to access a file outside this root will fail, so think of this as a chroot.
-   * E.g. `/home/user/projects/my-repo`.
-   */
   rootPath?: RcStr
-  /**
-   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
-   * a Unix path.
-   * E.g. `apps/my-app`
-   */
   projectPath?: RcStr
-  /** Filesystem watcher options. */
   watch?: NapiWatchOptions
-  /** The contents of next.config.js, serialized to JSON. */
   nextConfig?: RcStr
-  /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
-  /**
-   * A map of environment variables which should get injected at compile
-   * time.
-   */
   defineEnv?: NapiDefineEnv
-  /** The mode in which Next.js is running. */
   dev?: boolean
-  /** The server actions encryption key. */
   encryptionKey?: RcStr
-  /** The build id. */
   buildId?: RcStr
-  /** Options for draft mode. */
   previewProps?: NapiDraftModeOptions
-  /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: RcStr
-  /** Whether to write the route hashes manifest. */
   writeRoutesHashesManifest?: boolean
-  /**
-   * When the code is minified, this opts out of the default mangling of
-   * local names for variables, functions etc., which can be useful for
-   * debugging/profiling purposes.
-   */
   noMangling?: boolean
 }
 
@@ -487,10 +464,18 @@ export interface NapiRoute {
   /** The type of route, eg a Page or App */
   type: string
   pages?: Array<AppPageNapiRoute>
+  hasActionManifest?: boolean
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
   rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
   dataEndpoint?: ExternalObject<ExternalEndpoint>
+}
+
+export interface NapiServerHmrUpdate {
+  kind: 'none' | 'partial' | 'restart'
+  /** `unknown` forces the TypeScript boundary to narrow the payload. */
+  instruction?: unknown
+  version?: ExternalObject<ServerHmrVersion>
 }
 
 export interface NapiSource {
@@ -520,6 +505,19 @@ export interface NapiTurboEngineOptions {
   skipCompaction?: boolean
   /** Turbopack memory eviction mode for the persistent cache. */
   turbopackMemoryEviction: MemoryEvictionMode
+  /** Tuning for Turbopack's reference-counting GC. `None` disables the GC. */
+  gc?: NapiTurbopackGcOptions
+}
+
+/**
+ * Tuning for Turbopack's reference-counting GC, mirroring the
+ * `experimental.turbopackGc` config option.
+ */
+export interface NapiTurbopackGcOptions {
+  /** How long a GC pass runs before it will honour an interrupt, in milliseconds. */
+  minProgressMs?: number
+  /** How long a GC root may go un-anchored before it ages out, in milliseconds. */
+  rootTtlMs?: number
 }
 
 export interface NapiUpdateInfo {
@@ -551,6 +549,7 @@ export interface NapiWatchOptions {
 export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
+  serverHmrEntryPaths: Array<string>
   clientPaths: Array<string>
   serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
@@ -581,6 +580,11 @@ export declare function parse(
   signal?: AbortSignal | undefined | null
 ): Promise<string>
 
+export declare function projectActivateLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkPath: RcStr
+): Promise<boolean>
+
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
@@ -595,17 +599,20 @@ export declare function projectClientHmrEvents(
 /** Subscribes to all compilation events that are not cached like timing and progress information. */
 export declare function projectCompilationEventsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<CompilationEvent>) => void,
+  func: (err: Error, value: CompilationEvent) => void,
   eventTypes?: Array<string> | undefined | null
 ): void
 
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
-}): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+}): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void
+  func: (
+    err: Error,
+    value: TurbopackResult<Partial<NapiEntrypoints> | null>
+  ) => void
 ): { __napiType: 'RootTask' }
 
 /**
@@ -623,6 +630,12 @@ export declare function projectFeatureUsage(project: {
 export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult<undefined>>
+
+export declare function projectGetServerHmrUpdate(
+  project: { __napiType: 'Project' },
+  from: ExternalObject<ServerHmrVersion> | undefined | null,
+  entryPaths: Array<RcStr>
+): Promise<TurbopackResult<NapiServerHmrUpdate>>
 
 export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
@@ -663,11 +676,6 @@ export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
 
-export declare function projectServerHmrEvents(
-  project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<NodeJsHmrUpdate>) => void
-): { __napiType: 'RootTask' }
-
 /**
  * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
  *
@@ -706,13 +714,13 @@ export declare function projectUpdate(
 export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  func: (err: Error, value: TurbopackResult<UpdateMessage>) => void
+  func: (err: Error, value: UpdateMessage) => void
 ): void
 
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
-): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },

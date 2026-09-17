@@ -118,6 +118,7 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
+import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -125,6 +126,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -335,6 +337,11 @@ export interface DynamicPrerenderManifestRoute
    * `generateStaticParams`.
    */
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * Whether this candidate must produce a nonempty static shell.
+   */
+  throwOnEmptyStaticShell?: boolean
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -1208,7 +1215,7 @@ export default async function build(
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
-          process.exit(0)
+          return
         }
         Log.info('Inlining static env ...')
         await nextBuildSpan
@@ -1221,9 +1228,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        flushAllTraces()
-        teardownTraceSubscriber()
-        process.exit(0)
+        return
       }
 
       // when using compile mode static env isn't inlined so we
@@ -1282,7 +1287,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveDeleteSyncWithAsyncRetries(
               distDir,
-              /^(cache|dev|lock|trace)/
+              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
             )
           )
       }
@@ -1400,7 +1405,8 @@ export default async function build(
       let middlewareFilePath: string | undefined
 
       for (const rootPath of rootPaths) {
-        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const { base: fileBase, dir: fileDir } = path.parse(rootPath)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const normalizedFileDir = normalizePathSep(fileDir)
         const isAtConventionLevel =
@@ -1473,6 +1479,7 @@ export default async function build(
 
       NextBuildContext.mappedPages = discovery.mappedPages || {}
       NextBuildContext.mappedAppPages = discovery.mappedAppPages
+      NextBuildContext.mappedAppDefaults = discovery.mappedAppDefaults
       NextBuildContext.mappedRootPaths = await nextBuildSpan
         .traceChild('create-root-mapping')
         .traceAsyncFn(() =>
@@ -1792,11 +1799,7 @@ export default async function build(
             shutdownPromise: p,
             warnings,
             ...rest
-          } = await turbopackBuild(
-            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
-            telemetry
-          )
+          } = await turbopackBuild(telemetry)
           shutdownPromise = p
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
@@ -2218,6 +2221,18 @@ export default async function build(
           }
         }
 
+        if (config.experimental.strictRouteMatching && pageKeys.app) {
+          const emittedAppPaths = new Set(
+            emittedAppPageKeys?.map((appPageKey) =>
+              normalizeAppPath(appPageKey)
+            )
+          )
+          const retainedAppPaths = pageKeys.app.filter((appPath) =>
+            emittedAppPaths.has(appPath)
+          )
+          pageKeys.app = retainedAppPaths.length ? retainedAppPaths : undefined
+        }
+
         await writeManifest(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           appPathRoutes
@@ -2285,6 +2300,9 @@ export default async function build(
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                config.experimental.durableUseCacheEntries
+              ),
               staticPageGenerationTimeout: config.staticPageGenerationTimeout,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2517,6 +2535,9 @@ export default async function build(
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
+                            durableUseCacheEntries: Boolean(
+                              config.experimental.durableUseCacheEntries
+                            ),
                             staticPageGenerationTimeout:
                               config.staticPageGenerationTimeout,
                             cacheHandler: config.cacheHandler,
@@ -3874,6 +3895,8 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
+                  throwOnEmptyStaticShell:
+                    prerenderCandidate?.throwOnEmptyStaticShell,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4639,27 +4662,33 @@ export default async function build(
       await shutdownPromise
 
       if (NextBuildContext.analyze) {
-        await cp(
-          path.join(__dirname, '../bundle-analyzer'),
-          path.join(dir, '.next/diagnostics/analyze'),
-          { recursive: true }
-        )
+        const analyzeDir = path.join(distDir, 'diagnostics/analyze')
+        await cp(path.join(__dirname, '../bundle-analyzer'), analyzeDir, {
+          recursive: true,
+        })
 
-        await mkdir(path.join(dir, '.next/diagnostics/analyze/data'), {
+        await mkdir(path.join(analyzeDir, 'data'), {
           recursive: true,
         })
 
         // Write an index of routes for the route picker
+        const routes = routesManifest.dynamicRoutes
+          .map((r) => r.page)
+          .concat(routesManifest.staticRoutes.map((r) => r.page))
         await writeFile(
-          path.join(dir, '.next/diagnostics/analyze/data/routes.json'),
-          JSON.stringify(
-            routesManifest.dynamicRoutes
-              .map((r) => r.page)
-              .concat(routesManifest.staticRoutes.map((r) => r.page)),
-            null,
-            2
-          )
+          path.join(analyzeDir, 'data/routes.json'),
+          JSON.stringify(routes, null, 2)
         )
+
+        // Capture this build alongside any prior builds so the analyzer UI
+        // can offer it as a comparison baseline in the future.
+        await writeAnalyzeSnapshot({
+          projectDir: dir,
+          analyzeDir,
+          routes,
+          appDirOnly,
+          noMangling: NextBuildContext.noMangling ?? false,
+        })
       }
     })
   } catch (e) {

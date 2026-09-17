@@ -1,105 +1,173 @@
-# Rig discovery: generate this project's `instant-nav.rig.md`
+# Production `instant()` rig
 
-The skill's principles are environment-independent. Your build, deploy, auth,
-and test infrastructure are not. This phase converts the principles into THIS
-project's concrete workflow: run discovery once per repo, write the answers to
-a committed `instant-nav.rig.md` (repo root, or next to your e2e config), and
-every later run reads that file instead of rediscovering.
+The optimizer suite needs a production build that exposes the Next.js testing
+API, a stable URL for that build, and a Playwright command that can drive the
+initial loads or client navigations being optimized. Discover this setup once,
+record it in `instant-nav.rig.md`, and reuse it across optimization runs.
 
-The skill is deliberately opinionated about **what** the rig must provide, and
-deliberately unopinionated about **how** your stack provides it.
+Read an existing `instant-nav.rig.md` before creating one. Inspect the
+repository before asking the user:
 
-## How to discover
+- `package.json` scripts for build, start, and end-to-end tests
+- `playwright.config.*` for `baseURL`, `webServer`, projects, and authentication
+- `next.config.*` for existing `experimental` options
+- CI, preview deployment, container, and hosting configuration
+- test helpers for login, `storageState`, fixtures, flags, and seeded data
 
-Inspect before asking. Most answers are already in the repo:
+Ask only for details the repository cannot answer, such as unavailable
+credentials or which remote environment may expose the testing API.
 
-- `package.json` scripts (`build`, `start`, `test:e2e`)
-- the e2e config (`playwright.config.*`: `baseURL`, `webServer`, projects)
-- CI config (`.github/workflows/`, `vercel.json`, GitLab/Circle files,
-  Dockerfiles)
-- `next.config.*` (existing `experimental` flags)
-- existing e2e auth helpers (grep for `login`, `storageState`, `session`)
+## What the rig must define
 
-Ask the user only what the repo can't answer. Typically that means: which
-deploy target counts as "preview", which account the suite runs as in CI, and
-whether an agent is allowed to push and wait on CI unattended.
+### Production build and server
 
-## The six questions (all must have answers), plus two derived fields
+Use `next build` followed by `next start`, or a remote artifact produced by the
+same production build. Development can help diagnose a route, but the final
+RED and GREEN must come from a production build.
 
-The six questions below must all have answers. The rig file template adds two
-more fields the discovery feeds rather than asks directly: **LIVENESS** (the
-SHA-echoing probe, derived from the LOOP answer) and **WALLS** (project-specific
-build/run obstacles, accumulated as you first hit them).
+Record separate build and start commands. For a local rig, record the port,
+stop any previous server before starting, fail on `EADDRINUSE`, and confirm the
+new process owns the port before running Playwright. `next start` can fork a
+`next-server` child, so the launcher process ID may not own the port. Start the
+server in a process group that the rig can stop as a unit, or discover and stop
+the process listening on the recorded port before the next build.
 
-1. **BUILD**: how is a production build of this app produced and served?
-   A per-push preview deploy, a staging container, or bare
-   `next build && next start`. Anything but `next dev`.
-2. **EXPOSE**: what condition turns on
-   `experimental.exposeTestingApiInProductionBuild` for every measured build,
-   and never for real production? Spellings: an explicit
-   `EXPOSE_TESTING_API=1` for local production builds; `process.env.DEPLOY_ENV
-=== 'staging'` for a generic CI/staging env var; `process.env.VERCEL_ENV ===
-'preview'` on Vercel.
-3. **RUN**: how is the Playwright suite invoked, and against which
-   `BASE_URL`?
-4. **TEST USER**: which account does the suite run as, and how does login
-   happen (helper, `storageState`, API token)? What flags / plan / role / data
-   does that account have?
-5. **DRIFT**: enumerate everything that can differ between the author's own
-   session and the test user's environment (feature flags, plans and
-   entitlements, roles, seeded vs empty data, locale, A/B buckets). Every item
-   is a way a RED can become untrustworthy; this list feeds the C-gate
-   (`reference/red-test-robustness.md`).
-6. **LOOP**: the unattended iteration for your rig. Push → build → e2e
-   against the artifact → read the failure → fix → push (CI), or build → start
-   → e2e (local). Note anything an agent cannot do alone (deploy approvals,
-   secrets, protected branches). Include the **liveness probe**: the endpoint
-   or response header that echoes the deployed commit SHA (e.g. a `/healthz`
-   route or an `x-deployed-sha` header), so a CI run can confirm the build
-   under test matches `HEAD` before trusting a verdict (SKILL.md phase A). If
-   the platform exposes no SHA-echoing endpoint or header, add one: surface a
-   build-time commit var (`VERCEL_GIT_COMMIT_SHA`, a CI commit variable) on a
-   `/healthz` route or a response header, or fall back to polling the deploy
-   platform's API for the deployment whose `commitSha === HEAD`. Record the
-   chosen mechanism. For a local `build && start` rig the artifact is the one
-   freshly built, so no SHA probe is needed. Record the port, stop the previous
-   server before starting, fail the loop on `EADDRINUSE`, and verify the newly
-   started process owns the port before running the test.
+### Testing API
 
-## The file: copy, fill, commit as `instant-nav.rig.md`
+An `instant()` test against a production build requires
+`experimental.exposeTestingApiInProductionBuild`. Gate it so real production
+builds do not expose the API:
+
+```ts filename="next.config.ts" highlight={3,8-10}
+import type { NextConfig } from 'next'
+
+const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    exposeTestingApiInProductionBuild: exposeTestingApi,
+  },
+}
+
+export default nextConfig
+```
+
+Merge the option into an existing `experimental` object instead of replacing
+the project's other experimental options.
+
+Set the condition while running `next build`. Setting it only for `next start`
+is too late because the testing API is compiled into the production artifact.
+When the artifact was built without it, Next.js does not activate the
+navigation lock, so the test cannot distinguish shell content from streamed
+dynamic content. Rebuild with the condition enabled before interpreting the
+results. Use the project's existing environment naming when it already
+distinguishes test, staging, preview, and production builds.
+
+### Test command and base URL
+
+Record the exact Playwright command and how it receives the measured build's
+URL. Reuse the project's package manager, Playwright configuration, projects,
+and reporters. The suite must import `instant()` from `@next/playwright`. If
+the dependencies are absent, install `@next/playwright` on the same release
+line as the project's `next`, alongside `@playwright/test`.
+
+For a local rig, a typical sequence is:
+
+```bash filename="Terminal"
+EXPOSE_TESTING_API=1 pnpm build
+pnpm start --port 3000
+BASE_URL=http://localhost:3000 pnpm playwright test tests/static-shell.spec.ts
+```
+
+Adapt the script names and port to the project. Keep the production server
+running while the test command executes. Follow the public
+[`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
+contract and click the real `<Link>` for a client-navigation contract.
+
+### Test context
+
+Record the state required to reach the target route and shell marker:
+
+- Use `public; no authentication` when the route is public.
+- Otherwise record the test account and login mechanism, including a fixture,
+  `storageState`, API login, or seeded session.
+- Record flags, plan, role, locale, seeded data, and other state that can change
+  which shell the test sees.
+
+A test user is not required. The field exists to make authenticated and
+state-dependent tests reproducible when the app needs one.
+
+### Drift
+
+List differences between the state used to choose the shell contract and the
+state used by Playwright. Feature flags, permissions, empty test data, and
+locale differences can make an assertion fail because the target is
+unreachable, not because its shell blocks. Write `none known`
+only after checking the test context.
+
+### Iteration loop
+
+Record the complete loop the agent can repeat without rediscovering commands:
+
+- Local: build with the testing API, start the new artifact, run the focused
+  suite, stop the server, edit, and repeat.
+- Remote: push, wait for the measured artifact, verify it matches `HEAD`, run
+  the focused suite against its URL, edit, and repeat.
+
+Note any step the agent cannot perform without the user, including deployment
+approval, protected branches, secrets, or multi-factor authentication.
+
+### Artifact liveness
+
+For a remote rig, record how the test proves the deployment matches `HEAD`.
+Prefer an endpoint or response header that exposes the deployed commit SHA. If
+the app has neither, use the deployment provider's API to select the artifact
+whose commit SHA matches `HEAD`.
+
+A freshly completed local `build` followed by `start` does not need a SHA
+probe. Record `n/a; local build and start`.
+
+### Walls
+
+Record build and run obstacles with their working resolution, such as required
+environment variables, server-only imports that fail during prerendering,
+unavailable credentials, or a process that keeps reclaiming the test port.
+Reuse these notes on the next iteration.
+
+## Write `instant-nav.rig.md`
+
+Place this file at the repository root or next to the end-to-end configuration:
 
 ```md
 # instant-nav rig: <project>
 
-- BUILD: <command / platform that produces the measured production build>
-- EXPOSE: <the condition wired to exposeTestingApiInProductionBuild>
-- RUN: <e2e command> against <how BASE_URL is obtained>
-- TEST USER: <account> via <login mechanism>; flags/plan/role/data: <...>
-- DRIFT: <the enumerated drift surface>
-- LOOP: <push → CI → e2e, or local build → start → test>; agent limits: <...>
-- LIVENESS: <endpoint/header echoing the deployed SHA; n/a for local build && start>
-- WALLS: <project-specific build/run obstacles + their workarounds>
+- BUILD: <commands or platform that builds and serves the measured production artifact>
+- EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build>
+- RUN: <focused Playwright command and how it receives BASE_URL>
+- TEST USER: <public/no auth, or account and login>; state: <flags, role, data, locale>
+- DRIFT: <differences that could change the asserted UI>
+- CONTRACTS: <route, initial load or source Link, shell marker, and deferred marker>
+- LOOP: <local build → start → test, or push → deploy → test>; agent limits: <...>
+- LIVENESS: <deployed SHA check, or n/a for a local build and start>
+- WALLS: <project-specific obstacles and their resolutions>
 ```
 
-Real apps rarely build for production cleanly on the first attempt: missing
-secrets, server-only imports that fail prerender, ports held by respawning
-servers. Record each wall and its workaround the first time you hit it. `WALLS`
-accumulates the project-specific build/run obstacles that the other fields
-cannot capture.
+`CONTRACTS` may list more than one focused navigation, but each route and
+navigation type needs its own test. Every field needs a concrete value. `n/a`
+is valid only with a reason, such as `TEST USER: public; no authentication` or
+`LIVENESS: n/a; local build and start`.
 
-## Filled examples
+## Check the rig before writing the baseline
 
-**No CI / local-only.** BUILD: `EXPOSE_TESTING_API=1 next build && next
-start`. EXPOSE: that env var. RUN: `BASE_URL=http://localhost:3000 playwright
-test`. LOOP: build → start → test on one machine; fully agent-drivable, with
-nothing to push, no secrets, and no deploy wait.
+Before recording the static-shell contract:
 
-**Generic CI + container.** BUILD: the pipeline builds an image and deploys it
-to a staging namespace. EXPOSE: `process.env.DEPLOY_ENV === 'staging'`. RUN: a
-CI job runs Playwright against the staging URL. LOOP: push → pipeline → e2e;
-fully agent-drivable once the pipeline is wired.
+1. Build with the testing API condition enabled.
+2. Start or locate that exact artifact and confirm the base URL responds.
+3. Run one focused `instant()` smoke test using the intended navigation type.
+4. Confirm the test can reach the route and eventual destination UI in the
+   recorded test context.
 
-**Vercel preview deploys.** BUILD: every push builds a preview. EXPOSE:
-`process.env.VERCEL_ENV === 'preview'`. RUN: `playwright test` with
-`BASE_URL=<preview URL>`. LOOP: push → preview → e2e; fully agent-drivable
-once the preview deploy and `VERCEL_ENV` gating are in place.
+Fix the rig before interpreting an optimizer failure. A missing testing API,
+stale deployment, unreachable target, or wrong test state is an environment
+failure rather than evidence that the shell blocks.

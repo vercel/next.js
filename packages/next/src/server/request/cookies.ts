@@ -28,6 +28,10 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  createCookiesInUseCacheError,
+  createCookiesInUnstableCacheError,
+} from '../use-cache/use-cache-messages'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
@@ -57,17 +61,13 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache':
-          const error = new Error(
-            `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
+          const error = createCookiesInUseCacheError(workStore.route)
           Error.captureStackTrace(error, cookies)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         case 'unstable-cache':
-          throw new Error(
-            `Route ${workStore.route} used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-          )
+          throw createCookiesInUnstableCacheError(workStore.route)
         case 'generate-static-params':
           throw new Error(
             `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`

@@ -16,4 +16,9 @@ describe('symbolic-links', () => {
     const html = await next.render('/directory-symlink')
     expect(html).toContain('hello from a directory symlink')
   })
+
+  it('should render a route that imports through chained directory symlinks', async () => {
+    const html = await next.render('/directory-symlink-chain')
+    expect(html).toContain('hello from a directory symlink')
+  })
 })

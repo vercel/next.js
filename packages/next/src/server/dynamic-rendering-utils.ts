@@ -2,13 +2,13 @@ import {
   RenderStage,
   type AdvanceableRenderStage,
 } from './app-render/staged-rendering'
+import { workAsyncStorage } from './app-render/work-async-storage.external'
 import type {
   RequestStore,
   WorkUnitStore,
 } from './app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from './runtime-reacts.external'
-import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -112,7 +112,7 @@ export function makeUntrackedHangingPromise<T>(
  * searchParams, and cache entries that are excluded only from static
  * prerenders.
  *
- * Creating one of these during a static prerender records on the prerender
+ * Awaiting one of these during a static prerender records on the prerender
  * store that a runtime prefetch would produce more content than the static
  * response (`runtimeDataAccessed`), which the segment prefetch encoding uses
  * to tell the client whether a runtime prefetch request could be skipped.
@@ -121,13 +121,10 @@ export function makeUntrackedHangingPromise<T>(
  * cost of over-recording is a redundant runtime prefetch request; the cost of
  * under-recording is a permanently missing one.
  *
- * `workUnitStore` may be null ONLY when the caller tracks the access itself
- * at observation time instead of creation time. This is for promises the
- * framework creates eagerly whether or not anything reads them (e.g. the
- * `searchParams` prop constructed for every page): recording at creation
- * would mark every render. Such a caller MUST call `trackRuntimeDataAccessed`
- * from every path that observes the promise (e.g. the proxy traps for
- * `then`/`status`), against the work unit store active at access time.
+ * `workUnitStore` may be null ONLY when the caller tracks the access itself.
+ * Such a caller MUST call `trackRuntimeDataAccessed` from every path that
+ * observes the promise (e.g. the proxy traps for `then`/`status`),
+ * against the work unit store active at access time.
  *
  * For fallback-param data — data a concrete (ISR-upgraded) prerender would
  * resolve — use `makeFallbackParamsHangingPromise` instead, so the access
@@ -141,29 +138,31 @@ export function makeRuntimeHangingPromise<T>(
   expression: string,
   workUnitStore: WorkUnitStore | null
 ): Promise<T> {
-  if (workUnitStore !== null) {
-    trackRuntimeDataAccessed(workUnitStore)
-  }
-  return makeHangingPromiseWithError(
+  const promise = makeHangingPromiseWithError<T>(
     signal,
     new HangingPromiseRejectionError(route, expression)
+  )
+  if (workUnitStore === null) {
+    return promise
+  }
+  return trackPromiseUsed(
+    promise,
+    trackRuntimeDataAccessed.bind(null, workUnitStore, expression)
   )
 }
 
 /**
  * Variant of `makeRuntimeHangingPromise` for *fallback-param* data: fallback
  * route params and values derived solely from them (`params`, `rootParams`,
- * `pathname` during a fallback prerender). Like every runtime data access it
- * records the access on the prerender store's response-level flag, but its
- * effect on the build-time static-prefetch hint differs — on a
+ * `pathname` during a fallback prerender). Like every runtime data access,
+ * awaiting it records the access on the prerender store's response-level flag,
+ * but its effect on the build-time static-prefetch hint differs — on a
  * fallback-upgradeable route the access is transient (a concrete prerender
- * resolves it), so it leaves the hint intact. See
- * `trackFallbackParamsAccessed`.
+ * resolves it), so it leaves the hint intact. See `trackFallbackParamsAccessed`.
  *
  * As with `makeRuntimeHangingPromise`, `workUnitStore` may be null ONLY when
- * the caller tracks the access itself at observation time instead of creation
- * time, by calling `trackFallbackParamsAccessed` from every path that
- * observes the promise.
+ * the caller tracks the access itself by calling `trackFallbackParamsAccessed`
+ * from every path that observes the promise.
  *
  * @internal
  */
@@ -173,40 +172,33 @@ export function makeFallbackParamsHangingPromise<T>(
   expression: string,
   workUnitStore: WorkUnitStore | null
 ): Promise<T> {
-  if (workUnitStore !== null) {
-    trackFallbackParamsAccessed(workUnitStore)
-  }
-  return makeHangingPromiseWithError(
+  const promise = makeHangingPromiseWithError<T>(
     signal,
     new HangingPromiseRejectionError(route, expression)
+  )
+  if (workUnitStore === null) {
+    return promise
+  }
+  return trackPromiseUsed(
+    promise,
+    trackFallbackParamsAccessed.bind(null, workUnitStore, expression)
   )
 }
 
 /**
  * Constructs a promise that never resolves, standing in for data that is only
- * accessible in a later *stage* of rendering than this render reaches — e.g.
- * a prefetchable short-stale cache entry that's excluded from shells when the
- * render ends at the shell stage, or params during a runtime-prefetch render
- * that stops before the stage where params resolve.
- *
- * A render that runs through the later stage would include the data; in
- * particular a runtime prefetch renders through its later stages, so on a
- * static prerender store this records `runtimeDataAccessed`, same as
- * `makeRuntimeHangingPromise`.
+ * accessible in the prefetch, but not in the shell, e.g. `unstable_prefetch()`.
+ * This usage does *not* indicate that a runtime request is needed,
+ * only that the data is not available in a shell.
  *
  * @internal
  */
-export function makeStageHangingPromise<T>(
+export function makePrefetchHangingPromise<T>(
   signal: AbortSignal,
   route: string,
-  expression: string,
-  workUnitStore: WorkUnitStore
+  expression: string
 ): Promise<T> {
-  trackRuntimeDataAccessed(workUnitStore)
-  return makeHangingPromiseWithError(
-    signal,
-    new HangingPromiseRejectionError(route, expression)
-  )
+  return makeUntrackedHangingPromise(signal, route, expression)
 }
 
 /**
@@ -214,18 +206,18 @@ export function makeStageHangingPromise<T>(
  * which would have resolved during a runtime prerender. No-op for all other
  * store types.
  *
- * `makeRuntimeHangingPromise` and `makeStageHangingPromise` call this
- * automatically; call it directly only where the access is observed
- * separately from the promise's creation (see the null `workUnitStore` case
- * of `makeRuntimeHangingPromise`), or where the prerender is aborted
- * synchronously instead of hanging.
+ * Prefer `makeRuntimeHangingPromise` and `makeStageHangingPromise`.
+ * Use this method only when implementing similar tracking and those two are not enough.
  *
  * For fallback-param data, use `trackFallbackParamsAccessed` instead. When
  * unsure, this is the conservative choice: it unconditionally clears the
  * static-prefetch hint.
  */
-export function trackRuntimeDataAccessed(workUnitStore: WorkUnitStore): void {
-  trackRuntimeDataAccessedImpl(workUnitStore, false)
+export function trackRuntimeDataAccessed(
+  workUnitStore: WorkUnitStore,
+  expression: string
+): void {
+  trackRuntimeDataAccessedImpl(workUnitStore, false, expression)
 }
 
 /**
@@ -237,14 +229,16 @@ export function trackRuntimeDataAccessed(workUnitStore: WorkUnitStore): void {
  * concrete prerender that resolves it.
  */
 export function trackFallbackParamsAccessed(
-  workUnitStore: WorkUnitStore
+  workUnitStore: WorkUnitStore,
+  expression: string
 ): void {
-  trackRuntimeDataAccessedImpl(workUnitStore, true)
+  trackRuntimeDataAccessedImpl(workUnitStore, true, expression)
 }
 
 function trackRuntimeDataAccessedImpl(
   workUnitStore: WorkUnitStore,
-  isFallbackParamAccess: boolean
+  isFallbackParamAccess: boolean,
+  expression: string
 ): void {
   switch (workUnitStore.type) {
     case 'prerender': {
@@ -283,6 +277,13 @@ function trackRuntimeDataAccessedImpl(
         hintCell !== null &&
         (!isFallbackParamAccess || !workUnitStore.isFallbackUpgradeable)
       ) {
+        if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
+          const workStore = workAsyncStorage.getStore()
+          const route = workStore?.route ?? '<unknown route>'
+          console.log(
+            `Route '${route}' deopting to runtime requests because it used ${expression}`
+          )
+        }
         hintCell.current = false
       }
       break
@@ -304,7 +305,39 @@ function trackRuntimeDataAccessedImpl(
   }
 }
 
-export function trackIncompatibleShellContent(workUnitStore: RequestStore) {
+/**
+ * Signals that we cannot recover both a runtime shell and a static (PPR) shell
+ * from the same render. Use this whenever the stage of a promise varies on
+ * `RequestStore.needsAppShell`.
+ * */
+export function trackIncompatibleShellContent(
+  workUnitStore: RequestStore,
+  reason: string
+) {
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    return
+  }
+
+  // TODO(app-shells): optimize this to only consider stages that are relevant for validation.
+  // We should only track incompatible content when it can affect them.
+  // For now, we simply exclude everything that happens in the dynamic stage.
+  // (Note that we also need to account for cache misses that move things to a
+  // different stage -- those should also preemptively set `hasIncompatibleShellContent`
+  // because there's a chance that a render with warm caches would set it)
+  const { currentStage } = stagedRendering
+  if (
+    currentStage === RenderStage.Dynamic ||
+    currentStage === RenderStage.Abandoned
+  ) {
+    return
+  }
+  if (process.env.NEXT_PRIVATE_DEBUG_VALIDATION) {
+    const workStore = workAsyncStorage.getStore()!
+    console.log(
+      `Route ${workStore.route}: Incompatible shell content: ${reason}`
+    )
+  }
   workUnitStore.hasIncompatibleShellContent = true
 }
 
@@ -389,38 +422,72 @@ export function makeDevtoolsIOAwarePromise<T>(
   })
 }
 
-/** Invokes `onUse` whenever `then()/catch()/finally()` are called on the promise. */
-export function trackPromiseUsed<T>(promise: Promise<T>, onUse: () => void) {
-  const methodCache: Record<string, (...args: any[]) => any> = {}
-  return new Proxy(promise, {
-    get(target, prop, receiver) {
-      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
-        let patchedMethod = methodCache[prop]
-        if (patchedMethod !== undefined) {
-          return patchedMethod
-        }
+/**
+ * Invokes `onUse` whenever `then()/catch()/finally()` are called on the promise
+ * or when the promise is awaited. */
+export function trackPromiseUsed<T>(
+  promise: Promise<T>,
+  onUse: () => void
+): Promise<T> {
+  // We can instrument `.then()/.catch()/.finally()` in one go by using a Promise subclass
+  // that implements a custom `.then()`, because `catch` and `finally` delegate to it.
+  //
+  // Alternative implementation ideas that were tried and rejected:
+  //
+  // 1. Patching the methods directly via `promise.then = (..args) => { ... }`:
+  //   doesn't work, because Node does not call the monkeypatched methods for native `await`:
+  //   > Native Promise [...]: The promise is directly used and awaited natively, without calling `then()`.
+  //   > https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await#description
+  //
+  // 2. Wrapping in a proxy that returns a custom `then/catch/finally`:
+  //   breaks async stacks in React's IO tracking (stack becomes `Promise.then`)
+  return TrackedPromise.from<T>(promise, onUse)
+}
 
-        const originalMethod = ReflectAdapter.get(target, prop, receiver)
-        patchedMethod = {
-          [prop]: (...args: unknown[]) => {
-            try {
-              onUse()
-            } catch (err) {
-              // We don't want to break the method even if our tracking errored.
-              console.error(err)
-            }
+class TrackedPromise<T> extends Promise<T> {
+  #onUse: (() => void) | null = null
 
-            return originalMethod.apply(target, args)
-          },
-        }[prop]
+  // We don't need derived promises to also be a TrackedPromise.
+  // We only care about the first level of `.then()`.
+  static get [Symbol.species]() {
+    return Promise
+  }
 
-        methodCache[prop] = patchedMethod
-        return patchedMethod
+  static from<T>(promise: Promise<T>, onUse: () => void): TrackedPromise<T> {
+    // Whenever the promise we're tracking resolves/rejects, we should follow.
+    const tracked = new TrackedPromise<T>(promise.then.bind(promise))
+
+    tracked.#onUse = onUse
+
+    // Hanging promises catch rejections when created. Tracked promises are generally derived
+    // from promises that may hang & reject, so we need to do the same.
+    // However, we have to bypass the tracking we do in `TrackedPromise.then`.
+    // (we're using `then` directly, because `catch` ends up delegating `TrackedPromise.then`)
+    Promise.prototype.then.call(tracked, undefined, ignoreReject)
+
+    return tracked
+  }
+
+  then<TResult1, TResult2>(
+    onFulfilled?: (value: T) => TResult1 | PromiseLike<TResult1>,
+    onRejected?: (reason: unknown) => TResult2 | PromiseLike<TResult2>
+  ): Promise<TResult1 | TResult2> {
+    const onUse = this.#onUse
+    if (onUse) {
+      try {
+        onUse()
+      } catch (err) {
+        // We don't want to break the method even if our tracking errored.
+        console.error(err)
       }
+    }
 
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-  })
+    return Promise.prototype.then.call(
+      this,
+      onFulfilled,
+      onRejected
+    ) as Promise<TResult1 | TResult2>
+  }
 }
 
 export const RENDER_STAGES_BY_DATA_KIND = {
