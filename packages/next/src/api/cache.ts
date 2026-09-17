@@ -51,3 +51,5 @@ export function unstable_cacheTag(...args: Parameters<typeof cacheTag>) {
   }
   return cacheTag(...args)
 }
+
+export * as default from './cache'

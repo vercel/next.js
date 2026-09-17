@@ -21,6 +21,11 @@ describe('app-dir - esm js extension', () => {
 
     expect($('head link[href="/test-ext.js"]').length).toBe(1)
     expect($('head link[href="/test.js"]').length).toBe(1)
+    expect($('#namespace-defaults').text().replace(/\s/g, '')).toBe(
+      'function,function,function,function'
+    )
+    expect($('.client-cache').text()).toBe('function')
+    expect($('.client-cache-ext').text()).toBe('function')
   })
 
   it('should be able to use nextjs api in pages router', async () => {
