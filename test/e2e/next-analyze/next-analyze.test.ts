@@ -210,6 +210,66 @@ describe('next experimental-analyze', () => {
       await exit.catch(() => {})
     }
   })
+  it('queries saved analyzer data as JSON', async () => {
+    const { exitCode } = await next.runCommand([
+      'experimental-analyze',
+      '--output',
+    ])
+    expect(exitCode).toBe(0)
+
+    async function query(tool: string, input: Record<string, unknown> = {}) {
+      const result = await next.runCommand([
+        'experimental-analyze',
+        '--query',
+        tool,
+        '--input',
+        JSON.stringify(input),
+      ])
+      expect(result.exitCode).toBe(0)
+      expect(result.stderr).toBe('')
+      return JSON.parse(result.stdout)
+    }
+
+    const overview = await query('get_bundle_overview', { limit: 1 })
+    expect(overview.routes).toHaveLength(1)
+
+    const sources = await query('query_bundle_sources', {
+      route: '/',
+      limit: 1,
+    })
+    expect(sources.sources).toHaveLength(1)
+
+    const explanation = await query('explain_bundle_source', {
+      route: '/',
+      sourcePath: sources.sources[0].sourcePath,
+    })
+    expect(explanation.sourcePath).toBe(sources.sources[0].sourcePath)
+
+    const comparison = await query('compare_bundles', {
+      baselineSnapshot: overview.snapshots.history[0].id,
+      limit: 1,
+    })
+    expect(comparison.rows).toHaveLength(1)
+
+    const malformed = await next.runCommand([
+      'experimental-analyze',
+      '--query',
+      'get_bundle_overview',
+      '--input',
+      'not-json',
+    ])
+    expect(malformed.exitCode).toBe(1)
+    expect(JSON.parse(malformed.stderr)).toHaveProperty('error')
+
+    const conflicting = await next.runCommand([
+      'experimental-analyze',
+      '--query',
+      'get_bundle_overview',
+      '--output',
+    ])
+    expect(conflicting.exitCode).toBe(1)
+    expect(conflicting.stderr).toContain('cannot be used with option')
+  })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {
