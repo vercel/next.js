@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { diffRoutesWithSizes } from '@/lib/diff'
+import { diffRoutesWithSizes, type RouteSizeTotals } from '@/lib/diff'
 import { type SnapshotMetadata } from '@/lib/snapshot'
 import {
   Monitor,
@@ -76,8 +76,10 @@ export function TopBar({
   compareView,
   onCompareViewChange,
   routeDiff,
+  routeTotals,
   hasSourceData,
   showViewToggle,
+  showComparison = true,
 }: {
   hasSourceData: boolean
   showViewToggle: boolean
@@ -98,6 +100,8 @@ export function TopBar({
   compareView: CompareView
   onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
+  routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
+  showComparison?: boolean
 }) {
   const isCompareMode = baselineSnapshot != null
   return (
@@ -111,18 +115,21 @@ export function TopBar({
             setFocusedSourceIndex(null)
           }}
           routeDiff={isCompareMode ? routeDiff : null}
+          routeTotals={isCompareMode ? null : routeTotals}
           useCompressed
         />
       </div>
 
       <div className="flex items-center gap-2">
-        <BaselinePicker
-          selectedSnapshotId={baselineSnapshot?.id ?? null}
-          onSelectionChange={onBaselineChange}
-          excludedSnapshotId={comparisonSnapshot?.id}
-          prefix="from"
-          placeholder="Compare from…"
-        />
+        {showComparison ? (
+          <BaselinePicker
+            selectedSnapshotId={baselineSnapshot?.id ?? null}
+            onSelectionChange={onBaselineChange}
+            excludedSnapshotId={comparisonSnapshot?.id}
+            prefix="from"
+            placeholder="Compare from…"
+          />
+        ) : null}
         {isCompareMode ? (
           <BaselinePicker
             selectedSnapshotId={comparisonSnapshot?.id ?? null}
