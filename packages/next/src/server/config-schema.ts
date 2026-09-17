@@ -210,7 +210,6 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
-  parallelRouteMetadata: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
   collapseAdapterRoutes: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
@@ -643,6 +642,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     configOrigin: z.string().optional(),
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
+      .optional(),
+    deprecated: z
+      .strictObject({
+        legacyMetadataResolution: z.literal(true).optional(),
+      })
       .optional(),
     deploymentId: z.string().optional(),
     supportsImmutableAssets: z.boolean().optional(),
