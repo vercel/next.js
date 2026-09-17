@@ -108,6 +108,10 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import {
+  getDevToolsWebMCPMiddleware,
+  type DevToolsServerOptions,
+} from '../../next-devtools/server/webmcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
@@ -334,11 +338,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
 
-    // Initialize log monitor for file logging
-    // Enable logging by default in development mode
-    const mcpServerEnabled = !!config.experimental.mcpServer
+    // Development context includes logs independently of the legacy MCP server.
     const fileLogger = getFileLogger()
-    fileLogger.initialize(this.distDir, mcpServerEnabled)
+    fileLogger.initialize(this.distDir, true)
 
     onDevServerCleanup?.(async () => {
       await lockfile?.unlock()
@@ -1680,6 +1682,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
+    const devToolsOptions: DevToolsServerOptions = {
+      bundler: 'webpack',
+      projectPath: this.dir,
+      distDir: this.distDir,
+      nextConfig: this.config,
+      pagesDir: this.pagesDir,
+      appDir: this.appDir,
+      getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+    }
+
     this.middlewares.push(
       getOverlayMiddleware({
         rootDirectory: this.dir,
@@ -1716,19 +1728,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         },
       }),
       getAttachNodejsDebuggerMiddleware(),
+      getDevToolsWebMCPMiddleware(devToolsOptions),
       ...(this.config.experimental.mcpServer
         ? [
             getMcpMiddleware({
-              projectPath: this.dir,
-              distDir: this.distDir,
-              nextConfig: this.config,
-              pagesDir: this.pagesDir,
-              appDir: this.appDir,
+              ...devToolsOptions,
               sendHmrMessage: (message) => this.send(message),
               getActiveConnectionCount: () =>
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
-              getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
-              // compile_route is Turbopack-only; intentionally omitted here.
             }),
           ]
         : [])

@@ -1,4 +1,5 @@
 import { useContext, useEffect } from 'react'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
 import {
@@ -51,6 +52,12 @@ export function createWebSocket(
   }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
+  if (process.env.TURBOPACK) {
+    void dispatcher.registerHmrTools(
+      () =>
+        !module.hot || ['idle', 'abort', 'fail'].includes(module.hot.status())
+    )
+  }
 
   function init() {
     if (webSocket) {
@@ -64,6 +71,7 @@ export function createWebSocket(
     newWebSocket.binaryType = 'arraybuffer'
 
     function handleOnline() {
+      dispatcher.setHmrConnection(true)
       logQueue.onSocketReady(newWebSocket)
       runtimeErrorStateReporter?.reportCurrent()
 
@@ -78,48 +86,62 @@ export function createWebSocket(
       }
 
       try {
-        const message: HmrMessageSentToBrowser =
+        const parsedMessage: HmrMessageSentToBrowser =
           event.data instanceof ArrayBuffer
             ? parseBinaryMessage(event.data)
             : JSON.parse(event.data)
 
-        // Check for server restart in Turbopack mode
-        if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
-          if (
-            serverSessionId !== null &&
-            serverSessionId !== message.data.sessionId
-          ) {
-            // Either the server's session id has changed and it's a new server, or
-            // it's been too long since we disconnected and we should reload the page.
-            window.location.reload()
-            reloading = true
-            return
-          }
-          serverSessionId = message.data.sessionId
-        }
+        dispatcher.dispatchHmrMessage(
+          parsedMessage,
+          (message: HmrMessageSentToBrowser) => {
+            try {
+              // Check for server restart in Turbopack mode
+              if (
+                message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+              ) {
+                if (
+                  serverSessionId !== null &&
+                  serverSessionId !== message.data.sessionId
+                ) {
+                  // Either the server's session id has changed and it's a new server, or
+                  // it's been too long since we disconnected and we should reload the page.
+                  if (dispatcher.shouldDeferHmrReload()) return
+                  dispatcher.reportHmrReload()
+                  window.location.reload()
+                  reloading = true
+                  return
+                }
+                serverSessionId = message.data.sessionId
+              }
 
-        // Track webpack compilation hash for server restart detection
-        if (
-          message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC &&
-          'hash' in message
-        ) {
-          // If we had previously reconnected and the hash changed, the server may have restarted
-          if (
-            mostRecentCompilationHash !== null &&
-            mostRecentCompilationHash !== message.hash
-          ) {
-            window.location.reload()
-            reloading = true
-            return
-          }
-          mostRecentCompilationHash = message.hash
-        }
+              // Track webpack compilation hash for server restart detection
+              if (
+                message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC &&
+                'hash' in message
+              ) {
+                // If we had previously reconnected and the hash changed, the server may have restarted
+                if (
+                  mostRecentCompilationHash !== null &&
+                  mostRecentCompilationHash !== message.hash
+                ) {
+                  dispatcher.reportHmrReload()
+                  window.location.reload()
+                  reloading = true
+                  return
+                }
+                mostRecentCompilationHash = message.hash
+              }
 
-        processMessage(
-          message,
-          sendMessage,
-          processTurbopackMessage,
-          staticIndicatorState
+              processMessage(
+                message,
+                sendMessage,
+                processTurbopackMessage,
+                staticIndicatorState
+              )
+            } catch (err) {
+              reportInvalidHmrMessage(message, err)
+            }
+          }
         )
       } catch (err: unknown) {
         reportInvalidHmrMessage(event, err)
@@ -127,14 +149,19 @@ export function createWebSocket(
     }
 
     function handleDisconnect() {
+      dispatcher.setHmrConnection(false)
       newWebSocket.onerror = null
       newWebSocket.onclose = null
       newWebSocket.close()
       reconnections++
 
       // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
+      if (
+        reconnections > WEB_SOCKET_MAX_RECONNECTIONS &&
+        !dispatcher.shouldDeferHmrReload()
+      ) {
         reloading = true
+        dispatcher.reportHmrReload()
         window.location.reload()
         return
       }
@@ -196,7 +223,7 @@ export function createProcessTurbopackMessage(
     }
   }
 
-  import(
+  const clientReady = import(
     // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ).then(({ connect }) => {
@@ -216,6 +243,7 @@ export function createProcessTurbopackMessage(
         process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
   })
+  dispatcher.trackHmrUpdate(clientReady)
 
   return processTurbopackMessage
 }

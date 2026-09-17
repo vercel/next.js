@@ -58,12 +58,29 @@ import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
 import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 import { EventQueue } from './dev-overlay/event-queue'
+import {
+  registerHmrTools,
+  dispatchHmrMessage,
+  shouldDeferHmrReload,
+  setHmrRendering,
+  trackHmrUpdate,
+  setHmrConnection,
+  reportHmrReload,
+} from './dev-overlay/webmcp'
+import { registerDevToolsTools } from './dev-overlay/webmcp-devtools'
 import type {
   RequestInsight,
   RequestInsightsSnapshot,
 } from './shared/request-insights'
 
 export interface Dispatcher {
+  registerHmrTools: typeof registerHmrTools
+  dispatchHmrMessage: typeof dispatchHmrMessage
+  shouldDeferHmrReload: typeof shouldDeferHmrReload
+  setHmrRendering: typeof setHmrRendering
+  trackHmrUpdate: typeof trackHmrUpdate
+  setHmrConnection: typeof setHmrConnection
+  reportHmrReload: typeof reportHmrReload
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
@@ -199,6 +216,13 @@ function createQueuable<Args extends any[]>(
 
 // TODO: Extract into separate functions that are imported
 export const dispatcher: Dispatcher = {
+  registerHmrTools,
+  dispatchHmrMessage,
+  shouldDeferHmrReload,
+  setHmrRendering,
+  trackHmrUpdate,
+  setHmrConnection,
+  reportHmrReload,
   onBuildOk: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_BUILD_OK })
   }),
@@ -347,6 +371,14 @@ function DevOverlayRoot({
   useEffect(() => {
     currentOverlayState = { ...state, routerType }
   }, [state, routerType])
+
+  useEffect(() => {
+    return registerDevToolsTools({
+      getErrorState: getSerializedOverlayState,
+      getPageMetadata: getSegmentTrieData,
+      getHtmlRequestId: () => self.__next_r,
+    })
+  }, [])
 
   useLayoutEffect(() => {
     const portalNode = shadowRoot.host

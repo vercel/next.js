@@ -150,7 +150,10 @@ async function formatRuntimeErrorsToObjects(
 }
 
 export async function formatErrors(
-  errorsByUrl: Map<string, OverlayState>,
+  errorsByUrl: Map<
+    string,
+    Pick<OverlayState, 'errors' | 'buildError' | 'routerType'>
+  >,
   nextInstanceErrors: { nextConfig: unknown[] } = { nextConfig: [] }
 ): Promise<FormattedErrorsOutput> {
   const output: FormattedErrorsOutput = {

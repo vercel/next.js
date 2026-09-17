@@ -17,50 +17,36 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
         'Get the path to the Next.js development log file. Returns the file path so the agent can read the logs directly.',
     },
     async () => {
-      // Track telemetry
       mcpTelemetryTracker.recordToolCall('mcp/get_logs')
-
-      try {
-        const logFilePath = join(distDir, 'logs', 'next-development.log')
-
-        // Check if the log file exists
-        try {
-          await stat(logFilePath)
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: `Log file not found at ${logFilePath}.`,
-                }),
-              },
-            ],
-          }
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                logFilePath,
-              }),
-            },
-          ],
-        }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error: `Error getting log file path: ${error instanceof Error ? error.message : String(error)}`,
-              }),
-            },
-          ],
-        }
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(await getDevelopmentLogs(distDir)),
+          },
+        ],
       }
     }
   )
+}
+
+export async function getDevelopmentLogs(distDir: string) {
+  try {
+    const logFilePath = join(distDir, 'logs', 'next-development.log')
+    // Check if the log file exists
+    try {
+      await stat(logFilePath)
+    } catch (error) {
+      return {
+        error: `Log file not found at ${logFilePath}.`,
+      }
+    }
+    return {
+      logFilePath,
+    }
+  } catch (error) {
+    return {
+      error: `Error getting log file path: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
 }

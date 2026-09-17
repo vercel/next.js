@@ -129,7 +129,9 @@ export function handlePageMetadataResponse(
   )
 }
 
-function convertSegmentTrieToPageMetadata(data: SegmentTrieData): PageMetadata {
+export function convertSegmentTrieToPageMetadata(
+  data: SegmentTrieData
+): PageMetadata {
   const segments: PageSegment[] = []
 
   if (data.segmentTrie) {
@@ -176,7 +178,7 @@ interface FormattedPageMetadataOutput {
   sessions: FormattedSession[]
 }
 
-function formatPageMetadata(
+export function formatPageMetadata(
   sessionMetadata: Array<{ url: string; metadata: PageMetadata }>
 ): FormattedPageMetadataOutput {
   const sessions: FormattedSession[] = []

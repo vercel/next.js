@@ -30,127 +30,84 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
       },
     },
     async (request) => {
-      // Track telemetry
       mcpTelemetryTracker.recordToolCall('mcp/get_server_action_by_id')
-
-      try {
-        const { actionId } = request
-
-        if (!actionId) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: 'actionId parameter is required',
-                }),
-              },
-            ],
-          }
-        }
-
-        const manifestPath = join(
-          distDir,
-          'server',
-          'server-reference-manifest.json'
-        )
-
-        let manifestContent: string
-        try {
-          manifestContent = await fs.readFile(manifestPath, 'utf-8')
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: `Could not read server-reference-manifest.json at ${manifestPath}.`,
-                }),
-              },
-            ],
-          }
-        }
-
-        const manifest: ServerReferenceManifest = JSON.parse(manifestContent)
-
-        // Search in node entries
-        if (manifest.node && manifest.node[actionId]) {
-          const entry = manifest.node[actionId]
-          const isInlineAction =
-            entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    actionId,
-                    runtime: 'node',
-                    filename: entry.filename,
-                    functionName: isInlineAction
-                      ? 'inline server action'
-                      : entry.exportedName,
-                    layer: entry.layer,
-                    workers: entry.workers,
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          }
-        }
-
-        // Search in edge entries
-        if (manifest.edge && manifest.edge[actionId]) {
-          const entry = manifest.edge[actionId]
-          const isInlineAction =
-            entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    actionId,
-                    runtime: 'edge',
-                    filename: entry.filename,
-                    functionName: isInlineAction
-                      ? 'inline server action'
-                      : entry.exportedName,
-                    layer: entry.layer,
-                    workers: entry.workers,
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          }
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error: `Action ID "${actionId}" not found in server-reference-manifest.json`,
-              }),
-            },
-          ],
-        }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            },
-          ],
-        }
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              await getServerActionById(distDir, request),
+              null,
+              2
+            ),
+          },
+        ],
       }
     }
   )
+}
+
+export async function getServerActionById(
+  distDir: string,
+  request: { actionId: string }
+) {
+  try {
+    const { actionId } = request
+    if (!actionId) {
+      return {
+        error: 'actionId parameter is required',
+      }
+    }
+    const manifestPath = join(
+      distDir,
+      'server',
+      'server-reference-manifest.json'
+    )
+    let manifestContent: string
+    try {
+      manifestContent = await fs.readFile(manifestPath, 'utf-8')
+    } catch (error) {
+      return {
+        error: `Could not read server-reference-manifest.json at ${manifestPath}.`,
+      }
+    }
+    const manifest: ServerReferenceManifest = JSON.parse(manifestContent)
+    // Search in node entries
+    if (manifest.node && manifest.node[actionId]) {
+      const entry = manifest.node[actionId]
+      const isInlineAction = entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
+      return {
+        actionId,
+        runtime: 'node',
+        filename: entry.filename,
+        functionName: isInlineAction
+          ? 'inline server action'
+          : entry.exportedName,
+        layer: entry.layer,
+        workers: entry.workers,
+      }
+    }
+    // Search in edge entries
+    if (manifest.edge && manifest.edge[actionId]) {
+      const entry = manifest.edge[actionId]
+      const isInlineAction = entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
+      return {
+        actionId,
+        runtime: 'edge',
+        filename: entry.filename,
+        functionName: isInlineAction
+          ? 'inline server action'
+          : entry.exportedName,
+        layer: entry.layer,
+        workers: entry.workers,
+      }
+    }
+    return {
+      error: `Action ID "${actionId}" not found in server-reference-manifest.json`,
+    }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
 }

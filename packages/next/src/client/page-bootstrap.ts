@@ -36,6 +36,7 @@ export function pageBootstrap(assetPrefix: string) {
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
           reloading = true
+          dispatcher.reportHmrReload()
           window.location.reload()
           break
         }
@@ -53,6 +54,7 @@ export function pageBootstrap(assetPrefix: string) {
           break
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES: {
+          dispatcher.reportHmrReload()
           return window.location.reload()
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES: {
@@ -80,6 +82,7 @@ export function pageBootstrap(assetPrefix: string) {
           // API route
           // TODO: Fix `__NEXT_PAGE` type
           if (pages.includes(router.query.__NEXT_PAGE as string)) {
+            dispatcher.reportHmrReload()
             return window.location.reload()
           }
 
@@ -88,22 +91,24 @@ export function pageBootstrap(assetPrefix: string) {
             dispatcher.buildingIndicatorShow()
             const clearIndicator = dispatcher.buildingIndicatorHide
 
-            router
-              .replace(
-                router.pathname +
-                  '?' +
-                  String(
-                    assign(
-                      urlQueryToSearchParams(router.query),
-                      new URLSearchParams(location.search)
-                    )
-                  ),
-                router.asPath,
-                { scroll: false }
-              )
+            const update = router.replace(
+              router.pathname +
+                '?' +
+                String(
+                  assign(
+                    urlQueryToSearchParams(router.query),
+                    new URLSearchParams(location.search)
+                  )
+                ),
+              router.asPath,
+              { scroll: false }
+            )
+            dispatcher.trackHmrUpdate(update)
+            update
               .catch(() => {
                 // trigger hard reload when failing to refresh data
                 // to show error overlay properly
+                dispatcher.reportHmrReload()
                 location.reload()
               })
               .finally(clearIndicator)

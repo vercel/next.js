@@ -345,6 +345,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
       }
       turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
+        dispatcher.reportHmrReload()
         window.location.reload()
       }
       return
@@ -560,5 +561,6 @@ export function performFullReload(err: any) {
     })
   )
 
+  dispatcher.reportHmrReload(err)
   window.location.reload()
 }
