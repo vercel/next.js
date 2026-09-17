@@ -1397,15 +1397,9 @@ async fn find_package(
 
     for resolve_modules in &options.modules {
         match resolve_modules {
-            ResolveModules::Nested(root, names) => {
+            ResolveModules::Nested(names) => {
                 let mut lookup_path = lookup_path.clone();
-                let mut lookup_path_value = lookup_path.clone();
-                let lookup_root = if lookup_path.fs == root.fs {
-                    root.clone()
-                } else {
-                    lookup_path.root().owned().await?
-                };
-                while lookup_path_value.is_inside_ref(&lookup_root) {
+                loop {
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
                         if let Some(fs_path) = dir_exists(
@@ -1435,12 +1429,10 @@ async fn find_package(
                             }
                         }
                     }
-                    lookup_path = lookup_path.parent();
-                    let new_context_value = lookup_path.clone();
-                    if new_context_value == lookup_path_value {
+                    if lookup_path.is_root() {
                         break;
                     }
-                    lookup_path_value = new_context_value;
+                    lookup_path = lookup_path.parent();
                 }
             }
             ResolveModules::Path {
@@ -3075,13 +3067,8 @@ async fn resolve_import_map_result(
                     alias_lookup_path.clone(),
                     request,
                     match ty {
-                        // TODO is that root correct?
-                        ExternalType::CommonJs => {
-                            node_cjs_resolve_options(alias_lookup_path.root().owned().await?)
-                        }
-                        ExternalType::EcmaScriptModule => {
-                            node_esm_resolve_options(alias_lookup_path.root().owned().await?)
-                        }
+                        ExternalType::CommonJs => node_cjs_resolve_options(),
+                        ExternalType::EcmaScriptModule => node_esm_resolve_options(),
                         ExternalType::Script | ExternalType::Url | ExternalType::Global => options,
                     },
                 )
@@ -3903,7 +3890,7 @@ mod tests {
 
         let extensions = custom_extensions
             .unwrap_or_else(|| vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")]);
-        let mut options_value = node_esm_resolve_options(lookup_path.clone())
+        let mut options_value = node_esm_resolve_options()
             .with_fully_specified(fully_specified)
             .with_extensions(extensions)
             .owned()

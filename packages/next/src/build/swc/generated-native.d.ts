@@ -518,10 +518,6 @@ export interface NapiTurboEngineOptions {
   gc?: NapiTurbopackGcOptions
 }
 
-/**
- * Tuning for Turbopack's reference-counting GC, mirroring the
- * `experimental.turbopackGc` config option.
- */
 export interface NapiTurbopackGcOptions {
   /** How long a GC pass runs before it will honour an interrupt, in milliseconds. */
   minProgressMs?: number
