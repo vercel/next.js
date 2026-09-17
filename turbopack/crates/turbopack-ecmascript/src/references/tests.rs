@@ -148,6 +148,7 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
                 AnalyzeMode::CodeGenerationAndTracing => "",
                 AnalyzeMode::CodeGeneration => ".codegen",
                 AnalyzeMode::Tracing => ".tracing",
+                AnalyzeMode::TracingImportOnly => ".tracing-import-only",
             }
         )))
         .unwrap();
