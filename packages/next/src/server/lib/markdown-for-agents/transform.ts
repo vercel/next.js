@@ -36,6 +36,9 @@ export function representationsForMode(
 /**
  * True when auto-converting HTML is required. Authored `page.md` / `page.txt`
  * must not consume a dynamic render stream.
+ *
+ * Keep this aligned with `transformPageRepresentation`: buffer only when
+ * that function would call `buildMarkdownFromHtml`.
  */
 export function shouldBufferHtmlForAgents(
   config: NormalizedMarkdownConfig,
@@ -43,16 +46,12 @@ export function shouldBufferHtmlForAgents(
   chosen: NegotiatedType | null
 ): boolean {
   if (!chosen || chosen === 'html') return false
-  if (chosen === 'plain' && authored.plain) return false
-  if (chosen === 'markdown' && authored.markdown) return false
-  if (
-    chosen === 'markdown' &&
-    authored.plain &&
-    config.mode === 'prefer-authored'
-  ) {
-    return false
-  }
-  return config.mode !== 'authored'
+  // `text/plain` is only served from colocated files, never from HTML.
+  if (chosen === 'plain') return false
+  if (config.mode === 'auto') return true
+  if (config.mode === 'authored') return false
+  // prefer-authored: convert only when no sibling file can supply the body.
+  return !authored.markdown && !authored.plain
 }
 
 export function buildMarkdownFromHtml(

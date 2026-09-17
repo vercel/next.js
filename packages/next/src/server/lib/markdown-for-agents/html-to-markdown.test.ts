@@ -2,7 +2,10 @@ import { extractFromHtml, htmlBodyToMarkdown } from './html-to-markdown'
 import { inferActionsFromHtml, renderActionsMarkdown } from './actions'
 import { composeMarkdownDocument } from './compose'
 import { normalizeMarkdownConfig } from './config'
-import { transformPageRepresentation } from './transform'
+import {
+  shouldBufferHtmlForAgents,
+  transformPageRepresentation,
+} from './transform'
 
 const config = normalizeMarkdownConfig(true)
 
@@ -162,5 +165,65 @@ describe('transformPageRepresentation', () => {
       forced: 'markdown',
     })
     expect(result?.body).toBe('# File\n')
+  })
+
+  it('auto mode converts HTML even when page.md exists', () => {
+    const result = transformPageRepresentation({
+      accept: 'text/markdown',
+      html: page,
+      url: '/hello',
+      config: normalizeMarkdownConfig({ enabled: true, mode: 'auto' }),
+      authored: { markdown: '# Authored\n' },
+    })
+    expect(result?.body).toContain('# Hello')
+    expect(result?.body).not.toBe('# Authored\n')
+  })
+})
+
+describe('shouldBufferHtmlForAgents', () => {
+  const auto = normalizeMarkdownConfig({ enabled: true, mode: 'auto' })
+  const authoredMode = normalizeMarkdownConfig({
+    enabled: true,
+    mode: 'authored',
+  })
+  const prefer = config
+
+  it('does not buffer HTML or plain', () => {
+    expect(shouldBufferHtmlForAgents(prefer, {}, 'html')).toBe(false)
+    expect(shouldBufferHtmlForAgents(prefer, {}, null)).toBe(false)
+    expect(shouldBufferHtmlForAgents(prefer, { plain: 'txt' }, 'plain')).toBe(
+      false
+    )
+  })
+
+  it('does not buffer when prefer-authored can use a sibling file', () => {
+    expect(
+      shouldBufferHtmlForAgents(prefer, { markdown: '# File\n' }, 'markdown')
+    ).toBe(false)
+    expect(
+      shouldBufferHtmlForAgents(prefer, { plain: 'txt' }, 'markdown')
+    ).toBe(false)
+  })
+
+  it('buffers when prefer-authored must convert HTML', () => {
+    expect(shouldBufferHtmlForAgents(prefer, {}, 'markdown')).toBe(true)
+  })
+
+  it('never buffers in authored mode', () => {
+    expect(shouldBufferHtmlForAgents(authoredMode, {}, 'markdown')).toBe(false)
+    expect(
+      shouldBufferHtmlForAgents(
+        authoredMode,
+        { markdown: '# File\n' },
+        'markdown'
+      )
+    ).toBe(false)
+  })
+
+  it('buffers in auto mode even when page.md exists', () => {
+    expect(
+      shouldBufferHtmlForAgents(auto, { markdown: '# File\n' }, 'markdown')
+    ).toBe(true)
+    expect(shouldBufferHtmlForAgents(auto, {}, 'markdown')).toBe(true)
   })
 })

@@ -127,7 +127,15 @@ export async function sendRenderResult({
         })
       : {}
     const url = canonicalPagePath((req.url || '/').split('?')[0] || '/')
-    const available = representationsForMode(markdownAgentsConfig, authored)
+    // Prerender copies page.md into the cache slot. Offer markdown from that
+    // payload even when the source file is not on disk at request time
+    // (`mode: 'authored'`).
+    const available = representationsForMode(
+      markdownAgentsConfig,
+      precomputedMarkdown
+        ? { ...authored, markdown: authored.markdown ?? precomputedMarkdown }
+        : authored
+    )
     const chosen =
       markdownAgentsConfig.suffix && forced && available.includes(forced)
         ? forced
@@ -135,7 +143,10 @@ export async function sendRenderResult({
     const wantsAlternate = Boolean(chosen && chosen !== 'html')
 
     if (wantsAlternate) {
-      if (chosen === 'markdown' && precomputedMarkdown) {
+      // Cached Markdown is the sibling of the static HTML string. A dynamic
+      // result (SSR or PPR resume) must convert at request time so the body
+      // matches the document actually produced.
+      if (chosen === 'markdown' && precomputedMarkdown && !result.isDynamic) {
         const originalHtml = payload
         payload = precomputedMarkdown
         markdownApplied = true
