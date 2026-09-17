@@ -346,8 +346,8 @@ contextPrototype.s = esmExport;
  * ])
  * ```
  *
- * The producer only picks that spelling when no name contains a comma, since the names are recovered
- * by splitting on it.
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
  *
  * Groups whose head is a module id are instantiated in list order, at the point where the call
  * appears, so the producer must not merge such a group across an import of another module.
@@ -356,16 +356,10 @@ contextPrototype.s = esmExport;
  * group, exactly as it does for {@link EsmExport}.
  */ function esmReexport(list, id) {
     var _this, _loop = function() {
-        var _loop = function(j) {
-            var importedName = pairs[j + 1];
-            bindings.push(pairs[j], function() {
-                return namespace[importedName];
-            });
-        };
         var head = list[i++];
         var start = i;
         while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
-        var entries = list.slice(start, i);
+        var end = i;
         // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
         i++;
         // An already-imported namespace is passed as an object; a module id never is, so the type is
@@ -375,8 +369,24 @@ contextPrototype.s = esmExport;
         var namespace = (typeof head === "undefined" ? "undefined" : _type_of(head)) === 'object' && head !== null ? head : // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
         // argument. Passed here only to satisfy the declared type.
         _this.i(head, false);
-        var pairs = entries.length === 1 ? entries[0].split(',') : entries;
-        for(var j = 0; j < pairs.length; j += 2)_loop(j);
+        if (end - start === 1) {
+            var _loop = function(j) {
+                var importedName = pairs[j + 1];
+                bindings.push(pairs[j], function() {
+                    return namespace[importedName];
+                });
+            };
+            var pairs = list[start].split(',');
+            for(var j = 0; j < pairs.length; j += 2)_loop(j);
+        } else {
+            var _loop1 = function(j1) {
+                var importedName = list[j1 + 1];
+                bindings.push(list[j1], function() {
+                    return namespace[importedName];
+                });
+            };
+            for(var j1 = start; j1 < end; j1 += 2)_loop1(j1);
+        }
     };
     var bindings = [];
     var i = 0;

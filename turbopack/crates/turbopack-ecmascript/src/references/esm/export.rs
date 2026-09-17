@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::FxHashSet;
 use swc_core::{
-    common::{DUMMY_SP, SyntaxContext},
+    common::{DUMMY_SP, Span, SyntaxContext},
     ecma::ast::{
         ArrayLit, AssignTarget, Expr, ExprOrSpread, ExprStmt, Ident, Lit, Number,
         SimpleAssignTarget, Stmt, Str,
@@ -715,10 +715,14 @@ async fn build_compact_reexports(
                 ctxt,
                 asset,
                 locally_bound: false,
+                reference_spans: FxHashSet::default(),
                 pairs: Vec::new(),
             });
         group.order = group.order.min(*idx);
         group.locally_bound |= locally_bound.contains(idx);
+        group
+            .reference_spans
+            .insert(eval_context.imports.reference_span(*idx));
         group.pairs.push((exported_key, imported_key));
     }
 
@@ -746,20 +750,18 @@ async fn emit_compact_reexports(
     compact: CompactReexports,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
-) -> Result<(CodeGeneration, FxHashSet<NamespaceKey>)> {
-    // Both names of every pair are recovered by splitting on commas in the compact spelling, so it
-    // is only available when no name contains one.
-    let comma_free = compact.groups.iter().all(|group| {
-        group
-            .pairs
-            .iter()
-            .all(|(a, b)| !a.contains(',') && !b.contains(','))
-    });
-
+) -> Result<(CodeGeneration, SubsumedImports)> {
     let mut elems: Vec<Option<ExprOrSpread>> = Vec::new();
-    let mut subsumed = FxHashSet::default();
+    let mut subsumed = SubsumedImports::default();
 
     for (i, group) in compact.groups.iter().enumerate() {
+        // Both names of every pair are recovered by splitting on commas in the compact spelling,
+        // so select that spelling independently for each group whose names are all comma-free.
+        let comma_free = group
+            .pairs
+            .iter()
+            .all(|(a, b)| !a.contains(',') && !b.contains(','));
+
         if i > 0 {
             // Separates this group from the previous one.
             elems.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
@@ -768,7 +770,12 @@ async fn emit_compact_reexports(
         if compact.subsume_imports {
             let id = group.asset.chunk_item_id(chunking_context).await?;
             elems.push(Some(module_id_to_lit(&id).into()));
-            subsumed.insert((group.namespace_ident.clone(), group.ctxt));
+            subsumed
+                .namespaces
+                .insert((group.namespace_ident.clone(), group.ctxt));
+            subsumed
+                .evaluation_spans
+                .extend(group.reference_spans.iter().copied());
         } else {
             elems.push(Some(
                 Expr::Ident(Ident::new(
@@ -827,9 +834,8 @@ async fn emit_compact_reexports(
 /// One source module's contribution to a compact re-export registration: the module the exports
 /// come from, and the `exported name -> name on that module` pairs taken from it.
 struct ReexportGroup {
-    /// Lowest import-reference index among this group's exports, so groups can be emitted in
-    /// source order. That order is what `TURBOPACK_ESM_REEXPORT` instantiates in when the group
-    /// heads are module ids.
+    /// Lowest binding-reference index among this group's exports. Binding references retain their
+    /// relative declaration order even though evaluation references occupy a separate index range.
     order: usize,
     /// The variable an already-generated import bound to this module's namespace.
     namespace_ident: String,
@@ -838,6 +844,8 @@ struct ReexportGroup {
     asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Whether any reference to this module also binds a name the module's own code uses.
     locally_bound: bool,
+    /// Source spans of the re-export declarations whose evaluation references are subsumed.
+    reference_spans: FxHashSet<Span>,
     pairs: Vec<(RcStr, RcStr)>,
 }
 
@@ -845,7 +853,16 @@ struct ReexportGroup {
 /// because two merged modules can import the same target under the same generated name in
 /// different hygiene contexts, which the import code generation also keys on -- merging those into
 /// one group would read the wrong variable and suppress both declarations.
-type NamespaceKey = (String, Option<SyntaxContext>);
+pub(crate) type NamespaceKey = (String, Option<SyntaxContext>);
+
+/// Imports performed by one compact registration. Binding references are identified by namespace;
+/// evaluation references also need their source span so an earlier independent `import './x'` of
+/// the same module is retained rather than being suppressed with a later re-export declaration.
+#[derive(Default)]
+pub(crate) struct SubsumedImports {
+    pub namespaces: FxHashSet<NamespaceKey>,
+    pub evaluation_spans: FxHashSet<Span>,
+}
 
 /// A compact registration, ready to emit.
 struct CompactReexports {
@@ -856,14 +873,14 @@ struct CompactReexports {
 }
 
 impl EsmExports {
-    pub async fn code_generation(
+    pub(crate) async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         export_registration_mode: ExportRegistrationMode,
-    ) -> Result<(CodeGeneration, FxHashSet<NamespaceKey>)> {
+    ) -> Result<(CodeGeneration, SubsumedImports)> {
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;

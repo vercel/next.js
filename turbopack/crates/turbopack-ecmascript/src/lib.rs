@@ -1082,7 +1082,7 @@ impl EcmascriptModuleContentOptions {
             // The export registration is computed first: when it can spell the whole module's
             // exports as one compact call, it also performs those imports, and reports which
             // references it subsumed so they don't emit them a second time.
-            let (exports_code_gen, subsumed_namespaces) =
+            let (exports_code_gen, subsumed_imports) =
                 if let EcmascriptExports::EsmExports(exports) = *exports.await? {
                     let (code_gen, subsumed) = exports
                         .code_generation(
@@ -1128,7 +1128,7 @@ impl EcmascriptModuleContentOptions {
                     r.code_generation(
                         **chunking_context,
                         scope_hoisting_context,
-                        &subsumed_namespaces,
+                        &subsumed_imports,
                     )
                 })
                 .try_join()
