@@ -48,6 +48,7 @@ import {
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { isAppRouteRoute } from '../../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
@@ -661,6 +662,11 @@ export async function handleBuildComplete({
       prerenders: [],
       staticFiles: [],
     }
+    const appPagePathnames = new Set(
+      (appPageKeys ?? [])
+        .filter((appPath) => !isAppRouteRoute(appPath))
+        .map((appPath) => normalizeAppPath(appPath))
+    )
 
     const clientHashes: Record<string, string> | undefined =
       bundler === Bundler.Turbopack && config.supportsImmutableAssets
@@ -1215,11 +1221,6 @@ export async function handleBuildComplete({
             outputs.appPages.push(output)
           } else {
             outputs.appRoutes.push(output)
-            outputs.appRoutes.push({
-              ...output,
-              pathname: normalizePagePath(output.pathname) + '.rsc',
-              id: normalizePagePath(output.pathname) + '.rsc',
-            })
           }
         }
       }
@@ -2185,7 +2186,7 @@ export async function handleBuildComplete({
         (fallbackShellRun ? 1 : 0) +
         1
 
-      const hasAppPages = Boolean(appPageKeys && appPageKeys.length > 0)
+      const hasAppPage = appPagePathnames.has(route.page)
 
       const suffixedHas =
         isFallbackFalse && !pageKeys.includes(route.page)
@@ -2200,7 +2201,7 @@ export async function handleBuildComplete({
       // conditions, so that case keeps a separate entry per form.
       const canMergeSuffixedAndPlain =
         config.experimental.collapseAdapterRoutes &&
-        hasAppPages &&
+        hasAppPage &&
         suffixedHas === plainHas
 
       if (canMergeSuffixedAndPlain) {
@@ -2237,7 +2238,7 @@ export async function handleBuildComplete({
         // the `.rsc` payload, and a per-segment prefetch request. The suffix
         // group accepts both forms, and the destination copies the matched
         // suffix, so each request resolves to the artifact that it asks for.
-        if (hasAppPages) {
+        if (hasAppPage) {
           dynamicRoutes.push({
             source: pagePath + '.rsc',
             sourceRegex: sourceRegex.replace(
