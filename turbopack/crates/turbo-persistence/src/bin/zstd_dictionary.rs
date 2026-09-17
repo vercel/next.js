@@ -23,7 +23,6 @@ const SCHEMA_VERSION: u32 = 2;
 const DICTIONARY_SIZE: usize = 64 * 1024;
 const SAMPLE_BUDGET_MULTIPLIER: usize = 1000;
 const SAMPLE_BYTE_BUDGET: usize = DICTIONARY_SIZE * SAMPLE_BUDGET_MULTIPLIER;
-const BLOB_HEADER_SIZE: usize = 8;
 
 #[derive(Parser)]
 #[command(about = "Train and evaluate zstd dictionaries from persistence caches")]
@@ -87,15 +86,7 @@ struct Candidate {
     setup_ns: u64,
 }
 
-#[derive(Clone, Copy)]
-enum SampleKind {
-    Slice,
-    Medium,
-    Blob,
-}
-
 struct Sample {
-    kind: SampleKind,
     data: Arc<[u8]>,
 }
 
@@ -315,7 +306,6 @@ impl CacheSampleIter {
     ) -> Result<Option<Sample>> {
         match value {
             IterValue::Slice { value } if value.len() > MAX_INLINE_VALUE_SIZE => Ok(Some(Sample {
-                kind: SampleKind::Slice,
                 data: Arc::from(value.as_ref()),
             })),
             IterValue::Medium {
@@ -327,10 +317,7 @@ impl CacheSampleIter {
                     .with_context(|| {
                         format!("Failed to read medium value in {}", self.path.display())
                     })?;
-                Ok(Some(Sample {
-                    kind: SampleKind::Medium,
-                    data: value,
-                }))
+                Ok(Some(Sample { data: value }))
             }
             IterValue::Blob { sequence_number } => {
                 if !self.seen_blobs.insert(sequence_number) {
@@ -338,10 +325,7 @@ impl CacheSampleIter {
                     return Ok(None);
                 }
                 let value = read_blob(&self.path, sequence_number, compression)?;
-                Ok(Some(Sample {
-                    kind: SampleKind::Blob,
-                    data: value,
-                }))
+                Ok(Some(Sample { data: value }))
             }
             // Inline values live in key blocks and are not independently compressed.
             IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. } | IterValue::Slice { .. } => {
@@ -439,11 +423,8 @@ fn evaluate_sample(
         metric.raw_compressed_bytes += compressed.len() as u64;
         metric.encode_ns += encode_ns;
         metric.decode_ns += decode_ns;
-        metric.estimated_stored_bytes += if matches!(sample.kind, SampleKind::Blob) {
-            (compressed.len() + BLOB_HEADER_SIZE) as u64
-        } else {
-            estimated_value_bytes(sample.data.len(), compressed.len()) as u64
-        };
+        metric.estimated_stored_bytes +=
+            estimated_value_bytes(sample.data.len(), compressed.len()) as u64;
     }
     Ok(())
 }
@@ -521,9 +502,9 @@ fn combine_evaluation(
         family,
         timing_note: "Single-pass wall-clock diagnostics; byte/count fields are the comparison \
                       contract.",
-        threshold_note: "Slice/medium stored bytes apply the 12.5% rule per logical value and are \
-                         a proxy for grouped small-value blocks. Blob bytes include the fixed \
-                         8-byte header.",
+        threshold_note: "Estimated stored bytes apply the 12.5% rule per logical value and \
+                         exclude fixed container headers; they are a proxy for grouped \
+                         small-value blocks.",
         caches,
         combined_samples,
         combined_candidates,
@@ -968,7 +949,7 @@ mod tests {
         finalize_results(&mut results);
         assert_eq!(
             results[0].combined.estimated_stored_bytes,
-            results[0].combined.raw_compressed_bytes + 8
+            results[0].combined.raw_compressed_bytes
         );
         assert!(
             iter.sample_from_value(
