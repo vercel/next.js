@@ -12,7 +12,7 @@ use super::{
         find_short_cycle, linearize, make_acyclic, split_into_chunks,
         strongly_connected_components,
     },
-    subgraph_view::{ReadonlyGraph, SubgraphView},
+    subgraph_view::{CsrGraph, ReadonlyGraph, SubgraphView},
 };
 use crate::module::StyleType;
 
@@ -523,6 +523,18 @@ fn edge_set<N>(g: &DiGraph<N, u32>) -> FxHashSet<(usize, usize)> {
     s
 }
 
+fn weighted_edges<N>(graph: &DiGraph<N, u32>) -> Vec<(usize, usize, u32)> {
+    let mut edges: Vec<_> = graph
+        .edge_indices()
+        .map(|edge| {
+            let (from, to) = graph.edge_endpoints(edge).unwrap();
+            (from.index(), to.index(), graph[edge])
+        })
+        .collect();
+    edges.sort_unstable();
+    edges
+}
+
 #[test]
 fn make_acyclic_leaves_a_dag_unchanged() {
     let mut g = build_graph(3, |g| {
@@ -581,6 +593,100 @@ fn make_acyclic_preserves_non_cycle_edges() {
     let edges = edge_set(&g);
     assert!(edges.contains(&(1, 2)));
     assert!(edges.contains(&(2, 3)));
+}
+
+fn make_acyclic_reference<N>(graph: &mut DiGraph<N, u32>) {
+    let mut queue: Vec<FxHashSet<NodeIndex>> = strongly_connected_components(&*graph)
+        .into_iter()
+        .filter(|scc| scc.len() > 1)
+        .collect();
+
+    while let Some(scc) = queue.pop() {
+        let mut seed_node = None;
+        loop {
+            let view = SubgraphView::new(&*graph, &scc);
+            let Some(short_cycle) = find_short_cycle(view, seed_node) else {
+                break;
+            };
+            let mut min_edge = None;
+            let mut min_weight = None;
+            let mut min_to = None;
+            for index in 0..short_cycle.len() {
+                let from = short_cycle[index];
+                let to = short_cycle[(index + 1) % short_cycle.len()];
+                let Some(edge) = graph.find_edge(from, to) else {
+                    continue;
+                };
+                let weight = graph[edge];
+                if min_weight.is_none_or(|current| weight < current) {
+                    min_edge = Some(edge);
+                    min_weight = Some(weight);
+                    min_to = Some(to);
+                }
+            }
+            let (Some(edge), Some(to)) = (min_edge, min_to) else {
+                break;
+            };
+            graph.remove_edge(edge);
+            seed_node = Some(to);
+        }
+
+        let view = SubgraphView::new(&*graph, &scc);
+        queue.extend(
+            strongly_connected_components(view)
+                .into_iter()
+                .filter(|scc| scc.len() > 1),
+        );
+    }
+}
+
+#[test]
+fn make_acyclic_optimized_search_preserves_reference_output() {
+    let groups = vec![
+        (0..32).collect::<Vec<_>>(),
+        vec![31, 4, 20, 7, 15, 2, 28, 11],
+        vec![3, 24, 8, 19, 1, 30, 12, 6],
+        vec![27, 5, 18, 9, 22, 0, 14, 25],
+    ];
+    let (mut optimized, _) = create_graph(&groups, 32);
+    let mut reference = optimized.clone();
+
+    make_acyclic(&mut optimized);
+    make_acyclic_reference(&mut reference);
+
+    assert_eq!(edge_set(&optimized), edge_set(&reference));
+    assert_acyclic(&optimized);
+}
+
+#[test]
+fn csr_graph_preserves_petgraph_order_weights_and_removals() {
+    let mut graph = build_graph(4, |graph| {
+        graph.add_edge(n(0), n(1), 2);
+        graph.add_edge(n(0), n(2), 3);
+        graph.add_edge(n(0), n(2), 11);
+        graph.add_edge(n(2), n(0), 5);
+        graph.add_edge(n(3), n(0), 7);
+    });
+    let subset = [n(0), n(1), n(2), n(3)].into_iter().collect();
+    let mut csr = CsrGraph::new(&graph, &subset);
+
+    let assert_same = |graph: &DiGraph<usize, u32>, csr: &CsrGraph| {
+        for node in graph.node_indices() {
+            assert_eq!(
+                graph.outgoing_edges_with_weight(node).collect::<Vec<_>>(),
+                csr.outgoing_edges_with_weight(node).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                graph.incoming_edges_with_weight(node).collect::<Vec<_>>(),
+                csr.incoming_edges_with_weight(node).collect::<Vec<_>>()
+            );
+        }
+    };
+
+    assert_same(&graph, &csr);
+    graph.remove_edge(graph.find_edge(n(0), n(2)).unwrap());
+    csr.remove_edge(n(0), n(2));
+    assert_same(&graph, &csr);
 }
 
 // ---------------------------------------------------------------------------
@@ -810,6 +916,86 @@ fn split_weight_distribution_protects_small_groups_from_overshipping() {
     // A high weight_distribution gives the small group A a much larger weight, making the overship
     // of module 1 to A cost more than the request it would save, so module 1 stays isolated.
     assert_eq!(split(3.0), vec![vec![0], vec![1]]);
+}
+
+// ---------------------------------------------------------------------------
+// pathological dense graph
+// ---------------------------------------------------------------------------
+
+fn pathological_chunk_groups() -> Vec<Vec<usize>> {
+    const MODULE_COUNT: usize = 499;
+    const LARGE_GROUP_SIZE: usize = 454;
+    const SMALL_GROUP_COUNT: usize = 14;
+    const SMALL_GROUP_SIZE: usize = 25;
+
+    let mut groups = vec![(0..LARGE_GROUP_SIZE).collect()];
+    let mut state = 0x5eed_1234_u32;
+    let mut random = || {
+        state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        state
+    };
+
+    for group_index in 1..=SMALL_GROUP_COUNT {
+        let mut seen = FxHashSet::default();
+        let mut permutation = Vec::with_capacity(SMALL_GROUP_SIZE);
+        for offset in 0..4 {
+            let tail_id = LARGE_GROUP_SIZE + (group_index - 1) * 4 + offset;
+            if tail_id < MODULE_COUNT && seen.insert(tail_id) {
+                permutation.push(tail_id);
+            }
+        }
+        while permutation.len() < SMALL_GROUP_SIZE {
+            let id = ((random() as u64 * MODULE_COUNT as u64) >> 32) as usize;
+            if seen.insert(id) {
+                permutation.push(id);
+            }
+        }
+
+        for index in (1..permutation.len()).rev() {
+            let other = ((random() as u64 * (index + 1) as u64) >> 32) as usize;
+            permutation.swap(index, other);
+        }
+        groups.push(permutation);
+    }
+    groups
+}
+
+#[test]
+#[ignore = "release-mode performance benchmark"]
+fn benchmark_make_acyclic_pathological_graph() {
+    use std::time::Instant;
+
+    let groups = pathological_chunk_groups();
+    let mut elapsed = Vec::new();
+    let mut final_edges = None;
+    for _ in 0..3 {
+        let (mut graph, _) = create_graph(&groups, 499);
+        let start = Instant::now();
+        make_acyclic(&mut graph);
+        elapsed.push(start.elapsed());
+        assert_acyclic(&graph);
+
+        let edges = weighted_edges(&graph);
+        if let Some(expected) = &final_edges {
+            assert_eq!(&edges, expected);
+        } else {
+            final_edges = Some(edges);
+        }
+    }
+
+    // The reference path uses the original petgraph-backed subgraph view and non-reused search
+    // storage. Keep this expensive full-fixture equality check in the ignored benchmark.
+    let (mut reference, _) = create_graph(&groups, 499);
+    make_acyclic_reference(&mut reference);
+    assert_eq!(final_edges.as_ref().unwrap(), &weighted_edges(&reference));
+
+    elapsed.sort_unstable();
+    println!(
+        "nodes=499 groups={} final_edges={} median={:?}",
+        groups.len(),
+        final_edges.unwrap().len(),
+        elapsed[elapsed.len() / 2]
+    );
 }
 
 // ---------------------------------------------------------------------------

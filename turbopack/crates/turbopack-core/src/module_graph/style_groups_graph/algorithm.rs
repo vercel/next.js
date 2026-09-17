@@ -12,7 +12,7 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexMap;
 
-use super::subgraph_view::{ReadonlyGraph, SubgraphView};
+use super::subgraph_view::{CsrGraph, ReadonlyGraph};
 use crate::module::StyleType;
 
 // ---------------------------------------------------------------------------
@@ -239,6 +239,39 @@ struct Candidate {
     distance: u64,
 }
 
+/// Reusable, densely indexed storage for cycle searches. `make_acyclic` can run thousands of
+/// searches over the same graph, so retaining these allocations is important on highly cyclic
+/// inputs.
+struct CycleSearchScratch {
+    candidates: Vec<Option<Candidate>>,
+    heap: BinaryHeap<Reverse<(u64, u32, NodeIndex)>>,
+    touched: Vec<NodeIndex>,
+}
+
+impl CycleSearchScratch {
+    fn new(index_bound: usize) -> Self {
+        Self {
+            candidates: vec![None; index_bound],
+            heap: BinaryHeap::new(),
+            touched: Vec::with_capacity(index_bound),
+        }
+    }
+
+    fn reset(&mut self) {
+        for node in self.touched.drain(..) {
+            self.candidates[node.index()] = None;
+        }
+        self.heap.clear();
+    }
+
+    fn insert(&mut self, node: NodeIndex, candidate: Candidate) {
+        if self.candidates[node.index()].is_none() {
+            self.touched.push(node);
+        }
+        self.candidates[node.index()] = Some(candidate);
+    }
+}
+
 /// Find a short cycle inside `graph`. Returns `None` if `graph` is empty or has no cycle
 /// reachable from `start_node` (or, when `start_node` is `None`, from the first node yielded
 /// by `graph.nodes()`). The cycle is returned as an array of distinct node ids; every
@@ -247,9 +280,22 @@ struct Candidate {
 ///
 /// The result is "a short" cycle, not necessarily the global shortest: only starts that
 /// already appear on the current best cycle are tried.
+#[cfg(test)]
 pub(super) fn find_short_cycle<'a, G>(
     graph: G,
     start_node: Option<NodeIndex>,
+) -> Option<Vec<NodeIndex>>
+where
+    G: ReadonlyGraph<'a>,
+{
+    let mut scratch = CycleSearchScratch::new(graph.index_bound());
+    find_short_cycle_with_scratch(graph, start_node, &mut scratch)
+}
+
+fn find_short_cycle_with_scratch<'a, G>(
+    graph: G,
+    start_node: Option<NodeIndex>,
+    scratch: &mut CycleSearchScratch,
 ) -> Option<Vec<NodeIndex>>
 where
     G: ReadonlyGraph<'a>,
@@ -259,7 +305,7 @@ where
         None => graph.nodes().next()?,
     };
 
-    let initial = find_shortest_cycle_from_node(graph, start)?;
+    let initial = find_shortest_cycle_from_node(graph, start, scratch)?;
     let mut cycle: VecDeque<NodeIndex> = initial.into();
     // 2-cycles are already minimal — no shift can produce a shorter one. Skip the (otherwise
     // up-to-k-call) shift loop in this common case.
@@ -272,7 +318,7 @@ where
         cycle.push_back(shifted);
         // Every node on a cycle is itself on a cycle (within the same graph snapshot), so this
         // call is expected to find one.
-        let new_cycle = find_shortest_cycle_from_node(graph, shifted)
+        let new_cycle = find_shortest_cycle_from_node(graph, shifted, scratch)
             .expect("every node on a cycle must itself be on a cycle");
         if new_cycle.len() < cycle.len() {
             remaining_shifts = new_cycle.len();
@@ -285,19 +331,22 @@ where
 }
 
 /// Returns `None` if no cycle is reachable from `start`.
-fn find_shortest_cycle_from_node<'a, G>(graph: G, start: NodeIndex) -> Option<Vec<NodeIndex>>
+fn find_shortest_cycle_from_node<'a, G>(
+    graph: G,
+    start: NodeIndex,
+    scratch: &mut CycleSearchScratch,
+) -> Option<Vec<NodeIndex>>
 where
     G: ReadonlyGraph<'a>,
 {
-    let mut candidates: FxHashMap<NodeIndex, Candidate> = FxHashMap::default();
+    scratch.reset();
     // Min-heap keyed by `(distance, seq)`. `seq` is a strictly-increasing counter so ties break
     // by insertion order (earlier insertions win). Entries are never removed on relaxation;
     // stale entries are filtered when popped by comparing to `candidates[node].distance`.
-    let mut heap: BinaryHeap<Reverse<(u64, u32, NodeIndex)>> = BinaryHeap::new();
     let mut next_seq: u32 = 0;
 
     // Seed: a backward "stub" at the start node, plus a forward step over each outgoing edge.
-    candidates.insert(
+    scratch.insert(
         start,
         Candidate {
             direction: Direction2::Backward,
@@ -306,12 +355,12 @@ where
             distance: 0,
         },
     );
-    heap.push(Reverse((0, next_seq, start)));
+    scratch.heap.push(Reverse((0, next_seq, start)));
     next_seq += 1;
 
     for (edge, weight) in graph.outgoing_edges_with_weight(start) {
         let distance = weight as u64;
-        candidates.insert(
+        scratch.insert(
             edge,
             Candidate {
                 direction: Direction2::Forward,
@@ -320,108 +369,130 @@ where
                 distance,
             },
         );
-        heap.push(Reverse((distance, next_seq, edge)));
+        scratch.heap.push(Reverse((distance, next_seq, edge)));
         next_seq += 1;
     }
 
     loop {
         // Pop the lowest-distance live entry, skipping stale ones.
         let (node, current_distance) = loop {
-            let Reverse((dist, _, node)) = heap.pop()?;
-            match candidates.get(&node) {
-                Some(cand) if cand.distance == dist => break (node, dist),
+            let Reverse((distance, _, node)) = scratch.heap.pop()?;
+            match scratch.candidates[node.index()].as_ref() {
+                Some(candidate) if candidate.distance == distance => break (node, distance),
                 _ => continue,
             }
         };
 
-        let direction = candidates[&node].direction;
+        let direction = scratch.candidates[node.index()].as_ref().unwrap().direction;
 
         // A node with `direction == Cycle` is one where the forward and backward frontiers
         // collided. Splice the two halves back into a cycle and return.
         if direction == Direction2::Cycle {
-            let cand = candidates.remove(&node).unwrap();
-            let mut result = reconstruct_path(&candidates, cand.forward_predecessor, true);
+            let cand = scratch.candidates[node.index()].take().unwrap();
+            let mut result = reconstruct_path(&scratch.candidates, cand.forward_predecessor, true);
             result.push(node);
             // `backward_path` always begins with the cycle's start node; drop that head before
             // reversing.
-            let backward = reconstruct_path(&candidates, cand.backward_predecessor, false);
+            let backward = reconstruct_path(&scratch.candidates, cand.backward_predecessor, false);
             result.extend(backward.into_iter().skip(1).rev());
             return Some(result);
         }
 
         // Mark `node` as visited (sentinel `u64::MAX` distance).
-        candidates.get_mut(&node).unwrap().distance = u64::MAX;
-        // Snapshot neighbours before mutating `candidates` (avoids overlapping borrows).
-        let neighbours: Vec<(NodeIndex, u32)> = match direction {
-            Direction2::Forward => graph.outgoing_edges_with_weight(node).collect(),
-            Direction2::Backward => graph.incoming_edges_with_weight(node).collect(),
+        scratch.candidates[node.index()].as_mut().unwrap().distance = u64::MAX;
+        match direction {
+            Direction2::Forward => relax_neighbours(
+                graph.outgoing_edges_with_weight(node),
+                direction,
+                node,
+                current_distance,
+                &mut next_seq,
+                scratch,
+            ),
+            Direction2::Backward => relax_neighbours(
+                graph.incoming_edges_with_weight(node),
+                direction,
+                node,
+                current_distance,
+                &mut next_seq,
+                scratch,
+            ),
             Direction2::Cycle => unreachable!(),
-        };
+        }
+    }
+}
 
-        for (edge, weight) in neighbours {
-            let new_distance = current_distance + weight as u64;
-            match candidates.get_mut(&edge) {
-                None => {
-                    // Unseen neighbour — extend the unidirectional frontier.
-                    let (fwd, bwd) = match direction {
-                        Direction2::Forward => (Some(node), None),
-                        Direction2::Backward => (None, Some(node)),
-                        Direction2::Cycle => unreachable!(),
-                    };
-                    candidates.insert(
-                        edge,
-                        Candidate {
-                            direction,
-                            forward_predecessor: fwd,
-                            backward_predecessor: bwd,
-                            distance: new_distance,
-                        },
-                    );
-                    heap.push(Reverse((new_distance, next_seq, edge)));
-                    next_seq += 1;
-                }
-                Some(existing) if existing.distance == u64::MAX => {
-                    // Already visited — leave it.
-                }
-                Some(existing) if existing.direction == direction => {
-                    // Same-direction relaxation.
-                    if new_distance < existing.distance {
-                        if direction == Direction2::Forward {
-                            existing.forward_predecessor = Some(node);
-                        } else {
-                            existing.backward_predecessor = Some(node);
-                        }
-                        existing.distance = new_distance;
-                        heap.push(Reverse((new_distance, next_seq, edge)));
-                        next_seq += 1;
-                    }
-                }
-                Some(existing) if existing.direction == Direction2::Cycle => {
-                    // Already a cycle candidate — relax the half coming from `direction`.
-                    if new_distance < existing.distance {
-                        if direction == Direction2::Forward {
-                            existing.forward_predecessor = Some(node);
-                        } else {
-                            existing.backward_predecessor = Some(node);
-                        }
-                        existing.distance = new_distance;
-                        heap.push(Reverse((new_distance, next_seq, edge)));
-                        next_seq += 1;
-                    }
-                }
-                Some(existing) => {
-                    // Opposite unidirectional frontiers met → upgrade to a cycle candidate.
-                    // The opposite-direction predecessor was already populated when `existing`
-                    // joined the frontier; we just fill in our side.
-                    existing.direction = Direction2::Cycle;
+fn relax_neighbours(
+    neighbours: impl Iterator<Item = (NodeIndex, u32)>,
+    direction: Direction2,
+    node: NodeIndex,
+    current_distance: u64,
+    next_seq: &mut u32,
+    scratch: &mut CycleSearchScratch,
+) {
+    for (edge, weight) in neighbours {
+        let new_distance = current_distance + weight as u64;
+        match scratch.candidates[edge.index()].as_mut() {
+            None => {
+                // Unseen neighbour — extend the unidirectional frontier.
+                let (fwd, bwd) = match direction {
+                    Direction2::Forward => (Some(node), None),
+                    Direction2::Backward => (None, Some(node)),
+                    Direction2::Cycle => unreachable!(),
+                };
+                scratch.insert(
+                    edge,
+                    Candidate {
+                        direction,
+                        forward_predecessor: fwd,
+                        backward_predecessor: bwd,
+                        distance: new_distance,
+                    },
+                );
+                scratch.heap.push(Reverse((new_distance, *next_seq, edge)));
+                *next_seq += 1;
+            }
+            Some(existing) if existing.distance == u64::MAX => {
+                // Already visited — leave it.
+            }
+            Some(existing) if existing.direction == direction => {
+                // Same-direction relaxation.
+                if new_distance < existing.distance {
                     if direction == Direction2::Forward {
                         existing.forward_predecessor = Some(node);
                     } else {
                         existing.backward_predecessor = Some(node);
                     }
-                    // Distance is unchanged; the existing heap entry at the old distance is
-                    // still valid and will pop the upgraded `Cycle` candidate.
+                    existing.distance = new_distance;
+                    scratch.heap.push(Reverse((new_distance, *next_seq, edge)));
+                    *next_seq += 1;
                 }
+            }
+            Some(existing) if existing.direction == Direction2::Cycle => {
+                // Already a cycle candidate — relax the half coming from `direction`.
+                if new_distance < existing.distance {
+                    if direction == Direction2::Forward {
+                        existing.forward_predecessor = Some(node);
+                    } else {
+                        existing.backward_predecessor = Some(node);
+                    }
+                    existing.distance = new_distance;
+                    scratch.heap.push(Reverse((new_distance, *next_seq, edge)));
+                    *next_seq += 1;
+                }
+            }
+            Some(existing) => {
+                // Opposite unidirectional frontiers met → upgrade to a cycle candidate.
+                // The opposite-direction predecessor was already populated when `existing`
+                // joined the frontier; we just fill in our side.
+                existing.direction = Direction2::Cycle;
+                if direction == Direction2::Forward {
+                    existing.forward_predecessor = Some(node);
+                } else {
+                    existing.backward_predecessor = Some(node);
+                }
+                // Distance is unchanged; the existing heap entry at the old distance is still
+                // valid and will pop the upgraded `Cycle` candidate.
             }
         }
     }
@@ -431,7 +502,7 @@ where
 /// the cycle node. `forward = true` follows forward predecessors; `false` follows backward.
 /// Returns the path in order `[start, ..., last_predecessor]`.
 fn reconstruct_path(
-    candidates: &FxHashMap<NodeIndex, Candidate>,
+    candidates: &[Option<Candidate>],
     from: Option<NodeIndex>,
     forward: bool,
 ) -> Vec<NodeIndex> {
@@ -439,7 +510,7 @@ fn reconstruct_path(
     let mut cur = from;
     while let Some(n) = cur {
         path.push(n);
-        let c = &candidates[&n];
+        let c = candidates[n.index()].as_ref().unwrap();
         cur = if forward {
             c.forward_predecessor
         } else {
@@ -457,6 +528,7 @@ fn reconstruct_path(
 /// Mutate `graph` in place to remove all multi-node cycles by repeatedly cutting the
 /// lowest-weight edge of a short cycle in each SCC.
 pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
+    let mut scratch = CycleSearchScratch::new(graph.node_count());
     let mut queue: Vec<FxHashSet<NodeIndex>> = Vec::new();
     for scc in strongly_connected_components(&*graph) {
         if scc.len() > 1 {
@@ -465,23 +537,19 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
     }
 
     while let Some(scc) = queue.pop() {
+        let mut csr = CsrGraph::new(&*graph, &scc);
         // Inner loop: keep cutting edges from cycles inside this SCC, seeding each subsequent
         // search at the previous cut's target. The seed is likely still on a cycle until the
         // local cycles around it are gone, at which point `find_short_cycle` returns `None` and
         // we re-run SCC to discover any remaining components.
         let mut seed_node: Option<NodeIndex> = None;
-        loop {
-            // Live view restricted to the current SCC.
-            let view = SubgraphView::new(&*graph, &scc);
-            let Some(short_cycle) = find_short_cycle(view, seed_node) else {
-                break;
-            };
-
+        while let Some(short_cycle) = find_short_cycle_with_scratch(&csr, seed_node, &mut scratch) {
             // Walk the cycle's k edges directly (closing wrap implicit) and find the minimum-
             // weight one. Considering edges *on the cycle path* — rather than any edge between
             // cycle nodes — guarantees the chosen cut breaks this cycle, not an unrelated chord.
             let mut min_weight: Option<u32> = None;
             let mut min_edge: Option<EdgeIndex> = None;
+            let mut min_from: Option<NodeIndex> = None;
             let mut min_to: Option<NodeIndex> = None;
             for i in 0..short_cycle.len() {
                 let from = short_cycle[i];
@@ -493,20 +561,21 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
                 if min_weight.is_none_or(|w| weight < w) {
                     min_weight = Some(weight);
                     min_edge = Some(edge);
+                    min_from = Some(from);
                     min_to = Some(to);
                 }
             }
 
-            let (Some(edge), Some(to)) = (min_edge, min_to) else {
+            let (Some(edge), Some(from), Some(to)) = (min_edge, min_from, min_to) else {
                 break;
             };
             graph.remove_edge(edge);
+            csr.remove_edge(from, to);
             seed_node = Some(to);
         }
 
         // Re-check this SCC for residual multi-node SCCs.
-        let view = SubgraphView::new(&*graph, &scc);
-        for new_scc in strongly_connected_components(view) {
+        for new_scc in strongly_connected_components(&csr) {
             if new_scc.len() > 1 {
                 queue.push(new_scc);
             }
