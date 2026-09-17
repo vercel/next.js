@@ -50,8 +50,11 @@ use turbo_tasks_fs::{
 };
 use turbo_unix_path::join_path;
 use turbopack::{
-    ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
-    global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
+    ModuleAssetContext,
+    evaluate_context::node_build_environment,
+    externals_tracing_module_context,
+    global_module_ids::{ModuleIdStringReplacements, get_global_module_id_strategy},
+    transition::TransitionOptions,
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
@@ -791,6 +794,7 @@ impl ProjectContainer {
         let debug_build_paths;
         let deferred_entries;
         let is_persistent_caching_enabled;
+        let next_version;
         let server_hmr;
         {
             let options = self.options_state.get();
@@ -819,6 +823,7 @@ impl ProjectContainer {
             debug_build_paths = options.debug_build_paths.clone();
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
+            next_version = options.next_version.clone();
             server_hmr = options.server_hmr;
         }
 
@@ -850,6 +855,7 @@ impl ProjectContainer {
             debug_build_paths,
             deferred_entries,
             is_persistent_caching_enabled,
+            next_version,
             server_hmr,
         }
         .cell())
@@ -951,6 +957,9 @@ pub struct Project {
 
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
+
+    /// The version of Next.js that is running.
+    next_version: RcStr,
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
@@ -2620,7 +2629,19 @@ impl Project {
             .cell()),
             ModuleIdStrategyConfig::Deterministic => {
                 let module_graphs = self.whole_app_module_graphs().await?;
-                Ok(get_global_module_id_strategy(*module_graphs.full))
+                let next_version = &self.await?.next_version;
+                let string_replacements = if next_version.is_empty() {
+                    ModuleIdStringReplacements::empty()
+                } else {
+                    ModuleIdStringReplacements::new(vec![(
+                        format!("/next@{next_version}/").into(),
+                        rcstr!("/next@__NEXT_VERSION__/"),
+                    )])
+                };
+                Ok(get_global_module_id_strategy(
+                    *module_graphs.full,
+                    string_replacements,
+                ))
             }
         }
     }
