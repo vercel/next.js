@@ -3,7 +3,13 @@ import cheerio from 'cheerio'
 import { assertNoConsoleErrors } from 'next-test-utils'
 const describeCacheComponents = isNextDev ? describe.skip : describe
 
-function runCustomBotTests(parallelRouteMetadata: boolean) {
+function runCustomBotTests(legacyMetadataResolution: boolean) {
+  const legacyMetadataConfig = legacyMetadataResolution
+    ? `
+          deprecated: {
+            legacyMetadataResolution: true,
+          },`
+    : ''
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
@@ -11,9 +17,7 @@ function runCustomBotTests(parallelRouteMetadata: boolean) {
         module.exports = {
           cacheComponents: true,
           htmlLimitedBots: /MyBot/i,
-          experimental: {
-            parallelRouteMetadata: ${parallelRouteMetadata},
-          },
+          ${legacyMetadataConfig}
         }
       `,
     },
@@ -164,9 +168,9 @@ function runCustomBotTests(parallelRouteMetadata: boolean) {
 }
 
 describeCacheComponents.each([false, true])(
-  'metadata streaming with a custom bot list (parallelRouteMetadata: %s)',
-  (parallelRouteMetadata) => {
-    runCustomBotTests(parallelRouteMetadata)
+  'metadata streaming with a custom bot list (legacyMetadataResolution: %s)',
+  (legacyMetadataResolution) => {
+    runCustomBotTests(legacyMetadataResolution)
   }
 )
 ;(isNextDev ? describe.skip : describe)(
