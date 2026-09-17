@@ -1,9 +1,4 @@
-use std::{
-    cell::{Cell, UnsafeCell},
-    path::Path,
-    sync::LazyLock,
-    time::Duration,
-};
+use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::Result;
 use criterion::{
@@ -921,61 +916,6 @@ fn bench_family_sharding(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_compaction_meta_subsumption(c: &mut Criterion) {
-    let mut group = c.benchmark_group("compaction/meta_subsumption");
-    group.sample_size(10);
-    group.sampling_mode(SamplingMode::Flat);
-    let entries_per_commit = scaled(2_000);
-    let reported_retained_count = Cell::new(false);
-
-    group.bench_function("partial_40_commits", |b| {
-        b.iter_batched(
-            || {
-                let tempdir = tempfile::tempdir().unwrap();
-                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
-                    .unwrap();
-                for generation in 0..40u32 {
-                    let batch = db.write_batch().unwrap();
-                    for key in 0..entries_per_commit as u32 {
-                        batch
-                            .put(
-                                0,
-                                key.to_be_bytes(),
-                                generation.to_be_bytes().to_vec().into(),
-                            )
-                            .unwrap();
-                    }
-                    db.commit_write_batch(batch).unwrap();
-                }
-                (tempdir, db)
-            },
-            |(tempdir, db)| {
-                let result = db
-                    .compact(&CompactConfig {
-                        min_merge_count: 2,
-                        optimal_merge_count: 2,
-                        max_merge_count: 2,
-                        max_merge_bytes: u64::MAX,
-                        min_merge_duplication_bytes: 0,
-                        optimal_merge_duplication_bytes: 0,
-                        max_merge_segment_count: 1,
-                    })
-                    .unwrap();
-                let retained_meta_files = db.meta_info().unwrap().len();
-                if !reported_retained_count.replace(true) {
-                    println!(
-                        "retained meta files after partial compaction: {retained_meta_files}; {}",
-                        result.as_ref().unwrap()
-                    );
-                }
-                black_box((tempdir, result, retained_meta_files))
-            },
-            BatchSize::PerIteration,
-        )
-    });
-    group.finish();
-}
-
 fn bench_compaction(c: &mut Criterion) {
     let mut group = c.benchmark_group("compaction");
     // Compaction is expensive, reduce sample size
@@ -1635,6 +1575,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_meta_subsumption, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);
