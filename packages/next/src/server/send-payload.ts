@@ -50,6 +50,7 @@ export async function sendRenderResult({
   cacheControl,
   markdown,
   dir,
+  page,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -59,6 +60,7 @@ export async function sendRenderResult({
   cacheControl: CacheControl | undefined
   markdown?: MarkdownConfig
   dir?: string
+  page?: string
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -116,7 +118,7 @@ export async function sendRenderResult({
       ? await loadAuthoredRepresentation({
           dir,
           pageFilename: match?.definition.filename,
-          page: match?.definition.page,
+          page: match?.definition.page || page,
         })
       : {}
     const url = (req.url || '/').split('?')[0] || '/'

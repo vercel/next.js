@@ -565,6 +565,7 @@ export default class NextNodeServer extends BaseServer<
       cacheControl: options.cacheControl,
       markdown: this.nextConfig.markdown,
       dir: this.dir,
+      page: getRequestMeta(req, 'match')?.definition.page,
     })
   }
 

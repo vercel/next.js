@@ -263,6 +263,25 @@ export function createAppPageEntrypoint({
 
     let { isOnDemandRevalidate } = prepareResult
 
+    const projectDir =
+      process.env.NEXT_RUNTIME === 'nodejs'
+        ? (require('path') as typeof import('path')).join(
+            /* turbopackIgnore: true */
+            process.cwd(),
+            routeModule.relativeProjectDir
+          )
+        : `${process.cwd()}/${routeModule.relativeProjectDir}`
+
+    const sendPageRenderResult = (
+      options: Parameters<typeof sendRenderResult>[0]
+    ) =>
+      sendRenderResult({
+        ...options,
+        markdown: nextConfig.markdown,
+        dir: projectDir,
+        page,
+      })
+
     // We use the resolvedPathname instead of the parsedUrl.pathname because it
     // is not rewritten as resolvedPathname is. This will ensure that the correct
     // prerender info is used instead of using the original pathname as the
@@ -1796,7 +1815,7 @@ export function createAppPageEntrypoint({
           )
           if (matchedSegment !== undefined) {
             // Cache hit
-            return sendRenderResult({
+            return sendPageRenderResult({
               req,
               res,
               generateEtags: nextConfig.generateEtags,
@@ -1814,7 +1833,7 @@ export function createAppPageEntrypoint({
           // at a minimum there should always be a fallback entry) or there's no
           // match for the requested segment. Respond with a 404.
           res.statusCode = 404
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -1917,7 +1936,7 @@ export function createAppPageEntrypoint({
             if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
               if (nextConfig.cacheComponents) {
                 res.statusCode = 404
-                return sendRenderResult({
+                return sendPageRenderResult({
                   req,
                   res,
                   generateEtags: nextConfig.generateEtags,
@@ -1933,7 +1952,7 @@ export function createAppPageEntrypoint({
               }
             }
 
-            return sendRenderResult({
+            return sendPageRenderResult({
               req,
               res,
               generateEtags: nextConfig.generateEtags,
@@ -1945,7 +1964,7 @@ export function createAppPageEntrypoint({
 
           // As this isn't a prefetch request, we should serve the static flight
           // data.
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -1999,7 +2018,7 @@ export function createAppPageEntrypoint({
               `<a href="https://preview.nextjs.org/docs/app/guides/instant-navigation">Instant Navigation docs</a>.</p>` +
               `</body></html>`
 
-            return sendRenderResult({
+            return sendPageRenderResult({
               req,
               res,
               generateEtags: nextConfig.generateEtags,
@@ -2025,7 +2044,7 @@ export function createAppPageEntrypoint({
               },
             })
           )
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2054,7 +2073,7 @@ export function createAppPageEntrypoint({
             body.unshift(createPPRBoundarySentinel())
           }
 
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2080,7 +2099,7 @@ export function createAppPageEntrypoint({
             })
           )
 
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2146,7 +2165,7 @@ export function createAppPageEntrypoint({
             })
           })
 
-        return sendRenderResult({
+        return sendPageRenderResult({
           req,
           res,
           generateEtags: nextConfig.generateEtags,
