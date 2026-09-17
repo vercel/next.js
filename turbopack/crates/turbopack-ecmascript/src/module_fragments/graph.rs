@@ -355,6 +355,7 @@ impl DepGraph {
         };
 
         let mut module_evaluation_ix = None;
+        let mut group_to_module = FxHashMap::<u32, u32>::default();
 
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
@@ -717,7 +718,16 @@ impl DepGraph {
                 continue;
             }
 
+            group_to_module.insert(ix as u32, modules.len() as u32);
             modules.push(chunk);
+        }
+
+        translate_entrypoints(&mut outputs, &group_to_module);
+        module_evaluation_ix =
+            module_evaluation_ix.and_then(|ix| group_to_module.get(&ix).copied());
+        translate_part_deps(&mut part_deps, &group_to_module);
+        for module in &mut modules {
+            remap_internal_part_ids_in_module(module, &group_to_module);
         }
 
         outputs.insert(Key::Exports, modules.len() as u32);
@@ -767,6 +777,10 @@ impl DepGraph {
 
             modules.push(module);
         }
+
+        debug_assert!(validate_split_module_indices(
+            &outputs, &part_deps, &modules,
+        ));
 
         SplitModuleResult {
             entrypoints: outputs,
@@ -1648,6 +1662,121 @@ impl DepGraph {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
+
+fn translate_part_id(part_id: PartId, map: &FxHashMap<u32, u32>) -> Option<PartId> {
+    match part_id {
+        PartId::Internal(dep, is_eval) => map.get(&dep).map(|&m| PartId::Internal(m, is_eval)),
+        other => Some(other),
+    }
+}
+
+fn translate_entrypoints(outputs: &mut FxHashMap<Key, u32>, map: &FxHashMap<u32, u32>) {
+    let keys = outputs.keys().cloned().collect::<Vec<_>>();
+    for key in keys {
+        match &key {
+            Key::Export(_) | Key::ModuleEvaluation => {
+                let val = outputs[&key];
+                if let Some(mapped) = map.get(&val) {
+                    outputs.insert(key, *mapped);
+                } else {
+                    outputs.remove(&key);
+                }
+            }
+            Key::Exports | Key::StarExports => {}
+        }
+    }
+}
+
+fn translate_part_deps(deps: &mut FxHashMap<u32, Vec<PartId>>, map: &FxHashMap<u32, u32>) {
+    let old = std::mem::take(deps);
+    for (key, part_ids) in old {
+        let Some(&mapped_key) = map.get(&key) else {
+            continue;
+        };
+        let mut mapped_part_ids = Vec::with_capacity(part_ids.len());
+        for part_id in part_ids {
+            if let Some(mapped) = translate_part_id(part_id, map) {
+                mapped_part_ids.push(mapped);
+            }
+        }
+        if !mapped_part_ids.is_empty() {
+            deps.insert(mapped_key, mapped_part_ids);
+        }
+    }
+}
+
+fn remap_internal_part_ids_in_module(module: &mut Module, map: &FxHashMap<u32, u32>) {
+    module.body.retain_mut(|item| {
+        let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+            return true;
+        };
+
+        let Some(with) = import.with.as_deref() else {
+            return true;
+        };
+
+        let Some(part_id) = find_turbopack_part_id_in_asserts(with) else {
+            return true;
+        };
+
+        let PartId::Internal(_, _) = part_id else {
+            return true;
+        };
+
+        let Some(translated) = translate_part_id(part_id, map) else {
+            return false;
+        };
+
+        import.with = Some(Box::new(create_turbopack_part_id_assert(translated)));
+        true
+    });
+}
+
+fn validate_split_module_indices(
+    entrypoints: &FxHashMap<Key, u32>,
+    part_deps: &FxHashMap<u32, Vec<PartId>>,
+    modules: &[Module],
+) -> bool {
+    let module_count = modules.len() as u32;
+
+    for &index in entrypoints.values() {
+        if index >= module_count {
+            return false;
+        }
+    }
+
+    for (key, deps) in part_deps {
+        if *key >= module_count {
+            return false;
+        }
+        for dep in deps {
+            if let PartId::Internal(index, _) = dep
+                && *index >= module_count
+            {
+                return false;
+            }
+        }
+    }
+
+    for module in modules {
+        for item in &module.body {
+            let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+                continue;
+            };
+            let Some(with) = import.with.as_deref() else {
+                continue;
+            };
+            let Some(PartId::Internal(index, _)) = find_turbopack_part_id_in_asserts(with) else {
+                continue;
+            };
+            if index >= module_count {
+                return false;
+            }
+        }
+    }
+
+    true
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum PartId {
