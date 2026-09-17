@@ -13,9 +13,13 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-dotenvs = "0.1.0"
+nom = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 
+
+[dev-dependencies]
+# For the differential test against the original global-env-mutating path.
+dotenvs = "0.1.0"

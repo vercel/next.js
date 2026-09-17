@@ -4,6 +4,7 @@
 mod command_line;
 mod custom;
 mod dotenv;
+mod dotenv_parse;
 mod filter;
 
 use std::{env, sync::Mutex};
