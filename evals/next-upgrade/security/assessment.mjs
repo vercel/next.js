@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url'
 
 const tools = dirname(dirname(fileURLToPath(import.meta.url)))
 const realFetch = globalThis.fetch
-const { range, versions } = JSON.parse(
+const {
+  range,
+  severity = 'unknown',
+  versions,
+} = JSON.parse(
   readFileSync(
     join(dirname(fileURLToPath(import.meta.url)), 'assessment.json'),
     'utf8'
@@ -18,6 +22,9 @@ globalThis.fetch = async (input, init) => {
   if (url.startsWith('https://api.github.com/advisories?')) {
     value = [
       {
+        ghsa_id: 'GHSA-next-upgrade-eval',
+        html_url: 'https://github.com/advisories/GHSA-next-upgrade-eval',
+        severity,
         withdrawn_at: null,
         vulnerabilities: [
           {

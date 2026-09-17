@@ -218,6 +218,13 @@ export async function initialize(opts: {
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
 
+    // Check only development; production startup does not query advisories.
+    if (developmentConfig.experimental.agenticAutoUpgrade === 'security') {
+      const { nudgeForUpgrade } =
+        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      await nudgeForUpgrade(opts.dir, developmentConfig, 'dev')
+    }
+
     // Resolve the effective serverFastRefresh value.
     // Both default to enabled (true). CLI takes precedence over config.
     const cliServerFastRefresh = opts.serverFastRefresh
