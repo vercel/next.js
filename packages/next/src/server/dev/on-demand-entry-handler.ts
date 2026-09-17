@@ -326,15 +326,74 @@ class Invalidator {
   }
 }
 
-function disposeInactiveEntries(
+/**
+ * Collects the bundle paths of the entries that are still active (not
+ * scheduled for disposal). A child entry is only needed while at least one
+ * of its parent entries is in this set.
+ */
+export function getActiveEntryBundlePaths(
+  entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>
+): Set<string> {
+  const activeEntryBundlePaths = new Set<string>()
+  Object.keys(entries).forEach((entryKey) => {
+    const entryData = entries[entryKey]
+    if (entryData.type === EntryTypes.ENTRY && !entryData.dispose) {
+      activeEntryBundlePaths.add(entryData.bundlePath)
+    }
+  })
+  return activeEntryBundlePaths
+}
+
+/**
+ * Whether a child entry has at least one still-active parent entry, given
+ * the set of active entry bundle paths.
+ */
+export function childEntryHasActiveParent(
+  entryData: { parentEntries: Set<string> },
+  activeEntryBundlePaths: Set<string>
+): boolean {
+  for (const parentEntry of entryData.parentEntries) {
+    if (activeEntryBundlePaths.has(parentEntry)) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * When an entry is revived, its child entries must be revived with it:
+ * child disposal is only recomputed periodically, so a child would
+ * otherwise carry its stale disposal flag while the route is active, and
+ * the next cleanup pass could remove it. Clearing synchronously also keeps
+ * Rspack's built-entries cache from persisting the stale flag.
+ */
+export function reviveChildEntriesFor(
+  entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>,
+  parentBundlePath: string
+): void {
+  Object.keys(entries).forEach((entryKey) => {
+    const entryData = entries[entryKey]
+    if (
+      entryData.type === EntryTypes.CHILD_ENTRY &&
+      entryData.dispose &&
+      entryData.parentEntries.has(parentBundlePath)
+    ) {
+      entryData.dispose = false
+      entryData.lastActiveTime = Date.now()
+    }
+  })
+}
+
+export function disposeInactiveEntries(
   entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>,
   maxInactiveAge: number
 ) {
+  // Parents age out first: children must be scheduled in the same pass as
+  // their parents, so the two phases are ordered.
   Object.keys(entries).forEach((entryKey) => {
     const entryData = entries[entryKey]
     const { lastActiveTime, status, dispose, bundlePath } = entryData
 
-    // TODO-APP: implement disposing of CHILD_ENTRY
     if (entryData.type === EntryTypes.CHILD_ENTRY) {
       return
     }
@@ -367,6 +426,28 @@ function disposeInactiveEntries(
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
       entries[entryKey].dispose = true
+    }
+  })
+
+  // Computed after the parent pass so children see this pass's freshly
+  // scheduled parents as inactive.
+  const activeEntryBundlePaths = getActiveEntryBundlePaths(entries)
+
+  Object.keys(entries).forEach((entryKey) => {
+    const entryData = entries[entryKey]
+
+    if (entryData.type === EntryTypes.CHILD_ENTRY) {
+      // Child entries are not tied to a route file of their own: they are
+      // injected by their parent entries (e.g. the client-side flight entry
+      // of an app page) and are needed exactly as long as at least one of
+      // them. The disposal state is recomputed on every pass instead of
+      // pruning the parent set, so a parent that is revived clears the
+      // child's disposal flag again; without that, reviving a route could
+      // remove its client entry while the route is active.
+      entries[entryKey].dispose = !childEntryHasActiveParent(
+        entryData,
+        activeEntryBundlePaths
+      )
     }
   })
 }
@@ -770,6 +851,7 @@ export function onDemandEntryHandler({
         }
         entryInfo.lastActiveTime = Date.now()
         entryInfo.dispose = false
+        reviveChildEntriesFor(curEntries, entryInfo.bundlePath)
       }
     }
   }
@@ -807,6 +889,7 @@ export function onDemandEntryHandler({
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
+      reviveChildEntriesFor(curEntries, entryInfo.bundlePath)
     }
     return
   }
@@ -885,6 +968,7 @@ export function onDemandEntryHandler({
         ) {
           curEntries[entryKey].dispose = false
           curEntries[entryKey].lastActiveTime = Date.now()
+          reviveChildEntriesFor(curEntries, curEntries[entryKey].bundlePath)
           if (curEntries[entryKey].status === BUILT) {
             return {
               entryKey,
