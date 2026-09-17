@@ -652,7 +652,14 @@ export function getResolveRoutes(
               throw e
             }
 
-            if (res.closed || res.finished || !middlewareRes) {
+            // headersSent covers a response whose res.end() was deferred, which
+            // leaves res.finished false even though it has already been sent.
+            if (
+              res.closed ||
+              res.finished ||
+              res.headersSent ||
+              !middlewareRes
+            ) {
               return {
                 parsedUrl,
                 resHeaders,
