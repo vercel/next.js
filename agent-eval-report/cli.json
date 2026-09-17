@@ -1,0 +1,213 @@
+{
+  "interface": {
+    "name": "Next.js experimental-analyze CLI",
+    "commandTemplate": "node packages/next/dist/bin/next experimental-analyze --query <tool> --analyze-dir agent-eval-fixture/app/.next/diagnostics/analyze --input '<json>'",
+    "analyzeDirectory": "agent-eval-fixture/app/.next/diagnostics/analyze",
+    "snapshot": "20260917-201045-7afb1d3",
+    "queries": [
+      {
+        "number": 1,
+        "tool": "get_bundle_overview",
+        "input": {},
+        "status": "success",
+        "resultSummary": "4 routes; /dashboard is largest at 5,296,420 raw and 1,939,446 compressed bytes."
+      },
+      {
+        "number": 2,
+        "tool": "query_bundle_sources",
+        "input": { "route": "/dashboard", "limit": 50 },
+        "status": "success",
+        "resultSummary": "Top 50 of 830 source rows; exposed large highlight.js language files plus chart.js, lodash, and moment in a shared dashboard chunk."
+      },
+      {
+        "number": 3,
+        "tool": "explain_bundle_source",
+        "input": {
+          "route": "/dashboard",
+          "sourcePath": "[project]/node_modules/.pnpm/highlight.js@11.12.0/node_modules/highlight.js/lib/languages/mathematica.js"
+        },
+        "status": "success",
+        "resultSummary": "mathematica language alone is 248,576 raw / 71,014 compressed bytes across app-client and app-ssr candidates."
+      },
+      {
+        "number": 4,
+        "tool": "query_bundle_sources",
+        "input": { "route": "/dashboard", "groupBy": "package", "limit": 50 },
+        "status": "success",
+        "resultSummary": "Package grouping: highlight.js 1,877,928/702,481, chart.js 379,889/128,431, moment 329,946/149,712, lodash 139,540/49,953 raw/compressed bytes in total environment."
+      },
+      {
+        "number": 5,
+        "tool": "query_bundle_sources",
+        "input": {
+          "route": "/dashboard",
+          "environment": "client",
+          "groupBy": "package",
+          "limit": 50
+        },
+        "status": "success",
+        "resultSummary": "Client grouping: highlight.js 939,555/351,248, chart.js 192,225/64,893, lodash 69,770/24,943, moment 61,328/19,333 raw/compressed bytes."
+      },
+      {
+        "number": 6,
+        "tool": "compare_bundles",
+        "input": {},
+        "status": "failure",
+        "resultSummary": "Rejected because baselineSnapshot is required."
+      },
+      {
+        "number": 7,
+        "tool": "compare_bundles",
+        "input": {
+          "baselineSnapshot": "20260917-201045-7afb1d3",
+          "route": "/dashboard",
+          "groupBy": "package",
+          "limit": 20
+        },
+        "status": "success",
+        "resultSummary": "Only one snapshot exists, so self-comparison returned zero delta; output defaulted to route granularity despite route/groupBy inputs."
+      },
+      {
+        "number": 8,
+        "tool": "explain_bundle_source",
+        "input": {
+          "route": "/dashboard",
+          "sourcePath": "[project]/node_modules/.pnpm/lodash@4.18.1/node_modules/lodash/lodash.js"
+        },
+        "status": "success",
+        "resultSummary": "Full lodash.js source is 139,540 raw / 49,953 compressed bytes across app-client and app-ssr candidates."
+      },
+      {
+        "number": 9,
+        "tool": "explain_bundle_source",
+        "input": {
+          "route": "/dashboard",
+          "sourcePath": "[project]/node_modules/.pnpm/moment@2.31.0/node_modules/moment/moment.js"
+        },
+        "status": "success",
+        "resultSummary": "moment.js source is 122,656 raw / 38,705 compressed bytes across app-client and app-ssr candidates."
+      },
+      {
+        "number": 10,
+        "tool": "explain_bundle_source",
+        "input": {
+          "route": "/dashboard",
+          "sourcePath": "[project]/node_modules/.pnpm/chart.js@4.5.1/node_modules/chart.js/dist/chart.js"
+        },
+        "status": "success",
+        "resultSummary": "chart.js main distribution source is 320,435 raw / 105,046 compressed bytes across app-client and app-ssr candidates."
+      },
+      {
+        "number": 11,
+        "tool": "query_bundle_sources",
+        "input": {
+          "route": "/",
+          "environment": "client",
+          "groupBy": "package",
+          "limit": 30
+        },
+        "status": "success",
+        "resultSummary": "The root route has none of highlight.js, chart.js, lodash, or moment, confirming the candidates are dashboard-specific rather than universal client baseline."
+      }
+    ]
+  },
+  "findings": [
+    {
+      "packageOrSource": "highlight.js",
+      "evidence": "On /dashboard, client package grouping attributes 939,555 raw / 351,248 compressed bytes to highlight.js. Source ranking shows many language modules, including mathematica.js alone at 248,576 / 71,014 bytes, plus isbl.js, gml.js, sqf.js, maxima.js, 1c.js, and others. The package is absent from the / client package list.",
+      "rawBytes": 939555,
+      "compressedBytes": 351248,
+      "whyLikelyOptimizable": "The breadth and size of individually named language modules strongly suggests a broad language build or registration. Importing highlight.js core and registering only languages actually rendered could remove most of this route's largest third-party payload; deferring the highlighter until code is visible is another option.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "chart.js",
+      "evidence": "On /dashboard, client package grouping attributes 192,225 raw / 64,893 compressed bytes to chart.js. The main dist/chart.js source is 320,435 / 105,046 bytes in the total environment and appears in the same app-client/app-ssr dashboard chunk. It is absent from the / client package list.",
+      "rawBytes": 192225,
+      "compressedBytes": 64893,
+      "whyLikelyOptimizable": "Chart.js supports selective controller/element/scale/plugin registration and can be loaded only where a chart is needed. A broad entrypoint and eager inclusion in the dashboard route are concrete candidates for selective imports and/or dynamic loading.",
+      "confidence": "medium-high"
+    },
+    {
+      "packageOrSource": "lodash",
+      "evidence": "On /dashboard, client package grouping attributes 69,770 raw / 24,943 compressed bytes to lodash. explain_bundle_source identifies the monolithic lodash/lodash.js file (139,540 / 49,953 bytes total) in app-client and app-ssr candidates. It is absent from the / client package list.",
+      "rawBytes": 69770,
+      "compressedBytes": 24943,
+      "whyLikelyOptimizable": "The analyzer identifies the full monolithic lodash.js build rather than small method modules. Replacing the root import with per-method imports, native JavaScript, or modularized imports can retain only the functions actually used.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "moment",
+      "evidence": "On /dashboard, client package grouping attributes 61,328 raw / 19,333 compressed bytes to moment. explain_bundle_source identifies moment/moment.js at 122,656 / 38,705 bytes total in app-client and app-ssr candidates; total package grouping is larger still (329,946 / 149,712), suggesting additional package material outside the client slice. It is absent from the / client package list.",
+      "rawBytes": 61328,
+      "compressedBytes": 19333,
+      "whyLikelyOptimizable": "Moment is a comparatively heavy date library for common formatting and relative-time tasks. Native Intl, a smaller library, or keeping formatting server-side may remove this dashboard client dependency; locale inclusion should also be checked.",
+      "confidence": "medium-high"
+    }
+  ],
+  "missedOrUnclearAreas": [
+    "Only one snapshot is present, so compare_bundles cannot demonstrate a real before/after or historical regression.",
+    "The analyzer shows membership, sizes, chunks, and module candidates but not the application import chain or which exports/languages/controllers/functions are actually used; source inspection is needed to choose an exact edit.",
+    "Total-environment numbers can count client and server contributions and are not directly comparable to transfer size; findings therefore use environment=client package totals.",
+    "Compressed source sizes are estimates because attributed parts are compressed independently.",
+    "The 30,138-byte client-attributed dashboard page source compresses to only 505 bytes, making its raw size look suspiciously large but its transfer impact unclear without source context.",
+    "No runtime usage or interaction frequency is available, so the analyzer cannot determine whether dynamic loading would improve initial load without harming the primary dashboard experience."
+  ],
+  "failedQueries": [
+    {
+      "number": 6,
+      "tool": "compare_bundles",
+      "input": {},
+      "error": "MCP error -32602: Invalid arguments for tool compare_bundles: baselineSnapshot is required (expected string, received undefined).",
+      "resolution": "Retried as query 7 with the sole snapshot ID as baseline; this validated the interface but produced only an identical self-comparison."
+    }
+  ],
+  "queryCount": 11,
+  "interfaceFriction": [
+    "The CLI exposes no schema/help for a selected query before execution, so the required baselineSnapshot field was learned through a failed call.",
+    "compare_bundles accepted route and groupBy fields but returned granularity=route and all routes, making accepted-versus-effective inputs unclear.",
+    "query_bundle_sources defaults to environment=total, whose package totals combine client/server attribution and can overstate browser impact; an explicit client query was required.",
+    "Source paths are very long pnpm virtual-store identifiers and must be copied exactly into explain_bundle_source.",
+    "explain_bundle_source marks common app-client/app-ssr matches ambiguous and provides candidates, but no parent/import chain explaining why the source entered the route.",
+    "The overview makes the favicon route appear to be a 1.81 MB bundle, which is difficult to interpret without separating route output, traced server files, and browser-delivered assets."
+  ],
+  "overallAssessment": "The analyzer CLI is effective at quickly ranking route-specific packages and turning a vague 'large dashboard' into four concrete candidates totaling 1,262,878 raw and 460,417 estimated compressed client bytes. It is especially persuasive for detecting broad highlight.js language inclusion and the monolithic lodash build. It is less effective at prescribing exact fixes because it lacks import/parent chains, export-level usage, and a real baseline snapshot. The best workflow is overview -> route package grouping with environment=client -> source ranking/explanation -> source validation.",
+  "groundTruthComparison": {
+    "correctHits": [
+      {
+        "finding": "highlight.js broad language inclusion",
+        "sourceEvidence": "src/app/dashboard/page.tsx imports the root `highlight.js` entry but calls `highlight` with only `language: 'javascript'` (lines 7 and 20-22).",
+        "verdict": "Correct. Importing `highlight.js/lib/core`, registering only JavaScript, and retaining the required theme CSS would directly address the analyzer's largest candidate."
+      },
+      {
+        "finding": "chart.js broad/eager entrypoint",
+        "sourceEvidence": "The dashboard imports `Chart` from `chart.js/auto` and constructs only one `bar` chart (lines 6 and 24-33).",
+        "verdict": "Correct. `chart.js/auto` registers every component; importing/registering only the bar controller, elements, scales, and required plugins would narrow the payload. Dynamic loading is plausible but depends on whether the chart is primary above-the-fold content."
+      },
+      {
+        "finding": "monolithic lodash",
+        "sourceEvidence": "The dashboard imports root `lodash` and uses only `_.groupBy` over four static records (lines 5, 10-15, and 19).",
+        "verdict": "Correct. A per-method import would be smaller, and a short native reduction could remove the dependency entirely."
+      },
+      {
+        "finding": "moment for one formatted timestamp",
+        "sourceEvidence": "The dashboard imports `moment` and uses it only for `moment().format('LLLL')` (lines 4 and 39).",
+        "verdict": "Correct. `Intl.DateTimeFormat` can provide the needed long localized date/time without this client dependency; server-rendering the timestamp may also be considered with explicit freshness/hydration behavior."
+      }
+    ],
+    "misses": [
+      {
+        "opportunity": "Split the coarse client boundary",
+        "sourceEvidence": "`src/app/dashboard/page.tsx` starts with `'use client'`, so static sales grouping, syntax highlighting, timestamp formatting, and the Chart.js canvas all live in one client component.",
+        "whyMissed": "The CLI flags sources as client/server and shows shared chunks, but does not identify the application boundary or explain that only the imperative canvas/effect truly requires a client component. Extracting a small chart client component could keep static work and markup server-side and make the other client dependencies easier to remove."
+      },
+      {
+        "opportunity": "Prioritize removal over modularization for trivial usages",
+        "sourceEvidence": "Lodash groups four constant records, Moment formats one current timestamp, and Highlight.js processes one constant JavaScript snippet.",
+        "whyMissed": "The analyzer accurately ranks package costs but cannot see semantic usage, so it suggests package-level narrowing without revealing that native/server-side code can potentially eliminate three dependencies from the client entirely."
+      }
+    ],
+    "falsePositives": [],
+    "summary": "All four package findings were genuine and actionable; there were no package-level false positives. Source inspection increased confidence and made the fixes precise. The principal miss was architectural: the analyzer did not expose the coarse client-component boundary or distinguish dependency removal from merely narrower imports. The conditional suggestion to dynamically load Chart.js is not counted as a false positive, but its UX value cannot be established from this fixture alone."
+  }
+}
