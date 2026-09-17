@@ -1,4 +1,4 @@
-use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{cell::RefCell, fmt, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
 use lzzzz::lz4::{self, decompress};
@@ -15,12 +15,25 @@ pub enum Compression {
 }
 
 /// Runtime compression configuration for a persistence family.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum CompressionConfig {
     #[default]
     Lz4,
     Zstd3,
     Zstd3WithDictionary(&'static [u8]),
+}
+
+impl fmt::Debug for CompressionConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lz4 => formatter.write_str("Lz4"),
+            Self::Zstd3 => formatter.write_str("Zstd3"),
+            Self::Zstd3WithDictionary(_) => formatter
+                .debug_struct("Zstd3WithDictionary")
+                .field("dictionary_id", &self.dictionary_id())
+                .finish(),
+        }
+    }
 }
 
 impl CompressionConfig {
@@ -200,6 +213,14 @@ impl Compressor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dictionary_debug_does_not_include_bytes() {
+        let dictionary = Box::leak(vec![42; 64 * 1024].into_boxed_slice());
+        let debug = format!("{:?}", CompressionConfig::Zstd3WithDictionary(dictionary));
+        assert!(debug.starts_with("Zstd3WithDictionary"));
+        assert!(debug.len() < 100);
+    }
 
     #[test]
     fn dictionary_compression_round_trips() {

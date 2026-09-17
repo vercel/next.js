@@ -154,6 +154,7 @@ struct CacheReport {
     path: PathBuf,
     family: u32,
     active_ssts: u64,
+    source_codecs: BTreeSet<String>,
     samples: Metric,
     duplicate_blob_references: u64,
     candidates: Vec<CandidateResult>,
@@ -173,6 +174,7 @@ struct EvaluationReport {
 #[derive(Serialize)]
 struct TrainingCacheReport {
     path: PathBuf,
+    source_codecs: BTreeSet<String>,
     samples: Metric,
 }
 
@@ -192,16 +194,52 @@ struct TrainingReport {
 
 struct CacheSampleIter {
     path: PathBuf,
-    pending: VecDeque<SstInfo>,
-    current: Option<StaticSortedFileIter>,
-    compression: CompressionConfig,
+    pending: VecDeque<(SstInfo, CompressionConfig)>,
+    current: Option<(StaticSortedFileIter, CompressionConfig)>,
+    source_codecs: BTreeSet<String>,
     seen_blobs: HashSet<u32>,
     active_ssts: u64,
     duplicate_blob_references: u64,
 }
 
+fn source_compression_for_sst(
+    path: &Path,
+    family: u32,
+    sst: &SstInfo,
+    source_dictionary: Option<&'static [u8]>,
+) -> Result<CompressionConfig> {
+    match (sst.compression, sst.dictionary_id) {
+        (Compression::Lz4, 0) => Ok(CompressionConfig::Lz4),
+        (Compression::Lz4, id) => anyhow::bail!(
+            "Cache {} family {family} SST {:08}.sst records LZ4 with unexpected dictionary ID {id}",
+            path.display(),
+            sst.sequence_number
+        ),
+        (Compression::Zstd3, 0) => Ok(CompressionConfig::Zstd3),
+        (Compression::Zstd3, id) => {
+            let dictionary = source_dictionary.with_context(|| {
+                format!(
+                    "Cache {} family {family} SST {:08}.sst requires source dictionary ID {id}",
+                    path.display(),
+                    sst.sequence_number
+                )
+            })?;
+            let configured = CompressionConfig::Zstd3WithDictionary(dictionary);
+            ensure!(
+                configured.dictionary_id() == Some(id),
+                "Cache {} family {family} SST {:08}.sst requires source dictionary ID {id}, but \
+                 supplied dictionary has ID {:?}",
+                path.display(),
+                sst.sequence_number,
+                configured.dictionary_id()
+            );
+            Ok(configured)
+        }
+    }
+}
+
 impl CacheSampleIter {
-    fn open(path: PathBuf, family: u32, compression: CompressionConfig) -> Result<Self> {
+    fn open(path: PathBuf, family: u32, source_dictionary: Option<&'static [u8]>) -> Result<Self> {
         let mut families = collect_sst_info(&path)
             .with_context(|| format!("Failed to inspect cache {}", path.display()))?;
         let mut ssts = families.remove(&family).with_context(|| {
@@ -210,47 +248,43 @@ impl CacheSampleIter {
                 path.display()
             )
         })?;
-        for sst in &ssts {
-            ensure!(
-                sst.compression == Compression::Zstd3
-                    && sst.dictionary_id == compression.dictionary_id().unwrap_or(0),
-                "Cache {} family {family} SST {:08}.sst uses {:?} dictionary {}, but source \
-                 config uses {:?}",
-                path.display(),
-                sst.sequence_number,
-                sst.compression,
-                sst.dictionary_id,
-                compression
-            );
-        }
         // A stable SST order makes repeated runs against one unchanged cache snapshot comparable.
         ssts.sort_by_key(|sst| sst.sequence_number);
+        let mut source_codecs = BTreeSet::new();
+        let pending = ssts
+            .into_iter()
+            .map(|sst| {
+                let compression =
+                    source_compression_for_sst(&path, family, &sst, source_dictionary)?;
+                source_codecs.insert(format!("{compression:?}"));
+                Ok((sst, compression))
+            })
+            .collect::<Result<VecDeque<_>>>()?;
         Ok(Self {
             path,
-            active_ssts: ssts.len() as u64,
-            pending: ssts.into(),
+            active_ssts: pending.len() as u64,
+            pending,
             current: None,
-            compression,
+            source_codecs,
             seen_blobs: HashSet::new(),
             duplicate_blob_references: 0,
         })
     }
 
     fn open_next_sst(&mut self) -> Result<bool> {
-        let Some(sst) = self.pending.pop_front() else {
+        let Some((sst, compression)) = self.pending.pop_front() else {
             return Ok(false);
         };
-        self.current = Some(
-            StaticSortedFileIter::open(
-                &self.path,
-                StaticSortedFileMetaData {
-                    sequence_number: sst.sequence_number,
-                    block_count: sst.block_count,
-                },
-                self.compression,
-            )
-            .with_context(|| format!("Failed to open {:08}.sst", sst.sequence_number))?,
-        );
+        let iter = StaticSortedFileIter::open(
+            &self.path,
+            StaticSortedFileMetaData {
+                sequence_number: sst.sequence_number,
+                block_count: sst.block_count,
+            },
+            compression,
+        )
+        .with_context(|| format!("Failed to open {:08}.sst", sst.sequence_number))?;
+        self.current = Some((iter, compression));
         Ok(true)
     }
 
@@ -259,20 +293,26 @@ impl CacheSampleIter {
             if self.current.is_none() && !self.open_next_sst()? {
                 return Ok(None);
             }
-            let entry = match self.current.as_mut().unwrap().next() {
+            let (iter, compression) = self.current.as_mut().unwrap();
+            let compression = *compression;
+            let entry = match iter.next() {
                 Some(entry) => entry?,
                 None => {
                     self.current = None;
                     continue;
                 }
             };
-            if let Some(sample) = self.sample_from_value(entry.value)? {
+            if let Some(sample) = self.sample_from_value(entry.value, compression)? {
                 return Ok(Some(sample));
             }
         }
     }
 
-    fn sample_from_value(&mut self, value: IterValue) -> Result<Option<Sample>> {
+    fn sample_from_value(
+        &mut self,
+        value: IterValue,
+        compression: CompressionConfig,
+    ) -> Result<Option<Sample>> {
         match value {
             IterValue::Slice { value } if value.len() > MAX_INLINE_VALUE_SIZE => Ok(Some(Sample {
                 kind: SampleKind::Slice,
@@ -283,7 +323,7 @@ impl CacheSampleIter {
                 checksum,
                 block,
             } => {
-                let value = decode_medium(self.compression, uncompressed_size, checksum, &block)
+                let value = decode_medium(compression, uncompressed_size, checksum, &block)
                     .with_context(|| {
                         format!("Failed to read medium value in {}", self.path.display())
                     })?;
@@ -297,7 +337,7 @@ impl CacheSampleIter {
                     self.duplicate_blob_references += 1;
                     return Ok(None);
                 }
-                let value = read_blob(&self.path, sequence_number, self.compression)?;
+                let value = read_blob(&self.path, sequence_number, compression)?;
                 Ok(Some(Sample {
                     kind: SampleKind::Blob,
                     data: value,
@@ -440,10 +480,10 @@ fn finalize_results(results: &mut [CandidateResult]) {
 fn evaluate_cache(
     path: &Path,
     family: u32,
-    compression: CompressionConfig,
+    source_dictionary: Option<&'static [u8]>,
     candidates: &mut [Candidate],
 ) -> Result<CacheReport> {
-    let mut iter = CacheSampleIter::open(path.to_path_buf(), family, compression)?;
+    let mut iter = CacheSampleIter::open(path.to_path_buf(), family, source_dictionary)?;
     let mut samples = Metric::default();
     let mut results = empty_results(candidates);
     while let Some(sample) = iter.next_sample()? {
@@ -455,6 +495,7 @@ fn evaluate_cache(
         path: path.to_path_buf(),
         family,
         active_ssts: iter.active_ssts,
+        source_codecs: iter.source_codecs,
         samples,
         duplicate_blob_references: iter.duplicate_blob_references,
         candidates: results,
@@ -500,19 +541,20 @@ struct TrainingSelection {
 fn select_training_samples(
     paths: &[PathBuf],
     family: u32,
-    compression: CompressionConfig,
+    source_dictionary: Option<&'static [u8]>,
     byte_budget: usize,
 ) -> Result<TrainingSelection> {
     let mut paths = paths.to_vec();
     paths.sort();
     let mut iterators = paths
         .into_iter()
-        .map(|path| CacheSampleIter::open(path, family, compression))
+        .map(|path| CacheSampleIter::open(path, family, source_dictionary))
         .collect::<Result<Vec<_>>>()?;
     let mut per_cache = iterators
         .iter()
         .map(|iter| TrainingCacheReport {
             path: iter.path.clone(),
+            source_codecs: iter.source_codecs.clone(),
             samples: Metric::default(),
         })
         .collect::<Vec<_>>();
@@ -562,20 +604,20 @@ fn write_dictionary(path: &Path, bytes: &[u8]) -> Result<()> {
         .with_context(|| format!("Failed to write dictionary {}", path.display()))
 }
 
-fn source_compression(source: &Source) -> Result<CompressionConfig> {
-    match &source.source_dictionary {
-        Some(path) => {
-            let dictionary = fs::read(path)
-                .with_context(|| format!("Failed to read source dictionary {}", path.display()))?;
-            let dictionary = Box::leak(dictionary.into_boxed_slice());
-            Ok(CompressionConfig::Zstd3WithDictionary(dictionary))
-        }
-        None => Ok(CompressionConfig::Zstd3),
-    }
+fn source_dictionary(source: &Source) -> Result<Option<&'static [u8]>> {
+    source
+        .source_dictionary
+        .as_ref()
+        .map(|path| {
+            fs::read(path)
+                .with_context(|| format!("Failed to read source dictionary {}", path.display()))
+                .map(|bytes| Box::leak(bytes.into_boxed_slice()) as &'static [u8])
+        })
+        .transpose()
 }
 
 fn train(source: &Source, output: &Path) -> Result<TrainingReport> {
-    let compression = source_compression(source)?;
+    let source_dictionary = source_dictionary(source)?;
     let TrainingSelection {
         samples,
         caches,
@@ -584,7 +626,7 @@ fn train(source: &Source, output: &Path) -> Result<TrainingReport> {
     } = select_training_samples(
         &source.caches,
         source.family,
-        compression,
+        source_dictionary,
         SAMPLE_BYTE_BUDGET,
     )?;
     ensure!(!samples.is_empty(), "No eligible values found for training");
@@ -630,8 +672,9 @@ fn print_training(report: &TrainingReport) {
     );
     for cache in &report.caches {
         println!(
-            "  {}: {} values / {} bytes",
+            "  {} ({:?}): {} values / {} bytes",
             cache.path.display(),
+            cache.source_codecs,
             cache.samples.count,
             cache.samples.bytes
         );
@@ -647,6 +690,9 @@ fn print_evaluation(report: &EvaluationReport) {
         samples.count,
         samples.bytes
     );
+    for cache in &report.caches {
+        println!("  {}: {:?}", cache.path.display(), cache.source_codecs);
+    }
     println!(
         "{:<28} {:>15} {:>9} {:>18} {:>12} {:>12}",
         "Candidate", "Raw compressed", "ratio", "Estimated stored", "encode ms", "decode ms"
@@ -692,13 +738,11 @@ fn run(cli: Cli) -> Result<()> {
             json,
         } => {
             let mut candidates = make_candidates(&dictionary)?;
-            let source_compression = source_compression(&source)?;
+            let source_dictionary = source_dictionary(&source)?;
             let caches = source
                 .caches
                 .iter()
-                .map(|path| {
-                    evaluate_cache(path, source.family, source_compression, &mut candidates)
-                })
+                .map(|path| evaluate_cache(path, source.family, source_dictionary, &mut candidates))
                 .collect::<Result<Vec<_>>>()?;
             let report = combine_evaluation(source.family, caches, &candidates);
             print_evaluation(&report);
@@ -716,7 +760,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::{ffi::OsString, fs, path::PathBuf};
+    use std::{collections::BTreeSet, ffi::OsString, fs, path::PathBuf};
 
     use anyhow::Result;
     use byteorder::{BE, WriteBytesExt};
@@ -802,13 +846,20 @@ mod tests {
     #[test]
     fn round_robin_samples_multiple_caches() -> Result<()> {
         let first = make_cache(2, Compression::Zstd3, 20)?;
-        let second = make_cache(2, Compression::Zstd3, 20)?;
+        let second = make_cache(2, Compression::Lz4, 20)?;
         let paths = [first.path().to_path_buf(), second.path().to_path_buf()];
-        let selection = select_training_samples(&paths, 2, CompressionConfig::Zstd3, 10_000)?;
+        let selection = select_training_samples(&paths, 2, None, 10_000)?;
         assert!(!selection.samples.is_empty());
         assert!(!selection.inputs_exhausted);
         assert_eq!(selection.caches.len(), 2);
         assert_eq!(&selection.selected_cache_indices[..2], &[0, 1]);
+        let source_codecs = selection
+            .caches
+            .iter()
+            .flat_map(|cache| cache.source_codecs.iter())
+            .collect::<BTreeSet<_>>();
+        assert!(source_codecs.contains(&"Zstd3".to_owned()));
+        assert!(source_codecs.contains(&"Lz4".to_owned()));
         assert!(
             selection
                 .caches
@@ -819,15 +870,21 @@ mod tests {
     }
 
     #[test]
-    fn rejects_non_zstd_families_before_sampling() -> Result<()> {
+    fn accepts_lz4_source_cache_and_ignores_source_dictionary() -> Result<()> {
         let cache = make_cache(2, Compression::Lz4, 20)?;
-        let error = CacheSampleIter::open(cache.path().to_path_buf(), 2, CompressionConfig::Zstd3)
-            .err()
-            .expect("LZ4 family must be rejected");
-        let message = format!("{error:#}");
-        assert!(message.contains("00000001.sst"));
-        assert!(message.contains("Lz4"));
-        assert!(message.contains("source config uses Zstd3"));
+        let mut iter =
+            CacheSampleIter::open(cache.path().to_path_buf(), 2, Some(b"irrelevant for LZ4"))?;
+        assert!(iter.source_codecs.contains("Lz4"));
+        assert!(iter.next_sample()?.is_some());
+
+        let cache = make_cache(2, Compression::Zstd3, 20)?;
+        let mut iter = CacheSampleIter::open(
+            cache.path().to_path_buf(),
+            2,
+            Some(b"irrelevant for plain zstd"),
+        )?;
+        assert!(iter.source_codecs.contains("Zstd3"));
+        assert!(iter.next_sample()?.is_some());
         Ok(())
     }
 
@@ -840,15 +897,8 @@ mod tests {
         let dictionary = Box::leak(dictionary.into_boxed_slice());
         let cache =
             make_cache_with_config(2, CompressionConfig::Zstd3WithDictionary(dictionary), 20)?;
-        assert!(
-            CacheSampleIter::open(cache.path().to_path_buf(), 2, CompressionConfig::Zstd3,)
-                .is_err()
-        );
-        let mut iter = CacheSampleIter::open(
-            cache.path().to_path_buf(),
-            2,
-            CompressionConfig::Zstd3WithDictionary(dictionary),
-        )?;
+        assert!(CacheSampleIter::open(cache.path().to_path_buf(), 2, None).is_err());
+        let mut iter = CacheSampleIter::open(cache.path().to_path_buf(), 2, Some(dictionary))?;
         assert!(iter.next_sample()?.is_some());
         Ok(())
     }
@@ -885,8 +935,7 @@ mod tests {
         assert_ne!(fs::read(&output)?, b"old");
 
         let mut candidates = make_candidates(&[output])?;
-        let evaluation =
-            evaluate_cache(cache.path(), 2, CompressionConfig::Zstd3, &mut candidates)?;
+        let evaluation = evaluate_cache(cache.path(), 2, None, &mut candidates)?;
         assert_eq!(evaluation.candidates.len(), 2);
         assert!(evaluation.samples.count > 0);
         Ok(())
@@ -903,12 +952,14 @@ mod tests {
         blob.extend_from_slice(&compressed);
         fs::write(cache.path().join("00000042.blob"), blob)?;
 
-        let mut iter =
-            CacheSampleIter::open(cache.path().to_path_buf(), 2, CompressionConfig::Zstd3)?;
+        let mut iter = CacheSampleIter::open(cache.path().to_path_buf(), 2, None)?;
         let sample = iter
-            .sample_from_value(turbo_persistence::IterValue::Blob {
-                sequence_number: 42,
-            })?
+            .sample_from_value(
+                turbo_persistence::IterValue::Blob {
+                    sequence_number: 42,
+                },
+                CompressionConfig::Zstd3,
+            )?
             .unwrap();
         assert_eq!(sample.data.as_ref(), value);
         let mut candidates = make_candidates(&[])?;
@@ -920,16 +971,22 @@ mod tests {
             results[0].combined.raw_compressed_bytes + 8
         );
         assert!(
-            iter.sample_from_value(turbo_persistence::IterValue::Blob {
-                sequence_number: 42,
-            })?
+            iter.sample_from_value(
+                turbo_persistence::IterValue::Blob {
+                    sequence_number: 42
+                },
+                CompressionConfig::Zstd3,
+            )?
             .is_none()
         );
         assert_eq!(iter.duplicate_blob_references, 1);
         assert!(
-            iter.sample_from_value(turbo_persistence::IterValue::Blob {
-                sequence_number: 43,
-            })
+            iter.sample_from_value(
+                turbo_persistence::IterValue::Blob {
+                    sequence_number: 43
+                },
+                CompressionConfig::Zstd3,
+            )
             .is_err()
         );
         Ok(())
