@@ -167,32 +167,49 @@ pub enum SpecifiedModuleType {
     Encode,
     Decode,
 )]
-pub enum AnalyzeMode {
-    /// For bundling only, no tracing of referenced files.
-    #[default]
-    CodeGeneration,
-    /// For bundling and finding references to external referenced files
-    CodeGenerationAndTracing,
-    /// For tracing imports only, no tracing of referenced files.
-    TracingImportOnly,
-    /// For tracing transitive external references (i.e. no codegen).
-    Tracing,
+pub struct AnalyzeMode {
+    /// Whether code generation should be skipped.
+    pub skip_codegen: bool,
+    /// Whether references to external files should be traced.
+    pub trace_file_references: bool,
 }
 
 impl AnalyzeMode {
-    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
-    pub fn is_tracing_assets(self) -> bool {
-        match self {
-            AnalyzeMode::CodeGenerationAndTracing | AnalyzeMode::Tracing => true,
-            AnalyzeMode::TracingImportOnly | AnalyzeMode::CodeGeneration => false,
+    pub const fn code_generation() -> Self {
+        Self {
+            skip_codegen: false,
+            trace_file_references: false,
         }
     }
 
-    pub fn is_code_gen(self) -> bool {
-        match self {
-            AnalyzeMode::CodeGeneration | AnalyzeMode::CodeGenerationAndTracing => true,
-            AnalyzeMode::TracingImportOnly | AnalyzeMode::Tracing => false,
+    pub const fn code_generation_and_tracing() -> Self {
+        Self {
+            skip_codegen: false,
+            trace_file_references: true,
         }
+    }
+
+    pub const fn tracing_import_only() -> Self {
+        Self {
+            skip_codegen: true,
+            trace_file_references: false,
+        }
+    }
+
+    pub const fn tracing() -> Self {
+        Self {
+            skip_codegen: true,
+            trace_file_references: true,
+        }
+    }
+
+    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
+    pub fn is_tracing_assets(self) -> bool {
+        self.trace_file_references
+    }
+
+    pub fn is_code_gen(self) -> bool {
+        !self.skip_codegen
     }
 }
 
@@ -853,7 +870,7 @@ impl EcmascriptModuleAsset {
             self.ty,
             *self.transforms,
             node_env,
-            options.analyze_mode == AnalyzeMode::Tracing,
+            options.analyze_mode.skip_codegen && options.analyze_mode.trace_file_references,
             options.inline_helpers,
         ))
     }

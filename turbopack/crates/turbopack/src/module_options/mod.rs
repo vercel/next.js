@@ -27,10 +27,9 @@ use turbopack_core::{
 };
 use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions,
-    SpecifiedModuleType, bytes_source_transform::BytesSourceTransform,
-    json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
-    transform::PresetEnvConfig,
+    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
+    bytes_source_transform::BytesSourceTransform, json_source_transform::JsonSourceTransform,
+    text_source_transform::TextSourceTransform, transform::PresetEnvConfig,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -405,7 +404,7 @@ impl ModuleOptions {
         // which produces virtual paths that don't exist on disk. This breaks NFT file tracing
         // and standalone build file copying. Use Raw module type instead so the original
         // filesystem path is preserved in the trace.
-        let is_tracing = analyze_mode == AnalyzeMode::Tracing;
+        let is_tracing = analyze_mode.skip_codegen && analyze_mode.trace_file_references;
 
         // Import attribute rules (bytes/text) must come BEFORE config rules.
         // Import attributes have a stronger API contract - they're explicit in the source code

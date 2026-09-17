@@ -39,13 +39,13 @@ fn fixture(input: PathBuf) {
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            fixture_op(input.clone(), AnalyzeMode::CodeGeneration)
+            fixture_op(input.clone(), AnalyzeMode::code_generation())
                 .read_strongly_consistent()
                 .await?;
-            fixture_op(input.clone(), AnalyzeMode::Tracing)
+            fixture_op(input.clone(), AnalyzeMode::tracing())
                 .read_strongly_consistent()
                 .await?;
-            fixture_op(input, AnalyzeMode::CodeGenerationAndTracing)
+            fixture_op(input, AnalyzeMode::code_generation_and_tracing())
                 .read_strongly_consistent()
                 .await?;
             anyhow::Ok(())
@@ -144,11 +144,14 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
     NormalizedOutput::from(value)
         .compare_to_file(input.with_file_name(format!(
             "env-vars{}.snapshot",
-            match analyze_mode {
-                AnalyzeMode::CodeGenerationAndTracing => "",
-                AnalyzeMode::CodeGeneration => ".codegen",
-                AnalyzeMode::Tracing => ".tracing",
-                AnalyzeMode::TracingImportOnly => ".tracing-import-only",
+            match (
+                analyze_mode.skip_codegen,
+                analyze_mode.trace_file_references,
+            ) {
+                (false, true) => "",
+                (false, false) => ".codegen",
+                (true, true) => ".tracing",
+                (true, false) => ".tracing-import-only",
             }
         )))
         .unwrap();
