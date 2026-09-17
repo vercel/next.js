@@ -9,9 +9,6 @@ function expectedTimeoutErrorMessage(route: string) {
   return `Route "${route}": ${timeoutErrorMessage}`
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('use-cache-hanging', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -164,11 +161,7 @@ describe('use-cache-hanging', () => {
   } else {
     describe('when a "use cache" fill hangs during prerendering', () => {
       it('should fail the build with a timeout error', async () => {
-        try {
-          await next.start()
-        } catch {
-          // expected
-        }
+        await expect(next.start()).rejects.toThrow()
 
         if (isTurbopack) {
           expect(next.cliOutput)
@@ -180,7 +173,7 @@ describe('use-cache-hanging', () => {
             expectedTimeoutErrorMessage('/static')
           )
         }
-      })
+      }, 240_000)
     })
   }
 })

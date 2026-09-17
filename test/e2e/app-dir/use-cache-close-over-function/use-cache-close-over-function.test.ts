@@ -7,9 +7,6 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('use-cache-close-over-function', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -116,7 +113,8 @@ describe('use-cache-close-over-function', () => {
     })
   } else {
     it('should fail the build with an error', async () => {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(cliOutput).toInclude(`
 Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
@@ -126,6 +124,6 @@ Error: Functions cannot be passed directly to Client Components unless you expli
       expect(cliOutput).toMatch(
         /Error occurred prerendering page "\/(client|server)"/
       )
-    })
+    }, 240_000)
   }
 })

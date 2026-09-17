@@ -2,9 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
-// @force-gate !deploy
 describe('use-cache-segment-configs', () => {
   const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
@@ -70,7 +67,8 @@ describe('use-cache-segment-configs', () => {
         `)
       }
     } else {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       const buildOutput = getBuildOutput(cliOutput)
 
@@ -134,7 +132,7 @@ describe('use-cache-segment-configs', () => {
         `)
       }
     }
-  })
+  }, 240_000)
 })
 
 function getBuildOutput(cliOutput: string): string {
