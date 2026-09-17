@@ -360,3 +360,12 @@ export default function Layout(props: LayoutProps<'/dashboard'>) {
 > - Static routes resolve `params` to `{}`.
 > - `PageProps`, `LayoutProps` are global helpers — no imports required.
 > - Types are generated during `next dev`, `next build` or `next typegen`.
+
+## Routes that don't render UI
+
+`page` and `layout` are the files that produce UI. Two more files take part in routing without rendering anything:
+
+- [`route.ts`](/docs/app/api-reference/file-conventions/route) defines a **Route Handler**, an HTTP endpoint at that path. Use it for webhooks, for responses that aren't HTML such as JSON or an RSS feed, and for clients that aren't your own frontend. A `route` file cannot sit at the same path as a `page` file, since both would claim the same URL.
+- [`proxy.ts`](/docs/app/api-reference/file-conventions/proxy) runs before a request completes, so it can rewrite, redirect, or modify headers across many paths at once. There is one per project, at the root.
+
+Neither is needed to build a typical app. Reads happen in Server Components, covered in [Fetching Data](/docs/app/getting-started/fetching-data), and writes happen in Server Functions, covered in [Mutating Data](/docs/app/getting-started/mutating-data). Reach for these two when you need an endpoint of your own or logic that spans routes. Both are covered in the [Backend for Frontend guide](/docs/app/guides/backend-for-frontend).

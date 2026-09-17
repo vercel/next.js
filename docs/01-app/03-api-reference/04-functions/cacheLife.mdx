@@ -251,9 +251,8 @@ The `stale` property controls the [Client Cache](/docs/app/glossary#client-cache
 
 - The server sends the stale time via the `x-nextjs-stale-time` response header
 - The client router uses this value to determine when to revalidate
-- **Minimum of 30 seconds is enforced** to ensure prefetched links remain usable
 
-This 30-second minimum prevents prefetched data from expiring before users can click on links. It only applies to time-based expiration.
+A `stale` under 30 seconds is used as written, but the entry is [excluded from prerenders](#prerendering-behavior) because a prefetch would expire before the user could click. The value you set is never rewritten.
 
 When you call revalidation functions from a Server Action ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), or [`refresh`](/docs/app/api-reference/functions/refresh)), the entire client cache is immediately cleared, bypassing the stale time.
 

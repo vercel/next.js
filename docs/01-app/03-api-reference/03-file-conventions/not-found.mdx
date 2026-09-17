@@ -40,7 +40,7 @@ export default function NotFound() {
 }
 ```
 
-In the [component hierarchy](/docs/app/getting-started/project-structure#component-hierarchy), `not-found.js` renders between `loading.js` and `page.js`. It is wrapped by the `<Suspense>` boundary from `loading.js` and the error boundary from `error.js` in the same segment.
+In the [component hierarchy](/docs/app/guides/project-structure#component-hierarchy), `not-found.js` renders between `loading.js` and `page.js`. It is wrapped by the `<Suspense>` boundary from `loading.js` and the error boundary from `error.js` in the same segment.
 
 > **Good to know**: The default not found UI follows the operating system's color scheme via `prefers-color-scheme` and does not read an app-level theme (such as a class or `data-theme` attribute on `<html>`). Because it renders inside your root layout, the quickest way to match an explicit theme is to add a higher-specificity rule pair in your global stylesheet, scoped to your theme selector — for example `html[data-theme='light'] body` and `html[data-theme='dark'] body`. For full control over the markup, provide your own `not-found.js`.
 

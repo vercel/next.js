@@ -48,8 +48,6 @@ Top-level files are used to configure your application, manage dependencies, run
 | `tsconfig.json`                                                              | Configuration file for TypeScript                                                  |
 | `jsconfig.json`                                                              | Configuration file for JavaScript                                                  |
 
-<AppOnly>
-
 ### Routing Files
 
 Add `page` to expose a route, `layout` for shared UI such as header, nav, or footer, `loading` for skeletons, `error` for error boundaries, and `route` for APIs.
@@ -142,48 +140,6 @@ Use `@slot` for named slots rendered by a parent layout. Use intercept patterns 
 | [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts) | `.js` `.ts` | Generated Sitemap     |
 | [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)                        | `.txt`      | Robots file           |
 | [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file)                  | `.js` `.ts` | Generated Robots file |
-
-</AppOnly>
-
-<PagesOnly>
-
-### File conventions
-
-|                                                                                                             |                     |                   |
-| ----------------------------------------------------------------------------------------------------------- | ------------------- | ----------------- |
-| [`_app`](/docs/pages/building-your-application/routing/custom-app)                                          | `.js` `.jsx` `.tsx` | Custom App        |
-| [`_document`](/docs/pages/building-your-application/routing/custom-document)                                | `.js` `.jsx` `.tsx` | Custom Document   |
-| [`_error`](/docs/pages/building-your-application/routing/custom-error#more-advanced-error-page-customizing) | `.js` `.jsx` `.tsx` | Custom Error Page |
-| [`404`](/docs/pages/building-your-application/routing/custom-error#404-page)                                | `.js` `.jsx` `.tsx` | 404 Error Page    |
-| [`500`](/docs/pages/building-your-application/routing/custom-error#500-page)                                | `.js` `.jsx` `.tsx` | 500 Error Page    |
-
-### Routes
-
-|                                                                                                |                     |             |
-| ---------------------------------------------------------------------------------------------- | ------------------- | ----------- |
-| **Folder convention**                                                                          |                     |             |
-| [`index`](/docs/pages/building-your-application/routing/pages-and-layouts#index-routes)        | `.js` `.jsx` `.tsx` | Home page   |
-| [`folder/index`](/docs/pages/building-your-application/routing/pages-and-layouts#index-routes) | `.js` `.jsx` `.tsx` | Nested page |
-| **File convention**                                                                            |                     |             |
-| [`index`](/docs/pages/building-your-application/routing/pages-and-layouts#index-routes)        | `.js` `.jsx` `.tsx` | Home page   |
-| [`file`](/docs/pages/building-your-application/routing/pages-and-layouts)                      | `.js` `.jsx` `.tsx` | Nested page |
-
-### Dynamic routes
-
-|                                                                                                                   |                     |                                  |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------- |
-| **Folder convention**                                                                                             |                     |                                  |
-| [`[folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes)                                  | `.js` `.jsx` `.tsx` | Dynamic route segment            |
-| [`[...folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)            | `.js` `.jsx` `.tsx` | Catch-all route segment          |
-| [`[[...folder]]/index`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | `.js` `.jsx` `.tsx` | Optional catch-all route segment |
-| **File convention**                                                                                               |                     |                                  |
-| [`[file]`](/docs/pages/building-your-application/routing/dynamic-routes)                                          | `.js` `.jsx` `.tsx` | Dynamic route segment            |
-| [`[...file]`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)                    | `.js` `.jsx` `.tsx` | Catch-all route segment          |
-| [`[[...file]]`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments)         | `.js` `.jsx` `.tsx` | Optional catch-all route segment |
-
-</PagesOnly>
-
-<AppOnly>
 
 ## Organizing your project
 
@@ -279,7 +235,7 @@ Since files in the `app` directory can be [safely colocated by default](#colocat
 >
 > - While not a framework convention, you might also consider marking files outside private folders as "private" using the same underscore pattern.
 > - You can create URL segments that start with an underscore by prefixing the folder name with `%5F` (the URL-encoded form of an underscore): `%5FfolderName`.
-> - If you don't use private folders, it would be helpful to know Next.js [special file conventions](/docs/app/getting-started/project-structure#routing-files) to prevent unexpected naming conflicts.
+> - If you don't use private folders, it would be helpful to know Next.js [special file conventions](/docs/app/guides/project-structure#routing-files) to prevent unexpected naming conflicts.
 
 ### Route groups
 
@@ -417,5 +373,3 @@ To create multiple [root layouts](/docs/app/api-reference/file-conventions/layou
 />
 
 In the example above, both `(marketing)` and `(shop)` have their own root layout.
-
-</AppOnly>

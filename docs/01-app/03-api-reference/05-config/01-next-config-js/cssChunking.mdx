@@ -52,7 +52,7 @@ While some unused CSS is acceptable, and most apps do not need to change anythin
 
 When reading the report, watch out for styles that only apply on interaction, such as `:hover`, `:focus`, or classes toggled by JavaScript for menus and modals, since Coverage counts them as unused until you trigger them.
 
-The source of this unused CSS is one of two things. Either it is dead CSS in a stylesheet your route imports, which you fix in your source by removing the unused rules or moving them into a stylesheet only the routes that use them import ([CSS Modules](/docs/app/getting-started/css#css-modules) make this natural by scoping styles to the component that imports them).
+The source of this unused CSS is one of two things. Either it is dead CSS in a stylesheet your route imports, which you fix in your source by removing the unused rules or moving them into a stylesheet only the routes that use them import ([CSS Modules](/docs/app/getting-started/styling-and-assets/css#css-modules) make this natural by scoping styles to the component that imports them).
 
 Or the bundler merged another stylesheet into a shared chunk that your route loads. That is governed by your [chunking strategy](#choosing-a-strategy). In Turbopack, [`graph` mode](#balancing-requests-and-grouping) lets you fine-tune how aggressively CSS merges.
 
