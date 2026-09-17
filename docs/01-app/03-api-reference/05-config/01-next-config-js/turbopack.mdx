@@ -44,13 +44,14 @@ module.exports = nextConfig
 
 The following options are available for the `turbopack` configuration:
 
-| Option              | Description                                                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `root`              | Sets the application root directory. Should be an absolute path.                                                                         |
-| `rules`             | List of supported webpack loaders to apply when running with Turbopack.                                                                  |
-| `resolveAlias`      | Map aliased imports to modules to load in their place.                                                                                   |
-| `resolveExtensions` | List of extensions to resolve when importing files.                                                                                      |
-| `debugIds`          | Enable generation of [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps. |
+| Option                  | Description                                                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `root`                  | Sets the application root directory. Should be an absolute path.                                                                         |
+| `rules`                 | List of supported webpack loaders to apply when running with Turbopack.                                                                  |
+| `resolveAlias`          | Map aliased imports to modules to load in their place.                                                                                   |
+| `resolveExtensions`     | List of extensions to resolve when importing files.                                                                                      |
+| `resolveExtensionAlias` | Map file extensions to alternative extensions to try during module resolution.                                                           |
+| `debugIds`              | Enable generation of [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps. |
 
 ### Supported loaders
 
@@ -372,6 +373,27 @@ module.exports = {
 This overwrites the default resolve extensions with the provided list, so include every extension you still need. The defaults are `.tsx`, `.ts`, `.jsx`, `.js`, `.mjs`, and `.json`, and server-side resolution adds `.node` for native modules. Listing `.node` on the client is harmless, so a single list can cover both.
 
 > **Good to know**: This applies to your own source files. Imports resolved inside `node_modules` keep their own extension list and are not affected by this option.
+
+### Resolving extension aliases
+
+Turbopack can be configured to map file extensions to alternative extensions during module resolution, similar to webpack's [`resolve.extensionAlias`](https://webpack.js.org/configuration/resolve/#resolveextensionalias) configuration.
+
+To configure extension aliases, use the `resolveExtensionAlias` field in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    resolveExtensionAlias: {
+      '.js': ['.ts', '.tsx', '.js'],
+      '.mjs': ['.mts', '.mjs'],
+    },
+  },
+}
+```
+
+This configures Turbopack to try alternative extensions when resolving imports that end with the specified extension. For example, an import of `./myfile.js` will first try to resolve `./myfile.ts`, then `./myfile.tsx`, and finally `./myfile.js`.
+
+This is useful when writing TypeScript code that uses `.js` extensions in imports, which is required for ESM compatibility with Node.js module resolution.
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
 
