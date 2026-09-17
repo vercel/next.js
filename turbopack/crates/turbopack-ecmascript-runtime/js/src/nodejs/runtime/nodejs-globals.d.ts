@@ -21,7 +21,10 @@ declare global {
   var __turbopack_server_hmr_handlers__:
     | Map<string, { handler: (update: any) => void; chunkPrefix: string }>
     | undefined
-  /** Ensures an on-demand chunk is available before the runtime loads it. */
+  /**
+   * Compiles an on-demand chunk before the runtime requires it.
+   *  Used together with EcmascriptOptionsContext.lazy_compilation
+   */
   var __turbopack_ensure_chunk__:
     | ((chunkPath: ChunkPath) => void | Promise<void>)
     | undefined
