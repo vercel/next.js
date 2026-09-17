@@ -17,6 +17,30 @@ use crate::{
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
+fn trace_task_invalidation_outcome(
+    task_id: TaskId,
+    task_description: Option<&str>,
+    outcome: &'static str,
+    made_stale: bool,
+    had_in_progress: bool,
+    has_activeness: bool,
+) {
+    let Some(task_description) = task_description else {
+        return;
+    };
+    tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
+        "turbo task invalidation outcome",
+        task_id = task_id.to_primitive(),
+        task_description,
+        outcome,
+        made_stale,
+        had_in_progress,
+        has_activeness,
+    )
+    .in_scope(|| {});
+}
+
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum InvalidateOperation {
@@ -129,6 +153,13 @@ pub fn make_task_dirty_internal(
         );
     }
 
+    let diagnostic_task_description = tracing::Span::current()
+        .metadata()
+        .is_some_and(|metadata| metadata.name() == "external invalidator dispatch")
+        .then(|| task.get_task_description());
+    let had_in_progress = task.has_in_progress();
+    let mut made_stale = false;
+
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
     if make_stale
@@ -145,6 +176,7 @@ pub fn make_task_dirty_internal(
         )
         .entered();
         *stale = true;
+        made_stale = true;
     }
     let current = task.get_dirty();
     let parent_priority = ctx.get_current_task_priority();
@@ -181,6 +213,14 @@ pub fn make_task_dirty_internal(
                     cause,
                 });
             }
+            trace_task_invalidation_outcome(
+                task_id,
+                diagnostic_task_description.as_deref(),
+                "already_dirty",
+                made_stale,
+                had_in_progress,
+                task.has_activeness(),
+            );
             return;
         }
         Some(Dirtyness::SessionDependent) => {
@@ -205,6 +245,14 @@ pub fn make_task_dirty_internal(
                 )
                 .entered();
                 // already dirty
+                trace_task_invalidation_outcome(
+                    task_id,
+                    diagnostic_task_description.as_deref(),
+                    "session_dependent_already_dirty",
+                    made_stale,
+                    had_in_progress,
+                    task.has_activeness(),
+                );
                 return;
             }
         }
@@ -259,14 +307,37 @@ pub fn make_task_dirty_internal(
         ));
     }
 
-    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
+    let has_activeness = task.has_activeness();
+    let should_schedule = !ctx.should_track_activeness() || has_activeness;
 
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
-        if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
+        let scheduled = task.add_scheduled(TaskExecutionReason::Invalidated, description);
+        trace_task_invalidation_outcome(
+            task_id,
+            diagnostic_task_description.as_deref(),
+            if scheduled {
+                "scheduled"
+            } else {
+                "already_scheduled_or_in_progress"
+            },
+            made_stale,
+            had_in_progress,
+            has_activeness,
+        );
+        if scheduled {
             drop(task);
             let task = ctx.task(task_id, TaskDataCategory::All);
             ctx.schedule_task(task, parent_priority);
         }
+    } else {
+        trace_task_invalidation_outcome(
+            task_id,
+            diagnostic_task_description.as_deref(),
+            "inactive",
+            made_stale,
+            had_in_progress,
+            has_activeness,
+        );
     }
 }

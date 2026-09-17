@@ -27,7 +27,7 @@ use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, field::display, trace_span};
+use tracing::{Instrument, Span, field::display, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
@@ -1947,6 +1947,23 @@ impl TurboTasksBackend {
             }
         }
 
+        let diagnostic_recomputation = matches!(
+            execution_reason,
+            TaskExecutionReason::Invalidated
+                | TaskExecutionReason::ActivateDirty
+                | TaskExecutionReason::Stale
+        );
+        let diagnostic_reason = execution_reason.as_str();
+        let diagnostic_task_name = (diagnostic_recomputation
+            && tracing::enabled!(
+                target: "turbopack_hmr_diagnostics",
+                tracing::Level::INFO
+            ))
+        .then(|| match &task_type {
+            TaskType::Cached(task_type) => task_type.get_name(),
+            TaskType::Transient(_) => "transient root task",
+        });
+
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => {
                 let CachedTaskType {
@@ -1974,6 +1991,30 @@ impl TurboTasksBackend {
                 (span, future)
             }
         };
+        let future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + '_>> =
+            if let Some(task_name) = diagnostic_task_name {
+                let diagnostic_span = tracing::info_span!(
+                    target: "turbopack_hmr_diagnostics",
+                    parent: None,
+                    "turbo task recomputation",
+                    task_id = task_id.to_primitive(),
+                    task_name,
+                    reason = diagnostic_reason,
+                    priority = ?priority,
+                    result = tracing::field::Empty,
+                );
+                let result_span = diagnostic_span.clone();
+                Box::pin(
+                    async move {
+                        let result = future.await;
+                        result_span.record("result", if result.is_ok() { "ok" } else { "error" });
+                        result
+                    }
+                    .instrument(diagnostic_span),
+                )
+            } else {
+                future
+            };
         Some(TaskExecutionSpec { future, span })
     }
 

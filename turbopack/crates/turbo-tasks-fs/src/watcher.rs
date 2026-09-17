@@ -71,6 +71,87 @@ const BATCH_DELAY: Duration = Duration::from_millis(10);
 #[cfg(not(target_os = "linux"))]
 const BATCH_DELAY: Duration = Duration::from_millis(1);
 
+/// Avoid making a single watcher event or invalidation batch arbitrarily large in diagnostic
+/// traces. The total event and batch counts are still recorded when paths are truncated.
+const MAX_DIAGNOSTIC_EVENT_PATHS: usize = 32;
+const MAX_DIAGNOSTIC_BATCH_PATHS: usize = 256;
+
+#[derive(Clone, Copy, Debug)]
+enum WatcherBackend {
+    Recommended,
+    Polling,
+}
+
+impl WatcherBackend {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Recommended => "recommended",
+            Self::Polling => "polling",
+        }
+    }
+}
+
+fn trace_raw_event(event: &notify::Event, watcher_backend: WatcherBackend) {
+    let path_count = event.paths.len();
+    let paths_truncated = path_count.saturating_sub(MAX_DIAGNOSTIC_EVENT_PATHS);
+    let rescan = event.need_rescan();
+    // notify's Linux inotify backend translates IN_Q_OVERFLOW to Flag::Rescan. Keep both fields
+    // so traces distinguish that concrete backend failure from rescan signals on other backends.
+    let inotify_queue_overflow = cfg!(target_os = "linux")
+        && matches!(watcher_backend, WatcherBackend::Recommended)
+        && rescan;
+    let span = tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
+        parent: None,
+        "watcher raw event",
+        watcher_backend = watcher_backend.as_str(),
+        kind = ?event.kind,
+        flag = ?event.flag(),
+        rescan,
+        inotify_queue_overflow,
+        path_count,
+        paths_truncated,
+    );
+    let _entered = span.enter();
+    for (path_index, path) in event
+        .paths
+        .iter()
+        .take(MAX_DIAGNOSTIC_EVENT_PATHS)
+        .enumerate()
+    {
+        let _path_span = tracing::info_span!(
+            target: "turbopack_hmr_diagnostics",
+            "watcher raw event path",
+            path_index,
+            path = %path.display(),
+        )
+        .entered();
+    }
+}
+
+fn trace_watcher_error(kind: &notify::ErrorKind, paths: &[PathBuf]) {
+    let path_count = paths.len();
+    let paths_truncated = path_count.saturating_sub(MAX_DIAGNOSTIC_EVENT_PATHS);
+    let span = tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
+        parent: None,
+        "watcher error",
+        kind = ?kind,
+        path_count,
+        paths_truncated,
+    );
+    let _entered = span.enter();
+    for (path_index, path) in paths.iter().take(MAX_DIAGNOSTIC_EVENT_PATHS).enumerate() {
+        let _path_span = tracing::info_span!(
+            target: "turbopack_hmr_diagnostics",
+            "watcher error path",
+            path_index,
+            path = %path.display(),
+        )
+        .entered();
+    }
+}
+
 #[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
     #[bincode(skip)]
@@ -403,11 +484,17 @@ impl DiskWatcher {
         // turbo-tasks-fs
         let config = config.with_follow_symlinks(false);
 
-        let mut notify_watcher = if let Some(poll_interval) = poll_interval {
+        let (mut notify_watcher, watcher_backend) = if let Some(poll_interval) = poll_interval {
             let config = config.with_poll_interval(poll_interval);
-            NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
+            (
+                NotifyWatcher::Polling(PollWatcher::new(tx, config)?),
+                WatcherBackend::Polling,
+            )
         } else {
-            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, config)?)
+            (
+                NotifyWatcher::Recommended(RecommendedWatcher::new(tx, config)?),
+                WatcherBackend::Recommended,
+            )
         };
 
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
@@ -454,10 +541,12 @@ impl DiskWatcher {
         }
 
         spawn_thread(move || {
-            fs_inner
-                .clone()
-                .watcher
-                .watch_thread(rx, fs_inner, report_invalidation_reason)
+            fs_inner.clone().watcher.watch_thread(
+                rx,
+                fs_inner,
+                report_invalidation_reason,
+                watcher_backend,
+            )
         });
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
@@ -497,6 +586,7 @@ impl DiskWatcher {
         rx: Receiver<notify::Result<notify::Event>>,
         fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
+        watcher_backend: WatcherBackend,
     ) {
         let mut batch = BatchedInvalidations::new(self.state.recursive_mode());
 
@@ -511,6 +601,7 @@ impl DiskWatcher {
                 };
                 match event_result {
                     Ok(Ok(event)) => {
+                        trace_raw_event(&event, watcher_backend);
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
                         // occur frequently (i.e. more than X times in Y minutes)
                         //
@@ -525,7 +616,46 @@ impl DiskWatcher {
 
                             // flush the whole mpsc queue, we're about to rescan, we don't need to
                             // process any other update events that have already happened
-                            while rx.try_recv().is_ok() {}
+                            let mut drained_message_count = 0usize;
+                            let mut drained_notify_event_count = 0usize;
+                            let mut drained_rescan_event_count = 0usize;
+                            let mut drained_error_count = 0usize;
+                            while let Ok(drained) = rx.try_recv() {
+                                drained_message_count += 1;
+                                match drained {
+                                    Ok(event) => {
+                                        drained_notify_event_count += 1;
+                                        if event.need_rescan() {
+                                            drained_rescan_event_count += 1;
+                                        }
+                                        trace_raw_event(&event, watcher_backend);
+                                    }
+                                    Err(notify::Error { kind, paths }) => {
+                                        drained_error_count += 1;
+                                        trace_watcher_error(&kind, &paths);
+                                    }
+                                }
+                            }
+
+                            let file_invalidator_path_count =
+                                fs_inner.invalidator_map.lock().unwrap().len();
+                            let directory_invalidator_path_count =
+                                fs_inner.dir_invalidator_map.lock().unwrap().len();
+                            let _rescan_span = tracing::info_span!(
+                                target: "turbopack_hmr_diagnostics",
+                                parent: None,
+                                "watcher rescan",
+                                watcher_backend = watcher_backend.as_str(),
+                                inotify_queue_overflow = cfg!(target_os = "linux")
+                                    && matches!(watcher_backend, WatcherBackend::Recommended),
+                                drained_message_count,
+                                drained_notify_event_count,
+                                drained_rescan_event_count,
+                                drained_error_count,
+                                file_invalidator_path_count,
+                                directory_invalidator_path_count,
+                            )
+                            .entered();
 
                             if let State::NonRecursive(non_recursive) = &self.state {
                                 // we can't narrow this down to a smaller set of paths: Rescan
@@ -559,13 +689,24 @@ impl DiskWatcher {
 
                         // Only an event that contributes to the batch keeps it open for another
                         // `BATCH_DELAY`.
-                        if batch.add_event(event) {
+                        let retained = batch.add_event(event);
+                        tracing::info_span!(
+                            target: "turbopack_hmr_diagnostics",
+                            parent: None,
+                            "watcher event classification",
+                            retained,
+                            batched_path_count = batch.paths.len(),
+                            batched_new_path_count = batch.new_path_count(),
+                        )
+                        .in_scope(|| {});
+                        if retained {
                             deadline = Some(Instant::now() + BATCH_DELAY);
                         }
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
                         println!("watch error ({paths:?}): {kind:?} ");
+                        trace_watcher_error(&kind, &paths);
 
                         let flags = InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR;
@@ -590,6 +731,8 @@ impl DiskWatcher {
                 }
             }
 
+            batch.trace();
+
             // We need to start watching first before invalidating the changed paths...
             // This is only needed on platforms we don't do recursive watching on.
             if let State::NonRecursive(non_recursive) = &self.state {
@@ -613,7 +756,8 @@ impl DiskWatcher {
             let _guard = fs_inner.tokio_handle.enter();
 
             let _lock = fs_inner.invalidation_lock.blocking_write();
-            batch.execute(
+            let lookup_count = batch.paths.len();
+            let summaries = batch.execute(
                 &fs_inner.invalidator_map,
                 &fs_inner.dir_invalidator_map,
                 |invalidation_reason_path, invalidator| {
@@ -626,6 +770,21 @@ impl DiskWatcher {
                     )
                 },
             );
+            for summary in summaries {
+                tracing::info_span!(
+                    target: "turbopack_hmr_diagnostics",
+                    parent: None,
+                    "watcher invalidator map summary",
+                    map = summary.map_kind.as_str(),
+                    requested_path_count = summary.requested_path_count,
+                    matched_batched_path_count = summary.matched_batched_path_count,
+                    matched_map_path_count = summary.matched_map_path_count,
+                    invalidator_count = summary.invalidator_count,
+                    lookup_count,
+                    lookups_truncated = lookup_count.saturating_sub(MAX_DIAGNOSTIC_BATCH_PATHS),
+                )
+                .in_scope(|| {});
+            }
         }
     }
 
@@ -661,6 +820,42 @@ bitflags! {
         const PATH_AND_CHILDREN = 1 << 2;
         /// Invalidate this path and all of its children in the directory-listing invalidator map.
         const PATH_AND_CHILDREN_DIR = 1 << 3;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InvalidatorMapKind {
+    File,
+    Directory,
+}
+
+impl InvalidatorMapKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::File => "file",
+            Self::Directory => "directory",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct InvalidatorMapSummary {
+    map_kind: InvalidatorMapKind,
+    requested_path_count: usize,
+    matched_batched_path_count: usize,
+    matched_map_path_count: usize,
+    invalidator_count: usize,
+}
+
+impl InvalidatorMapSummary {
+    fn new(map_kind: InvalidatorMapKind) -> Self {
+        Self {
+            map_kind,
+            requested_path_count: 0,
+            matched_batched_path_count: 0,
+            matched_map_path_count: 0,
+            invalidator_count: 0,
+        }
     }
 }
 
@@ -720,6 +915,39 @@ impl BatchedInvalidations {
     /// there). Always empty in recursive mode.
     fn new_paths(&self) -> impl Iterator<Item = &Path> {
         self.new_paths.iter().flatten().map(|path| &**path)
+    }
+
+    fn new_path_count(&self) -> usize {
+        self.new_paths.as_ref().map_or(0, FxHashSet::len)
+    }
+
+    fn trace(&self) {
+        let path_count = self.paths.len();
+        let paths_truncated = path_count.saturating_sub(MAX_DIAGNOSTIC_BATCH_PATHS);
+        let span = tracing::info_span!(
+            target: "turbopack_hmr_diagnostics",
+            parent: None,
+            "watcher invalidation batch",
+            path_count,
+            new_path_count = self.new_path_count(),
+            paths_truncated,
+        );
+        let _entered = span.enter();
+        for (path_index, (path, flags)) in self
+            .paths
+            .iter()
+            .take(MAX_DIAGNOSTIC_BATCH_PATHS)
+            .enumerate()
+        {
+            let _path_span = tracing::info_span!(
+                target: "turbopack_hmr_diagnostics",
+                "watcher batched path",
+                path_index,
+                path = %path.display(),
+                flags = ?flags,
+            )
+            .entered();
+        }
     }
 
     /// Updates the batch to contain updated paths from the given event. Does not perform any
@@ -827,47 +1055,82 @@ impl BatchedInvalidations {
         invalidator_map: &InvalidatorMap,
         dir_invalidator_map: &InvalidatorMap,
         invalidate: impl Fn(&Path, Invalidator),
-    ) {
-        for (map, exact_flag, recursive_flag) in [
+    ) -> [InvalidatorMapSummary; 2] {
+        let mut summaries = [
+            InvalidatorMapSummary::new(InvalidatorMapKind::File),
+            InvalidatorMapSummary::new(InvalidatorMapKind::Directory),
+        ];
+        let [file_summary, directory_summary] = &mut summaries;
+        for (summary, map, exact_flag, recursive_flag) in [
             (
+                file_summary,
                 invalidator_map,
                 InvalidationFlags::PATH,
                 InvalidationFlags::PATH_AND_CHILDREN,
             ),
             (
+                directory_summary,
                 dir_invalidator_map,
                 InvalidationFlags::PATH_DIR,
                 InvalidationFlags::PATH_AND_CHILDREN_DIR,
             ),
         ] {
             let mut map = map.lock().unwrap();
-            for (path, flags) in &self.paths {
-                if flags.contains(recursive_flag) {
+            for (path_index, (path, flags)) in self.paths.iter().enumerate() {
+                let mut matched_path_count = 0usize;
+                let mut invalidator_count = 0usize;
+                let lookup_kind = if flags.contains(recursive_flag) {
+                    summary.requested_path_count += 1;
                     for (_, invalidators) in map.extract_path_with_children(path) {
+                        matched_path_count += 1;
+                        invalidator_count += invalidators.len();
                         for invalidator in invalidators {
                             invalidate(path, invalidator);
                         }
                     }
+                    "recursive"
                 } else if flags.contains(exact_flag)
                     && let Some(invalidators) = map.remove(&**path)
                 {
+                    summary.requested_path_count += 1;
+                    matched_path_count = 1;
+                    invalidator_count = invalidators.len();
                     for invalidator in invalidators {
                         invalidate(path, invalidator);
                     }
+                    "exact"
+                } else if flags.contains(exact_flag) {
+                    summary.requested_path_count += 1;
+                    "exact"
+                } else {
+                    "not-requested"
+                };
+                if matched_path_count > 0 {
+                    summary.matched_batched_path_count += 1;
+                }
+                summary.matched_map_path_count += matched_path_count;
+                summary.invalidator_count += invalidator_count;
+                if path_index < MAX_DIAGNOSTIC_BATCH_PATHS {
+                    tracing::info_span!(
+                        target: "turbopack_hmr_diagnostics",
+                        parent: None,
+                        "watcher invalidator lookup",
+                        map = summary.map_kind.as_str(),
+                        path = %path.display(),
+                        flags = ?flags,
+                        lookup = lookup_kind,
+                        matched_path_count,
+                        invalidator_count,
+                    )
+                    .in_scope(|| {});
                 }
             }
         }
         self.clear();
+        summaries
     }
 }
 
-#[instrument(
-    parent = None,
-    level = "info",
-    name = "file change",
-    skip_all,
-    fields(name = %invalidation_reason_path.display())
-)]
 fn invalidate(
     inner: &DiskFileSystemInner,
     turbo_tasks: &dyn TurboTasksApi,
@@ -875,6 +1138,13 @@ fn invalidate(
     invalidation_reason_path: &Path,
     invalidator: Invalidator,
 ) {
+    let _span = tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
+        parent: None,
+        "file change",
+        name = %invalidation_reason_path.display(),
+    )
+    .entered();
     if report_invalidation_reason
         && let Some(path) =
             format_absolute_fs_path(invalidation_reason_path, &inner.name, inner.root_path())
@@ -926,5 +1196,79 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .unwrap()
                 .path
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use notify::event::{CreateKind, DataChange};
+
+    use super::*;
+
+    #[test]
+    fn retains_modified_path_for_file_invalidation() {
+        let path = PathBuf::from("/project/app/page.tsx");
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+
+        let retained = batch.add_event(
+            notify::Event::new(EventKind::Modify(ModifyKind::Data(DataChange::Content)))
+                .add_path(path.clone()),
+        );
+
+        assert!(retained);
+        assert_eq!(
+            batch.paths.get(path.as_path()),
+            Some(&InvalidationFlags::PATH)
+        );
+        assert_eq!(batch.new_paths().count(), 0);
+    }
+
+    #[test]
+    fn retains_create_flags_and_new_path() {
+        let path = PathBuf::from("/project/app/new-page.tsx");
+        let parent = path.parent().unwrap();
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+
+        let retained = batch.add_event(
+            notify::Event::new(EventKind::Create(CreateKind::File)).add_path(path.clone()),
+        );
+
+        assert!(retained);
+        assert_eq!(
+            batch.paths.get(path.as_path()),
+            Some(
+                &(InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR)
+            )
+        );
+        assert_eq!(batch.paths.get(parent), Some(&InvalidationFlags::PATH_DIR));
+        assert_eq!(batch.new_paths().collect::<Vec<_>>(), vec![path.as_path()]);
+    }
+
+    #[test]
+    fn reports_missing_file_invalidator() {
+        let path = PathBuf::from("/project/app/page.tsx");
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+        batch.mark(path.clone().into_boxed_path(), InvalidationFlags::PATH);
+        let invalidator_map = InvalidatorMap::new();
+        let dir_invalidator_map = InvalidatorMap::new();
+
+        let summaries = batch.execute(&invalidator_map, &dir_invalidator_map, |_, _| {
+            panic!("empty invalidator maps must not invoke invalidators")
+        });
+
+        assert_eq!(
+            summaries,
+            [
+                InvalidatorMapSummary {
+                    map_kind: InvalidatorMapKind::File,
+                    requested_path_count: 1,
+                    matched_batched_path_count: 0,
+                    matched_map_path_count: 0,
+                    invalidator_count: 0,
+                },
+                InvalidatorMapSummary::new(InvalidatorMapKind::Directory),
+            ]
+        );
+        assert!(batch.paths.is_empty());
     }
 }
