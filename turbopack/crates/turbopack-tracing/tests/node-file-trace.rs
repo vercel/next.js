@@ -415,7 +415,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode::tracing(),
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
             follow_reexports: false,
