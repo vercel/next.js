@@ -437,6 +437,37 @@ export default defineConfig([
     },
   },
   {
+    // Shipped runtime code sleeps via `wait()` from `src/lib/wait.ts`. The
+    // helper's own module is exempted by the rule itself.
+    files: ['packages/next/src/**/*.ts', 'packages/next/src/**/*.tsx'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx'],
+    plugins: {
+      '@next/internal': nextEslintPluginInternal,
+    },
+    rules: {
+      '@next/internal/no-adhoc-sleep': [
+        'error',
+        { helper: 'wait', modulePath: 'packages/next/src/lib/wait' },
+      ],
+    },
+  },
+  {
+    // Test files sleep via `waitFor()` from `next-test-utils`. Only test files
+    // are covered: fixture apps are compiled by `next build` and cannot
+    // resolve `next-test-utils`, which is a Jest-only module.
+    files: ['test/**/*.test.ts', 'test/**/*.test.tsx'],
+    ignores: ['test/tmp/**'],
+    plugins: {
+      '@next/internal': nextEslintPluginInternal,
+    },
+    rules: {
+      '@next/internal/no-adhoc-sleep': [
+        'error',
+        { helper: 'waitFor', module: 'next-test-utils' },
+      ],
+    },
+  },
+  {
     files: [
       'packages/next/src/server/**/*.js',
       'packages/next/src/server/**/*.jsx',
