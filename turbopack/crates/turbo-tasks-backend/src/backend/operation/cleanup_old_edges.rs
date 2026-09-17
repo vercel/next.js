@@ -167,15 +167,18 @@ impl CleanupOldEdgesOperation {
                                 let parent_is_transient = task_id.is_transient();
                                 let mut removed_durable = SmallVec::<[TaskId; 4]>::new();
                                 let mut removed_transient = SmallVec::<[TaskId; 4]>::new();
-                                for child_id in children.iter() {
+                                children.retain(|child_id| {
                                     if task.remove_children(child_id) {
                                         if parent_is_transient || child_id.is_transient() {
                                             removed_transient.push(*child_id);
                                         } else {
                                             removed_durable.push(*child_id);
                                         }
+                                        true
+                                    } else {
+                                        false
                                     }
-                                }
+                                });
                                 if !removed_durable.is_empty() {
                                     queue.push(AggregationUpdateJob::AdjustParentCount {
                                         task_ids: removed_durable,
