@@ -654,7 +654,10 @@ mod tests {
     /// swallowed by the wind-down: the abort's queue-clear races the panic's unwind through
     /// `catch_unwind` -> `on_item_finished`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_unbounded_abort_then_panic() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded(0..1000usize, |_spawner, item| {
@@ -676,7 +679,10 @@ mod tests {
     /// queued. A fixed seed set can drain completely before its first item panics, making it unable
     /// to distinguish a missed abort from valid scheduling.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_unbounded_panic_propagates_and_abandons_queue() {
         const MAX_ID: usize = 1 << 14;
         let processed = Arc::new(AtomicUsize::new(0));
@@ -800,7 +806,10 @@ mod tests {
     /// A panic must propagate through the fold path without deadlocking the join, which drainers
     /// reach only after their merge.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_unbounded_with_panic_propagates() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded_with(
