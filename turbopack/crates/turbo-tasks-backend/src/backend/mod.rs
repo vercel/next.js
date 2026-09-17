@@ -7,9 +7,9 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
-// Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
-// `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
-#[cfg(feature = "verify_aggregation_graph")]
+// Only the `verify_aggregation_graph` and `gc_stress` features still use atomics here; `stopping`
+// is an `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
+#[cfg(any(feature = "verify_aggregation_graph", feature = "gc_stress"))]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
@@ -265,6 +265,34 @@ pub struct TurboTasksBackend {
 
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
+
+    /// Test-only trigger for forcing a GC pass at a chosen suspend point. See
+    /// [`TurboTasksBackend::arm_gc_at_suspend_point`].
+    #[cfg(feature = "gc_stress")]
+    gc_stress: GcStressState,
+}
+
+/// Test-only state backing the "force a GC pass at the Nth suspend point" hook.
+///
+/// The point of the hook is to check that operation suspend points really are safepoints: at a
+/// suspend point the operation has dropped out of the in-flight count and declared itself safe to
+/// be interrupted, so a GC pass must be able to run there without corrupting the graph.
+#[cfg(feature = "gc_stress")]
+#[derive(Default)]
+struct GcStressState {
+    /// Suspend points observed since the last arming. Counted even while disarmed — that is how a
+    /// test discovers how many suspend points its workload reaches.
+    seen: std::sync::atomic::AtomicUsize,
+    /// 1-based index to fire at, or 0 for disarmed. The trigger fires at the first suspend point
+    /// whose index is `>= target`, so it fires even if the count drifts slightly between runs.
+    target: std::sync::atomic::AtomicUsize,
+    /// Latched on firing, so a pass fires at most once per arming.
+    fired: AtomicBool,
+    /// The [`AnyOperation`] variant that was caught, for coverage reporting.
+    fired_operation: Mutex<Option<&'static str>>,
+    /// `gc_collect` needs a concrete `&TurboTasks<TurboTasksBackend>`, which the suspend point has
+    /// no access to. `Weak` rather than `Arc` so the backend does not keep its own owner alive.
+    turbo_tasks: Mutex<Option<std::sync::Weak<TurboTasks<TurboTasksBackend>>>>,
 }
 
 /// What [`TurboTasksBackend::snapshot_and_evict_for_testing`] observed.
@@ -362,6 +390,8 @@ impl TurboTasksBackend {
             gc_min_progress,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
+            #[cfg(feature = "gc_stress")]
+            gc_stress: Default::default(),
         }
     }
 
@@ -394,10 +424,95 @@ impl TurboTasksBackend {
         ))
     }
 
-    fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
+    // `Fn` rather than `FnOnce` so the `gc_stress` hook can also build the operation. Every caller
+    // passes `|| op.clone().into()`, which already satisfies it.
+    fn operation_suspend_point(&self, suspend: impl Fn() -> AnyOperation) {
         if self.should_persist() {
+            #[cfg(feature = "gc_stress")]
+            self.gc_stress_suspend_point(&suspend);
             self.snapshot_coord.suspend_point(suspend);
         }
+    }
+
+    /// Count this suspend point and, if it is the one we were armed for, run a full GC pass *here*.
+    ///
+    /// See [`TurboTasksBackend::arm_gc_at_suspend_point`].
+    #[cfg(feature = "gc_stress")]
+    fn gc_stress_suspend_point(&self, suspend: &impl Fn() -> AnyOperation) {
+        let target = self.gc_stress.target.load(Ordering::Relaxed);
+        // Counted unconditionally: the disarmed pass is how a test discovers the total.
+        let index = self.gc_stress.seen.fetch_add(1, Ordering::Relaxed) + 1;
+        if target == 0 || index < target {
+            return;
+        }
+
+        #[cold]
+        fn fire(backend: &TurboTasksBackend, suspend: &impl Fn() -> AnyOperation) {
+            // At most one pass per arming.
+            if backend.gc_stress.fired.swap(true, Ordering::SeqCst) {
+                return;
+            }
+            let Some(turbo_tasks) = backend
+                .gc_stress
+                .turbo_tasks
+                .lock()
+                .as_ref()
+                .and_then(std::sync::Weak::upgrade)
+            else {
+                return;
+            };
+            assert!(
+                backend.gc_enabled,
+                "gc_stress requires a GC-enabled backend: set `BackendOptions::gc = Some(true)`"
+            );
+            *backend.gc_stress.fired_operation.lock() = Some(suspend().variant_name());
+
+            // Serialize against other phase holders, exactly as `gc_for_testing` does.
+            let _serialize = backend.snapshot_in_progress.lock();
+            backend.snapshot_coord.suspend_and_run_exclusive(
+                || suspend(),
+                |phase| {
+                    // Run the pass on a plain scoped thread rather than inline.
+                    //
+                    // We are called from deep inside `dynamic_call`, which runs under
+                    // `with_turbo_tasks` — that holds a *borrow* of the `TURBO_TASKS` task-local
+                    // for the duration of the call. GC's `gc_scan_roots` goes through
+                    // `parallel::map_collect` -> `scope_bounded`, which re-enters
+                    // `turbo_tasks_scope`, and entering a task-local scope while it is borrowed
+                    // panics. A fresh thread has no task-local at all, so the scopes capture
+                    // `try_turbo_tasks() == None` and never try to re-enter.
+                    //
+                    // The exclusion is held by *this* thread across the join, so the pass still
+                    // runs at exactly this suspend point with every other operation stopped.
+                    //
+                    // The tokio runtime handle is carried over explicitly (GC's `scope_unbounded`
+                    // calls `Handle::current()`); only the turbo-tasks task-local is left behind.
+                    let handle = tokio::runtime::Handle::current();
+                    std::thread::scope(|scope| {
+                        scope.spawn(|| {
+                            let _enter = handle.enter();
+                            let (_stats, roots) = backend.gc_collect(
+                                &turbo_tasks,
+                                phase,
+                                /* interruptible= */ false,
+                            );
+                            // Keep the roots map current, as `gc_for_testing` does: a later pass
+                            // and the cross-session logic both read it.
+                            if let Some(roots) = roots
+                                && let Err(err) = backend.backing_storage.save_snapshot(
+                                    Vec::new(),
+                                    Some(roots),
+                                    Vec::<Vec<SnapshotItem>>::new(),
+                                )
+                            {
+                                panic!("gc_stress: failed to persist GC roots: {err:?}");
+                            }
+                        });
+                    });
+                },
+            );
+        }
+        fire(self, suspend);
     }
 
     pub(crate) fn start_operation(&self) -> OperationGuard<'_, AnyOperation> {
@@ -448,6 +563,44 @@ impl TurboTasksBackend {
             eviction_counts,
             gc: gc_outcome,
         }
+    }
+
+    /// Arm the backend to run a full GC pass **at** an operation suspend point, and reset the
+    /// suspend-point counter.
+    ///
+    /// `n` is a 1-based index into the suspend points reached from now on. The pass fires at the
+    /// first suspend point whose index is `>= n`, so it still fires if the count drifts slightly
+    /// between runs. `n == 0` disarms, which is the mode used to *count* how many suspend points a
+    /// workload reaches (see [`Self::suspend_points_seen_for_testing`]).
+    ///
+    /// This exists to verify that suspend points are genuine safepoints: an operation at a suspend
+    /// point has declared itself interruptible, so a GC pass there must not corrupt the graph.
+    #[doc(hidden)]
+    #[cfg(feature = "gc_stress")]
+    pub fn arm_gc_at_suspend_point(
+        &self,
+        n: usize,
+        turbo_tasks: &Arc<TurboTasks<TurboTasksBackend>>,
+    ) {
+        *self.gc_stress.turbo_tasks.lock() = Some(Arc::downgrade(turbo_tasks));
+        *self.gc_stress.fired_operation.lock() = None;
+        self.gc_stress.fired.store(false, Ordering::SeqCst);
+        self.gc_stress.seen.store(0, Ordering::SeqCst);
+        self.gc_stress.target.store(n, Ordering::SeqCst);
+    }
+
+    /// Operation suspend points reached since the last [`Self::arm_gc_at_suspend_point`].
+    #[doc(hidden)]
+    #[cfg(feature = "gc_stress")]
+    pub fn suspend_points_seen_for_testing(&self) -> usize {
+        self.gc_stress.seen.load(Ordering::SeqCst)
+    }
+
+    /// The [`AnyOperation`] variant the armed pass fired at, or `None` if it never fired.
+    #[doc(hidden)]
+    #[cfg(feature = "gc_stress")]
+    pub fn gc_stress_fired_for_testing(&self) -> Option<&'static str> {
+        *self.gc_stress.fired_operation.lock()
     }
 
     /// The number of persistent (non-transient) tasks resident in the map. Test-only hook; see
@@ -1782,7 +1935,9 @@ impl TurboTasksBackend {
         let shard = get_shard(&self.storage.task_cache, hash);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut created_new = false;
+        // Set when this call is the one that created the task, so the pin taken below is released
+        // once the task is connected. See the pin's comment for what it defends.
+        let mut pinned_new_task: Option<TaskId> = None;
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
@@ -1865,6 +2020,18 @@ impl TurboTasksBackend {
             created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
+                // Pin the brand-new task for the rest of this call.
+                //
+                // Between the cache insert above and `ConnectChildOperation::run` below, the task
+                // has `parent_count == 0`, no transient ref, no activeness, no in-progress state
+                // and no uppers — so `gc_maybe_collectible` says it is garbage. The aggregation
+                // update that follows contains a suspend point, and a GC pass that runs there
+                // would collect the task out from under us; the connect would then open it
+                // `MustExist` and panic. The pin fails the `transient_ref_count == 0` clause for
+                // exactly that window.
+                ctx.task(task_id, TaskDataCategory::Meta)
+                    .update_and_get_transient_ref_count(1);
+                pinned_new_task = Some(task_id);
                 // Update the aggregation number before connecting the child. We don't need this on
                 // recovery paths because the aggregation number will already be set.
                 if is_root {
@@ -1897,6 +2064,14 @@ impl TurboTasksBackend {
         // New tasks carry a transient ref so they survive construction. Release it while
         // connecting the task to the graph.
         operation::ConnectChildOperation::run(parent_task, task_id, created_new, ctx);
+
+        // Release the pin taken when this call created the task: it is connected now, so whatever
+        // reference the connect established is what keeps it alive from here on.
+        if let Some(pinned) = pinned_new_task {
+            let mut ctx = self.execute_context(turbo_tasks);
+            ctx.task(pinned, TaskDataCategory::Meta)
+                .update_and_get_transient_ref_count(-1);
+        }
 
         task_id
     }
