@@ -142,7 +142,7 @@ pub(crate) struct ItemData {
     /// [ItemId].
     ///
     /// Used to optimize `ImportBinding`.
-    pub binding_source: Option<(Str, ImportSpecifier)>,
+    pub binding_source: Option<(Str, ImportSpecifier, Option<Box<ObjectLit>>)>,
 
     /// Explicit dependencies of this item.
     ///
@@ -528,7 +528,7 @@ impl DepGraph {
                     let dep_item_id = &dep_item_ids[0];
                     let dep_item_data = data.get(dep_item_id).unwrap();
 
-                    if let Some((module_specifier, import_specifier)) =
+                    if let Some((module_specifier, import_specifier, with_clause)) =
                         &dep_item_data.binding_source
                     {
                         // Preserve the order of the side effects by importing the
@@ -567,7 +567,7 @@ impl DepGraph {
                                 specifiers,
                                 src: Box::new(module_specifier.clone()),
                                 type_only: false,
-                                with: None,
+                                with: with_clause.clone(),
                                 phase: Default::default(),
                             })));
                         continue;
@@ -1226,12 +1226,11 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
-                                binding_source: if item.with.is_none() {
-                                    // Optimize by directly binding to the source
-                                    Some((*item.src.clone(), s.clone()))
-                                } else {
-                                    None
-                                },
+                                binding_source: Some((
+                                    *item.src.clone(),
+                                    s.clone(),
+                                    item.with.clone(),
+                                )),
                                 explicit_deps: vec![import_id.clone()],
                                 ..Default::default()
                             },
