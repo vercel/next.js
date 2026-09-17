@@ -120,11 +120,12 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
     }
 }
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
+pub use lookup_entry::{IterValue, LookupEntry};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
 pub use static_sorted_file::{
     BlockCache, BlockCacheLifecycle, BlockWeighter, KeyBlockLayout, SstLookupResult,
-    StaticSortedFile, StaticSortedFileMetaData,
+    StaticSortedFile, StaticSortedFileIter, StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
     BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,
