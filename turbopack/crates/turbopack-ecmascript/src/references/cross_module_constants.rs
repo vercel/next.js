@@ -6,14 +6,17 @@ use bincode::{Decode, Encode};
 use num_bigint::BigInt;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use swc_core::common::{GLOBALS, source_map::SmallPos};
+use swc_core::{
+    common::{GLOBALS, source_map::SmallPos},
+    ecma::ast::{ModuleDecl, ModuleItem, Program},
+};
 use thread_local::ThreadLocal;
 use tracing::instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    compile_time_info::CompileTimeInfo,
+    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     reference::ModuleReference,
@@ -34,6 +37,38 @@ use crate::{
 const STRING_INLINE_THRESHOLD: usize = 6;
 const NUMBER_INLINE_THRESHOLD: f64 = 1_000_000.0;
 const BIGINT_INLINE_THRESHOLD: i64 = 1_000_000;
+
+#[derive(Clone, Copy)]
+enum AutomaticInlineStatus {
+    Inline,
+    TooLong,
+    HasIdentity,
+}
+
+fn automatic_inline_status(value: &ConstantValue) -> AutomaticInlineStatus {
+    match value {
+        ConstantValue::Str(s) if s.as_str().len() > STRING_INLINE_THRESHOLD => {
+            AutomaticInlineStatus::TooLong
+        }
+        ConstantValue::Num(n) if n.0.abs() > NUMBER_INLINE_THRESHOLD => {
+            AutomaticInlineStatus::TooLong
+        }
+        ConstantValue::BigInt(n)
+            if **n > BigInt::from(BIGINT_INLINE_THRESHOLD)
+                || **n < BigInt::from(-BIGINT_INLINE_THRESHOLD) =>
+        {
+            AutomaticInlineStatus::TooLong
+        }
+        ConstantValue::Regex(_) => AutomaticInlineStatus::HasIdentity,
+        ConstantValue::Undefined
+        | ConstantValue::Null
+        | ConstantValue::True
+        | ConstantValue::False
+        | ConstantValue::Num(_)
+        | ConstantValue::BigInt(_)
+        | ConstantValue::Str(_) => AutomaticInlineStatus::Inline,
+    }
+}
 
 /// Import names that are all-uppercase and contain at least one letter are eligible for automatic
 /// constant inlining, even without an import attribute.
@@ -126,42 +161,21 @@ impl ConstantsModule {
                         match value {
                             ConstantsModuleExport::Constant(value) => {
                                 if !has_opt_in {
-                                    // when not having opt in, only inline short literals
-                                    match &value.0 {
-                                        ConstantValue::Str(s)
-                                            if s.as_str().len() > STRING_INLINE_THRESHOLD =>
-                                        {
-                                            JsValue::unknown_empty(
-                                                false,
-                                                rcstr!("constant too long"),
-                                            )
+                                    // when not having opt in, only inline short primitive values
+                                    match automatic_inline_status(&value.0) {
+                                        AutomaticInlineStatus::Inline => {
+                                            JsValue::Constant(value.0.clone())
                                         }
-                                        ConstantValue::Num(n)
-                                            if n.0.abs() > NUMBER_INLINE_THRESHOLD =>
-                                        {
-                                            JsValue::unknown_empty(
-                                                false,
-                                                rcstr!("constant too long"),
-                                            )
-                                        }
-                                        ConstantValue::BigInt(n)
-                                            if **n > BigInt::from(BIGINT_INLINE_THRESHOLD)
-                                                || **n < BigInt::from(-BIGINT_INLINE_THRESHOLD) =>
-                                        {
-                                            JsValue::unknown_empty(
-                                                false,
-                                                rcstr!("constant too long"),
-                                            )
-                                        }
-                                        ConstantValue::Regex(_) => {
-                                            // Regexes are literals, but they are also objects, so
-                                            // have identity and aren't inlined without opt in.
+                                        AutomaticInlineStatus::TooLong => JsValue::unknown_empty(
+                                            false,
+                                            rcstr!("constant too long"),
+                                        ),
+                                        AutomaticInlineStatus::HasIdentity => {
                                             JsValue::unknown_empty(
                                                 false,
                                                 rcstr!("regex not inlined"),
                                             )
                                         }
-                                        v => JsValue::Constant(v.clone()),
                                     }
                                 } else {
                                     JsValue::Constant(value.0.clone())
@@ -189,10 +203,53 @@ impl ConstantsModule {
     }
 }
 
+pub async fn get_inline_export(
+    import_reference: ResolvedVc<EsmAssetReference>,
+    export: &str,
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<Option<CompileTimeDefineValue>> {
+    let resolved = import_reference.resolve_reference().await?;
+    let Some(module) = resolved.first_module().await? else {
+        return Ok(None);
+    };
+    let constants = get_inline_constants(*module, compile_time_info).await?;
+    let Some(constants) = constants.as_ref() else {
+        return Ok(None);
+    };
+    let Some((_, ConstantsModuleExport::Constant(value))) =
+        constants.exports.iter().find(|(name, _)| name == export)
+    else {
+        return Ok(None);
+    };
+    if !matches!(
+        automatic_inline_status(&value.0),
+        AutomaticInlineStatus::Inline
+    ) {
+        return Ok(None);
+    }
+    Ok(CompileTimeDefineValue::try_from(&value.0).ok())
+}
+
 #[turbo_tasks::function]
 pub async fn get_constants(
     module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<Vc<OptionConstantsModule>> {
+    get_constants_internal(module, compile_time_info, false).await
+}
+
+#[turbo_tasks::function]
+async fn get_inline_constants(
+    module: ResolvedVc<Box<dyn Module>>,
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<Vc<OptionConstantsModule>> {
+    get_constants_internal(module, compile_time_info, true).await
+}
+
+async fn get_constants_internal(
+    module: ResolvedVc<Box<dyn Module>>,
+    compile_time_info: Vc<CompileTimeInfo>,
+    include_default_expression: bool,
 ) -> Result<Vc<OptionConstantsModule>> {
     let Some(parseable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module) else {
         // should never actually happen, there should be a "imported module is not chunkable" error
@@ -215,6 +272,20 @@ pub async fn get_constants(
     let directives = parse_module_turbopack_directives(program);
 
     let arena = ThreadLocal::new();
+
+    let default_export_value =
+        if include_default_expression && let Program::Module(module) = program {
+            module.body.iter().find_map(|item| match item {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export)) => {
+                    Some(GLOBALS.set(globals, || {
+                        eval_context.eval(arena.get_or_default(), &export.expr)
+                    }))
+                }
+                _ => None,
+            })
+        } else {
+            None
+        };
 
     let var_graph = {
         let supports_block_scoping = *compile_time_info
@@ -251,7 +322,13 @@ pub async fn get_constants(
         .iter()
         .map(async |(export_name, (binding, span))| {
             let value = GLOBALS.set(globals, || {
-                eval_context.eval_id(arena.get_or_default(), binding.clone())
+                if export_name.as_str() == "default"
+                    && let Some(value) = &default_export_value
+                {
+                    value.clone_in(arena.get_or_default())
+                } else {
+                    eval_context.eval_id(arena.get_or_default(), binding.clone())
+                }
             });
 
             let linked_value = link(
