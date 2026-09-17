@@ -698,7 +698,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_cpu_bound_tasks() {
         struct ExecutorImpl;
 
@@ -751,7 +750,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_cpu_bound_with_yield_tasks() {
         struct ExecutorImpl;
 
@@ -805,7 +803,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_waiting_tasks() {
         struct ExecutorImpl;
 
@@ -857,7 +854,13 @@ mod tests {
     /// Each task waits on two barriers (start, finish). The release sequence
     /// controls execution order deterministically.
     #[test]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
+    // Same teardown deadlock as `scope::tests::test_scope_runs_in_parallel`: this orchestrates 20
+    // tasks through sync barriers and `spawn_blocking`, and dropping the runtime while those
+    // blocking threads are live hangs on wasm. Removed once the wasm runtime owns its lifetime.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "tokio runtime shutdown hangs on wasm while blocking threads are live"
+    )]
     fn test_mixed_cpu_bound_and_waiting_tasks() {
         tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
