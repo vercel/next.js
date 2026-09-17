@@ -672,6 +672,10 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::AppSSR { app_dir, .. } => {
+            let lazy_compilation = matches!(next_runtime, NextRuntime::NodeJs)
+                && *next_config
+                    .turbopack_lazy_dynamic_imports_ssr(*next_mode)
+                    .await?;
             foreign_next_server_rules.extend(internal_custom_rules);
 
             next_server_rules.extend(source_transform_rules);
@@ -717,6 +721,7 @@ pub async fn get_server_module_options_context(
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     // React Compiler only optimizes the React client runtime, so skip it.
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -1034,6 +1039,7 @@ pub struct ServerChunkingContextOptions {
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
     options: ServerChunkingContextOptions,
+    lazy_dynamic_imports: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let ServerChunkingContextOptions {
         mode,
@@ -1108,11 +1114,13 @@ pub async fn get_server_chunking_context_with_client_assets(
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    builder = builder.source_map_source_type(if next_mode.is_development() {
-        SourceMapSourceType::AbsoluteFileUri
+    if next_mode.is_development() {
+        builder = builder
+            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
+            .manifest_chunks(*lazy_dynamic_imports.await?);
     } else {
-        SourceMapSourceType::RelativeUri
-    });
+        builder = builder.source_map_source_type(SourceMapSourceType::RelativeUri);
+    }
     if next_mode.is_production() {
         builder = builder
             .chunking_config(
