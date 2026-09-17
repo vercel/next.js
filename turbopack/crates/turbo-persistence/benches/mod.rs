@@ -840,6 +840,83 @@ fn bench_read_get_multiple(c: &mut Criterion) {
 // Compaction Benchmarks
 // =============================================================================
 
+fn family_benchmark_key(family: u32, commit: u32, item: u32) -> [u8; 12] {
+    let mut key = [0; 12];
+    key[..4].copy_from_slice(&family.to_be_bytes());
+    key[4..8].copy_from_slice(&commit.to_be_bytes());
+    key[8..].copy_from_slice(&item.to_be_bytes());
+    key
+}
+
+fn bench_family_sharding(c: &mut Criterion) {
+    const FAMILIES: usize = 4;
+    const COMMITS: u32 = 100;
+    let entries_per_commit = scaled(1_000);
+    let db = LazyLock::new(|| {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = TpDbConfig {
+            family_configs: ["family-0", "family-1", "family-2", "family-3"].map(|name| {
+                FamilyConfig {
+                    name,
+                    kind: FamilyKind::SingleValue,
+                    compression: Compression::Lz4,
+                }
+            }),
+            ..TpDbConfig::new()
+        };
+        let db = TurboPersistence::<SerialScheduler, FAMILIES>::open_with_config(
+            tempdir.path().to_path_buf(),
+            config,
+        )
+        .unwrap();
+        for commit in 0..COMMITS {
+            for family in 0..FAMILIES as u32 {
+                let batch = db.write_batch().unwrap();
+                for item in 0..entries_per_commit as u32 {
+                    batch
+                        .put(
+                            family,
+                            family_benchmark_key(family, commit, item),
+                            item.to_be_bytes().to_vec().into(),
+                        )
+                        .unwrap();
+                }
+                db.commit_write_batch(batch).unwrap();
+            }
+        }
+        (tempdir, db)
+    });
+
+    let mut group = c.benchmark_group("read/family_sharding");
+    group.measurement_time(Duration::from_secs(5));
+    let hit = family_benchmark_key(2, COMMITS - 1, 0);
+    let miss = family_benchmark_key(2, COMMITS, 0);
+    let batch_hits = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS - 1, item))
+        .collect::<Vec<_>>();
+    let batch_misses = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS, item))
+        .collect::<Vec<_>>();
+
+    group.bench_function("get/hit", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&hit)).unwrap()))
+    });
+    group.bench_function("get/miss", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&miss)).unwrap()))
+    });
+    group.bench_function("batch_get/hit_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_hits)).unwrap()))
+    });
+    group.bench_function("batch_get/miss_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_misses)).unwrap()))
+    });
+    group.finish();
+}
+
 fn bench_compaction(c: &mut Criterion) {
     let mut group = c.benchmark_group("compaction");
     // Compaction is expensive, reduce sample size
@@ -1499,6 +1576,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);
