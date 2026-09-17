@@ -91,6 +91,9 @@ importers:
       '@edge-runtime/jest-environment':
         specifier: 4.0.0
         version: 4.0.0
+      '@emnapi/wasi-threads':
+        specifier: 2.1.0
+        version: 2.1.0
       '@emotion/cache':
         specifier: 11.11.0
         version: 11.11.0
@@ -3054,6 +3057,9 @@ packages:
 
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
+
+  '@emnapi/wasi-threads@2.1.0':
+    resolution: {integrity: sha512-DM18NXgQ5coifswrwhFgrqeW/UiFRaLj0aLKU0cp0FoYjEfP/hj/yUeF+Hz754ViG+jQmG2HIeDCUeQsPnRwOA==}
 
   '@emotion/babel-plugin@11.11.0':
     resolution: {integrity: sha512-m4HEDZleaaCH+XgDDsPF15Ht6wTLsgDTeR3WYj9Q/k76JtWhrJjcP4+/XlG8LGT/Rol9qUfOIztXeA84ATpqPQ==}
@@ -20196,6 +20202,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
+
+  '@emnapi/wasi-threads@2.1.0':
+    dependencies:
+      tslib: 2.8.1
 
   '@emotion/babel-plugin@11.11.0':
     dependencies:
