@@ -408,10 +408,10 @@ fn write_block_to_file(
     compressor: &mut Compressor,
 ) -> Result<u16> {
     let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        let compressed = compressor.compress_into_buffer(block, compress_buffer)?;
+        compressor.compress_into_buffer(block, compress_buffer)?;
         // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
-        if compressed.len() < block.len() - (block.len() / 8) {
-            (block.len().try_into().unwrap(), compressed)
+        if compress_buffer.len() < block.len() - (block.len() / 8) {
+            (block.len().try_into().unwrap(), compress_buffer)
         } else {
             (0, block)
         }

@@ -122,54 +122,41 @@ impl Compressor {
         Ok(Self { compression, zstd })
     }
 
-    /// Compresses a one-shot block into an owned buffer.
-    ///
-    /// This is used for blobs, whose output buffer is not reused. lz4_flex's allocating unsafe
-    /// encoder writes directly into spare capacity, avoiding a potentially very large zero-fill.
-    pub(crate) fn compress_to_vec(&mut self, block: &[u8]) -> Result<Vec<u8>> {
-        match self.compression {
-            Compression::Lz4 => Ok(lz4_flex::block::compress(block)),
-            Compression::Zstd3 => {
-                let mut buffer = Vec::new();
-                self.compress_into_buffer(block, &mut buffer)?;
-                Ok(buffer)
-            }
-        }
-    }
-
-    /// Compresses `block` into reusable storage and returns only the valid compressed prefix.
-    ///
-    /// lz4_flex's table-reuse API requires an initialized output slice. The backing buffer
-    /// therefore keeps its initialized high-water length between calls: it is only zero-filled
-    /// when a larger maximum output size is first needed, not on every block.
+    /// Compresses `block` into reusable storage, replacing its contents.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn compress_into_buffer<'a>(
+    pub(crate) fn compress_into_buffer(
         &mut self,
         block: &[u8],
-        buffer: &'a mut Vec<u8>,
-    ) -> Result<&'a [u8]> {
+        buffer: &mut Vec<u8>,
+    ) -> Result<()> {
+        buffer.clear();
         match self.compression {
             Compression::Lz4 => {
                 let max_output_size = get_maximum_output_size(block.len());
-                if buffer.len() < max_output_size {
-                    buffer.resize(max_output_size, 0);
-                }
+                buffer.reserve(max_output_size);
+                // SAFETY: `reserve` guarantees at least `max_output_size` writable bytes from
+                // `as_mut_ptr`. lz4_flex is built without `safe-encode`; its `SliceSink` explicitly
+                // supports possibly uninitialized output and initializes every byte before
+                // advancing the returned length. The Vec remains logically empty until compression
+                // succeeds, then `set_len` exposes exactly that initialized prefix.
+                let output =
+                    unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr(), max_output_size) };
                 let compressed_len = LZ4_COMPRESS_TABLE
-                    .with_borrow_mut(|table| compress_into_with_table(block, buffer, table))
+                    .with_borrow_mut(|table| compress_into_with_table(block, output, table))
                     .context("LZ4 compression failed")?;
-                Ok(&buffer[..compressed_len])
+                // SAFETY: `compress_into_with_table` initialized this many bytes in `buffer` above.
+                unsafe { buffer.set_len(compressed_len) };
             }
             Compression::Zstd3 => {
-                buffer.clear();
                 buffer.reserve(zstd::zstd_safe::compress_bound(block.len()));
                 self.zstd
                     .as_mut()
                     .expect("zstd compressor not initialized")
                     .compress_to_buffer(block, buffer)
                     .context("zstd compression failed")?;
-                Ok(buffer)
             }
         }
+        Ok(())
     }
 }
 
@@ -204,10 +191,10 @@ mod tests {
         for compression in [Compression::Lz4, Compression::Zstd3] {
             let mut compressor = Compressor::new(compression).unwrap();
             let mut storage = Vec::new();
-            let compressed = compressor
+            compressor
                 .compress_into_buffer(&input, &mut storage)
                 .unwrap();
-            let output = decompress_into_arc(compression, input.len() as u32, compressed).unwrap();
+            let output = decompress_into_arc(compression, input.len() as u32, &storage).unwrap();
             assert_eq!(&*output, input);
         }
     }
@@ -224,20 +211,29 @@ mod tests {
     }
 
     #[test]
-    fn repeated_lz4_compression_uses_only_the_valid_prefix() {
+    fn repeated_lz4_compression_reuses_output_allocation() {
         let inputs = [patterned_input(8 * 1024, 1), patterned_input(70 * 1024, 2)];
+        let max_output_size = inputs
+            .iter()
+            .map(|input| get_maximum_output_size(input.len()))
+            .max()
+            .unwrap();
         let mut compressor = Compressor::new(Compression::Lz4).unwrap();
-        let mut storage = Vec::new();
+        let mut storage = Vec::with_capacity(max_output_size);
+        storage.extend_from_slice(b"old contents that must be replaced");
+        let storage_ptr = storage.as_ptr();
+        let storage_capacity = storage.capacity();
 
         for _ in 0..4 {
             for input in &inputs {
-                let compressed = compressor
+                compressor
                     .compress_into_buffer(input, &mut storage)
                     .unwrap();
-                assert!(compressed.len() < input.len());
+                assert_eq!(storage.as_ptr(), storage_ptr);
+                assert_eq!(storage.capacity(), storage_capacity);
+                assert!(storage.len() < input.len());
                 assert_eq!(
-                    &*decompress_into_arc(Compression::Lz4, input.len() as u32, compressed)
-                        .unwrap(),
+                    &*decompress_into_arc(Compression::Lz4, input.len() as u32, &storage).unwrap(),
                     input
                 );
             }
@@ -254,16 +250,12 @@ mod tests {
                     let mut compressor = Compressor::new(Compression::Lz4).unwrap();
                     let mut storage = Vec::new();
                     for _ in 0..8 {
-                        let compressed = compressor
+                        compressor
                             .compress_into_buffer(&input, &mut storage)
                             .unwrap();
                         assert_eq!(
-                            &*decompress_into_arc(
-                                Compression::Lz4,
-                                input.len() as u32,
-                                compressed,
-                            )
-                            .unwrap(),
+                            &*decompress_into_arc(Compression::Lz4, input.len() as u32, &storage,)
+                                .unwrap(),
                             &*input
                         );
                     }

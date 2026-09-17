@@ -486,9 +486,10 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     #[tracing::instrument(level = "trace", skip(self, value), fields(value_len = value.len()))]
     fn create_blob(&self, family: u32, value: &[u8]) -> Result<NewFile> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut compressed = Vec::new();
         let compression = self.family_configs[usize_from_u32(family)].compression;
-        let compressed = Compressor::new(compression)?
-            .compress_to_vec(value)
+        Compressor::new(compression)?
+            .compress_into_buffer(value, &mut compressed)
             .context("Compression of value for blob file failed")?;
 
         let mut buffer = Vec::with_capacity(8 + compressed.len());
