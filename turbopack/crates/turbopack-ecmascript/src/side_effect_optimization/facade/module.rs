@@ -82,11 +82,23 @@ impl EcmascriptModuleFacadeModule {
         };
         let result = module.analyze().await?;
 
-        // One reference per export that comes from the locals module, so the module graph carries
-        // *which* names this facade needs from it. Without these the only facade -> locals edge is
-        // the structural one below, which then has to claim `all()` and widens the locals module's
-        // usage to `All` unconditionally.
-        let mut part_references = Vec::new();
+        // The locals module has to be *evaluated* for its side effects and ordering, which this
+        // reference is what guarantees. `evaluation()` rather than `all()`: the latter would also
+        // claim every export is used, widening the locals module's usage to `All` unconditionally
+        // and defeating both export mangling and tree shaking of its unused exports.
+        // TODO skip if side effect free and no local exports
+        let mut part_references = vec![
+            EcmascriptModulePartReference::new_part(
+                *self.module,
+                ModulePart::locals(),
+                ExportUsage::evaluation(),
+            )
+            .to_resolved()
+            .await?,
+        ];
+        // Then one reference per export that comes from the locals module, so the module graph
+        // carries *which* names this facade needs from it. Without these the evaluation reference
+        // would be the only facade -> locals edge, and it would have to claim `all()`.
         if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
             for (name, export) in &esm_exports.await?.exports {
                 if matches!(export, EsmExport::LocalBinding(..)) {
@@ -103,28 +115,7 @@ impl EcmascriptModuleFacadeModule {
             }
         }
 
-        Ok((
-            vec![
-                // This reference exists so the locals module is *evaluated* (side effects and
-                // ordering). Declaring `all()` here would also claim every export is used, which
-                // widens the locals module's usage to `All` unconditionally — defeating both
-                // export mangling and tree shaking of its unused exports. `evaluation()` keeps the
-                // ordering guarantee and lets the per-export references below describe what is
-                // actually used.
-                // TODO skip if side effect free and no local exports
-                EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                    ExportUsage::evaluation(),
-                )
-                .to_resolved()
-                .await?,
-            ]
-            .into_iter()
-            .chain(part_references)
-            .collect(),
-            result.esm_reexport_references,
-        ))
+        Ok((part_references, result.esm_reexport_references))
     }
 }
 
@@ -172,10 +163,6 @@ impl Module for EcmascriptModuleFacadeModule {
 
     #[turbo_tasks::function]
     fn side_effects(&self) -> Vc<ModuleSideEffects> {
-        // A facade only ever re-exposes another module's bindings; evaluating the facade itself
-        // runs none of the original module's top-level code. The original module's side effects
-        // stay reachable through the `ExportUsage::evaluation()` reference on the locals module
-        // built in `specific_references`.
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
