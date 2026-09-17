@@ -4,14 +4,6 @@ import type { Sandbox } from '@vercel/agent-eval'
 import { toolsDirectory } from '../lib/fixture'
 
 export async function setupSecurity(sandbox: Sandbox) {
-  const run = async (command: string, args: string[]) => {
-    const result = await sandbox.runCommand(command, args)
-    if (result.exitCode !== 0)
-      throw new Error(
-        `${command} failed during security setup:\n${result.stderr}`
-      )
-    return result.stdout.trim()
-  }
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture?.startsWith('security-'))
     throw new Error('Select a security upgrade eval case')
@@ -63,6 +55,35 @@ export async function setupSecurity(sandbox: Sandbox) {
   }
   const scenario = scenarios[fixture]
   if (!scenario) throw new Error('Unknown security upgrade eval case')
+
+  await setupUpgradeScenario(sandbox, {
+    fixturePrefix: 'security-',
+    assessmentPath: join(__dirname, 'assessment.mjs'),
+    assessment: scenario,
+    installedVersion: scenario.installedVersion,
+  })
+}
+
+export async function setupUpgradeScenario(
+  sandbox: Sandbox,
+  options: {
+    fixturePrefix: string
+    assessmentPath: string
+    assessment: object
+    installedVersion: string | undefined
+  }
+) {
+  const run = async (command: string, args: string[]) => {
+    const result = await sandbox.runCommand(command, args)
+    if (result.exitCode !== 0)
+      throw new Error(
+        `${command} failed during security setup:\n${result.stderr}`
+      )
+    return result.stdout.trim()
+  }
+  const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
+  if (!fixture?.startsWith(options.fixturePrefix))
+    throw new Error(`Select a ${options.fixturePrefix} upgrade eval case`)
   const security = `${toolsDirectory}/security`
   const bin = `${toolsDirectory}/bin`
   const repository = 'https://github.com/next-upgrade-eval/fixture.git'
@@ -73,10 +94,10 @@ export async function setupSecurity(sandbox: Sandbox) {
   await run('mkdir', ['-p', security])
   await sandbox.writeFiles({
     [`${security}/assessment.mjs`]: readFileSync(
-      join(__dirname, 'assessment.mjs'),
+      options.assessmentPath,
       'utf8'
     ),
-    [`${security}/assessment.json`]: JSON.stringify(scenario),
+    [`${security}/assessment.json`]: JSON.stringify(options.assessment),
     [`${security}/provider.mjs`]: readFileSync(
       join(__dirname, 'provider.mjs'),
       'utf8'
@@ -93,10 +114,10 @@ export async function setupSecurity(sandbox: Sandbox) {
     [`${toolsDirectory}/baseline.json`]: JSON.stringify({ head: baseline }),
   })
 
-  if (scenario.installedVersion) {
+  if (options.installedVersion) {
     await run('node', [
       `${security}/prepare-candidate.mjs`,
-      scenario.installedVersion,
+      options.installedVersion,
     ])
   }
 
@@ -120,7 +141,7 @@ export async function setupSecurity(sandbox: Sandbox) {
       candidateNext: `${toolsDirectory}/next/node_modules/next`,
       codemodVersion,
       git,
-      prepareFixture: Boolean(scenario.installedVersion),
+      prepareFixture: Boolean(options.installedVersion),
       remote,
       repository,
     }),

@@ -1,6 +1,7 @@
 import type { ExperimentConfig } from '@vercel/agent-eval'
 import { setupUpgrade } from './fixture'
 import { setupSecurity } from '../security/setup'
+import { setupLatest } from '../latest/setup'
 
 export function upgradeExperiment(
   harness: 'codex' | 'claude-code'
@@ -8,6 +9,7 @@ export function upgradeExperiment(
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture) throw new Error('Select one upgrade eval case')
   const security = fixture.startsWith('security-')
+  const latest = fixture.startsWith('latest-')
 
   return {
     agent: `vercel-ai-gateway/${harness}`,
@@ -23,6 +25,7 @@ export function upgradeExperiment(
     setup: async (sandbox) => {
       const setup = await setupUpgrade(sandbox)
       if (security) await setupSecurity(sandbox)
+      if (latest) await setupLatest(sandbox)
       return setup
     },
   }
