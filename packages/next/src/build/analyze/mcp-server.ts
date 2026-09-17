@@ -42,6 +42,21 @@ interface SourceRow {
   chunksTruncated: boolean
 }
 
+interface DiffRow {
+  key: string
+  baselineRawSize: number
+  comparisonRawSize: number
+  baselineCompressedSize: number
+  comparisonCompressedSize: number
+  status: 'added' | 'removed' | 'changed' | 'identical'
+  delta: number
+}
+
+interface DiffInput extends Omit<DiffRow, 'status' | 'delta'> {
+  baselinePresent: boolean
+  comparisonPresent: boolean
+}
+
 interface OverviewArgs {
   snapshot?: string
   environment?: 'total' | 'client'
@@ -72,6 +87,18 @@ interface ExplainArgs {
   maxDepth?: number
 }
 
+interface CompareArgs {
+  baselineSnapshot: string
+  comparisonSnapshot?: string
+  granularity?: 'route' | 'source' | 'package'
+  route?: string
+  environment?: Environment
+  metric?: Metric
+  search?: string
+  offset?: number
+  limit?: number
+}
+
 function jsonResult(value: unknown, isError = false) {
   return {
     ...(isError ? { isError: true } : {}),
@@ -84,7 +111,11 @@ function publicError(error: unknown): string {
   if (error.message.startsWith('Unknown snapshot')) return 'Unknown snapshot'
   if (error.message.startsWith('Unknown route')) return 'Unknown route'
   if (error.message.startsWith('Unknown source')) return 'Unknown source'
-  if (/^(?:Invalid |moduleIdent )/.test(error.message)) {
+  if (
+    /^(?:Invalid |moduleIdent |route is required|Route comparisons)/.test(
+      error.message
+    )
+  ) {
     return error.message
   }
   return 'Unable to query analyzer data'
@@ -437,6 +468,71 @@ function provenance(metadata: SnapshotMetadata) {
   }
 }
 
+function diffStatus(
+  inBaseline: boolean,
+  inComparison: boolean,
+  baselineRawSize: number,
+  comparisonRawSize: number
+): DiffRow['status'] {
+  if (!inBaseline) return 'added'
+  if (!inComparison) return 'removed'
+  return baselineRawSize === comparisonRawSize ? 'identical' : 'changed'
+}
+
+function summarizeDiff(
+  rows: DiffInput[],
+  metric: Metric,
+  offset: number,
+  limit: number
+) {
+  const completed: DiffRow[] = rows.map(
+    ({ baselinePresent, comparisonPresent, ...row }) => {
+      const status = diffStatus(
+        baselinePresent,
+        comparisonPresent,
+        row.baselineRawSize,
+        row.comparisonRawSize
+      )
+      const delta =
+        metric === 'compressed'
+          ? row.comparisonCompressedSize - row.baselineCompressedSize
+          : row.comparisonRawSize - row.baselineRawSize
+      return { ...row, status, delta }
+    }
+  )
+  completed.sort(
+    (a, b) => Math.abs(b.delta) - Math.abs(a.delta) || compareText(a.key, b.key)
+  )
+  const counts = { added: 0, removed: 0, changed: 0, identical: 0 }
+  let baselineRawSize = 0
+  let comparisonRawSize = 0
+  let baselineCompressedSize = 0
+  let comparisonCompressedSize = 0
+  for (const row of completed) {
+    counts[row.status]++
+    baselineRawSize += row.baselineRawSize
+    comparisonRawSize += row.comparisonRawSize
+    baselineCompressedSize += row.baselineCompressedSize
+    comparisonCompressedSize += row.comparisonCompressedSize
+  }
+  const paged = page(completed, offset, limit)
+  return {
+    counts,
+    totals: {
+      baselineRawSize,
+      comparisonRawSize,
+      baselineCompressedSize,
+      comparisonCompressedSize,
+      delta:
+        metric === 'compressed'
+          ? comparisonCompressedSize - baselineCompressedSize
+          : comparisonRawSize - baselineRawSize,
+    },
+    rows: paged.values,
+    pagination: paged.pagination,
+  }
+}
+
 const pagingSchema = {
   offset: z
     .number()
@@ -653,6 +749,126 @@ export function createAnalyzeMcpServer(repository: AnalyzeRepository) {
         caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT],
       }
       return response
+    })
+  )
+
+  server.registerTool(
+    'compare_bundles',
+    {
+      description:
+        'Compare two analyzer snapshots at route, source, or npm-package granularity.',
+      inputSchema: {
+        baselineSnapshot: z.string().max(100),
+        comparisonSnapshot: snapshotSchema,
+        granularity: z.enum(['route', 'source', 'package']).optional(),
+        route: z.string().max(4096).optional(),
+        environment: environmentSchema,
+        metric: metricSchema,
+        search: z.string().max(1000).optional(),
+        ...pagingSchema,
+      },
+    },
+    safeTool(async (args: CompareArgs) => {
+      const granularity = args.granularity ?? 'route'
+      const environment = args.environment ?? 'total'
+      const metric = args.metric ?? 'raw'
+      const baseline = await repository.getSnapshot(args.baselineSnapshot)
+      const comparison = await repository.getSnapshot(args.comparisonSnapshot)
+      const search = args.search?.toLocaleLowerCase()
+      let rows: DiffInput[]
+      if (granularity === 'route') {
+        if (environment === 'server') {
+          throw new Error(
+            'Route comparisons support total or client environments'
+          )
+        }
+        const keys = [...new Set([...baseline.routes, ...comparison.routes])]
+          .filter(
+            (route) => !search || route.toLocaleLowerCase().includes(search)
+          )
+          .sort()
+        rows = []
+        for (const route of keys) {
+          const baselineSizes = baseline.routes.includes(route)
+            ? routeSizes(
+                await repository.loadRoute(args.baselineSnapshot, route),
+                environment
+              )
+            : { rawSize: 0, compressedSize: 0 }
+          const comparisonSizes = comparison.routes.includes(route)
+            ? routeSizes(
+                await repository.loadRoute(args.comparisonSnapshot, route),
+                environment
+              )
+            : { rawSize: 0, compressedSize: 0 }
+          rows.push({
+            key: route,
+            baselinePresent: baseline.routes.includes(route),
+            comparisonPresent: comparison.routes.includes(route),
+            baselineRawSize: baselineSizes.rawSize,
+            comparisonRawSize: comparisonSizes.rawSize,
+            baselineCompressedSize: baselineSizes.compressedSize,
+            comparisonCompressedSize: comparisonSizes.compressedSize,
+          })
+        }
+      } else {
+        if (!args.route)
+          throw new Error('route is required for source/package comparisons')
+        const groupBy = granularity === 'package' ? 'package' : 'source'
+        const inBaseline = baseline.routes.includes(args.route)
+        const inComparison = comparison.routes.includes(args.route)
+        if (!inBaseline && !inComparison) {
+          throw new Error(`Unknown route: ${args.route}`)
+        }
+        const baselineRows = new Map(
+          (inBaseline
+            ? collectSources(
+                await repository.loadRoute(args.baselineSnapshot, args.route),
+                { search: args.search, environment, groupBy }
+              )
+            : []
+          ).map((row) => [row.key, row])
+        )
+        const comparisonRows = new Map(
+          (inComparison
+            ? collectSources(
+                await repository.loadRoute(args.comparisonSnapshot, args.route),
+                { search: args.search, environment, groupBy }
+              )
+            : []
+          ).map((row) => [row.key, row])
+        )
+        rows = [...new Set([...baselineRows.keys(), ...comparisonRows.keys()])]
+          .sort()
+          .map((key) => {
+            const a = baselineRows.get(key)
+            const b = comparisonRows.get(key)
+            return {
+              key,
+              baselinePresent: a !== undefined,
+              comparisonPresent: b !== undefined,
+              baselineRawSize: a?.rawSize ?? 0,
+              comparisonRawSize: b?.rawSize ?? 0,
+              baselineCompressedSize: a?.compressedSize ?? 0,
+              comparisonCompressedSize: b?.compressedSize ?? 0,
+            }
+          })
+      }
+      return {
+        granularity,
+        route: args.route,
+        environment,
+        metric,
+        baseline: provenance(baseline.metadata),
+        comparison: provenance(comparison.metadata),
+        ...summarizeDiff(
+          rows,
+          metric,
+          args.offset ?? 0,
+          args.limit ?? DEFAULT_LIMIT
+        ),
+        caveats: [COMPRESSED_CAVEAT],
+      }
     })
   )
 
