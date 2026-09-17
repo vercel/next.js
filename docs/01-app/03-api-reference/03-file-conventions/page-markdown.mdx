@@ -1,0 +1,105 @@
+---
+title: page.md
+description: Colocate Markdown or plain text with a page for Accept-based content negotiation.
+related:
+  links:
+    - app/api-reference/config/next-config-js/markdown
+    - app/api-reference/file-conventions/page
+    - app/guides/backend-for-frontend
+---
+
+Place `page.md` or `page.txt` next to `page.js` to serve a Markdown (or plain text) representation of the **same URL**. Clients request it with `Accept: text/markdown`. This is not MDX and does not create a new route.
+
+```txt
+app/
+  about/
+    page.tsx
+    page.md
+```
+
+Enable it in `next.config.ts`:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  markdown: true,
+}
+
+export default nextConfig
+```
+
+```bash
+# HTML (browser)
+curl https://example.com/about
+
+# Markdown (agent) — same URL
+curl -H "Accept: text/markdown" https://example.com/about
+```
+
+## Authored files
+
+`page.md` is returned as `text/markdown; charset=utf-8`. `page.txt` is returned as `text/plain` when the client prefers plain text, otherwise as a Markdown body.
+
+When `markdown.mode` is `'prefer-authored'` (the default once enabled):
+
+1. `page.md`
+2. `page.txt`
+3. Automatic HTML → Markdown conversion
+
+## Automatic conversion
+
+If no sibling file exists, Next.js converts the rendered HTML:
+
+- Prefers `<main>`, `[role=main]`, then `<article>`
+- Strips `nav`, `header`, `footer`, `script`, `style`, and similar chrome
+- Adds YAML frontmatter from the document title and description
+- Appends JSON-LD when present
+- Sets `Vary: Accept` so caches keep HTML and Markdown apart
+
+## Actions
+
+When `markdown.actions` is true (default), conversion appends an **Actions** section for each `<form>` on the page. Agents POST to the **same URL**. Mark forms for a stable id:
+
+```tsx filename="app/subscribe/page.tsx"
+export default function Page() {
+  async function subscribe(formData: FormData) {
+    'use server'
+    // ...
+  }
+
+  return (
+    <main>
+      <form
+        action={subscribe}
+        data-agent-action="subscribe"
+        data-agent-summary="Subscribe the given email to updates"
+      >
+        <input type="email" name="email" required />
+        <button type="submit">Subscribe</button>
+      </form>
+    </main>
+  )
+}
+```
+
+The Markdown includes YAML agents can parse and a copy-pasteable HTTP example:
+
+```http
+POST /subscribe
+Content-Type: application/x-www-form-urlencoded
+
+email=ada%40example.com
+```
+
+Server Action IDs are not published. Auth, cookies, and CSRF rules from the HTML form still apply.
+
+## Suffix mode
+
+The default is the canonical path plus `Accept`. Set `markdown.suffix: true` to also serve `/about.md` and `/about.txt`. `/index.md` maps to `/`.
+
+## Version History
+
+| Version   | Changes                                                          |
+| --------- | ---------------------------------------------------------------- |
+| `v16.4.0` | `markdown` config, `page.md` / `page.txt`, optional `.md` suffix |

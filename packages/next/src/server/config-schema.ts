@@ -797,6 +797,22 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         z.literal(false),
       ])
       .optional(),
+    markdown: z
+      .union([
+        z.boolean(),
+        z.strictObject({
+          enabled: z.boolean().optional(),
+          mode: z.enum(['auto', 'authored', 'prefer-authored']).optional(),
+          actions: z.boolean().optional(),
+          suffix: z.boolean().optional(),
+          frontmatter: z.boolean().optional(),
+          jsonLd: z.boolean().optional(),
+          tokenHeaders: z.boolean().optional(),
+          contentTags: z.array(z.string()).optional(),
+          stripTags: z.array(z.string()).optional(),
+        }),
+      ])
+      .optional(),
     modularizeImports: z
       .record(
         z.string(),

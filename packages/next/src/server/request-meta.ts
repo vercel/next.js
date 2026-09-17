@@ -138,6 +138,11 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
+   * Set when Markdown for Agents mapped `/path.md` or `/path.txt` onto `/path`.
+   */
+  markdownRepresentation?: 'markdown' | 'plain'
+
+  /**
    * A search param set by the Next.js client when performing RSC requests.
    * Because some CDNs do not vary their cache entries on our custom headers,
    * this search param represents a hash of the header values. For any cached

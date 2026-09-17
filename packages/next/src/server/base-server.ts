@@ -132,6 +132,8 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
+import { MarkdownPathnameNormalizer } from './normalizers/request/markdown'
+import { normalizeMarkdownConfig } from './lib/markdown-for-agents/config'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -452,6 +454,7 @@ export default abstract class Server<
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
+    readonly markdown: MarkdownPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
@@ -565,6 +568,11 @@ export default abstract class Server<
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
+      markdown:
+        this.enabledDirectories.app &&
+        normalizeMarkdownConfig(this.nextConfig.markdown).suffix
+          ? new MarkdownPathnameNormalizer()
+          : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -686,6 +694,12 @@ export default abstract class Server<
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
+    } else if (this.normalizers.markdown?.match(parsedUrl.pathname)) {
+      const extracted = this.normalizers.markdown.extract(parsedUrl.pathname)
+      if (extracted) {
+        parsedUrl.pathname = extracted.pathname
+        addRequestMeta(req, 'markdownRepresentation', extracted.representation)
+      }
     } else if (req.headers['x-now-route-matches']) {
       // If we didn't match, return with the flight headers stripped. If in
       // minimal mode we didn't match based on the path, this can't be a RSC
@@ -1723,6 +1737,10 @@ export default abstract class Server<
 
     if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
+    }
+
+    if (this.normalizers.markdown) {
+      normalizers.push(this.normalizers.markdown)
     }
 
     for (const normalizer of normalizers) {

@@ -16,6 +16,7 @@ import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
+import type { MarkdownConfig } from './lib/markdown-for-agents/config'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -2076,6 +2077,15 @@ export interface NextConfig {
   logging?: LoggingConfig | false
 
   /**
+   * Serve Markdown (and optionally plain text) for App Router pages when a
+   * client sends `Accept: text/markdown`, without changing the URL.
+   * Set `suffix: true` to also expose `/page.md` and `/page.txt`.
+   *
+   * @see [Markdown for Agents](https://nextjs.org/docs/app/api-reference/file-conventions/page-markdown)
+   */
+  markdown?: MarkdownConfig
+
+  /**
    * Enables source maps while generating static pages.
    * Helps with errors during the prerender phase in `next build`.
    * Defaults to `true`. Set to `false` to disable.
@@ -2427,6 +2437,7 @@ export const defaultConfig = Object.freeze({
     turbopackMangleExportNames: isStableBuild() ? false : undefined,
   },
   htmlLimitedBots: undefined,
+  markdown: false,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
@@ -2485,6 +2496,7 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  markdown?: NextConfigComplete['markdown']
   adapterPath?: NextConfigComplete['adapterPath']
   staticPageGenerationTimeout: NextConfigComplete['staticPageGenerationTimeout']
 
@@ -2652,6 +2664,7 @@ export function getNextConfigRuntime(
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
     logging: config.logging,
+    markdown: config.markdown,
     staticPageGenerationTimeout: config.staticPageGenerationTimeout,
 
     experimental,

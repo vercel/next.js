@@ -1,8 +1,12 @@
 import type { ServerRuntime } from '../types'
 
 export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
+export const TEXT_PLAIN_UTF8_CONTENT_TYPE_HEADER = 'text/plain; charset=utf-8'
 export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
+export const MARKDOWN_CONTENT_TYPE_HEADER = 'text/markdown; charset=utf-8'
+export const MARKDOWN_SUFFIX = '.md'
+export const PLAINTEXT_SUFFIX = '.txt'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
