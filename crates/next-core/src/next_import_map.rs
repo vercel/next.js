@@ -1523,6 +1523,7 @@ fn insert_next_api_esm_aliases(
         rcstr!("image") => rcstr!("next/dist/esm/api/image"),
         rcstr!("link") => rcstr!("next/dist/esm/api/link"),
         rcstr!("navigation") => rcstr!("next/dist/esm/api/navigation"),
+        rcstr!("offline") => rcstr!("next/dist/esm/client/components/use-offline"),
         rcstr!("og") => rcstr!("next/dist/esm/api/og"),
         rcstr!("router") => rcstr!("next/dist/esm/api/router"),
         rcstr!("script") => rcstr!("next/dist/esm/api/script"),
