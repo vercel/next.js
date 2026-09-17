@@ -24,6 +24,10 @@ import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
 import type { RoutesManifest } from '..'
 import { Bundler } from '../../lib/bundler'
+import { parseBody } from '../../server/api-utils/node/parse-body'
+import { createAnalyzeMcpServer } from './mcp-server'
+import { AnalyzeRepository } from './repository'
+import { StreamableHTTPServerTransport } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp'
 
 export type AnalyzeOptions = {
   dir: string
@@ -205,7 +209,34 @@ async function collectRoutesForAnalyze(
 }
 
 function startServer(dir: string, port: number): Promise<void> {
-  const server = http.createServer((req, res) => {
+  const repository = new AnalyzeRepository(dir)
+  const server = http.createServer(async (req, res) => {
+    const { pathname } = new URL(req.url || '', 'http://n')
+    if (pathname === '/mcp') {
+      const mcpServer = createAnalyzeMcpServer(repository)
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      })
+      try {
+        res.on('close', () => transport.close())
+        await mcpServer.connect(transport)
+        const parsedBody = await parseBody(req, 1024 * 1024)
+        await transport.handleRequest(req, res, parsedBody)
+      } catch {
+        if (!res.headersSent) {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.end(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              error: { code: -32000, message: 'Internal server error' },
+              id: null,
+            })
+          )
+        }
+      }
+      return
+    }
     return serveHandler(req, res, {
       public: dir,
     })
@@ -245,6 +276,7 @@ function startServer(dir: string, port: number): Promise<void> {
       }
 
       Log.info(`Bundle analyzer available at http://${addressString}`)
+      Log.info(`Bundle analyzer MCP available at http://${addressString}/mcp`)
       resolve()
     })
   })
