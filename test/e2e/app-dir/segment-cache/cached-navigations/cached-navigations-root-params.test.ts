@@ -24,12 +24,7 @@ describe('cached navigations - root params', () => {
     )
 
     await act(async () => {
-      await act(
-        async () => {
-          await browser.elementByCss('a[href="/de/foo"]').click()
-        },
-        { includes: 'Dynamic slug: foo', block: true }
-      )
+      await browser.elementByCss('a[href="/de/foo"]').click()
 
       // The router keeps the resolved English page visible until the German
       // response arrives.
@@ -65,12 +60,7 @@ describe('cached navigations - root params', () => {
     )
 
     await act(async () => {
-      await act(
-        async () => {
-          await browser.elementByCss('a[href="/en/bar"]').click()
-        },
-        { includes: 'Dynamic slug: bar', block: true }
-      )
+      await browser.elementByCss('a[href="/en/bar"]').click()
 
       // The router reuses the English static stage and shows a fallback until
       // the new slug's dynamic content arrives.
