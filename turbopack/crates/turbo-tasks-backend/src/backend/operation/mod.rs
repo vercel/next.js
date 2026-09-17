@@ -2068,6 +2068,21 @@ impl AnyOperation {
             }
         }
     }
+
+    /// The variant name, for test diagnostics that report which operation was caught at a suspend
+    /// point.
+    #[cfg(feature = "gc_stress")]
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            AnyOperation::ConnectChild(_) => "ConnectChild",
+            AnyOperation::Invalidate(_) => "Invalidate",
+            AnyOperation::UpdateCell(_) => "UpdateCell",
+            AnyOperation::CleanupOldEdges(_) => "CleanupOldEdges",
+            AnyOperation::AggregationUpdate(_) => "AggregationUpdate",
+            AnyOperation::LeafDistanceUpdate(_) => "LeafDistanceUpdate",
+            AnyOperation::Nested(_) => "Nested",
+        }
+    }
 }
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);

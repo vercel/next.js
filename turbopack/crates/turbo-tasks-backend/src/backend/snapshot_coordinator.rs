@@ -239,6 +239,103 @@ impl<O> SnapshotCoordinator<O> {
             suspended_operations,
         }
     }
+
+    /// Suspend the calling operation at this point, take the exclusion phase **ourselves**, run
+    /// `f` under it, then resume. Test-only; see the `gc_stress` feature.
+    ///
+    /// This inverts the normal protocol. Normally the phase holder is a third party and a
+    /// suspending operation parks until that party finishes. Here the suspending operation *is*
+    /// the phase holder: it registers itself as suspended (so it counts as drained, and so a real
+    /// snapshot would persist it for replay), waits for every *other* operation to drain, runs `f`
+    /// under a genuine [`SnapshotPhase`], and then un-suspends itself.
+    ///
+    /// That inversion is what makes "run a GC pass exactly at this suspend point" deterministic:
+    /// the thread that reached the suspend point is the same thread that runs the pass, so there
+    /// is no cross-thread timing to lose the race against.
+    ///
+    /// The caller must already hold a live [`OperationGuard`] (it is inside an operation). That
+    /// guard's `+1` is what this backs out and restores; the guard itself stays alive across the
+    /// call and its eventual drop balances the restore.
+    ///
+    /// Callers must serialize against other phase holders exactly as [`Self::begin_snapshot`]
+    /// requires — hold `TurboTasksBackend::snapshot_in_progress` across this call.
+    #[cfg(feature = "gc_stress")]
+    pub fn suspend_and_run_exclusive<R>(
+        &self,
+        suspend: impl FnOnce() -> O,
+        f: impl FnOnce(&SnapshotPhase<'_, O>) -> R,
+    ) -> R {
+        let mut state = self.state.lock();
+        assert!(
+            !state.snapshot_requested,
+            "suspend_and_run_exclusive called while another exclusion was already in flight"
+        );
+
+        // Register ourselves as suspended, exactly as `suspend_point` does. This is both what makes
+        // us "drained" for the wait below and what a real snapshot would persist for replay.
+        let op = Arc::new(suspend());
+        state
+            .suspended_operations
+            .insert(PtrEqArc::from(op.clone()));
+
+        // Back out our own +1 AND set the requested bit in a single RMW. Doing `fetch_sub(1)` then
+        // `fetch_or(BIT)` would leave a window in which another thread's `begin_operation` fast
+        // path observes no bit and slips through behind us.
+        //
+        // `BIT - 1` as a `fetch_add` is exactly "subtract one, set the bit": valid because the bit
+        // is provably clear here (asserted above, under the mutex) and the low bits are >= 1 (we
+        // hold a guard), so the subtraction cannot borrow into the bit.
+        let prev = self
+            .in_progress_operations
+            .fetch_add(SNAPSHOT_REQUESTED_BIT.wrapping_sub(1), Ordering::AcqRel);
+        assert!(
+            (prev & SNAPSHOT_REQUESTED_BIT) == 0 && (prev & !SNAPSHOT_REQUESTED_BIT) > 0,
+            "suspend_and_run_exclusive called without a live operation: prev={prev:#x}"
+        );
+        state.snapshot_requested = true;
+
+        // Wait for every *other* operation to drain or suspend. Unlike `begin_snapshot` we are not
+        // one of them any more — the RMW above removed us.
+        if (prev - 1) & !SNAPSHOT_REQUESTED_BIT != 0 {
+            let _span = info_span!("await operations settle (gc_stress)").entered();
+            tokio::task::block_in_place(|| {
+                self.operations_drained.wait_while(&mut state, |_| {
+                    (self.in_progress_operations.load(Ordering::Acquire) & !SNAPSHOT_REQUESTED_BIT)
+                        != 0
+                });
+            });
+        }
+
+        let suspended_operations: Vec<Arc<O>> = state
+            .suspended_operations
+            .iter()
+            .map(|op| op.arc().clone())
+            .collect();
+        drop(state);
+
+        // Run under a genuine phase guard. `SnapshotPhase::drop` clears the bit and
+        // `snapshot_requested`, resets `operations_waiting`, and notifies `snapshot_completed` —
+        // identical teardown to a real snapshot, so anyone parked in ordinary `suspend_point` or
+        // `begin_operation` wakes correctly.
+        let result = {
+            let phase = SnapshotPhase {
+                coord: self,
+                suspended_operations,
+            };
+            f(&phase)
+        };
+
+        // Resume: restore our +1 and drop our suspension registration. Mirrors the tail of
+        // `suspend_point`. The bit is already clear (the phase was dropped), so this cannot be
+        // mistaken for an in-flight exclusion.
+        self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+        self.state
+            .lock()
+            .suspended_operations
+            .remove(&PtrEqArc::from(op));
+
+        result
+    }
 }
 
 /// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements the
@@ -701,5 +798,100 @@ mod tests {
         let coord = SnapshotCoordinator::<Op>::new();
         let _first = coord.begin_snapshot();
         let _second = coord.begin_snapshot();
+    }
+
+    /// The simple case: the suspending operation is the only one in flight, so it takes the
+    /// exclusion immediately. Afterwards the counter must be exactly back where it started, with
+    /// the bit clear and no lingering suspended operation.
+    ///
+    /// Needs a multi-threaded runtime (unlike the plain `#[test]`s above) because
+    /// `suspend_and_run_exclusive` may call `block_in_place`.
+    #[cfg(feature = "gc_stress")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn suspend_and_run_exclusive_runs_and_restores_the_counter() {
+        let coord = SnapshotCoordinator::<Op>::new();
+        let g = coord.begin_operation();
+        assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 1);
+
+        let ran = coord.suspend_and_run_exclusive(
+            || 7u32,
+            |phase| {
+                assert!(
+                    coord.snapshot_pending(),
+                    "the exclusion bit must be set while the closure runs"
+                );
+                assert_eq!(
+                    phase.suspended_operations(),
+                    &[Arc::new(7u32)],
+                    "the caller must register itself as suspended, for snapshot replay"
+                );
+                "done"
+            },
+        );
+
+        assert_eq!(ran, "done");
+        assert!(!coord.snapshot_pending(), "the bit must be cleared");
+        assert_eq!(
+            coord.in_progress_operations.load(Ordering::Acquire),
+            1,
+            "our operation's +1 must be restored"
+        );
+        assert!(
+            coord.state.lock().suspended_operations.is_empty(),
+            "we must un-suspend ourselves on the way out"
+        );
+
+        drop(g);
+        assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 0);
+    }
+
+    /// A second operation is in flight, so the exclusion must wait for it to drain before the
+    /// closure runs — the whole point of the primitive is that it excludes everyone else.
+    #[cfg(feature = "gc_stress")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn suspend_and_run_exclusive_waits_for_other_operations() {
+        let coord = Arc::new(SnapshotCoordinator::<Op>::new());
+        let ours = coord.begin_operation();
+
+        // A second operation that holds its guard until it sees the exclusion requested.
+        let other_released = Arc::new(AtomicBool::new(false));
+        let other = thread::spawn({
+            let coord = coord.clone();
+            let other_released = other_released.clone();
+            move || {
+                let g = coord.begin_operation();
+                // Hold until the exclusion is requested, so the primitive genuinely has to wait.
+                while !coord.snapshot_pending() {
+                    thread::yield_now();
+                }
+                other_released.store(true, Ordering::Release);
+                drop(g);
+            }
+        });
+
+        // Don't proceed until the other operation is actually counted, otherwise it might only
+        // start after our exclusion and the wait we're testing would never happen.
+        while (coord.in_progress_operations.load(Ordering::Acquire) & !SNAPSHOT_REQUESTED_BIT) < 2 {
+            thread::yield_now();
+        }
+
+        coord.suspend_and_run_exclusive(
+            || 1u32,
+            |_phase| {
+                assert!(
+                    other_released.load(Ordering::Acquire),
+                    "the closure must not run until every other operation has drained"
+                );
+                assert_eq!(
+                    coord.in_progress_operations.load(Ordering::Acquire),
+                    SNAPSHOT_REQUESTED_BIT,
+                    "no operation may be counted as running during the exclusion"
+                );
+            },
+        );
+
+        other.join().unwrap();
+        assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 1);
+        drop(ours);
     }
 }

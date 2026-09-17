@@ -15,6 +15,11 @@ workspace = true
 [features]
 default = []
 print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lz4_flex"]
+# Test-only: lets a test force a full GC pass *at* a chosen operation suspend point, to verify that
+# the suspend points are safepoints. Gated because the hook adds an unconditional atomic RMW to
+# `operation_suspend_point`, a path whose design goal is a single uncontended load when idle.
+gc_stress = []
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
 print_cache_item_size = []
 no_fast_stale = []
 aggregation_update_no_batch = []
