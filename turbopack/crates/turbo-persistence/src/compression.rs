@@ -16,32 +16,10 @@ pub enum Compression {
     Zstd3 = 1,
 }
 
-struct Lz4CompressTables {
-    small: CompressTable,
-    large: Option<CompressTable>,
-}
-
-impl Lz4CompressTables {
-    fn new() -> Self {
-        Self {
-            small: CompressTable::small(),
-            large: None,
-        }
-    }
-
-    fn for_input(&mut self, input_len: usize) -> &mut CompressTable {
-        if input_len < u16::MAX as usize {
-            &mut self.small
-        } else {
-            self.large.get_or_insert_with(CompressTable::large)
-        }
-    }
-}
-
 thread_local! {
-    /// Reuse lz4_flex's hash tables across independent blocks. Keep separate small and large tables
-    /// because lz4_flex upgrades a small table for large input but does not downgrade it again.
-    static LZ4_COMPRESS_TABLES: RefCell<Lz4CompressTables> = RefCell::new(Lz4CompressTables::new());
+    /// Reuse lz4_flex's hash table across independent blocks. lz4_flex transparently upgrades a
+    /// small table when a large input requires it.
+    static LZ4_COMPRESS_TABLE: RefCell<CompressTable> = RefCell::new(CompressTable::small());
 
     /// Zstd decompression contexts are reusable and relatively expensive to create. Keep one per
     /// worker thread to avoid allocation on every block read without a global lock.
@@ -176,10 +154,8 @@ impl Compressor {
                 if buffer.len() < max_output_size {
                     buffer.resize(max_output_size, 0);
                 }
-                let compressed_len = LZ4_COMPRESS_TABLES
-                    .with_borrow_mut(|tables| {
-                        compress_into_with_table(block, buffer, tables.for_input(block.len()))
-                    })
+                let compressed_len = LZ4_COMPRESS_TABLE
+                    .with_borrow_mut(|table| compress_into_with_table(block, buffer, table))
                     .context("LZ4 compression failed")?;
                 Ok(&buffer[..compressed_len])
             }
