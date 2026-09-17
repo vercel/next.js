@@ -2,15 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('app dir - instant-validation-client', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should error when a client component exports instant', async () => {
     const expectedErrMsg = `"instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive`
@@ -22,8 +17,9 @@ describe('app dir - instant-validation-client', () => {
         expect(next.cliOutput).toContain(expectedErrMsg)
       })
     } else {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
       expect(cliOutput).toContain(expectedErrMsg)
     }
-  })
+  }, 240_000)
 })
