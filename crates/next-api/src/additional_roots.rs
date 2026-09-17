@@ -215,7 +215,7 @@ pub(crate) async fn create_additional_root_file_systems(
         // invalidations when additional roots are added or removed.
         let canonical_root = additional_root_path_operation(container, additional_root.key.clone());
         let operation = disk_file_system_operation(
-            RcStr::from(format!("additional-root-{}", additional_root.key)),
+            RcStr::from(format!("@{}", additional_root.key)),
             canonical_root,
             Vec::new(),
             DiskWatcherConfig {
