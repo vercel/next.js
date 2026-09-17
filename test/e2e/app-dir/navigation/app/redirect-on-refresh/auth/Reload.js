@@ -7,12 +7,8 @@ export default function Reload() {
   const router = useRouter()
 
   useEffect(() => {
-    fetch(new URL('/api/set-token', location.origin), {
-      method: 'POST',
-      credentials: 'include',
-    }).then(() => {
-      router.refresh()
-    })
+    document.cookie = 'token=this%20is%20a%20token; path=/'
+    router.refresh()
   }, [router])
 
   return null
