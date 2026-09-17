@@ -1363,15 +1363,44 @@ pub async fn find_context_file_or_package_key(
 
 #[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Encode, Decode)]
 enum FindPackageItem {
-    PackageDirectory { name: RcStr, dir: FileSystemPath },
-    PackageFile { name: RcStr, file: FileSystemPath },
+    PackageDirectory {
+        name: RcStr,
+        dir: FileSystemPath,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+    },
+    PackageFile {
+        name: RcStr,
+        file: FileSystemPath,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+    },
+}
+
+impl FindPackageItem {
+    /// The symlinks that were traversed to reach this candidate. They belong to the candidate
+    /// rather than to [`FindPackageResult`] as a whole, because a candidate the resolution
+    /// ends up not using must not contribute them - see [`resolve_module_request`].
+    ///
+    /// Only populated if `collect_affecting_sources` is true.
+    fn affecting_sources(&self) -> &[ResolvedVc<Box<dyn Source>>] {
+        match self {
+            FindPackageItem::PackageDirectory {
+                affecting_sources, ..
+            }
+            | FindPackageItem::PackageFile {
+                affecting_sources, ..
+            } => affecting_sources,
+        }
+    }
 }
 
 #[turbo_tasks::value]
 #[derive(Debug)]
 struct FindPackageResult {
     packages: Vec<FindPackageItem>,
-    // Only populated if collect_affecting_sources is true
+    /// Symlinks traversed to reach the lookup directories themselves, as opposed to the ones
+    /// belonging to an individual candidate.
+    ///
+    /// Only populated if collect_affecting_sources is true.
     affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
@@ -1414,9 +1443,10 @@ async fn find_package(
                                     .await?;
                             for m in &*matches {
                                 if let PatternMatch::Directory(_, package_dir) = m {
+                                    let mut item_sources = vec![];
                                     let Some(dir) = realpath_if_exists(
                                         package_dir,
-                                        collect_affecting_sources.then_some(&mut affecting_sources),
+                                        collect_affecting_sources.then_some(&mut item_sources),
                                     )
                                     .await?
                                     else {
@@ -1425,6 +1455,7 @@ async fn find_package(
                                     packages.push(FindPackageItem::PackageDirectory {
                                         name: get_package_name(&fs_path, package_dir)?,
                                         dir,
+                                        affecting_sources: item_sources,
                                     });
                                 }
                             }
@@ -1447,9 +1478,10 @@ async fn find_package(
                 for m in &*matches {
                     match m {
                         PatternMatch::Directory(_, package_dir) => {
+                            let mut item_sources = vec![];
                             let Some(resolved_dir) = realpath_if_exists(
                                 package_dir,
-                                collect_affecting_sources.then_some(&mut affecting_sources),
+                                collect_affecting_sources.then_some(&mut item_sources),
                             )
                             .await?
                             else {
@@ -1458,12 +1490,14 @@ async fn find_package(
                             packages.push(FindPackageItem::PackageDirectory {
                                 name: get_package_name(dir, package_dir)?,
                                 dir: resolved_dir,
+                                affecting_sources: item_sources,
                             });
                         }
                         PatternMatch::File(_, package_file) => {
+                            let mut item_sources = vec![];
                             let Some(file) = realpath_if_exists(
                                 package_file,
-                                collect_affecting_sources.then_some(&mut affecting_sources),
+                                collect_affecting_sources.then_some(&mut item_sources),
                             )
                             .await?
                             else {
@@ -1472,6 +1506,7 @@ async fn find_package(
                             packages.push(FindPackageItem::PackageFile {
                                 name: get_package_name(dir, package_file)?,
                                 file,
+                                affecting_sources: item_sources,
                             });
                         }
                     }
@@ -1494,9 +1529,10 @@ async fn find_package(
                         .await?;
                 for m in &matches {
                     if let PatternMatch::File(_, package_file) = m {
+                        let mut item_sources = vec![];
                         let Some(file) = realpath_if_exists(
                             package_file,
-                            collect_affecting_sources.then_some(&mut affecting_sources),
+                            collect_affecting_sources.then_some(&mut item_sources),
                         )
                         .await?
                         else {
@@ -1505,6 +1541,7 @@ async fn find_package(
                         packages.push(FindPackageItem::PackageFile {
                             name: get_package_name(dir, package_file)?,
                             file,
+                            affecting_sources: item_sources,
                         });
                     }
                 }
@@ -2870,10 +2907,12 @@ async fn resolve_module_request(
     // resolve packages. A request to "foo/bar" might resolve to either
     // "[baseUrl]/foo/bar" or "[baseUrl]/node_modules/foo/bar", and we'll need to
     // try both.
+    let mut candidates = Vec::with_capacity(result.packages.len());
     for item in &result.packages {
         match item {
-            FindPackageItem::PackageDirectory { name, dir } => {
-                results.push(
+            FindPackageItem::PackageDirectory { name, dir, .. } => {
+                candidates.push((
+                    item,
                     resolve_into_package(
                         path.clone(),
                         dir.clone(),
@@ -2882,9 +2921,9 @@ async fn resolve_module_request(
                         options,
                     )
                     .with_replaced_request_key(rcstr!("."), name.clone()),
-                );
+                ));
             }
-            FindPackageItem::PackageFile { name, file } => {
+            FindPackageItem::PackageFile { name, file, .. } => {
                 if path.is_match("") {
                     let resolved_result = resolved(
                         RequestKey::new(rcstr!(".")),
@@ -2899,14 +2938,42 @@ async fn resolve_module_request(
                     .await?
                     .into_cell()
                     .with_replaced_request_key(rcstr!("."), name.clone());
-                    results.push(resolved_result)
+                    candidates.push((item, resolved_result))
                 }
             }
         }
     }
 
-    let module_result =
-        merge_results_with_affecting_sources(results, result.affecting_sources.clone());
+    // `merge_alternatives` keeps the first result for each request key, so a candidate whose
+    // keys are all claimed by an earlier - that is, closer - one contributes nothing to the
+    // resolution. Drop it along with its affecting sources: node stops at the closer package
+    // too, so the symlinks leading to the shadowed copy are not read at runtime. Reporting
+    // them anyway writes them into the output file trace without the files they point at,
+    // which is how a pnpm hoisted-store link to a second copy of a package
+    // (`node_modules/.pnpm/node_modules/foo`) ends up in a deployment as a dangling symlink.
+    //
+    // A candidate that resolves to nothing is kept, because node reads it as well before
+    // falling through to the next one.
+    let resolved_candidates = candidates
+        .iter()
+        .map(|(_, candidate)| *candidate)
+        .try_join()
+        .await?;
+
+    let mut affecting_sources = result.affecting_sources.clone();
+    let mut claimed_keys: FxHashSet<RequestKey> = FxHashSet::default();
+    for ((item, candidate), resolved_candidate) in candidates.iter().zip(&resolved_candidates) {
+        let mut contributes = resolved_candidate.primary.is_empty();
+        for (key, _) in resolved_candidate.primary.iter() {
+            contributes |= claimed_keys.insert(key.clone());
+        }
+        if contributes {
+            affecting_sources.extend_from_slice(item.affecting_sources());
+            results.push(*candidate);
+        }
+    }
+
+    let module_result = merge_results_with_affecting_sources(results, affecting_sources);
 
     if options_value.prefer_relative {
         let mut module_prefixed = module.clone();
@@ -3496,8 +3563,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        asset::AssetContent, module::Module, raw_module::RawModule, source::Source,
-        virtual_source::VirtualSource,
+        asset::AssetContent, module::Module, raw_module::RawModule,
+        reference_type::CommonJsReferenceSubType, source::Source, virtual_source::VirtualSource,
     };
 
     #[cfg(unix)]
@@ -4141,6 +4208,140 @@ mod tests {
                 vec!["module:a.js", "dup:0", "module:b.js"]
             );
             Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// pnpm keeps a second copy of every transitive package in
+    /// `node_modules/.pnpm/node_modules`, so a package that exists twice in the store is
+    /// reachable under two names: the link in the importer's own `node_modules`, which node
+    /// finds first, and the hoisted link, which node never reaches. Only the first one is
+    /// part of the resolution, so only the first one may be reported as an affecting source
+    /// - the hoisted link would otherwise be written into an output file trace without any
+    /// of the files it points at, and materialize as a dangling symlink.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_shadowed_package_is_not_an_affecting_source() {
+        use std::os::unix::fs::symlink;
+
+        #[turbo_tasks::value]
+        struct ShadowedPackageResult {
+            primary: Vec<RcStr>,
+            affecting_sources: Vec<RcStr>,
+        }
+
+        let scratch = tempfile::tempdir().unwrap();
+        // `DiskFileSystem` refuses a root that is itself reached through a symlink, and on
+        // macOS the temp dir is one (`/var` -> `/private/var`).
+        let root = scratch.path().canonicalize().unwrap();
+        let store = root.join("node_modules/.pnpm");
+
+        for version in ["1.0.0", "2.0.0"] {
+            let package = store.join(format!("dep@{version}/node_modules/dep"));
+            create_dir_all(&package).unwrap();
+            File::create_new(package.join("package.json"))
+                .unwrap()
+                .write_all(
+                    format!(r#"{{"name":"dep","version":"{version}","main":"index.js"}}"#)
+                        .as_bytes(),
+                )
+                .unwrap();
+            File::create_new(package.join("index.js"))
+                .unwrap()
+                .write_all(format!("module.exports = '{version}'").as_bytes())
+                .unwrap();
+        }
+
+        create_dir_all(store.join("app@1.0.0/node_modules/app")).unwrap();
+        File::create_new(store.join("app@1.0.0/node_modules/app/index.js"))
+            .unwrap()
+            .write_all(b"require('dep')")
+            .unwrap();
+        // The importer declares `dep@1.0.0`, ...
+        symlink(
+            "../../dep@1.0.0/node_modules/dep",
+            store.join("app@1.0.0/node_modules/dep"),
+        )
+        .unwrap();
+        // ... while the hoisted store link points at the other copy.
+        create_dir_all(store.join("node_modules")).unwrap();
+        symlink(
+            "../dep@2.0.0/node_modules/dep",
+            store.join("node_modules/dep"),
+        )
+        .unwrap();
+
+        let path = RcStr::from(root.to_str().unwrap());
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        #[turbo_tasks::function(operation, root)]
+        async fn shadowed_package_operation(path: RcStr) -> Result<Vc<ShadowedPackageResult>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
+            let fs_root = fs.root().owned().await?;
+            let lookup_path = fs_root.join("node_modules/.pnpm/app@1.0.0/node_modules/app")?;
+
+            let mut options = node_cjs_resolve_options(fs_root).owned().await?;
+            options.collect_affecting_sources = true;
+
+            let result = resolve(
+                lookup_path,
+                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                Request::parse(rcstr!("dep").into()),
+                options.cell(),
+            )
+            .await?;
+
+            Ok(ShadowedPackageResult {
+                primary: result
+                    .primary
+                    .iter()
+                    .map(async |(_, item)| {
+                        let ResolveResultItem::Source(source) = item else {
+                            unreachable!()
+                        };
+                        Ok(source.ident().await?.path.path.clone())
+                    })
+                    .try_join()
+                    .await?,
+                affecting_sources: result
+                    .affecting_sources
+                    .iter()
+                    .map(async |source| Ok(source.ident().await?.path.path.clone()))
+                    .try_join()
+                    .await?,
+            }
+            .cell())
+        }
+
+        tt.run_once(async move {
+            let result = shadowed_package_operation(path)
+                .read_strongly_consistent()
+                .await?;
+
+            assert_eq!(
+                result.primary,
+                ["node_modules/.pnpm/dep@1.0.0/node_modules/dep/index.js"]
+            );
+            assert!(
+                result
+                    .affecting_sources
+                    .contains(&rcstr!("node_modules/.pnpm/app@1.0.0/node_modules/dep")),
+                "the link that was resolved through is missing: {:?}",
+                result.affecting_sources
+            );
+            assert!(
+                !result
+                    .affecting_sources
+                    .contains(&rcstr!("node_modules/.pnpm/node_modules/dep")),
+                "the shadowed hoisted link was reported: {:?}",
+                result.affecting_sources
+            );
+
+            anyhow::Ok(())
         })
         .await
         .unwrap();
