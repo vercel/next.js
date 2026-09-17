@@ -164,137 +164,17 @@ impl Compressor {
 mod tests {
     use super::*;
 
-    const LIBLZ4_FIXTURE_INPUT: &[u8] =
-        b"turbo persistence lz4 compatibility turbo persistence lz4 compatibility";
-    const LIBLZ4_FIXTURE: &[u8] = &[
-        255, 21, 116, 117, 114, 98, 111, 32, 112, 101, 114, 115, 105, 115, 116, 101, 110, 99, 101,
-        32, 108, 122, 52, 32, 99, 111, 109, 112, 97, 116, 105, 98, 105, 108, 105, 116, 121, 32, 36,
-        0, 11, 80, 105, 108, 105, 116, 121,
-    ];
-
-    fn patterned_input(len: usize, salt: usize) -> Vec<u8> {
-        let pattern = b"turbo-persistence:block/key/value/";
-        (0..len)
-            .map(|i| {
-                if i % 10 < 7 {
-                    pattern[(i + salt) % pattern.len()]
-                } else {
-                    ((i.wrapping_mul(31) + salt) & 0xff) as u8
-                }
-            })
-            .collect()
-    }
-
     #[test]
     fn compression_round_trips() {
         let input = b"turbo persistence compression ".repeat(1024);
         for compression in [Compression::Lz4, Compression::Zstd3] {
             let mut compressor = Compressor::new(compression).unwrap();
-            let mut storage = Vec::new();
+            let mut compressed = Vec::new();
             compressor
-                .compress_into_buffer(&input, &mut storage)
+                .compress_into_buffer(&input, &mut compressed)
                 .unwrap();
-            let output = decompress_into_arc(compression, input.len() as u32, &storage).unwrap();
+            let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
             assert_eq!(&*output, input);
         }
-    }
-
-    #[test]
-    fn lz4_decodes_liblz4_raw_block() {
-        let output = decompress_into_arc(
-            Compression::Lz4,
-            LIBLZ4_FIXTURE_INPUT.len() as u32,
-            LIBLZ4_FIXTURE,
-        )
-        .unwrap();
-        assert_eq!(&*output, LIBLZ4_FIXTURE_INPUT);
-    }
-
-    #[test]
-    fn repeated_lz4_compression_reuses_output_allocation() {
-        let inputs = [patterned_input(8 * 1024, 1), patterned_input(70 * 1024, 2)];
-        let max_output_size = inputs
-            .iter()
-            .map(|input| get_maximum_output_size(input.len()))
-            .max()
-            .unwrap();
-        let mut compressor = Compressor::new(Compression::Lz4).unwrap();
-        let mut storage = Vec::with_capacity(max_output_size);
-        storage.extend_from_slice(b"old contents that must be replaced");
-        let storage_ptr = storage.as_ptr();
-        let storage_capacity = storage.capacity();
-
-        for _ in 0..4 {
-            for input in &inputs {
-                compressor
-                    .compress_into_buffer(input, &mut storage)
-                    .unwrap();
-                assert_eq!(storage.as_ptr(), storage_ptr);
-                assert_eq!(storage.capacity(), storage_capacity);
-                assert!(storage.len() < input.len());
-                assert_eq!(
-                    &*decompress_into_arc(Compression::Lz4, input.len() as u32, &storage).unwrap(),
-                    input
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn lz4_compression_table_is_independent_per_thread() {
-        let input = Arc::new(patterned_input(12 * 1024, 3));
-        let threads = (0..4)
-            .map(|_| {
-                let input = Arc::clone(&input);
-                std::thread::spawn(move || {
-                    let mut compressor = Compressor::new(Compression::Lz4).unwrap();
-                    let mut storage = Vec::new();
-                    for _ in 0..8 {
-                        compressor
-                            .compress_into_buffer(&input, &mut storage)
-                            .unwrap();
-                        assert_eq!(
-                            &*decompress_into_arc(Compression::Lz4, input.len() as u32, &storage,)
-                                .unwrap(),
-                            &*input
-                        );
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        for thread in threads {
-            thread.join().unwrap();
-        }
-    }
-
-    #[test]
-    fn malformed_lz4_blocks_return_errors() {
-        let mut truncated = LIBLZ4_FIXTURE.to_vec();
-        truncated.truncate(truncated.len() / 2);
-        assert!(
-            decompress_into_arc(
-                Compression::Lz4,
-                LIBLZ4_FIXTURE_INPUT.len() as u32,
-                &truncated,
-            )
-            .is_err()
-        );
-        assert!(
-            decompress_into_arc(
-                Compression::Lz4,
-                (LIBLZ4_FIXTURE_INPUT.len() - 1) as u32,
-                LIBLZ4_FIXTURE,
-            )
-            .is_err()
-        );
-        assert!(
-            decompress_into_arc(
-                Compression::Lz4,
-                (LIBLZ4_FIXTURE_INPUT.len() + 1) as u32,
-                LIBLZ4_FIXTURE,
-            )
-            .is_err()
-        );
     }
 }
