@@ -161,9 +161,9 @@ describe('security upgrade nudge', () => {
 })
 describe('latest nudge release selection', () => {
   const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
-    jest.requireActual<
-      typeof import('../../packages/next/src/lib/upgrade/prepare-upgrade')
-    >('../../packages/next/src/lib/upgrade/prepare-upgrade')
+    jest.requireActual<typeof import('next/dist/lib/upgrade/prepare-upgrade')>(
+      'next/dist/lib/upgrade/prepare-upgrade'
+    )
 
   afterEach(() => {
     jest.restoreAllMocks()

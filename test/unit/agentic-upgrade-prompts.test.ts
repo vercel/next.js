@@ -1,4 +1,14 @@
-import { access, cp, mkdtemp, readFile, rm, stat, writeFile } from 'fs/promises'
+import { EventEmitter } from 'events'
+import {
+  access,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
@@ -14,6 +24,7 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
   cp: jest.fn(),
+  mkdir: jest.fn(),
   mkdtemp: jest.fn(),
   readFile: jest.fn(),
   rm: jest.fn(),
@@ -33,6 +44,7 @@ jest.mock('next/dist/compiled/cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
+jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
 jest.mock('next/dist/lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
@@ -62,12 +74,28 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
 }))
 
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
+const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
   return jest
     .mocked(Log.bootstrap)
     .mock.calls.map(([message]) => [String(message).replace(/\\+/g, '/')])
+}
+
+function normalizedFileWriteCalls() {
+  return jest
+    .mocked(writeFile)
+    .mock.calls.map(([path, ...args]) => [
+      String(path).replace(/\\+/g, '/'),
+      ...args,
+    ])
+}
+
+function normalizedWriteFileCalls() {
+  return normalizedFileWriteCalls().filter(([path]) =>
+    String(path).includes('/skills/')
+  )
 }
 
 function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
@@ -108,10 +136,12 @@ describe('agentic upgrade prompts', () => {
         'https://api.github.com/advisories?affects=next',
         'https://registry.npmjs.org/next',
       ],
+      futureDefaults: [],
     })
     jest.mocked(mkdtemp).mockResolvedValue('/tmp/next-upgrade-test')
     jest.mocked(cp).mockResolvedValue(undefined)
     jest.mocked(readFile).mockResolvedValue('Run <codemod-command>')
+    jest.mocked(mkdir).mockResolvedValue(undefined)
     jest.mocked(rm).mockResolvedValue(undefined)
     jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
@@ -295,22 +325,19 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
   })
 
-  it.each(['latest', 'future'] as const)(
-    'uses the configured %s policy for a bare AI upgrade',
-    async (policy) => {
-      jest.mocked(loadConfig).mockResolvedValue({
-        default: { experimental: { agenticAutoUpgrade: policy } },
-      } as never)
+  it('uses the configured policy for a bare AI upgrade', async () => {
+    jest.mocked(loadConfig).mockResolvedValue({
+      default: { experimental: { agenticAutoUpgrade: 'latest' } },
+    } as never)
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: true,
-      })
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
 
-      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
-    }
-  )
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+  })
 
   it('passes the latest target to the existing agent', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
@@ -318,6 +345,7 @@ describe('agentic upgrade prompts', () => {
       installedVersion: '16.2.12',
       targetVersion: '16.3.5',
       references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
     })
 
     await spawnNextUpgrade('/workspace/app', {
@@ -334,6 +362,175 @@ describe('agentic upgrade prompts', () => {
          "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
+
+     References:
+     - https://registry.npmjs.org/next/latest",
+       ],
+     ]
+    `)
+  })
+
+  it('adds temporary Future Default instructions to the migration prompt', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '16.2.0',
+      targetVersion: '16.4.0',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [
+        {
+          name: 'Cache Components',
+          availableSince: '16.3.0',
+          isAdopted: jest.fn(() => false),
+          adoptionDoc: [
+            'docs/01-app/02-guides/migrating-to-cache-components.md',
+            'skills/next-cache-components-adoption/SKILL.md',
+          ],
+          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+        },
+      ],
+    })
+
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter() as EventEmitter & {
+        stdout: EventEmitter & { setEncoding: jest.Mock }
+        stderr: EventEmitter & { setEncoding: jest.Mock }
+      }
+      child.stdout = Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+      })
+      child.stderr = Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+      })
+      process.nextTick(() => {
+        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
+        child.emit('close', 0)
+      })
+      return child
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'future',
+    })
+
+    expect(crossSpawn).toHaveBeenCalledTimes(1)
+    expect(normalizedFileWriteCalls()).toContainEqual([
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
+      expect.stringMatching(
+        /^Run npx @next\/codemod@\S+ upgrade 16\.4\.0 --yes --skip-adoption$/
+      ),
+    ])
+
+    expect({
+      prompt: normalizedBootstrapCalls(),
+      savedInstructions: normalizedWriteFileCalls(),
+    }).toMatchInlineSnapshot(`
+     {
+       "prompt": [
+         [
+           "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+
+     We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
+
+     After completing and verifying the version migration, adopt these Future Defaults in order:
+     - Cache Components
+       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
+       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
+     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
+
+     References:
+     - https://registry.npmjs.org/next/latest",
+         ],
+       ],
+       "savedInstructions": [
+         [
+           "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md",
+           "Adopt Cache Components safely.
+     ",
+         ],
+       ],
+     }
+    `)
+  })
+
+  it('includes the shared preflight without a version migration when current', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '16.4.0',
+      targetVersion: '16.4.0',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [
+        {
+          name: 'Cache Components',
+          availableSince: '16.3.0',
+          isAdopted: jest.fn(() => false),
+          adoptionDoc: [
+            'docs/01-app/02-guides/migrating-to-cache-components.md',
+            'skills/next-cache-components-adoption/SKILL.md',
+          ],
+          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+        },
+      ],
+    })
+
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter() as EventEmitter & {
+        stdout: EventEmitter & { setEncoding: jest.Mock }
+        stderr: EventEmitter & { setEncoding: jest.Mock }
+      }
+      child.stdout = Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+      })
+      child.stderr = Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+      })
+      process.nextTick(() => {
+        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
+        child.emit('close', 0)
+      })
+      return child
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'future',
+    })
+
+    expect(
+      jest
+        .mocked(cp)
+        .mock.calls.map(([source, destination]) =>
+          [String(source), String(destination)].map((path) =>
+            path.replace(/\\+/g, '/')
+          )
+        )
+    ).toEqual(
+      expect.arrayContaining([
+        [
+          expect.stringContaining('/docs/01-app/02-guides/upgrading'),
+          '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading',
+        ],
+      ])
+    )
+    expect(readFile).not.toHaveBeenCalled()
+    expect(normalizedFileWriteCalls()).not.toContainEqual([
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
+      expect.anything(),
+    ])
+    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
+     [
+       [
+         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+
+     We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
+
+     Adopt these Future Defaults in order:
+     - Cache Components
+       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
+       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
+     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
 
      References:
      - https://registry.npmjs.org/next/latest",
