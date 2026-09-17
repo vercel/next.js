@@ -36,3 +36,36 @@ async fn main() -> anyhow::Result<()> {
         Commands::SymlinkStress(args) => symlink_stress::run(args).await,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use crate::Cli;
+
+    #[test]
+    fn accepts_track_read_writes() {
+        Cli::try_parse_from([
+            "turbo-tasks-fuzz",
+            "fs-watcher",
+            "--fs-root",
+            "/tmp/test",
+            "--track-read-writes",
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_obsolete_track_writes() {
+        assert!(
+            Cli::try_parse_from([
+                "turbo-tasks-fuzz",
+                "fs-watcher",
+                "--fs-root",
+                "/tmp/test",
+                "--track-writes",
+            ])
+            .is_err()
+        );
+    }
+}
