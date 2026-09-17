@@ -115,7 +115,7 @@ export function TopBar({
             setFocusedSourceIndex(null)
           }}
           routeDiff={isCompareMode ? routeDiff : null}
-          routeTotals={isCompareMode ? null : routeTotals}
+          routeTotals={routeTotals}
           useCompressed
         />
       </div>

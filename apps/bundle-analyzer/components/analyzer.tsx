@@ -311,6 +311,19 @@ function useAnalyzerModel(compare: boolean) {
       ),
     [routeSummaries]
   )
+  const serverRouteTotals = useMemo(
+    () =>
+      new Map(
+        routeSummaries.map(({ route, size, compressed_size, client }) => [
+          route,
+          {
+            size: size - client.size,
+            compressedSize: compressed_size - client.compressed_size,
+          },
+        ])
+      ),
+    [routeSummaries]
+  )
   const currentRouteTotals = useMemo(
     () =>
       new Map(
@@ -339,6 +352,7 @@ function useAnalyzerModel(compare: boolean) {
     modulesData,
     currentRouteTotals,
     clientRouteTotals,
+    serverRouteTotals,
     searchQuery: searchInput,
     selectedRoute,
     selectedSourceIndex,
@@ -416,7 +430,11 @@ function AnalyzerTopBar({
       comparisonSnapshot={model.comparisonSnapshot}
       onComparisonChange={model.routeState.setComparisonSnapshot}
       routeDiff={routeDiff}
-      routeTotals={model.clientRouteTotals}
+      routeTotals={
+        model.environmentFilter === Environment.Client
+          ? model.clientRouteTotals
+          : model.serverRouteTotals
+      }
       showComparison={showComparison}
     />
   )
@@ -488,12 +506,14 @@ function ValidComparisonContent({
     [baselineRouteSummaries]
   )
   const routeDiff = useMemo(() => {
-    return diffRoutesWithSizes(
-      baselineRoutes,
-      model.currentRoutes,
-      baselineRouteTotals,
-      model.currentRouteTotals
-    )
+    return baselineRouteTotals && model.currentRouteTotals
+      ? diffRoutesWithSizes(
+          baselineRoutes,
+          model.currentRoutes,
+          baselineRouteTotals,
+          model.currentRouteTotals
+        )
+      : null
   }, [
     baselineRoutes,
     model.currentRoutes,
