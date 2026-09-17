@@ -1,0 +1,265 @@
+{
+  "interface": {
+    "type": "MCP Streamable HTTP",
+    "endpoint": "http://127.0.0.1:35569/mcp",
+    "transport": "Raw HTTP POST with Content-Type application/json and Accept application/json, text/event-stream",
+    "jsonRpcMethod": "tools/call",
+    "analyzerCommand": "experimental-analyze --port 0",
+    "snapshotId": "20260917-221933-e214873",
+    "scope": "Analyzer-only findings captured before fixture source, package.json, lockfiles, git history, or git diff were inspected"
+  },
+  "findings": [
+    {
+      "packageOrSource": "highlight.js",
+      "evidence": "Request 10 grouped /dashboard client sources by package and attributed 939581 raw / 351287 compressed bytes to highlight.js, the largest application-controlled package. Request 5 confirmed just lib/languages/mathematica.js contributes 248576 raw / 71013 compressed bytes across the route's client and SSR chunks; request 3 exposed many other individual language modules in the same chunks.",
+      "rawBytes": 939581,
+      "compressedBytes": 351287,
+      "whyLikelyOptimizable": "The presence of many large per-language modules strongly suggests a broad highlight.js entry is bundling languages the dashboard may not need. Importing highlight.js core plus only required languages, and/or lazy-loading highlighting, could remove a large fraction of the dashboard client bundle.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "chart.js",
+      "evidence": "Request 10 attributed 192225 raw / 64893 compressed client bytes on /dashboard to chart.js. Request 8 explained the chart.js dist entry and found it in both the dashboard client and SSR chunks (320435 raw / 105046 compressed across total environments). The package is absent from the / package list in request 11, so it is dashboard-specific rather than shared framework overhead.",
+      "rawBytes": 192225,
+      "compressedBytes": 64893,
+      "whyLikelyOptimizable": "Chart.js supports selective controller/element/scale/plugin registration, while broad entry points commonly retain more chart functionality than one view uses. If the chart is non-critical or below the fold, a client-only dynamic import could additionally move these bytes out of initial route code.",
+      "confidence": "medium"
+    },
+    {
+      "packageOrSource": "lodash",
+      "evidence": "Request 10 attributed 69770 raw / 24943 compressed client bytes on /dashboard to lodash. Request 6 resolved the contribution to lodash/lodash.js in both the route client and SSR chunks (139540 raw / 49952 compressed across total environments). Lodash is absent from the / package list in request 11.",
+      "rawBytes": 69770,
+      "compressedBytes": 24943,
+      "whyLikelyOptimizable": "The monolithic lodash.js path is a strong signal that the full CommonJS build is retained. Per-method imports, an ESM/tree-shakeable alternative, or small native equivalents can usually avoid shipping the entire utility library.",
+      "confidence": "high"
+    },
+    {
+      "packageOrSource": "moment",
+      "evidence": "Request 10 attributed 61328 raw / 19333 compressed client bytes on /dashboard to moment. Request 7 found moment/moment.js in both the dashboard client and SSR chunks (122655 raw / 38704 compressed across total environments). Moment is absent from the / package list in request 11.",
+      "rawBytes": 61328,
+      "compressedBytes": 19333,
+      "whyLikelyOptimizable": "Moment is a comparatively large general-purpose date library for client delivery. Depending on the required behavior, Intl.DateTimeFormat, a smaller modular library, or server-side formatting could remove most or all of this dashboard-specific client cost.",
+      "confidence": "high"
+    }
+  ],
+  "missedOrUnclearAreas": [
+    "The analyzer reports presence and size but not the importing symbol, export usage, or a module-import chain. explain_bundle_source returned module candidates and heuristic route-entry caveats, not why application code retained each dependency.",
+    "The dashboard page source itself appears as 30138 raw but only 505 compressed client bytes in request 10 (96489 raw / 1008 compressed across total environments in request 9). Its extreme compression ratio suggests repetitive data, but the interface cannot determine whether it is generated, required, or safely removable, so it is not promoted to a finding.",
+    "Numerous WOFF2 assets are attributed to the route. Because unicode-range fonts may not all transfer to one browser and the interface does not expose font declarations or request behavior, their aggregate is not treated as a concrete optimization.",
+    "Package-grouped client sizes differ from total source-level sizes because the latter include both client and server contributions. The report uses request 10's client package totals for finding byte fields.",
+    "The analyzer does not estimate savings for selective imports or dynamic loading, so likely savings cannot be stated precisely without changing and rebuilding the fixture.",
+    "compare_bundles request 13 showed only a 38 raw-byte client increase for /dashboard versus the available prior snapshot, so the large opportunities are existing composition choices rather than a meaningful branch regression."
+  ],
+  "failedQueries": [
+    {
+      "requestId": 2,
+      "tool": "query_bundle_sources",
+      "arguments": {},
+      "failure": "JSON-RPC -32602: required route argument was not supplied.",
+      "requestSent": true
+    },
+    {
+      "requestId": 4,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "source": "[project]/agent-eval-fixture/app/node_modules/.pnpm/highlight.js@11.12.0/node_modules/highlight.js/lib/languages/mathematica.js"
+      },
+      "failure": "JSON-RPC -32602: required argument is named sourcePath, not source.",
+      "requestSent": true
+    },
+    {
+      "requestId": 12,
+      "tool": "compare_bundles",
+      "arguments": {},
+      "failure": "JSON-RPC -32602: required baselineSnapshot argument was not supplied.",
+      "requestSent": true
+    },
+    {
+      "requestId": null,
+      "tool": "local request logger preflight",
+      "arguments": {},
+      "failure": "The first logger invocation used `python`, which was unavailable; `python3` was then used. No HTTP/MCP request was sent, so this attempt is not included in queryCount.",
+      "requestSent": false
+    }
+  ],
+  "queryCount": 14,
+  "requests": [
+    {
+      "id": 1,
+      "tool": "get_bundle_overview",
+      "arguments": {},
+      "outcome": "success; total bundle overview for four routes"
+    },
+    {
+      "id": 2,
+      "tool": "query_bundle_sources",
+      "arguments": {},
+      "outcome": "failure; missing route"
+    },
+    {
+      "id": 3,
+      "tool": "query_bundle_sources",
+      "arguments": {
+        "route": "/dashboard"
+      },
+      "outcome": "success; top 50 total source contributions"
+    },
+    {
+      "id": 4,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "source": "highlight.js/lib/languages/mathematica.js"
+      },
+      "outcome": "failure; sourcePath argument required"
+    },
+    {
+      "id": 5,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "sourcePath": "highlight.js/lib/languages/mathematica.js"
+      },
+      "outcome": "success"
+    },
+    {
+      "id": 6,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "sourcePath": "lodash/lodash.js"
+      },
+      "outcome": "success"
+    },
+    {
+      "id": 7,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "sourcePath": "moment/moment.js"
+      },
+      "outcome": "success"
+    },
+    {
+      "id": 8,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "sourcePath": "chart.js/dist/chart.js"
+      },
+      "outcome": "success"
+    },
+    {
+      "id": 9,
+      "tool": "explain_bundle_source",
+      "arguments": {
+        "route": "/dashboard",
+        "sourcePath": "src/app/dashboard/page.tsx"
+      },
+      "outcome": "success"
+    },
+    {
+      "id": 10,
+      "tool": "query_bundle_sources",
+      "arguments": {
+        "route": "/dashboard",
+        "environment": "client",
+        "groupBy": "package",
+        "limit": 100
+      },
+      "outcome": "success; complete client package grouping"
+    },
+    {
+      "id": 11,
+      "tool": "query_bundle_sources",
+      "arguments": {
+        "route": "/",
+        "environment": "client",
+        "groupBy": "package",
+        "limit": 100
+      },
+      "outcome": "success; route-specificity comparison"
+    },
+    {
+      "id": 12,
+      "tool": "compare_bundles",
+      "arguments": {},
+      "outcome": "failure; missing baselineSnapshot"
+    },
+    {
+      "id": 13,
+      "tool": "compare_bundles",
+      "arguments": {
+        "baselineSnapshot": "20260917-201045-7afb1d3",
+        "route": "/dashboard",
+        "environment": "client",
+        "groupBy": "package",
+        "limit": 100
+      },
+      "outcome": "success; route-level comparison against available baseline"
+    },
+    {
+      "id": 14,
+      "tool": "get_bundle_overview",
+      "arguments": {
+        "environment": "client",
+        "metric": "raw"
+      },
+      "outcome": "success; /dashboard client total 2042870 raw / 847909 compressed bytes"
+    }
+  ],
+  "interfaceFriction": [
+    "The endpoint URL was discoverable from analyzer stdout and raw POST plus SSE response handling worked without an MCP client SDK.",
+    "Tool schemas were not available through the permitted workflow. Invalid-argument errors revealed one missing field at a time (`route`, then `sourcePath`, then `baselineSnapshot`), costing three failed calls.",
+    "Successful responses are JSON encoded inside a JSON-RPC object, itself encoded in an SSE `data:` line, requiring two JSON decoding layers after SSE parsing.",
+    "explain_bundle_source identifies candidate modules but marks matches ambiguous and route-entry detection heuristic; it does not expose importers or used exports.",
+    "compare_bundles accepted package-oriented arguments but returned route-granularity rows, making it less useful for explaining package-level changes in this call.",
+    "Compressed attributed sizes are explicitly estimates because sources are compressed independently."
+  ],
+  "overallAssessment": "The MCP endpoint quickly identified a highly actionable dashboard-specific cluster: highlight.js dominates client-owned bytes, with chart.js, full lodash, and moment as additional likely reductions. Package grouping and route comparison were effective for prioritization, but source explanations stop at presence/candidate attribution and do not prove which import form or exports caused retention. Ground truth confirmed all four package findings and showed that the suggested selective-import/replacement directions match actual narrow usage.",
+  "groundTruthComparison": {
+    "inspectionPerformedAfterAnalyzerOnlyReportWasWritten": true,
+    "correctHits": [
+      {
+        "finding": "highlight.js",
+        "groundTruth": "src/app/dashboard/page.tsx imports the broad `highlight.js` entry and uses it only to highlight one JavaScript snippet. Importing core plus the JavaScript language would directly address the analyzer's many-language evidence.",
+        "sourceEvidence": "src/app/dashboard/page.tsx:7-8,20-22"
+      },
+      {
+        "finding": "chart.js",
+        "groundTruth": "The dashboard imports `chart.js/auto`, which auto-registers the full component set, but constructs only one bar chart. Selective registration is applicable; dynamically importing the chart is also feasible because creation already occurs in a client effect.",
+        "sourceEvidence": "src/app/dashboard/page.tsx:6,24-34"
+      },
+      {
+        "finding": "lodash",
+        "groundTruth": "The full default lodash entry is imported solely for `_.groupBy` over a four-item constant. A per-method import or a tiny native grouping/counting operation can remove the monolithic client dependency.",
+        "sourceEvidence": "src/app/dashboard/page.tsx:5,10-15,19,40"
+      },
+      {
+        "finding": "moment",
+        "groundTruth": "Moment is imported only for `moment().format('LLLL')`. `Intl.DateTimeFormat` or server-side formatting can provide the displayed value without shipping Moment to the client.",
+        "sourceEvidence": "src/app/dashboard/page.tsx:4,39"
+      }
+    ],
+    "misses": [
+      {
+        "opportunity": "Correct source-level size over-attribution for the dashboard page.",
+        "groundTruth": "The analyzer attributed 96489 raw bytes across total environments (30138 client raw) to src/app/dashboard/page.tsx, but the source file is only 1280 bytes on disk. This roughly 75x total/raw discrepancy makes source-level attribution unsuitable as a literal source-file size or standalone savings estimate.",
+        "sourceEvidence": "src/app/dashboard/page.tsx is 1280 bytes; MCP requests 9 and 10 reported 96489 total raw and 30138 client raw bytes"
+      },
+      {
+        "opportunity": "Reduce the client-component boundary, not only individual packages.",
+        "groundTruth": "The entire dashboard is marked `use client`. Static grouping, date formatting, and syntax-highlighted markup could be produced in a Server Component while isolating only the canvas lifecycle in a small Client Component. The analyzer showed client/server flags but did not turn this architectural option into a concrete recommendation.",
+        "sourceEvidence": "src/app/dashboard/page.tsx:1-47"
+      },
+      {
+        "opportunity": "State the exact narrow replacements enabled by fixture usage.",
+        "groundTruth": "The analyzer correctly identified all costly packages, but without importer/used-export information it could not know that the fixture needs exactly one highlight language, one bar-chart type, one lodash method over four records, and one localized date format.",
+        "sourceEvidence": "src/app/dashboard/page.tsx:10-43"
+      }
+    ],
+    "falsePositives": [],
+    "summary": "Four of four analyzer findings were correct, with no false positives. Ground truth strengthens chart.js from medium to high confidence and confirms that the broad imports are disproportionate to actual usage. The main misses are architectural client-boundary guidance and a roughly 75x raw over-attribution of the dashboard page source, which the analyzer-only phase appropriately treated as unclear rather than actionable."
+  }
+}
