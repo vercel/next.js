@@ -94,11 +94,15 @@ During `next dev` with Turbopack, Next.js DevTools exposes two [WebMCP](https://
 | Tool         | Behavior                                                                                                                                                             |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pause_hmr`  | Wait for an active compilation and module update to finish, then hold incoming hot updates, build errors, and automatic reloads. The current page stays interactive. |
-| `resume_hmr` | Resume updates after editing, applying buffered updates together through normal HMR.                                                                                 |
+| `resume_hmr` | Apply buffered updates through normal HMR and wait for observed updates and tracked rendering to finish. Return a structured completion outcome.                     |
 
-Both tools take no arguments. The agent should await `pause_hmr` before its first edit and call `resume_hmr` after its final edit. While paused, temporary errors from incomplete edits do not replace the current page. If the final source still contains errors, they appear after resuming.
+Both tools take no arguments. The agent should await `pause_hmr` before its first edit, check compilation after editing, and await `resume_hmr` before inspecting the rendered result. While paused, temporary errors from incomplete edits do not replace the current page. If the final source still contains errors, resuming reports a blocked outcome with diagnostics.
+
+Tool results include `structuredContent` and a concise text summary. Resume outcomes distinguish applied updates, no pending changes, compilation or update errors, timeouts, and required reloads. `nextjs_inspect({ view: 'status' })` returns the current document's HMR state, pending updates, compilation state, freshness, and last outcome without changing them. Freshness covers updates observed by the document; it cannot detect a filesystem change before the server has reported it.
 
 Resuming preserves component state where [Fast Refresh](/docs/architecture/fast-refresh) supports it. A full reload is only needed when normal HMR requires one, such as after restarting the development server.
+
+A reload replaces the document running the tool. A reload outcome reports that it is scheduled; verify the new document and rediscover its tools after navigation. HMR completion does not wait for unrelated asynchronous application work.
 
 Pausing applies to the current document. Other tabs and server compilation continue normally. It does not stop application requests or prevent manual navigation. Reloading the page also ends the pause.
 

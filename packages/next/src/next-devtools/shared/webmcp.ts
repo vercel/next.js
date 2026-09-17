@@ -4,6 +4,7 @@ import type { SegmentTrieData } from '../../shared/lib/mcp-page-metadata-types'
 export const DEVTOOLS_WEBMCP_ENDPOINT = '/_next/devtools'
 
 export type DevToolsInspectView =
+  | 'status'
   | 'project'
   | 'page'
   | 'routes'
@@ -35,7 +36,9 @@ export type DevToolsCompileRouteInput = {
 export type DevToolsWebMCPRequest =
   | {
       type: 'inspect'
-      input: DevToolsInspectInput
+      input: Omit<DevToolsInspectInput, 'view'> & {
+        view: Exclude<DevToolsInspectView, 'status'>
+      }
       context?: DevToolsDocumentContext
     }
   | { type: 'compile-route'; input: DevToolsCompileRouteInput }

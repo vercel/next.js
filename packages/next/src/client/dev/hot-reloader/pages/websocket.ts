@@ -39,6 +39,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     if (source) source.close()
 
     function handleOnline() {
+      dispatcher.setHmrConnection(true)
       logQueue.onSocketReady(source)
       reconnections = 0
       window.console.log('[HMR] connected')
@@ -68,6 +69,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
               // There could be 1) unhandled server errors and/or 2) stale content.
               // Perform a hard reload of the page.
               if (dispatcher.shouldDeferHmrReload()) return
+              dispatcher.reportHmrReload()
               window.location.reload()
 
               reloading = true
@@ -85,6 +87,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     }
 
     function handleDisconnect() {
+      dispatcher.setHmrConnection(false)
       source.onerror = null
       source.onclose = null
       source.close()
@@ -95,6 +98,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
         !dispatcher.shouldDeferHmrReload()
       ) {
         reloading = true
+        dispatcher.reportHmrReload()
         window.location.reload()
         return
       }

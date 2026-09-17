@@ -2,9 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { gate, retry, waitForNoRedbox } from 'next-test-utils'
 import type { Page } from 'playwright'
 import { readFile } from 'node:fs/promises'
+import { createServer, type ServerResponse } from 'node:http'
+import type { AddressInfo } from 'node:net'
 
 type ToolResult = {
   content: { type: string; text: string }[]
+  structuredContent: Record<string, any>
   isError?: boolean
 }
 
@@ -14,7 +17,14 @@ type Tool = {
   execute: (input: Record<string, unknown>) => Promise<ToolResult>
 }
 
-type TestWindow = typeof window & { devTools: Record<string, Tool> }
+type TestWindow = typeof window & {
+  devTools: Record<string, Tool>
+  resumePending: boolean
+  resumeResult: Promise<{
+    result: ToolResult
+    snapshot: { heading: string; counter: string; color: string }
+  }>
+}
 
 async function installWebMCP(page: Page) {
   // Capture actual runtime registrations while the test browser lacks WebMCP.
@@ -51,25 +61,53 @@ async function callTool(
   name: string,
   input: Record<string, unknown> = {}
 ) {
-  return page.evaluate(
+  const result = await page.evaluate(
     async ({ name, input }) => {
       const result = await (window as TestWindow).devTools[name].execute(input)
       return {
         ...result,
-        data:
-          name === 'pause_hmr' || name === 'resume_hmr'
-            ? result.content[0].text
-            : JSON.parse(result.content[0].text),
+        // Capture in the same browser task that resumes after execution, so
+        // the test does not give HMR another round trip to finish rendering.
+        snapshot: {
+          version: document.querySelector('#version')?.textContent,
+          counter: document.querySelector('#counter')?.textContent,
+        },
       }
     },
     { name, input }
   )
+  expect(result.structuredContent).toEqual(expect.any(Object))
+  expect(result.content[0]).toEqual({
+    type: 'text',
+    text: expect.any(String),
+  })
+  return { ...result, data: result.structuredContent }
 }
 
 async function inspect(page: Page, view: string, input = {}) {
   const result = await callTool(page, 'nextjs_inspect', { view, ...input })
   expect(result.isError).not.toBe(true)
   return result.data
+}
+
+async function startResume(page: Page) {
+  await page.evaluate(() => {
+    const testWindow = window as TestWindow
+    testWindow.resumePending = true
+    testWindow.resumeResult = testWindow.devTools.resume_hmr
+      .execute({})
+      .then((result) => {
+        testWindow.resumePending = false
+        return {
+          result,
+          snapshot: {
+            heading: document.querySelector('h1').textContent,
+            counter: document.querySelector('#counter').textContent,
+            color: getComputedStyle(document.querySelector('#version')).color,
+          },
+        }
+      })
+  })
 }
 
 describe('webmcp-devtools', () => {
@@ -137,6 +175,15 @@ describe('webmcp-devtools', () => {
     expect(
       (await next.fetch('/tools/_next/mcp', { method: 'POST' })).status
     ).toBe(404)
+    await retry(async () => {
+      expect(await inspect(page, 'status')).toMatchObject({
+        hmrState: turbopack ? 'idle' : 'unavailable',
+        pendingUpdates: 0,
+        compilationState: 'ready',
+        pageStatus: turbopack ? 'current' : 'unknown',
+        errors: [],
+      })
+    })
   })
 
   it('returns only the invoking document page, errors, and request insights', async () => {
@@ -310,7 +357,10 @@ describe('webmcp-devtools', () => {
     const originalRoute = await next.readFile('app/unvisited/page.tsx')
     const originalCounter = await next.readFile('app/counter.tsx')
     await page.locator('#counter').click()
-    await callTool(page, 'pause_hmr')
+    expect((await callTool(page, 'pause_hmr')).data).toMatchObject({
+      outcome: 'paused',
+      status: { hmrState: 'paused' },
+    })
     try {
       await next.patchFile(
         'app/unvisited/page.tsx',
@@ -349,17 +399,241 @@ describe('webmcp-devtools', () => {
         })
         expect(fixed.data).toEqual({ routeSpecifier: '/unvisited', issues: [] })
       })
-      expect(await page.locator('#version').textContent()).toBe('version-1')
-      await callTool(page, 'resume_hmr')
       await retry(async () => {
-        expect(await page.locator('#version').textContent()).toBe('version-2')
-        expect(await page.locator('#counter').textContent()).toBe('Count: 1')
+        const status = await inspect(page, 'status')
+        expect(status).toMatchObject({
+          hmrState: 'paused',
+          compilationState: 'ready',
+          pageStatus: 'stale',
+        })
+        expect(status.pendingUpdates).toBeGreaterThan(0)
+      })
+      expect(await page.locator('#version').textContent()).toBe('version-1')
+      const resumed = await callTool(page, 'resume_hmr')
+      expect(resumed.isError).not.toBe(true)
+      expect(resumed.data).toMatchObject({
+        outcome: 'applied',
+        updatesApplied: true,
+        reload: 'none',
+        errors: [],
+        observedRevision: expect.any(Number),
+        status: {
+          hmrState: 'idle',
+          pendingUpdates: 0,
+          compilationState: 'ready',
+          pageStatus: 'current',
+        },
+      })
+      // The first DOM read after resume must observe the completed update.
+      // Polling here would hide an acknowledgement that arrives too early.
+      expect(resumed.snapshot.version).toBe('version-2')
+      expect(resumed.snapshot.counter).toBe('Count: 1')
+      expect(await inspect(page, 'status')).toMatchObject({
+        hmrState: 'idle',
+        pendingUpdates: 0,
+        pageStatus: 'current',
+      })
+      expect((await callTool(page, 'resume_hmr')).data).toMatchObject({
+        outcome: 'no-op',
+        updatesApplied: false,
+        reload: 'none',
+        errors: [],
       })
       await waitForNoRedbox(browser)
     } finally {
       await next.patchFile('app/unvisited/page.tsx', originalRoute)
       await next.patchFile('app/counter.tsx', originalCounter)
       await callTool(page, 'resume_hmr')
+    }
+  })
+
+  it('waits for an updated stylesheet to load before acknowledging resume', async () => {
+    const { browser, page } = await openBrowser()
+    const turbopack = await gate((c) => c.turbopack)
+    const original = await next.readFile('app/style.css')
+    let release: () => void
+    const stylesheetGate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const requests: string[] = []
+    const stylesheetPattern = /\/_next\/static\/.*\.css(?:\?|$)/
+
+    try {
+      await page.locator('#counter').click()
+      expect(
+        await page
+          .locator('#version')
+          .evaluate((element) => getComputedStyle(element).color)
+      ).toBe('rgb(180, 30, 30)')
+      await page.route(stylesheetPattern, async (route) => {
+        const response = await route.fetch()
+        requests.push(route.request().url())
+        await stylesheetGate
+        await route.fulfill({ response })
+      })
+      if (turbopack) await callTool(page, 'pause_hmr')
+      await next.patchFile(
+        'app/style.css',
+        original.replace('rgb(180, 30, 30)', 'rgb(20, 90, 200)')
+      )
+      if (turbopack) {
+        await retry(async () => {
+          const status = await inspect(page, 'status')
+          expect(status).toMatchObject({
+            hmrState: 'paused',
+            compilationState: 'ready',
+            pageStatus: 'stale',
+          })
+          expect(status.pendingUpdates).toBeGreaterThan(0)
+        })
+        await startResume(page)
+      }
+      await retry(async () => {
+        expect(requests.length).toBeGreaterThan(0)
+      })
+      if (turbopack) {
+        expect(await inspect(page, 'status')).toMatchObject({
+          hmrState: 'applying',
+          pageStatus: 'updating',
+        })
+        expect(
+          await page.evaluate(() => (window as TestWindow).resumePending)
+        ).toBe(true)
+      }
+      expect(
+        await page
+          .locator('#version')
+          .evaluate((element) => getComputedStyle(element).color)
+      ).toBe('rgb(180, 30, 30)')
+      release()
+
+      if (turbopack) {
+        const completed = await page.evaluate(
+          () => (window as TestWindow).resumeResult
+        )
+        expect(completed.result.structuredContent).toMatchObject({
+          outcome: 'applied',
+          updatesApplied: true,
+          errors: [],
+          status: { hmrState: 'idle', pageStatus: 'current' },
+        })
+        expect(completed.snapshot).toMatchObject({
+          color: 'rgb(20, 90, 200)',
+          counter: 'Count: 1',
+        })
+      } else {
+        // Webpack keeps ordinary HMR and explicitly reports controls unavailable.
+        await retry(async () => {
+          expect(
+            await page
+              .locator('#version')
+              .evaluate((element) => getComputedStyle(element).color)
+          ).toBe('rgb(20, 90, 200)')
+        })
+        expect(await page.locator('#counter').textContent()).toBe('Count: 1')
+        expect(await inspect(page, 'status')).toMatchObject({
+          hmrState: 'unavailable',
+        })
+      }
+    } finally {
+      release()
+      await page.unrouteAll({ behavior: 'wait' })
+      await browser.close()
+      await next.patchFile('app/style.css', original)
+    }
+  })
+
+  it('waits for a slow server component refresh to commit before acknowledging resume', async () => {
+    const { browser, page } = await openBrowser()
+    const turbopack = await gate((c) => c.turbopack)
+    const original = await next.readFile('app/page.tsx')
+    const responses: ServerResponse[] = []
+    let released = false
+    const renderGate = createServer((_request, response) => {
+      if (released) response.end('ready')
+      else responses.push(response)
+    })
+    const release = () => {
+      released = true
+      for (const response of responses) response.end('ready')
+    }
+    await new Promise<void>((resolve) =>
+      renderGate.listen(0, '127.0.0.1', resolve)
+    )
+
+    try {
+      await page.locator('#counter').click()
+      if (turbopack) await callTool(page, 'pause_hmr')
+      const { port } = renderGate.address() as AddressInfo
+      await next.patchFile(
+        'app/page.tsx',
+        original
+          .replace('function Page()', 'async function Page()')
+          .replace(
+            '  return (',
+            `  await fetch('http://127.0.0.1:${port}', { cache: 'no-store' })\n  return (`
+          )
+          .replace('Browser development tools', 'Server render finished')
+      )
+      if (turbopack) {
+        await retry(async () => {
+          const status = await inspect(page, 'status')
+          expect(status).toMatchObject({
+            hmrState: 'paused',
+            compilationState: 'ready',
+            pageStatus: 'stale',
+          })
+          expect(status.pendingUpdates).toBeGreaterThan(0)
+        })
+        await startResume(page)
+      }
+      await retry(async () => {
+        expect(responses.length).toBeGreaterThan(0)
+      })
+      if (turbopack) {
+        expect(await inspect(page, 'status')).toMatchObject({
+          hmrState: 'applying',
+          pageStatus: 'updating',
+        })
+        expect(
+          await page.evaluate(() => (window as TestWindow).resumePending)
+        ).toBe(true)
+      }
+      expect(await page.locator('h1').textContent()).toBe(
+        'Browser development tools'
+      )
+      release()
+
+      if (turbopack) {
+        const completed = await page.evaluate(
+          () => (window as TestWindow).resumeResult
+        )
+        expect(completed.result.structuredContent).toMatchObject({
+          outcome: 'applied',
+          updatesApplied: true,
+          errors: [],
+          status: { hmrState: 'idle', pageStatus: 'current' },
+        })
+        expect(completed.snapshot).toMatchObject({
+          heading: 'Server render finished',
+          counter: 'Count: 1',
+        })
+      } else {
+        await retry(async () => {
+          expect(await page.locator('h1').textContent()).toBe(
+            'Server render finished'
+          )
+        })
+        expect(await page.locator('#counter').textContent()).toBe('Count: 1')
+        expect(await inspect(page, 'status')).toMatchObject({
+          hmrState: 'unavailable',
+        })
+      }
+    } finally {
+      release()
+      await browser.close()
+      await next.patchFile('app/page.tsx', original)
+      await new Promise<void>((resolve) => renderGate.close(() => resolve()))
     }
   })
 })

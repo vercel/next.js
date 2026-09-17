@@ -61,6 +61,7 @@ export function createWebSocket(
     newWebSocket.binaryType = 'arraybuffer'
 
     function handleOnline() {
+      dispatcher.setHmrConnection(true)
       logQueue.onSocketReady(newWebSocket)
 
       reconnections = 0
@@ -94,6 +95,7 @@ export function createWebSocket(
                   // Either the server's session id has changed and it's a new server, or
                   // it's been too long since we disconnected and we should reload the page.
                   if (dispatcher.shouldDeferHmrReload()) return
+                  dispatcher.reportHmrReload()
                   window.location.reload()
                   reloading = true
                   return
@@ -111,6 +113,7 @@ export function createWebSocket(
                   mostRecentCompilationHash !== null &&
                   mostRecentCompilationHash !== message.hash
                 ) {
+                  dispatcher.reportHmrReload()
                   window.location.reload()
                   reloading = true
                   return
@@ -135,6 +138,7 @@ export function createWebSocket(
     }
 
     function handleDisconnect() {
+      dispatcher.setHmrConnection(false)
       newWebSocket.onerror = null
       newWebSocket.onclose = null
       newWebSocket.close()
@@ -146,6 +150,7 @@ export function createWebSocket(
         !dispatcher.shouldDeferHmrReload()
       ) {
         reloading = true
+        dispatcher.reportHmrReload()
         window.location.reload()
         return
       }
@@ -207,7 +212,7 @@ export function createProcessTurbopackMessage(
     }
   }
 
-  import(
+  const clientReady = import(
     // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ).then(({ connect }) => {
@@ -227,6 +232,7 @@ export function createProcessTurbopackMessage(
         process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
   })
+  dispatcher.trackHmrUpdate(clientReady)
 
   return processTurbopackMessage
 }

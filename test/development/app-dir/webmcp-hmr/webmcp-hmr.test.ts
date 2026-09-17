@@ -59,8 +59,8 @@ describe('webmcp-hmr', () => {
                       },
               }
             )
-            ;(window as any).callWebMcpTool = (name: string) =>
-              tools.get(name).execute({})
+            ;(window as any).callWebMcpTool = (name: string, input = {}) =>
+              tools.get(name).execute(input)
             ;(window as any).webMcpToolNames = () =>
               [...tools.keys()]
                 .filter((name) => name === 'pause_hmr' || name === 'resume_hmr')
@@ -81,6 +81,33 @@ describe('webmcp-hmr', () => {
               .some((build) => Boolean(build.errors?.length) === hasErrors)
           ).toBe(true)
         })
+      }
+
+      async function callHmrTool(name: 'pause_hmr' | 'resume_hmr') {
+        const result = await page.evaluate(async (name) => {
+          const result = await (window as any).callWebMcpTool(name)
+          return {
+            ...result,
+            snapshot: {
+              version: document.querySelector('#version')?.textContent,
+              counter: document.querySelector('#counter')?.textContent,
+            },
+          }
+        }, name)
+        expect(result.structuredContent).toEqual(expect.any(Object))
+        expect(result.content[0]).toEqual({
+          type: 'text',
+          text: expect.any(String),
+        })
+        return result
+      }
+
+      async function inspectStatus() {
+        const result = await page.evaluate(() =>
+          (window as any).callWebMcpTool('nextjs_inspect', { view: 'status' })
+        )
+        expect(result.isError).not.toBe(true)
+        return result.structuredContent
       }
 
       try {
@@ -107,6 +134,19 @@ describe('webmcp-hmr', () => {
             'pause_hmr',
             'resume_hmr',
           ])
+        })
+        expect(
+          (await callHmrTool('resume_hmr')).structuredContent
+        ).toMatchObject({
+          outcome: 'no-op',
+          updatesApplied: false,
+          reload: 'none',
+          errors: [],
+          status: {
+            hmrState: 'idle',
+            pendingUpdates: 0,
+            pageStatus: 'current',
+          },
         })
 
         // Hold a real compilation open and ensure pause cannot acknowledge it
@@ -160,8 +200,14 @@ describe('webmcp-hmr', () => {
 
         await browser.eval('window.hmrDocument = true')
         await browser.elementById('counter').click()
-        await browser.eval('window.callWebMcpTool("pause_hmr")')
-        await browser.eval('window.callWebMcpTool("pause_hmr")')
+        for (let attempt = 0; attempt < 2; attempt++) {
+          expect(
+            (await callHmrTool('pause_hmr')).structuredContent
+          ).toMatchObject({
+            outcome: 'paused',
+            status: { hmrState: 'paused' },
+          })
+        }
         await patchAndWaitForBuild(original + '\nconst broken = ;\n', true)
         await waitForNoRedbox(browser)
         expect(await browser.elementById('version').text()).toBe('version-1')
@@ -177,16 +223,31 @@ describe('webmcp-hmr', () => {
         await waitForNoRedbox(browser)
         expect(await browser.elementById('version').text()).toBe('version-1')
 
-        // Resume immediately after writing the final source, even if the
-        // compiler has not finished rebuilding it yet.
-        await next.patchFile(
-          'counter.tsx',
-          original.replace('version-1', 'version-2')
+        // Resume acknowledges revisions observed by this document. Wait for
+        // the final build before asserting its DOM on the first read.
+        await patchAndWaitForBuild(
+          original.replace('version-1', 'version-2'),
+          false
         )
-        await browser.eval('window.callWebMcpTool("resume_hmr")')
-        await retry(async () => {
-          expect(await browser.elementById('version').text()).toBe('version-2')
+        const resumed = await callHmrTool('resume_hmr')
+        expect(resumed.isError).not.toBe(true)
+        expect(resumed.structuredContent).toMatchObject({
+          outcome: 'applied',
+          updatesApplied: true,
+          reload: 'none',
+          errors: [],
+          observedRevision: expect.any(Number),
+          status: {
+            hmrState: 'idle',
+            pendingUpdates: 0,
+            compilationState: 'ready',
+            pageStatus: 'current',
+          },
         })
+        // Check the first read after the tool resolves, without retry masking
+        // an acknowledgement delivered before React commits the update.
+        expect(resumed.snapshot.version).toBe('version-2')
+        expect(resumed.snapshot.counter).toBe('Count: 2')
         await waitForNoRedbox(browser)
         expect(await browser.elementById('counter').text()).toBe('Count: 2')
         expect(await browser.eval('window.hmrDocument')).toBe(true)
@@ -206,13 +267,15 @@ describe('webmcp-hmr', () => {
             )
           })
           expect(await browser.elementById('version').text()).toBe('version-2')
-          await browser.eval('window.callWebMcpTool("resume_hmr")')
+          const resumedOtherTab = await callHmrTool('resume_hmr')
+          expect(resumedOtherTab.structuredContent).toMatchObject({
+            outcome: 'applied',
+            updatesApplied: true,
+          })
+          expect(resumedOtherTab.snapshot.version).toBe('version-3')
         } finally {
           await otherTab.close()
         }
-        await retry(async () => {
-          expect(await browser.elementById('version').text()).toBe('version-3')
-        })
         expect(await browser.elementById('counter').text()).toBe('Count: 2')
 
         // Reconnect to a restarted server without losing the paused page.
@@ -227,7 +290,13 @@ describe('webmcp-hmr', () => {
         })
         expect(await browser.elementById('counter').text()).toBe('Count: 3')
         await waitForNoRedbox(browser)
-        await browser.eval('window.callWebMcpTool("resume_hmr")')
+        expect(
+          (await callHmrTool('resume_hmr')).structuredContent
+        ).toMatchObject({
+          outcome: 'reload-required',
+          updatesApplied: false,
+          reload: 'scheduled',
+        })
         await retry(async () => {
           expect(await browser.elementById('counter').text()).toBe('Count: 0')
         })
@@ -235,11 +304,54 @@ describe('webmcp-hmr', () => {
         // A broken final edit must still be visible after resuming.
         await browser.eval('window.callWebMcpTool("pause_hmr")')
         await patchAndWaitForBuild(original + '\nconst broken = ;\n', true)
-        await browser.eval('window.callWebMcpTool("resume_hmr")')
+        const started = Date.now()
+        const blocked = await callHmrTool('resume_hmr')
+        expect(Date.now() - started).toBeLessThan(15_000)
+        expect(blocked.isError).toBe(true)
+        expect(blocked.structuredContent).toMatchObject({
+          outcome: 'blocked',
+          updatesApplied: false,
+          reload: 'none',
+          errors: expect.arrayContaining([
+            expect.objectContaining({ message: expect.any(String) }),
+          ]),
+          status: {
+            hmrState: 'idle',
+            compilationState: 'error',
+            pageStatus: 'stale',
+            errors: blocked.structuredContent.errors,
+          },
+        })
+        // A completed, blocked update must not keep reporting active work.
+        // Inspect separately to cover callers that query after tool completion.
+        expect(await inspectStatus()).toMatchObject({
+          hmrState: 'idle',
+          compilationState: 'error',
+          pageStatus: 'stale',
+          errors: blocked.structuredContent.errors,
+        })
         await waitForRedbox(browser)
         await next.patchFile('counter.tsx', original)
         await waitForNoRedbox(browser)
         expect(await browser.elementById('version').text()).toBe('version-1')
+        expect(
+          (await callHmrTool('resume_hmr')).structuredContent
+        ).toMatchObject({
+          outcome: 'no-op',
+          errors: [],
+          status: {
+            hmrState: 'idle',
+            pendingUpdates: 0,
+            compilationState: 'ready',
+            pageStatus: 'current',
+          },
+        })
+        expect(await inspectStatus()).toMatchObject({
+          hmrState: 'idle',
+          compilationState: 'ready',
+          pageStatus: 'current',
+          errors: [],
+        })
       } finally {
         await browser.close()
         await next.patchFile('counter.tsx', original)

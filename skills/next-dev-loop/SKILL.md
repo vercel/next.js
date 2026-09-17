@@ -75,6 +75,11 @@ before continuing this loop. A version number alone does not prove support.
    An error or unavailable result is not a clean compilation. Record
    existing issues as the baseline before editing.
 
+   Read result fields from `structuredContent`; `content` provides a
+   concise human-readable summary. Compilation diagnostics are successful
+   tool results containing an `issues` array, even when that array contains
+   application errors. `isError` indicates a failed tool operation.
+
    Registration can complete after `open`; subsequent browser responses
    announce it. If discovery is missing, or after joining an existing
    session or context compaction, recover the catalog with
@@ -122,9 +127,19 @@ agent-browser webmcp invoke resume_hmr --frame "$HMR_FRAME" --params '{}'
 ```
 
 Always resume in cleanup, including after a failed or interrupted edit.
-Resuming schedules buffered updates through normal HMR; it does not mean
-the page has applied them yet. Wait for the expected rendered change.
-Fast Refresh preserves state where supported.
+Read the structured `outcome`: `applied` means the observed updates and
+their tracked rendering have completed; `no-op` means no changes needed
+application. Inspect the rendered result immediately after success.
+Fast Refresh preserves state where supported. A `blocked` or `timeout`
+outcome requires inspecting the returned errors and status before proceeding.
+For `reload-required`, wait for the new document, rediscover its tools, and
+verify it separately; the old document cannot confirm reload completion.
+
+Use `nextjs_inspect` with `{"view":"status"}` to check `hmrState`,
+`pendingUpdates`, `compilationState`, `pageStatus`, and `lastUpdate`.
+Freshness covers updates observed by this document, so finish the compilation
+check after editing before using resume as the verification boundary.
+HMR completion does not wait for unrelated asynchronous application work.
 
 If these tools are not advertised, continue the ordinary edit/verify
 loop. Do not assume HMR is paused. Pausing does not prevent navigation;
@@ -140,7 +155,7 @@ Check all three:
 - **Behaves as intended** — drive the page with `agent-browser` and
   assert what the user sees, including any state that should survive HMR.
 
-After a click, navigation, or HMR resume, wait for an expected element,
+After a click or navigation, wait for an expected element,
 `wait --text`, an observed URL with `wait --url`, or a page-specific
 condition with `wait --fn`, then snapshot/read to confirm. Use
 `wait --load networkidle` only for pages known to become quiet;
@@ -153,6 +168,7 @@ development connections can stay active.
 | View            | Use                                                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `project`       | Verify checkout, server URL, bundler, and supported capabilities.                                                                 |
+| `status`        | Check this document's HMR state, pending updates, compilation state, freshness, and last update outcome without changing them.    |
 | `page`          | Find the current page's router and contributing files.                                                                            |
 | `routes`        | Discover route patterns; optionally filter with `routerType: "app"` or `"pages"`.                                                 |
 | `errors`        | Inspect framework-reported errors for the invoking document.                                                                      |

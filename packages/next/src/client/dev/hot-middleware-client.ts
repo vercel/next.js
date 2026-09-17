@@ -5,6 +5,7 @@ import type {
 } from '../../shared/lib/router/router'
 import connect from './hot-reloader/pages/hot-reloader-pages'
 import { sendMessage } from './hot-reloader/pages/websocket'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 
 // Define a local type for the window.next object
 interface NextWindow {
@@ -43,6 +44,7 @@ export default () => {
           })
         )
         reloading = true
+        dispatcher.reportHmrReload()
         return window.location.reload()
       }
       case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
@@ -61,6 +63,7 @@ export default () => {
               page,
             })
           )
+          dispatcher.reportHmrReload()
           return window.location.reload()
         }
         return
@@ -85,6 +88,7 @@ export default () => {
               page,
             })
           )
+          dispatcher.reportHmrReload()
           return window.location.reload()
         }
         return

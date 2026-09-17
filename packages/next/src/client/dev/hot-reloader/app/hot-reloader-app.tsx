@@ -141,6 +141,7 @@ export function performFullReload(
 
   if (reloading) return
   reloading = true
+  dispatcher.reportHmrReload(err)
   window.location.reload()
 }
 
@@ -433,6 +434,7 @@ export function processMessage(
       ) {
         if (reloading) return
         reloading = true
+        dispatcher.reportHmrReload()
         return window.location.reload()
       }
 
@@ -461,6 +463,7 @@ export function processMessage(
       ) {
         if (reloading) return
         reloading = true
+        dispatcher.reportHmrReload()
         return window.location.reload()
       }
 
@@ -481,6 +484,7 @@ export function processMessage(
       )
       if (reloading) return
       reloading = true
+      dispatcher.reportHmrReload()
       return window.location.reload()
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:

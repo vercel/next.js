@@ -56,6 +56,10 @@ import {
   registerHmrTools,
   dispatchHmrMessage,
   shouldDeferHmrReload,
+  setHmrRendering,
+  trackHmrUpdate,
+  setHmrConnection,
+  reportHmrReload,
 } from './dev-overlay/webmcp'
 import { registerDevToolsTools } from './dev-overlay/webmcp-devtools'
 import type {
@@ -67,6 +71,10 @@ export interface Dispatcher {
   registerHmrTools: typeof registerHmrTools
   dispatchHmrMessage: typeof dispatchHmrMessage
   shouldDeferHmrReload: typeof shouldDeferHmrReload
+  setHmrRendering: typeof setHmrRendering
+  trackHmrUpdate: typeof trackHmrUpdate
+  setHmrConnection: typeof setHmrConnection
+  reportHmrReload: typeof reportHmrReload
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
@@ -159,6 +167,10 @@ export const dispatcher: Dispatcher = {
   registerHmrTools,
   dispatchHmrMessage,
   shouldDeferHmrReload,
+  setHmrRendering,
+  trackHmrUpdate,
+  setHmrConnection,
+  reportHmrReload,
   onBuildOk: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_BUILD_OK })
   }),

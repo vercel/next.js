@@ -1,7 +1,7 @@
 import { HMR_MESSAGE_SENT_TO_BROWSER as HMR } from '../../server/dev/hot-reloader-types'
 import type { HmrMessageSentToBrowser } from '../../server/dev/hot-reloader-types'
 
-type Tool = { name: string; execute: () => Promise<unknown> }
+type Tool = { name: string; execute: () => Promise<any> }
 
 describe('DevTools WebMCP HMR controls', () => {
   let controls: typeof import('./webmcp')
@@ -15,6 +15,14 @@ describe('DevTools WebMCP HMR controls', () => {
   const originalDocument = Object.getOwnPropertyDescriptor(global, 'document')
   const originalNavigator = Object.getOwnPropertyDescriptor(global, 'navigator')
   const originalWindow = Object.getOwnPropertyDescriptor(global, 'window')
+  const originalAnimationFrame = Object.getOwnPropertyDescriptor(
+    global,
+    'requestAnimationFrame'
+  )
+  const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(
+    global,
+    'cancelAnimationFrame'
+  )
 
   beforeEach(() => {
     jest.resetModules()
@@ -44,6 +52,7 @@ describe('DevTools WebMCP HMR controls', () => {
       value: { location: { reload } },
     })
     controls = require('./webmcp') as typeof import('./webmcp')
+    controls.setHmrConnection(true)
   })
 
   afterEach(() => {
@@ -53,6 +62,8 @@ describe('DevTools WebMCP HMR controls', () => {
       ['document', originalDocument],
       ['navigator', originalNavigator],
       ['window', originalWindow],
+      ['requestAnimationFrame', originalAnimationFrame],
+      ['cancelAnimationFrame', originalCancelAnimationFrame],
     ] as const) {
       if (descriptor) Object.defineProperty(global, key, descriptor)
       else Reflect.deleteProperty(global, key)
@@ -70,6 +81,11 @@ describe('DevTools WebMCP HMR controls', () => {
   const receive = (msg: HmrMessageSentToBrowser) =>
     controls.dispatchHmrMessage(msg, received)
   const call = (name: string) => tools.get(name)!.execute()
+  const settledCall = async (name: string) => {
+    const completion = call(name)
+    await jest.advanceTimersByTimeAsync(150)
+    return completion
+  }
 
   it('registers once and preserves application tools', async () => {
     tools.set('application_tool', {
@@ -106,11 +122,11 @@ describe('DevTools WebMCP HMR controls', () => {
 
   it('pauses and resumes idempotently without updating an unchanged page', async () => {
     await controls.registerHmrTools()
-    await call('resume_hmr')
-    await call('pause_hmr')
-    await call('pause_hmr')
-    await call('resume_hmr')
-    await call('resume_hmr')
+    await settledCall('resume_hmr')
+    await settledCall('pause_hmr')
+    await settledCall('pause_hmr')
+    await settledCall('resume_hmr')
+    await settledCall('resume_hmr')
     jest.runAllTimers()
     expect(received).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
@@ -153,7 +169,7 @@ describe('DevTools WebMCP HMR controls', () => {
 
   it('combines Turbopack deltas and reports only the latest build', async () => {
     await controls.registerHmrTools()
-    await call('pause_hmr')
+    await settledCall('pause_hmr')
     const first = {
       ...message(HMR.TURBOPACK_MESSAGE),
       data: [{ revision: 1 }],
@@ -170,7 +186,7 @@ describe('DevTools WebMCP HMR controls', () => {
     receive(last)
     receive(message(HMR.BUILT))
     expect(received).not.toHaveBeenCalled()
-    await call('resume_hmr')
+    await settledCall('resume_hmr')
     jest.runAllTimers()
     expect(received.mock.calls.map(([msg]) => msg.type)).toEqual([
       HMR.BUILDING,
@@ -186,7 +202,7 @@ describe('DevTools WebMCP HMR controls', () => {
 
   it('keeps connection handshakes, debug streams and MCP requests working', async () => {
     await controls.registerHmrTools()
-    await call('pause_hmr')
+    await settledCall('pause_hmr')
     for (const type of [
       HMR.REQUEST_CURRENT_ERROR_STATE,
       HMR.REQUEST_PAGE_METADATA,
@@ -202,14 +218,18 @@ describe('DevTools WebMCP HMR controls', () => {
 
   it('waits for an active rebuild before flushing the buffered batch', async () => {
     await controls.registerHmrTools()
-    await call('pause_hmr')
+    await settledCall('pause_hmr')
     receive(message(HMR.BUILT))
-    await call('resume_hmr')
+    const done = jest.fn()
+    const resume = call('resume_hmr').then(done)
+    await Promise.resolve()
     receive(message(HMR.BUILDING))
-    jest.runAllTimers()
+    await jest.advanceTimersByTimeAsync(150)
     expect(received).not.toHaveBeenCalled()
+    expect(done).not.toHaveBeenCalled()
     receive(message(HMR.BUILT))
-    jest.runAllTimers()
+    await jest.advanceTimersByTimeAsync(150)
+    await resume
     expect(received).toHaveBeenCalledTimes(2)
     expect(reload).not.toHaveBeenCalled()
   })
@@ -218,7 +238,7 @@ describe('DevTools WebMCP HMR controls', () => {
     'shows final %s errors and retains module deltas for recovery',
     async (type) => {
       await controls.registerHmrTools()
-      await call('pause_hmr')
+      await settledCall('pause_hmr')
       const update = message(HMR.TURBOPACK_MESSAGE)
       const error = {
         ...message(type),
@@ -226,7 +246,7 @@ describe('DevTools WebMCP HMR controls', () => {
       } as any
       receive(update)
       receive(error)
-      await call('resume_hmr')
+      await settledCall('resume_hmr')
       jest.runAllTimers()
       expect(received.mock.calls).toEqual([[error]])
       receive(message(HMR.BUILDING))
@@ -241,18 +261,314 @@ describe('DevTools WebMCP HMR controls', () => {
     }
   )
 
-  it('can pause again before flushing and only reloads for a deferred reload', async () => {
+  it('reports a required reload without claiming the new document is ready', async () => {
     await controls.registerHmrTools()
     expect(controls.shouldDeferHmrReload()).toBe(false)
-    await call('pause_hmr')
+    await settledCall('pause_hmr')
     expect(controls.shouldDeferHmrReload()).toBe(true)
-    await call('resume_hmr')
+    const resumed = await call('resume_hmr')
+    expect(resumed.structuredContent).toMatchObject({
+      outcome: 'reload-required',
+      updatesApplied: false,
+      reload: 'scheduled',
+    })
+    expect(reload).not.toHaveBeenCalled()
     await call('pause_hmr')
-    jest.runAllTimers()
+    await jest.advanceTimersByTimeAsync(150)
     expect(reload).not.toHaveBeenCalled()
     await call('resume_hmr')
-    jest.runAllTimers()
+    await jest.advanceTimersByTimeAsync(150)
     expect(reload).toHaveBeenCalledTimes(1)
+    expect(controls.getHmrStatus().pageStatus).toBe('unknown')
+  })
+
+  it('waits for module promises and the router commit before acknowledging resume', async () => {
+    await controls.registerHmrTools()
+    receive(message(HMR.SYNC))
+    await settledCall('pause_hmr')
+    let finishUpdate!: () => void
+    received.mockImplementation((msg) => {
+      if (msg.type === HMR.TURBOPACK_MESSAGE) {
+        controls.trackHmrUpdate(
+          new Promise<void>((resolve) => {
+            finishUpdate = resolve
+          })
+        )
+        controls.setHmrRendering(true)
+      }
+    })
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    receive(message(HMR.BUILT))
+    expect(controls.getHmrStatus()).toMatchObject({
+      hmrState: 'paused',
+      pendingUpdates: 1,
+      pageStatus: 'stale',
+    })
+    const done = jest.fn()
+    const resume = call('resume_hmr').then(done)
+    await jest.advanceTimersByTimeAsync(150)
+    expect(done).not.toHaveBeenCalled()
+    expect(controls.getHmrStatus()).toMatchObject({
+      hmrState: 'applying',
+      pageStatus: 'updating',
+    })
+    finishUpdate()
+    await jest.advanceTimersByTimeAsync(50)
+    expect(done).not.toHaveBeenCalled()
+    controls.setHmrRendering(false)
+    await jest.advanceTimersByTimeAsync(50)
+    await resume
+    expect(done.mock.calls[0][0].structuredContent).toMatchObject({
+      outcome: 'applied',
+      updatesApplied: true,
+      status: {
+        hmrState: 'idle',
+        pendingUpdates: 0,
+        compilationState: 'ready',
+        pageStatus: 'current',
+      },
+    })
+  })
+
+  it('returns a prompt no-op without inventing compilation freshness', async () => {
+    await controls.registerHmrTools()
+    const completion = call('resume_hmr')
+    await jest.advanceTimersByTimeAsync(10)
+    expect((await completion).structuredContent).toMatchObject({
+      outcome: 'no-op',
+      updatesApplied: false,
+      status: { compilationState: 'unknown', pageStatus: 'unknown' },
+    })
+  })
+
+  it('shares concurrent resumes and delivers a buffered update once', async () => {
+    await controls.registerHmrTools()
+    await settledCall('pause_hmr')
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    receive(message(HMR.BUILT))
+    const first = call('resume_hmr')
+    const second = call('resume_hmr')
+    await jest.advanceTimersByTimeAsync(150)
+    expect(await first).toEqual(await second)
+    expect((await first).structuredContent.outcome).toBe('applied')
+    expect(
+      received.mock.calls.filter(([msg]) => msg.type === HMR.TURBOPACK_MESSAGE)
+    ).toHaveLength(1)
+  })
+
+  it('returns compilation diagnostics when blocked and retains deltas for repair', async () => {
+    await controls.registerHmrTools()
+    await settledCall('pause_hmr')
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    receive({
+      ...message(HMR.BUILT),
+      errors: [{ message: 'Unexpected token', moduleName: './app/page.tsx' }],
+    } as any)
+    const blocked = await settledCall('resume_hmr')
+    expect(blocked).toMatchObject({
+      isError: true,
+      structuredContent: {
+        outcome: 'blocked',
+        updatesApplied: false,
+        errors: [{ message: 'Unexpected token', moduleName: './app/page.tsx' }],
+        status: {
+          hmrState: 'idle',
+          pendingUpdates: 1,
+          compilationState: 'error',
+          pageStatus: 'stale',
+        },
+      },
+    })
+    expect(controls.getHmrStatus()).toMatchObject({
+      hmrState: 'idle',
+      compilationState: 'error',
+      pageStatus: 'stale',
+    })
+    receive(message(HMR.BUILDING))
+    receive(message(HMR.BUILT))
+    expect((await settledCall('resume_hmr')).structuredContent).toMatchObject({
+      outcome: 'applied',
+      errors: [],
+    })
+  })
+
+  it('reports a stable blocked status after an error-only batch with no pending updates', async () => {
+    await controls.registerHmrTools()
+    await settledCall('pause_hmr')
+    receive({
+      ...message(HMR.BUILT),
+      errors: [{ message: 'Compilation failed' }],
+    } as any)
+    const blocked = await settledCall('resume_hmr')
+    expect(blocked.structuredContent).toMatchObject({
+      outcome: 'blocked',
+      status: {
+        hmrState: 'idle',
+        pendingUpdates: 0,
+        compilationState: 'error',
+        pageStatus: 'stale',
+      },
+    })
+    await jest.advanceTimersByTimeAsync(1000)
+    expect(controls.getHmrStatus()).toMatchObject({
+      hmrState: 'idle',
+      pendingUpdates: 0,
+      compilationState: 'error',
+      pageStatus: 'stale',
+      lastUpdate: { outcome: 'blocked' },
+      errors: [{ message: 'Compilation failed' }],
+    })
+  })
+
+  it('settles with suspended animation frames only after runtime and render work completes', async () => {
+    const animationFrame = jest.fn(() => 1)
+    const cancelAnimationFrame = jest.fn()
+    Object.defineProperty(global, 'requestAnimationFrame', {
+      configurable: true,
+      value: animationFrame,
+    })
+    Object.defineProperty(global, 'cancelAnimationFrame', {
+      configurable: true,
+      value: cancelAnimationFrame,
+    })
+    await controls.registerHmrTools()
+    receive(message(HMR.SYNC))
+    await settledCall('pause_hmr')
+    let finishUpdate!: () => void
+    received.mockImplementation((msg) => {
+      if (msg.type === HMR.TURBOPACK_MESSAGE) {
+        controls.trackHmrUpdate(
+          new Promise<void>((resolve) => {
+            finishUpdate = resolve
+          })
+        )
+        controls.setHmrRendering(true)
+      }
+    })
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    receive(message(HMR.BUILT))
+    const done = jest.fn()
+    const completion = call('resume_hmr').then(done)
+    await jest.advanceTimersByTimeAsync(500)
+    expect(done).not.toHaveBeenCalled()
+    finishUpdate()
+    await jest.advanceTimersByTimeAsync(500)
+    expect(done).not.toHaveBeenCalled()
+    controls.setHmrRendering(false)
+    await jest.advanceTimersByTimeAsync(110)
+    await completion
+    expect(done.mock.calls[0][0].structuredContent).toMatchObject({
+      outcome: 'applied',
+      updatesApplied: true,
+      status: { hmrState: 'idle', pageStatus: 'current', pendingUpdates: 0 },
+    })
+    expect(animationFrame).toHaveBeenCalled()
+    expect(cancelAnimationFrame).toHaveBeenCalled()
+  })
+
+  it('reports runtime update rejection without leaving resume unresolved', async () => {
+    await controls.registerHmrTools()
+    await settledCall('pause_hmr')
+    received.mockImplementation(() =>
+      controls.trackHmrUpdate(Promise.reject(new Error('Refresh failed')))
+    )
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    expect((await settledCall('resume_hmr')).structuredContent).toMatchObject({
+      outcome: 'blocked',
+      errors: [{ message: 'Refresh failed' }],
+    })
+  })
+
+  it('reports committed render errors and observes their repair through the live getter', async () => {
+    await controls.registerHmrTools()
+    let renderErrors: { message: string }[] = []
+    const detach = controls.setHmrErrorGetter(() => renderErrors)
+    await settledCall('pause_hmr')
+    received.mockImplementation(() => {
+      renderErrors = [{ message: 'Component render failed' }]
+    })
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    receive(message(HMR.BUILT))
+    expect(await settledCall('resume_hmr')).toMatchObject({
+      isError: true,
+      structuredContent: {
+        outcome: 'blocked',
+        errors: [{ message: 'Component render failed' }],
+        status: { hmrState: 'idle', pageStatus: 'stale' },
+      },
+    })
+    // Pausing to repair an errored component must still work.
+    expect((await settledCall('pause_hmr')).structuredContent.outcome).toBe(
+      'paused'
+    )
+    received.mockImplementation(() => {
+      renderErrors = []
+    })
+    receive(message(HMR.BUILDING))
+    receive(message(HMR.TURBOPACK_MESSAGE))
+    receive(message(HMR.BUILT))
+    expect((await settledCall('resume_hmr')).structuredContent).toMatchObject({
+      outcome: 'applied',
+      errors: [],
+    })
+    detach()
+  })
+
+  it('keeps a replacement error getter when the old registration is disposed', async () => {
+    const detach = controls.setHmrErrorGetter(() => [{ message: 'Old error' }])
+    controls.setHmrErrorGetter(() => [{ message: 'Current error' }])
+    detach()
+    expect(controls.getHmrStatus().errors).toEqual([
+      { message: 'Current error' },
+    ])
+  })
+
+  it('preserves reload causes without turning null into an error', async () => {
+    await controls.registerHmrTools()
+    controls.reportHmrReload(null)
+    expect((await call('resume_hmr')).structuredContent.errors).toEqual([])
+    controls.reportHmrReload(new Error('Refresh requires reload'))
+    expect((await call('resume_hmr')).structuredContent).toMatchObject({
+      outcome: 'reload-required',
+      errors: [{ message: 'Refresh requires reload' }],
+    })
+  })
+
+  it('bounds completion waits and never reports a disconnected page as current', async () => {
+    await controls.registerHmrTools()
+    controls.setHmrRendering(true)
+    const completion = call('resume_hmr')
+    await jest.advanceTimersByTimeAsync(30_010)
+    expect(await completion).toMatchObject({
+      isError: true,
+      structuredContent: { outcome: 'timeout', updatesApplied: false },
+    })
+    controls.setHmrRendering(false)
+    controls.setHmrConnection(false)
+    expect((await settledCall('resume_hmr')).structuredContent).toMatchObject({
+      outcome: 'blocked',
+      status: { hmrState: 'unavailable', pageStatus: 'unknown' },
+    })
+  })
+
+  it('does not count metadata or debugging messages as applied updates', async () => {
+    await controls.registerHmrTools()
+    receive(message(HMR.SYNC))
+    await jest.advanceTimersByTimeAsync(10)
+    const before = controls.getHmrStatus()
+    receive(message(HMR.REACT_DEBUG_CHUNK))
+    receive(message(HMR.REQUEST_INSIGHTS_UPDATE))
+    expect(controls.getHmrStatus()).toEqual(before)
+    expect((await settledCall('resume_hmr')).structuredContent.outcome).toBe(
+      'no-op'
+    )
+  })
+
+  it('reports HMR unavailable when its controls have not registered', () => {
+    expect(controls.getHmrStatus()).toMatchObject({
+      hmrState: 'unavailable',
+      pageStatus: 'unknown',
+    })
   })
 
   it.each(['pause_hmr', 'resume_hmr'])(
@@ -263,6 +579,7 @@ describe('DevTools WebMCP HMR controls', () => {
       tools.set(name, existing)
       await controls.registerHmrTools()
       expect([...tools.values()]).toEqual([existing])
+      expect(controls.getHmrStatus().hmrState).toBe('unavailable')
       receive(message(HMR.BUILT))
       expect(received).toHaveBeenCalledTimes(1)
     }

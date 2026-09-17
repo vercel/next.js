@@ -101,9 +101,10 @@ function invoke(name, params = {}) {
   )
   assert.equal(result.status, 'completed')
   assert.notEqual(result.output.isError, true, JSON.stringify(result.output))
-  const text = result.output.content.find((item) => item.type === 'text')?.text
-  assert.equal(typeof text, 'string')
-  return name === 'pause_hmr' || name === 'resume_hmr' ? text : JSON.parse(text)
+  assert.equal(typeof result.output.content[0]?.text, 'string')
+  assert.equal(typeof result.output.structuredContent, 'object')
+  assert.notEqual(result.output.structuredContent, null)
+  return result.output.structuredContent
 }
 
 function inspect(view, params = {}) {
@@ -159,6 +160,7 @@ try {
   }
 
   report.project = inspect('project')
+  report.initialStatus = inspect('status')
   assert.equal(
     realpathSync(report.project.projectPath),
     realpathSync(fixtureDirectory)
@@ -233,6 +235,7 @@ try {
   )
   pauseRequested = true
   report.pause = invoke('pause_hmr')
+  assert.equal(report.pause.status.hmrState, 'paused')
   filesPatched = true
   writeFileSync(counterPath, originalCounter.replace('version-1', 'version-2'))
   writeFileSync(
@@ -254,6 +257,9 @@ try {
     }
   )
   report.pausedPage = assertPage('version-1')
+  report.pausedStatus = inspect('status')
+  assert.equal(report.pausedStatus.hmrState, 'paused')
+  assert.ok(report.pausedStatus.pendingUpdates > 0)
   assert.deepEqual(inspect('errors'), { configErrors: [], sessionErrors: [] })
   report.brokenRoute = invoke('nextjs_compile_route', {
     routeSpecifier: '/unvisited',
@@ -293,12 +299,13 @@ try {
   )
   assertPage('version-1')
   report.resume = invoke('resume_hmr')
-  run(
-    'wait',
-    '--fn',
-    "document.querySelector('#version')?.textContent === 'version-2'"
-  )
+  assert.equal(report.resume.outcome, 'applied')
+  assert.equal(report.resume.status.pageStatus, 'current')
+  // A successful resume is the completion boundary: the very next DOM read
+  // must observe the edit without another wait or retry.
   report.resumedPage = assertPage('version-2')
+  report.finalStatus = inspect('status')
+  assert.equal(report.finalStatus.pendingUpdates, 0)
   report.finalErrors = inspect('errors')
   assert.deepEqual(report.finalErrors, { configErrors: [], sessionErrors: [] })
   report.passed = true

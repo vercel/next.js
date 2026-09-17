@@ -14,14 +14,26 @@ Turbopack; Webpack keeps normal HMR without registering them.
    an active compilation and module update can finish before editing.
 2. Edit `counter.tsx`, including temporary syntax errors. The current page and
    counter stay usable while incoming hot updates and build errors are held.
-3. Finish the edits and call `resume_hmr({})`. Buffered updates are applied
-   together through normal HMR, preserving the counter state.
+3. Finish the edits, check compilation, and await `resume_hmr({})`. A structured
+   `applied` result means the observed buffered updates and tracked rendering
+   completed. Read the updated counter immediately; its state is preserved
+   when Fast Refresh supports it.
+
+Results include `structuredContent` and a concise text summary. Inspect
+`nextjs_inspect({ view: 'status' })` for HMR state, pending updates, compilation
+state, document freshness, and the last update outcome. Freshness describes
+updates the document has observed, not filesystem writes still waiting for the
+server's watcher. A no-change resume returns `no-op`; compilation errors return
+`blocked` with diagnostics, and an incomplete update can return `timeout`.
 
 Pause is scoped to the current document. Other tabs and server compilation
 continue normally. It does not prevent navigation or application requests.
 Normal HMR limitations still apply: restarting the server or changing an
 unsupported Fast Refresh boundary can require a full reload.
-If the final files are still broken, resuming shows their errors normally.
+If the final files are still broken, resuming shows their errors normally and
+reports a blocked outcome. A `reload-required` result describes a scheduled
+reload, not a completed one. Verify the new document after navigation and
+rediscover its tools. Unrelated asynchronous application work is not awaited.
 
 The tools use the [WebMCP imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api),
 preferring `document.modelContext` with support for the older
