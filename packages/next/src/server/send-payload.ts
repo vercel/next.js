@@ -130,11 +130,12 @@ export async function sendRenderResult({
     // Prerender copies page.md into the cache slot. Offer markdown from that
     // payload even when the source file is not on disk at request time
     // (`mode: 'authored'`).
+    const authoredForChoice = precomputedMarkdown
+      ? { ...authored, markdown: authored.markdown ?? precomputedMarkdown }
+      : authored
     const available = representationsForMode(
       markdownAgentsConfig,
-      precomputedMarkdown
-        ? { ...authored, markdown: authored.markdown ?? precomputedMarkdown }
-        : authored
+      authoredForChoice
     )
     const chosen =
       markdownAgentsConfig.suffix && forced && available.includes(forced)
@@ -143,10 +144,20 @@ export async function sendRenderResult({
     const wantsAlternate = Boolean(chosen && chosen !== 'html')
 
     if (wantsAlternate) {
-      // Cached Markdown is the sibling of the static HTML string. A dynamic
-      // result (SSR or PPR resume) must convert at request time so the body
-      // matches the document actually produced.
-      if (chosen === 'markdown' && precomputedMarkdown && !result.isDynamic) {
+      // Auto-converted Markdown depends on the HTML for this request, so a
+      // dynamic result (SSR or PPR resume) must convert at request time.
+      // Authored Markdown (`authored`, or `prefer-authored` with a sibling
+      // file / prerendered cache slot) does not, and can be served as-is.
+      const markdownFromAuthoredSource = !shouldBufferHtmlForAgents(
+        markdownAgentsConfig,
+        authoredForChoice,
+        chosen
+      )
+      if (
+        chosen === 'markdown' &&
+        precomputedMarkdown &&
+        (!result.isDynamic || markdownFromAuthoredSource)
+      ) {
         const originalHtml = payload
         payload = precomputedMarkdown
         markdownApplied = true
@@ -169,7 +180,11 @@ export async function sendRenderResult({
         let html = payload ?? ''
         let consumedDynamic = false
         if (
-          shouldBufferHtmlForAgents(markdownAgentsConfig, authored, chosen) &&
+          shouldBufferHtmlForAgents(
+            markdownAgentsConfig,
+            authoredForChoice,
+            chosen
+          ) &&
           result.isDynamic &&
           payload === null
         ) {
@@ -182,7 +197,7 @@ export async function sendRenderResult({
           html,
           url,
           config: markdownAgentsConfig,
-          authored,
+          authored: authoredForChoice,
           forced: markdownAgentsConfig.suffix ? (forced ?? null) : null,
         })
         if (transformed) {
