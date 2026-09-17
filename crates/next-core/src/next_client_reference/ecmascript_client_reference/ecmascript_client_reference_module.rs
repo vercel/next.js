@@ -83,6 +83,11 @@ impl EcmascriptClientReferenceModule {
         // path, and turbopack's module graph, so it's stripped here — this is purely a
         // user-facing label (embedded in the error strings and passed as the "module path"
         // argument to `registerClientReference`), not something that needs to identify the part.
+        //
+        // This must stay a *stripped copy* of `self.server_ident`, not some other ident (e.g.
+        // `self.client_module.ident()`) — the React Client Manifest keys entries by this same
+        // string elsewhere, so swapping in a differently-shaped ident here breaks that lookup
+        // ("Could not find the module ... in the React Client Manifest").
         let mut canonical_server_ident = self.server_ident.owned().await?;
         canonical_server_ident.parts.clear();
         let server_module_path = &*canonical_server_ident.into_vc().to_string().await?;
