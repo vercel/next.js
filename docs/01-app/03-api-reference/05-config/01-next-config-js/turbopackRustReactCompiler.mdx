@@ -1,12 +1,9 @@
 ---
 title: turbopackRustReactCompiler
 description: Use the native Rust port of the React Compiler with Turbopack instead of the Babel transform.
-version: experimental
 ---
 
 The `experimental.turbopackRustReactCompiler` option enables the native Rust version of the [React Compiler](/docs/app/api-reference/config/next-config-js/reactCompiler), running it directly inside Turbopack as native code instead of through Node.js as it does with the standard Babel version. This typically results in a noticeable performance improvement.
-
-This option is released as experimental to gather feedback before it becomes the default.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -47,6 +44,6 @@ See the [`reactCompiler` option documentation](/docs/app/api-reference/config/ne
 
 ## Version History
 
-| Version   | Changes                                                                                             |
-| --------- | --------------------------------------------------------------------------------------------------- |
-| `v16.3.0` | Introduced the experimental `turbopackRustReactCompiler` option for the native Rust React Compiler. |
+| Version   | Changes                                                                                |
+| --------- | -------------------------------------------------------------------------------------- |
+| `v16.3.0` | Introduced the `turbopackRustReactCompiler` option for the native Rust React Compiler. |

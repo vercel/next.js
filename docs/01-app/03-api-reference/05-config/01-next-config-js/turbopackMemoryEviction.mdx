@@ -14,7 +14,7 @@ Currently there are three options
 - `'auto'` (default): evict after a snapshot only once enough memory has been allocated since the last eviction to make it worthwhile. Leverages thresholds and memory pressure feedback from the operating system.
 - `'full'`: evict all possible data from memory every time we save to disk.
 
-> **Good to know:** This option only has an effect in `next dev` sessions when the [FileSystem Cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled, since eviction relies on data already being persisted to disk. It is experimental and under active development.
+> **Good to know:** This option only has an effect in `next dev` sessions when the [FileSystem Cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled, since eviction relies on data already being persisted to disk.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -41,6 +41,6 @@ module.exports = nextConfig
 
 ## Version Changes
 
-| Version   | Changes                                             |
-| --------- | --------------------------------------------------- |
-| `v16.3.0` | `turbopackMemoryEviction` released as experimental. |
+| Version   | Changes                               |
+| --------- | ------------------------------------- |
+| `v16.3.0` | `turbopackMemoryEviction` introduced. |

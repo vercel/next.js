@@ -1,7 +1,6 @@
 ---
 title: turbopackChunking
 description: Configure how Turbopack splits your client-side JavaScript into chunks in production.
-version: experimental
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -10,8 +9,7 @@ version: experimental
 
 `experimental.turbopackChunking` lets you configure Turbopack's production JavaScript
 chunker. These options allow you to change the assumptions the chunker makes about user
-behavior, tweak the raw size thresholds it uses, and enable the experimental component
-chunks feature.
+behavior, tweak the raw size thresholds it uses, and enable component chunks.
 
 </AppOnly>
 
@@ -126,9 +124,9 @@ being made is costly, however, smaller chunks are more likely to be re-usable ac
 
 ## Component Chunks
 
-Producing component chunks is an experimental feature that aims to give you the initial
-page load benefits of merged chunks without sacrificing reusability. This feature lets
-the runtime dynamically choose whether to load a merged chunk as a single file, or to
+Component chunks provide the initial page load benefits of merged chunks without
+sacrificing reusability. This feature lets the runtime dynamically choose whether to
+load a merged chunk as a single file, or to
 load only the component chunks it doesn't already have. Additionally, chunks that were
 already loaded as part of a merged chunk will not be re-downloaded.
 
