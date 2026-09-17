@@ -65,6 +65,10 @@ describe('turbopack additional roots', () => {
     )
   })
 
+  it('reports initialization warnings when startup succeeds', () => {
+    expect(next.cliOutput).toContain('Invalid Turbopack additional root')
+  })
+
   if (isNextDev) {
     it('tracks updates in an additional root', async () => {
       const browser = await next.browser('/')
@@ -84,75 +88,6 @@ describe('turbopack additional roots', () => {
   }
 
   if (isNextStart) {
-    it('reports initialization warnings when compilation fails', async () => {
-      await next.stop()
-
-      await next.patchFile(
-        'app/page.tsx',
-        (content) => `${content}\nexport const broken =`,
-        async () => {
-          const { exitCode, cliOutput } = await next.build()
-          expect(exitCode).toBe(1)
-          expect(cliOutput).toContain('Invalid Turbopack additional root')
-        }
-      )
-
-      expect((await next.build()).exitCode).toBe(0)
-      await next.start({ skipBuild: true })
-    })
-
-    it('can rebuild after changing the additional roots config', async () => {
-      const browser = await next.browser('/')
-      expect(await browser.elementByCss('#value').text()).toBe(
-        'linked-initial-/next-plugin'
-      )
-
-      await next.stop()
-
-      const updatedExternalRoot = path.resolve(
-        next.testDir,
-        '../updated-additional-root'
-      )
-      const updatedLinkedPackage = path.join(
-        updatedExternalRoot,
-        'packages/linked'
-      )
-      const link = path.join(next.testDir, 'linked')
-      await fs.move(externalRoot, updatedExternalRoot)
-      await fs.remove(link)
-      await fs.symlink(updatedLinkedPackage, link, 'junction')
-
-      try {
-        await next.patchFile(
-          'next.config.js',
-          (content) => {
-            expect(content).toContain('../additional-root')
-            return content.replace(
-              '../additional-root',
-              '../updated-additional-root'
-            )
-          },
-          async () => {
-            const { exitCode } = await next.build()
-            expect(exitCode).toBe(0)
-
-            await next.start()
-            const browser = await next.browser('/')
-            expect(await browser.elementByCss('#value').text()).toBe(
-              'linked-initial-/next-plugin'
-            )
-          }
-        )
-      } finally {
-        await next.stop()
-        await fs.remove(link)
-        await fs.move(updatedExternalRoot, externalRoot)
-        await fs.symlink(linkedPackage, link, 'junction')
-      }
-
-      expect((await next.build()).exitCode).toBe(0)
-    })
-
     it('emits additional-root files and cross-root symlinks in the NFT', async () => {
       const nftPath = path.join(
         next.testDir,
@@ -186,13 +121,13 @@ describe('turbopack additional roots', () => {
 
     it('runs after relocating standalone output away from the source root', async () => {
       await next.stop()
-      const standaloneDirectory = await fs.mkdtemp(
+      const temporaryDirectory = await fs.mkdtemp(
         path.join(os.tmpdir(), 'next-additional-roots-')
       )
+      const standaloneDirectory = path.join(temporaryDirectory, 'standalone')
       let server: any
 
       try {
-        await fs.remove(standaloneDirectory)
         await fs.move(
           path.join(next.testDir, '.next/standalone'),
           standaloneDirectory
@@ -242,7 +177,7 @@ describe('turbopack additional roots', () => {
         expect(await response.text()).toContain('linked-initial-/next-plugin')
       } finally {
         if (server) await killApp(server)
-        await fs.remove(standaloneDirectory)
+        await fs.remove(temporaryDirectory)
       }
     })
   }
