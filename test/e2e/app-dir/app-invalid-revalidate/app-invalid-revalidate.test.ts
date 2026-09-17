@@ -8,7 +8,6 @@ describe.each(['layout', 'page', 'fetch', 'unstable-cache'])(
     const { next, isNextDev } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', fixture),
       skipStart: true,
-      expectDeploymentFailure: true,
       nextConfig: {
         typescript: {
           ignoreBuildErrors: true,
@@ -20,10 +19,11 @@ describe.each(['layout', 'page', 'fetch', 'unstable-cache'])(
     })
 
     it('reports the invalid revalidate value', async () => {
-      await next.start().catch(() => {})
-
       if (isNextDev) {
+        await next.start()
         await next.fetch('/')
+      } else {
+        await expect(next.start()).rejects.toThrow()
       }
 
       await retry(() => {
@@ -33,6 +33,6 @@ describe.each(['layout', 'page', 'fetch', 'unstable-cache'])(
             : /Invalid revalidate value "1" on "\/", must be a non-negative number or false/
         )
       })
-    })
+    }, 240_000) // This test includes the build/deployment, not just runtime assertions.
   }
 )

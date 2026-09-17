@@ -6,7 +6,8 @@ jest.mock('execa', () => jest.fn())
 // Initialize the real harness in deploy mode, without running a deployment.
 const originalMode = process.env.NEXT_TEST_MODE
 process.env.NEXT_TEST_MODE = 'deploy'
-require('../../lib/e2e-utils')
+const { nextTestSetup } =
+  require('../../lib/e2e-utils') as typeof import('../../lib/e2e-utils')
 if (originalMode === undefined) delete process.env.NEXT_TEST_MODE
 else process.env.NEXT_TEST_MODE = originalMode
 
@@ -22,10 +23,10 @@ const ids =
   'BUILD_ID: build-id\nDEPLOYMENT_ID: deployment-id\nNEXT_SUPPORTS_IMMUTABLE_ASSETS: 1'
 type Result = { exitCode: number; stdout: string; stderr: string }
 
-describe('expected deployment failures', () => {
+describe('deployment lifecycle', () => {
   let deployResult: Result
-  let inspection: Result
   let logs: Result
+  let customLogs: Result
 
   beforeEach(() => {
     jest.replaceProperty(process, 'env', {
@@ -42,7 +43,13 @@ describe('expected deployment failures', () => {
       VERCEL_BUILD_CONTAINER_VERSION: '',
     })
     jest.spyOn(require('console'), 'log').mockImplementation(() => {})
+    jest.spyOn(require('console'), 'error').mockImplementation(() => {})
     jest.spyOn(NextInstance.prototype, 'setup').mockResolvedValue()
+    jest
+      .spyOn(NextInstance.prototype, 'destroy')
+      .mockImplementation(async function (this: any) {
+        this.emit('destroy', [])
+      })
     jest
       .spyOn(NextInstance.prototype as any, 'createTestDir')
       .mockResolvedValue(undefined)
@@ -54,12 +61,8 @@ describe('expected deployment failures', () => {
       .mockResolvedValue(undefined)
 
     deployResult = { exitCode: 1, stdout: deploymentUrl, stderr: '' }
-    inspection = {
-      exitCode: 1,
-      stdout: JSON.stringify({ readyState: 'ERROR' }),
-      stderr: '',
-    }
     logs = { exitCode: 1, stdout: '', stderr: diagnostic }
+    customLogs = { ...logs, exitCode: 0 }
 
     jest
       .mocked(execa)
@@ -69,7 +72,9 @@ describe('expected deployment failures', () => {
         if (command === 'mock-deploy') {
           result = deployResult
         } else if (command === 'mock-logs') {
-          result = { ...logs, exitCode: 0 }
+          result = customLogs
+        } else if (command === 'mock-cleanup') {
+          result = { exitCode: 0, stdout: '', stderr: '' }
         } else if (command === 'vercel' && Array.isArray(args)) {
           switch (args[0]) {
             case '--version':
@@ -80,7 +85,7 @@ describe('expected deployment failures', () => {
               result = deployResult
               break
             case 'inspect':
-              result = args.includes('--logs') ? logs : inspection
+              result = logs
               break
             default:
               throw new Error('Unexpected Vercel command')
@@ -96,14 +101,74 @@ describe('expected deployment failures', () => {
     jest.restoreAllMocks()
   })
 
-  function instance(expectDeploymentFailure = true) {
-    return new NextDeployInstance({ files: __dirname, expectDeploymentFailure })
+  async function instance() {
+    const next = new NextDeployInstance({ files: __dirname })
+    await next.setup(trace('test'))
+    return next
   }
 
-  it('exposes a failed Vercel build without requiring successful-build markers', async () => {
-    const next = instance()
-    await next.setup(trace('test'))
-    expect(next.cliOutput).toBe(diagnostic)
+  function setupHarness(skipStart: boolean) {
+    let setup!: () => Promise<void>
+    let teardown!: () => Promise<void>
+    jest.spyOn(global, 'beforeAll').mockImplementation((hook) => {
+      setup = hook as () => Promise<void>
+    })
+    jest.spyOn(global, 'afterAll').mockImplementation((hook) => {
+      teardown = hook as () => Promise<void>
+    })
+    const { next } = nextTestSetup({ files: __dirname, skipStart })
+    return { next, setup, teardown }
+  }
+
+  function successfulDeployment() {
+    deployResult.exitCode = 0
+    logs = { exitCode: 0, stdout: '', stderr: ids }
+    customLogs = logs
+  }
+
+  it('skipStart leaves deployment to the test body, where failures can be asserted', async () => {
+    const { next, setup, teardown } = setupHarness(true)
+    try {
+      await setup()
+      expect(execa).not.toHaveBeenCalled()
+      expect(next.cliOutput).toBe('')
+
+      await expect(next.start()).rejects.toThrow('Failed to deploy project')
+      expect(next.cliOutput).toContain(diagnostic)
+    } finally {
+      await teardown()
+    }
+  })
+
+  it('nextTestSetup still deploys automatically by default', async () => {
+    successfulDeployment()
+    const { next, setup, teardown } = setupHarness(false)
+    try {
+      await setup()
+      expect(next.url).toBe(deploymentUrl)
+      expect(next.buildId).toBe('build-id')
+    } finally {
+      await teardown()
+    }
+  })
+
+  it('an uncaught deployment failure still rejects the default setup hook', async () => {
+    const { setup, teardown } = setupHarness(false)
+    try {
+      await expect(setup()).rejects.toThrow('Failed to deploy project')
+      expect(NextInstance.prototype.destroy).toHaveBeenCalled()
+    } finally {
+      await teardown()
+    }
+  })
+
+  it('collects failed build logs before start rejects, without requiring build IDs', async () => {
+    const next = await instance()
+    deployResult.stderr = 'Build command failed\n'
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    expect(next.cliOutput).toContain(deployResult.stderr)
+    expect(next.cliOutput).toContain(diagnostic)
+    expect(next.buildId).toBeUndefined()
     expect(next.url).toBe(deploymentUrl + '/')
     expect(execa).toHaveBeenCalledWith(
       'vercel',
@@ -112,45 +177,12 @@ describe('expected deployment failures', () => {
     )
   })
 
-  it('rejects an unexpectedly successful deployment', async () => {
-    deployResult.exitCode = 0
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'Expected deployment to fail, but it succeeded'
-    )
-  })
-
-  it('does not accept failure before a deployment URL was returned', async () => {
+  it('retains CLI diagnostics when failure happens before a deployment URL is returned', async () => {
+    const next = await instance()
     deployResult.stdout = ''
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'Failed deployment did not return a valid URL'
-    )
-  })
-
-  it('does not accept a canceled deployment', async () => {
-    inspection.stdout = JSON.stringify({ readyState: 'CANCELED' })
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'Expected deployment state ERROR, received CANCELED'
-    )
-  })
-
-  it('does not accept a failure to inspect the deployment', async () => {
-    inspection = { exitCode: 1, stdout: '', stderr: 'Unauthorized' }
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'Failed to inspect expected failed deployment: Unauthorized'
-    )
-  })
-
-  it('does not accept an invalid log-query invocation', async () => {
-    logs = { exitCode: 2, stdout: '', stderr: 'Invalid arguments' }
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'Failed to get build output logs: Invalid arguments'
-    )
-  })
-
-  it('continues rejecting failed deployments by default', async () => {
-    await expect(instance(false).setup(trace('test'))).rejects.toThrow(
-      'Failed to deploy project'
-    )
+    deployResult.stderr = 'Unauthorized'
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    expect(next.cliOutput).toBe('Unauthorized')
     expect(execa).not.toHaveBeenCalledWith(
       'vercel',
       expect.arrayContaining(['inspect']),
@@ -158,36 +190,124 @@ describe('expected deployment failures', () => {
     )
   })
 
-  it('continues loading successful deployment IDs by default', async () => {
-    deployResult.exitCode = 0
-    logs = { exitCode: 0, stdout: '', stderr: ids }
-    const next = instance(false)
-    await next.setup(trace('test'))
+  it('does not treat a canceled deployment as a successful start', async () => {
+    const next = await instance()
+    logs.stderr = 'Deployment canceled'
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    expect(next.cliOutput).toContain('Deployment canceled')
+  })
+
+  it('retains the deployment error if fetching its logs fails', async () => {
+    const next = await instance()
+    logs = { exitCode: 2, stdout: '', stderr: 'Invalid arguments' }
+    await expect(next.start()).rejects.toMatchObject({
+      message: expect.stringContaining('Failed to deploy project'),
+      cause: expect.objectContaining({
+        message: 'Failed to get build output logs: Invalid arguments',
+      }),
+    })
+  })
+
+  it('loads successful deployment IDs during start', async () => {
+    successfulDeployment()
+    const next = await instance()
+    expect(execa).not.toHaveBeenCalled()
+    await next.start()
     expect(next.buildId).toBe('build-id')
     expect(next.deploymentId).toBe('deployment-id')
   })
 
-  it('accepts a custom deployment script failure and reads its build logs', async () => {
-    process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
-    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
-    const next = instance()
-    await next.setup(trace('test'))
-    expect(next.cliOutput).toBe(diagnostic)
+  it('reuses a deployment for concurrent and subsequent start calls', async () => {
+    successfulDeployment()
+    const next = await instance()
+    await Promise.all([next.start(), next.start()])
+    await next.start()
+    expect(
+      jest.mocked(execa).mock.calls.filter(([, args]) => args?.[0] === 'deploy')
+    ).toHaveLength(1)
   })
 
-  it('rejects an unexpectedly successful custom deployment', async () => {
-    process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
-    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
-    deployResult.exitCode = 0
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'Expected deployment to fail, but it succeeded'
-    )
+  it('can retry a failed start without retaining stale failure logs', async () => {
+    const next = await instance()
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    successfulDeployment()
+    await next.start()
+    expect(next.cliOutput).not.toContain(diagnostic)
+    expect(next.buildId).toBe('build-id')
+    expect(
+      jest.mocked(execa).mock.calls.filter(([, args]) => args?.[0] === 'deploy')
+    ).toHaveLength(2)
   })
 
-  it('requires a new deployment to test an expected build failure', async () => {
+  it('defers custom deployment scripts and exposes their failed build logs', async () => {
+    process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
+    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
+    const next = await instance()
+    expect(execa).not.toHaveBeenCalled()
+    await expect(next.start()).rejects.toThrow('Custom deploy script failed')
+    expect(next.cliOutput).toContain(diagnostic)
+  })
+
+  it('continues loading IDs from successful custom deployments', async () => {
+    process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
+    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
+    successfulDeployment()
+    const next = await instance()
+    await next.start()
+    expect(next.buildId).toBe('build-id')
+    expect(next.deploymentId).toBe('deployment-id')
+  })
+
+  it('does not replace a custom deployment failure when its logs are unavailable', async () => {
+    process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
+    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
+    customLogs = { exitCode: 1, stdout: '', stderr: 'Logs unavailable' }
+    const next = await instance()
+    await expect(next.start()).rejects.toMatchObject({
+      message: expect.stringContaining('Custom deploy script failed'),
+      cause: expect.objectContaining({
+        message: expect.stringContaining('Custom deploy logs script failed'),
+      }),
+    })
+  })
+
+  it('attaches to an existing deployment only on start', async () => {
     process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
-    await expect(instance().setup(trace('test'))).rejects.toThrow(
-      'expectDeploymentFailure requires a new deployment'
+    successfulDeployment()
+    const next = await instance()
+    expect(execa).not.toHaveBeenCalled()
+    await next.start()
+    expect(next.url).toBe(deploymentUrl + '/')
+    expect(next.buildId).toBe('build-id')
+    expect(execa).toHaveBeenCalledTimes(1)
+    expect(execa).toHaveBeenCalledWith(
+      'vercel',
+      ['inspect', '--logs', deploymentUrl + '/'],
+      expect.anything()
     )
+  })
+
+  it('does not run deployment cleanup when start was never called', async () => {
+    process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH = 'mock-cleanup'
+    const next = await instance()
+    await next.destroy()
+    expect(execa).not.toHaveBeenCalled()
+  })
+
+  it('retains logs when attaching to an existing failed deployment', async () => {
+    process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
+    const next = await instance()
+    await expect(next.start()).rejects.toThrow(
+      'Failed to get build output logs'
+    )
+    expect(next.cliOutput).toContain(diagnostic)
+  })
+
+  it('still cleans up a deployment whose start failed', async () => {
+    process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH = 'mock-cleanup'
+    const next = await instance()
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    await next.destroy()
+    expect(execa).toHaveBeenCalledWith('mock-cleanup', [], expect.anything())
   })
 })

@@ -20,11 +20,10 @@ export class NextDeployInstance extends NextInstance {
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
-  private readonly expectDeploymentFailure: boolean
+  private _startPromise: Promise<void> | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
-    this.expectDeploymentFailure = opts.expectDeploymentFailure ?? false
 
     if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
       this.env = {
@@ -80,20 +79,19 @@ export class NextDeployInstance extends NextInstance {
       ...this.env,
     }
 
-    const deployRes = await execa(deployScriptPath, [], {
+    const deployment = execa(deployScriptPath, [], {
       cwd: this.testDir,
       env: scriptEnv,
       reject: false,
-      stderr: 'inherit',
     })
+    deployment.stderr?.pipe(process.stderr)
+    const deployRes = await deployment
 
-    if (this.expectDeploymentFailure && deployRes.exitCode === 0) {
-      throw new Error('Expected deployment to fail, but it succeeded')
-    }
-
-    if (deployRes.exitCode !== 0 && !this.expectDeploymentFailure) {
-      throw new Error(
-        `Custom deploy script failed: ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+    if (deployRes.exitCode !== 0) {
+      await this.throwDeploymentError(
+        deployRes,
+        () => this.fetchBuildLogsUsingCustomScript(),
+        'Custom deploy script failed'
       )
     }
 
@@ -117,58 +115,29 @@ export class NextDeployInstance extends NextInstance {
     return { url }
   }
 
-  private async captureFailedDeployment(
-    result: { exitCode: number; stdout: string },
-    env: NodeJS.ProcessEnv,
-    flags: string[]
-  ): Promise<void> {
-    if (result.exitCode === 0) {
-      throw new Error('Expected deployment to fail, but it succeeded')
-    }
-
-    // An upload/authentication failure is not an expected build failure.
-    let url: URL
-    try {
-      url = new URL(result.stdout.trim())
-      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-        throw new Error('Expected an HTTP(S) deployment URL')
-      }
-    } catch (cause) {
-      throw new Error('Failed deployment did not return a valid URL', { cause })
-    }
-
-    const inspection = await execa(
-      'vercel',
-      ['inspect', url.href, '--format=json', ...flags],
-      { env, reject: false }
+  private async throwDeploymentError(
+    result: { exitCode: number; stdout: string; stderr?: string },
+    fetchBuildLogs: () => Promise<string>,
+    message: string
+  ): Promise<never> {
+    this._cliOutput = result.stdout + (result.stderr || '')
+    const error = new Error(
+      `${message}: ${this._cliOutput} (${result.exitCode})`
     )
-    let readyState: string
+
     try {
-      readyState = JSON.parse(inspection.stdout).readyState
+      // Upload/authentication failures may not have a deployment URL. Retain
+      // their CLI output even when there are no remote build logs to fetch.
+      this._parsedUrl = new URL(result.stdout.trim())
+      this._url = this._parsedUrl.href
+      this._cliOutput += await fetchBuildLogs()
     } catch (cause) {
-      throw new Error(
-        `Failed to inspect expected failed deployment: ${inspection.stderr}`,
-        { cause }
-      )
-    }
-    if (readyState !== 'ERROR') {
-      throw new Error(`Expected deployment state ERROR, received ${readyState}`)
+      error.cause = cause
     }
 
-    const logs = await execa(
-      'vercel',
-      ['inspect', '--logs', url.href, ...flags],
-      { env, reject: false }
-    )
-    // `vercel inspect` itself exits 1 for an ERROR deployment, including
-    // when its build logs were retrieved successfully.
-    if (logs.exitCode !== 0 && logs.exitCode !== 1) {
-      throw new Error(`Failed to get build output logs: ${logs.stderr}`)
-    }
-    this._url = url.href
-    this._parsedUrl = url
-    this._cliOutput = logs.stdout + logs.stderr
-    // Failed builds do not produce the post-build ID markers or a server.
+    // Preserve the instance and its logs for callers that catch start().
+    // Failed builds do not produce the successful-build ID markers.
+    throw error
   }
 
   private async fetchBuildLogsUsingCustomScript(): Promise<string> {
@@ -313,11 +282,21 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
-    super.setup(parentSpan)
+    await super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
     await this.writeMirrorNpmrcIfNecessary()
 
+    if (
+      !process.env.NEXT_TEST_DEPLOY_URL?.trim() &&
+      !process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim() &&
+      !process.env.NEXT_TEST_VERSION
+    ) {
+      await this.prepareLocalPackages(parentSpan)
+    }
+  }
+
+  private async deploy() {
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
       process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
@@ -326,11 +305,6 @@ export class NextDeployInstance extends NextInstance {
 
     // Check if using an existing deployment URL (takes priority)
     if (existingDeployUrl) {
-      if (this.expectDeploymentFailure) {
-        throw new Error(
-          'expectDeploymentFailure requires a new deployment, not NEXT_TEST_DEPLOY_URL'
-        )
-      }
       try {
         this._url = new URL(existingDeployUrl).toString()
       } catch (err) {
@@ -359,12 +333,12 @@ export class NextDeployInstance extends NextInstance {
             reject: false,
           }
         )
+        this._cliOutput = buildLogs.stdout + buildLogs.stderr
         if (buildLogs.exitCode !== 0) {
           throw new Error(
             `Failed to get build output logs: ${buildLogs.stderr}`
           )
         }
-        this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
       this.parseIdsFromCliOutput()
@@ -385,22 +359,14 @@ export class NextDeployInstance extends NextInstance {
       this._parsedUrl = new URL(this._url)
 
       // Configure proxy address if needed
-      if (!this.expectDeploymentFailure) {
-        await this.configureProxyAddress()
-      }
+      await this.configureProxyAddress()
 
       require('console').log(`Deployment URL: ${this._url}`)
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-      if (!this.expectDeploymentFailure) {
-        this.parseIdsFromCliOutput()
-      }
+      this.parseIdsFromCliOutput()
       return
-    }
-
-    if (!process.env.NEXT_TEST_VERSION) {
-      await this.prepareLocalPackages(parentSpan)
     }
 
     // Original Vercel CLI deployment logic
@@ -547,7 +513,7 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
-    const deployRes = await execa(
+    const deployment = execa(
       'vercel',
       [
         'deploy',
@@ -570,21 +536,28 @@ export class NextDeployInstance extends NextInstance {
         cwd: this.testDir,
         env: vercelEnv,
         reject: false,
-        // This will print deployment information earlier to the console so we
-        // don't have to wait until the deployment is complete to get the
-        // inspect URL.
-        stderr: 'inherit',
       }
     )
-
-    if (this.expectDeploymentFailure) {
-      await this.captureFailedDeployment(deployRes, vercelEnv, vercelFlags)
-      return
-    }
+    // Keep showing deployment progress while also retaining failure output.
+    deployment.stderr?.pipe(process.stderr)
+    const deployRes = await deployment
 
     if (deployRes.exitCode !== 0) {
-      throw new Error(
-        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+      await this.throwDeploymentError(
+        deployRes,
+        async () => {
+          const logs = await execa(
+            'vercel',
+            ['inspect', '--logs', this._url, ...vercelFlags],
+            { env: vercelEnv, reject: false }
+          )
+          // inspect exits 1 for a failed deployment even when logs are returned.
+          if (logs.exitCode !== 0 && logs.exitCode !== 1) {
+            throw new Error(`Failed to get build output logs: ${logs.stderr}`)
+          }
+          return logs.stdout + logs.stderr
+        },
+        'Failed to deploy project'
       )
     }
 
@@ -1003,7 +976,7 @@ export class NextDeployInstance extends NextInstance {
     // Run custom cleanup script if provided
     const customCleanupScriptPath =
       process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
-    if (customCleanupScriptPath) {
+    if (customCleanupScriptPath && this._url) {
       await this.cleanupUsingCustomScript().catch((err) => {
         require('console').error(
           'Error running custom cleanup script, continuing with destroy:',
@@ -1052,7 +1025,18 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async start() {
-    // no-op as the deployment is created during setup()
+    this.throwIfUnavailable()
+    if (!this._startPromise) {
+      this._cliOutput = ''
+      this._url = ''
+      // Reuse a ready deployment on subsequent calls, as start() did before
+      // deployment moved out of setup(). A failed attempt can be retried.
+      this._startPromise = this.deploy().catch((error) => {
+        this._startPromise = undefined
+        throw error
+      })
+    }
+    await this._startPromise
   }
 
   public async patchFile(
