@@ -2814,14 +2814,18 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn partial_compaction_retires_fully_consumed_meta_files() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-    let db = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let access_mode = if mmap {
+        AccessMode::Mmap
+    } else {
+        AccessMode::File
+    };
+    let db = open_db::<1>(path, mmap)?;
 
     const KEYS: u32 = 2_000;
     for generation in 0..4u32 {
@@ -2846,7 +2850,7 @@ fn partial_compaction_retires_fully_consumed_meta_files() -> Result<()> {
         .collect::<Vec<_>>();
     assert_eq!(before_meta_sequences.len(), 4);
     assert!(before_meta_sequences.iter().any(|&seq| {
-        MetaFile::open(path, seq, None)
+        MetaFile::open(path, seq, None, access_mode)
             .unwrap()
             .deserialize_used_key_hashes_amqf()
             .unwrap()
@@ -2887,17 +2891,15 @@ fn partial_compaction_retires_fully_consumed_meta_files() -> Result<()> {
     db.full_compact()?;
     let fully_compacted = db.meta_info()?;
     assert_eq!(fully_compacted.len(), 1);
-    let compacted_meta = MetaFile::open(path, fully_compacted[0].sequence_number, None)?;
+    let compacted_meta =
+        MetaFile::open(path, fully_compacted[0].sequence_number, None, access_mode)?;
     assert!(
         compacted_meta.deserialize_used_key_hashes_amqf()?.is_none(),
         "used-key marks should expire instead of being copied into compaction output"
     );
     drop(db);
 
-    let reopened = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let reopened = open_db::<1>(path, mmap)?;
     assert_eq!(reopened.meta_info()?.len(), 1);
     for key in 0..KEYS {
         assert_eq!(
