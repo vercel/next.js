@@ -531,9 +531,12 @@ export function createAppPageEntrypoint({
 
     // PPR shells are generated for streaming metadata. Requests that require
     // blocking metadata must bypass the shell so the prerender and dynamic
-    // render use the same metadata tree.
+    // render use the same metadata tree, unless the page is already fully prerendered.
     const shouldForceDynamicPPRRender =
-      isRoutePPREnabled && !serveStreamingMetadata
+      isRoutePPREnabled &&
+      !serveStreamingMetadata &&
+      !isPrerendered &&
+      !prerenderManifest.routes[normalizedSrcPage]
 
     const isSSG = Boolean(
       (prerenderInfo ||
