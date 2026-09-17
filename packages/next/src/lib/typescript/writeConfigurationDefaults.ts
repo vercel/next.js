@@ -41,10 +41,15 @@ function getDesiredCompilerOptions(
     typeof userTsConfig?.compilerOptions?.module === 'string'
       ? userTsConfig.compilerOptions.module.toLowerCase()
       : undefined
+  // TypeScript 6.0 dropped `moduleResolution: node` (node10) in favor of the
+  // `bundler` mode, which it now allows together with `module: commonjs`.
+  // Older TypeScript versions reject that combination (TS5095), so keep
+  // emitting `node` for them until they are no longer supported.
   const preferBundlerResolution =
     semver.gte(typescriptVersion, '5.0.0') &&
-    configuredModule !== moduleKindCommonJS &&
-    configuredModule !== moduleKindAMD
+    configuredModule !== moduleKindAMD &&
+    (configuredModule !== moduleKindCommonJS ||
+      semver.gte(typescriptVersion, '6.0.0'))
 
   // Jsx
   const jsxEmitReactJSX = 'react-jsx'
