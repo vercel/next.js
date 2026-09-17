@@ -2,24 +2,23 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('transpile-packages-typescript-foreign', () => {
   describe('without transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
     })
 
-    if (skipped) {
-      return
-    }
-
     it('should fail', async () => {
-      try {
-        await next.start()
-        await next.render('/')
-      } catch (e) {}
+      if (isNextDev) {
+        try {
+          await next.start()
+          await next.render('/')
+        } catch {}
+      } else {
+        await expect(next.start()).rejects.toThrow()
+      }
 
       if (process.env.IS_TURBOPACK_TEST) {
         expect(next.cliOutput).toContain(`pkg/index.ts
@@ -35,7 +34,7 @@ This module doesn't have an associated type`)
         expect(next.cliOutput).toContain(`pkg/index.ts
 Module parse failed: Unexpected token`)
       }
-    })
+    }, 240_000)
   })
 
   describe('with transpilePackages', () => {

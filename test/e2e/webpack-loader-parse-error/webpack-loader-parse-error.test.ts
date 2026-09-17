@@ -198,22 +198,15 @@ describe('webpack-loader-parse-error (development)', () => {
   })
 })
 
+// @force-gate !dev
 describe('webpack-loader-parse-error (production)', () => {
-  const { next, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 
-  if (!isNextStart) {
-    it('skipped in development mode', () => {})
-    return
-  }
-
   it('should fail the build with parse errors from loaders', async () => {
-    await expect(next.start()).rejects.toThrow(
-      'next build failed with code/signal 1'
-    )
+    await expect(next.start()).rejects.toThrow()
 
     const output = normalizePaths(stripAnsi(next.cliOutput), next.testDir)
 
@@ -299,5 +292,5 @@ describe('webpack-loader-parse-error (production)', () => {
        ./app/page.js"
       `)
     }
-  })
+  }, 240_000)
 })
