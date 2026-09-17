@@ -430,7 +430,7 @@ impl IndexBlock {
             first_block,
         })
     }
-
+}
 
 impl StaticSortedFile {
     /// Opens an SST file using the configured access mode.
