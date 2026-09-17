@@ -1599,7 +1599,15 @@ async function finishNavigationTask(
       // The route matched, but the request was redirected, so we committed the
       // wrong canonical URL. Re-resolve the route to invalidate the now-stale
       // route cache and correct the URL — but reuse the data we already received
-      // (HistoryTraversal) instead of re-fetching it. See issue #95195.
+      // instead of re-fetching it.
+      //
+      // This is a forward navigation to the redirect destination that happens
+      // to be seeded with the response, so it uses the Default policy (like a
+      // redirect from a Server Action): segments that changed are created from
+      // the seed and scrolled into view like any other navigation. It must not
+      // use HistoryTraversal, which suppresses the scroll and reads the BFCache
+      // regardless of staleness, because back/forward restores a previous
+      // state rather than rendering a new one. See issues #95195 and #98172.
       const isHardRetry = false
       const primaryRequestResult = await primaryRequestPromise
       dispatchRetryDueToTreeMismatch(
@@ -1610,7 +1618,7 @@ async function finishNavigationTask(
         task.route,
         routeCacheEntry,
         navigateType,
-        FreshnessPolicy.HistoryTraversal
+        FreshnessPolicy.Default
       )
       return
     }
@@ -1705,12 +1713,10 @@ function dispatchRetryDueToTreeMismatch(
   // The original navigation's push/replace intent.
   originalNavigateType: 'push' | 'replace',
   // Freshness policy for the retry navigation. `RefreshAll` re-fetches the
-  // tree's dynamic data (used for genuine tree mismatches). `HistoryTraversal`
-  // reuses the data already in the tree (used when only the URL needs
-  // correcting after a redirect).
-  retryFreshnessPolicy:
-    | FreshnessPolicy.RefreshAll
-    | FreshnessPolicy.HistoryTraversal
+  // tree's dynamic data (used for genuine tree mismatches). `Default` reuses
+  // the data already in the tree (used when only the URL needs correcting
+  // after a redirect).
+  retryFreshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.Default
 ) {
   // If the navigation used a route prediction, mark it as having a dynamic
   // rewrite since it resulted in a mismatch.
