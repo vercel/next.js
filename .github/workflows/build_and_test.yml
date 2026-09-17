@@ -663,6 +663,7 @@ jobs:
         # limitations behind the tests that are `ignore`d on wasm.
         export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
         node --test scripts/wasi-test-host/lib.test.mjs
+        node --test packages/next/src/build/swc/wasi-loader.test.mjs
         "${cargo_wasi[@]}" test \
           -p turbo-rcstr \
           -p turbo-tasks \

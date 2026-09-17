@@ -12,9 +12,12 @@
 import { WASI } from 'node:wasi'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 import { createReadCustomSection, parseImportedMemory } from './lib.mjs'
 import { createThreadRuntime } from './spawn.mjs'
+
+const THREAD_WORKER = fileURLToPath(new URL('./thread.mjs', import.meta.url))
 
 const [wasmPath, ...testArgs] = process.argv.slice(2)
 if (!wasmPath) {
@@ -56,13 +59,16 @@ const wasi = new WASI({
  */
 const threadIds = new Int32Array(new SharedArrayBuffer(4))
 
-const { threadSpawn } = createThreadRuntime({
+const { threadSpawn } = await createThreadRuntime({
   module,
   memory,
   threadIds,
-  args,
-  env: process.env,
-  cwd: process.cwd(),
+  workerPath: THREAD_WORKER,
+  workerData: {
+    args,
+    env: process.env,
+    cwd: process.cwd(),
+  },
   onError: (error, threadId) => {
     // A thread that dies takes the process with it, like a real aborted thread would.
     const suffix = threadId === undefined ? '' : ` ${threadId}`
