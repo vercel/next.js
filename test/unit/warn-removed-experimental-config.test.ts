@@ -1,6 +1,5 @@
 import {
   warnOptionHasBeenMovedOutOfExperimental,
-  warnOptionHasBeenMovedToFuture,
   warnOptionHasBeenDeprecated,
 } from 'next/dist/server/config'
 import stripAnsi from 'strip-ansi'
@@ -136,55 +135,21 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       )
     )
   })
-})
 
-describe('warnOptionHasBeenMovedToFuture', () => {
-  let spy: jest.SpyInstance
-  beforeAll(() => {
-    spy = jest.spyOn(console, 'warn').mockImplementation((...args) => {
-      const [prefix, ...restArgs] = args
-      const formattedFirstArg = stripAnsi(prefix)
-      // pass the rest of the arguments to the spied console.warn
-      // @ts-expect-error accessing the mocked console.warn
-      console.warn.mock.calls.push([formattedFirstArg, ...restArgs])
-    })
-  })
-
-  beforeEach(() => {
-    spy.mockClear()
-  })
-
-  it('should not log a warning without the experimental config', () => {
-    warnOptionHasBeenMovedToFuture(
-      {},
-      'someOption',
-      'someOption',
-      'next.config.js',
-      false
-    )
-
-    warnOptionHasBeenMovedToFuture(
-      { experimental: {} },
-      'someOption',
-      'someOption',
-      'next.config.js',
-      false
-    )
-
-    expect(spy).not.toHaveBeenCalled()
-  })
-
-  it('should warn and move the option into `future`', () => {
+  // Promoting an option from the `experimental` stage to the `future` stage is
+  // just a move to a nested key, which this helper already supports. No
+  // `future`-specific helper is needed.
+  it('should move an option into `future`', () => {
     const config = {
       experimental: {
-        someOption: true,
+        someOption: 'value',
       },
     } as any
 
-    warnOptionHasBeenMovedToFuture(
+    warnOptionHasBeenMovedOutOfExperimental(
       config,
       'someOption',
-      'someOption',
+      'future.someOption',
       'next.config.js',
       false
     )
@@ -194,21 +159,20 @@ describe('warnOptionHasBeenMovedToFuture', () => {
         '⚠ `experimental.someOption` has been moved to `future.someOption`. Please update your next.config.js file accordingly.'
       )
     )
-    expect(config.future.someOption).toBe(true)
-    // The old value is left in place, like `warnOptionHasBeenMovedOutOfExperimental` does.
-    expect(config.experimental.someOption).toBe(true)
+    // `config.future` is created on demand.
+    expect(config.future).toEqual({ someOption: 'value' })
   })
 
-  it('should merge into an existing `future` config', () => {
+  it('should move an option into an existing `future` config', () => {
     const config = {
       experimental: { someOption: 'value' },
       future: { otherOption: true },
     } as any
 
-    warnOptionHasBeenMovedToFuture(
+    warnOptionHasBeenMovedOutOfExperimental(
       config,
       'someOption',
-      'renamedOption',
+      'future.renamedOption',
       'next.config.js',
       false
     )
@@ -217,23 +181,6 @@ describe('warnOptionHasBeenMovedToFuture', () => {
       otherOption: true,
       renamedOption: 'value',
     })
-  })
-
-  it('should move the option without warning when silent', () => {
-    const config = {
-      experimental: { someOption: true },
-    } as any
-
-    warnOptionHasBeenMovedToFuture(
-      config,
-      'someOption',
-      'someOption',
-      'next.config.js',
-      true
-    )
-
-    expect(spy).not.toHaveBeenCalled()
-    expect(config.future.someOption).toBe(true)
   })
 })
 

@@ -315,35 +315,6 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   return config
 }
 
-/**
- * Forwards an option that has been promoted from the `experimental` stage to
- * the `future` stage, so that `experimental.<oldExperimentalKey>` keeps working
- * while warning the user to move it to `future.<newFutureKey>`.
- */
-export function warnOptionHasBeenMovedToFuture(
-  config: NextConfig,
-  oldExperimentalKey: string,
-  newFutureKey: string,
-  configFileName: string,
-  silent: boolean
-) {
-  if (config.experimental && oldExperimentalKey in config.experimental) {
-    if (!silent) {
-      Log.warn(
-        `\`experimental.${oldExperimentalKey}\` has been moved to \`future.${newFutureKey}\`. ` +
-          `Please update your ${configFileName} file accordingly.`
-      )
-    }
-
-    config.future ??= {}
-    ;(config.future as any)[newFutureKey] = (config.experimental as any)[
-      oldExperimentalKey
-    ]
-  }
-
-  return config
-}
-
 function warnCustomizedOption(
   config: NextConfig,
   key: string,
