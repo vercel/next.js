@@ -26,13 +26,20 @@ export enum DynamicState {
 }
 
 /**
- * The postponed state for dynamic data.
+ * A postponed state with a resume data cache but no React HTML-resume state.
  */
 export type DynamicDataPostponedState = {
   /**
    * The type of dynamic state.
    */
   readonly type: DynamicState.DATA
+
+  /**
+   * The params to defer during the resumed render. The render uses request
+   * metadata when this field is absent. `null` explicitly means no fallback
+   * params.
+   */
+  readonly stagedFallbackParams?: OpaqueFallbackRouteParams | null
 
   /**
    * The immutable resume data cache.
@@ -48,6 +55,13 @@ export type DynamicHTMLPostponedState = {
    * The type of dynamic state.
    */
   readonly type: DynamicState.HTML
+
+  /**
+   * The params to defer during the resumed render. An HTML state always records
+   * this set, and `null` means the prerender had no fallback params. Unlike the
+   * data state, it never falls back to request metadata.
+   */
+  readonly stagedFallbackParams: OpaqueFallbackRouteParams | null
 
   /**
    * The postponed data used by React.
@@ -156,10 +170,23 @@ export async function getDynamicDataPostponedState(
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
   isCacheComponentsEnabled: boolean,
   maxPostponedStateSizeBytes?: number,
-  disableResumeDataCacheCompression = false
+  disableResumeDataCacheCompression = false,
+  fallbackRouteParams?: OpaqueFallbackRouteParams | null
 ): Promise<string> {
+  let postponedString = 'null'
+  if (fallbackRouteParams !== undefined) {
+    const replacements: OpaqueFallbackRouteParamEntries = fallbackRouteParams
+      ? Array.from(fallbackRouteParams.entries())
+      : []
+    const replacementsString = JSON.stringify(replacements)
+
+    // An empty replacements table records that this shell has no fallback
+    // params.
+    postponedString = `${replacementsString.length}${replacementsString}null`
+  }
+
   return serializePostponedState(
-    'null',
+    postponedString,
     resumeDataCache,
     isCacheComponentsEnabled,
     maxPostponedStateSizeBytes,
@@ -234,6 +261,9 @@ export function parsePostponedState(
 
     try {
       if (postponedString === 'null') {
+        // Leave `stagedFallbackParams` unset for the `4:null<cache>` form. It
+        // contains no fallback-parameter information. A platform can send
+        // `4:nullnull` when it invokes the renderer without a cached shell.
         return { type: DynamicState.DATA, renderResumeDataCache }
       }
 
@@ -254,8 +284,18 @@ export function parsePostponedState(
             match.length + length
           )
         ) as OpaqueFallbackRouteParamEntries
+        const stagedFallbackParams =
+          replacements.length > 0 ? new Map(replacements) : null
 
         let postponed = postponedString.slice(match.length + length)
+        if (postponed === 'null') {
+          return {
+            type: DynamicState.DATA,
+            stagedFallbackParams,
+            renderResumeDataCache,
+          }
+        }
+
         for (const [
           segmentKey,
           [searchValue, dynamicParamType],
@@ -281,6 +321,7 @@ export function parsePostponedState(
 
         return {
           type: DynamicState.HTML,
+          stagedFallbackParams,
           data: JSON.parse(postponed),
           renderResumeDataCache,
         }
@@ -288,6 +329,7 @@ export function parsePostponedState(
 
       return {
         type: DynamicState.HTML,
+        stagedFallbackParams: null,
         data: JSON.parse(postponedString),
         renderResumeDataCache,
       }

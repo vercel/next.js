@@ -11,7 +11,7 @@ describe('ReactRefreshRegression', () => {
     skipStart: true,
     dependencies: {
       'styled-components': '6.1.16',
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       '@mdx-js/loader': '2.2.1',
       '@mdx-js/react': '2.2.1',
     },
@@ -284,7 +284,6 @@ describe('ReactRefreshRegression', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -299,7 +298,6 @@ describe('ReactRefreshRegression', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -314,7 +312,6 @@ describe('ReactRefreshRegression', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",

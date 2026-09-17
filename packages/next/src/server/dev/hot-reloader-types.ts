@@ -42,6 +42,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
+  RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
   REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
@@ -53,6 +54,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
 export const enum HMR_MESSAGE_SENT_TO_SERVER {
   // JSON messages:
   MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
+  RUNTIME_ERRORS = 'runtimeErrors',
   MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
   PING = 'ping',
 }
@@ -65,6 +67,7 @@ export interface ServerErrorMessage {
 export interface TurbopackMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
+  hmrVersion: string
 }
 
 export interface BuildingMessage {
@@ -117,6 +120,7 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  hmrVersion?: string
 }
 
 /**
@@ -151,7 +155,7 @@ export interface DevPagesManifestUpdateMessage {
 
 export interface TurbopackConnectedMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-  data: { sessionId: number }
+  data: { sessionId: number; hmrVersion: string }
 }
 
 export interface AppIsrManifestMessage {
@@ -181,6 +185,68 @@ export interface ErrorsToShowInBrowserMessage {
 export interface RequestCurrentErrorStateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE
   requestId: string
+}
+
+export type RuntimeErrorBoundary = {
+  kind: 'default-global' | 'custom-global' | 'custom'
+  name?: string
+}
+
+export interface RuntimeErrorMetadata {
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+}
+
+export interface FormattedRuntimeError {
+  type: string
+  errorName: string
+  message: string
+  /** A React root failure or a Next.js unrecoverable rendering path. */
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+  stack: Array<{
+    file: string
+    methodName: string
+    line: number | null
+    column: number | null
+  }>
+}
+
+export interface RuntimeErrorStateError {
+  id: number
+  error: {
+    name?: string
+    message?: string
+    stack?: string
+    source: 'server' | 'edge-server' | null
+  } | null
+  frames: readonly {
+    file: string | null
+    methodName: string
+    line1: number | null
+    column1: number | null
+  }[]
+  type: 'runtime' | 'recoverable' | 'console'
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+}
+
+export interface RuntimeErrorStateUpdate {
+  event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
+  pathname: string
+  errorState: {
+    errors: readonly RuntimeErrorStateError[]
+    routerType: 'app' | 'pages'
+  }
+}
+
+export interface RuntimeErrorStateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
+  clientId: string
+  /** The producer document's existing HMR request ID, when available. */
+  htmlRequestId?: string | null
+  pathname: string
+  errors: FormattedRuntimeError[]
 }
 
 export interface RequestPageMetadataMessage {
@@ -219,6 +285,7 @@ export type HmrMessageSentToBrowser =
   | ErrorsToShowInBrowserMessage
   | ReactDebugChunkMessage
   | RequestCurrentErrorStateMessage
+  | RuntimeErrorStateMessage
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
@@ -232,10 +299,15 @@ export type TurbopackMessageSentToBrowser =
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
       data: any
+      hmrVersion: string
     }
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      data: { sessionId: number }
+      data: { sessionId: number; hmrVersion: string }
+    }
+  | {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+      hmrVersion?: string
     }
 
 export interface NextJsHotReloaderInterface {

@@ -1,16 +1,4 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
-import type { Page } from 'playwright'
-
-const browserOptions = {
-  beforePageLoad(page: Page) {
-    // Block all image requests to external hosts immediately so we are not introducing flakes due
-    // to long DNS timeouts
-    page.route(
-      /^https:\/\/(?:customresolver\.com|arbitraryurl\.com)\//,
-      (route) => route.abort()
-    )
-  },
-}
 
 describe('Custom Resolver Tests', () => {
   const { next } = nextTestSetup({
@@ -22,26 +10,30 @@ describe('Custom Resolver Tests', () => {
     it('Should use a custom resolver for image URL', async () => {
       expect(
         await browser().elementById('basic-image').getAttribute('src')
-      ).toBe('https://customresolver.com/foo.jpg?w~~1024,q~~60')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?w~~1024,q~~60'
+      )
     })
     it('should add a srcset based on the custom resolver', async () => {
       expect(
         await browser().elementById('basic-image').getAttribute('srcset')
       ).toBe(
-        'https://customresolver.com/foo.jpg?w~~480,q~~60 1x, https://customresolver.com/foo.jpg?w~~1024,q~~60 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?w~~480,q~~60 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?w~~1024,q~~60 2x'
       )
     })
     it('should support the unoptimized attribute', async () => {
       expect(
         await browser().elementById('unoptimized-image').getAttribute('src')
-      ).toBe('https://arbitraryurl.com/foo.jpg')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg'
+      )
     })
   }
 
   describe('SSR Custom Loader Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/', browserOptions)
+      browser = await next.browser('/')
     })
     runTests(() => browser)
   })
@@ -49,7 +41,7 @@ describe('Custom Resolver Tests', () => {
   describe('Client-side Custom Loader Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/client-side', browserOptions)
+      browser = await next.browser('/client-side')
     })
     runTests(() => browser)
   })

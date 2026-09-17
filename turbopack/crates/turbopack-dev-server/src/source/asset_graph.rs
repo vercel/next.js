@@ -89,7 +89,7 @@ async fn expand(
     let mut assets_set = FxHashSet::default();
     let root_assets_with_path = root_assets
         .iter()
-        .map(|&asset| async move {
+        .map(async |&asset| {
             let path = asset.path().await?;
             Ok((path, asset))
         })
@@ -220,7 +220,7 @@ impl ContentSource for AssetGraphContentSource {
                     )),
                 )
             })
-            .map(|v| async move { v.to_resolved().await })
+            .map(|v| v.to_resolved())
             .try_join()
             .await?;
         Ok(Vc::<RouteTrees>::cell(routes).merge())
@@ -307,7 +307,7 @@ impl Introspectable for AssetGraphContentSource {
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets
             .iter()
-            .map(|&asset| async move {
+            .map(async |&asset| {
                 Ok((
                     rcstr!("root"),
                     IntrospectableOutputAsset::new(*asset).to_resolved().await?,
@@ -320,7 +320,7 @@ impl Introspectable for AssetGraphContentSource {
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|&a| !root_assets.contains(a))
-            .map(|&asset| async move {
+            .map(async |&asset| {
                 Ok((
                     rcstr!("inner"),
                     IntrospectableOutputAsset::new(*asset).to_resolved().await?,
@@ -364,7 +364,7 @@ impl Introspectable for FullyExpanded {
         let expanded_assets = expand(&*source.root_assets.await?, &source.root_path, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| async move {
+            .map(async |(_k, &v)| {
                 Ok((
                     rcstr!("asset"),
                     IntrospectableOutputAsset::new(*v).to_resolved().await?,

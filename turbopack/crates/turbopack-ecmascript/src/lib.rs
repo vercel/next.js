@@ -1,6 +1,6 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
@@ -9,11 +9,14 @@
 
 pub mod analyzer;
 pub mod annotations;
+pub mod ast_path_trie;
 pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
 pub mod code_gen;
+mod collect_module;
+mod directive;
 pub mod embed_js;
 mod errors;
 pub mod hmr;
@@ -22,6 +25,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_canonicalization;
 pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
@@ -80,9 +84,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
-    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
-    trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
+    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -104,16 +108,18 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::graph::EvalContext,
+    analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
+    ast_path_trie::AstPathTrie,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
-    path_visitor::ApplyVisitors,
+    path_visitor::{ApplyVisitors, Visitors},
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
@@ -239,7 +245,16 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    /// Whether to shorten ("mangle") the export names this module exposes to other modules, to
+    /// reduce output size. Defaults to false. See
+    /// `references::esm::mangle::mangled_export_names`.
+    pub mangle_export_names: bool,
+    /// Whether to scope hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
+    /// Whether to enable cross-module constant inlining. Defaults to false.
+    pub cross_module_constants: bool,
+    /// Whether dynamic import targets are compiled after their runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -418,10 +433,41 @@ pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Default, Debug)]
+pub struct EnvVarInfo {
+    /// List of environment variables accessed at runtime (not inlined) in the module.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    // TODO add this back once we can do it without regressing performance
+    // Whether the module potentially references all environment variables (because of a
+    // non-statically analyzeable `process.env`).
+    // pub runtime_all: Option<IssueSource>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum EnvVarAccessMode {
+    /// The value is read.
+    Read,
+    /// Only the existence of the variable is checked, we only care about unset vs falsy vs truthy.
+    Existence,
+}
+
+#[turbo_tasks::value_impl]
+impl EnvVarInfo {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+
+    #[turbo_tasks::function]
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
@@ -585,6 +631,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         analyze_ecmascript_module(self, None)
     }
 
+    #[turbo_tasks::function]
+    async fn env_var_info(self: Vc<Self>) -> Result<Vc<EnvVarInfo>> {
+        Ok(*self.analyze().await?.env_var_info)
+    }
+
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
     #[turbo_tasks::function]
@@ -741,6 +792,45 @@ impl EcmascriptModuleAsset {
     }
 }
 
+/// Computes a module's side effects from parse data only.
+///
+/// This intentionally stays independent of [`EcmascriptModuleAsset::analyze`], since side-effect
+/// information is needed while resolving references during analysis.
+#[turbo_tasks::function]
+async fn compute_ecmascript_module_side_effects(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Vc<ModuleSideEffects>> {
+    let options = module.options().await?;
+    let parsed = module.failsafe_parse().await?;
+    let ParseResult::Ok {
+        program,
+        globals,
+        eval_context,
+        comments,
+        ..
+    } = &*parsed
+    else {
+        return Ok(ModuleSideEffects::SideEffectful.cell());
+    };
+
+    let directives = parse_module_turbopack_directives(program);
+    let side_effects = if directives.no_side_effects {
+        ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module && options.cross_module_constants {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // constant folding would not be safe.
+        ModuleSideEffects::SideEffectFree
+    } else if options.infer_module_side_effects {
+        GLOBALS.set(globals, || {
+            compute_module_evaluation_side_effects(program, comments, eval_context.unresolved_mark)
+        })
+    } else {
+        ModuleSideEffects::SideEffectful
+    };
+
+    Ok(side_effects.cell())
+}
+
 impl EcmascriptModuleAsset {
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
@@ -832,7 +922,7 @@ impl Module for EcmascriptModuleAsset {
         {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
-            SideEffectsDeclaration::None => self.analyze().await?.side_effects,
+            SideEffectsDeclaration::None => *compute_ecmascript_module_side_effects(self).await?,
         })
         .cell())
     }
@@ -972,7 +1062,7 @@ impl EcmascriptModuleContentOptions {
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         eval_context: &EvalContext,
-    ) -> Result<Vec<CodeGeneration>> {
+    ) -> Result<(Vec<CodeGeneration>, ReadRef<CodeGens>)> {
         // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
         // has consumed the cell already.
         let EcmascriptModuleContentOptions {
@@ -1032,11 +1122,13 @@ impl EcmascriptModuleContentOptions {
                 .try_join()
                 .await?;
 
+            let code_generation = code_generation.await?;
             let code_gens = code_generation
-                .await?
+                .code_gens
                 .iter()
                 .map(|c| {
                     c.code_generation(
+                        &code_generation.ast_paths,
                         **chunking_context,
                         scope_hoisting_context,
                         *module,
@@ -1046,14 +1138,15 @@ impl EcmascriptModuleContentOptions {
                 .try_join()
                 .await?;
 
-            anyhow::Ok(
+            anyhow::Ok((
                 part_code_gens
                     .into_iter()
                     .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens)
                     .collect(),
-            )
+                code_generation,
+            ))
         }
         .instrument(tracing::info_span!("precompute code generation"))
         .await
@@ -1307,10 +1400,12 @@ async fn merge_modules(
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
             FxHashMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-        /// For a given module, the `eval_context.imports.exports`. So for a given export, this
+        /// For a given module, the `eval_context.imports.exports_ids`. So for a given export, this
         /// allows looking up the corresponding local binding's name and context.
-        export_contexts:
-            &'a FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, &'a FxHashMap<RcStr, Id>>,
+        export_contexts: &'a FxHashMap<
+            ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+            &'a FxHashMap<RcStr, (Id, Span)>,
+        >,
         /// A fresh global SyntaxContext for each module-local context, so that we can merge them
         /// into a single global AST.
         unique_contexts_cache: &'a mut FxHashMap<
@@ -1351,7 +1446,7 @@ async fn merge_modules(
                 // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
                 // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
-                let (local, local_ctxt) = if let Some((local, local_ctxt)) =
+                let (local, local_ctxt) = if let Some(((local, local_ctxt), _)) =
                     eval_context_exports.get(&sym_rc_str)
                 {
                     (Some(local), *local_ctxt)
@@ -1783,10 +1878,10 @@ struct CodeGenResult {
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     #[allow(clippy::type_complexity)]
-    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports`)
+    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
         FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
-        FxHashMap<RcStr, Id>,
+        FxHashMap<RcStr, (Id, Span)>,
     )>,
 }
 
@@ -1828,7 +1923,7 @@ async fn process_parse_result(
                 )
                 .into_inner();
 
-            let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
+            let (mut code_gens, ast_paths, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
                     let is_import_mark = GLOBALS.set(globals, || Mark::new());
 
@@ -1840,7 +1935,7 @@ async fn process_parse_result(
                         is_import_mark,
                         globals,
                     };
-                    let code_gens = options
+                    let (code_gens, ast_paths) = options
                         .unwrap()
                         .merged_code_gens(
                             ctx,
@@ -1865,7 +1960,7 @@ async fn process_parse_result(
                                 .iter()
                                 .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
                                 .map(|(name, e)| {
-                                    if let Some((sym, ctxt)) = export_contexts.get(name) {
+                                    if let Some(((sym, ctxt), _)) = export_contexts.get(name) {
                                         Ok((sym.clone(), *ctxt))
                                     } else {
                                         bail!("Couldn't find export {} for binding {:?}", name, e);
@@ -1887,6 +1982,7 @@ async fn process_parse_result(
 
                     (
                         code_gens,
+                        Some(ast_paths),
                         Some((
                             is_import_mark,
                             module_syntax_contexts_cache,
@@ -1896,21 +1992,18 @@ async fn process_parse_result(
                         prepend_ident_comment,
                     )
                 } else if let Some(options) = options {
-                    (
-                        options
-                            .merged_code_gens(
-                                ScopeHoistingContext::None,
-                                match &eval_context {
-                                    Either::Left(e) => e,
-                                    Either::Right(e) => e,
-                                },
-                            )
-                            .await?,
-                        None,
-                        None,
-                    )
+                    let (code_gens, ast_paths) = options
+                        .merged_code_gens(
+                            ScopeHoistingContext::None,
+                            match &eval_context {
+                                Either::Left(e) => e,
+                                Either::Right(e) => e,
+                            },
+                        )
+                        .await?;
+                    (code_gens, Some(ast_paths), None, None)
                 } else {
-                    (vec![], None, None)
+                    (vec![], None, None, None)
                 };
 
             let extra_comments = SwcComments {
@@ -1918,8 +2011,12 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            let early_hoisted_count =
-                process_content_with_code_gens(&mut program, globals, &mut code_gens);
+            let early_hoisted_count = process_content_with_code_gens(
+                &mut program,
+                globals,
+                ast_paths.as_deref().map(|p| &p.ast_paths),
+                &mut code_gens,
+            );
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -2283,6 +2380,7 @@ async fn emit_content(
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
+    trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
 ) -> usize {
     let mut visitors = Vec::new();
@@ -2305,20 +2403,24 @@ fn process_content_with_code_gens(
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
-            if path.is_empty() {
+            if path.is_root() {
                 root_visitors.push(&**visitor);
             } else {
-                visitors.push((path, &**visitor));
+                visitors.push((*path, &**visitor));
             }
         }
     }
 
     GLOBALS.set(globals, || {
         if !visitors.is_empty() {
-            program.visit_mut_with_ast_path(
-                &mut ApplyVisitors::new(visitors),
-                &mut Default::default(),
-            );
+            let trie = trie.expect("code gens with visitors always come with their trie");
+            let visitors = Visitors::new(trie, visitors);
+            if !visitors.is_empty() {
+                program.visit_mut_with_ast_path(
+                    &mut ApplyVisitors::new(&visitors),
+                    &mut Default::default(),
+                );
+            }
         }
         for pass in root_visitors {
             program.modify(pass);

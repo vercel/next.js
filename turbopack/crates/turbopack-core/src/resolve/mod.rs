@@ -17,10 +17,10 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
 
 use crate::{
@@ -176,6 +176,16 @@ pub enum ExportUsage {
     All,
     /// Only side effects are used.
     Evaluation,
+    /// Use the same exports that are used from the referencing module. This is used by transparent
+    /// module proxies and re-exports that forward their export surface to another module.
+    ///
+    /// Namespace provenance that reached the referencing module is forwarded independently of the
+    /// used names. This keeps multi-hop namespace reads safe for export-name mangling.
+    Passthrough {
+        /// Whether this edge itself exposes a namespace object's original property names, even if
+        /// the referencing module was only consumed through statically known named exports.
+        namespace_object_may_escape: bool,
+    },
 }
 
 impl Display for ExportUsage {
@@ -194,6 +204,18 @@ impl Display for ExportUsage {
             }
             ExportUsage::All => write!(f, "all"),
             ExportUsage::Evaluation => write!(f, "evaluation"),
+            ExportUsage::Passthrough {
+                namespace_object_may_escape,
+                ..
+            } => write!(
+                f,
+                "passthrough{}",
+                if *namespace_object_may_escape {
+                    " namespace"
+                } else {
+                    ""
+                }
+            ),
         }
     }
 }
@@ -213,6 +235,14 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn passthrough(namespace_object_may_escape: bool) -> Vc<Self> {
+        Self::Passthrough {
+            namespace_object_may_escape,
+        }
+        .cell()
     }
 }
 
@@ -316,12 +346,15 @@ impl ModuleResolveResult {
     /// Returns primary modules (no duplicates). Emits errors for Unknown items.
     /// Duplicates are already marked at construction time so no extra dedup is
     /// needed here.
-    pub async fn primary_modules(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>> {
         self.primary
             .iter()
             .map(async |(_, item)| item.as_module().await)
-            .try_flat_join()
+            .join()
             .await
+            .into_iter()
+            .filter_map(Result::transpose)
+            .collect()
     }
 
     /// Returns the first module in the result, or None.
@@ -890,7 +923,7 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn as_raw_module_result(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(self
-            .map_module(|asset| async move {
+            .map_module(async |asset| {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
                     RawModule::new(*asset).to_resolved().await?,
                 )))
@@ -1120,7 +1153,9 @@ async fn type_exists(
     ty: FileSystemEntryType,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
 ) -> Result<Option<FileSystemPath>> {
-    let path = realpath(fs_path, refs).await?;
+    let Some(path) = realpath_if_exists(fs_path, refs).await? else {
+        return Ok(None);
+    };
     Ok(if *path.get_type().await? == ty {
         Some(path)
     } else {
@@ -1128,17 +1163,17 @@ async fn type_exists(
     })
 }
 
-async fn realpath(
+async fn realpath_if_exists(
     fs_path: &FileSystemPath,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
-) -> Result<FileSystemPath> {
+) -> Result<Option<FileSystemPath>> {
     let result = fs_path.realpath_with_links().await?;
     if let Some(refs) = refs {
         refs.extend(
             result
                 .symlinks
                 .iter()
-                .map(|path| async move {
+                .map(async |path| {
                     Ok(ResolvedVc::upcast(
                         FileSource::new(path.clone()).to_resolved().await?,
                     ))
@@ -1148,8 +1183,9 @@ async fn realpath(
         );
     }
     match &result.path_result {
-        Ok(path) => Ok(path.clone()),
-        Err(e) => bail!(e.as_error_message(fs_path, &result).await?),
+        Ok(path) => Ok(Some(path.clone())),
+        Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => Ok(None),
+        Err(error) => bail!(error.clone()),
     }
 }
 
@@ -1378,14 +1414,17 @@ async fn find_package(
                                     .await?;
                             for m in &*matches {
                                 if let PatternMatch::Directory(_, package_dir) = m {
+                                    let Some(dir) = realpath_if_exists(
+                                        package_dir,
+                                        collect_affecting_sources.then_some(&mut affecting_sources),
+                                    )
+                                    .await?
+                                    else {
+                                        continue;
+                                    };
                                     packages.push(FindPackageItem::PackageDirectory {
                                         name: get_package_name(&fs_path, package_dir)?,
-                                        dir: realpath(
-                                            package_dir,
-                                            collect_affecting_sources
-                                                .then_some(&mut affecting_sources),
-                                        )
-                                        .await?,
+                                        dir,
                                     });
                                 }
                             }
@@ -1408,23 +1447,31 @@ async fn find_package(
                 for m in &*matches {
                     match m {
                         PatternMatch::Directory(_, package_dir) => {
+                            let Some(resolved_dir) = realpath_if_exists(
+                                package_dir,
+                                collect_affecting_sources.then_some(&mut affecting_sources),
+                            )
+                            .await?
+                            else {
+                                continue;
+                            };
                             packages.push(FindPackageItem::PackageDirectory {
                                 name: get_package_name(dir, package_dir)?,
-                                dir: realpath(
-                                    package_dir,
-                                    collect_affecting_sources.then_some(&mut affecting_sources),
-                                )
-                                .await?,
+                                dir: resolved_dir,
                             });
                         }
                         PatternMatch::File(_, package_file) => {
+                            let Some(file) = realpath_if_exists(
+                                package_file,
+                                collect_affecting_sources.then_some(&mut affecting_sources),
+                            )
+                            .await?
+                            else {
+                                continue;
+                            };
                             packages.push(FindPackageItem::PackageFile {
                                 name: get_package_name(dir, package_file)?,
-                                file: realpath(
-                                    package_file,
-                                    collect_affecting_sources.then_some(&mut affecting_sources),
-                                )
-                                .await?,
+                                file,
                             });
                         }
                     }
@@ -1447,13 +1494,17 @@ async fn find_package(
                         .await?;
                 for m in &matches {
                     if let PatternMatch::File(_, package_file) = m {
+                        let Some(file) = realpath_if_exists(
+                            package_file,
+                            collect_affecting_sources.then_some(&mut affecting_sources),
+                        )
+                        .await?
+                        else {
+                            continue;
+                        };
                         packages.push(FindPackageItem::PackageFile {
                             name: get_package_name(dir, package_file)?,
-                            file: realpath(
-                                package_file,
-                                collect_affecting_sources.then_some(&mut affecting_sources),
-                            )
-                            .await?,
+                            file,
                         });
                     }
                 }
@@ -1511,7 +1562,7 @@ pub async fn resolve_raw(
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(path, result).await?),
+            Err(error) => bail!(error.clone()),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
@@ -1540,7 +1591,7 @@ pub async fn resolve_raw(
     ) -> Result<Vec<Vc<ResolveResult>>> {
         Ok(matches
             .iter()
-            .map(|m| async move {
+            .map(async |m| {
                 Ok(if let PatternMatch::File(request, path) = m {
                     Some(to_result(request.clone(), path, collect_affecting_sources).await?)
                 } else {
@@ -1930,9 +1981,7 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| async {
-                        resolve_internal_inline(lookup_path.clone(), **req, options).await
-                    })
+                    .map(|req| resolve_internal_inline(lookup_path.clone(), **req, options))
                     .try_join()
                     .await?;
 
@@ -2027,30 +2076,35 @@ async fn resolve_internal_inline(
                 new_pat.push_front(rcstr!(".").into());
                 let relative = Request::relative(new_pat, query.clone(), fragment.clone(), true);
 
-                if !has_alias {
-                    ResolvingIssue {
-                        severity: resolve_error_severity(options).await?,
-                        request_type: "server relative import: not implemented yet".to_string(),
-                        request: relative.to_resolved().await?,
-                        file_path: lookup_path.clone(),
-                        resolve_options: options.to_resolved().await?,
-                        error_message: Some(
-                            "server relative imports are not implemented yet. Please try an \
-                             import relative to the file you are importing from."
-                                .to_string(),
-                        ),
-                        source: None,
+                // A `/`-rooted request is resolved from `server_relative_root`. It is not resolved
+                // relative to the importing file, and it does not fall back to a wider directory,
+                // so it can't reach outside of that root.
+                if let Some(root) = &options_value.server_relative_root {
+                    Box::pin(resolve_internal_inline(root.clone(), relative, options)).await?
+                } else {
+                    // Without a root configured there is nothing to resolve this from, so it isn't
+                    // supported. Guessing at the root of the filesystem would silently resolve or
+                    // silently fail depending on what happens to live there.
+                    if !has_alias {
+                        ResolvingIssue {
+                            severity: resolve_error_severity(options).await?,
+                            request_type: "server relative import: not implemented yet".to_string(),
+                            request: relative.to_resolved().await?,
+                            file_path: lookup_path.clone(),
+                            resolve_options: options.to_resolved().await?,
+                            error_message: Some(
+                                "server relative imports are not implemented yet. Please try an \
+                                 import relative to the file you are importing from."
+                                    .to_string(),
+                            ),
+                            source: None,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
-                }
 
-                Box::pin(resolve_internal_inline(
-                    lookup_path.root().owned().await?,
-                    relative,
-                    options,
-                ))
-                .await?
+                    ResolveResult::unresolvable().cell()
+                }
             }
             Request::Windows {
                 path: _,
@@ -3119,7 +3173,7 @@ async fn resolved(
     let result = &*fs_path.realpath_with_links().await?;
     let path = match &result.path_result {
         Ok(path) => path,
-        Err(e) => bail!(e.as_error_message(&fs_path, result).await?),
+        Err(error) => bail!(error.clone()),
     };
 
     let path_ref = path.clone();
@@ -3128,7 +3182,7 @@ async fn resolved(
         path.parent(),
         options,
         options_value,
-        |package_path| package_path.get_relative_path_to(&path_ref),
+        |package_path| package_path.get_relative_request_to(&path_ref),
         query.clone(),
         fragment.clone(),
     )
@@ -3169,7 +3223,7 @@ async fn resolved(
                 result
                     .symlinks
                     .iter()
-                    .map(|symlink| async move {
+                    .map(async |symlink| {
                         anyhow::Ok(ResolvedVc::upcast(
                             FileSource::new(symlink.clone()).to_resolved().await?,
                         ))
@@ -3440,18 +3494,62 @@ mod tests {
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
 
+    use super::*;
     use crate::{
-        asset::AssetContent,
-        module::Module,
-        raw_module::RawModule,
-        resolve::{
-            ModuleResolveResult, ModuleResolveResultBuilder, ModuleResolveResultItem, RequestKey,
-            ResolveResult, ResolveResultItem, node::node_esm_resolve_options, parse::Request,
-            pattern::Pattern,
-        },
-        source::Source,
+        asset::AssetContent, module::Module, raw_module::RawModule, source::Source,
         virtual_source::VirtualSource,
     };
+
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_missing_paths_through_symlinks_do_not_error() {
+        use std::os::unix::fs::symlink;
+
+        #[turbo_tasks::value]
+        struct MissingPathsResult {
+            missing_file: bool,
+            dangling_package: bool,
+        }
+
+        let scratch = tempfile::tempdir().unwrap();
+        create_dir_all(scratch.path().join("package")).unwrap();
+        symlink("package", scratch.path().join("linked-package")).unwrap();
+        symlink("missing-package", scratch.path().join("dangling-package")).unwrap();
+
+        let path = RcStr::from(scratch.path().to_str().unwrap());
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        #[turbo_tasks::function(operation, root)]
+        async fn missing_paths_through_symlinks_operation(
+            path: RcStr,
+        ) -> Result<Vc<MissingPathsResult>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
+            let root = fs.root().owned().await?;
+            let missing_file = root.join("linked-package/package.json")?;
+            let dangling_package = root.join("dangling-package")?;
+
+            Ok(MissingPathsResult {
+                missing_file: realpath_if_exists(&missing_file, None).await?.is_none(),
+                dangling_package: realpath_if_exists(&dangling_package, None).await?.is_none(),
+            }
+            .cell())
+        }
+
+        tt.run_once(async move {
+            let missing = missing_paths_through_symlinks_operation(path)
+                .read_strongly_consistent()
+                .await?;
+            assert!(missing.missing_file);
+            assert!(missing.dangling_package);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_explicit_js_resolves_to_ts() {
@@ -3815,7 +3913,7 @@ mod tests {
                 force_in_lookup_dir,
                 fragment,
             } => {
-                super::resolve_relative_request(
+                resolve_relative_request(
                     lookup_path,
                     request,
                     options,
@@ -3896,7 +3994,7 @@ mod tests {
 
             // primary_modules() yields each module exactly once, in first-seen order.
             let modules = result.primary_modules().await?;
-            assert_eq!(modules, vec![m_a, m_b]);
+            assert_eq!(modules.as_slice(), [m_a, m_b]);
 
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
@@ -3930,7 +4028,7 @@ mod tests {
             .await?;
 
             assert_eq!(result.first_module().await?, Some(m));
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -3972,7 +4070,7 @@ mod tests {
                 ModuleResolveResultItem::Module(m),
             );
             let result: ModuleResolveResult = builder.into();
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4009,7 +4107,7 @@ mod tests {
             let r2 = *ModuleResolveResult::module(m_b);
 
             let merged = ModuleResolveResult::alternatives(vec![r1, r2]).await?;
-            assert_eq!(merged.primary_modules().await?, vec![m_a, m_b]);
+            assert_eq!(merged.primary_modules().await?.as_slice(), [m_a, m_b]);
 
             // Verify every Duplicate(i) is well-formed
             for (i, (_, item)) in merged.primary.iter().enumerate() {

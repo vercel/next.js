@@ -33,7 +33,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     module_fragments::part::module::EcmascriptModulePartAsset,
-    references::esm::base::ReferencedAsset,
+    references::esm::{base::ReferencedAsset, mangle::mangled_export_names},
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     utils::module_id_to_lit,
 };
@@ -375,7 +375,7 @@ async fn get_all_export_names(
     let star_export_names = exports
         .star_exports
         .iter()
-        .map(|esm_ref| async {
+        .map(async |esm_ref| {
             Ok(
                 if let ReferencedAsset::Some(m) =
                     ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
@@ -533,6 +533,10 @@ pub struct EsmExports {
     pub exports: FrozenMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    /// Whether the keys these exports are emitted under may be shortened. Carried with the exports
+    /// so a module deriving its exports from another (facade, locals, part, rename) inherits it.
+    /// `mangle::mangled_export_names` decides whether they actually are.
+    pub mangle_export_names: bool,
 }
 
 /// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
@@ -571,6 +575,9 @@ impl EsmExports {
             EsmExports {
                 exports: FrozenMap::from(exports),
                 star_exports: vec![module_reference],
+                // These facades exist so that a host framework can find the wrapped module's
+                // exports by name, so their keys have to stay as written.
+                mangle_export_names: false,
             }
             .resolved_cell(),
         )
@@ -697,6 +704,9 @@ impl EsmExports {
         }
 
         let mut getters = Vec::new();
+        // The keys this module's exports are emitted under. Consumers resolve the same map for this
+        // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
+        let mangled_names = mangled_export_names(*module, chunking_context).await?;
         for (exported, local) in &expanded.exports {
             let exprs: ExportBinding = match local {
                 EsmExport::Error => ExportBinding::Getter(quote!(
@@ -706,8 +716,11 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some((local, ctxt)) =
-                        eval_context.imports.exports_ids.get(exported)
+                    let binding = if let Some((local, ctxt)) = eval_context
+                        .imports
+                        .exports_ids
+                        .get(exported)
+                        .map(|(id, _)| id)
                     {
                         Some((local.clone(), *ctxt))
                     } else {
@@ -836,7 +849,14 @@ impl EsmExports {
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
-                        value: exported.as_str().into(),
+                        // The key this export is emitted under: the mangled one when this module's
+                        // names are shortened, otherwise the original.
+                        value: mangled_names
+                            .as_ref()
+                            .and_then(|names| names.get(exported))
+                            .unwrap_or(exported)
+                            .as_str()
+                            .into(),
                         raw: None,
                     }))
                     .into(),

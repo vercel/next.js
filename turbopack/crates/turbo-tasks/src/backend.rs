@@ -29,11 +29,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
-    CellId, RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
-    ValueTypePersistence, VcValueTrait, VcValueType,
+    CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
+    TaskId, TaskIdSet, TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic,
+    ValueTypeId, ValueTypePersistence, VcValueTrait, VcValueType,
     dyn_task_inputs::{DynTaskInputs, DynTaskInputsStorage},
-    event::EventListener,
     macro_helpers::NativeFunction,
     manager::{TaskPersistence, TurboTasks},
     registry,
@@ -654,7 +653,7 @@ pub trait Backend: Sized + Sync + Send {
         reader: Option<TaskId>,
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<Self>,
-    ) -> Result<Result<RawVc, EventListener>>;
+    ) -> Result<ReadOutcome<RawVc>>;
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -665,7 +664,7 @@ pub trait Backend: Sized + Sync + Send {
         reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
+    ) -> Result<ReadOutcome<TypedCellContent>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -734,6 +733,14 @@ pub trait Backend: Sized + Sync + Send {
     fn mark_own_task_as_finished(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
         // Do nothing by default
     }
+
+    /// Pin a task against garbage collection (via [`prevent_gc`](crate::prevent_gc)). A pinned task
+    /// is treated as a GC root, keeping alive references that escape the tracked task graph. The
+    /// default is a no-op for backends without GC.
+    fn pin_task_for_gc(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>);
+
+    /// Removes a pin added by [`pin_task_for_gc`](Backend::pin_task_for_gc).
+    fn unpin_task_for_gc(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>);
 
     fn create_transient_task(
         &self,

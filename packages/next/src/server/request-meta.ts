@@ -319,10 +319,36 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
-   * The fallback params for this route. In dev, used for validating prerenders.
-   * In production, used to defer params resolution during staged rendering.
+   * Staged renders defer these route params until after the static stage. They
+   * keep their concrete request values instead of replacing them with
+   * placeholders. Dev static-shell validation uses the same set for the
+   * selected shell.
+   *
+   * For `/t2/items/b2` with selected shell `/t2/items/[bottom]`, this map
+   * contains only `bottom`:
+   * - A layout's `params` containing only `top` can resolve statically.
+   * - A page's `params` containing `bottom` waits until after the static stage.
+   *
+   * A set recorded in postponed state overrides this metadata on a resume,
+   * including an explicitly empty set.
    */
-  fallbackParams?: OpaqueFallbackRouteParams
+  stagedFallbackParams?: OpaqueFallbackRouteParams | null
+
+  /**
+   * Dev static-shell debug renders use these params to prerender the matched
+   * source shell. The Instant Navigation Testing API uses this path too. The
+   * prerender substitutes opaque placeholders for these params rather than
+   * using their request values.
+   *
+   * Suppose `generateStaticParams` returns `[{ top: 't1' }]` for
+   * `/[top]/items/[bottom]`. A request for `/t2/items/b2` has:
+   * - Source `/[top]/items/[bottom]`: `top` and `bottom` are unresolved.
+   * - Completed shell `/t2/items/[bottom]`: only `bottom` is unresolved.
+   *
+   * This map contains the source's `top` and `bottom`. A debug render of that
+   * source also uses this map as `stagedFallbackParams`.
+   */
+  fallbackRouteParams?: OpaqueFallbackRouteParams | null
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()

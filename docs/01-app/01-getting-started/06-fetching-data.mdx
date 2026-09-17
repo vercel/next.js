@@ -545,23 +545,27 @@ export default async function Page({ params }) {
 
 ### Reusing data with `React.cache`
 
-Wrap a data-fetching function in [`React.cache`](https://react.dev/reference/react/cache) so multiple components in the same request share one result instead of refetching:
+For data access that does not use `fetch`, such as an ORM or database query, wrap the function in [`React.cache`](https://react.dev/reference/react/cache). Multiple components can then call the function within the same request while sharing one result:
 
 ```ts filename="app/lib/user.ts" switcher
 import { cache } from 'react'
+import { db, eq, users } from '@/lib/db'
 
-export const getUser = cache(async () => {
-  const res = await fetch('https://api.example.com/user')
-  return res.json()
+export const getUser = cache(async (id: string) => {
+  return db.query.users.findFirst({
+    where: eq(users.id, id),
+  })
 })
 ```
 
 ```js filename="app/lib/user.js" switcher
 import { cache } from 'react'
+import { db, eq, users } from '@/lib/db'
 
-export const getUser = cache(async () => {
-  const res = await fetch('https://api.example.com/user')
-  return res.json()
+export const getUser = cache(async (id) => {
+  return db.query.users.findFirst({
+    where: eq(users.id, id),
+  })
 })
 ```
 
@@ -571,7 +575,12 @@ Server Components can call `getUser()` directly:
 import { getUser } from '../lib/user'
 
 export default async function DashboardPage() {
-  const user = await getUser() // Cached - same request, no duplicate fetch
+  const user = await getUser('1')
+
+  if (!user) {
+    return null
+  }
+
   return <h1>Dashboard for {user.name}</h1>
 }
 ```
@@ -580,11 +589,100 @@ export default async function DashboardPage() {
 import { getUser } from '../lib/user'
 
 export default async function DashboardPage() {
-  const user = await getUser() // Cached - same request, no duplicate fetch
+  const user = await getUser('1')
+
+  if (!user) {
+    return null
+  }
+
   return <h1>Dashboard for {user.name}</h1>
 }
 ```
 
-Since `getUser` is wrapped with `React.cache`, multiple calls within the same request return the same memoized result, whether called directly in Server Components or resolved via context in Client Components.
+Since `getUser` is wrapped with `React.cache`, calls with the same `id` within one request return the same memoized result.
 
-> **Good to know**: `React.cache` is scoped to the current request only. Each request gets its own memoization scope with no sharing between requests.
+> **Good to know:** [`React.cache`](https://react.dev/reference/react/cache#caveats) is scoped to the current request only. Each request gets its own memoization scope with no sharing between requests.
+
+### Preloading data
+
+When a component renders after other blocking work, its data request starts late even if the request inputs are already available. Preloading starts the request earlier so it can run in parallel with that work and avoid a request waterfall.
+
+To preload data, call the data-fetching function without `await` before blocking work, then call the same function in the component that consumes the result.
+
+The data-fetching function must deduplicate matching calls so the component can reuse the request started during preloading. Use one of the following approaches:
+
+- For `fetch`, [identical requests are memoized automatically](/docs/app/api-reference/functions/fetch#memoization).
+- For an ORM or database, wrap the data-fetching function in [`React.cache`](#reusing-data-with-reactcache).
+- With Cache Components, add [`'use cache'`](/docs/app/api-reference/directives/use-cache) to the data-fetching function. If the function reads request APIs such as `cookies()` or `headers()`, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
+
+In production, matching calls to a private Cache Function can reuse the same result within one request. This lets a component reuse a request started during preloading without storing the result in a server cache across requests.
+
+Keep the preload function next to the component that consumes the data. This makes the dependency easier to find if you move or remove the component:
+
+```tsx filename="app/item/[id]/item.tsx" switcher
+async function getItem(id: string) {
+  const res = await fetch(`https://api.example.com/items/${id}`)
+  return res.json()
+}
+
+export const preload = (id: string) => {
+  void getItem(id)
+}
+
+export default async function Item({ id }: { id: string }) {
+  const item = await getItem(id)
+  return <div>{item.name}</div>
+}
+```
+
+```jsx filename="app/item/[id]/item.js" switcher
+async function getItem(id) {
+  const res = await fetch(`https://api.example.com/items/${id}`)
+  return res.json()
+}
+
+export const preload = (id) => {
+  void getItem(id)
+}
+
+export default async function Item({ id }) {
+  const item = await getItem(id)
+  return <div>{item.name}</div>
+}
+```
+
+Call `preload()` before another blocking request to start loading the item earlier:
+
+```tsx filename="app/item/[id]/page.tsx" switcher
+import Item, { preload } from './item'
+import { checkIsAvailable } from '@/app/lib/data'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+
+  preload(id)
+  const isAvailable = await checkIsAvailable(id)
+
+  return isAvailable ? <Item id={id} /> : null
+}
+```
+
+```jsx filename="app/item/[id]/page.js" switcher
+import Item, { preload } from './item'
+import { checkIsAvailable } from '@/app/lib/data'
+
+export default async function Page({ params }) {
+  const { id } = await params
+
+  preload(id)
+  const isAvailable = await checkIsAvailable(id)
+
+  return isAvailable ? <Item id={id} /> : null
+}
+```
+
+The item request continues while `checkIsAvailable()` runs. If the page renders `<Item>`, the identical `fetch` call reuses the request that `preload()` started.

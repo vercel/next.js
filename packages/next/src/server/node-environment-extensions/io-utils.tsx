@@ -61,12 +61,15 @@ export function io(expression: string, type: SyncIOApiType) {
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
         switch (stageController.currentStage) {
           case RenderStage.ShellStatic:
+          case RenderStage.PrefetchStatic:
+          case RenderStage.NavigationStatic:
           case RenderStage.Static: {
             syncIOError = createSyncIOError(workStore.route, expression, type)
             break
           }
           case RenderStage.ShellRuntime:
-          case RenderStage.Runtime: {
+          case RenderStage.Runtime:
+          case RenderStage.NavigationRuntime: {
             // We're in the Runtime stage.
             // We only error for Sync IO in the Runtime stage if the route has partialPrefetching enabled.
             syncIOError = createSyncIORuntimeError(

@@ -121,11 +121,10 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # `skipNativeInstall: 'no'` must force the download even though CI otherwise
@@ -182,8 +181,18 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          # Changing the checked out ref has wide implications:
+          # Be aware that all git-diff operations in the repo rely on the
+          # default behavior of GitHub actions (ref on push, merge-commit on PR).
           fetch-depth: 25
           persist-credentials: false
+
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
 
       # Depends on rust-toolchain.toml in the checkout
       - name: Install Rust
@@ -288,8 +297,6 @@ jobs:
       - name: Start sccache
         uses: ./.github/actions/sccache
         if: ${{ runner.os != 'Windows' && (inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       # Infer the Rust target triple from the runner's OS/arch. napi would build
       # for the host target if `--target` were omitted, but Turborepo does not

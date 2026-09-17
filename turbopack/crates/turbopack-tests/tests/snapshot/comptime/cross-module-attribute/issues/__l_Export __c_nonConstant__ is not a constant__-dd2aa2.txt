@@ -1,0 +1,17 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/non-constant.js:1:0  Export nonConstant is not a constant
+  
+         + v------------------------------------v
+       1 + export const nonConstant = { v: 1234 }
+         + ^------------------------------------^
+       2 | 
+  
+  It was analyzed to be {"v": 1234}
+  
+  It has to be a constant because the module contains use turbopack: constants or was imported with with {turbopackConstants: 'true'}
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/non-constant.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js

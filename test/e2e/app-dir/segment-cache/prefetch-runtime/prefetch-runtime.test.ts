@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
 describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -28,6 +29,15 @@ describe('runtime prefetching', () => {
   const resetCliOutput = () => {
     currentCliOutputIndex = next.cliOutput.length
   }
+
+  // We never expect to see this logged here.
+  afterEach(() => {
+    if (getCliOutput().includes(UNEXPECTED_CACHE_MISS_MESSAGE)) {
+      throw new Error(
+        `A test unexpectedly logged "${UNEXPECTED_CACHE_MISS_MESSAGE}"`
+      )
+    }
+  })
 
   describe.each([
     {
@@ -510,18 +520,20 @@ describe('runtime prefetching', () => {
       // Clear cookies after the test. This currently doesn't happen automatically.
       await using _ = defer(() => browser.deleteCookies())
 
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
-      // Reveal the link to trigger a runtime prefetch for the initial cookie value
+      // Reveal the link.
+      // We won't actually perform a runtime prefetch, because the request is
+      // satisfied by the app shell.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
           `input[data-link-accordion="/${prefix}/cookies-only"]`
         )
         await linkToggle.click()
       }, [
-        // Should allow reading cookies
+        // Should allow reading cookies in the app shell
         {
           includes: 'Cookie: initialValue',
         },
@@ -561,11 +573,14 @@ describe('runtime prefetching', () => {
         // Clear cookies after the test. This currently doesn't happen automatically.
         await using _ = defer(() => browser.deleteCookies())
 
-        const act = createRouterAct(page)
+        const act = createRouterAct(page, { includeAppShellRequests: true })
 
         await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
-        // Reveal the link to trigger a runtime prefetch for the initial cookie value
+        // Reveal the link.
+        // We won't actually perform a runtime prefetch, because the request is
+        // satisfied by the app shell.
+
         await act(async () => {
           const linkToggle = await browser.elementByCss(
             `input[data-link-accordion="/${prefix}/cookies-only"]`
@@ -712,7 +727,7 @@ describe('runtime prefetching', () => {
     )
   })
 
-  describe('cache stale time handling', () => {
+  describe('excluded caches', () => {
     it.each([
       {
         // If a cache has an expiration time under 5min
@@ -720,9 +735,9 @@ describe('runtime prefetching', () => {
         // However, it should still be included in a runtime prefetch if its
         // stale time is >=30s. (MIN_PREFETCHABLE_STALE)
         description:
-          'includes short-lived public caches with a long enough staleTime',
+          'includes short-lived public caches with a prefetchable staleTime',
         staticContent: 'This page uses a short-lived public cache',
-        path: '/caches/public-short-expire-long-stale',
+        path: '/caches/public-short-expire-prefetchable-stale',
       },
       {
         // If a cache has an expiration time under 5min
@@ -783,7 +798,63 @@ describe('runtime prefetching', () => {
       )
     })
 
-    it('omits short-lived public caches with a short enough staleTime', async () => {
+    it.each([
+      {
+        description:
+          'includes public caches whose staleTime was too short to include in a shell',
+        staticContent: 'This page uses a public cache',
+        path: '/caches/public-non-shell-stale',
+      },
+      {
+        description:
+          'includes private caches whose staleTime was too short to include in a shell',
+        staticContent: 'This page uses a private cache',
+        path: '/caches/private-non-shell-stale',
+      },
+    ])('$description', async ({ path, staticContent }) => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+      // Reveal the link to trigger a runtime prefetch.
+      await act(async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${path}"]`)
+          .click()
+      }, [
+        // Shell request
+        {
+          includes: staticContent,
+          kind: 'runtime',
+        },
+        // Prefetch request
+        // (the shell was not complete, because the cache was excluded from it)
+        {
+          includes: 'Non-shell cached content',
+          kind: 'runtime',
+        },
+      ])
+
+      // The cache should be displayed while navigating and after.
+      await act(
+        async () => {
+          await browser.elementByCss(`a[href="${path}"]`).click()
+          expect(await browser.elementById('cached-value').text()).toBe(
+            'Non-shell cached content'
+          )
+        },
+        // The prefetch was complete.
+        'no-requests'
+      )
+      expect(await browser.elementById('cached-value').text()).toBe(
+        'Non-shell cached content'
+      )
+    })
+
+    it('omits short-lived public caches with a non-prefetchable staleTime', async () => {
       // If a cache has a stale time below 30s (MIN_PREFETCHABLE_STALE), we
       // should omit it from runtime prefetches.
 
@@ -801,7 +872,7 @@ describe('runtime prefetching', () => {
       // Reveal the link to trigger a runtime prefetch.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/caches/public-short-expire-short-stale"]`
+          `input[data-link-accordion="/caches/public-short-expire-non-prefetchable-stale"]`
         )
         await linkToggle.click()
       }, [
@@ -822,7 +893,9 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/caches/public-short-expire-short-stale"]`)
+              .elementByCss(
+                `a[href="/caches/public-short-expire-non-prefetchable-stale"]`
+              )
               .click()
           },
           {
@@ -844,7 +917,7 @@ describe('runtime prefetching', () => {
       expect(await browser.elementById('cached-value').text()).toMatch(/\d+/)
     })
 
-    it('omits private caches with a short enough staleTime', async () => {
+    it('omits private caches with a non-prefetchable staleTime', async () => {
       // If a cache has a stale time below 30s (MIN_PREFETCHABLE_STALE), we
       // should omit it from runtime prefetches.
 
@@ -862,7 +935,7 @@ describe('runtime prefetching', () => {
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/caches/private-short-stale"]`
+          `input[data-link-accordion="/caches/private-non-prefetchable-stale"]`
         )
         await linkToggle.click()
       }, [
@@ -883,7 +956,7 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/caches/private-short-stale"]`)
+              .elementByCss(`a[href="/caches/private-non-prefetchable-stale"]`)
               .click()
           },
           {
@@ -911,7 +984,7 @@ describe('runtime prefetching', () => {
       // Hover the link again. The prefetch should be cached, so we shouldn't see any requests
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/caches/private-short-stale"]`
+          `input[data-link-accordion="/caches/private-non-prefetchable-stale"]`
         )
         await linkToggle.hover()
       }, 'no-requests')
@@ -921,7 +994,7 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/caches/private-short-stale"]`)
+              .elementByCss(`a[href="/caches/private-non-prefetchable-stale"]`)
               .click()
           },
           {
@@ -1056,11 +1129,13 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       const STATIC_CONTENT = 'This page errors after a cookies call'
 
-      // Reveal the link to trigger a runtime prefetch
+      // Reveal the link.
+      // We won't actually perform a runtime prefetch, because the request is
+      // satisfied by the app shell.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
           `input[data-link-accordion="/errors/error-after-cookies"]`
@@ -1077,7 +1152,7 @@ describe('runtime prefetching', () => {
         expect(getCliOutput()).toContain('Error: Kaboom')
       }
 
-      // Navigate to the page. We already have the paged cached.
+      // Navigate to the page. We already have the page cached.
       // Even though the render errored, we shouldn't fetch it again.
       await act(async () => {
         await browser

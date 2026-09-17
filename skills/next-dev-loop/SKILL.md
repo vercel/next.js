@@ -123,6 +123,10 @@ manual rather than from memory.
 
 ## gotchas
 
+- **Preserve `.next` while the development server is running.** Moving or
+  deleting it disconnects the server from its generated state and discards
+  incremental caches. Moving it to a backup is still a reset. If a production
+  build needs isolated output, configure a separate `distDir`.
 - **Every `agent-browser` command must know your session and restore
   key, or it may use an empty default browser or fail to save login
   state.** Easiest: export both `AGENT_BROWSER_SESSION="$SESSION"` and
@@ -181,8 +185,3 @@ Close the session with the same session and restore context:
 `agent-browser --session "$SESSION" --restore close`. `close` saves
 that session's cookies and storage so the next loop's `--restore` open
 keeps the user logged in. Leave `next dev` up for the next loop.
-
----
-
-`next-dev-loop-<topic>` siblings (e.g. `next-dev-loop-rsc`, `next-dev-loop-debug`)
-assume this preflight already ran; they pick up at the loop.

@@ -150,6 +150,7 @@ export const getHandler = ({
       serverFilesManifest,
       reactLoadableManifest,
       prerenderManifest,
+      previewProps,
       isDraftMode,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
@@ -306,7 +307,7 @@ export const getHandler = ({
                   reactLoadableManifest,
 
                   assetPrefix: nextConfig.assetPrefix,
-                  previewProps: prerenderManifest.preview,
+                  previewProps,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,
                   optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
@@ -476,6 +477,7 @@ export const getHandler = ({
               incrementalCache: await routeModule.getIncrementalCache(
                 req,
                 nextConfig,
+                previewProps,
                 prerenderManifest,
                 isMinimalMode
               ),
@@ -538,6 +540,7 @@ export const getHandler = ({
           revalidateOnlyGenerated,
           waitUntil: ctx.waitUntil,
           responseGenerator: responseGenerator,
+          previewProps,
           prerenderManifest,
           isMinimalMode,
         })
@@ -687,9 +690,14 @@ export const getHandler = ({
           )
         }
 
-        // In dev, we should not cache pages for any reason.
+        // Documents and data responses must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         // Draft mode should never be cached

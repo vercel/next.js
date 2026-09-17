@@ -167,9 +167,8 @@ yours. On first use in a repository, discover how the project builds, deploys,
 authenticates, and tests (inspect the repository first, and ask the user only
 what it cannot answer), then write the answers to a committed
 `instant-nav.rig.md`. Every later run reads that file instead of
-rediscovering. The six questions (BUILD / EXPOSE / RUN / TEST USER / DRIFT /
-LOOP), the file template, and filled examples (local-only, generic CI +
-container, preview deploy) are in **`rig-template.md`**.
+rediscovering. The required build, test context, navigation contracts,
+iteration loop, and file template are in **`rig-template.md`**.
 
 If the repo has no Playwright e2e harness yet, standing up a minimal one
 (`@next/playwright`, a config with `baseURL`, one authenticated path) is part
@@ -206,12 +205,12 @@ every platform:
 The rig is any production-like build that exposes the testing API: a local
 `next build && next start`, a CI/staging container, and a preview deploy are
 all equally valid; the verdict comes from the build, not the platform. See
-`rig-template.md` for filled examples.
+`rig-template.md` for the setup requirements.
 
 For any deployed or remote build, poll the rig's LIVENESS probe to confirm the
 artifact contains `HEAD` before trusting a verdict (a stale deploy reads as a
 false RED or GREEN); a local `next build && next start` needs none. The probe
-mechanism is in `rig-template.md` (question 6).
+mechanism is in `rig-template.md`.
 
 ## B. BASELINE (unlocked): development scaffold, do not ship
 
@@ -367,6 +366,10 @@ this gate is as machine-checkable as the others. Detail:
 > under the lock on the production-build rig**, not when the code compiles. That
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
+If the optimization adds or expands a cache boundary, follow
+[Revalidating](https://nextjs.org/docs/app/getting-started/revalidating).
+A passing `instant()` test proves shell readiness, not mutation freshness.
+
 **When URL data can't be pushed down** (for example, the whole page depends on
 `params`, `searchParams`, or the full URL), there may be no meaningful static
 shell to grow. Don't force one. Per-link prefetching can make the soft
@@ -414,6 +417,9 @@ PR-specific items:
 
 - [ ] **Differential shown**: RED without the fix, GREEN with it, runs linked.
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
+- [ ] **Mutations verified when applicable**: after populating any cache whose
+      data can be updated, a mutation test confirms the next read returns the
+      expected data.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at desktop and mobile widths (D2)**.
 - [ ] **Baseline removed**: only the locked test from C remains.
@@ -435,9 +441,8 @@ three hold, you are not done.
 
 ## Files
 
-- `rig-template.md`: phase 0, the six-question rig discovery, the
-  `instant-nav.rig.md` template, and filled examples (local-only, generic CI,
-  preview deploy).
+- `rig-template.md`: phase 0 production build, test context, navigation
+  contract, and unattended loop discovery.
 - `test-template.md`: the shipped `instant()` specs for both navigation
   types (phase C), and the delete-before-PR baseline scaffold (phase B).
 - `reference/red-test-robustness.md`: the C-gate and phase F. The taxonomy of

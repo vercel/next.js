@@ -22,9 +22,6 @@ pub enum SnapshotItem {
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
     },
-    // Constructed by the GC pass that emits `Delete` for soft-deleted tasks, which lands in a
-    // later PR in the stack.
-    #[allow(dead_code)]
     Delete {
         task_id: TaskId,
         /// The deleted task's `TaskCache` key. Always present: only persistent tasks are

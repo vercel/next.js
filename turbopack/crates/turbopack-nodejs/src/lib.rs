@@ -3,5 +3,6 @@
 
 pub(crate) mod chunking_context;
 pub mod ecmascript;
+pub mod fs;
 
 pub use chunking_context::{NodeJsChunkingContext, NodeJsChunkingContextBuilder};

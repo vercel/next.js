@@ -351,11 +351,11 @@ pub async fn resolve_babel_plugin_react_compiler(
         return Ok(None);
     };
 
+    // The relative path should only ever fail to resolve when the `fs` is different, which should
+    // only happen due to eventual consistency.
     Ok(Some(
-        // the relative path should only ever fail to resolve when the `fs` is different, which
-        // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().await?.path.parent())
+            .get_relative_request_to(&source.ident().await?.path.parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
 }

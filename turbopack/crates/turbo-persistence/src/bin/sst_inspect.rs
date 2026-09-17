@@ -20,17 +20,17 @@ use fs_err::{self as fs, File};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, MAX_INLINE_VALUE_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
     read_current_version,
     sst_filter::SstFilter,
     static_sorted_file::{
-        BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
-        BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
         KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
         KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
+        key_block_table_stride,
     },
 };
 
@@ -133,6 +133,7 @@ impl SstStats {
 struct SstInfo {
     sequence_number: u32,
     block_count: u16,
+    compression: Compression,
 }
 
 /// Accumulates statistics for a single entry of the given type.
@@ -266,7 +267,8 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq).with_context(|| format!("Failed to open {seq:08}.meta"))
+            MetaFile::open(db_path, seq, None, turbo_persistence::AccessMode::Mmap)
+                .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;
 
@@ -283,6 +285,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
+                compression: meta.compression(),
             });
         }
     }
@@ -304,6 +307,7 @@ fn read_block(
     block_offsets_start: usize,
     block_index: u16,
     sequence_number: u32,
+    compression: Compression,
 ) -> Result<RawBlock> {
     let offset = block_offsets_start + block_index as usize * size_of::<u32>();
 
@@ -343,7 +347,13 @@ fn read_block(
 
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
-        let bytes_written = decompress(compressed_data, &mut buffer)?;
+        let bytes_written = match compression {
+            Compression::Lz4 => {
+                decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+            }
+            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                .context("zstd decompression failed")?,
+        };
         assert_eq!(
             bytes_written, uncompressed_length as usize,
             "Decompressed length does not match expected"
@@ -384,18 +394,19 @@ fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
 enum KeyBlockHeader {
     Variable {
         entry_count: u32,
+        /// Bytes per offset table entry, wider when the block hoists hashes into the table.
+        table_stride: usize,
     },
     Fixed {
         entry_count: u32,
         value_type: u8,
     },
     /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte between its key and its value.
+    /// its own type byte ahead of its value in the block's tail region.
     FixedMixedType {
         entry_count: u32,
-        hash_len: usize,
-        key_size: usize,
-        stride: usize,
+        /// Where the block's search and tail regions sit, derived by the shared reader helper.
+        regions: FixedRegions,
     },
 }
 
@@ -404,36 +415,34 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
     assert!(block.len() >= 4, "Key block too small");
     let block_type = block[0];
     let entry_count = ((block[1] as u32) << 16) | ((block[2] as u32) << 8) | (block[3] as u32);
-    match block_type {
-        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-            Ok(KeyBlockHeader::Variable { entry_count })
-        }
-        BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-            assert!(block.len() >= 6, "Fixed key block header too small");
-            if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
-                assert!(block.len() >= 7, "Mixed-type key block header too small");
-                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
-                    8
-                } else {
-                    0
-                };
-                let key_size = block[4] as usize;
-                let val_size = block[6] as usize;
-                Ok(KeyBlockHeader::FixedMixedType {
-                    entry_count,
-                    hash_len,
-                    key_size,
-                    // +1 for the per-entry type byte.
-                    stride: hash_len + key_size + val_size + 1,
-                })
-            } else {
-                Ok(KeyBlockHeader::Fixed {
-                    entry_count,
-                    value_type: block[5],
-                })
-            }
-        }
-        _ => bail!("Invalid key block type: {block_type}"),
+    let Some((layout, fixed)) = KeyBlockLayout::from_block_type(block_type) else {
+        bail!("Invalid key block type: {block_type}");
+    };
+    if !fixed {
+        return Ok(KeyBlockHeader::Variable {
+            entry_count,
+            table_stride: key_block_table_stride(layout.hash_len()),
+        });
+    }
+    assert!(block.len() >= 6, "Fixed key block header too small");
+    if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+        assert!(block.len() >= 7, "Mixed-type key block header too small");
+        Ok(KeyBlockHeader::FixedMixedType {
+            entry_count,
+            // `FixedRegions` owns the search/tail split; `val_size` includes the per-entry type
+            // byte, which the header stores separately from the value size.
+            regions: FixedRegions::new(
+                entry_count as usize,
+                layout,
+                block[4] as usize,
+                block[6] as usize + 1,
+            ),
+        })
+    } else {
+        Ok(KeyBlockHeader::Fixed {
+            entry_count,
+            value_type: block[5],
+        })
     }
 }
 
@@ -447,30 +456,30 @@ fn iter_key_block_entry_types(
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
     let entry_count = match header {
-        KeyBlockHeader::Variable { entry_count }
+        KeyBlockHeader::Variable { entry_count, .. }
         | KeyBlockHeader::Fixed { entry_count, .. }
         | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
     };
     (0..entry_count).map(move |i| match header {
-        // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
-        // each entry is 4 bytes, first byte is the entry type.
-        KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
+        // leads the trailing type/position word, which follows any hoisted hash.
+        KeyBlockHeader::Variable { table_stride, .. } => {
+            block[KEY_BLOCK_HEADER_SIZE
+                + i as usize * table_stride
+                + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
+        }
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
-        KeyBlockHeader::FixedMixedType {
-            hash_len,
-            key_size,
-            stride,
-            ..
-        } => {
-            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
-            // the entry's key and its value.
-            block[7 + i as usize * stride + hash_len + key_size]
+        KeyBlockHeader::FixedMixedType { regions, .. } => {
+            // Entry data starts after the 7-byte mixed-type header; within the tail region the
+            // type byte precedes the value, after the key for `HashThenKey` blocks.
+            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
         }
     })
 }
 
 /// Analyze an SST file and return entry type statistics
 fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
+    let compression = info.compression;
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -496,6 +505,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         block_offsets_start,
         index_block_index,
         info.sequence_number,
+        compression,
     )?;
     let key_block_indices = parse_key_block_indices(&index_raw.data);
 
@@ -512,6 +522,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             block_offsets_start,
             block_index,
             info.sequence_number,
+            compression,
         ) {
             Ok(raw) => raw,
             Err(e) => {
@@ -930,7 +941,7 @@ fn main() -> Result<()> {
         db_path.display()
     );
 
-    // Analyze and report by family
+    // Analyze and report by family.
     for (family, sst_list) in &family_sst_info {
         let mut family_stats = SstStats::default();
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();

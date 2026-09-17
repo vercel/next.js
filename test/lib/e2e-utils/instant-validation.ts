@@ -109,7 +109,7 @@ export function extractValidationOutput(
 export function normalizeValidationUrl(url: string): string {
   // RSC requests include ?_rsc=... in the URL. Strip it so the event URL
   // matches what browser.url() returns (which has no _rsc param).
-  const parsed = new URL(url, 'http://n')
+  const parsed = new URL(url, 'http://__n')
   parsed.searchParams.delete('_rsc')
   return parsed.pathname + parsed.search + parsed.hash
 }
@@ -118,7 +118,7 @@ export async function waitForValidationStart(
   targetUrl: string,
   getOutput: () => string
 ): Promise<ValidationStartEvent> {
-  const parsedTargetUrl = new URL(targetUrl)
+  const parsedTargetUrl = new URL(targetUrl, 'http://__n')
   const relativeTargetUrl =
     parsedTargetUrl.pathname + parsedTargetUrl.search + parsedTargetUrl.hash
 

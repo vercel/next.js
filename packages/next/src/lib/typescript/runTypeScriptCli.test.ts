@@ -1,5 +1,8 @@
 import type { ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { PassThrough } from 'node:stream'
 
 const mockSpawn = jest.fn()
@@ -9,8 +12,113 @@ jest.mock('next/dist/compiled/cross-spawn', () => ({
   default: (...args: unknown[]) => mockSpawn(...args),
 }))
 
-const { runTypeScriptCli } =
+const { getTypeScriptPackageInfo, runTypeScriptCli } =
   require('./runTypeScriptCli') as typeof import('./runTypeScriptCli')
+
+function createTypeScriptFixture({
+  packageJson,
+  files,
+}: {
+  packageJson: Record<string, unknown>
+  files: string[]
+}) {
+  const baseDir = mkdtempSync(path.join(tmpdir(), 'next-typescript-'))
+  const packageDir = path.join(baseDir, 'node_modules', 'typescript')
+
+  mkdirSync(packageDir, { recursive: true })
+  writeFileSync(
+    path.join(packageDir, 'package.json'),
+    JSON.stringify(packageJson)
+  )
+
+  for (const file of files) {
+    const filePath = path.join(packageDir, file)
+    mkdirSync(path.dirname(filePath), { recursive: true })
+    writeFileSync(filePath, '')
+  }
+
+  return { baseDir, packageDir }
+}
+
+function removeTypeScriptFixture(baseDir: string) {
+  rmSync(baseDir, { recursive: true, force: true })
+}
+
+describe('getTypeScriptPackageInfo', () => {
+  it('resolves a standard tsc bin', () => {
+    const { baseDir, packageDir } = createTypeScriptFixture({
+      packageJson: {
+        version: '6.0.1',
+        bin: { tsc: './bin/tsc' },
+      },
+      files: ['bin/tsc', 'lib/typescript.js'],
+    })
+
+    try {
+      expect(getTypeScriptPackageInfo(baseDir)).toMatchObject({
+        apiPath: path.join(packageDir, 'lib', 'typescript.js'),
+        tscPath: path.join(packageDir, 'bin', 'tsc'),
+      })
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+
+  it('resolves a versioned tsc bin from an aliased TypeScript package', () => {
+    const { baseDir, packageDir } = createTypeScriptFixture({
+      packageJson: {
+        name: '@typescript/typescript6',
+        version: '6.0.1',
+        bin: { tsc6: './bin/tsc6' },
+      },
+      files: ['bin/tsc6', 'lib/typescript.js'],
+    })
+
+    try {
+      expect(getTypeScriptPackageInfo(baseDir)).toMatchObject({
+        apiPath: path.join(packageDir, 'lib', 'typescript.js'),
+        tscPath: path.join(packageDir, 'bin', 'tsc6'),
+      })
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+
+  it('does not return a tsc path when the declared bin is missing', () => {
+    const { baseDir } = createTypeScriptFixture({
+      packageJson: {
+        version: '6.0.1',
+        bin: { tsc6: './bin/tsc6' },
+      },
+      files: ['lib/typescript.js'],
+    })
+
+    try {
+      expect(getTypeScriptPackageInfo(baseDir)?.tscPath).toBeUndefined()
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+
+  it('uses the JS CLI wrapper for an extensionless ESM bin', () => {
+    const { baseDir, packageDir } = createTypeScriptFixture({
+      packageJson: {
+        version: '7.0.0',
+        type: 'module',
+        bin: { tsc: './bin/tsc' },
+      },
+      files: ['bin/tsc', 'lib/tsc.js'],
+    })
+
+    try {
+      expect(getTypeScriptPackageInfo(baseDir)?.tscPath).toBe(
+        path.join(packageDir, 'lib', 'tsc.js')
+      )
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+})
 
 const processEvents = ['exit', 'SIGINT', 'SIGTERM', 'SIGHUP'] as const
 
