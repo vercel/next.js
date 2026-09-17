@@ -103,7 +103,7 @@ Only matching routes appear in the route table. When you select an App Router ro
 
 ## Example
 
-> **Good to know**: The following example uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled with `cacheComponents: true` in `next.config.ts`. The route symbols and prerender errors differ when Cache Components is disabled. See [Enabling Cache Components](/docs/app/getting-started/caching#enabling-cache-components) for setup.
+> **Good to know**: The following example uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), enabled with `cacheComponents: true` and `partialPrefetching: true` in `next.config.ts`. The route symbols and prerender errors differ when Cache Components is disabled. See [Enabling Cache Components](/docs/app/getting-started/caching#enabling-cache-components) for setup.
 
 ### Find blocking work
 
@@ -227,7 +227,7 @@ The `◐` symbol shows that the route serves a static shell and streams the rema
 
 ### Prerendered product pages
 
-The route now has a shared static shell. To prerender pages for known products, keep `loading.js` and use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide their IDs:
+The route now has a segment-wide fallback from `loading.js`. To prerender pages for known products, keep `loading.js` and use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide their IDs:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
@@ -280,7 +280,7 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The unmarked `/products/[id]` row groups the fallback and generated product paths. Each indented row shows its own build result. The generated product paths stay `◐`. Next.js knows their IDs during the build, so it can prerender each page's static shell. The product lookup still runs at request time, and its result streams into the shell.
+The unmarked `/products/[id]` row groups the route outputs beneath it. Each indented row stays `◐`. The `loading.js` fallback is prerendered, then the product loads at request time and streams into that shell.
 
 > **Good to know**: `generateStaticParams` is optional. Use it when a set of pathnames is known at build time and worth prerendering. With Cache Components, it must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
@@ -343,6 +343,8 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
+The `/products/[id]` fallback represents product IDs not returned by `generateStaticParams`. It stays `◐` because the build does not know every product ID. On the first visit to an unlisted product, [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) serves the `loading.js` fallback immediately while Next.js renders the page for that ID and stores it in the [ISR cache](/docs/app/glossary#incremental-static-regeneration-isr). Later visits receive the completed page instead of the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the complete upgrade flow.
+
 When there are more prerendered paths than fit in the table, Next.js prints a short list ending with `[+N more paths]`.
 
 Routes that contain cached functions or components can also show `Revalidate` and `Expire` columns. A route reports the shortest `revalidate` and `expire` across all the caches it contains. Caches use the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) when there is no explicit [`cacheLife`](/docs/app/api-reference/functions/cacheLife) call. A `/products` listing page that renders the same cached data produces this output:
@@ -365,7 +367,7 @@ The default [`use cache` profile](/docs/app/api-reference/functions/cacheLife#pr
 
 Choose the error's `[block]` option when waiting for request-time work is the correct behavior for the route. The route may need the completed result before it responds, or you may want to defer a difficult refactor while [adopting Cache Components incrementally](/docs/app/guides/migrating-to-cache-components#adopting-incrementally).
 
-Suppose this product route needs to remain blocking for now. Keep `generateStaticParams`, remove the `loading` file and the `use cache` directive, and set `instant = false`:
+Suppose this product route needs to remain blocking for now. Keep `generateStaticParams`, remove the `loading` file and the `use cache` directive, then set `instant = false`:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 import { notFound } from 'next/navigation'
