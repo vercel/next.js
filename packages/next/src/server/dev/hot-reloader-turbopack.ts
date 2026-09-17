@@ -198,6 +198,9 @@ declare global {
    * Sync with  `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
    */
   var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
+  var __turbopack_ensure_chunk__:
+    | ((chunkPath: string) => void | Promise<void>)
+    | undefined
 }
 
 /**
@@ -410,6 +413,8 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
   const lazyDynamicImports = nextConfig.experimental.turbopackLazyDynamicImports
+  const lazyDynamicImportsSSR =
+    nextConfig.experimental.turbopackLazyDynamicImportsSSR
 
   const bindings = getBindingsSync()
 
@@ -616,6 +621,7 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+  const serverAssetMapper = new AssetMapper()
 
   // Deferred entries state management
   const deferredEntriesConfig = nextConfig.experimental.deferredEntries
@@ -2042,6 +2048,10 @@ export async function createHotReloaderTurbopack(
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)
+                    serverAssetMapper.setPathsForKey(
+                      id,
+                      result.value.serverPaths.map(({ path }) => path)
+                    )
                     return clearRequireCache(id, result.value, {
                       force: forceDeleteCache,
                     })
@@ -2120,6 +2130,10 @@ export async function createHotReloaderTurbopack(
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
                   assetMapper.setPathsForKey(id, result.value.clientPaths)
+                  serverAssetMapper.setPathsForKey(
+                    id,
+                    result.value.serverPaths.map(({ path }) => path)
+                  )
                   shouldPullServerHmr ||= participatesInServerHmr(
                     id,
                     result.value
@@ -2286,6 +2300,34 @@ export async function createHotReloaderTurbopack(
     console.error(err)
     process.exit(1)
   })
+
+  if (lazyDynamicImportsSSR) {
+    const previousEnsureChunk = globalThis.__turbopack_ensure_chunk__
+    const ensureChunk = async (chunkPath: string) => {
+      if (!chunkPath.includes('lazy-compilation-')) return
+
+      const keys = serverAssetMapper.getKeysByAsset(chunkPath)
+      if (keys.length === 0 || !(await project.activateLazyChunk(chunkPath))) {
+        return
+      }
+
+      for (const key of keys) {
+        await hotReloader.ensurePage({
+          page: splitEntryKey(key).page,
+          clientOnly: false,
+          definition: undefined,
+        })
+      }
+      deleteCache([join(distDir, chunkPath)])
+    }
+
+    globalThis.__turbopack_ensure_chunk__ = ensureChunk
+    opts.onDevServerCleanup?.(async () => {
+      if (globalThis.__turbopack_ensure_chunk__ === ensureChunk) {
+        globalThis.__turbopack_ensure_chunk__ = previousEnsureChunk
+      }
+    })
+  }
 
   let serverHmr: ReturnType<typeof setupServerHmr> | undefined
   if (serverFastRefresh) {
