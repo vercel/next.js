@@ -11,6 +11,7 @@ use std::{
 
 use anyhow::{Context, Result, ensure};
 use clap::{Args, Parser, Subcommand};
+use lzzzz::lz4;
 use serde::Serialize;
 use turbo_persistence::{
     Compression, CompressionConfig, IterValue, MAX_INLINE_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE,
@@ -18,7 +19,7 @@ use turbo_persistence::{
     offline::{SstInfo, collect_sst_info, decode_medium, read_blob},
 };
 
-const SCHEMA_VERSION: u32 = 4;
+const SCHEMA_VERSION: u32 = 5;
 const DICTIONARY_SIZE: usize = 64 * 1024;
 const SAMPLE_BUDGET_MULTIPLIER: usize = 1000;
 const SAMPLE_BYTE_BUDGET: usize = DICTIONARY_SIZE * SAMPLE_BUDGET_MULTIPLIER;
@@ -43,7 +44,7 @@ enum Command {
         #[arg(long)]
         json: Option<PathBuf>,
     },
-    /// Compare dictionaries with zstd level 3 without a dictionary.
+    /// Compare dictionaries with LZ4 and zstd level 3 baselines.
     Evaluate {
         #[command(flatten)]
         source: Source,
@@ -78,9 +79,16 @@ struct DictionaryInfo {
 
 struct Candidate {
     info: DictionaryInfo,
-    compressor: zstd::bulk::Compressor<'static>,
-    decompressor: zstd::bulk::Decompressor<'static>,
+    codec: CandidateCodec,
     setup_duration: Duration,
+}
+
+enum CandidateCodec {
+    Lz4,
+    Zstd {
+        compressor: zstd::bulk::Compressor<'static>,
+        decompressor: zstd::bulk::Decompressor<'static>,
+    },
 }
 
 struct Sample {
@@ -423,12 +431,23 @@ fn dictionary_info(
 }
 
 fn make_candidates(paths: &[PathBuf]) -> Result<Vec<Candidate>> {
-    let mut result = Vec::with_capacity(paths.len() + 1);
+    let mut result = Vec::with_capacity(paths.len() + 2);
+    result.push(Candidate {
+        info: DictionaryInfo {
+            name: "lz4".to_owned(),
+            path: None,
+            bytes: 0,
+        },
+        codec: CandidateCodec::Lz4,
+        setup_duration: Duration::ZERO,
+    });
     let started = Instant::now();
     result.push(Candidate {
         info: dictionary_info(None, &[], true)?,
-        compressor: zstd::bulk::Compressor::new(3)?,
-        decompressor: zstd::bulk::Decompressor::new()?,
+        codec: CandidateCodec::Zstd {
+            compressor: zstd::bulk::Compressor::new(3)?,
+            decompressor: zstd::bulk::Decompressor::new()?,
+        },
         setup_duration: started.elapsed(),
     });
     let mut names = BTreeSet::new();
@@ -449,15 +468,44 @@ fn make_candidates(paths: &[PathBuf]) -> Result<Vec<Candidate>> {
         let started = Instant::now();
         result.push(Candidate {
             info,
-            compressor: zstd::bulk::Compressor::with_dictionary(3, &dictionary)?,
-            decompressor: zstd::bulk::Decompressor::with_dictionary(&dictionary)?,
+            codec: CandidateCodec::Zstd {
+                compressor: zstd::bulk::Compressor::with_dictionary(3, &dictionary)?,
+                decompressor: zstd::bulk::Decompressor::with_dictionary(&dictionary)?,
+            },
             setup_duration: started.elapsed(),
         });
     }
     Ok(result)
 }
 
-/// Evaluates all dictionary candidates against one logical value.
+impl Candidate {
+    fn compress(&mut self, input: &[u8]) -> Result<Vec<u8>> {
+        match &mut self.codec {
+            CandidateCodec::Lz4 => {
+                let mut output = Vec::new();
+                lz4::compress_to_vec(input, &mut output, lz4::ACC_LEVEL_DEFAULT)?;
+                Ok(output)
+            }
+            CandidateCodec::Zstd { compressor, .. } => Ok(compressor.compress(input)?),
+        }
+    }
+
+    fn decompress(&mut self, input: &[u8], output_len: usize) -> Result<Vec<u8>> {
+        match &mut self.codec {
+            CandidateCodec::Lz4 => {
+                let mut output = vec![0; output_len];
+                let written = lz4::decompress(input, &mut output)?;
+                ensure!(written == output_len, "LZ4 decompressed length mismatch");
+                Ok(output)
+            }
+            CandidateCodec::Zstd { decompressor, .. } => {
+                Ok(decompressor.decompress(input, output_len)?)
+            }
+        }
+    }
+}
+
+/// Evaluates all compression candidates against one approximated compression unit.
 fn evaluate_sample(
     sample: &Sample,
     candidates: &mut [Candidate],
@@ -466,13 +514,11 @@ fn evaluate_sample(
     for (candidate, result) in candidates.iter_mut().zip(results) {
         let started = Instant::now();
         let compressed = candidate
-            .compressor
             .compress(&sample.data)
             .with_context(|| format!("Failed to compress with {}", candidate.info.name))?;
         let encode_duration = started.elapsed();
         let started = Instant::now();
         let decompressed = candidate
-            .decompressor
             .decompress(&compressed, sample.data.len())
             .with_context(|| format!("Failed to decompress with {}", candidate.info.name))?;
         let decode_duration = started.elapsed();
@@ -493,10 +539,10 @@ fn evaluate_sample(
     Ok(())
 }
 
-/// Applies the writer's 12.5% minimum-savings rule as a per-value estimate.
+/// Applies the writer's 12.5% minimum-savings rule to an approximated compression unit.
 ///
-/// Small values are grouped into physical blocks in production, so this is a comparative proxy,
-/// not exact SST-size modeling. See `write_block_to_file` for the production block-level rule.
+/// Small values are grouped before this call; medium values and blobs arrive independently. See
+/// `write_block_to_file` for the production block-level rule.
 fn estimated_value_bytes(original_len: usize, compressed_len: usize) -> usize {
     if compressed_len < original_len - original_len / 8 {
         compressed_len
@@ -950,7 +996,12 @@ mod tests {
 
         let mut candidates = make_candidates(&[output])?;
         let evaluation = evaluate_cache(cache.path(), 2, None, &mut candidates)?;
-        assert_eq!(evaluation.candidates.len(), 2);
+        assert_eq!(evaluation.candidates.len(), 3);
+        assert_eq!(evaluation.candidates[0].dictionary.name, "lz4");
+        assert_eq!(
+            evaluation.candidates[1].dictionary.name,
+            "zstd3 (no dictionary)"
+        );
         assert!(evaluation.samples.count > 0);
         Ok(())
     }
