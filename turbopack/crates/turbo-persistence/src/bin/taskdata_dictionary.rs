@@ -1,11 +1,11 @@
-//! Evaluate zstd dictionaries against TaskData blocks from existing persistence caches.
+//! Train and evaluate zstd dictionaries from TaskData blocks in existing persistence caches.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
     env,
     ffi::OsString,
-    fs::File,
-    io::BufWriter,
+    fs::{self, File, OpenOptions},
+    io::{BufWriter, Write},
     mem::size_of,
     path::{Path, PathBuf},
     time::Instant,
@@ -26,11 +26,21 @@ use xxhash_rust::xxh3::xxh3_64;
 
 const SCHEMA_VERSION: u32 = 1;
 
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Command {
+    Train,
+    Evaluate,
+}
+
 struct Options {
+    command: Command,
     family: u32,
     dictionaries: Vec<PathBuf>,
     json: Option<PathBuf>,
+    output: Option<PathBuf>,
+    max_dictionary_size: usize,
+    max_samples: usize,
+    force: bool,
     caches: Vec<PathBuf>,
 }
 
@@ -161,6 +171,29 @@ struct CombinedReport {
     candidates: Vec<CandidateResult>,
 }
 
+#[derive(Serialize)]
+struct TrainingCacheReport {
+    path: PathBuf,
+    scanned_samples: u64,
+    selected_samples: u64,
+    selected_bytes: u64,
+}
+
+#[derive(Serialize)]
+struct TrainingReport {
+    schema_version: u32,
+    family: u32,
+    zstd_version: &'static str,
+    max_dictionary_size: usize,
+    max_samples: usize,
+    scanned_samples: u64,
+    stride: u64,
+    selected_samples: u64,
+    selected_bytes: u64,
+    caches: Vec<TrainingCacheReport>,
+    dictionary: DictionaryInfo,
+}
+
 fn size_bucket(bytes: usize) -> &'static str {
     match bytes {
         0..=4095 => "<4KiB",
@@ -171,12 +204,40 @@ fn size_bucket(bytes: usize) -> &'static str {
     }
 }
 
+fn parse_number<T: std::str::FromStr>(value: OsString, option: &str) -> Result<T>
+where
+    T::Err: std::error::Error + Send + Sync + 'static,
+{
+    value
+        .to_str()
+        .with_context(|| format!("{option} must be UTF-8"))?
+        .parse()
+        .with_context(|| format!("{option} must be an unsigned integer"))
+}
+
 fn parse_args_from(args: impl IntoIterator<Item = OsString>) -> Result<Options> {
-    let mut options = Options {
-        family: 2,
-        ..Default::default()
-    };
     let mut args = args.into_iter();
+    let command = match args.next().as_deref().and_then(|value| value.to_str()) {
+        Some("train") => Command::Train,
+        Some("evaluate") => Command::Evaluate,
+        Some("--help" | "-h") => {
+            print_help();
+            std::process::exit(0);
+        }
+        Some(value) => bail!("Expected `train` or `evaluate`, got {value}"),
+        None => bail!("A `train` or `evaluate` subcommand is required"),
+    };
+    let mut options = Options {
+        command,
+        family: 2,
+        dictionaries: Vec::new(),
+        json: None,
+        output: None,
+        max_dictionary_size: 64 * 1024,
+        max_samples: 10_000,
+        force: false,
+        caches: Vec::new(),
+    };
     while let Some(arg) = args.next() {
         match arg.to_str() {
             Some("--dictionary" | "-d") => options.dictionaries.push(PathBuf::from(
@@ -187,14 +248,31 @@ fn parse_args_from(args: impl IntoIterator<Item = OsString>) -> Result<Options> 
                     args.next().context("--json requires a path")?,
                 ));
             }
-            Some("--family") => {
-                let value = args.next().context("--family requires an integer")?;
-                options.family = value
-                    .to_str()
-                    .context("--family must be UTF-8")?
-                    .parse()
-                    .context("--family must be an unsigned integer")?;
+            Some("--output" | "-o") => {
+                options.output = Some(PathBuf::from(
+                    args.next().context("--output requires a path")?,
+                ));
             }
+            Some("--family") => {
+                options.family = parse_number(
+                    args.next().context("--family requires an integer")?,
+                    "--family",
+                )?;
+            }
+            Some("--max-dictionary-size") => {
+                options.max_dictionary_size = parse_number(
+                    args.next()
+                        .context("--max-dictionary-size requires an integer")?,
+                    "--max-dictionary-size",
+                )?;
+            }
+            Some("--max-samples") => {
+                options.max_samples = parse_number(
+                    args.next().context("--max-samples requires an integer")?,
+                    "--max-samples",
+                )?;
+            }
+            Some("--force") => options.force = true,
             Some("--help" | "-h") => {
                 print_help();
                 std::process::exit(0);
@@ -207,6 +285,27 @@ fn parse_args_from(args: impl IntoIterator<Item = OsString>) -> Result<Options> 
         !options.caches.is_empty(),
         "At least one cache directory is required"
     );
+    ensure!(
+        options.max_dictionary_size > 0,
+        "--max-dictionary-size must be positive"
+    );
+    ensure!(options.max_samples > 0, "--max-samples must be positive");
+    match options.command {
+        Command::Train => {
+            ensure!(options.output.is_some(), "train requires --output");
+            ensure!(
+                options.dictionaries.is_empty(),
+                "train does not accept --dictionary"
+            );
+        }
+        Command::Evaluate => {
+            ensure!(
+                options.output.is_none(),
+                "evaluate does not accept --output"
+            );
+            ensure!(!options.force, "evaluate does not accept --force");
+        }
+    }
     Ok(options)
 }
 
@@ -216,11 +315,15 @@ fn parse_args() -> Result<Options> {
 
 fn print_help() {
     println!(
-        "Usage: taskdata_dictionary [OPTIONS] <CACHE_DIRECTORY>...\n\nEvaluate candidate zstd \
-         dictionaries against active TaskData SST blocks.\n\nOptions:\n-d, --dictionary <PATH>  \
-         Candidate dictionary (repeatable)\n--family <ID>       Family ID to evaluate (default: 2 \
-         / TaskData)\n--json <PATH>       Write a JSON report\n-h, --help              Show this \
-         help"
+        "Usage:\n  taskdata_dictionary train --output <PATH> [OPTIONS] <CACHE_DIRECTORY>...\n  \
+         taskdata_dictionary evaluate [OPTIONS] <CACHE_DIRECTORY>...\n\nTrain or evaluate zstd \
+         dictionaries using active TaskData SST blocks.\n\nShared options:\n      --family <ID>      \
+         Family ID (default: 2 / TaskData)\n      --json <PATH>      Write a JSON report\n\nTrain \
+         options:\n  -o, --output <PATH>    Dictionary output path\n      --max-dictionary-size \
+         <BYTES>  Maximum size (default: 65536)\n      --max-samples <COUNT>          Sample \
+         cap (default: 10000)\n      --force            Replace an existing output\n\nEvaluate \
+         options:\n  -d, --dictionary <PATH>  Candidate dictionary (repeatable)\n\n  -h, --help     \
+         Show this help"
     );
 }
 
@@ -341,7 +444,11 @@ fn count_blob_references(header: KeyBlockHeader, data: &[u8]) -> Result<u64> {
         .count() as u64)
 }
 
-fn evaluate_cache(path: &Path, family: u32, candidates: &mut [Candidate]) -> Result<CacheReport> {
+fn scan_cache(
+    path: &Path,
+    family: u32,
+    mut on_eligible: impl FnMut(&[u8], bool) -> Result<()>,
+) -> Result<CacheReport> {
     ensure!(path.is_dir(), "Not a cache directory: {}", path.display());
     let families = collect_sst_info(path)
         .with_context(|| format!("Failed to inspect cache {}", path.display()))?;
@@ -351,7 +458,6 @@ fn evaluate_cache(path: &Path, family: u32, candidates: &mut [Candidate]) -> Res
             path.display()
         )
     })?;
-
     let mut report = CacheReport {
         path: path.to_path_buf(),
         family,
@@ -360,21 +466,28 @@ fn evaluate_cache(path: &Path, family: u32, candidates: &mut [Candidate]) -> Res
         original_complete_sst_bytes: 0,
         original_eligible_payload_bytes: 0,
         blocks: BlockSummary::default(),
-        candidates: candidates
-            .iter()
-            .map(|candidate| CandidateResult {
-                dictionary: Some(candidate.info.clone()),
-                setup_ns: candidate.setup_ns,
-                ..Default::default()
-            })
-            .collect(),
+        candidates: Vec::new(),
     };
-
     for info in ssts {
-        evaluate_sst(path, info, candidates, &mut report)
-            .with_context(|| format!("Failed to evaluate {:08}.sst", info.sequence_number))?;
+        scan_sst(path, info, &mut report, &mut on_eligible)
+            .with_context(|| format!("Failed to scan {:08}.sst", info.sequence_number))?;
     }
+    Ok(report)
+}
 
+fn evaluate_cache(path: &Path, family: u32, candidates: &mut [Candidate]) -> Result<CacheReport> {
+    let mut results: Vec<CandidateResult> = candidates
+        .iter()
+        .map(|candidate| CandidateResult {
+            dictionary: Some(candidate.info.clone()),
+            setup_ns: candidate.setup_ns,
+            ..Default::default()
+        })
+        .collect();
+    let mut report = scan_cache(path, family, |data, was_compressed| {
+        evaluate_block(candidates, &mut results, data, was_compressed)
+    })?;
+    report.candidates = results;
     for result in &mut report.candidates {
         result.modeled_complete_sst_bytes = report.original_complete_sst_bytes
             - report.original_eligible_payload_bytes
@@ -388,11 +501,11 @@ fn evaluate_cache(path: &Path, family: u32, candidates: &mut [Candidate]) -> Res
     Ok(report)
 }
 
-fn evaluate_sst(
+fn scan_sst(
     db_path: &Path,
     info: &SstInfo,
-    candidates: &mut [Candidate],
     report: &mut CacheReport,
+    on_eligible: &mut impl FnMut(&[u8], bool) -> Result<()>,
 ) -> Result<()> {
     ensure!(info.block_count > 0, "SST contains no blocks");
     let (mmap, file_size, offsets_start) = open_sst(db_path, info)?;
@@ -442,12 +555,7 @@ fn evaluate_sst(
         if eligible {
             report.blocks.add_eligible_size(block.data.len());
             report.original_eligible_payload_bytes += block.stored_size;
-            evaluate_block(
-                candidates,
-                &mut report.candidates,
-                &block.data,
-                block.was_compressed,
-            )?;
+            on_eligible(&block.data, block.was_compressed)?;
         }
     }
 
@@ -458,6 +566,162 @@ fn evaluate_sst(
         "SST is smaller than its headers and block directory"
     );
     Ok(())
+}
+
+fn write_atomic(path: &Path, bytes: &[u8], force: bool) -> Result<()> {
+    if path.exists() && !force {
+        bail!(
+            "Output {} already exists; pass --force to replace it",
+            path.display()
+        );
+    }
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).with_context(|| format!("Failed to create {}", parent.display()))?;
+    let filename = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("Output filename must be UTF-8")?;
+    let temporary = parent.join(format!(".{filename}.{}.tmp", std::process::id()));
+    let result = (|| -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .with_context(|| format!("Failed to create {}", temporary.display()))?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        fs::rename(&temporary, path).with_context(|| {
+            format!(
+                "Failed to atomically rename {} to {}",
+                temporary.display(),
+                path.display()
+            )
+        })?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+fn training_dictionary_info(path: &Path, dictionary: &[u8]) -> DictionaryInfo {
+    DictionaryInfo {
+        name: path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("dictionary")
+            .to_owned(),
+        path: Some(path.to_path_buf()),
+        bytes: dictionary.len(),
+        dictionary_id: zstd::zstd_safe::get_dict_id_from_dict(dictionary).map(|id| id.get()),
+        xxh3_64: Some(format!("{:016x}", xxh3_64(dictionary))),
+    }
+}
+
+fn train(options: &Options) -> Result<TrainingReport> {
+    let output = options.output.as_deref().expect("validated by parse_args");
+    if output.exists() && !options.force {
+        bail!(
+            "Output {} already exists; pass --force to replace it",
+            output.display()
+        );
+    }
+    let mut cache_paths = options.caches.clone();
+    cache_paths.sort();
+
+    let mut scanned_by_cache = Vec::with_capacity(cache_paths.len());
+    let mut scanned_samples = 0_u64;
+    for path in &cache_paths {
+        let mut count = 0_u64;
+        scan_cache(path, options.family, |_, _| {
+            count += 1;
+            Ok(())
+        })?;
+        scanned_samples += count;
+        scanned_by_cache.push(count);
+    }
+    ensure!(scanned_samples > 0, "No eligible blocks found for training");
+    let stride = scanned_samples.div_ceil(options.max_samples as u64).max(1);
+
+    let mut samples: Vec<Box<[u8]>> = Vec::with_capacity(
+        usize::try_from(scanned_samples.div_ceil(stride))
+            .unwrap_or(options.max_samples)
+            .min(options.max_samples),
+    );
+    let mut cache_reports = Vec::with_capacity(cache_paths.len());
+    let mut global_index = 0_u64;
+    for (path, scanned) in cache_paths.iter().zip(scanned_by_cache) {
+        let mut selected_samples = 0_u64;
+        let mut selected_bytes = 0_u64;
+        scan_cache(path, options.family, |data, _| {
+            let select = global_index.is_multiple_of(stride) && samples.len() < options.max_samples;
+            global_index += 1;
+            if select {
+                selected_samples += 1;
+                selected_bytes += data.len() as u64;
+                samples.push(Box::from(data));
+            }
+            Ok(())
+        })?;
+        cache_reports.push(TrainingCacheReport {
+            path: path.clone(),
+            scanned_samples: scanned,
+            selected_samples,
+            selected_bytes,
+        });
+    }
+    ensure!(!samples.is_empty(), "No blocks selected for training");
+    let selected_bytes = samples.iter().map(|sample| sample.len() as u64).sum();
+    let dictionary =
+        zstd::dict::from_samples(&samples, options.max_dictionary_size).with_context(|| {
+            format!(
+                "Failed to train a {}-byte dictionary from {} selected samples ({} bytes); add \
+                 caches, raise --max-samples, or request a smaller dictionary",
+                options.max_dictionary_size,
+                samples.len(),
+                selected_bytes
+            )
+        })?;
+    write_atomic(output, &dictionary, options.force)?;
+    let info = training_dictionary_info(output, &dictionary);
+    Ok(TrainingReport {
+        schema_version: SCHEMA_VERSION,
+        family: options.family,
+        zstd_version: zstd::zstd_safe::version_string(),
+        max_dictionary_size: options.max_dictionary_size,
+        max_samples: options.max_samples,
+        scanned_samples,
+        stride,
+        selected_samples: samples.len() as u64,
+        selected_bytes,
+        caches: cache_reports,
+        dictionary: info,
+    })
+}
+
+fn print_training_report(report: &TrainingReport) {
+    println!(
+        "Trained {} ({} bytes, id {:?}, xxh3 {}) from {} of {} eligible blocks (stride {}, {} \
+         selected bytes)",
+        report.dictionary.path.as_ref().unwrap().display(),
+        report.dictionary.bytes,
+        report.dictionary.dictionary_id,
+        report.dictionary.xxh3_64.as_deref().unwrap_or("none"),
+        report.selected_samples,
+        report.scanned_samples,
+        report.stride,
+        report.selected_bytes,
+    );
+    for cache in &report.caches {
+        println!(
+            "  {}: selected {} / {} blocks ({} bytes)",
+            cache.path.display(),
+            cache.selected_samples,
+            cache.scanned_samples,
+            cache.selected_bytes
+        );
+    }
 }
 
 fn percentage_delta(value: u64, baseline: u64) -> Option<f64> {
@@ -587,29 +851,42 @@ fn print_report(report: &Report) {
     println!("Note: timings are single-pass wall-clock diagnostics, not benchmarks.");
 }
 
-fn run() -> Result<()> {
-    let options = parse_args()?;
-    let mut candidates = make_candidates(&options.dictionaries)?;
-    let mut caches = Vec::with_capacity(options.caches.len());
-    for path in &options.caches {
-        caches.push(evaluate_cache(path, options.family, &mut candidates)?);
-    }
-    let combined = combine(&caches, &candidates);
-    let report = Report {
-        schema_version: SCHEMA_VERSION,
-        family: options.family,
-        timing_note: "Single-pass wall-clock diagnostics; size/count fields are the comparison \
-                      contract.",
-        caches,
-        combined,
-    };
-    print_report(&report);
-    if let Some(path) = options.json {
-        let file = File::create(&path)
+fn write_json(path: Option<&Path>, report: &impl Serialize) -> Result<()> {
+    if let Some(path) = path {
+        let file = File::create(path)
             .with_context(|| format!("Failed to create JSON report {}", path.display()))?;
-        serde_json::to_writer_pretty(BufWriter::new(file), &report)?;
+        serde_json::to_writer_pretty(BufWriter::new(file), report)?;
     }
     Ok(())
+}
+
+fn run() -> Result<()> {
+    let options = parse_args()?;
+    match options.command {
+        Command::Train => {
+            let report = train(&options)?;
+            print_training_report(&report);
+            write_json(options.json.as_deref(), &report)
+        }
+        Command::Evaluate => {
+            let mut candidates = make_candidates(&options.dictionaries)?;
+            let mut caches = Vec::with_capacity(options.caches.len());
+            for path in &options.caches {
+                caches.push(evaluate_cache(path, options.family, &mut candidates)?);
+            }
+            let combined = combine(&caches, &candidates);
+            let report = Report {
+                schema_version: SCHEMA_VERSION,
+                family: options.family,
+                timing_note: "Single-pass wall-clock diagnostics; size/count fields are the \
+                              comparison contract.",
+                caches,
+                combined,
+            };
+            print_report(&report);
+            write_json(options.json.as_deref(), &report)
+        }
+    }
 }
 
 fn main() {
@@ -628,7 +905,10 @@ mod tests {
     use tempfile::TempDir;
     use turbo_persistence::{Compression, DbConfig, SerialScheduler, TurboPersistence};
 
-    use super::{evaluate_cache, make_candidates, parse_args_from, production_stored_size};
+    use super::{
+        Command, Options, evaluate_cache, make_candidates, parse_args_from, production_stored_size,
+        train,
+    };
 
     fn make_cache(family: usize, compression: Compression) -> Result<TempDir> {
         let tempdir = tempfile::tempdir()?;
@@ -646,7 +926,7 @@ mod tests {
                 .into_bytes();
             batch.put(family as u32, key, value.into())?;
         }
-        for index in 0..4u8 {
+        for index in 0..100u8 {
             let key = format!("long-medium-task-data-key-{index:04}").into_bytes();
             batch.put(family as u32, key, vec![b'a' + index; 5000].into())?;
         }
@@ -681,6 +961,7 @@ mod tests {
         assert!(parse_args_from([]).is_err());
         assert!(parse_args_from(["--unknown".into()]).is_err());
         let options = parse_args_from([
+            "evaluate".into(),
             "--family".into(),
             "7".into(),
             "--dictionary".into(),
@@ -694,6 +975,58 @@ mod tests {
             [std::path::PathBuf::from("candidate.dict")]
         );
         assert_eq!(options.caches, [std::path::PathBuf::from("cache")]);
+
+        let train = parse_args_from([
+            "train".into(),
+            "--output".into(),
+            "output.dict".into(),
+            "cache".into(),
+        ])
+        .unwrap();
+        assert_eq!(train.command, Command::Train);
+        assert_eq!(train.max_dictionary_size, 64 * 1024);
+        assert_eq!(train.max_samples, 10_000);
+    }
+
+    fn training_options(caches: &[&Path], output: &Path, force: bool) -> Options {
+        Options {
+            command: Command::Train,
+            family: 2,
+            dictionaries: Vec::new(),
+            json: None,
+            output: Some(output.to_path_buf()),
+            max_dictionary_size: 1024,
+            max_samples: 100,
+            force,
+            caches: caches.iter().map(|path| path.to_path_buf()).collect(),
+        }
+    }
+
+    #[test]
+    fn trains_with_two_pass_sampling_and_no_clobber() -> Result<()> {
+        let first_cache = make_cache(2, Compression::Zstd3)?;
+        let second_cache = make_cache(2, Compression::Lz4)?;
+        let output_dir = tempfile::tempdir()?;
+        let first_output = output_dir.path().join("first.zdict");
+        let second_output = output_dir.path().join("second.zdict");
+        let caches = [first_cache.path(), second_cache.path()];
+
+        let first = train(&training_options(&caches, &first_output, false))?;
+        assert_eq!(first.max_dictionary_size, 1024);
+        assert_eq!(first.max_samples, 100);
+        assert!(first.scanned_samples > first.selected_samples);
+        assert!(first.selected_samples <= 100);
+        assert_eq!(first.caches.len(), 2);
+        assert!(first.caches.iter().all(|cache| cache.selected_samples > 0));
+        assert_eq!(fs::read(&first_output)?.len(), first.dictionary.bytes);
+
+        let second = train(&training_options(&caches, &second_output, false))?;
+        assert_eq!(fs::read(&first_output)?, fs::read(&second_output)?);
+        assert!(train(&training_options(&caches, &first_output, false)).is_err());
+        train(&training_options(&caches, &first_output, true))?;
+        assert_eq!(first.selected_samples, second.selected_samples);
+        assert_eq!(first.selected_bytes, second.selected_bytes);
+        Ok(())
     }
 
     #[test]
