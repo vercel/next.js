@@ -127,6 +127,9 @@ env:
   TURBO_CACHE: 'local:rw,remote:rw'
 
   NEXT_TELEMETRY_DISABLED: 1
+  # Temporary CI experiment: surface deprecation stack traces from every Node
+  # process in the test suite.
+  NODE_OPTIONS: --trace-deprecation
   # `skipNativeInstall: 'no'` must force the download even though CI otherwise
   # skips it by default (see scripts/install-native.mjs), so emit an explicit
   # '0' rather than an empty value.
