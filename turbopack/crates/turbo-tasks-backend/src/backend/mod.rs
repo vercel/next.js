@@ -1,12 +1,12 @@
 mod cell_data;
 mod counter_map;
-mod dense_task_map;
 mod eviction;
 mod gc;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
+mod task_page_map;
 
 use std::{
     borrow::Cow,
@@ -313,15 +313,10 @@ impl TurboTasksBackend {
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if self.should_persist() {
-            self.snapshot_coord.suspend_point(suspend);
-        }
+        self.snapshot_coord.suspend_point(suspend);
     }
 
     pub(crate) fn start_operation(&self) -> OperationGuard<'_, AnyOperation> {
-        if !self.should_persist() {
-            return OperationGuard::noop();
-        }
         self.snapshot_coord.begin_operation()
     }
 
@@ -357,7 +352,9 @@ impl TurboTasksBackend {
                 return (false, EvictionCounts::default());
             }
         };
-        let counts = self.storage.evict_after_snapshot(None);
+        let counts = self
+            .storage
+            .evict_after_snapshot(&self.snapshot_coord, None);
         (had_new_data, counts)
     }
 
@@ -366,23 +363,29 @@ impl TurboTasksBackend {
     /// transient tasks.
     #[doc(hidden)]
     pub fn resident_persistent_task_count_for_testing(&self) -> usize {
-        self.storage.resident_persistent_task_count_for_testing()
+        let operation = self.start_operation();
+        self.storage
+            .resident_persistent_task_count_for_testing(operation.access_token())
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
     /// hook for verifying incremental refcount maintenance.
     #[doc(hidden)]
     pub fn parent_count_for_testing(&self, task: TaskId) -> u32 {
+        let operation = self.start_operation();
         self.storage
-            .with_task(task, |t| t.gc_parent_count())
+            .with_task(operation.access_token(), task, |t| t.gc_parent_count())
             .unwrap_or(0)
     }
 
     /// The transient `transient_ref_count` of a resident task (0 if absent or not resident).
     #[doc(hidden)]
     pub fn transient_ref_count_for_testing(&self, task: TaskId) -> u32 {
+        let operation = self.start_operation();
         self.storage
-            .with_task(task, |t| t.gc_transient_ref_count())
+            .with_task(operation.access_token(), task, |t| {
+                t.gc_transient_ref_count()
+            })
             .unwrap_or(0)
     }
 
@@ -1071,7 +1074,7 @@ impl TurboTasksBackend {
         // since epoch). Instant is monotonic but has no defined epoch, so it
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
-        let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
+        let mut snapshot_phase = self.snapshot_coord.begin_exclusion();
         let gc_elapsed = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 parent: parent_span.clone(),
@@ -1090,12 +1093,15 @@ impl TurboTasksBackend {
         debug_assert!(self.should_persist());
 
         // Checking after start_snapshot ensures no concurrent increments can race.
-        let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = self
+            .storage
+            .start_snapshot(&self.snapshot_coord, snapshot_phase.access_token());
 
         let suspended_operations = snapshot_phase.take_suspended_operations();
 
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
+        snapshot_guard.begin_concurrent_phase();
 
         if !has_modifications {
             // No tasks modified since the last snapshot — drop the guard (which
@@ -1587,7 +1593,9 @@ impl TurboTasksBackend {
         {
             eprintln!("Persisting failed during shutdown: {err:?}");
         }
-        self.storage.drop_contents();
+        let clear_phase = self.snapshot_coord.begin_exclusion();
+        self.storage.drop_contents(clear_phase.access_token());
+        drop(clear_phase);
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
         }
@@ -1737,8 +1745,11 @@ impl TurboTasksBackend {
                         // Initialize storage BEFORE making task_id visible in the cache.
                         // This ensures any thread that reads task_id from the cache sees
                         // the storage entry already initialized (restored flags set).
-                        self.storage
-                            .initialize_new_task(task_id, Some(task_type.clone()));
+                        self.storage.initialize_new_task(
+                            ctx.storage_access_token(),
+                            task_id,
+                            Some(task_type.clone()),
+                        );
                         entry.insert((task_type, task_id));
                         (task_id, true)
                     }
@@ -1928,7 +1939,8 @@ impl TurboTasksBackend {
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
-        let task = self.storage.access_mut(task_id);
+        let operation = self.start_operation();
+        let task = self.storage.access_mut(operation.access_token(), task_id);
         if let Some(value) = task.get_persistent_task_type() {
             format!("{task_id:?} {}", value)
         } else if let Some(value) = task.get_transient_task_type() {
@@ -1957,7 +1969,8 @@ impl TurboTasksBackend {
     }
 
     fn debug_get_cached_task_type(&self, task_id: TaskId) -> Option<CachedTaskTypeArc> {
-        let task = self.storage.access_mut(task_id);
+        let operation = self.start_operation();
+        let task = self.storage.access_mut(operation.access_token(), task_id);
         task.get_persistent_task_type().cloned()
     }
 
@@ -3135,7 +3148,10 @@ impl TurboTasksBackend {
                                     // when enabled we should expect it to reclaim substantial
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
-                                    self.storage.evict_after_snapshot(background_span.id());
+                                    self.storage.evict_after_snapshot(
+                                        &self.snapshot_coord,
+                                        background_span.id(),
+                                    );
                                     true
                                 } else {
                                     false
@@ -3387,7 +3403,8 @@ impl TurboTasksBackend {
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
         let task_id = self.transient_task_id_factory.get();
         {
-            let mut task = self.storage.access_mut(task_id);
+            let operation = self.start_operation();
+            let mut task = self.storage.access_mut(operation.access_token(), task_id);
             task.init_transient_task(task_id, task_type, self.should_track_activeness());
         }
         #[cfg(feature = "verify_aggregation_graph")]

@@ -33,7 +33,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap, dense_task_map::TaskSlotValue},
+    backend::{cell_data::CellData, counter_map::CounterMap, task_page_map::TaskSlotValue},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -48,7 +48,7 @@ type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<F
 /// See [`AutoSet`] for the meaning of `I`.
 type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
 
-/// Intrusive parking_lot lock embedded in each always-initialized task slot.
+/// Intrusive parking_lot lock embedded in each stable task allocation.
 ///
 /// The newtype supplies the generated `Debug`, `Default`, and `ShrinkToFit` requirements while
 /// retaining parking_lot's standard RAII guard and one-byte mutex layout.
@@ -615,10 +615,13 @@ pub enum KeyEvictability {
     Unevictable,
 }
 
-// SAFETY: `TaskStorage::empty_slot` always initializes the mutex. Dense chunks pin every slot
-// after publication, and `take_and_vacate` moves only payload fields while preserving that mutex.
+// SAFETY: `TaskStorage::new` initializes the mutex. Resident values remain at stable boxed
+// addresses from release publication until an exclusive storage epoch detaches them.
 unsafe impl TaskSlotValue for TaskStorage {
-    const EMPTY: Self = Self::empty_slot();
+    fn new() -> Self {
+        TaskStorage::new()
+    }
+
     unsafe fn lock_raw(value: *const Self) {
         // SAFETY: TaskSlotValue guarantees a live, stably-addressed TaskStorage.
         unsafe { IntrusiveTaskLock::lock_raw(std::ptr::addr_of!((*value).lock)) };
@@ -628,36 +631,11 @@ unsafe impl TaskSlotValue for TaskStorage {
         // SAFETY: TaskSlotGuard owns the lock acquired through the same raw value pointer.
         unsafe { IntrusiveTaskLock::unlock_raw(std::ptr::addr_of!((*value).lock)) };
     }
-
-    fn is_occupied(&self) -> bool {
-        self.is_occupied()
-    }
-
-    fn occupy(&mut self) {
-        self.occupy();
-    }
-
-    fn take_and_vacate(&mut self) -> Self {
-        self.take_and_vacate()
-    }
-
-    fn vacate_in_place(&mut self) {
-        self.vacate_in_place();
-    }
 }
 
 impl TaskStorage {
-    pub(crate) fn is_occupied(&self) -> bool {
-        self.occupied
-    }
-
-    pub(crate) fn occupy(&mut self) {
-        debug_assert!(!self.occupied);
-        self.occupied = true;
-    }
-
-    /// Canonical const representation of a vacant, always-initialized dense task slot.
-    pub const fn empty_slot() -> Self {
+    /// Canonical const representation of a fresh boxed task payload.
+    pub const fn empty_task() -> Self {
         Self {
             leaf_distance: LeafDistance {
                 distance: 0,
@@ -677,7 +655,6 @@ impl TaskStorage {
             flags: TaskFlags::empty(),
             lazy: TinyVec::new(),
             lock: IntrusiveTaskLock::new(),
-            occupied: false,
         }
     }
 
@@ -1174,13 +1151,16 @@ impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for
 }
 #[cfg(test)]
 mod tests {
-    use std::{mem::size_of, sync::atomic::AtomicU64};
+    use std::{
+        mem::size_of,
+        sync::atomic::{AtomicPtr, AtomicU64},
+    };
 
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
     use crate::{
-        backend::dense_task_map::{BITMAP_WORDS, CHUNK_SIZE, TaskChunk, TaskSlot},
+        backend::task_page_map::{BITMAP_WORDS, PAGE_SIZE, TaskMap},
         data::{AggregationNumber, CellRef, Dirtyness, OutputValue},
     };
 
@@ -1927,11 +1907,7 @@ mod tests {
 
     #[test]
     fn const_new_slots_have_independent_unlocked_mutexes() {
-        let empty_task = const { TaskStorage::new() };
         let slots = [const { TaskStorage::new() }; 2];
-        assert!(!empty_task.is_occupied());
-        assert!(!slots[0].is_occupied());
-        assert!(!slots[1].is_occupied());
         assert!(!slots[0].lock.is_locked());
         assert!(!slots[1].lock.is_locked());
         let guard = slots[0].lock.lock();
@@ -1941,40 +1917,9 @@ mod tests {
     }
 
     #[test]
-    fn vacate_preserves_lock_and_resets_payload() {
-        let mut task = TaskStorage::empty_slot();
-        let lock_address = std::ptr::addr_of!(task.lock);
-        let detached = with_task_locked(&mut task, |task| {
-            task.occupy();
-            task.set_output(OutputValue::Output(TaskId::new(1).unwrap()));
-            task.take_and_vacate()
-        });
-        assert_eq!(std::ptr::addr_of!(task.lock), lock_address);
-        assert!(!task.lock.is_locked());
-        assert!(!task.is_occupied());
-        assert_eq!(task.get_output(), None);
-        assert_eq!(
-            detached.get_output(),
-            Some(&OutputValue::Output(TaskId::new(1).unwrap()))
-        );
-        assert!(!detached.lock.is_locked());
-        assert!(!detached.is_occupied());
-        with_task_locked(&mut task, |task| {
-            task.occupy();
-            task.set_output(OutputValue::Output(TaskId::new(2).unwrap()));
-            assert!(task.is_occupied());
-            task.vacate_in_place();
-            assert!(task.lock.is_locked());
-            assert!(!task.is_occupied());
-            assert_eq!(task.get_output(), None);
-        });
-    }
-
-    #[test]
     fn snapshot_clone_has_fresh_synchronization_state() {
-        let mut task = TaskStorage::empty_slot();
+        let mut task = TaskStorage::empty_task();
         let snapshot = with_task_locked(&mut task, |task| {
-            task.occupy();
             task.set_output(OutputValue::Output(TaskId::new(1).unwrap()));
             let snapshot = task.clone_snapshot();
             assert!(task.lock.is_locked());
@@ -1982,7 +1927,6 @@ mod tests {
             snapshot
         });
         assert!(!snapshot.lock.is_locked());
-        assert!(!snapshot.is_occupied());
     }
 
     #[test]
@@ -1999,24 +1943,24 @@ mod tests {
             "TaskStorage's niche should make its Option free"
         );
         assert_eq!(
-            size_of::<TaskSlot<TaskStorage>>(),
-            128,
-            "intrusive task slot must not add padding"
-        );
-        assert_eq!(
             size_of::<[AtomicU64; BITMAP_WORDS]>(),
-            CHUNK_SIZE / 8,
+            PAGE_SIZE / 8,
             "chunk occupancy bitmap size changed"
         );
         assert_eq!(
-            size_of::<TaskChunk<TaskStorage>>(),
-            16 + CHUNK_SIZE / 8,
-            "chunk counters and bitmap size changed"
+            TaskMap::<TaskStorage>::directory_entry_size(),
+            size_of::<AtomicPtr<()>>(),
+            "permanent page-directory entry must remain one pointer"
         );
         assert_eq!(
-            size_of::<[TaskSlot<TaskStorage>; CHUNK_SIZE]>(),
-            128 * CHUNK_SIZE,
-            "chunk slot allocation size changed"
+            size_of::<[AtomicPtr<TaskStorage>; PAGE_SIZE]>(),
+            size_of::<AtomicPtr<TaskStorage>>() * PAGE_SIZE,
+            "pointer-page slot array size changed"
+        );
+        assert_eq!(
+            TaskMap::<TaskStorage>::pointer_page_size(),
+            24 + size_of::<AtomicPtr<TaskStorage>>() * PAGE_SIZE,
+            "pointer-page counters, bitmap, or slots changed"
         );
         // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(

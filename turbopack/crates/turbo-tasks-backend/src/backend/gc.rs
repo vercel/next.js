@@ -80,14 +80,18 @@ impl TurboTasksBackend {
         phase: &SnapshotPhase<'_, AnyOperation>,
     ) -> GcStats {
         // TODO(perf): recycle the task ids of collected tasks.
+        let access = phase.access_token();
         scope_unbounded_with(
-            (0..self.storage.shard_count()).map(GcJob::ScanShard),
+            self.storage
+                .shard_indices(access)
+                .into_iter()
+                .map(GcJob::ScanShard),
             GcStats::default,
             |spawner, job, stats| {
                 let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
                 let task_id = match job {
                     GcJob::ScanShard(index) => {
-                        self.storage.gc_scan_shard(index, collector);
+                        self.storage.gc_scan_shard(access, index, collector);
                         return ControlFlow::Continue(());
                     }
                     GcJob::Collect(task_id) => task_id,
@@ -185,7 +189,7 @@ impl TurboTasksBackend {
             "gc_for_testing requires a GC-enabled backend: set `BackendOptions::gc = Some(true)`"
         );
         let _serialize = self.snapshot_in_progress.lock();
-        let phase = self.snapshot_coord.begin_snapshot();
+        let phase = self.snapshot_coord.begin_exclusion();
         self.gc_collect(turbo_tasks, &phase).collected
     }
 }

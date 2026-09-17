@@ -47,7 +47,6 @@ fs-err = { workspace = true }
 hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
-kovan = { workspace = true }
 lzzzz = { workspace = true, optional = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
@@ -78,6 +77,7 @@ triomphe = { workspace = true }
 thiserror = { workspace = true }
 turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 rstest = { workspace = true }
+static_assertions = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 # The read-outcome tests assert on the counters, so they need them compiled in. Only for tests —
 # normal builds of this crate get the default (disabled) turbo-tasks.

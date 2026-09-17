@@ -286,7 +286,6 @@ image = { version = "0.25.8", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
-kovan = "0.1.20"
 lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
@@ -347,6 +346,7 @@ smallvec = { version = "1.15.1", features = [
   "impl_bincode",
 ] }
 shrink-to-fit = "0.2.10"
+static_assertions = "1.1.0"
 strsim = "0.11.1"
 swc_sourcemap = "10.0.2"
 syn = "2.0.100"
