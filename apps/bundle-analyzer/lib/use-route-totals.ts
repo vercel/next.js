@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AnalyzeData } from './analyze-data'
+import { AnalyzeData } from '@/lib/analyze-data'
 import { totalsFromAnalyzeData, type RouteSizeTotals } from './diff'
 import { fetchStrict } from './utils'
 

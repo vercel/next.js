@@ -1,6 +1,5 @@
 // Type definitions matching the Rust structures from analyze.rs
 
-// Type aliases for better readability
 export type ModuleIndex = number
 export type SourceIndex = number
 
@@ -54,35 +53,105 @@ interface ModulesDataHeader {
   traced_module_dependencies: EdgesDataReference
 }
 
-/**
- * Represents the global modules data that is shared across all routes
- */
+function parseHeader<T>(buffer: ArrayBuffer, label: string): [T, DataView] {
+  if (buffer.byteLength < 4)
+    throw new Error(`Invalid ${label}: truncated header`)
+  const view = new DataView(buffer)
+  const jsonLength = view.getUint32(0, false)
+  if (jsonLength > buffer.byteLength - 4) {
+    throw new Error(`Invalid ${label}: truncated JSON`)
+  }
+  try {
+    const json = new TextDecoder('utf-8', { fatal: true }).decode(
+      new Uint8Array(buffer, 4, jsonLength)
+    )
+    const header: unknown = JSON.parse(json)
+    if (
+      typeof header !== 'object' ||
+      header === null ||
+      Array.isArray(header)
+    ) {
+      throw new Error()
+    }
+    return [header as T, new DataView(buffer, 4 + jsonLength)]
+  } catch {
+    throw new Error(`Invalid ${label}: malformed JSON`)
+  }
+}
+
+function validateEdges(
+  data: DataView,
+  reference: EdgesDataReference,
+  rows: number,
+  targets: number,
+  label: string
+): void {
+  const { offset, length } = reference ?? {}
+  if (!Number.isInteger(offset) || !Number.isInteger(length)) {
+    throw new Error(`Invalid ${label}: malformed reference`)
+  }
+  if (length < 4 || offset < 0 || length > data.byteLength - offset) {
+    throw new Error(`Invalid ${label}: section out of bounds`)
+  }
+  const count = data.getUint32(offset, false)
+  if (count !== rows || length < 4 + count * 4) {
+    throw new Error(`Invalid ${label}: malformed offsets`)
+  }
+  let previous = 0
+  for (let index = 0; index < count; index++) {
+    const current = data.getUint32(offset + 4 + index * 4, false)
+    if (current < previous)
+      throw new Error(`Invalid ${label}: malformed offsets`)
+    previous = current
+  }
+  if (length !== 4 + count * 4 + previous * 4) {
+    throw new Error(`Invalid ${label}: malformed edge count`)
+  }
+  const edgesStart = offset + 4 + count * 4
+  for (let index = 0; index < previous; index++) {
+    if (data.getUint32(edgesStart + index * 4, false) >= targets) {
+      throw new Error(`Invalid ${label}: edge out of range`)
+    }
+  }
+}
+
+function requireArray(
+  value: unknown,
+  label: string
+): asserts value is unknown[] {
+  if (!Array.isArray(value)) throw new Error(`Invalid ${label}`)
+}
+
+/** Represents the global modules data that is shared across all routes. */
 export class ModulesData {
   private modulesHeader: ModulesDataHeader
   private modulesBinaryData: DataView
   private pathToModuleIndex: Map<string, ModuleIndex[]>
 
   constructor(modulesArrayBuffer: ArrayBuffer) {
-    // Parse modules.data
-    const modulesDataView = new DataView(modulesArrayBuffer)
-    const modulesJsonLength = modulesDataView.getUint32(0, false)
-    const modulesJsonBytes = new Uint8Array(
-      modulesArrayBuffer,
-      4,
-      modulesJsonLength
-    )
-    const modulesJsonString = new TextDecoder('utf-8').decode(modulesJsonBytes)
-    this.modulesHeader = JSON.parse(modulesJsonString) as ModulesDataHeader
-    const modulesBinaryOffset = 4 + modulesJsonLength
-    this.modulesBinaryData = new DataView(
-      modulesArrayBuffer,
-      modulesBinaryOffset
-    )
+    ;[this.modulesHeader, this.modulesBinaryData] =
+      parseHeader<ModulesDataHeader>(modulesArrayBuffer, 'modules.data')
+    requireArray(this.modulesHeader.modules, 'modules.data modules')
+    for (const [name, reference] of Object.entries(this.modulesHeader)) {
+      if (name === 'modules') continue
+      validateEdges(
+        this.modulesBinaryData,
+        reference as EdgesDataReference,
+        this.modulesHeader.modules.length,
+        this.modulesHeader.modules.length,
+        `modules.data ${name}`
+      )
+    }
 
-    // Build pathToModuleIndex map
     this.pathToModuleIndex = new Map()
     for (let i = 0; i < this.modulesHeader.modules.length; i++) {
       const module = this.modulesHeader.modules[i]
+      if (
+        typeof module?.ident !== 'string' ||
+        typeof module.path !== 'string'
+      ) {
+        throw new Error('Invalid modules.data module')
+      }
       const existing = this.pathToModuleIndex.get(module.path)
       if (existing) {
         existing.push(i)
@@ -104,25 +173,17 @@ export class ModulesData {
     return this.pathToModuleIndex.get(path) ?? []
   }
 
-  // Read edges data for a specific index only
   private readEdgesDataAtIndex(
     reference: EdgesDataReference,
     index: ModuleIndex
   ): ModuleIndex[] {
-    const { offset, length } = reference
-
-    if (length === 0) {
-      return []
-    }
-
-    // Read the number of offset entries (first u32)
+    const { offset } = reference
     const numOffsets = this.modulesBinaryData.getUint32(offset, false)
 
     if (index < 0 || index >= numOffsets) {
       return []
     }
 
-    // Read only the two offsets we need
     const offsetsStart = offset + 4
     const prevOffset =
       index === 0
@@ -141,15 +202,15 @@ export class ModulesData {
       return []
     }
 
-    // Read only the data for this index
     const dataStart = offset + 4 + numOffsets * 4
     const edges: number[] = []
     for (let j = 0; j < edgeCount; j++) {
-      const edgeValue = this.modulesBinaryData.getUint32(
-        dataStart + (prevOffset + j) * 4,
-        false
+      edges.push(
+        this.modulesBinaryData.getUint32(
+          dataStart + (prevOffset + j) * 4,
+          false
+        )
       )
-      edges.push(edgeValue)
     }
 
     return edges
@@ -202,40 +263,80 @@ export class ModulesData {
   }
 }
 
-/**
- * Represents route-specific analyze data
- */
+/** Represents route-specific analyze data. */
 export class AnalyzeData {
   private analyzeHeader: AnalyzeDataHeader
   private analyzeBinaryData: DataView
   private pathToSourceIndex: Map<string, SourceIndex>
 
   constructor(analyzeArrayBuffer: ArrayBuffer) {
-    // Parse analyze.data
-    const analyzeDataView = new DataView(analyzeArrayBuffer)
-    const analyzeJsonLength = analyzeDataView.getUint32(0, false)
-    const analyzeJsonBytes = new Uint8Array(
-      analyzeArrayBuffer,
-      4,
-      analyzeJsonLength
+    ;[this.analyzeHeader, this.analyzeBinaryData] =
+      parseHeader<AnalyzeDataHeader>(analyzeArrayBuffer, 'analyze.data')
+    const {
+      sources,
+      chunk_parts: parts,
+      output_files: outputs,
+    } = this.analyzeHeader
+    requireArray(sources, 'analyze.data sources')
+    requireArray(parts, 'analyze.data chunk parts')
+    requireArray(outputs, 'analyze.data output files')
+    requireArray(this.analyzeHeader.source_roots, 'analyze.data source roots')
+    validateEdges(
+      this.analyzeBinaryData,
+      this.analyzeHeader.output_file_chunk_parts,
+      outputs.length,
+      parts.length,
+      'analyze.data output chunks'
     )
-    const analyzeJsonString = new TextDecoder('utf-8').decode(analyzeJsonBytes)
-    this.analyzeHeader = JSON.parse(analyzeJsonString) as AnalyzeDataHeader
-    const analyzeBinaryOffset = 4 + analyzeJsonLength
-    this.analyzeBinaryData = new DataView(
-      analyzeArrayBuffer,
-      analyzeBinaryOffset
+    validateEdges(
+      this.analyzeBinaryData,
+      this.analyzeHeader.source_chunk_parts,
+      sources.length,
+      parts.length,
+      'analyze.data source chunks'
     )
+    validateEdges(
+      this.analyzeBinaryData,
+      this.analyzeHeader.source_children,
+      sources.length,
+      sources.length,
+      'analyze.data source children'
+    )
+    for (const source of sources) {
+      if (
+        typeof source?.path !== 'string' ||
+        (source.parent_source_index !== null &&
+          (!Number.isInteger(source.parent_source_index) ||
+            source.parent_source_index < 0 ||
+            source.parent_source_index >= sources.length))
+      ) {
+        throw new Error('Invalid analyze.data source')
+      }
+    }
+    for (const part of parts) {
+      if (
+        !Number.isInteger(part?.source_index) ||
+        part.source_index < 0 ||
+        part.source_index >= sources.length ||
+        !Number.isInteger(part.output_file_index) ||
+        part.output_file_index < 0 ||
+        part.output_file_index >= outputs.length ||
+        !Number.isInteger(part.size) ||
+        !Number.isInteger(part.compressed_size)
+      ) {
+        throw new Error('Invalid analyze.data chunk part')
+      }
+    }
+    if (outputs.some((output) => typeof output?.filename !== 'string')) {
+      throw new Error('Invalid analyze.data output file')
+    }
 
-    // Build pathToSourceIndex map
     this.pathToSourceIndex = new Map()
-    for (let i = 0; i < this.analyzeHeader.sources.length; i++) {
+    for (let i = 0; i < sources.length; i++) {
       const fullPath = this.getFullSourcePath(i)
       this.pathToSourceIndex.set(fullPath, i)
     }
   }
-
-  // Accessor methods for header data
 
   source(index: SourceIndex): AnalyzeSource | undefined {
     return this.analyzeHeader.sources[index]
@@ -269,27 +370,17 @@ export class AnalyzeData {
     return this.analyzeHeader.source_roots
   }
 
-  // Methods to read edges data from the binary section
-
-  // Read edges data for a specific index only
   private readEdgesDataAtIndex(
     reference: EdgesDataReference,
     index: SourceIndex
   ): SourceIndex[] {
-    const { offset, length } = reference
-
-    if (length === 0) {
-      return []
-    }
-
-    // Read the number of offset entries (first u32)
+    const { offset } = reference
     const numOffsets = this.analyzeBinaryData.getUint32(offset, false)
 
     if (index < 0 || index >= numOffsets) {
       return []
     }
 
-    // Read only the two offsets we need
     const offsetsStart = offset + 4
     const prevOffset =
       index === 0
@@ -308,15 +399,15 @@ export class AnalyzeData {
       return []
     }
 
-    // Read only the data for this index
     const dataStart = offset + 4 + numOffsets * 4
     const edges: number[] = []
     for (let j = 0; j < edgeCount; j++) {
-      const edgeValue = this.analyzeBinaryData.getUint32(
-        dataStart + (prevOffset + j) * 4,
-        false
+      edges.push(
+        this.analyzeBinaryData.getUint32(
+          dataStart + (prevOffset + j) * 4,
+          false
+        )
       )
-      edges.push(edgeValue)
     }
 
     return edges
@@ -340,17 +431,20 @@ export class AnalyzeData {
     return this.readEdgesDataAtIndex(this.analyzeHeader.source_children, index)
   }
 
-  // Utility method to get the full path of a source by walking up the parent chain
   getFullSourcePath(index: SourceIndex): string {
-    const source = this.source(index)
+    let source = this.source(index)
     if (!source) return ''
-
-    if (source.parent_source_index === null) {
-      return source.path
+    const parts = [source.path]
+    const seen = new Set([index])
+    while (source.parent_source_index !== null) {
+      if (seen.has(source.parent_source_index)) {
+        throw new Error('Invalid analyze.data: source parent cycle')
+      }
+      seen.add(source.parent_source_index)
+      source = this.source(source.parent_source_index)!
+      parts.push(source.path)
     }
-
-    const parentPath = this.getFullSourcePath(source.parent_source_index)
-    return parentPath + source.path
+    return parts.reverse().join('')
   }
 
   getOwnSizes(index: SourceIndex): {
@@ -430,10 +524,7 @@ export class AnalyzeData {
       compressedSize += childCompressedSize
     }
 
-    return {
-      size,
-      compressedSize,
-    }
+    return { size, compressedSize }
   }
 
   getSourceFlags(index: SourceIndex): {

@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { SpecialModule } from './types'
 import { NetworkError } from './errors'
-import { AnalyzeData, SourceIndex } from './analyze-data'
+import { AnalyzeData, SourceIndex } from '@/lib/analyze-data'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

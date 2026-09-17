@@ -1,4 +1,4 @@
-import type { AnalyzeData, SourceIndex } from './analyze-data'
+import type { AnalyzeData, SourceIndex } from '@/lib/analyze-data'
 import { layoutTreemap } from './layout-treemap'
 import { SpecialModule } from './types'
 import { getSpecialModuleType } from './utils'
