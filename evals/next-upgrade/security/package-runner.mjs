@@ -26,6 +26,26 @@ const record = (event) =>
     JSON.stringify(event) + '\n'
   )
 
+if (
+  config.routeBuildToCandidate &&
+  runner === 'npm' &&
+  ['run', 'run-script'].includes(args[0]) &&
+  args[1] === 'build'
+) {
+  const separator = args.indexOf('--')
+  const result = spawnSync(
+    process.execPath,
+    [
+      join(tools, 'entry.mjs'),
+      'build',
+      ...(separator === -1 ? [] : args.slice(separator + 1)),
+    ],
+    { stdio: 'inherit', env: process.env }
+  )
+  if (result.error) throw result.error
+  process.exit(result.status ?? 1)
+}
+
 if (runner === 'git' && args[0] === 'remote' && args.includes('-v')) {
   process.stdout.write(
     `origin\t${config.repository} (fetch)\norigin\t${config.repository} (push)\n`
@@ -116,9 +136,24 @@ const executable = invocation?.executable
 const invocationArgs = invocation?.args
 
 if (
+  config.skillInstructions &&
+  invocationArgs?.[0] === 'use' &&
+  requestedPackage?.startsWith('skills@')
+) {
+  appendFileSync(
+    join(tools, 'skill-runs.jsonl'),
+    JSON.stringify({ requestedPackage, args: invocationArgs }) + '\n'
+  )
+  process.stdout.write(readFileSync(config.skillInstructions, 'utf8'))
+  process.exit(0)
+}
+
+if (
   invocationArgs &&
   (requestedPackage === '@next/codemod@canary' ||
-    requestedPackage === `@next/codemod@${config.codemodVersion}`) &&
+    requestedPackage === `@next/codemod@${config.codemodVersion}` ||
+    (config.skillInstructions &&
+      requestedPackage === '@next/codemod@latest')) &&
   (!executable || ['codemod', 'next-codemod'].includes(executable))
 ) {
   record({

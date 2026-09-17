@@ -588,7 +588,7 @@ program
   .addOption(
     new Option(
       '--ai, --experimental-ai [type]',
-      'Upgrade with AI to security or latest. Defaults to security.'
+      'Upgrade with AI to security, latest, or future. Defaults to security.'
     ).conflicts('revision')
   )
   .action(async (directory, options) => {
