@@ -66,7 +66,7 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
 For each report, attempt to open the following URL once in a separate tab in the user's default browser. Use the browser-opening capability already available in the agent environment. Replace `<encoded-json>` with the encoded payload.
 
 ```text
-https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>
+https://nextjs.org/agent-feedback#report=<encoded-json>
 ```
 
 Do not ask for permission before opening the review forms. Opening a form does not send feedback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration. Print the review URL in your next progress update so the user can open it manually.
