@@ -118,6 +118,8 @@ export interface MappedNftFileEntry {
    * `undefined` value here means that the file is not a symlink.
    */
   symlinkTarget?: string
+  /** Whether the symlink target is stored relative to a different NFT root. */
+  symlinkCrossesRoot?: boolean
 }
 
 function invalid(message: string): never {
@@ -229,8 +231,10 @@ export function mapNftFileEntries(
       }
 
       let symlinkTarget: string | undefined
+      let symlinkCrossesRoot = false
       if (symlink !== undefined) {
         const [, target, rootIndex] = symlink
+        symlinkCrossesRoot = rootIndex !== undefined
         const targetRootIndex = rootIndex ?? currentRootIndex
         symlinkTarget =
           targetRootIndex === -1
@@ -249,6 +253,7 @@ export function mapNftFileEntries(
         ...mapped,
         hash: fileHashes?.[fileIndex],
         symlinkTarget,
+        ...(symlinkCrossesRoot && { symlinkCrossesRoot: true }),
       })
     }
   }
