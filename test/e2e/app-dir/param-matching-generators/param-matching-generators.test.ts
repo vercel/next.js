@@ -1,9 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
-import type {
-  FlightRouterState,
-  PrefetchHints,
-} from 'next/dist/shared/lib/app-router-types'
+import type { FlightRouterState } from 'next/dist/shared/lib/app-router-types'
+import { createRouterAct } from 'router-act'
 
 describe('param-matching-generators', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -79,7 +77,33 @@ describe('param-matching-generators', () => {
     }
   )
 
-  it('keeps the suffix open and preserves node-local build hints without inlining', async () => {
+  // @force-gate prefetching
+  it('preserves closed-parameter hints on a prefetched navigation without inlining', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page, { includeAppShellRequests: true })
+      },
+    })
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/mixed/en/allowed"]')
+          .click()
+      },
+      { includes: 'en/allowed' }
+    )
+    await act(async () => {
+      await browser.elementByCss('#mixed-prefetch a').click()
+    }, 'no-requests')
+
+    expect(await browser.elementById('mixed-params').text()).toBe('en/allowed')
+    expect(await getClosedSegments(browser)).toEqual(['[lang]'])
+    await browser.close()
+  })
+
+  it('keeps the suffix open without inlining', async () => {
     const browser = await next.browser('/mixed/en/novel')
     expect(await browser.elementById('mixed-params').text()).toBe('en/novel')
     expect(await getClosedSegments(browser)).toEqual(['[lang]'])
@@ -95,17 +119,6 @@ describe('param-matching-generators', () => {
       expect(
         manifest.dynamicRoutes['/mixed/[lang]/[slug]'].notFoundParams
       ).toEqual(['lang'])
-      const hints: Record<string, PrefetchHints> = await next.readJSON(
-        '.next/server/prefetch-hints.json'
-      )
-      let node: PrefetchHints | undefined = hints['/mixed/[lang]/[slug]']
-      const closedHints: number[] = []
-      while (node) {
-        closedHints.push(node.hints & 0b1000000000000000)
-        node = node.slots?.children
-      }
-      // Root, mixed, [lang], [slug], page. Only [lang] is closed.
-      expect(closedHints).toEqual([0, 0, 0b1000000000000000, 0, 0])
     }
   })
 })
