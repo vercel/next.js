@@ -4,6 +4,7 @@ use std::{
     fs::OpenOptions,
     io::{Read, Write},
     iter,
+    num::NonZeroU64,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
@@ -19,7 +20,9 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskWatcherConfig, File, FileContent, FileSystem, FileSystemPath,
+};
 
 // Prefix read-derived writes so they are idempotent: reading our own output produces the same
 // effect value, while a subsequent external write produces a new one.
@@ -35,6 +38,10 @@ pub struct FsWatcher {
     width: usize,
     #[arg(long, default_value_t = 100)]
     notify_timeout_ms: u64,
+    /// Poll the filesystem at this interval instead of using native events. Polling is slower, but
+    /// can be useful on filesystems where native events do not work.
+    #[arg(long, value_name = "MILLISECONDS")]
+    poll_interval_ms: Option<NonZeroU64>,
     #[arg(long, default_value_t = 200)]
     file_modifications: u32,
     #[arg(long, default_value_t = 2)]
@@ -45,6 +52,8 @@ pub struct FsWatcher {
     #[arg(long)]
     start_watching_late: bool,
     /// Enable symlink testing. The mode controls what kind of targets the symlinks point to.
+    /// Polling may miss multiple symlink changes within one second because notify's PollWatcher
+    /// retains whole-second mtime precision for non-files.
     #[arg(long, value_enum)]
     symlinks: Option<SymlinkMode>,
     /// Total number of symlinks to create.
@@ -95,10 +104,13 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
 
     tt.run_once(async move {
         let invalidations = TransientInstance::new(PathInvalidations::default());
-        let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
-            .resolve()
-            .strongly_consistent()
-            .await?;
+        let project_fs = disk_file_system_operation(
+            RcStr::from(fs_root.to_str().unwrap()),
+            watcher_config(args.poll_interval_ms),
+        )
+        .resolve()
+        .strongly_consistent()
+        .await?;
         let project_root = disk_file_system_root_operation(project_fs)
             .resolve()
             .strongly_consistent()
@@ -280,9 +292,24 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     .await
 }
 
+fn watcher_config(poll_interval_ms: Option<NonZeroU64>) -> DiskWatcherConfig {
+    DiskWatcherConfig {
+        poll_interval: poll_interval_ms.map(|value| Duration::from_millis(value.get())),
+        ..Default::default()
+    }
+}
+
 #[turbo_tasks::function(operation, root)]
-fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("project"), Vc::cell(fs_root))
+fn disk_file_system_operation(
+    fs_root: RcStr,
+    watcher_config: DiskWatcherConfig,
+) -> Vc<DiskFileSystem> {
+    DiskFileSystem::new_with_options(
+        rcstr!("project"),
+        Vc::cell(fs_root),
+        Vec::new(),
+        watcher_config,
+    )
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -598,13 +625,36 @@ impl Drop for FsCleanup<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::{
+        num::NonZeroU64,
+        path::{Path, PathBuf},
+        time::Duration,
+    };
 
     use rustc_hash::FxHashSet;
 
     use crate::fs_watcher::{
-        FILE_SENTINEL_PREFIX, read_derived_content, remove_unchanged_symlink_paths,
+        DiskWatcherConfig, FILE_SENTINEL_PREFIX, read_derived_content,
+        remove_unchanged_symlink_paths, watcher_config,
     };
+
+    #[test]
+    fn omitting_polling_preserves_the_default_watcher_config() {
+        assert_eq!(watcher_config(None), Default::default());
+    }
+
+    #[test]
+    fn polling_sets_only_the_requested_interval() {
+        let config = watcher_config(Some(NonZeroU64::new(250).unwrap()));
+        assert_eq!(config.poll_interval, Some(Duration::from_millis(250)));
+        assert_eq!(
+            DiskWatcherConfig {
+                poll_interval: None,
+                ..config
+            },
+            DiskWatcherConfig::default()
+        );
+    }
 
     #[test]
     fn prefixes_external_content() {

@@ -56,6 +56,49 @@ mod tests {
     }
 
     #[test]
+    fn accepts_positive_poll_interval() {
+        Cli::try_parse_from([
+            "turbo-tasks-fuzz",
+            "fs-watcher",
+            "--fs-root",
+            "/tmp/test",
+            "--poll-interval-ms",
+            "100",
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_zero_poll_interval() {
+        assert!(
+            Cli::try_parse_from([
+                "turbo-tasks-fuzz",
+                "fs-watcher",
+                "--fs-root",
+                "/tmp/test",
+                "--poll-interval-ms",
+                "0",
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_poll_interval() {
+        assert!(
+            Cli::try_parse_from([
+                "turbo-tasks-fuzz",
+                "fs-watcher",
+                "--fs-root",
+                "/tmp/test",
+                "--poll-interval-ms",
+                "fast",
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn rejects_obsolete_track_writes() {
         assert!(
             Cli::try_parse_from([
