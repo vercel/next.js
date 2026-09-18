@@ -124,6 +124,9 @@ pub struct NextSegmentConfig {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     pub prefetch: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub unstable_require_static: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -548,36 +551,29 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
 
-        if let Some(span) = config.instant {
-            invalid_config(
-                source,
-                "instant",
-                span,
-                rcstr!(
-                    "\"instant\" is a route segment config and can only be used when the segment \
-                     is a Server Component module. Remove the \"use client\" directive to use \
-                     this API."
-                ),
-                None,
-                IssueSeverity::Error,
-            )
-            .await?;
-        }
-
-        if let Some(span) = config.prefetch {
-            invalid_config(
-                source,
-                "prefetch",
-                span,
-                rcstr!(
-                    "\"prefetch\" is a route segment config and can only be used when the segment \
-                     is a Server Component module. Remove the \"use client\" directive to use \
-                     this API."
-                ),
-                None,
-                IssueSeverity::Error,
-            )
-            .await?;
+        let server_only_route_configs = [
+            ("instant", config.instant),
+            ("prefetch", config.prefetch),
+            ("unstable_requireStatic", config.unstable_require_static),
+        ];
+        for (config_name, usage) in server_only_route_configs {
+            if let Some(span) = usage {
+                invalid_config(
+                    source,
+                    config_name,
+                    span,
+                    format!(
+                        "\"{}\" is a route segment config and can only be used when the segment \
+                         is a Server Component module. Remove the \"use client\" directive to use \
+                         this API.",
+                        config_name
+                    )
+                    .into(),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await?;
+            }
         }
     }
 
@@ -1005,6 +1001,9 @@ async fn parse_config_value(
         }
         "prefetch" => {
             config.prefetch = Some(span);
+        }
+        "unstable_requireStatic" => {
+            config.unstable_require_static = Some(span);
         }
         _ => {}
     }
