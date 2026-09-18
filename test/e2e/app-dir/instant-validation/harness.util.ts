@@ -96,7 +96,14 @@ export function runInstantValidationTests(
     if (isNextStart) {
       // Compile the app first so that `prerender` can run individual prerenders.
       beforeAll(async () => {
-        await next.build({ args: ['--experimental-build-mode', 'compile'] })
+        const result = await next.build({
+          args: ['--experimental-build-mode', 'compile'],
+        })
+        if (result.exitCode !== 0) {
+          throw new Error(
+            `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+          )
+        }
       })
       afterEach(async () => {
         await next.stop()

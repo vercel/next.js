@@ -27,7 +27,12 @@ describe('instant validation - parallel slot configs', () => {
 
   if (isNextStart) {
     beforeAll(async () => {
-      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error('Failed to build. CLI Output:\n\n' + result.cliOutput)
+      }
     })
     afterEach(async () => {
       await next.stop()
