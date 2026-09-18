@@ -16,7 +16,6 @@
   },
   "agent-054-cache-components-empty-static-params": {
     "skills": ["next-cache-components-adoption"],
-    "publish": false,
     "timeout": 1800
   },
   "agent-055-stale-build-error": {
