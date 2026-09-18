@@ -107,23 +107,26 @@ impl CleanupOldEdgesOperation {
         .execute_with_stats(ctx)
     }
 
-    /// GC variant: tears down `outdated` and runs only the edge deletions, returning the queue
-    /// with its rebalance work still pending.
+    /// GC variant: tears down `outdated`, running only the edge deletions.
     ///
-    /// Deletion is safe to run concurrently, but `balance_edge` *adds* edges, which is not while
-    /// other workers are still collecting.
-    pub fn run_edge_deletions_only(
+    /// Returns the balance jobs that the deletions produced, for the caller to replay once the
+    /// parallel collect is quiescent. Deletion is safe to run concurrently, but `balance_edge`
+    /// *adds* edges, which is not while other workers are still collecting.
+    pub fn run_edge_deletions_only<'a, C: ExecuteContext<'a>>(
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,
-        queue: AggregationUpdateQueue,
-        ctx: &mut impl ExecuteContext<'_>,
-    ) -> Option<AggregationUpdateQueue> {
+        ctx: &mut C,
+    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<C> {
         let op = CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,
-            queue,
+            queue: AggregationUpdateQueue::new_without_optimizations(),
         };
-        op.execute_inner(ctx, true).1
+        op.execute_inner(ctx, true)
+            .1
+            .map(|mut queue| queue.take_deferred_balance_edges())
+            .into_iter()
+            .flatten()
     }
 
     fn execute_with_stats(self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
@@ -348,12 +351,10 @@ impl CleanupOldEdgesOperation {
                 }
                 CleanupOldEdgesOperation::AggregationUpdate { ref mut queue } => {
                     if stop_when_only_rebalance_remains && queue.only_rebalance_remains() {
-                        // Edge removal is done; hand the rebalance back to the caller.
-                        let queue = take(queue);
-                        return (
-                            Default::default(),
-                            queue.has_rebalance_work().then_some(queue),
-                        );
+                        // Edge removal is done; hand the rebalance back to the caller. Any
+                        // other pending work would be dropped here, so `only_rebalance_remains`
+                        // asserts that nothing else is left.
+                        return (Default::default(), Some(take(queue)));
                     }
                     if queue.process(ctx) {
                         self = CleanupOldEdgesOperation::Done {
