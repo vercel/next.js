@@ -508,10 +508,6 @@ async fn prepare_project_container_state(
         ..Default::default()
     };
 
-    // Note: It's important that the identity of this operation is stable, so that we don't end up
-    // changing the identity of every `FileSystemPath` that depends on its output cell.
-    let root_path_op = project_root_path_operation(container_vc);
-
     let denied_paths = vec![
         RcStr::from(
             join_path(&options.project_path, dist_dir_root)
@@ -521,6 +517,21 @@ async fn prepare_project_container_state(
         // Deny access to it so the bundler doesn't traverse into the profiling output directory.
         RcStr::from(join_path(&options.project_path, DIST_PROFILES_DIR_NAME).unwrap()),
     ];
+
+    let enable_watch = options.watch.enable;
+    let configured_additional_roots = options.additional_roots.clone();
+    let project_root = options.root_path.clone();
+    let project_path = options.project_path.clone();
+
+    // `project_root_path_operation` reads `options_state`, so publish it first. This operation
+    // cannot depend on `initialization_lock` because we must eagerly resolve `project_fs_op` to
+    // create `config_path`.
+    container.options_state.set(Some(options));
+
+    // Wrap `options.root_path` in an `OperationVc`
+    // Note: It's important that the identity of this operation is stable, so that we don't end up
+    // changing the identity of every `FileSystemPath` that depends on its output cell.
+    let root_path_op = project_root_path_operation(container_vc);
 
     let project_fs_op = disk_file_system_operation(
         PROJECT_FILESYSTEM_NAME,
@@ -538,14 +549,7 @@ async fn prepare_project_container_state(
         DiskFileSystemMap::empty(),
     );
 
-    let enable_watch = options.watch.enable;
-    let configured_additional_roots = options.additional_roots.clone();
-    let project_root = options.root_path.clone();
-    let project_path = options.project_path.clone();
-
-    // The project filesystem's root operation reads the options state, while the filesystem itself
-    // only stores (and does not resolve) the filesystem map.
-    container.options_state.set(Some(options));
+    // The filesystem only stores (and does not resolve) the filesystem map.
     container
         .file_systems_state
         .set(Some(ProjectFileSystemState {

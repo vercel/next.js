@@ -10,7 +10,9 @@ import {
   retry,
 } from 'next-test-utils'
 
-// @force-gate turbopack
+// Deploy only uploads `project`, but this suite intentionally uses a sibling filesystem root.
+//
+// @force-gate turbopack && !deploy
 describe('turbopack additional roots', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -107,6 +109,11 @@ describe('turbopack additional roots', () => {
             additionalRoot: nft.additionalRoots[additionalRootIndex].name,
           })
         )
+      const additionalRoots = nft.additionalRoots.map((root: any) => {
+        const copy = { ...root }
+        delete copy.fileHashes
+        return copy
+      })
 
       expect(crossRootSymlinks).toMatchInlineSnapshot(`
        [
@@ -117,13 +124,9 @@ describe('turbopack additional roots', () => {
          },
        ]
       `)
-      expect(nft.additionalRoots).toMatchInlineSnapshot(`
+      expect(additionalRoots).toMatchInlineSnapshot(`
        [
          {
-           "fileHashes": [
-             "68a5d859aeaab2b7418a1215c0bb0d26",
-             "65e26ffbe84715407dd7bfe827f6444d",
-           ],
            "files": [
              "node_modules/sibling/index.js",
              "node_modules/sibling/package.json",
