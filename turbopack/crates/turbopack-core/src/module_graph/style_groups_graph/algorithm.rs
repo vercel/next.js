@@ -402,6 +402,98 @@ fn feedback_arc_order<N>(
     left
 }
 
+/// Improve a feedback-arc order with up to three deterministic node-insertion sweeps.
+///
+/// Moving one node only changes its pairwise contribution against the nodes it crosses, so every
+/// candidate position can be scored in one pass over `order`. A move is accepted only when it
+/// strictly increases the total weight of forward-pointing original edges; equal scores keep the
+/// existing order. Three sweeps bound the refinement at O(V² + E) work per sweep while allowing
+/// earlier moves to unlock improvements for nodes already visited in the same sweep.
+pub(super) fn refine_feedback_arc_order<N>(
+    order: &mut Vec<NodeIndex>,
+    graph: &DiGraph<N, u32>,
+    scc: &FxHashSet<NodeIndex>,
+) {
+    // The weighted seed is already optimal for a two-node SCC, and no non-adjacent insertion is
+    // possible. Avoid per-SCC allocation for this common fragmented-graph shape.
+    if order.len() <= 2 {
+        return;
+    }
+
+    let mut weights = FxHashMap::default();
+    for &source in order.iter() {
+        for (target, weight) in graph.outgoing_edges_with_weight(source) {
+            if target != source && scc.contains(&target) {
+                weights.insert((source, target), weight as u64);
+            }
+        }
+    }
+
+    let edge_weight = |source, target| weights.get(&(source, target)).copied().unwrap_or(0);
+    let mut score: u64 = order
+        .iter()
+        .enumerate()
+        .map(|(i, &source)| {
+            order[i + 1..]
+                .iter()
+                .map(|&target| edge_weight(source, target))
+                .sum::<u64>()
+        })
+        .sum();
+    let mut nodes = order.clone();
+    nodes.sort_unstable_by_key(|node| node.index());
+
+    for _ in 0..3 {
+        let mut changed = false;
+        for &node in &nodes {
+            let old_position = order
+                .iter()
+                .position(|&candidate| candidate == node)
+                .expect("refinement nodes come from the current order");
+            let old_contribution: u64 = order[..old_position]
+                .iter()
+                .map(|&source| edge_weight(source, node))
+                .chain(
+                    order[old_position + 1..]
+                        .iter()
+                        .map(|&target| edge_weight(node, target)),
+                )
+                .sum();
+            let score_without_node = score - old_contribution;
+
+            let mut without_node = order.clone();
+            without_node.remove(old_position);
+            let mut contribution: u64 = without_node
+                .iter()
+                .map(|&target| edge_weight(node, target))
+                .sum();
+            let mut best_score = score;
+            let mut best_position = None;
+            for position in 0..=without_node.len() {
+                let candidate_score = score_without_node + contribution;
+                if candidate_score > best_score {
+                    best_score = candidate_score;
+                    best_position = Some(position);
+                }
+                if let Some(&crossed) = without_node.get(position) {
+                    contribution =
+                        contribution + edge_weight(crossed, node) - edge_weight(node, crossed);
+                }
+            }
+
+            if let Some(position) = best_position {
+                without_node.insert(position, node);
+                *order = without_node;
+                score = best_score;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+}
+
 /// Mutate `graph` in place to remove all multi-node cycles in one bulk pass per SCC.
 pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
     let cyclic_sccs: Vec<_> = strongly_connected_components(&*graph)
@@ -412,7 +504,8 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
     let mut scratch = FeedbackArcScratch::new(graph.node_count());
     let mut position = vec![usize::MAX; graph.node_count()];
     for scc in cyclic_sccs {
-        let order = feedback_arc_order(&*graph, &scc, &mut scratch);
+        let mut order = feedback_arc_order(&*graph, &scc, &mut scratch);
+        refine_feedback_arc_order(&mut order, &*graph, &scc);
         for (index, &node) in order.iter().enumerate() {
             position[node.index()] = index;
         }

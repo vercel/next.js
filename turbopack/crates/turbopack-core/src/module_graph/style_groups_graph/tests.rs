@@ -9,7 +9,7 @@ use rustc_hash::FxHashSet;
 use super::{
     algorithm::{
         ChunkGroupIndex, ModuleChunkGroups, compute_chunked_chunk_groups, create_graph, linearize,
-        make_acyclic, split_into_chunks, strongly_connected_components,
+        make_acyclic, refine_feedback_arc_order, split_into_chunks, strongly_connected_components,
     },
     subgraph_view::{ReadonlyGraph, SubgraphView},
 };
@@ -500,6 +500,50 @@ fn make_acyclic_equal_weight_tie_prefers_lower_node_index() {
     });
     make_acyclic(&mut g);
     assert_eq!(edge_set(&g), [(0, 1)].into_iter().collect::<FxHashSet<_>>());
+}
+
+#[test]
+fn make_acyclic_refines_non_adjacent_counterexample_move() {
+    let groups = [vec![0, 1], vec![2, 0], vec![0, 1, 2]];
+    let (graph, _) = create_graph(&groups, 3);
+    let scc = strongly_connected_components(&graph)
+        .into_iter()
+        .find(|component| component.len() > 1)
+        .unwrap();
+    // This is the seed heuristic's order. Neither adjacent swap improves it, but moving node 2
+    // from the end to the front increases satisfied edge weight from 3 to 4.
+    let mut order = vec![n(1), n(0), n(2)];
+    refine_feedback_arc_order(&mut order, &graph, &scc);
+    assert_eq!(ids(&order), vec![2, 1, 0]);
+}
+
+#[test]
+fn make_acyclic_refinement_keeps_equal_score_order() {
+    let mut graph = build_graph(3, |g| {
+        for from in 0..3 {
+            for to in 0..3 {
+                if from != to {
+                    g.add_edge(n(from), n(to), 1);
+                }
+            }
+        }
+    });
+    let scc: FxHashSet<_> = [n(0), n(1), n(2)].into_iter().collect();
+    let mut order = vec![n(2), n(0), n(1)];
+    refine_feedback_arc_order(&mut order, &graph, &scc);
+    assert_eq!(ids(&order), vec![2, 0, 1]);
+
+    make_acyclic(&mut graph);
+    assert_acyclic(&graph);
+}
+
+#[test]
+fn make_acyclic_counterexample_reaches_optimal_final_order() {
+    let groups = [vec![0, 1], vec![2, 0], vec![0, 1, 2]];
+    let (mut graph, module_to_groups) = create_graph(&groups, 3);
+    make_acyclic(&mut graph);
+    let order = linearize(&graph, &module_to_groups);
+    assert_eq!(ids(&order), vec![0, 1, 2]);
 }
 
 #[test]
