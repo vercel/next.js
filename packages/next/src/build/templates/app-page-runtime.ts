@@ -42,6 +42,7 @@ import {
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex' with { 'turbopack-transition': 'next-server-utility' }
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
@@ -908,11 +909,16 @@ export function createAppPageEntrypoint({
 
             multiZoneDraftMode,
             prefetchHints: prefetchHintsManifest,
-            hasNotFoundParams:
-              (routeModule.isDev &&
-                getRequestMeta(req, 'devHasNotFoundParams') === true) ||
-              prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
-                false,
+            notFoundParams:
+              (routeModule.isDev
+                ? getRequestMeta(req, 'devNotFoundParams')
+                : undefined) ??
+              prerenderManifest.dynamicRoutes[normalizedSrcPage]
+                ?.notFoundParams ??
+              (prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
+              false
+                ? Object.keys(getRouteRegex(normalizedSrcPage).groups)
+                : undefined),
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
             staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,

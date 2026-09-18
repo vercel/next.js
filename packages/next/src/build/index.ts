@@ -158,7 +158,10 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { installBindings } from './swc/install-bindings'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import {
@@ -339,6 +342,12 @@ export interface DynamicPrerenderManifestRoute
    * shell generation when Partial Prefetching is enabled.
    */
   isExplicitlyBlocking?: true
+
+  /**
+   * Parameter-matching restrictions used by Next.js when constructing client
+   * route trees. Unlike legacy fallback=false, only these parameters are closed.
+   */
+  notFoundParams?: readonly string[]
 
   /**
    * The unresolved fallback route params that can still be specialized into a
@@ -3199,6 +3208,21 @@ export default async function build(
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
+                // Legacy dynamicParams=false closes the entire route tuple.
+                // Explicit matching instead identifies the affected parameters.
+                const paramMatching = paramMatchingByRoute.get(originalAppPath)
+                let notFoundParams: readonly string[] | undefined
+                if (paramMatching) {
+                  notFoundParams = Object.keys(paramMatching).filter(
+                    (name) => paramMatching[name] === 'not-found'
+                  )
+                } else if (
+                  fallbackModes.get(originalAppPath) === FallbackMode.NOT_FOUND
+                ) {
+                  notFoundParams = Object.keys(
+                    getRouteRegex(normalizeAppPath(originalAppPath)).groups
+                  )
+                }
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
                   : false
@@ -3225,9 +3249,7 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
-                    _hasNotFoundParams:
-                      fallbackModes.get(originalAppPath) ===
-                      FallbackMode.NOT_FOUND,
+                    _notFoundParams: notFoundParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
@@ -3681,6 +3703,12 @@ export default async function build(
             }
 
             if (!hasRevalidateZero && isDynamicRoute(page)) {
+              const paramMatching = paramMatchingByRoute.get(originalAppPath)
+              const notFoundParams = paramMatching
+                ? Object.keys(paramMatching).filter(
+                    (name) => paramMatching[name] === 'not-found'
+                  )
+                : undefined
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
@@ -3933,6 +3961,7 @@ export default async function build(
                 }
 
                 prerenderManifest.dynamicRoutes[prerenderOutputPathname] = {
+                  notFoundParams,
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,

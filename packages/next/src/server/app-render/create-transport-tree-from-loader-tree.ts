@@ -15,6 +15,7 @@ import {
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
 export type MissingPrefetchHintPolicy =
   | 'mark-stale'
@@ -64,7 +65,8 @@ export async function computeSegmentPrefetchHints(
   partialPrefetching: boolean,
   // Whether this segment is at or above the root layout (no layout was found
   // above it).
-  isRootLayoutOrAbove: boolean
+  isRootLayoutOrAbove: boolean,
+  notFoundParams: readonly string[] | undefined
 ): Promise<number> {
   const { layout, loading, page } = loaderTree[2]
 
@@ -119,6 +121,13 @@ export async function computeSegmentPrefetchHints(
     prefetchHints |= PrefetchHint.IsRootLayoutOrAbove
   }
 
+  if (notFoundParams?.length) {
+    const param = getSegmentParam(loaderTree[0])
+    if (param !== null && notFoundParams.includes(param.paramName)) {
+      prefetchHints |= PrefetchHint.IsClosedParam
+    }
+  }
+
   if (instantConfig === false) {
     // The segment explicitly opts out of Partial Prefetching. We don't change
     // the prefetch behavior, but we record it so the dev-time
@@ -160,7 +169,8 @@ async function createTransportTreeFromLoaderTreeImpl(
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
-  didFindRootLayout: boolean
+  didFindRootLayout: boolean,
+  notFoundParams: readonly string[] | undefined
 ): Promise<PartialTransportNode> {
   const [segment, parallelRoutes, { layout }] = loaderTree
   const dynamicParam = getDynamicParamFromSegment(loaderTree)
@@ -172,7 +182,8 @@ async function createTransportTreeFromLoaderTreeImpl(
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,
     partialPrefetching,
-    !didFindRootLayout
+    !didFindRootLayout,
+    notFoundParams
   )
 
   if (!didFindRootLayout && typeof layout !== 'undefined') {
@@ -195,7 +206,8 @@ async function createTransportTreeFromLoaderTreeImpl(
       partialPrefetching,
       getDynamicParamFromSegment,
       searchParams,
-      didFindRootLayout
+      didFindRootLayout,
+      notFoundParams
     )
     // Propagate subtree flags from children
     if (child.h !== undefined) {
@@ -238,6 +250,7 @@ export async function createTransportTreeFromLoaderTree(
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
+  notFoundParams: readonly string[] | undefined,
   // Whether a root layout was already found above this loader tree slice, so a
   // slice that starts below the root layout doesn't mark a sub-layout as the
   // root layout.
@@ -252,7 +265,8 @@ export async function createTransportTreeFromLoaderTree(
     partialPrefetching,
     getDynamicParamFromSegment,
     searchParams,
-    didFindRootLayout
+    didFindRootLayout,
+    notFoundParams
   )
 }
 
@@ -268,7 +282,8 @@ export async function createFullTransportTreeFromLoaderTree(
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any
+  searchParams: any,
+  notFoundParams: readonly string[] | undefined
 ): Promise<FullTransportNode> {
   // With emitSkippedData, every node carries data, which is what
   // FullTransportNode requires. TypeScript can't see through the flag,
@@ -282,7 +297,8 @@ export async function createFullTransportTreeFromLoaderTree(
     partialPrefetching,
     getDynamicParamFromSegment,
     searchParams,
-    false
+    false,
+    notFoundParams
   ) as Promise<FullTransportNode>
 }
 
@@ -297,6 +313,7 @@ export async function createRouteTreePrefetch(
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  notFoundParams: readonly string[] | undefined,
   // See note on createTransportTreeFromLoaderTree's didFindRootLayout.
   didFindRootLayout: boolean = false
 ): Promise<PartialTransportNode> {
@@ -313,6 +330,7 @@ export async function createRouteTreePrefetch(
     partialPrefetching,
     getDynamicParamFromSegment,
     searchParams,
-    didFindRootLayout
+    didFindRootLayout,
+    notFoundParams
   )
 }

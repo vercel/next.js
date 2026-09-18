@@ -1612,8 +1612,8 @@ export type ExportPathMap = {
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
-    /** Whether the route rejects novel values of any parameter. @internal */
-    _hasNotFoundParams?: boolean
+    /** Parameters whose novel values are rejected by routing. @internal */
+    _notFoundParams?: readonly string[]
 
     /**
      * @internal

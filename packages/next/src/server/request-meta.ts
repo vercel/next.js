@@ -353,8 +353,8 @@ export interface RequestMeta {
   /** DEV only: the foreground outcome selected by an explicit matcher. */
   devPrerenderMatcherOutcome?: 'render' | 'not-found'
 
-  /** DEV only: effective route policy, including successful allowed values. */
-  devHasNotFoundParams?: boolean
+  /** DEV only: closed parameters, including for successful allowed values. */
+  devNotFoundParams?: readonly string[]
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()

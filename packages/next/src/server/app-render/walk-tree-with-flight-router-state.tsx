@@ -15,6 +15,7 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import {
+  computeSegmentPrefetchHints,
   createTransportTreeFromLoaderTree,
   createRouteTreePrefetch,
 } from './create-transport-tree-from-loader-tree'
@@ -171,6 +172,7 @@ export async function walkTreeWithFlightRouterState({
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
           getDynamicParamFromSegment,
+          ctx.renderOpts.notFoundParams,
           rootLayoutIncluded
         )
       : await createTransportTreeFromLoaderTree(
@@ -181,6 +183,7 @@ export async function walkTreeWithFlightRouterState({
           partialPrefetching,
           getDynamicParamFromSegment,
           query,
+          ctx.renderOpts.notFoundParams,
           rootLayoutIncluded
         )
 
@@ -201,7 +204,8 @@ export async function walkTreeWithFlightRouterState({
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
-          getDynamicParamFromSegment
+          getDynamicParamFromSegment,
+          ctx.renderOpts.notFoundParams
         )
       : await createTransportTreeFromLoaderTree(
           loaderTreeToFilter,
@@ -211,6 +215,7 @@ export async function walkTreeWithFlightRouterState({
           partialPrefetching,
           getDynamicParamFromSegment,
           query,
+          ctx.renderOpts.notFoundParams,
           rootLayoutIncluded
         )
     return {
@@ -322,6 +327,17 @@ export async function walkTreeWithFlightRouterState({
     // rendered subtrees, so the client is expected to already have it.
     tree: {
       s: segmentToTransportSegment(actualSegment),
+      // The UI is shared, but route-specific restrictions may have changed
+      // (e.g. an open sibling navigating to a dynamicParams=false page).
+      h: await computeSegmentPrefetchHints(
+        loaderTreeToFilter,
+        hintTree,
+        prefetchInliningEnabled,
+        ctx.missingPrefetchHintPolicy,
+        partialPrefetching,
+        !rootLayoutIncluded,
+        ctx.renderOpts.notFoundParams
+      ),
       d: createSkippedSegmentData(),
       c: children,
     },
