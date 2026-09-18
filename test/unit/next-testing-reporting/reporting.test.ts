@@ -11,6 +11,7 @@ import {
   formatWatchStatus,
   type TestReporterOptions,
 } from 'next/dist/experimental/testing/reporting/reporter'
+import { createTestTerminal } from 'next/dist/experimental/testing/reporting/terminal'
 import { serializeDiagnostic } from 'next/dist/experimental/testing/reporting/diagnostics'
 import type {
   ResultEvent,
@@ -373,7 +374,7 @@ describe('Next test reporting', () => {
     ])
   })
 
-  it('shows only supported watch status without keyboard hints', () => {
+  it('shows keyboard hints only when interactive input is enabled', () => {
     expect(formatWatchStatus('passed')).toBe(
       ' PASS  Waiting for file changes...\n'
     )
@@ -382,6 +383,9 @@ describe('Next test reporting', () => {
     )
     expect(formatWatchStatus('failed', true)).toBe(
       '\u001b[1m\u001b[30m\u001b[41m FAIL \u001b[49m\u001b[39m\u001b[22m \u001b[31mTests failed. Watching for file changes...\u001b[39m\n'
+    )
+    expect(formatWatchStatus('passed', false, true)).toBe(
+      ' PASS  Waiting for file changes...\n       press h to show help, press q to quit\n'
     )
     expect(setup({ watch: true, rerun: true }).output()).toContain(' RERUN ')
   })
@@ -676,6 +680,174 @@ describe('Next test reporting', () => {
       ).message
     ).toBe('Unknown thrown value')
     expect(serializeDiagnostic(null, { phase: 'runtime' }).message).toBe('null')
+  })
+})
+
+describe('Next live test terminal', () => {
+  afterEach(() => jest.useRealTimers())
+
+  it('updates live elapsed time and active tests, then stops and restores the cursor', () => {
+    jest.useFakeTimers()
+    const { reporter, emit, output } = setup({ isTTY: true, fileCount: 2 })
+    emit({ type: 'case-start', ...result(0, 'passed') })
+    expect(output()).toContain('❯ |node| example.test.ts [running]')
+    expect(output()).toContain('› renders')
+    expect(output()).toContain('Test Files 0 passed (2)')
+    jest.advanceTimersByTime(1500)
+    expect(output()).toContain('Duration 1.50s')
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    expect(output()).toContain('Tests 1 passed (1)')
+    emit({ type: 'run-end', status: 'cancelled', durationMs: 1500 })
+    const final = output()
+    expect(final).toContain('\x1b[?25h')
+    jest.advanceTimersByTime(1000)
+    expect(output()).toBe(final)
+    reporter.dispose()
+  })
+
+  it('keeps redraw escapes out of redirected output even when color is enabled', () => {
+    jest.useFakeTimers()
+    const { emit, output } = setup({ isTTY: false, color: true })
+    jest.advanceTimersByTime(2000)
+    emit({ type: 'run-end', status: 'cancelled', durationMs: 2000 })
+    expect(output()).not.toContain('\x1b[?25')
+    expect(output()).not.toContain('\x1b[0J')
+  })
+
+  it('suspends around prompts and partial stdout/stderr without losing permanent text', () => {
+    let output = ''
+    let errors = ''
+    const terminal = createTestTerminal({
+      isTTY: true,
+      write: (text) => {
+        output += text
+      },
+      writeError: (text) => {
+        errors += text
+      },
+    })
+    terminal.render(['progress'])
+    terminal.write('partial')
+    expect(output.endsWith('\x1b[?25h')).toBe(true)
+    const partial = output
+    terminal.render(['new progress'])
+    expect(output).toBe(partial)
+    terminal.write(' done\n', 'stderr')
+    expect(errors).toBe(' done\n')
+    expect(output).toContain('new progress')
+    terminal.suspend()
+    terminal.suspend()
+    terminal.write('prompt: ')
+    terminal.resume()
+    const prompt = output
+    terminal.render(['hidden'])
+    expect(output).toBe(prompt)
+    terminal.write('answer\n')
+    terminal.resume()
+    expect(output).toContain('hidden')
+    terminal.dispose()
+    expect(output.endsWith('\x1b[?25h')).toBe(true)
+  })
+
+  it('bounds multiline and wide text and accounts for narrower terminal reflow', () => {
+    let output = ''
+    let columns = 10
+    const terminal = createTestTerminal({
+      isTTY: true,
+      columns: () => columns,
+      rows: 4,
+      write: (text) => {
+        output += text
+      },
+    })
+    terminal.render(['中文中文中文', 'emoji 👩‍💻👩‍💻👩‍💻', 'a\nb', 'omitted'])
+    expect(output).toContain('中文中文\n')
+    expect(output).toContain('emoji 👩‍💻\n')
+    expect(output).toContain('a b\n')
+    expect(output).not.toContain('omitted')
+    columns = 5
+    terminal.render(['short'])
+    expect(output).toContain('\x1b[5A\r\x1b[0J')
+    terminal.dispose()
+  })
+
+  it('restores the cursor and stops redraw after stderr or timer writer errors', () => {
+    jest.useFakeTimers()
+    let output = ''
+    let fail = false
+    const errors: unknown[] = []
+    const reporter = createTestReporter({
+      isTTY: true,
+      write: (text) => {
+        if (fail && text.includes('Duration')) throw new Error('timer write')
+        output += text
+      },
+      writeError: () => {
+        throw new Error('stderr write')
+      },
+      onError: (error) => {
+        errors.push(error)
+        throw new Error('callback failed')
+      },
+    })
+    reporter.onEvent({ ...envelope, type: 'run-start' })
+    fail = true
+    jest.advanceTimersByTime(100)
+    expect(errors).toEqual([new Error('timer write')])
+    expect(output.endsWith('\x1b[?25h')).toBe(true)
+    const final = output
+    jest.advanceTimersByTime(1000)
+    expect(output).toBe(final)
+    expect(() =>
+      reporter.onEvent({
+        ...envelope,
+        type: 'output',
+        stream: 'stderr',
+        text: 'message',
+      })
+    ).toThrow('timer write')
+
+    const broken = createTestReporter({
+      isTTY: true,
+      write: (text) => {
+        output += text
+      },
+      writeError: () => {
+        throw new Error('stderr write')
+      },
+    })
+    broken.onEvent({ ...envelope, type: 'run-start' })
+    expect(() =>
+      broken.onEvent({
+        ...envelope,
+        type: 'output',
+        stream: 'stderr',
+        text: 'message',
+      })
+    ).toThrow('stderr write')
+    expect(output.endsWith('\x1b[?25h')).toBe(true)
+  })
+
+  it('leaves a supplied terminal reusable after reporter disposal', () => {
+    let output = ''
+    const terminal = createTestTerminal({
+      isTTY: true,
+      write: (text) => {
+        output += text
+      },
+    })
+    const reporter = createTestReporter({
+      terminal,
+      isTTY: true,
+      write: () => {
+        throw new Error('must use shared terminal')
+      },
+    })
+    reporter.onEvent({ ...envelope, type: 'run-start' })
+    reporter.dispose()
+    terminal.render(['next run'])
+    expect(output).toContain('next run')
+    terminal.dispose()
   })
 })
 

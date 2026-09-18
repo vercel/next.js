@@ -610,16 +610,14 @@ describe('test input filesystem watcher', () => {
         const file = path.join(root, name)
         await writeFile(file, 'first')
         await retry(async () => {
-          expect(changes.some((event) => event.changed.includes(file))).toBe(
-            true
-          )
+          expect(errors).toEqual([])
+          expect(changes.flatMap((event) => event.changed)).toContain(file)
         })
         changes.length = 0
         await writeFile(file, 'second mutation')
         await retry(async () => {
-          expect(changes.some((event) => event.changed.includes(file))).toBe(
-            true
-          )
+          expect(errors).toEqual([])
+          expect(changes.flatMap((event) => event.changed)).toContain(file)
         })
         changes.length = 0
       }

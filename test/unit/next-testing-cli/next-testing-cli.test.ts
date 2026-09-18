@@ -1909,3 +1909,394 @@ describe('Next test orchestration', () => {
     }
   )
 })
+
+describe('interactive watch keyboard ownership', () => {
+  let previousCI: string | undefined
+  let previousTerm: string | undefined
+  beforeEach(() => {
+    previousCI = process.env.CI
+    previousTerm = process.env.TERM
+    delete process.env.CI
+    delete process.env.TERM
+  })
+  afterEach(() => {
+    if (previousCI === undefined) delete process.env.CI
+    else process.env.CI = previousCI
+    if (previousTerm === undefined) delete process.env.TERM
+    else process.env.TERM = previousTerm
+  })
+  function terminal() {
+    const { PassThrough } = require('stream') as typeof import('stream')
+    const input = new PassThrough() as unknown as NodeJS.ReadStream
+    Object.assign(input, {
+      isTTY: true,
+      isRaw: false,
+      setRawMode: jest.fn((raw: boolean) => {
+        input.isRaw = raw
+        return input
+      }),
+    })
+    input.pause()
+    const output = {
+      isTTY: true,
+      write: jest.fn(),
+    } as unknown as NodeJS.WriteStream
+    return { input, output }
+  }
+
+  it('dispatches shortcuts and validated prompts, cancels busy runs, and restores input', () => {
+    const { createWatchKeyboard } =
+      require('next/dist/experimental/testing/incremental/watch-keyboard') as typeof import('next/dist/experimental/testing/incremental/watch-keyboard')
+    const { input, output } = terminal()
+    const onCommand = jest.fn()
+    const onError = jest.fn()
+    const onPromptChange = jest.fn()
+    const priorListener = jest.fn()
+    input.on('data', priorListener)
+    input.pause()
+    let busy = false
+    const keyboard = createWatchKeyboard({
+      input,
+      output,
+      onCommand,
+      onError,
+      onPromptChange,
+      isRunning: () => busy,
+    })
+    input.emit('data', Buffer.from('rfau\r'))
+    expect(onCommand.mock.calls.map(([command]) => command.type)).toEqual([
+      'rerun',
+      'failed',
+      'all',
+      'update',
+      'all',
+    ])
+    input.emit('data', Buffer.from('pmath\r'))
+    input.emit('data', Buffer.from('t[\r^works$\r'))
+    expect(onCommand).toHaveBeenCalledWith({ type: 'files', value: 'math' })
+    expect(onCommand).toHaveBeenCalledWith({ type: 'name', value: '^works$' })
+    input.emit('data', Buffer.from('wignored\x03'))
+    expect(onCommand).not.toHaveBeenCalledWith({
+      type: 'project',
+      value: 'ignored',
+    })
+    busy = true
+    input.emit('data', Buffer.from('q'))
+    expect(onCommand).toHaveBeenLastCalledWith({ type: 'cancel' })
+    input.emit('data', Buffer.from('\x03'))
+    expect(onCommand).toHaveBeenLastCalledWith({ type: 'interrupt' })
+    keyboard.close()
+    keyboard.close()
+    expect(input.isRaw).toBe(false)
+    expect(input.readableFlowing).toBe(false)
+    expect(input.listeners('data')).toEqual([priorListener])
+    expect(input.listenerCount('error')).toBe(0)
+    expect(onPromptChange.mock.calls).toEqual([
+      [true],
+      [false],
+      [true],
+      [false],
+      [true],
+      [false],
+    ])
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('distinguishes split arrow keys from escape and releases prompt ownership', () => {
+    jest.useFakeTimers()
+    const { createWatchKeyboard } =
+      require('next/dist/experimental/testing/incremental/watch-keyboard') as typeof import('next/dist/experimental/testing/incremental/watch-keyboard')
+    const { input, output } = terminal()
+    const onCommand = jest.fn()
+    const onPromptChange = jest.fn()
+    const keyboard = createWatchKeyboard({
+      input,
+      output,
+      onCommand,
+      onPromptChange,
+      onError: jest.fn(),
+    })
+    try {
+      input.emit('data', Buffer.from('\x1b'))
+      input.emit('data', Buffer.from('[A'))
+      jest.advanceTimersByTime(30)
+      expect(onCommand).not.toHaveBeenCalled()
+      input.emit('data', Buffer.from('pignored\x1b'))
+      jest.advanceTimersByTime(30)
+      expect(onPromptChange.mock.calls).toEqual([[true], [false]])
+      expect(onCommand).not.toHaveBeenCalled()
+      input.emit('data', Buffer.from('\x1b'))
+      jest.advanceTimersByTime(30)
+      expect(onCommand).toHaveBeenCalledWith({ type: 'interrupt' })
+    } finally {
+      keyboard.close()
+      jest.useRealTimers()
+    }
+  })
+
+  it.each(['CI', 'TERM'])(
+    'does not capture input with %s disabling interaction',
+    (name) => {
+      const { createWatchKeyboard } =
+        require('next/dist/experimental/testing/incremental/watch-keyboard') as typeof import('next/dist/experimental/testing/incremental/watch-keyboard')
+      const { input, output } = terminal()
+      process.env[name] = name === 'CI' ? 'true' : 'dumb'
+      createWatchKeyboard({
+        input,
+        output,
+        onCommand: jest.fn(),
+        onError: jest.fn(),
+      }).close()
+      expect(input.setRawMode).not.toHaveBeenCalled()
+      expect(input.listenerCount('data')).toBe(0)
+    }
+  )
+
+  it('awaits cancelled run cleanup before a queued generation and stays watching', async () => {
+    const { createWatchSession } =
+      require('next/dist/experimental/testing/incremental/watch-session') as typeof import('next/dist/experimental/testing/incremental/watch-session')
+    let began!: () => void
+    const started = new Promise<void>((resolve) => {
+      began = resolve
+    })
+    let release!: () => void
+    const cleanup = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let runs = 0
+    const run = jest.fn(async ({ signal }: { signal: AbortSignal }) => {
+      if (++runs === 1) {
+        began()
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true })
+        )
+        await cleanup
+        return { status: 'cancelled' as const }
+      }
+      return { status: 'passed' as const }
+    })
+    const onError = jest.fn()
+    const session = createWatchSession({
+      discover: async () => ({ entryIds: ['first'], discoveryRevision: '1' }),
+      run,
+      onError,
+    })
+    try {
+      await started
+      session.cancelCurrent()
+      session.invalidate()
+      session.invalidate()
+      await Promise.resolve()
+      expect(run).toHaveBeenCalledTimes(1)
+      release()
+      await session.waitForIdle()
+      expect(run).toHaveBeenCalledTimes(2)
+      expect(onError).not.toHaveBeenCalled()
+      session.invalidate()
+      await session.waitForIdle()
+      expect(run).toHaveBeenCalledTimes(3)
+    } finally {
+      release()
+      await session.close()
+    }
+  })
+
+  it('retains failed file selections and applies snapshot write authority to one generation', async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-testing-keyboard-generations-')
+    )
+    const { input, output } = terminal()
+    const controller = new AbortController()
+    const close = jest.fn().mockResolvedValue(undefined)
+    jest
+      .mocked(watchTestFiles)
+      .mockReset()
+      .mockResolvedValue({
+        close,
+        update: jest.fn().mockResolvedValue(undefined),
+      })
+    type RunRequest = Extract<
+      Parameters<typeof runWatchProcess>[0],
+      { operation: 'run' }
+    >
+    const requests: RunRequest[] = []
+    let statusReady: (() => void) | undefined
+    const write = (text: string) => {
+      if (
+        text.includes('Waiting for file changes') ||
+        text.includes('Watching for file changes')
+      )
+        statusReady?.()
+    }
+    const nextStatus = (count = 1) =>
+      new Promise<void>((resolve) => {
+        statusReady = () => {
+          if (--count === 0) resolve()
+        }
+      })
+    const changed = () =>
+      jest.mocked(watchTestFiles).mock.calls[0][0].onChange({
+        changed: [path.join(directory, 'first.spec.ts')],
+        removed: [],
+      })
+    jest
+      .mocked(runWatchProcess)
+      .mockReset()
+      .mockImplementation(async (request, runOptions) => {
+        if (request.operation === 'metadata')
+          return {
+            operation: 'metadata',
+            directories: { directories: [directory], outputDirectories: [] },
+          }
+        requests.push(request)
+        const failed = requests.length === 1
+        for (const project of request.projects) {
+          for (const entry of project.entries) {
+            runOptions.onEvent?.({
+              version: 1,
+              timestamp: Date.now(),
+              runId: 'mock',
+              type: 'file-end',
+              entryId: entry.id,
+              status:
+                failed && entry.file.endsWith('first.spec.ts')
+                  ? 'failed'
+                  : 'passed',
+              durationMs: 1,
+            })
+          }
+        }
+        if (request.updateSnapshots) {
+          runOptions.onSnapshotCommitStart?.()
+          changed()
+          runOptions.onSnapshotCommitEnd?.()
+          // Native notifications may arrive after the final transaction callback.
+          changed()
+          expect(runOptions.signal.aborted).toBe(false)
+        }
+        const counts = {
+          passed: failed ? 1 : 2,
+          failed: failed ? 1 : 0,
+          skipped: 0,
+          cancelled: 0,
+        }
+        return {
+          operation: 'run',
+          result: {
+            runId: 'mock',
+            unsafeCleanup: false,
+            status: failed ? 'failed' : 'passed',
+            files: counts,
+            cases: counts,
+            attempts: counts,
+            errors: 0,
+            warnings: 0,
+            attachments: 0,
+          },
+        }
+      })
+    let runningWatch: ReturnType<typeof watchTests> | undefined
+    try {
+      await writeFile(path.join(directory, 'first.spec.ts'), '')
+      await writeFile(path.join(directory, 'second.spec.ts'), '')
+      const first = nextStatus()
+      runningWatch = watchTests(directory, {
+        input,
+        output,
+        signal: controller.signal,
+        write,
+      })
+      await first
+      const settle = () => new Promise<void>((resolve) => setImmediate(resolve))
+      await settle()
+      async function key(value: string) {
+        const status = nextStatus()
+        input.emit('data', Buffer.from(value))
+        await status
+        await settle()
+      }
+      await key('f')
+      expect(
+        requests
+          .at(-1)!
+          .projects.flatMap((project) =>
+            project.entries.map((entry) => path.basename(entry.file))
+          )
+      ).toEqual(['first.spec.ts'])
+      const changedStatus = nextStatus()
+      changed()
+      await changedStatus
+      await settle()
+      expect(
+        requests
+          .at(-1)!
+          .projects.flatMap((project) =>
+            project.entries.map((entry) => path.basename(entry.file))
+          )
+      ).toEqual(['first.spec.ts'])
+      await key('a')
+      await key('pfirst\r')
+      await key('t^work\r')
+      expect(requests.at(-1)!.testNamePattern).toBe('^work')
+      expect(
+        requests.at(-1)!.projects.flatMap((project) => project.entries)
+      ).toHaveLength(1)
+      await key('t\r')
+      expect(requests.at(-1)!.testNamePattern).toBeUndefined()
+      expect(
+        requests.at(-1)!.projects.flatMap((project) => project.entries)
+      ).toHaveLength(2)
+      await key('wmissing-project\r')
+      await key('w\r')
+      await key('pno-such-file\r')
+      await key('p\r')
+      const snapshotStatuses = nextStatus(2)
+      input.emit('data', Buffer.from('u'))
+      await snapshotStatuses
+      await settle()
+      expect(
+        requests.filter((request) => request.updateSnapshots)
+      ).toHaveLength(1)
+      expect(requests.at(-1)!.updateSnapshots).toBe(false)
+      input.emit('data', Buffer.from('q'))
+      expect(await runningWatch).toEqual({ status: 'passed' })
+      expect(close).toHaveBeenCalledTimes(1)
+      expect(input.isRaw).toBe(false)
+    } finally {
+      controller.abort()
+      await runningWatch
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('does not capture piped input and restores raw mode after callback failure', () => {
+    const { createWatchKeyboard } =
+      require('next/dist/experimental/testing/incremental/watch-keyboard') as typeof import('next/dist/experimental/testing/incremental/watch-keyboard')
+    const { input, output } = terminal()
+    output.isTTY = false
+    createWatchKeyboard({
+      input,
+      output,
+      onCommand: jest.fn(),
+      onError: jest.fn(),
+    }).close()
+    expect(input.setRawMode).not.toHaveBeenCalled()
+    output.isTTY = true
+    input.isRaw = true
+    const failure = new Error('command failed')
+    const onError = jest.fn()
+    createWatchKeyboard({
+      input,
+      output,
+      onCommand() {
+        throw failure
+      },
+      onError,
+    })
+    input.emit('data', Buffer.from('r'))
+    expect(onError).toHaveBeenCalledWith(failure)
+    expect(input.isRaw).toBe(true)
+    expect(input.listenerCount('data')).toBe(0)
+    expect(input.listenerCount('end')).toBe(0)
+  })
+})

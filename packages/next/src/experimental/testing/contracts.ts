@@ -186,7 +186,7 @@ export interface ExecuteTestOptions {
   projectDir: string
   entry: TestEntry
   setupFiles: string[]
-  /** Explicit one-shot opt-in. Omitted/false must never write snapshots. */
+  /** Explicit update for this run only. Omitted/false must never write snapshots. */
   updateSnapshots?: boolean
   testNamePattern?: string
   testTimeout: number

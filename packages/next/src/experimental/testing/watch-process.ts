@@ -12,10 +12,20 @@ import {
   type TestReporterOptions,
 } from './reporting/reporter'
 import { serializeDiagnostic } from './reporting/diagnostics'
+import {
+  commitSnapshotUpdates,
+  type SnapshotUpdate,
+} from './assertions/snapshots'
 
 export type WatchProcessRequest =
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
-  | { operation: 'run'; projectDir: string; projects: DiscoveredTestProject[] }
+  | {
+      operation: 'run'
+      projectDir: string
+      projects: DiscoveredTestProject[]
+      testNamePattern?: string
+      updateSnapshots?: boolean
+    }
 
 export type WatchProcessResult =
   | { operation: 'metadata'; directories: WatchDirectories }
@@ -84,6 +94,8 @@ export async function runWatchProcess(
     write(text: string): void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     onEvent?: (event: ResultEvent) => void
+    onSnapshotCommitStart?: () => void
+    onSnapshotCommitEnd?: () => void
   }
 ): Promise<WatchProcessResult> {
   if (process.platform === 'win32')
@@ -94,7 +106,8 @@ export async function runWatchProcess(
       ? await import('./execution/broker.js')
       : undefined
   options.signal.throwIfAborted()
-  return new Promise((resolve, reject) => {
+  let disposeReporter: (() => void) | undefined
+  return new Promise<WatchProcessResult>((resolve, reject) => {
     const child = fork(require.resolve('./watch-worker'), [], {
       cwd: request.projectDir,
       env: { ...process.env },
@@ -125,8 +138,18 @@ export async function runWatchProcess(
             ),
             watch: true,
             write: options.write,
+            onError(error) {
+              fail(error)
+              cancel()
+              options.reporter?.onError?.(error)
+            },
           })
         : undefined
+    disposeReporter = reporter?.dispose
+    const snapshotPlans = new Map<
+      string,
+      { file: string; updates: SnapshotUpdate[] }
+    >()
     const emitResult = (event: ResultEvent) => {
       options.onEvent?.(event)
       reporter?.onEvent(event)
@@ -142,6 +165,21 @@ export async function runWatchProcess(
     }
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
+      onSnapshotUpdates:
+        request.operation === 'run' && request.updateSnapshots
+          ? async (entryId, file, updates) => {
+              const entry = request.projects
+                .flatMap((project) => project.entries)
+                .find((candidate) => candidate.id === entryId)
+              if (!entry || entry.file !== file || snapshotPlans.has(entryId)) {
+                throw new Error('Invalid watch snapshot update identity.')
+              }
+              snapshotPlans.set(entryId, {
+                file,
+                updates: structuredClone(updates),
+              })
+            }
+          : undefined,
       send: (response) =>
         new Promise<void>((sent, rejected) => {
           if (!child.connected)
@@ -215,8 +253,9 @@ export async function runWatchProcess(
     }
     const write = (data: Buffer, stream: 'stdout' | 'stderr') => {
       try {
-        const target =
-          stream === 'stderr'
+        const target = options.reporter?.terminal
+          ? (text: string) => options.reporter!.terminal!.write(text, stream)
+          : stream === 'stderr'
             ? (options.reporter?.writeError ?? options.write)
             : options.write
         target(data.toString())
@@ -356,6 +395,37 @@ export async function runWatchProcess(
         )
           fail(new Error('Watch process returned an invalid result.'))
       }
+      // A snapshot shortcut is a single explicit transaction. Provisional file
+      // success is insufficient: the compiler generation and every owned reader
+      // must have exited cleanly before the parent writes any staged bytes.
+      if (
+        !failed &&
+        !options.signal.aborted &&
+        request.operation === 'run' &&
+        request.updateSnapshots &&
+        runEnd?.status === 'passed' &&
+        message?.type === 'result' &&
+        message.value.operation === 'run' &&
+        message.value.result.status === 'passed' &&
+        !message.value.result.unsafeCleanup
+      ) {
+        try {
+          options.onSnapshotCommitStart?.()
+          for (const { file, updates } of snapshotPlans.values()) {
+            await commitSnapshotUpdates(file, updates, {
+              signal: options.signal,
+            })
+          }
+        } catch (error) {
+          fail(error)
+        } finally {
+          try {
+            options.onSnapshotCommitEnd?.()
+          } catch (error) {
+            fail(error)
+          }
+        }
+      }
       if (reporter && request.operation === 'run') {
         try {
           const envelope = {
@@ -424,5 +494,7 @@ export async function runWatchProcess(
       if (error) fail(error)
       if (options.signal.aborted) cancel()
     })
+  }).finally(() => {
+    disposeReporter?.()
   })
 }

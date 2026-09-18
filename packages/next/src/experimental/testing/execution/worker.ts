@@ -324,6 +324,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       signal: controller.signal,
       testTimeout: options.testTimeout,
       hookTimeout: options.hookTimeout,
+      testNamePattern: options.testNamePattern,
       onLateFailure(error) {
         if (lateFailures.has(error)) return
         // A callback arriving while the terminal message is in flight must still

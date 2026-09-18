@@ -186,6 +186,10 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
     if (!draining) resolveClosed()
   }
 
+  function cancelCurrent() {
+    active?.abort(new SupersededTestRun())
+  }
+
   async function close() {
     cancel()
     await waitForIdle()
@@ -197,5 +201,5 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
     schedule()
   }
 
-  return { invalidate, waitForIdle, close, closed: whenClosed }
+  return { invalidate, cancelCurrent, waitForIdle, close, closed: whenClosed }
 }
