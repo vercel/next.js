@@ -6,7 +6,6 @@ import { connection } from 'next/server'
 export const instant = {
   unstable_samples: [{ headers: [['host', 'test-host']] }],
 }
-export const prefetch = 'partial'
 
 export default async function Page() {
   return (
