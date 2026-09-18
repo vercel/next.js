@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -8,9 +8,9 @@ use next_core::{
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
-        get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
-        metadata::route::get_app_metadata_route_entry,
+        AppEntry, AppPage, AppPath, get_app_client_references_chunks,
+        get_app_client_shared_chunk_group, get_app_page_entry, get_app_route_entry,
+        get_client_references_chunks_for_hmr, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -34,13 +34,16 @@ use next_core::{
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     segment_config::{NextSegmentConfig, ParseSegmentMode},
-    util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
+    util::{
+        NextRuntime, app_function_name, load_next_js_template, module_styles_rule_condition,
+        styles_rule_condition,
+    },
 };
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexset, trace::TraceRawVcs,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -54,6 +57,7 @@ use turbopack_core::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
         availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
     module::Module,
@@ -64,11 +68,17 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
+    reference_type::{
+        CommonJsReferenceSubType, CssReferenceSubType, EcmaScriptModulesReferenceSubType,
+        ReferenceType, ReferenceTypeCondition,
+    },
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
+use turbopack_ecmascript::{
+    runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE},
+    single_file_ecmascript_output::SingleFileEcmascriptOutput,
+};
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
@@ -114,8 +124,78 @@ impl AppProject {
         AppProject { project, app_dir }.cell()
     }
 
+    /// Testing is an explicit consumer of the App Router graph. These endpoints
+    /// are never added to the application's discoverable routes.
     #[turbo_tasks::function]
-    fn project(&self) -> Vc<Project> {
+    pub async fn test_endpoint(
+        self: ResolvedVc<Self>,
+        file: RcStr,
+        id: RcStr,
+        setup_paths: Vec<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
+        if id.is_empty()
+            || !id
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+        {
+            bail!("Test entry IDs must contain only ASCII letters, digits, '-' and '_'");
+        }
+        if file.is_empty()
+            || file
+                .split('/')
+                .any(|part| part.is_empty() || part == ".." || part == ".")
+            || file.contains('\\')
+            || file.contains(':')
+        {
+            bail!("Test entry file must be a normalized project-relative path");
+        }
+        let path = self.project().project_path().owned().await?.join(&file)?;
+        Ok(Vc::upcast(
+            AppEndpoint {
+                ty: AppEndpointType::Test { path, setup_paths },
+                app_project: self,
+                page: AppPage::parse(&format!("/__next_test__/{id}/page"))?,
+            }
+            .cell(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) fn registered_fixture_route(
+        self: ResolvedVc<Self>,
+        page: AppPage,
+        loader_tree: ResolvedVc<AppPageLoaderTree>,
+    ) -> Vc<Route> {
+        Route::AppPage(vec![AppPageRoute {
+            original_name: page.to_string().into(),
+            html_endpoint: ResolvedVc::upcast(
+                AppEndpoint {
+                    ty: AppEndpointType::Page {
+                        ty: AppPageEndpointType::Html,
+                        loader_tree,
+                    },
+                    app_project: self,
+                    page: page.clone(),
+                }
+                .resolved_cell(),
+            ),
+            rsc_hmr_endpoint: ResolvedVc::upcast(
+                AppEndpoint {
+                    ty: AppEndpointType::Page {
+                        ty: AppPageEndpointType::RscHmr,
+                        loader_tree,
+                    },
+                    app_project: self,
+                    page,
+                }
+                .resolved_cell(),
+            ),
+        }])
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) fn project(&self) -> Vc<Project> {
         *self.project
     }
 
@@ -437,6 +517,22 @@ impl AppProject {
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
             Layer::new_with_user_friendly_name(rcstr!("app-rsc"), rcstr!("Server Component")),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn test_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        let base = self.rsc_module_context().await?;
+        Ok(ModuleAssetContext::new(
+            *base.transitions,
+            *base.compile_time_info,
+            *base.module_options_context,
+            crate::testing::test_resolve_options_context(
+                *base.resolve_options_context,
+                self.project().project_path().owned().await?,
+                false,
+            ),
+            base.layer.clone(),
         ))
     }
 
@@ -1121,6 +1217,10 @@ enum AppPageEndpointType {
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppEndpointType {
+    Test {
+        path: FileSystemPath,
+        setup_paths: Vec<FileSystemPath>,
+    },
     Page {
         ty: AppPageEndpointType,
         loader_tree: ResolvedVc<AppPageLoaderTree>,
@@ -1143,6 +1243,77 @@ struct AppEndpoint {
 
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
+    #[turbo_tasks::function]
+    async fn test_entry(
+        &self,
+        path: FileSystemPath,
+        setup_paths: Vec<FileSystemPath>,
+    ) -> Result<Vc<AppEntry>> {
+        let context = self.app_project.test_module_context();
+        // Use the same boundary marker as page/layout modules. Client references
+        // must retain both their SSR and browser transitions even for server tests.
+        let module = NextServerComponentTransition::new()
+            .process(
+                Vc::upcast(FileSource::new(path)),
+                context,
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        let mut internal_assets = fxindexmap! { rcstr!("INNER_TEST_MODULE") => module };
+        let mut setup_loads = String::new();
+        for (index, path) in setup_paths.iter().enumerate() {
+            let name = format!("INNER_TEST_SETUP_{index}");
+            let module = NextServerComponentTransition::new()
+                .process(
+                    Vc::upcast(FileSource::new(path.clone())),
+                    context,
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            internal_assets.insert(name.clone().into(), module);
+            setup_loads.push_str(&format!(
+                "await require(/*turbopackChunkingType: shared*/ '{name}');\n"
+            ));
+        }
+        let source = load_next_js_template(
+            "app-test.js",
+            self.app_project.project().project_path().owned().await?,
+            [("VAR_TEST_MODULE", "INNER_TEST_MODULE")],
+            [
+                (
+                    "__next_test_consumer__",
+                    "import * as __next_test_consumer__ from \
+                     \"next/dist/experimental/testing/rsc/consumer\" with { \
+                     \"turbopack-transition\": \"next-ssr\" };",
+                ),
+                ("__next_test_setup__", setup_loads.as_str()),
+                ("__next_app_require__", &*TURBOPACK_REQUIRE.bound()),
+                ("__next_app_load_chunk__", &*TURBOPACK_LOAD.bound()),
+            ],
+            [],
+        )
+        .await?;
+        let entry = context
+            .process(
+                source,
+                ReferenceType::Internal(ResolvedVc::cell(internal_assets)),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        Ok(AppEntry {
+            pathname: AppPath::from(self.page.clone()).to_string().into(),
+            original_name: self.page.to_string().into(),
+            rsc_entry: entry,
+            config: NextSegmentConfig::default().resolved_cell(),
+        }
+        .cell())
+    }
+
     #[turbo_tasks::function]
     async fn app_page_entry(&self, loader_tree: Vc<AppPageLoaderTree>) -> Result<Vc<AppEntry>> {
         Ok(get_app_page_entry(
@@ -1211,6 +1382,9 @@ impl AppEndpoint {
 
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match &this.ty {
+            AppEndpointType::Test { path, setup_paths } => {
+                self.test_entry(path.clone(), setup_paths.clone())
+            }
             AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(**loader_tree),
             AppEndpointType::Route { path, root_layouts } => {
                 self.app_route_entry(path.clone(), **root_layouts, next_config)
@@ -1241,6 +1415,7 @@ impl AppEndpoint {
         }
         let (process_client_assets, process_ssr, emit_manifests, emit_rsc_manifests) =
             match &this.ty {
+                AppEndpointType::Test { .. } => (true, true, EmitManifests::Full, true),
                 AppEndpointType::Page { ty, .. } => (
                     true,
                     matches!(ty, AppPageEndpointType::Html),
@@ -1273,7 +1448,10 @@ impl AppEndpoint {
 
         let rsc_entry = app_entry.rsc_entry;
 
-        let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
+        let is_app_page = matches!(
+            this.ty,
+            AppEndpointType::Page { .. } | AppEndpointType::Test { .. }
+        );
 
         let module_graphs = this
             .app_project
@@ -1314,7 +1492,10 @@ impl AppEndpoint {
             ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
                 .get_client_references_for_endpoint(
                     *rsc_entry,
-                    matches!(this.ty, AppEndpointType::Page { .. }),
+                    matches!(
+                        this.ty,
+                        AppEndpointType::Page { .. } | AppEndpointType::Test { .. }
+                    ),
                     /* include_traced */ *project.should_write_nft_manifests().await?,
                     /* include_binding_usage */ project.next_mode().await?.is_production(),
                 )
@@ -1448,7 +1629,10 @@ impl AppEndpoint {
 
         // Only Pages need a polyfill chunk, Routes handlers don't have any inherent code that runs
         // in the browser.
-        let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
+        let polyfill_output_asset = if matches!(
+            this.ty,
+            AppEndpointType::Page { .. } | AppEndpointType::Test { .. }
+        ) {
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
             let next_package = get_next_package(project.project_path().owned().await?).await?;
             let polyfill_source =
@@ -2041,7 +2225,10 @@ impl AppEndpoint {
 
         let rsc_entry = app_entry.rsc_entry;
 
-        let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
+        let is_app_page = matches!(
+            this.ty,
+            AppEndpointType::Page { .. } | AppEndpointType::Test { .. }
+        );
 
         let module_graphs = this
             .app_project
@@ -2110,6 +2297,9 @@ impl Endpoint for AppEndpoint {
         let this = self.await?;
         let page_name = this.page.to_string();
         let span = match this.ty {
+            AppEndpointType::Test { .. } => {
+                tracing::info_span!("app test endpoint", name = page_name)
+            }
             AppEndpointType::Page {
                 ty: AppPageEndpointType::Html,
                 ..
@@ -2155,7 +2345,11 @@ impl Endpoint for AppEndpoint {
                 output_assets
             };
 
-            let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
+            // Test snapshots validate and publish the complete emitted file closure in
+            // both modes, even though normal production builds do not need this inventory.
+            let (server_paths, client_paths) = if project.next_mode().await?.is_development()
+                || matches!(this.ty, AppEndpointType::Test { .. })
+            {
                 let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
                     .owned()
                     .await?;
@@ -2305,7 +2499,10 @@ impl Endpoint for AppEndpoint {
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
-        let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
+        let is_app_page = matches!(
+            this.ty,
+            AppEndpointType::Page { .. } | AppEndpointType::Test { .. }
+        );
         let module_graphs = this
             .app_project
             .app_module_graphs(

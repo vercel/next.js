@@ -109,7 +109,11 @@ class NextRootCommand extends Command {
         }
       }
 
-      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+      // Testing can select multiple actual Next profiles. The compiler/worker
+      // selects its own environment; discovery must not default it to production.
+      if (commandName !== 'test') {
+        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+      }
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
       if (
@@ -574,6 +578,39 @@ program
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
     mod.spawnNextUpgrade(directory, options)
+  })
+
+program
+  .command('test')
+  .description(
+    'Run tests through the experimental Next-owned compiler and runtime.'
+  )
+  .argument('[directory]', 'The Next.js project directory.')
+  .option(
+    '--list',
+    'List selected test files and their requested Next profiles.'
+  )
+  .option('--run', 'Run selected tests once (the default).')
+  .option('--watch', 'Watch for changes (requires watch capability).')
+  .option(
+    '--update',
+    'Update snapshots in an explicitly requested one-shot run.'
+  )
+  .option('--capabilities', 'Print the supported test capabilities as JSON.')
+  .option('--coverage', 'Collect one-shot development Node line coverage.')
+  .option('--project <name>', 'Select a project from next.test.config.json.')
+  .option(
+    '--filter <substring...>',
+    'Select files containing any given substring.'
+  )
+  .action(async (directory, options) => {
+    try {
+      const { nextTestRunner } = await import('../cli/next-test-runner.js')
+      await nextTestRunner(directory, options)
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error))
+      process.exitCode = 1
+    }
   })
 
 program

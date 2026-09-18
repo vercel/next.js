@@ -83,6 +83,9 @@ test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/pag
 
 /apps/*/next-env.d.ts
 
+# This coverage fixture intentionally spans expressions across source lines.
+/test/e2e/app-dir/next-testing-stage3-reference/coverage/multiline.ts
+
 # Symlink files
 readme.md
 test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx

@@ -28,4 +28,8 @@ pub mod routes_hashes_manifest;
 mod server_actions;
 mod service_worker;
 mod sri_manifest;
+pub mod testing;
+mod testing_fixture;
+mod testing_mock_graph;
+mod testing_mock_source;
 mod versioned_content_map;

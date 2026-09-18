@@ -315,6 +315,14 @@ export interface UpdateInfo {
 }
 
 export interface Project {
+  /** Internal App RSC testing entry; file is relative to the project directory. */
+  testEntry(descriptor: {
+    file: string
+    id: string
+    environment: 'rsc' | 'node' | 'browser'
+    setupFiles?: readonly string[]
+  }): Promise<Endpoint>
+
   update(options: Partial<ProjectOptions>): Promise<void>
 
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
@@ -407,6 +415,11 @@ export type Route =
     }
 
 export interface Endpoint {
+  /** Internal testing: emit into a fresh sibling of the configured output directory. */
+  writeToDiskSnapshot(
+    directory: string
+  ): Promise<TurbopackResult<WrittenEndpoint>>
+
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
 

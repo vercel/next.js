@@ -30,7 +30,7 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rustc_hash::FxHashSet;
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::{Mutex, RwLock, RwLockWriteGuard, oneshot};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -191,6 +191,8 @@ impl DiskWatcherConfig {
 }
 
 pub(crate) struct DiskWatcher {
+    // Serialize start/stop and retain completion until every invalidation has finished.
+    completion: Mutex<Option<oneshot::Receiver<()>>>,
     state: State,
     config: DiskWatcherConfig,
 }
@@ -490,6 +492,7 @@ impl DiskWatcher {
             "extended_batch_delay_duration must be at least batch_delay"
         );
         Self {
+            completion: Mutex::new(None),
             state: State::new_stopped(config.resolve_recursive_mode()),
             config,
         }
@@ -504,6 +507,7 @@ impl DiskWatcher {
             None => None,
         };
 
+        let mut completion = watcher.completion.lock().await;
         let state_guard = watcher.state.write().await;
 
         // bail out if we're already watching
@@ -516,6 +520,15 @@ impl DiskWatcher {
         {
             return Ok(());
         }
+
+        // A cancelled stop may have disconnected the old watcher without finishing its
+        // wait. Complete that wait before starting another consumer, without holding state.
+        drop(state_guard);
+        if let Some(finished) = completion.as_mut() {
+            finished.await.expect("filesystem watcher thread panicked");
+            completion.take();
+        }
+        let state_guard = watcher.state.write().await;
 
         // Create a channel to receive the events.
         let (tx, rx) = channel();
@@ -556,10 +569,15 @@ impl DiskWatcher {
             fs.invalidate_all();
         }
 
+        let (done, finished) = oneshot::channel();
         spawn_thread({
             let fs = fs.clone();
-            move || Self::watch_thread(fs, rx, extended_batch_delay_matcher)
+            move || {
+                Self::watch_thread(fs, rx, extended_batch_delay_matcher);
+                let _ = done.send(());
+            }
         });
+        *completion = Some(finished);
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
         // stay in the `Stopped` state.
@@ -581,12 +599,17 @@ impl DiskWatcher {
     }
 
     pub async fn stop_watching(&self) {
+        let mut completion = self.completion.lock().await;
         match &self.state {
             State::Recursive(state) => *state.write().await = RecursiveState::Stopped,
             State::NonRecursive(state) => *state.write().await = NonRecursiveState::Stopped,
         }
-        // thread will detect the stop because the channel is disconnected when `NotifyWatcher` is
-        // dropped
+        // Dropping NotifyWatcher disconnects the event channel. Await the consumer as well:
+        // an invalidation may already be in flight and must finish before storage is released.
+        if let Some(finished) = completion.as_mut() {
+            finished.await.expect("filesystem watcher thread panicked");
+            completion.take();
+        }
     }
 
     /// Internal thread that processes the events from the watcher
@@ -1183,6 +1206,66 @@ mod tests {
             fs::write(sub_dir.join("new.txt"), "new")?;
             wait_for_rerun(&fs, &sub_dir, dir_runs).await;
 
+            fs.watcher.stop_watching().await;
+            // Stopping is idempotent, and a later start owns a new event consumer.
+            fs.watcher.stop_watching().await;
+            DiskWatcher::start_watching(fs.clone()).await?;
+            let restarted_file = sub_dir.join("restarted.txt");
+            fs::write(&restarted_file, "initial after restart")?;
+            backdate(&restarted_file);
+            let file_runs = fs.tracked_read_strongly_consistent(&restarted_file).await;
+            fs::write(&restarted_file, "updated after restart")?;
+            wait_for_rerun(&fs, &restarted_file, file_runs).await;
+            fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[rstest]
+    #[case::stop(false)]
+    #[case::restart(true)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cancelled_stop_preserves_in_flight_invalidation_barrier(#[case] restart: bool) {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = MockFileSystem::new(DiskWatcherConfig {
+                recursive_mode: Some(DiskWatcherRecursiveMode::NonRecursive),
+                poll_interval: Some(Duration::from_millis(20)),
+                ..Default::default()
+            });
+            let path = fs.root_path.join("blocked.txt");
+            fs::write(&path, "initial")?;
+            backdate(&path);
+            DiskWatcher::start_watching(fs.clone()).await?;
+            fs.tracked_read_strongly_consistent(&path).await;
+
+            // Hold an actual watcher batch immediately before it invalidates tracked reads.
+            let blocked = fs.invalidation_lock.write().await;
+            let (started, entered) = oneshot::channel();
+            *fs.before_invalidation.lock().unwrap() = Some(started);
+            fs::write(&path, "changed")?;
+            tokio::time::timeout(Duration::from_secs(5), entered).await??;
+
+            let mut first_stop = Box::pin(fs.watcher.stop_watching());
+            assert!(futures::poll!(&mut first_stop).is_pending());
+            drop(first_stop);
+
+            let mut next = Box::pin(async {
+                if restart {
+                    DiskWatcher::start_watching(fs.clone()).await?;
+                } else {
+                    fs.watcher.stop_watching().await;
+                }
+                anyhow::Ok(())
+            });
+            assert!(futures::poll!(&mut next).is_pending());
+            drop(blocked);
+            tokio::time::timeout(Duration::from_secs(5), next).await??;
             fs.watcher.stop_watching().await;
             anyhow::Ok(())
         })

@@ -2,7 +2,8 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, getBindingsSync } from '../swc'
+import { getBindingsSync } from '../swc'
+import { createProductionProjectOptions } from '../swc/production-project'
 import {
   handleRouteType,
   rawEntrypointsToEntrypoints,
@@ -15,14 +16,8 @@ import type { Telemetry } from '../../telemetry/storage'
 import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../get-supported-browsers'
 import { printBuildErrors } from '../print-build-errors'
-import { normalizePath } from '../../lib/normalize-path'
-import type {
-  ProjectOptions,
-  RawEntrypoints,
-  TurbopackResult,
-} from '../swc/types'
+import type { RawEntrypoints, TurbopackResult } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
@@ -42,10 +37,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   const buildId = NextBuildContext.buildId!
   const encryptionKey = NextBuildContext.encryptionKey!
   const previewProps = NextBuildContext.previewProps!
-  const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
   const noMangling = NextBuildContext.noMangling!
-  const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
   const bindings = getBindingsSync() // our caller should have already loaded these
@@ -62,51 +55,24 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
 
   const dev = false
 
-  const supportedBrowsers = getSupportedBrowsers(dir, dev)
-
   const hasDeferredEntries =
     (config.experimental.deferredEntries?.length ?? 0) > 0
 
   const persistentCaching =
     config.experimental?.turbopackFileSystemCacheForBuild || false
-  const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
 
   // Shared options for createProject calls
-  const sharedProjectOptions: Omit<ProjectOptions, 'debugBuildPaths'> = {
-    rootPath,
-    projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
+  const sharedProjectOptions = createProductionProjectOptions({
+    dir,
     distDir,
-    nextConfig: config,
-    watch: {
-      enable: false,
-    },
-    dev,
-    env: process.env as Record<string, string>,
-    defineEnv: createDefineEnv({
-      isTurbopack: true,
-      clientRouterFilters: NextBuildContext.clientRouterFilters!,
-      config,
-      dev,
-      distDir,
-      projectPath: dir,
-      fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-      hasRewrites,
-      // Implemented separately in Turbopack, doesn't have to be passed here.
-      middlewareMatchers: undefined,
-      rewrites,
-    }),
+    config,
     buildId,
     encryptionKey,
     previewProps,
-    browserslistQuery: supportedBrowsers.join(', '),
+    rewrites,
+    clientRouterFilters: NextBuildContext.clientRouterFilters!,
     noMangling,
-    writeRoutesHashesManifest:
-      !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
-    currentNodeJsVersion,
-    isPersistentCachingEnabled: persistentCaching,
-    deferredEntries: config.experimental.deferredEntries,
-    nextVersion: process.env.__NEXT_VERSION as string,
-  }
+  })
 
   if (config.experimental.turbopackSeedCacheFromWorktree) {
     seedTurbopackCacheIfNeeded({

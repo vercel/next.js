@@ -1,0 +1,15 @@
+{
+  "name": "next-testing-condition-probe",
+  "private": true,
+  "exports": {
+    ".": {
+      "react-server": "./conditions/react-server.ts",
+      "browser": "./conditions/browser.ts",
+      "node": {
+        "development": "./conditions/node-development.ts",
+        "default": "./conditions/node.ts"
+      },
+      "default": "./conditions/default.ts"
+    }
+  }
+}

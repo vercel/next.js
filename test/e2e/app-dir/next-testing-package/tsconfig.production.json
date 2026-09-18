@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "types": ["node", "react"]
+  },
+  "include": [
+    "production/node-js.case.js",
+    "production/node-ts.case.ts",
+    "production/subject.ts",
+    "production/rsc.case.tsx",
+    "production/server-subject.tsx"
+  ]
+}

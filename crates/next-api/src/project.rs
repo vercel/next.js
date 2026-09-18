@@ -89,9 +89,9 @@ use turbopack_core::{
 };
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
-use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
 use turbopack_node::worker_threads_backend;
+use turbopack_node::{NodeBackend, execution_context::ExecutionContext};
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
@@ -289,6 +289,8 @@ impl DebugBuildPathsRouteKeys {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
+    /// Private, immutable registration supplied only by the owned fixture server.
+    pub browser_fixture_host: Option<RcStr>,
     /// An absolute root path (Unix or Windows path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -744,8 +746,8 @@ impl ProjectContainer {
                 .await?;
 
             if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
+                prev_project_fs.stop_watching().await;
                 if watch.enable {
-                    // TODO stop watching: prev_project_fs.stop_watching()?;
                     project_fs.start_watching().await?;
                 } else {
                     project_fs.invalidate_with_reason(|path| invalidation::Initialize {
@@ -789,6 +791,7 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
+        let browser_fixture_host;
         {
             let options = self.options_state.get();
             let options = options
@@ -817,12 +820,18 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
+            browser_fixture_host = options.browser_fixture_host.clone();
         }
 
+        if browser_fixture_host.is_some() && !dev {
+            bail!("Registered browser fixtures support development compilation only");
+        }
         let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            test_entry: None,
+            browser_fixture_host,
             root_path,
             project_path,
             watch,
@@ -883,6 +892,9 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    browser_fixture_host: Option<RcStr>,
+    /// Only explicit test consumers set this; ordinary application projects never do.
+    test_entry: Option<ResolvedVc<crate::testing::TestEntryOptions>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -1019,6 +1031,18 @@ impl Issue for ConflictIssue {
 
 #[turbo_tasks::value_impl]
 impl Project {
+    #[turbo_tasks::function]
+    pub(crate) fn with_test_entry(
+        &self,
+        entry: ResolvedVc<crate::testing::TestEntryOptions>,
+    ) -> Vc<Self> {
+        Self {
+            test_entry: Some(entry),
+            ..self.clone()
+        }
+        .cell()
+    }
+
     #[turbo_tasks::function]
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path().owned().await?).await?;
@@ -1225,16 +1249,6 @@ impl Project {
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
-        let strategy = *self
-            .next_config()
-            .turbopack_plugin_runtime_strategy()
-            .await?;
-        let node_backend = match strategy {
-            #[cfg(feature = "worker_pool")]
-            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
-            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
-        };
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
@@ -1260,8 +1274,24 @@ impl Project {
             self.project_path().owned().await?,
             node_execution_chunking_context,
             self.env(),
-            node_backend,
+            self.node_backend(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn node_backend(self: Vc<Self>) -> Result<Vc<Box<dyn NodeBackend>>> {
+        let strategy = *self
+            .next_config()
+            .turbopack_plugin_runtime_strategy()
+            .await?;
+        let node_backend = match strategy {
+            #[cfg(feature = "worker_pool")]
+            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
+        };
+
+        Ok(node_backend)
     }
 
     #[turbo_tasks::function]
@@ -1402,6 +1432,13 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
+        if let Some(entry) = self.await?.test_entry {
+            return Ok(Vc::cell(vec![
+                crate::testing::test_endpoint(self, *entry)
+                    .to_resolved()
+                    .await?,
+            ]));
+        }
         let mut endpoints = Vec::new();
         for (_key, group) in self.get_all_endpoint_groups(app_dir_only).await?.iter() {
             for entry in group.primary.iter() {
@@ -1425,6 +1462,9 @@ impl Project {
             .try_join()
             .await?;
 
+        if self.await?.test_entry.is_some() {
+            return Ok(GraphEntries::concatenate(endpoint_entries).cell());
+        }
         let result = GraphEntries::concatenate(
             endpoint_entries
                 .into_iter()
@@ -1990,6 +2030,25 @@ impl Project {
             );
         }
 
+        if let Some(host) = &this.browser_fixture_host {
+            let app = app_project
+                .await?
+                .as_ref()
+                .copied()
+                .context("Registered browser fixtures require an App Router project")?;
+            for (pathname, route) in crate::testing_fixture::fixture_routes(*app, host.clone())
+                .await?
+                .iter()
+            {
+                if routes.insert(pathname.clone(), route.clone()).is_some() {
+                    bail!(
+                        "Registered browser fixture conflicts with an application route: \
+                         {pathname}"
+                    );
+                }
+            }
+        }
+
         for (pathname, page_route) in &pages_project.routes().await? {
             if debug_build_paths_route_keys
                 .as_ref()
@@ -2244,6 +2303,40 @@ impl Project {
             config,
             runtime,
         )))
+    }
+
+    /// A non-RSC Node module context for explicit unit and browser-driver specs.
+    #[turbo_tasks::function]
+    pub(crate) async fn node_test_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions::default().cell(),
+            self.server_compile_time_info(),
+            crate::testing::test_module_options_context(get_server_module_options_context(
+                self.project_path().owned().await?,
+                self.execution_context(),
+                ServerContextType::Test,
+                self.next_mode(),
+                self.next_config(),
+                NextRuntime::NodeJs,
+                self.encryption_key(),
+                self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
+                false,
+            )),
+            crate::testing::test_resolve_options_context(
+                get_server_resolve_options_context(
+                    self.project_path().owned().await?,
+                    ServerContextType::Test,
+                    self.next_mode(),
+                    self.next_config(),
+                    self.execution_context(),
+                    None,
+                ),
+                self.project_path().owned().await?,
+                true,
+            ),
+            Layer::new_with_user_friendly_name(rcstr!("next-test-node"), rcstr!("Node Test")),
+        ))
     }
 
     #[turbo_tasks::function]

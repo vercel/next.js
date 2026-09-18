@@ -161,6 +161,7 @@ fn main() {
             let canonical_path = std::fs::canonicalize(absolute_dir).unwrap();
 
             let options = ProjectOptions {
+                browser_fixture_host: None,
                 build_id: rcstr!("test"),
                 define_env: DefineEnv {
                     client: vec![],

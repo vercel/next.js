@@ -361,7 +361,9 @@ pub async fn get_next_server_import_map(
                 ),
             );
         }
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
+        ServerContextType::Test
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     }
 
     insert_next_server_special_aliases(
@@ -449,7 +451,8 @@ pub async fn get_next_edge_import_map(
     .await?;
 
     match &ty {
-        ServerContextType::Pages { .. }
+        ServerContextType::Test
+        | ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
@@ -496,7 +499,8 @@ pub async fn get_next_edge_import_map(
     // Look for where 'server/web/globals.ts` are imported to find out corresponding
     // context
     match ty {
-        ServerContextType::AppSSR { .. }
+        ServerContextType::Test
+        | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
@@ -757,7 +761,9 @@ async fn insert_next_server_special_aliases(
     );
 
     match &ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
+        ServerContextType::Test
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesApi { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir } => {
             let next_package = get_next_package(app_dir.clone()).await?;
@@ -800,6 +806,7 @@ async fn insert_next_server_special_aliases(
     // the error which throws a runtime error. This works with in combination of
     // build-time error as well, refer https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_server/context.rs#L103
     match &ty {
+        ServerContextType::Test => {}
         ServerContextType::Pages { .. } => {
             insert_exact_alias_map(
                 import_map,

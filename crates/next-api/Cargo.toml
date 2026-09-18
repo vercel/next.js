@@ -22,6 +22,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 byteorder = { workspace = true }
+data-encoding = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
@@ -32,6 +33,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 swc_core = { workspace = true }
+swc_sourcemap = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }

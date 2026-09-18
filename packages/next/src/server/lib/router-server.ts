@@ -1,3 +1,4 @@
+import type { BrowserFixtureHost } from '../../experimental/testing/contracts'
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
@@ -139,6 +140,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
+  browserFixtureHost?: BrowserFixtureHost
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -255,6 +257,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        browserFixtureHost: opts.browserFixtureHost,
       })
     )
 
@@ -1085,6 +1088,7 @@ export async function initialize(opts: {
       development?.bundler?.hotReloader?.close()
     },
     distDir: config.distDir,
+    basePath: config.basePath,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,

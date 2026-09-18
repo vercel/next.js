@@ -28,6 +28,7 @@ pub struct MockFileSystem {
     pub invalidator_map: InvalidatorMap,
     pub dir_invalidator_map: InvalidatorMap,
     pub invalidation_lock: RwLock<()>,
+    pub before_invalidation: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub run_counts: Mutex<FxHashMap<Arc<PathBuf>, u64>>,
     transient_handle: TransientInstance<MockFsHandle>,
     _temp_dir: TempDir,
@@ -53,6 +54,7 @@ impl MockFileSystem {
             invalidator_map: InvalidatorMap::new(),
             dir_invalidator_map: InvalidatorMap::new(),
             invalidation_lock: RwLock::new(()),
+            before_invalidation: Mutex::new(None),
             run_counts: Mutex::new(FxHashMap::default()),
             transient_handle: TransientInstance::new(MockFsHandle(weak.clone())),
             _temp_dir: temp_dir,
@@ -132,6 +134,9 @@ impl DiskFileSystemWatcherApi for MockFileSystem {
     }
 
     fn invalidation_lock(&self) -> &RwLock<()> {
+        if let Some(started) = self.before_invalidation.lock().unwrap().take() {
+            let _ = started.send(());
+        }
         &self.invalidation_lock
     }
 

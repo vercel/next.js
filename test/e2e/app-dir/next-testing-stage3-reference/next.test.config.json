@@ -1,0 +1,12 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "production-node",
+      "environment": "node",
+      "mode": "production",
+      "include": ["cases/production-[ab].case.mjs"],
+      "setupFiles": ["setup/first.mjs", "setup/second.mjs"]
+    }
+  ]
+}

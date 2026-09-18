@@ -1378,7 +1378,11 @@ async fn parse_segment_config_from_loader_tree_internal(
     .into_iter()
     .flatten()
     {
-        let source = Vc::upcast(FileSource::new(path.clone()));
+        let source = modules
+            .sources
+            .get(&path)
+            .map(|source| **source)
+            .unwrap_or_else(|| Vc::upcast(FileSource::new(path.clone())));
         config.apply_parent_config(
             &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
         );

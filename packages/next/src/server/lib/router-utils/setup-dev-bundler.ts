@@ -1,3 +1,4 @@
+import type { BrowserFixtureHost } from '../../../experimental/testing/contracts'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -19,6 +20,7 @@ import Watchpack from 'next/dist/compiled/watchpack'
 import findUp from 'next/dist/compiled/find-up'
 import { cyan } from '../../../lib/picocolors'
 import { buildCustomRoute } from './filesystem'
+import { writeDevRequestManifests } from './write-dev-request-manifests'
 import * as Log from '../../../build/output/log'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
@@ -52,9 +54,6 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   ROUTES_MANIFEST,
-  PRERENDER_MANIFEST,
-  PREVIEW_PROPS_MANIFEST,
-  SERVER_DIRECTORY,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -135,6 +134,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  browserFixtureHost?: BrowserFixtureHost
 }
 
 export interface DevRoutesManifest {
@@ -331,31 +331,7 @@ async function startWatcher(
     JSON.stringify(routesManifest)
   )
 
-  const previewPropsManifestPath = path.join(
-    distDir,
-    SERVER_DIRECTORY,
-    PREVIEW_PROPS_MANIFEST
-  )
-  fs.mkdirSync(path.join(distDir, SERVER_DIRECTORY), { recursive: true })
-  await fs.promises.writeFile(
-    previewPropsManifestPath,
-    JSON.stringify(opts.fsChecker.previewProps, null, 2)
-  )
-
-  const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
-  await fs.promises.writeFile(
-    prerenderManifestPath,
-    JSON.stringify(
-      {
-        version: 4,
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-      },
-      null,
-      2
-    )
-  )
+  await writeDevRequestManifests(distDir, opts.fsChecker.previewProps)
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
     await verifyPartytownSetup(
@@ -1042,6 +1018,34 @@ async function startWatcher(
           ).message
         )
         nestedMiddleware = []
+      }
+
+      // This registration belongs to the private owned fixture server. The
+      // compiler emits virtual App Pages, so filesystem discovery cannot find
+      // them. Re-admit the same immutable entries after every watcher refresh.
+      // Keep them out of appRoutes/layoutRoutes, which describe real user files
+      // for public type generation.
+      if (opts.browserFixtureHost) {
+        if (!opts.turbo) {
+          throw new Error('Registered browser fixtures require Turbopack')
+        }
+        const { routePrefix, fixtures } = opts.browserFixtureHost
+        for (const fixture of fixtures) {
+          const pathname = `${routePrefix}/${fixture.id}`
+          if (appPaths[pathname] || pageFiles.has(pathname)) {
+            throw new Error(
+              `Registered browser fixture conflicts with an application route: ${pathname}`
+            )
+          }
+          const page = `${pathname}/page`
+          appFiles.add(pathname)
+          appPaths[pathname] = [page]
+          appRouteFilePaths.set(
+            page,
+            path.join(dir, `.next-test-fixture-${fixture.id}.tsx`)
+          )
+          routedPages.push(pathname)
+        }
       }
 
       // appPaths intentionally contains both pages and route handlers. The

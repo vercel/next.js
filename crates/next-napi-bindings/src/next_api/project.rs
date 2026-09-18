@@ -76,6 +76,7 @@ use turbopack_core::{
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
+use turbopack_node::NodeBackend;
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
@@ -150,6 +151,8 @@ pub struct NapiWatchOptions {
 
 #[napi(object)]
 pub struct NapiProjectOptions {
+    /// Private development-only fixture registration.
+    pub browser_fixture_host: Option<RcStr>,
     /// An absolute root path (Unix or Windows path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -307,6 +310,7 @@ impl From<NapiWatchOptions> for WatchOptions {
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         let NapiProjectOptions {
+            browser_fixture_host,
             root_path,
             project_path,
             // Only used for initializing cache and tracing
@@ -330,6 +334,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             server_hmr,
         } = val;
         ProjectOptions {
+            browser_fixture_host,
             root_path,
             project_path,
             watch: watch.into(),
@@ -816,9 +821,40 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    let container = project.container;
+    let node_backend = turbo_tasks::run(tt.pin(), async move {
+        #[turbo_tasks::function(operation, root)]
+        fn shutdown_project_fs(container: ResolvedVc<ProjectContainer>) -> Vc<DiskFileSystem> {
+            container.project().project_fs()
+        }
+        shutdown_project_fs(container)
+            .read_strongly_consistent()
+            .await?
+            .stop_watching()
+            .await;
+        #[turbo_tasks::function(operation, root)]
+        fn shutdown_node_backend(
+            container: ResolvedVc<ProjectContainer>,
+        ) -> Vc<Box<dyn NodeBackend>> {
+            container.project().node_backend()
+        }
+        shutdown_node_backend(container)
+            .resolve()
+            .strongly_consistent()
+            .await?
+            .into_trait_ref()
+            .await
+    })
+    .await
+    .map_err(|error| {
+        napi::Error::from_reason(format!("Failed to stop project watcher: {error:#}"))
+    })?;
     tt.stop_and_wait().await;
+    let shutdown_result = node_backend.shutdown().await;
     run_exit_handlers(&project.exit_receiver).await;
-    Ok(())
+    shutdown_result.map_err(|error| {
+        napi::Error::from_reason(format!("Failed to close loader resources: {error:#}"))
+    })
 }
 
 #[napi(object, object_from_js = false)]
@@ -1720,6 +1756,44 @@ async fn output_assets_operation(
             .chain(immutable_hashes_manifest_asset.iter().copied())
             .collect(),
     ))
+}
+
+/// Explicit feature negotiation: older bindings ignore additional NAPI arguments.
+#[napi]
+pub fn project_test_entry_setup_version() -> u32 {
+    1
+}
+
+/// Create an explicit test endpoint without adding it to application routes.
+#[napi(ts_return_type = "Promise<{ __napiType: 'Endpoint' }>")]
+pub async fn project_test_entry(
+    #[napi(ts_arg_type = "{ __napiType: 'Project' }")] project: &External<ProjectInstance>,
+    file: RcStr,
+    id: RcStr,
+    environment: RcStr,
+    setup_files: Option<Vec<RcStr>>,
+) -> napi::Result<External<ExternalEndpoint>> {
+    let ctx = project.turbopack_ctx.clone();
+    let container = project.container;
+    let endpoint = ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let endpoint = next_api::testing::test_endpoint_operation(
+                container,
+                file,
+                id,
+                environment,
+                setup_files.unwrap_or_default(),
+            );
+            // Resolve now so invalid profiles/paths fail before an endpoint is exposed.
+            endpoint.read_strongly_consistent().await?;
+            Ok(endpoint)
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    Ok(External::new(ExternalEndpoint(DetachedVc::new(
+        ctx, endpoint,
+    ))))
 }
 
 #[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]

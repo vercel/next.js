@@ -7,7 +7,7 @@ let clientComponentLoadTimes = 0
 let clientComponentLoadCount = 0
 
 export function wrapClientComponentLoader(
-  ComponentMod: AppPageModule,
+  ComponentMod: Pick<AppPageModule, '__next_app__'>,
   isTracingEnabled: boolean
 ): AppPageModule['__next_app__'] {
   if (

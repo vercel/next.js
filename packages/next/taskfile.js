@@ -91,6 +91,34 @@ const externals = {
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
+// Bundle the independent primitives together so assertions and spies share state.
+export async function ncc_next_test_primitives(task) {
+  await task.clear('src/compiled/next-test-primitives')
+  await task
+    .source('src/bundles/next-test-primitives/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives')
+  await task
+    .source('src/bundles/next-test-primitives/package.json')
+    .target('src/compiled/next-test-primitives')
+  await task
+    .source('src/bundles/next-test-primitives/diff/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/diff')
+  await task
+    .source('src/bundles/next-test-primitives/diff/package.json')
+    .target('src/compiled/next-test-primitives/diff')
+
+  await execa('node', ['src/bundles/next-test-primitives/static-chunks.js'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+  })
+  await execa('node', ['src/bundles/next-test-primitives/build-types.js'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+  })
+}
+
 export async function ncc_node_html_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-html-parser')))
@@ -2387,6 +2415,7 @@ export async function ncc(task, opts) {
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
+      'ncc_next_test_primitives',
       'ncc_vercel_routing_utils',
       'ncc_vercel_detect_agent',
     ],

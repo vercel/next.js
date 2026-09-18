@@ -12,7 +12,10 @@ use turbo_tasks::{
     ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
-use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
+use turbopack_core::{
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    source::Source,
+};
 
 use crate::{
     mode::NextMode,
@@ -36,6 +39,9 @@ fn normalize_underscore(string: &str) -> String {
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct AppDirModules {
+    /// Compiler-generated modules use virtual sources while retaining normal loader-tree paths.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub sources: FxIndexMap<FileSystemPath, ResolvedVc<Box<dyn Source>>>,
     pub page: Option<FileSystemPath>,
     pub layout: Option<FileSystemPath>,
     pub error: Option<FileSystemPath>,
@@ -54,6 +60,7 @@ pub struct AppDirModules {
 impl AppDirModules {
     fn without_leaves(&self) -> Self {
         Self {
+            sources: self.sources.clone(),
             page: None,
             layout: self.layout.clone(),
             error: self.error.clone(),
@@ -163,7 +170,7 @@ impl Metadata {
 }
 
 /// Metadata files that can be placed in the root of the app directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
     pub favicon: Option<MetadataItem>,
@@ -470,7 +477,7 @@ async fn get_directory_tree_internal(
     .cell())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct AppPageLoaderTree {
     pub page: AppPage,

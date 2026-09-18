@@ -1,0 +1,1956 @@
+{
+  "coordinatorThreadId": "01a0a9ab-91b9-75c0-8598-4658b78268e6",
+  "projectId": "local-223fad83d575e72518eec96469831479",
+  "architecture": "/Users/timneutkens/.codex/worktrees/dd75/next.js-2/NEXT_TESTING_PLAN.md",
+  "implementationPlan": "/Users/timneutkens/.codex/worktrees/dd75/next.js-2/NEXT_TESTING_IMPLEMENTATION_PLAN.md",
+  "model": "gpt-6-astra",
+  "thinking": "medium",
+  "contracts": {
+    "status": "Internal artifact v2 and event v1; default five-profile CLI integration independently accepted. Feature acceptance remains incremental.",
+    "owner": "I",
+    "path": "/Users/timneutkens/.codex/worktrees/dd75/next.js-2/NEXT_TESTING_CONTRACTS.md"
+  },
+  "milestone": "Stage three accepted and integrated: production Node/RSC/browser profiles, registered development component mounting, scoped Node line coverage, and clean packaged adoption.",
+  "tasks": [
+    {
+      "code": "I",
+      "title": "Next testing I: CLI and shared contracts",
+      "depends": [],
+      "status": "Default5profile orchestration+browserresource/failure/INT/TERM gates independently pass; A11 and KexactJest exception reviewed.54CLI component checks pass against emitted runtime.",
+      "threadId": "01a0a9e7-420c-7212-8f5c-83fa8ee92b57",
+      "clientThreadId": "client-new-thread:9d989f94-ce13-47f3-8965-351086585418",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/b5aa/next.js-2",
+      "handoff": {
+        "patch": "/tmp/next-testing-i-cli-contracts.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "exclusions": ["generated ignored next-env.d.ts files"],
+        "patchSha256": "b16daf0043909e24f7e596f4ff429743e8dcf45a8d2d44ecef1aaa62259d2db5",
+        "incrementalPatches": [
+          "/tmp/next-testing-i-orchestration-v3.patch",
+          "/tmp/next-testing-i-request-context-v4.patch",
+          "/tmp/next-testing-i-cache-metadata-v5.patch"
+        ],
+        "focusedTestsPassed": 34
+      }
+    },
+    {
+      "code": "A",
+      "title": "Next testing A: Turbopack compilation",
+      "depends": ["I"],
+      "status": "A10 watcher/A11 scheduler/A12 loader shutdown independently accepted. Both actual loader backends close before handoff and exit naturally; production test profiles and broader compiler integrations remain future work.",
+      "threadId": "01a0a9e7-b3a1-7760-87ea-f88601e70e0e",
+      "clientThreadId": "client-new-thread:193bfe7b-ce33-42d8-9cc1-c28bb8a397b6",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/8169/next.js-2",
+      "handoff": {
+        "patch": "/tmp/next-testing-a-compiler-v2.patch",
+        "patchSha256": "9dc366a40b37b70d4fb062a005c3f04e193229d7afb6f3ab6f0b0110d7835b84",
+        "status": "reviewed native/compiler increment integrated with explicit external asset gates; actual graph debugging ongoing",
+        "nativeSha256": "495503637921907503a86a617e35744846045cd344ceb88ff0004b6292df3949",
+        "incrementalPatches": [
+          "/tmp/next-testing-a-template-v3.delta.patch",
+          "/tmp/next-testing-a-consumer-v4.delta.patch",
+          "/tmp/next-testing-a-request-manifests-v5.delta.patch",
+          "/tmp/next-testing-a-facade-v6.delta.patch"
+        ],
+        "fullV3": {
+          "patch": "/tmp/next-testing-a-compiler-v3.patch",
+          "sha256": "5768686d60e1c2ac6179e6bc72f118c0a7a2925e33144a5000aad96cc32dafe2"
+        }
+      }
+    },
+    {
+      "code": "B",
+      "title": "Next testing B: Execution and isolation",
+      "depends": ["A", "I"],
+      "status": "B11 emitted browser fixture import and execution/browser leases independently accepted through default CLI and browser failure/cancellation checks.",
+      "threadId": "01a0a9e7-cb1d-7ad1-a7c2-bbebea199334",
+      "clientThreadId": "client-new-thread:70757834-882e-4421-8ea2-075aab0179ea",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/ab97/next.js-2",
+      "handoff": {
+        "patch": "/tmp/b-execution-v2.patch",
+        "patchSha256": "e097febf0b7504716b9c2a5a78bb79864951d90c69d764d1b18dba91cb49350a",
+        "status": "reviewed corrected increment integrated locally; actual compiled runtime pending",
+        "focusedTestsPassed": 19,
+        "incrementalPatches": [
+          "/tmp/b-execution-v4-runtime-init.patch",
+          "/tmp/b-execution-v5-source-maps.patch",
+          "/tmp/b-execution-v7-parent-lease.patch",
+          "/tmp/b-execution-v6-file-cache-rsc.patch"
+        ]
+      }
+    },
+    {
+      "code": "C",
+      "title": "Next testing C: Vitest test lifecycle",
+      "depends": ["B", "I"],
+      "status": "C5/C6 lifecycle and retained declarations independently validated in wave6 and v2 wave7 unchanged conformance; broader lifecycle API scope remains gated.",
+      "threadId": "01a0a9e7-daf1-70b2-9f1e-fea73aecef59",
+      "clientThreadId": "client-new-thread:2bada2ca-c64b-40df-875e-9719601442c0",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/13a0/next.js-2",
+      "handoff": {
+        "patch": "/tmp/next-testing-c-lifecycle-v2.patch",
+        "patchSha256": "cc9453253c3879e96e510484e5a28d05a3703379c130572bf20a149cfa27ef52",
+        "status": "reviewed corrected increment integrated locally; actual compiled runtime pending",
+        "focusedTestsPassed": 16,
+        "incrementalPatches": ["/tmp/next-testing-c-lifecycle-v3.patch"]
+      }
+    },
+    {
+      "code": "D",
+      "title": "Next testing D: Assertions and test utilities",
+      "depends": ["C", "I"],
+      "status": "D7 retained assertion/mock controls independently validated in wave6 and v2 wave7 unchanged 3-file/3-case conformance; snapshot updates remain unsupported.",
+      "threadId": "01a0a9e8-16f2-7730-8d35-0fa29080e4c3",
+      "clientThreadId": "client-new-thread:975842a7-a211-4f21-84bd-0777edccdbc1",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/5e39/next.js-2",
+      "handoff": {
+        "patch": "/tmp/next-testing-d-v3.patch",
+        "patchSha256": "05f8863fd8c84f118c47d8e8a473c84e974cf3b48a229c0c3834b87163d077a2",
+        "status": "reviewed exact frozen package graph/bundle and corrected wrapper integrated; full emitted validation pending",
+        "focusedTestsPassed": 15,
+        "incrementalPatches": [
+          "/tmp/next-testing-d-v4-packaging.patch",
+          "/tmp/next-testing-d-v6-hooks.patch"
+        ]
+      }
+    },
+    {
+      "code": "E",
+      "title": "Next testing E: RSC rendering",
+      "depends": ["A", "B", "I"],
+      "status": "E12 normalized RSC observations/E13 post-disposal late-call guard independently validated through v2 wave7 actual worker; broader profiles remain unsupported.",
+      "threadId": "01a0a9e8-16f2-7730-8d35-0f6a78864f96",
+      "clientThreadId": "client-new-thread:444ae056-85a5-4cc7-af97-2c852a4bf590",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/78f7/next.js-2",
+      "handoff": {
+        "patch": "/tmp/next-testing-e-render.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "patchSha256": "209ec659e576612a30dca38c101e2c0ef49f94800c7f97b105a0de9c0de33062",
+        "incrementalPatches": [
+          "/tmp/next-testing-e-request-v3.patch",
+          "/tmp/next-testing-e-consumer-v5.patch",
+          "/tmp/next-testing-e-loader-v6.patch",
+          "/tmp/next-testing-e-loader-v7-delta.patch",
+          "/tmp/next-testing-e-bridge-v8.patch",
+          "/tmp/next-testing-e-cache-drain-v9.patch"
+        ],
+        "focusedTestsPassed": 16
+      }
+    },
+    {
+      "code": "F",
+      "title": "Next testing F: Request and cache fixtures",
+      "depends": ["B", "E", "I"],
+      "status": "real request/cache resources v4-v9 independently validated in wave5:concurrent cookies/cache/after drain/error retention/lease cleanup",
+      "threadId": "01a0a9e8-16f2-7730-8d35-0f87ee1ad519",
+      "clientThreadId": "client-new-thread:9f356da5-3cb6-47c8-bea3-b1b8f67c9805",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/cb1c/next.js-2",
+      "handoff": {
+        "patch": "/tmp/next-testing-f-request-context.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "focusedTestsPassed": 11,
+        "exclusions": ["generated ignored next-env.d.ts files"],
+        "incrementalPatches": [
+          "/tmp/next-testing-f-request-context-v2-nesting.patch",
+          "/tmp/next-testing-f-request-lifecycle-v3.patch",
+          "/tmp/next-testing-f-compiled-resources-v4.patch",
+          "/tmp/next-testing-f-revalidated-tags-v5.patch",
+          "/tmp/next-testing-f-ondemand-v6.patch",
+          "/tmp/next-testing-f-cache-drain-v7.patch",
+          "/tmp/next-testing-f-cache-drain-types-v8.patch",
+          "/tmp/next-testing-f-after-cache-drain-v9.patch"
+        ],
+        "patchSha256": "6c9a5aa8f1616987228b3d93dd177b47b27086fdd2f4f36cfceae5d43307a9f2"
+      }
+    },
+    {
+      "code": "G",
+      "title": "Next testing G: Module mocking",
+      "depends": ["A", "B", "C", "I"],
+      "status": "A9 independent source/provenance review clears both alias blockers;compiler-backed public mocking remains pending",
+      "threadId": "01a0a9e8-9a3e-7792-a32f-60b7b314bcef",
+      "clientThreadId": "client-new-thread:ee64d21d-f8d2-45db-8892-dbbf17368b36",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/802a/next.js-2",
+      "cursor": "12eddeed-1f6a-4466-8cd5-8463a7eff387:1",
+      "handoff": {
+        "patch": "/tmp/next-testing-g.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "focusedTestsPassed": 12,
+        "patchSha256": "eee7678cef4c53a48dcf6167591fd26050b7768d2fe2a5f5ddad843e2355671a"
+      },
+      "review": "/tmp/next-testing-g-a-v9-review.md"
+    },
+    {
+      "code": "H",
+      "title": "Next testing H: Real-browser testing",
+      "depends": ["B", "C", "I"],
+      "status": "H6 Next-owned browser signal lifecycle independently accepted for actual CLI SIGINT/SIGTERM and artifact/resource ordering.",
+      "threadId": "01a0a9e8-a151-7af2-ac94-246e65fa9be9",
+      "clientThreadId": "client-new-thread:ac6a1265-173b-4ad4-bb43-4bb0543d5efd",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/ace6/next.js-2",
+      "cursor": "72bf9566-08d6-4949-a42c-d78b2f3183cc:1",
+      "handoff": {
+        "patch": "/tmp/h-browser-v2.patch",
+        "patchSha256": "12fe0f8f4a04da6b06b98f50bd8562c411b3d4d46c26cc7a7c63bf10e2d38ee7",
+        "status": "reviewed corrected increment integrated locally; actual compiled runtime pending",
+        "focusedTestsPassed": 8
+      }
+    },
+    {
+      "code": "J",
+      "title": "Next testing J: Incremental testing",
+      "depends": ["A", "B", "I"],
+      "status": "A12 source review and immutable provenance complete; independent L runtime acceptance passed. Incremental graph integration remains pending.",
+      "threadId": "01a0a9e8-e91a-7b12-be9a-1d5880525bc3",
+      "clientThreadId": "client-new-thread:797dd6a9-08c5-4250-897f-232f6c49dd8d",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/c1a8/next.js-2",
+      "cursor": "31e23a65-595a-488f-bbdb-7e24a7d9d16a:1",
+      "handoff": {
+        "patch": "/tmp/next-testing-j-selector.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "focusedTestsPassed": 11,
+        "patchSha256": "6c12b293e9606cbe7edac99090f2771127cde3a9810c3284ad3d0bdbb959d297"
+      }
+    },
+    {
+      "code": "K",
+      "title": "Next testing K: Diagnostics and reporting",
+      "depends": ["I"],
+      "status": "Roottypescript clean; all19affected unit suites258tests pass across targetedruns (18suites204 plus correctedCLI54). Causal source-import and narrowJest loading corrections accepted.",
+      "threadId": "01a0a9e8-edcb-7751-9698-eec7e2ef0794",
+      "clientThreadId": "client-new-thread:0a90ca44-3615-4d51-b820-4e2381a39e0d",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/5e0e/next.js-2",
+      "cursor": "45b7b87c-6b24-4d92-a52c-1609d64af2b1:1",
+      "handoff": {
+        "patch": "/tmp/next-testing-k-reporting.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "patchSha256": "0a2f73cb9c23074cfcdc849685cc1502a361036afc5f50ba09e5b1961cc5d570",
+        "incrementalPatches": ["/tmp/next-testing-k-source-mapping-v2.patch"]
+      }
+    },
+    {
+      "code": "L",
+      "title": "Next testing L: Independent validation",
+      "depends": [],
+      "status": "Independently accepted by L: fullbuild18/18, root types, compiler11/11 with both loader backends and immediate closure/natural exit, default5profiles9files13cases18attempts, same-output browser repeat, graceful SIGINT/SIGTERM with valid artifacts/resource cleanup, ordinaryproduction3/3. See canonical WAVE9.",
+      "threadId": "01a0a9e8-f26e-77e2-9e82-543690ff0b72",
+      "clientThreadId": "client-new-thread:bb360f33-abc0-4f3c-bb27-03b14e3fddb4",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/13d2/next.js-2",
+      "cursor": "215ffea7-a789-414c-aefe-d33bcd0eb2cc:1",
+      "handoff": {
+        "patch": "/tmp/next-testing-L-reference.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "exclusions": ["generated ignored next-env.d.ts files"],
+        "patchSha256": "0ad3601d5f5eb3c7349210a68d666c2301ecf91e0a6c47fec0adcba58d70c4af",
+        "incrementalPatches": [
+          "/tmp/next-testing-L-wave1-evidence.patch",
+          "/tmp/next-testing-L-direct-command.patch",
+          "/tmp/next-testing-L-wave2-evidence.patch",
+          "/tmp/next-testing-L-wave3-evidence-v1.patch",
+          "/tmp/next-testing-L-wave3-evidence-v2.patch",
+          "/tmp/next-testing-L-wave4-evidence-v1.patch"
+        ]
+      }
+    },
+    {
+      "code": "M",
+      "title": "Next testing M: Documentation and adoption",
+      "depends": ["I"],
+      "status": "Internal adoption evidence updated through independently accepted A12/WAVE9. Serialized loader closure gate closed; public packaged adoption, broader APIs, setup, mocking, watch and production test profiles remain future increments.",
+      "threadId": "01a0a9e8-fe45-7a70-b381-ef5eb71ef8c6",
+      "clientThreadId": "client-new-thread:c9a0db89-24c6-41cc-b5d3-3fb969eb0a44",
+      "hostId": "local",
+      "worktree": "/Users/timneutkens/.codex/worktrees/9985/next.js-2",
+      "cursor": "0cfe1dbc-fc61-4e4f-81c3-c20250f112fc:6",
+      "handoff": {
+        "patch": "/tmp/next-testing-M-adoption.patch",
+        "status": "reviewed increment integrated locally; full workstream acceptance pending",
+        "focusedTestsPassed": null,
+        "note": "Original patch integrated, later adoption inventory delta reviewed and copied from owner.",
+        "incrementalPatches": [
+          "/tmp/next-testing-M-adoption-v4-current-evidence.delta.patch"
+        ]
+      },
+      "adoptionUpdate": {
+        "patch": "/tmp/next-testing-M-adoption-v8.1-evidence.delta.patch",
+        "sha256": "e87e29d5d8347b731dd8b9c932c2915defc51ec1a25b48873f7277a64b97a735"
+      }
+    }
+  ],
+  "bootstrap": {
+    "status": "L clean frozen-lockfile install and CI=1 full baseline build passed; installed published native does not validate modified Rust",
+    "owner": "L",
+    "policy": "L establishes integration validation bootstrap in its own worktree. Other owners stop only their own failing/watch/build processes when resources are exhausted; continue independent implementation and focused tooling checks. No shared-output mutation or validation claims from tooling symlinks."
+  },
+  "referenceFixture": {
+    "owner": "L",
+    "path": "/Users/timneutkens/.codex/worktrees/13d2/next.js-2/test/e2e/app-dir/next-testing-reference",
+    "validation": {
+      "development": "Canonical normal-app oracle3/3 and actual default Next-owned CLI5profiles9files13cases18attempts pass.",
+      "production": "Ordinary production omission suite3/3 passes; production test-entry profiles remain unsupported.",
+      "nextCommand": "Default command and individual Node/RSC/browser profiles pass, including retry/failure/cleanup and graceful SIGINT/SIGTERM results and artifacts.",
+      "vitestAPIs": "Advertised internal subset validated through actual compiled cases and19affected unit suites258tests. Broader API and public mocking remain future increments.",
+      "compiler": "Both actual loader backends independently pass immediate closure and natural exit over two serialized sessions; source/native pair recorded in WAVE9."
+    },
+    "acceptedSnapshot": {
+      "patch": "/tmp/next-testing-reference-accepted-v11.patch",
+      "sha256": "268195cee7f513065707173f56e55105a2dc81dc72d2b2c4d785f1568385dbe6",
+      "files": 39,
+      "usage": "Complete authored canonical fixture/evidence through independently accepted A12. For new checkout only; existing validated root/L worktrees contain these files, verify rather than reapply."
+    }
+  },
+  "decisions": [
+    "Next owns execution; Vitest APIs are the compatibility target.",
+    "I owns shared contract document/config/discovery/orchestration/CLI; K owns reporting/events.ts and I reexports shared event types.",
+    "B owns execution/; C owns runner/ and vitest.ts; G owns mocking/.",
+    "L owns canonical next-testing-reference app; A/E/H reuse it.",
+    "JSON test configuration permitted for initial independent increment; TS config remains pending.",
+    "A initial RSC/Node/development capability is explicit; production and generic Node/browser profile support remain required later.",
+    "J conservative selector approved; real scheduling waits for A/B/I.",
+    "G private registry approved; public mocking awaits real graph/runtime integration.",
+    "D owns assertion-primitives packaging/dependencies and compiled entry; published types must be self-contained.",
+    "K keeps reporting/events.ts, matching internal v1; no further rename.",
+    "Internal v1 artifact/bootstrap, test context, result, and parent browser lease agreements accepted; actual capability validation remains required.",
+    "After a failed pnpm new-test attempt, owners may invoke the exact repository generator through installed node-plop/tsx as a tooling fallback, preserving templates/actions and checking failures.",
+    "D authorized exact @vitest package@5.0.1 age exceptions after official registry integrity/closure verification; no wildcard or policy reduction.",
+    "B receives explicit projectDir and uses owned POSIX subprocess groups with bounded pipe disposal; initial Windows execution explicitly unsupported.",
+    "B installs same-bundle ComponentMod.patchFetch before deferred spec load; complete request after/waitUntil lifecycle remains a required integration gate.",
+    "F owns real request lifecycle host callbacks using production CloseController/AwaiterOnce; E always disposes Flight then drains lifecycle, C awaits before sealing.",
+    "L may reuse A modified native binary only with matching reviewed source/build provenance and loaded path/hash verification.",
+    "I configurable fileTimeout default120s must cover declared case/hook budgets and is forwarded exactly to B.",
+    "E owns actual SSR-context consumer source; A owns next-ssr template transition and artifact loader/manifests, with shared runtime validation.",
+    "E owns actual compiled RSC bridge/facade joining A/B bindings,C attempt,F resources,E transport/consumer. F owns authoritative request metadata adapter and real cache setup.",
+    "D snapshot updates remain rejected until skipped/filtered/partial-run protection exists; unawaited settled matcher failures retain original diagnostics.",
+    "K owns minimal existing structured source-map reuse; B owns immutable artifact map registration and lifetime.",
+    "Browser initial lane serializes compiler and actual configured app-server writers: shutdownCompilation releases graph/watch/cache but retains artifacts until child/server close; no app copy/distDir config override.",
+    "Initial browser lane requires actual resolved lockDistDir enabled and normal Next startup locking; busy external outputs fail without terminating external processes.",
+    "Future profile batch uses internal artifact version2 RSC/Node discriminator; v1 render/cache validation remains separate.",
+    "F resources.close drains actual work-store cache work before and after real after() callbacks, retains failures, and does not re-execute tag invalidation in post-after settle loop; parent independently replayed delayed-write regression.",
+    "Wave8 cache failure reproduced independently with fresh output: awaited native shutdown leaves a filesystem watcher able to invalidate stopped backend. Fix native watcher completion barrier before task/storage shutdown; preserve actual configured output and previous native/evidence. Compiler child-process lease remains a fallback only if native barrier cannot be made reliable."
+  ],
+  "integrationBlockers": [],
+  "integrationBatches": [
+    {
+      "patch": "/tmp/next-testing-integration-wave1.patch",
+      "manifest": "/tmp/next-testing-integration-wave1.json",
+      "sha256": "391b81ce68b125374c28db5285a6f94642a39b8a59f59345425bfa34ed69a80d",
+      "validationOwner": "L",
+      "status": "Validated: core build/declarations; 76/76 focused; F/H dev6/6 and prod6/6. Baseline native; no new runner execution.",
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE1.md"
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave2.patch",
+      "manifest": "/tmp/next-testing-integration-wave2.json",
+      "sha256": "94b0fd93a080b50584cee41427e3f3d36b53928f4ea43a379a0dafdd58872dc8",
+      "validationOwner": "L",
+      "status": "Validated actual CLI2/2 exit0; throw exit1; timeout1failed+1cancelled;101 focused;normal dev3/3;core build/types pass. Original source frames pending.",
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE2.md"
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave3.patch",
+      "manifest": "/tmp/next-testing-integration-wave3.json",
+      "sha256": "43e1f0bf7751d24551a421f6f4f61ee5d6777ed9631bc0663311316686ddc8aa",
+      "validationOwner": "L",
+      "status": "RED actual command:3 compilation failures,0 cases; primitive LICENSE parsed through dynamic NCC context. Frozen install/build/types and focused17 pass.",
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE3.md"
+    },
+    {
+      "patch": "/tmp/next-testing-d-v4-packaging.patch",
+      "sha256": "50d23e00eb6d383a375e5495a06199a881539f9d6660916d82a811b11ae328d6",
+      "validationOwner": "L",
+      "status": "Validated identical regenerated output+core build/types; actual3-file corpus reaches runtime:2 files pass,1 lifecycle file fails afterAll scope,3 cases pass. Packaging blocker resolved."
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave4.patch",
+      "manifest": "/tmp/next-testing-integration-wave4.json",
+      "sha256": "9a6a37c6b4910f0711b837f3b0b05e48018f043823f7b2a746411eee326d795c",
+      "validationOwner": "L",
+      "status": "GREEN:core build/types,48 focused,actual CLI exact original4:9/generated fallback,normal dev3 and instrumented prod3. No source fixes.",
+      "native": {
+        "path": "/Users/timneutkens/.codex/worktrees/8169/next.js-2/packages/next-swc/native/next-swc.darwin-arm64.node",
+        "sha256": "495503637921907503a86a617e35744846045cd344ceb88ff0004b6292df3949"
+      },
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE4.md"
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave5.patch",
+      "manifest": "/tmp/next-testing-integration-wave5.json",
+      "sha256": "be61f9d8792342f9399fe4c9dd661f794c141436e66bb6911c7775ae29d6a3b6",
+      "validationOwner": "L",
+      "status": "GREEN:core build/types23.76s,86focused,actual CLI3/3(concurrent cookies/cache/after drain/serialization);after failure retained exit1 and cache lease removed;normal dev3/3.",
+      "native": {
+        "path": "/tmp/next-testing-a-native-v4-495503637921/next-swc.darwin-arm64.node",
+        "sha256": "495503637921907503a86a617e35744846045cd344ceb88ff0004b6292df3949",
+        "provenance": "/tmp/next-testing-a-native-v4-495503637921/provenance.json"
+      },
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE5.md"
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave6.patch",
+      "sha256": "a97f134999dcc1f7fff0970e9959f3dc0b91c8b474afb1d6776ce0e55fff494e",
+      "native": {
+        "path": "/tmp/next-testing-a-native-v4-495503637921/next-swc.darwin-arm64.node",
+        "sha256": "495503637921907503a86a617e35744846045cd344ceb88ff0004b6292df3949",
+        "provenance": "/tmp/next-testing-a-native-v4-495503637921/provenance.json"
+      },
+      "manifest": "/tmp/next-testing-integration-wave6.json",
+      "validationOwner": "L",
+      "status": "GREEN with reviewed E13+C6 followups:build/types79focused,unchanged3file corpus+normalized render3;actual caught late scopes/disposal/terminal tests;real E12 false-success corrected by E13;retained declaration callbacks fail file without altering sealed cases.",
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE6.md",
+      "evidencePatch": {
+        "path": "/tmp/next-testing-L-wave6-fixture-evidence-v1.patch",
+        "sha256": "8938cb5366635a4132ccf8f987b7928ef311d8ec78f7d0173c09f4b1040058b0"
+      },
+      "followups": [
+        "/tmp/next-testing-e-disposal-v13.patch",
+        "/tmp/next-testing-c-v6-declarations.patch"
+      ],
+      "finalEvidencePatch": {
+        "path": "/tmp/next-testing-L-wave6-fixture-evidence-v2.patch",
+        "sha256": "7a88719b12f341bd4068c466794a937f89a6237246a256c97c0ac6fefca084a8"
+      }
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave7.patch",
+      "manifest": "/tmp/next-testing-integration-wave7.json",
+      "sha256": "5d06f04a966849ffa471aea2fa5cfc7b9e5ad6dd3cc90e281e8025a22caaea6b",
+      "native": {
+        "path": "/tmp/next-testing-a-native-v9-75f662135924/next-swc.darwin-arm64.node",
+        "sha256": "75f662135924db664e0eed751265770d529fcf699d4ea1cd386d0821854c4d0e",
+        "provenance": "/tmp/next-testing-a-native-v9-75f662135924/provenance.json"
+      },
+      "validationOwner": "L",
+      "status": "GREEN:corebuild/types,109focused,actual native9,NodeCLI unchanged3files/3finalcases,RSCrender3,managedserveroracle2;actual late-render terminal still failsfile correctly. Audited75f662.",
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE7.md",
+      "evidencePatch": {
+        "path": "/tmp/next-testing-L-wave7-evidence-v1.patch",
+        "sha256": "167cc33a3bb57abc09693e9dd541894aaa2185a456a0c1dcb8d1f626c5d9a59b"
+      }
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave8.patch",
+      "manifest": "/tmp/next-testing-integration-wave8.json",
+      "sha256": "5eab8defb8ff3ea63491b24d008eaf91af3bae0e1042a6977fa7c4e03b302bd5",
+      "native": {
+        "path": "/tmp/next-testing-a-native-v9-75f662135924/next-swc.darwin-arm64.node",
+        "sha256": "75f662135924db664e0eed751265770d529fcf699d4ea1cd386d0821854c4d0e",
+        "provenance": "/tmp/next-testing-a-native-v9-75f662135924/provenance.json"
+      },
+      "validationOwner": "L",
+      "status": "RED actual browser after types/54 components pass. B11 emitted import correction reviewed/integrated. A independently reproduced live filesystem watcher invalidation after shutdown using fresh output and final75 native; native fix/provenance and independent full-browser acceptance pending."
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave9.patch",
+      "sha256": "10b3710a426a29c16b1024332667e274ca47961eaad9816029fd48cd54118fde",
+      "appliesAfter": [
+        "/tmp/next-testing-integration-wave1.patch",
+        "/tmp/next-testing-integration-wave2.patch",
+        "/tmp/next-testing-integration-wave3.patch",
+        "/tmp/next-testing-d-v4-packaging.patch",
+        "/tmp/next-testing-integration-wave4.patch",
+        "/tmp/next-testing-integration-wave5.patch",
+        "/tmp/next-testing-integration-wave6.patch",
+        "/tmp/next-testing-e-disposal-v13.patch",
+        "/tmp/next-testing-c-v6-declarations.patch",
+        "/tmp/next-testing-integration-wave7.patch",
+        "/tmp/next-testing-integration-wave8.patch"
+      ],
+      "included": [
+        {
+          "patch": "/tmp/b-execution-v11-fixture-extension.patch",
+          "sha256": "267d0c01c581e855fb7bd0b1d4dbc4971d836d669fbba555964a3740825589a6"
+        },
+        {
+          "patch": "/tmp/next-testing-a-shutdown-v10.delta.patch",
+          "sha256": "41ccdc03fa4d53200b1eaf4aa32d3dabaf1691b968753daf9db8e61ab362f610"
+        }
+      ],
+      "native": {
+        "path": "/tmp/next-testing-a-native-v10-1b147d674547/next-swc.darwin-arm64.node",
+        "sha256": "1b147d674547cd457b1913bd479ff2d5337b61744cbfe8c3c1fcea076f581a67",
+        "provenance": "/tmp/next-testing-a-native-v10-1b147d674547/provenance.json"
+      },
+      "excludes": [
+        "canonical L fixture/config/evidence",
+        "L ordinary-production omission suite",
+        "production test profiles"
+      ],
+      "verification": "Complete source patch chain replayed through temporary index; no remaining tracked code diff across packages/crates/turbopack/test excluding canonical evidence; root reverse check passed.",
+      "manifest": "/tmp/next-testing-integration-wave9.json",
+      "status": "Native shutdown independently passes identical probe; full browser positive+same-output repeat and expected failure independently pass incl artifacts/teardown. ActualSIGINT cancellation RED because parent exits before cleanup; H signal-ownership fix pending. Production omission not yet run."
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave10.patch",
+      "sha256": "d77a5e86d7a93201078b1ab24de000e46f6479a11f4c2f384e6bc8afa568e4ea",
+      "appliesAfter": [
+        "/tmp/next-testing-integration-wave1.patch",
+        "/tmp/next-testing-integration-wave2.patch",
+        "/tmp/next-testing-integration-wave3.patch",
+        "/tmp/next-testing-d-v4-packaging.patch",
+        "/tmp/next-testing-integration-wave4.patch",
+        "/tmp/next-testing-integration-wave5.patch",
+        "/tmp/next-testing-integration-wave6.patch",
+        "/tmp/next-testing-e-disposal-v13.patch",
+        "/tmp/next-testing-c-v6-declarations.patch",
+        "/tmp/next-testing-integration-wave7.patch",
+        "/tmp/next-testing-integration-wave8.patch",
+        "/tmp/next-testing-integration-wave9.patch"
+      ],
+      "included": [
+        "H6 browser host signal ownership and real subprocess checks",
+        "K23 emitted test imports and exact orchestrator-only Jest transformer exception",
+        "A11 per-native-binding synchronous loader scheduler registration",
+        "L generated ordinary-production omission suite"
+      ],
+      "newFiles": [
+        "test/production/next-testing-omission/next-testing-omission.test.ts",
+        "test/unit/next-testing-browser-resources/browser-signals.test.ts",
+        "test/unit/next-testing-browser-resources/browser-signals.ts"
+      ],
+      "native": {
+        "path": "/tmp/next-testing-a-native-v10-1b147d674547/next-swc.darwin-arm64.node",
+        "sha256": "1b147d674547cd457b1913bd479ff2d5337b61744cbfe8c3c1fcea076f581a67",
+        "provenance": "/tmp/next-testing-a-native-v10-1b147d674547/provenance.json"
+      },
+      "referenceFixtureSnapshot": {
+        "patch": "/tmp/next-testing-reference-accepted-v10.patch",
+        "sha256": "7fddde0ab06cacd5af36d10ba643dedce8928299afd376037a4e98aee66c19c4",
+        "files": 38,
+        "usage": "Complete current authored canonical fixture/evidence snapshot for a checkout without that directory. Existing validated worktrees already contain these files; verify rather than reapply."
+      },
+      "validation": "Exact source chain replayed through temporary index; no remaining tracked source diff; root reverse check passes. L actualdefault5profiles9files13cases18attempts; browserpositive/retry/failure/cleanup/INT/TERM; ordinaryproduction3/3; root/package types;19unit suites258tests all accepted.",
+      "excludedScope": [
+        "Production next-test profiles",
+        "Compiler workerThreads shutdown lifetime (A12 in progress)",
+        "Public mocking/incremental/watch/fullAPI/packaging release gates"
+      ],
+      "manifest": "/tmp/next-testing-integration-wave10.json",
+      "status": "Accepted defaultdevelopment reference milestone; explicit compilerworkerThreads shutdown hardening remains active."
+    },
+    {
+      "patch": "/tmp/next-testing-integration-wave11.patch",
+      "manifest": "/tmp/next-testing-integration-wave11.json",
+      "sha256": "337f6f7234472eb8bb00d4dfd613e13ae8d4f9ebd32ebc2f84c1af841096f7ca",
+      "native": {
+        "path": "/tmp/next-testing-a-native-v12-db75772b6be3/next-swc.darwin-arm64.node",
+        "sha256": "db75772b6be36dee9cfdac5eb968b52141a6e1fc1a1678d37207f4b005614b6a",
+        "provenance": "/tmp/next-testing-a-native-v12-db75772b6be3/provenance.json",
+        "requiresJavaScriptDelta": true
+      },
+      "validationOwner": "L",
+      "status": "Independently accepted by L: fullbuild18/18, root types, compiler11/11 with both loader backends and immediate closure/natural exit, default5profiles9files13cases18attempts, same-output browser repeat, graceful SIGINT/SIGTERM with valid artifacts/resource cleanup, ordinaryproduction3/3. See canonical WAVE9.",
+      "evidence": "test/e2e/app-dir/next-testing-reference/WAVE9.md",
+      "evidencePatch": {
+        "path": "/tmp/next-testing-L-a12-evidence-v1.patch",
+        "sha256": "4fcb003c64bee1cd226d0ae7874e3872c747ba6b75f496b4465a53e4a4c87356"
+      }
+    }
+  ],
+  "pendingHandoffs": [
+    {
+      "owner": "C",
+      "patch": "/tmp/next-testing-c-v5-hooks-origin.patch",
+      "sha256": "908bfc46a68815bd0bd7be21fb99131a1813c47adcc764972c839e6372b04fc4",
+      "status": "Integrated and independently validated in wave6+E13/C6 correction scope;see canonical WAVE6.md"
+    },
+    {
+      "owner": "D",
+      "patch": "/tmp/next-testing-d-v7-retained-values.patch",
+      "sha256": "0614f1af1ca6621bb2875b5907b5a724957bcee6bb00c46ea5b642f9522a38fa",
+      "status": "Integrated and independently validated in wave6+E13/C6 correction scope;see canonical WAVE6.md"
+    },
+    {
+      "owner": "B",
+      "patch": "/tmp/b-execution-v9-late-failures-v1.patch",
+      "sha256": "a33a6b1be48c9acfd79b4ae1221cf4c89ae3eab12574eee723e8f258ba7533fd",
+      "status": "Integrated and independently validated in wave6+E13/C6 correction scope;see canonical WAVE6.md"
+    },
+    {
+      "owner": "E",
+      "patch": "/tmp/next-testing-e-observer-v12.patch",
+      "sha256": "527b07c7229fe7ad29a871fb9dc3ccdf1d8ecbf00ff6539b24c950d50493e1fe",
+      "status": "Integrated and independently validated in wave6+E13/C6 correction scope;see canonical WAVE6.md"
+    },
+    {
+      "owner": "H",
+      "patch": "/tmp/h-browser-v4-server.patch",
+      "sha256": "a569db5ad6d6cbe0c9f933515bbf99b3f3382d739d0e4e74a46784beed25a369",
+      "status": "Source integrated atop Hv2;replaces unintegrated Hv3;21owner and5independent shutdown checks pass;facade late-scope followup pending"
+    },
+    {
+      "owner": "E",
+      "patch": "/tmp/next-testing-e-disposal-v13.patch",
+      "sha256": "077d1f869ed199deafe551a48d2cedca50f7a28419353b0d0d333433fd835b1b",
+      "status": "Integrated and independently validated in wave6+E13/C6 correction scope;see canonical WAVE6.md"
+    },
+    {
+      "owner": "H",
+      "patch": "/tmp/h-browser-v5-late-scope.patch",
+      "sha256": "26679bd903d2194865806e79e156fa6780ef8c9ede5e051ea45688e09a85ed29",
+      "status": "Integrated after independent source+runtime scope review;emitted combined gate pending"
+    },
+    {
+      "owner": "C",
+      "patch": "/tmp/next-testing-c-v6-declarations.patch",
+      "sha256": "b6491530ef290c0fd47e5c9efd7ca72fcbb63136181a802f9fa7fff6e0f0896a",
+      "status": "Integrated and independently validated in wave6+E13/C6 correction scope;see canonical WAVE6.md"
+    },
+    {
+      "owner": "B",
+      "patch": "/tmp/b-execution-v11-fixture-extension.patch",
+      "sha256": "267d0c01c581e855fb7bd0b1d4dbc4971d836d669fbba555964a3740825589a6",
+      "status": "One emitted runtime import extension correction reviewed/integrated;owner lint/emission check pass;L actual browser rerun pending"
+    },
+    {
+      "owner": "A",
+      "patch": "/tmp/next-testing-a-shutdown-v10.delta.patch",
+      "sha256": "41ccdc03fa4d53200b1eaf4aa32d3dabaf1691b968753daf9db8e61ab362f610",
+      "status": "Integrated in wave9; root/J source and exact12source/native verification accepted;6watcher+ordinarydev3+identical before/after and sequential update/reopen owner proofs pass. L independent acceptance pending."
+    },
+    {
+      "owner": "H",
+      "patch": "/tmp/h-browser-v6-signals.patch",
+      "sha256": "9f6c9a610ffe82c05b60cd8f75409eeef46551d233029226d559a28f78e4b7c8",
+      "status": "Root source review/apply/reverse-check accepted;3real Chromium subprocess signal ownership cases pass owner; independent I review and L actual CLI INT/TERM acceptance pending."
+    },
+    {
+      "owner": "K",
+      "patch": "/tmp/next-testing-k-emitted-test-boundary-v1.patch",
+      "sha256": "651a743d0d9bd2596215e7c45b95263e298b51aa2000f79ba319b87e975b7a2f",
+      "status": "Root/I reviewed and integrated; actual unchanged-root pnpmtypescript exit0; all19unit suites258checks green across18unchanged204tests plus correctedCLI54. Exact emittedorchestrator-only Jest transform exception retains normaltestcommand; actualnative imports separately verified by realCLI."
+    },
+    {
+      "owner": "L",
+      "patches": [
+        {
+          "patch": "/tmp/next-testing-L-production-preparation-v2.patch",
+          "sha256": "e43e0ca8291b413e535139f8d787d76a2b7abb8f7d4d0dd3a5715ff4ef3d4a6c"
+        },
+        {
+          "patch": "/tmp/next-testing-L-production-preparation-v3.delta.patch",
+          "sha256": "34cc5dc808ef3adee41f78b52c2fc698b5f1410883f7de8730270c3ca8583871"
+        },
+        {
+          "patch": "/tmp/next-testing-L-production-final-v4.delta.patch",
+          "sha256": "c81a8d185b84e9525b8744b0549275539c8a91ea06adc067c652f280495707e3"
+        },
+        {
+          "patch": "/tmp/next-testing-L-wave8-evidence-v1.patch",
+          "sha256": "c4a8fc1ebf7028a8daba5244d5be661d258fd9373d97dc8d9b0de7a3902e3a9f"
+        }
+      ],
+      "status": "Reviewed/applied exact generated production suite and canonical browser config/evidence. Browser positive/repeat/failure/cleanup/INT/TERM and ordinaryproduction3/3 independently pass. Default5profile scheduler and root typecheck corrections remain separate gates."
+    },
+    {
+      "owner": "A",
+      "patch": "/tmp/next-testing-a-scheduler-v11.delta.patch",
+      "sha256": "5336a476e4ba88549694602355af308de1664a3849f8106c641b581eae5bda7e",
+      "status": "Source root/I reviewed; L actual default5profile command independently passes9files13cases18attempts with complete results/artifacts/cleanup. ExplicitworkerThreads idle-handle baseline defect remains separate A12."
+    },
+    {
+      "owner": "K",
+      "patch": "/tmp/next-testing-k-jest-emitted-imports-v2.patch",
+      "sha256": "c929016bc1bc937cd08aaf3b7889deef10c074029dd71d0e83f6bc0fbaf50250",
+      "status": "Root/I reviewed and integrated; actual unchanged-root pnpmtypescript exit0; all19unit suites258checks green across18unchanged204tests plus correctedCLI54. Exact emittedorchestrator-only Jest transform exception retains normaltestcommand; actualnative imports separately verified by realCLI."
+    },
+    {
+      "owner": "L",
+      "patch": "/tmp/next-testing-L-wave8-evidence-v2.delta.patch",
+      "sha256": "94276115987fc9e05eea448edc56e4d1b69c1b98883d52a85de84f9fb412e6a6",
+      "status": "Reviewed/integrated current default5profile, browser/production, actual root/package type and19suite258test acceptance; historical failures preserved, explicitworkerThreads cleanup/productionprofiles outside accepted scope."
+    },
+    {
+      "owner": "A",
+      "patch": "/tmp/next-testing-a-loader-close-v12.delta.patch",
+      "sha256": "337f6f7234472eb8bb00d4dfd613e13ae8d4f9ebd32ebc2f84c1af841096f7ca",
+      "status": "Independently accepted by L: fullbuild18/18, root types, compiler11/11 with both loader backends and immediate closure/natural exit, default5profiles9files13cases18attempts, same-output browser repeat, graceful SIGINT/SIGTERM with valid artifacts/resource cleanup, ordinaryproduction3/3. See canonical WAVE9."
+    },
+    {
+      "owner": "M",
+      "patch": "/tmp/next-testing-M-adoption-v9-evidence.delta.patch",
+      "sha256": "2c4afca6c7c9a91bf688f713bd414da442cff999e77721632f797b349f4e271c",
+      "status": "Reviewed and integrated exact M9 evidence update; patch/base hashes, apply/reverse checks and canonical links pass."
+    }
+  ],
+  "acceptedNative": {
+    "base": "602a2aba900e45fb2edd694f463f435430678e1f",
+    "manifest": "/tmp/next-testing-stage3-A3-native-fixture-v8.json",
+    "nativePath": "/tmp/next-testing-stage3-A3-native-fixture-v8-bf3a816d5b78/next-swc.darwin-arm64.node",
+    "nativeSha256": "bf3a816d5b789d01340c913bfd20134a98b486baf413fcffb6ac4a522ce111d2",
+    "sourceSha256": {
+      "Cargo.lock": "daac10aec9412154ae6a6c9d9e41c18ccab69dd86bb25f5101393575d0927771",
+      "crates/next-api/Cargo.toml": "9934eaaba17434ff419b1b6c5f4884c8dd84641046bd309b92a01c6d54918aaf",
+      "crates/next-api/src/app.rs": "afd9caaa636493d62176c5c401ad8da2223f9027e5a6038fe8e8ffb58b991c4a",
+      "crates/next-api/src/lib.rs": "232585342e848634a786e90d0b75580edcc883e4dcaffeca956023572b069e27",
+      "crates/next-api/src/project.rs": "3faced539722f8dbb8e37aebe25ce5751a82d1d9818421e0d2595bf906c3c227",
+      "crates/next-api/src/testing.rs": "b6b0f521a02f15ce1e0c2936f1bb4c54021fba04666a87f5c51c4fc6ae7b1d54",
+      "crates/next-api/src/testing_fixture.rs": "702fc7dfaa4ee101ec4ef68926c84c80fb4ddc5c4dedd25092670831bf64be96",
+      "crates/next-api/src/testing_mock_graph.rs": "3fbc35d5c181fc15362e1ab118b2a5a105e3dbedd16d478f615ff41c6621265e",
+      "crates/next-api/src/testing_mock_source.rs": "65f1016b93e36edd82a3505e8f19e9bf8f6ae9ca3be5e9505e3f292e0482047a",
+      "crates/next-build-test/src/main.rs": "b1f414ad9f777536eb9a79291238955ccbf3f386793459617bfb26caef61b378",
+      "crates/next-core/src/app_page_loader_tree.rs": "596404f6d34b8ff3cfa70d3236d72dac4187d640e9a54e43546f143a7a32cf66",
+      "crates/next-core/src/app_structure.rs": "860ddf482c3332dc13d13a5752659a9a730585873dfca519464072d9db356bbf",
+      "crates/next-core/src/base_loader_tree.rs": "0dfdeacd59ca5514c75bf95cdb9c00be0b769aad86c3ace939d4903c3c6338fc",
+      "crates/next-core/src/next_import_map.rs": "64cdda09f70cf35d9c488c20c1ba9136b7e78c5e9d21d7f6c8e983d42d4410b3",
+      "crates/next-core/src/next_root_params/mod.rs": "a0008db3508fab7c37d8e20a8c306139ddb1fa9d58650bf97f5dbbb6977cde2d",
+      "crates/next-core/src/next_server/context.rs": "a03b2c63371cf6c8a1b812b8448bac5c5f910a2cb034a906ff95ef5fcf990051",
+      "crates/next-core/src/next_server/transforms.rs": "bbf034ac878bd87fba13217a2c0e203768316c203edf59286824d3a9720a7680",
+      "crates/next-core/src/segment_config.rs": "fb200d18e90d070e3c7fbd473faccd12cc0e45d720b08a7fc4e50f346ab074a0",
+      "crates/next-napi-bindings/src/next_api/endpoint.rs": "5d3b9f66ed277f7a9d8d9e2bee71562490f19eb70fe2f2071cf9bcce4f46f6f3",
+      "crates/next-napi-bindings/src/next_api/project.rs": "6490dfb72db02a4a84b90def15417cb0f5326535f71fdbed05fcfcf02ce8d737",
+      "turbopack/crates/turbo-tasks-fs/src/watcher/mock_fs_api.rs": "6ea63843afa5219cb61010ca4b40e41755404279449b31ac3ff1df40efed687a",
+      "turbopack/crates/turbo-tasks-fs/src/watcher/mod.rs": "afa6d8648d29422c51d386404de53e31b2917be34d3eeac9844cb3c14f17b7c5",
+      "turbopack/crates/turbopack-node/src/backend.rs": "740c5b377fda75c6c6613f27afc751f12eda6ab9bc2a84836aa29dd3f3cfdc7a",
+      "turbopack/crates/turbopack-node/src/process_pool/heap_queue.rs": "db805fea15b481a25d76f1337368b1ce785e5a60d75c3a848fda80ebea5cd28c",
+      "turbopack/crates/turbopack-node/src/process_pool/mod.rs": "94c554468a8de1b78c32cef7b82e6075f348c56e65a1f473ae88ff7b33fd802c",
+      "turbopack/crates/turbopack-node/src/worker_pool/mod.rs": "0520c1b812aec8fb57d19d146e55fb313bb16ca5366f7ae1ae577f2f7aa7e466",
+      "turbopack/crates/turbopack-node/src/worker_pool/worker_thread.rs": "970c1b26b72b90a49ec5f68b184acae37b08dda85df1dce7b1e9effcbe7dff2a"
+    },
+    "buildLog": "/tmp/next-testing-stage3-a3-native-fixture-v8.log",
+    "status": "Stage-three native accepted with exact27 source inputs integrated into root; independent actual production, mounting, coverage and all five clean package phases pass.",
+    "independentEvidence": [
+      "test/e2e/app-dir/next-testing-reference/STAGE3_ACCEPTANCE.md",
+      "/tmp/next-testing-L3-packed-final-audit-v1.json"
+    ],
+    "pairedSource": "/tmp/next-testing-stage3-integration-candidate-v12.json"
+  },
+  "pendingNextProfile": [
+    {
+      "owner": "A",
+      "patch": "/tmp/next-testing-a-shutdown-v7.delta.patch",
+      "sha256": "90ae16630337384393964a6b881bb51afcdd866bb47c9743735a2eb1f8b357f0",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate."
+    },
+    {
+      "owner": "I",
+      "patch": "/tmp/next-testing-i-artifact-v2-schema-v6.patch",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate.",
+      "followupPatch": "/tmp/next-testing-i-browser-output-v7.patch"
+    },
+    {
+      "owner": "B",
+      "patch": "/tmp/b-execution-v8.1-artifact-v2-after-late.patch",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate.",
+      "followupPatch": "/tmp/b-execution-v10-browser-binding.patch"
+    },
+    {
+      "owner": "A",
+      "patch": "/tmp/next-testing-a-node-v8.delta.patch",
+      "sha256": "2a6b76f325e37c00fd9e0277c68b35e047cfe477e0fcc75d1f2f7a0b6892aa27",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate."
+    },
+    {
+      "owner": "I",
+      "patch": "/tmp/next-testing-i-browser-output-v7.patch",
+      "sha256": "f072a7251c1b15b17e8acc3cb2a6ca223b03f458fe190181c447ce7c5def5628",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate."
+    },
+    {
+      "owner": "B",
+      "patch": "/tmp/b-execution-v10-browser-binding.patch",
+      "sha256": "6279399b92d31619ee4ce1447faba92dc56007a1784c005be52dd981c578afbd",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate."
+    },
+    {
+      "owner": "I",
+      "patch": "/tmp/next-testing-i-browser-orchestration-v8.1.patch",
+      "sha256": "2f8f8474d7d46367943878fbf20765837f9f5c418dd8bd35c85d887d8300ed5f",
+      "status": "Source integrated in wave8; package types and 54 component tests pass; actual browser acceptance pending B11/native shutdown correction."
+    },
+    {
+      "owner": "A",
+      "patch": "/tmp/next-testing-a-alias-v9.delta.patch",
+      "sha256": "f007dd5d9475ee02b2a0d41a306bef35d3064cd717f4d68b6ac5649cb118df77",
+      "status": "Source integrated in wave7 and independently validated by L; see integrationBatches and acceptedNative for current evidence. Browser end-to-end remains wave8 gate."
+    },
+    {
+      "owner": "I",
+      "patch": "/tmp/next-testing-i-browser-file-results-v9.patch",
+      "sha256": "756e0fa095f8d6187b5e8825e92a4e4c095a372f05d9f5844913c0e0a579f770",
+      "status": "Source integrated in wave8; package types and 54 component tests pass; actual browser acceptance pending B11/native shutdown correction."
+    }
+  ],
+  "futureSourceCheck": "/tmp/next-testing-v2-alias-source-check.json",
+  "stagedNative": {
+    "base": "602a2aba900e45fb2edd694f463f435430678e1f",
+    "manifest": "/tmp/next-testing-stage3-A3-native-fixture-v8.json",
+    "nativePath": "/tmp/next-testing-stage3-A3-native-fixture-v8-bf3a816d5b78/next-swc.darwin-arm64.node",
+    "nativeSha256": "bf3a816d5b789d01340c913bfd20134a98b486baf413fcffb6ac4a522ce111d2",
+    "sourceSha256": {
+      "Cargo.lock": "daac10aec9412154ae6a6c9d9e41c18ccab69dd86bb25f5101393575d0927771",
+      "crates/next-api/Cargo.toml": "9934eaaba17434ff419b1b6c5f4884c8dd84641046bd309b92a01c6d54918aaf",
+      "crates/next-api/src/app.rs": "afd9caaa636493d62176c5c401ad8da2223f9027e5a6038fe8e8ffb58b991c4a",
+      "crates/next-api/src/lib.rs": "232585342e848634a786e90d0b75580edcc883e4dcaffeca956023572b069e27",
+      "crates/next-api/src/project.rs": "3faced539722f8dbb8e37aebe25ce5751a82d1d9818421e0d2595bf906c3c227",
+      "crates/next-api/src/testing.rs": "b6b0f521a02f15ce1e0c2936f1bb4c54021fba04666a87f5c51c4fc6ae7b1d54",
+      "crates/next-api/src/testing_fixture.rs": "702fc7dfaa4ee101ec4ef68926c84c80fb4ddc5c4dedd25092670831bf64be96",
+      "crates/next-api/src/testing_mock_graph.rs": "3fbc35d5c181fc15362e1ab118b2a5a105e3dbedd16d478f615ff41c6621265e",
+      "crates/next-api/src/testing_mock_source.rs": "65f1016b93e36edd82a3505e8f19e9bf8f6ae9ca3be5e9505e3f292e0482047a",
+      "crates/next-build-test/src/main.rs": "b1f414ad9f777536eb9a79291238955ccbf3f386793459617bfb26caef61b378",
+      "crates/next-core/src/app_page_loader_tree.rs": "596404f6d34b8ff3cfa70d3236d72dac4187d640e9a54e43546f143a7a32cf66",
+      "crates/next-core/src/app_structure.rs": "860ddf482c3332dc13d13a5752659a9a730585873dfca519464072d9db356bbf",
+      "crates/next-core/src/base_loader_tree.rs": "0dfdeacd59ca5514c75bf95cdb9c00be0b769aad86c3ace939d4903c3c6338fc",
+      "crates/next-core/src/next_import_map.rs": "64cdda09f70cf35d9c488c20c1ba9136b7e78c5e9d21d7f6c8e983d42d4410b3",
+      "crates/next-core/src/next_root_params/mod.rs": "a0008db3508fab7c37d8e20a8c306139ddb1fa9d58650bf97f5dbbb6977cde2d",
+      "crates/next-core/src/next_server/context.rs": "a03b2c63371cf6c8a1b812b8448bac5c5f910a2cb034a906ff95ef5fcf990051",
+      "crates/next-core/src/next_server/transforms.rs": "bbf034ac878bd87fba13217a2c0e203768316c203edf59286824d3a9720a7680",
+      "crates/next-core/src/segment_config.rs": "fb200d18e90d070e3c7fbd473faccd12cc0e45d720b08a7fc4e50f346ab074a0",
+      "crates/next-napi-bindings/src/next_api/endpoint.rs": "5d3b9f66ed277f7a9d8d9e2bee71562490f19eb70fe2f2071cf9bcce4f46f6f3",
+      "crates/next-napi-bindings/src/next_api/project.rs": "6490dfb72db02a4a84b90def15417cb0f5326535f71fdbed05fcfcf02ce8d737",
+      "turbopack/crates/turbo-tasks-fs/src/watcher/mock_fs_api.rs": "6ea63843afa5219cb61010ca4b40e41755404279449b31ac3ff1df40efed687a",
+      "turbopack/crates/turbo-tasks-fs/src/watcher/mod.rs": "afa6d8648d29422c51d386404de53e31b2917be34d3eeac9844cb3c14f17b7c5",
+      "turbopack/crates/turbopack-node/src/backend.rs": "740c5b377fda75c6c6613f27afc751f12eda6ab9bc2a84836aa29dd3f3cfdc7a",
+      "turbopack/crates/turbopack-node/src/process_pool/heap_queue.rs": "db805fea15b481a25d76f1337368b1ce785e5a60d75c3a848fda80ebea5cd28c",
+      "turbopack/crates/turbopack-node/src/process_pool/mod.rs": "94c554468a8de1b78c32cef7b82e6075f348c56e65a1f473ae88ff7b33fd802c",
+      "turbopack/crates/turbopack-node/src/worker_pool/mod.rs": "0520c1b812aec8fb57d19d146e55fb313bb16ca5366f7ae1ae577f2f7aa7e466",
+      "turbopack/crates/turbopack-node/src/worker_pool/worker_thread.rs": "970c1b26b72b90a49ec5f68b184acae37b08dda85df1dce7b1e9effcbe7dff2a"
+    },
+    "buildLog": "/tmp/next-testing-stage3-a3-native-fixture-v8.log",
+    "status": "Stage-three native accepted with exact27 source inputs integrated into root; independent actual production, mounting, coverage and all five clean package phases pass.",
+    "independentEvidence": [
+      "test/e2e/app-dir/next-testing-reference/STAGE3_ACCEPTANCE.md",
+      "/tmp/next-testing-L3-packed-final-audit-v1.json"
+    ],
+    "pairedSource": "/tmp/next-testing-stage3-integration-candidate-v12.json"
+  },
+  "sourceNative": {
+    "base": "602a2aba900e45fb2edd694f463f435430678e1f",
+    "manifest": "/tmp/next-testing-stage3-A3-native-fixture-v8.json",
+    "nativePath": "/tmp/next-testing-stage3-A3-native-fixture-v8-bf3a816d5b78/next-swc.darwin-arm64.node",
+    "nativeSha256": "bf3a816d5b789d01340c913bfd20134a98b486baf413fcffb6ac4a522ce111d2",
+    "sourceSha256": {
+      "Cargo.lock": "daac10aec9412154ae6a6c9d9e41c18ccab69dd86bb25f5101393575d0927771",
+      "crates/next-api/Cargo.toml": "9934eaaba17434ff419b1b6c5f4884c8dd84641046bd309b92a01c6d54918aaf",
+      "crates/next-api/src/app.rs": "afd9caaa636493d62176c5c401ad8da2223f9027e5a6038fe8e8ffb58b991c4a",
+      "crates/next-api/src/lib.rs": "232585342e848634a786e90d0b75580edcc883e4dcaffeca956023572b069e27",
+      "crates/next-api/src/project.rs": "3faced539722f8dbb8e37aebe25ce5751a82d1d9818421e0d2595bf906c3c227",
+      "crates/next-api/src/testing.rs": "b6b0f521a02f15ce1e0c2936f1bb4c54021fba04666a87f5c51c4fc6ae7b1d54",
+      "crates/next-api/src/testing_fixture.rs": "702fc7dfaa4ee101ec4ef68926c84c80fb4ddc5c4dedd25092670831bf64be96",
+      "crates/next-api/src/testing_mock_graph.rs": "3fbc35d5c181fc15362e1ab118b2a5a105e3dbedd16d478f615ff41c6621265e",
+      "crates/next-api/src/testing_mock_source.rs": "65f1016b93e36edd82a3505e8f19e9bf8f6ae9ca3be5e9505e3f292e0482047a",
+      "crates/next-build-test/src/main.rs": "b1f414ad9f777536eb9a79291238955ccbf3f386793459617bfb26caef61b378",
+      "crates/next-core/src/app_page_loader_tree.rs": "596404f6d34b8ff3cfa70d3236d72dac4187d640e9a54e43546f143a7a32cf66",
+      "crates/next-core/src/app_structure.rs": "860ddf482c3332dc13d13a5752659a9a730585873dfca519464072d9db356bbf",
+      "crates/next-core/src/base_loader_tree.rs": "0dfdeacd59ca5514c75bf95cdb9c00be0b769aad86c3ace939d4903c3c6338fc",
+      "crates/next-core/src/next_import_map.rs": "64cdda09f70cf35d9c488c20c1ba9136b7e78c5e9d21d7f6c8e983d42d4410b3",
+      "crates/next-core/src/next_root_params/mod.rs": "a0008db3508fab7c37d8e20a8c306139ddb1fa9d58650bf97f5dbbb6977cde2d",
+      "crates/next-core/src/next_server/context.rs": "a03b2c63371cf6c8a1b812b8448bac5c5f910a2cb034a906ff95ef5fcf990051",
+      "crates/next-core/src/next_server/transforms.rs": "bbf034ac878bd87fba13217a2c0e203768316c203edf59286824d3a9720a7680",
+      "crates/next-core/src/segment_config.rs": "fb200d18e90d070e3c7fbd473faccd12cc0e45d720b08a7fc4e50f346ab074a0",
+      "crates/next-napi-bindings/src/next_api/endpoint.rs": "5d3b9f66ed277f7a9d8d9e2bee71562490f19eb70fe2f2071cf9bcce4f46f6f3",
+      "crates/next-napi-bindings/src/next_api/project.rs": "6490dfb72db02a4a84b90def15417cb0f5326535f71fdbed05fcfcf02ce8d737",
+      "turbopack/crates/turbo-tasks-fs/src/watcher/mock_fs_api.rs": "6ea63843afa5219cb61010ca4b40e41755404279449b31ac3ff1df40efed687a",
+      "turbopack/crates/turbo-tasks-fs/src/watcher/mod.rs": "afa6d8648d29422c51d386404de53e31b2917be34d3eeac9844cb3c14f17b7c5",
+      "turbopack/crates/turbopack-node/src/backend.rs": "740c5b377fda75c6c6613f27afc751f12eda6ab9bc2a84836aa29dd3f3cfdc7a",
+      "turbopack/crates/turbopack-node/src/process_pool/heap_queue.rs": "db805fea15b481a25d76f1337368b1ce785e5a60d75c3a848fda80ebea5cd28c",
+      "turbopack/crates/turbopack-node/src/process_pool/mod.rs": "94c554468a8de1b78c32cef7b82e6075f348c56e65a1f473ae88ff7b33fd802c",
+      "turbopack/crates/turbopack-node/src/worker_pool/mod.rs": "0520c1b812aec8fb57d19d146e55fb313bb16ca5366f7ae1ae577f2f7aa7e466",
+      "turbopack/crates/turbopack-node/src/worker_pool/worker_thread.rs": "970c1b26b72b90a49ec5f68b184acae37b08dda85df1dce7b1e9effcbe7dff2a"
+    },
+    "buildLog": "/tmp/next-testing-stage3-a3-native-fixture-v8.log",
+    "status": "Stage-three native accepted with exact27 source inputs integrated into root; independent actual production, mounting, coverage and all five clean package phases pass.",
+    "independentEvidence": [
+      "test/e2e/app-dir/next-testing-reference/STAGE3_ACCEPTANCE.md",
+      "/tmp/next-testing-L3-packed-final-audit-v1.json"
+    ],
+    "pairedSource": "/tmp/next-testing-stage3-integration-candidate-v12.json"
+  },
+  "browserPreparation": {
+    "patch": "/tmp/next-testing-L-browser-preparation-v1.patch",
+    "sha256": "498676e78a0b323dc12c413b40d2db8485e0fd054035b04f1b97efb4630c3685",
+    "status": "Canonical browser profile selected; default five-profile run and individual positive/repeat/negative/cleanup/SIGINT/SIGTERM acceptance passed on A10 native plus A11/H6."
+  },
+  "nativeHistory": [
+    {
+      "path": "/tmp/next-testing-a-native-v4-495503637921/next-swc.darwin-arm64.node",
+      "sha256": "495503637921907503a86a617e35744846045cd344ceb88ff0004b6292df3949",
+      "provenance": "/tmp/next-testing-a-native-v4-495503637921/provenance.json"
+    },
+    {
+      "path": "/tmp/next-testing-a-native-v9-75f662135924/next-swc.darwin-arm64.node",
+      "sha256": "75f662135924db664e0eed751265770d529fcf699d4ea1cd386d0821854c4d0e",
+      "provenance": "/tmp/next-testing-a-native-v9-75f662135924/provenance.json",
+      "status": "Independently validated by L in wave7;actual dlopen path/hash audited;all10 current Rust sources matched provenance."
+    },
+    {
+      "path": "/tmp/next-testing-a-native-v10-1b147d674547/next-swc.darwin-arm64.node",
+      "sha256": "1b147d674547cd457b1913bd479ff2d5337b61744cbfe8c3c1fcea076f581a67",
+      "provenance": "/tmp/next-testing-a-native-v10-1b147d674547/provenance.json",
+      "status": "Independently accepted in wave10 with A11 JavaScript: default five-profile CLI, browser, ordinary production, root/package types and unit checks. Preserved while A12 candidate validation runs."
+    },
+    {
+      "stage": "stage1",
+      "accepted": {
+        "nativePath": "/tmp/next-testing-a-native-v12-db75772b6be3/next-swc.darwin-arm64.node",
+        "nativeSha256": "db75772b6be36dee9cfdac5eb968b52141a6e1fc1a1678d37207f4b005614b6a",
+        "base": "602a2aba900e45fb2edd694f463f435430678e1f",
+        "sourceSha256": {
+          "crates/next-api/src/app.rs": "23187a0de166f9fc64342c85ce3a09ba67c181607dbb54d9ad788b425db8b8e1",
+          "crates/next-api/src/lib.rs": "8c9bd31ab9aeee99cdd7ec34c93de137b3d2da264cd9a09943b5b2e9d75f54e7",
+          "crates/next-napi-bindings/src/next_api/endpoint.rs": "5d3b9f66ed277f7a9d8d9e2bee71562490f19eb70fe2f2071cf9bcce4f46f6f3",
+          "crates/next-napi-bindings/src/next_api/project.rs": "e70d3b250559b07b13909da12cece66e6bcaeac2f2d67e8f048d37ac7e838d66",
+          "crates/next-api/src/testing.rs": "9aa6f55536bac27ebe7130116c626d0d0bbfa1f2bbdd37fcf06687552c61c629",
+          "crates/next-api/src/project.rs": "dbcd5bbaff61ca168df86bf3b98f58139b348870ea757a52d08edb49e28ec008",
+          "crates/next-core/src/next_import_map.rs": "64cdda09f70cf35d9c488c20c1ba9136b7e78c5e9d21d7f6c8e983d42d4410b3",
+          "crates/next-core/src/next_root_params/mod.rs": "a0008db3508fab7c37d8e20a8c306139ddb1fa9d58650bf97f5dbbb6977cde2d",
+          "crates/next-core/src/next_server/context.rs": "a03b2c63371cf6c8a1b812b8448bac5c5f910a2cb034a906ff95ef5fcf990051",
+          "crates/next-core/src/next_server/transforms.rs": "bbf034ac878bd87fba13217a2c0e203768316c203edf59286824d3a9720a7680",
+          "turbopack/crates/turbo-tasks-fs/src/watcher/mod.rs": "afa6d8648d29422c51d386404de53e31b2917be34d3eeac9844cb3c14f17b7c5",
+          "turbopack/crates/turbo-tasks-fs/src/watcher/mock_fs_api.rs": "6ea63843afa5219cb61010ca4b40e41755404279449b31ac3ff1df40efed687a",
+          "turbopack/crates/turbopack-node/src/backend.rs": "740c5b377fda75c6c6613f27afc751f12eda6ab9bc2a84836aa29dd3f3cfdc7a",
+          "turbopack/crates/turbopack-node/src/worker_pool/mod.rs": "0520c1b812aec8fb57d19d146e55fb313bb16ca5366f7ae1ae577f2f7aa7e466",
+          "turbopack/crates/turbopack-node/src/worker_pool/worker_thread.rs": "970c1b26b72b90a49ec5f68b184acae37b08dda85df1dce7b1e9effcbe7dff2a",
+          "turbopack/crates/turbopack-node/src/process_pool/mod.rs": "94c554468a8de1b78c32cef7b82e6075f348c56e65a1f473ae88ff7b33fd802c",
+          "turbopack/crates/turbopack-node/src/process_pool/heap_queue.rs": "db805fea15b481a25d76f1337368b1ce785e5a60d75c3a848fda80ebea5cd28c"
+        },
+        "predecessor": "/tmp/next-testing-a-native-v10-1b147d674547/next-swc.darwin-arm64.node",
+        "deltaPatch": "/tmp/next-testing-a-loader-close-v12.delta.patch",
+        "deltaPatchSha256": "337f6f7234472eb8bb00d4dfd613e13ae8d4f9ebd32ebc2f84c1af841096f7ca",
+        "buildLog": "/tmp/next-testing-a-loader-close-native.log",
+        "requiresJavaScriptDelta": true,
+        "sourceIntegration": "Exact15-file A12 delta applied/reverse-checked; all17 cumulative native sources match root and immutable source copies.",
+        "status": "Independently accepted by L: fullbuild18/18, root types, compiler11/11 with both loader backends and immediate closure/natural exit, default5profiles9files13cases18attempts, same-output browser repeat, graceful SIGINT/SIGTERM with valid artifacts/resource cleanup, ordinaryproduction3/3. See canonical WAVE9.",
+        "independentEvidence": [
+          "test/e2e/app-dir/next-testing-reference/WAVE9.md"
+        ]
+      }
+    },
+    {
+      "stage": "stage2-setup-checkpoint",
+      "accepted": {
+        "base": "602a2aba900e45fb2edd694f463f435430678e1f",
+        "baselinePatchSha256": "905b73060570553fed495142feb0deda69516b1e8b8e8024b8052e4aa8b6e6ac",
+        "nativePath": "/tmp/next-testing-stage2-a2-native-setup-v2-6d479c937166/next-swc.darwin-arm64.node",
+        "nativeSha256": "6d479c93716648bedd08132957507f8510044568ca92be2db99030966f985f58",
+        "sourceSha256": {
+          "crates/next-api/src/app.rs": "46141fcb8fd00364fc883d73541d5addd42b64bf9ce0823d8ca0c115c2a33803",
+          "crates/next-api/src/lib.rs": "8c9bd31ab9aeee99cdd7ec34c93de137b3d2da264cd9a09943b5b2e9d75f54e7",
+          "crates/next-napi-bindings/src/next_api/endpoint.rs": "5d3b9f66ed277f7a9d8d9e2bee71562490f19eb70fe2f2071cf9bcce4f46f6f3",
+          "crates/next-napi-bindings/src/next_api/project.rs": "47e7ee661da77a04bfcb83537a11bcff6c18e3004783fb929361988cbabad0d9",
+          "crates/next-api/src/testing.rs": "9cdc05396c8e0422088bee57e185baa76777cb74820695299ff764931e74958f",
+          "crates/next-api/src/project.rs": "dbcd5bbaff61ca168df86bf3b98f58139b348870ea757a52d08edb49e28ec008",
+          "crates/next-core/src/next_import_map.rs": "64cdda09f70cf35d9c488c20c1ba9136b7e78c5e9d21d7f6c8e983d42d4410b3",
+          "crates/next-core/src/next_root_params/mod.rs": "a0008db3508fab7c37d8e20a8c306139ddb1fa9d58650bf97f5dbbb6977cde2d",
+          "crates/next-core/src/next_server/context.rs": "a03b2c63371cf6c8a1b812b8448bac5c5f910a2cb034a906ff95ef5fcf990051",
+          "crates/next-core/src/next_server/transforms.rs": "bbf034ac878bd87fba13217a2c0e203768316c203edf59286824d3a9720a7680",
+          "turbopack/crates/turbo-tasks-fs/src/watcher/mod.rs": "afa6d8648d29422c51d386404de53e31b2917be34d3eeac9844cb3c14f17b7c5",
+          "turbopack/crates/turbo-tasks-fs/src/watcher/mock_fs_api.rs": "6ea63843afa5219cb61010ca4b40e41755404279449b31ac3ff1df40efed687a",
+          "turbopack/crates/turbopack-node/src/backend.rs": "740c5b377fda75c6c6613f27afc751f12eda6ab9bc2a84836aa29dd3f3cfdc7a",
+          "turbopack/crates/turbopack-node/src/worker_pool/mod.rs": "0520c1b812aec8fb57d19d146e55fb313bb16ca5366f7ae1ae577f2f7aa7e466",
+          "turbopack/crates/turbopack-node/src/worker_pool/worker_thread.rs": "970c1b26b72b90a49ec5f68b184acae37b08dda85df1dce7b1e9effcbe7dff2a",
+          "turbopack/crates/turbopack-node/src/process_pool/mod.rs": "94c554468a8de1b78c32cef7b82e6075f348c56e65a1f473ae88ff7b33fd802c",
+          "turbopack/crates/turbopack-node/src/process_pool/heap_queue.rs": "db805fea15b481a25d76f1337368b1ce785e5a60d75c3a848fda80ebea5cd28c"
+        },
+        "buildLog": "/tmp/next-testing-stage2-a2-native-setup-v2.log",
+        "buildCommand": "CARGO_TARGET_DIR=/tmp/next-testing-stage2-a2-target pnpm --filter=@next/swc build-native",
+        "requiresJavaScriptDelta": true,
+        "status": "Independently accepted setup pair by L: fullbuild18/roottypes0/compiler17/actualNodeRSCsetup4/default5profiles/browserINTTERM/production3. Further authoring/watch/mock changes separately gated.",
+        "independentEvidence": [
+          "test/e2e/app-dir/next-testing-reference/STAGE2_SETUP.md",
+          "test/e2e/app-dir/next-testing-reference/STAGE2_AUTHORING.md"
+        ],
+        "sourceIntegration": "Exact17 Rust source hashes match immutable setup-v2 native6d479."
+      }
+    },
+    {
+      "base": "602a2aba900e45fb2edd694f463f435430678e1f",
+      "baselinePatchSha256": "905b73060570553fed495142feb0deda69516b1e8b8e8024b8052e4aa8b6e6ac",
+      "nativePath": "/tmp/next-testing-stage2-a2-native-diagnostics-v1-d4845161d653/next-swc.darwin-arm64.node",
+      "nativeSha256": "d4845161d653b0359a5b93663c546ffb603c37f792592f0f7e9c1d0fbfaab658",
+      "sourceSha256": {
+        "crates/next-api/src/app.rs": "46141fcb8fd00364fc883d73541d5addd42b64bf9ce0823d8ca0c115c2a33803",
+        "crates/next-api/src/lib.rs": "dd90d73c767dc23f4af295e3d9c5f3892df3ab25548c9602cb70f710d3b903bf",
+        "crates/next-napi-bindings/src/next_api/endpoint.rs": "5d3b9f66ed277f7a9d8d9e2bee71562490f19eb70fe2f2071cf9bcce4f46f6f3",
+        "crates/next-napi-bindings/src/next_api/project.rs": "47e7ee661da77a04bfcb83537a11bcff6c18e3004783fb929361988cbabad0d9",
+        "crates/next-api/src/testing.rs": "52c528ea0d3fbc9b8f845616ce15a893049e83957412086517f34983c74a5cdd",
+        "crates/next-api/src/project.rs": "96d2440c8e9bf500d09de63bdd4b8119392df48d350759bab3f591bcc3db4ae7",
+        "crates/next-core/src/next_import_map.rs": "64cdda09f70cf35d9c488c20c1ba9136b7e78c5e9d21d7f6c8e983d42d4410b3",
+        "crates/next-core/src/next_root_params/mod.rs": "a0008db3508fab7c37d8e20a8c306139ddb1fa9d58650bf97f5dbbb6977cde2d",
+        "crates/next-core/src/next_server/context.rs": "a03b2c63371cf6c8a1b812b8448bac5c5f910a2cb034a906ff95ef5fcf990051",
+        "crates/next-core/src/next_server/transforms.rs": "bbf034ac878bd87fba13217a2c0e203768316c203edf59286824d3a9720a7680",
+        "turbopack/crates/turbo-tasks-fs/src/watcher/mod.rs": "afa6d8648d29422c51d386404de53e31b2917be34d3eeac9844cb3c14f17b7c5",
+        "turbopack/crates/turbo-tasks-fs/src/watcher/mock_fs_api.rs": "6ea63843afa5219cb61010ca4b40e41755404279449b31ac3ff1df40efed687a",
+        "turbopack/crates/turbopack-node/src/backend.rs": "740c5b377fda75c6c6613f27afc751f12eda6ab9bc2a84836aa29dd3f3cfdc7a",
+        "turbopack/crates/turbopack-node/src/worker_pool/mod.rs": "0520c1b812aec8fb57d19d146e55fb313bb16ca5366f7ae1ae577f2f7aa7e466",
+        "turbopack/crates/turbopack-node/src/worker_pool/worker_thread.rs": "970c1b26b72b90a49ec5f68b184acae37b08dda85df1dce7b1e9effcbe7dff2a",
+        "turbopack/crates/turbopack-node/src/process_pool/mod.rs": "94c554468a8de1b78c32cef7b82e6075f348c56e65a1f473ae88ff7b33fd802c",
+        "turbopack/crates/turbopack-node/src/process_pool/heap_queue.rs": "db805fea15b481a25d76f1337368b1ce785e5a60d75c3a848fda80ebea5cd28c",
+        "crates/next-api/src/testing_mock_graph.rs": "3fbc35d5c181fc15362e1ab118b2a5a105e3dbedd16d478f615ff41c6621265e",
+        "crates/next-api/src/testing_mock_source.rs": "65f1016b93e36edd82a3505e8f19e9bf8f6ae9ca3be5e9505e3f292e0482047a",
+        "crates/next-api/Cargo.toml": "9934eaaba17434ff419b1b6c5f4884c8dd84641046bd309b92a01c6d54918aaf",
+        "Cargo.lock": "daac10aec9412154ae6a6c9d9e41c18ccab69dd86bb25f5101393575d0927771"
+      },
+      "buildLog": "/tmp/next-testing-stage2-a2-native-diagnostics-v1.log",
+      "buildCommand": "CARGO_TARGET_DIR=/tmp/next-testing-stage2-a2-target pnpm --filter=@next/swc build-native",
+      "requiresJavaScriptDelta": true,
+      "status": "Final stage-two native accepted: exact source provenance, independent build/types/compiled diagnostics and clean external packed runtime.",
+      "gPatch": "/tmp/next-testing-stage2-G2-v15.patch",
+      "sourceDeltas": {
+        "/tmp/next-testing-stage2-a2-diagnostics-after-mock-v4.patch": "7d3dd0301273380dba75d381f6aed5fe264ba7f954a0f89c493e10953e8241f2",
+        "/tmp/next-testing-stage2-G2-diagnostics-after-v15.patch": "faef6e122bc3453141ef71131aacbc556f20d7c471c9cb0955a09069bf96c27a"
+      },
+      "independentEvidence": [
+        "test/e2e/app-dir/next-testing-reference/STAGE2_DIAGNOSTICS.md",
+        "test/e2e/app-dir/next-testing-reference/STAGE2_PACKED_DIAGNOSTIC_ACCEPTANCE.md"
+      ]
+    }
+  ],
+  "stage2": {
+    "plan": "NEXT_TESTING_STAGE2_PLAN.md",
+    "baselineManifest": "/tmp/next-testing-stage2-baseline.json",
+    "baselinePatch": "/tmp/next-testing-stage2-baseline.patch",
+    "baselineSha256": "905b73060570553fed495142feb0deda69516b1e8b8e8024b8052e4aa8b6e6ac",
+    "model": "gpt-6-astra",
+    "thinking": "medium",
+    "status": "Stage two accepted: compiled setup, supported Vitest APIs, explicit snapshot updates, static Node mocks, Node/RSC watch and external package adoption.",
+    "tasks": [
+      {
+        "code": "I2",
+        "title": "Next testing stage 2: Contracts and CLI",
+        "threadId": "01a0aadd-5486-7e11-b81d-28e870bb5dd2",
+        "clientThreadId": "client-new-thread:0de515df-82c8-4b04-ba4a-c2551343705b",
+        "hostId": "local",
+        "status": "Accepted: contracts, public CLI commands and precise capability inventory.",
+        "completion": "accepted"
+      },
+      {
+        "code": "A2",
+        "title": "Next testing stage 2: Compiler integration",
+        "threadId": "01a0aadd-546a-7900-8566-d3b9ac41ca81",
+        "clientThreadId": "client-new-thread:fe1b411b-36a4-4e37-8ef9-1ee27184dfc0",
+        "hostId": "local",
+        "status": "Accepted: compiled setup, mock graph integration and clean diagnostics on the final d484 native.",
+        "completion": "accepted"
+      },
+      {
+        "code": "B2",
+        "title": "Next testing stage 2: Execution and setup",
+        "threadId": "01a0aadd-546a-7900-8566-d3d79571045f",
+        "clientThreadId": "client-new-thread:ae55a816-75f1-41c5-a56a-d95ddb2a0334",
+        "hostId": "local",
+        "status": "Accepted: setup execution, safe snapshot commits, broker ownership, cancellation and mock lifecycle isolation.",
+        "completion": "accepted"
+      },
+      {
+        "code": "C2",
+        "title": "Next testing stage 2: API compatibility",
+        "threadId": "01a0aadd-b099-7100-a4e0-8849a9b088cc",
+        "clientThreadId": "client-new-thread:4a4cfb35-1ffa-478a-acf9-a0fe439d32ba",
+        "hostId": "local",
+        "status": "Accepted: supported authoring APIs, hooks, fixtures, assertions, spies, snapshots and public declarations.",
+        "completion": "accepted"
+      },
+      {
+        "code": "G2",
+        "title": "Next testing stage 2: Module mocking",
+        "threadId": "01a0aadd-b6e5-7db0-bd3c-914763a9698e",
+        "clientThreadId": "client-new-thread:197fcf30-abec-4491-aaca-98a112f51ad0",
+        "hostId": "local",
+        "status": "Accepted: compiler-transformed static Node factory mocks, original imports, async factories and explicit unsupported-input errors.",
+        "completion": "accepted"
+      },
+      {
+        "code": "J2",
+        "title": "Next testing stage 2: Watch and incremental runs",
+        "threadId": "01a0aadd-b6ea-7fa0-8a1c-399624be343e",
+        "clientThreadId": "client-new-thread:0a809b56-ffcb-4fa6-866b-80dbb7121934",
+        "hostId": "local",
+        "status": "Accepted: public Node/RSC watch, conservative invalidation, file discovery, recovery and cancellation.",
+        "completion": "accepted"
+      },
+      {
+        "code": "P2",
+        "title": "Next testing stage 2: Package adoption",
+        "threadId": "01a0aadd-b6e6-77c2-80eb-d00abd5d831a",
+        "clientThreadId": "client-new-thread:81d74391-ceb1-46d6-98c0-b6fa63941b2d",
+        "hostId": "local",
+        "status": "Accepted: clean packed installation, strict public JS/TS types, actual mock runtime, clean expected failures and verified worker cleanup.",
+        "completion": "accepted"
+      }
+    ],
+    "validationThreadId": "01a0a9e8-f26e-77e2-9e82-543690ff0b72",
+    "directory": "NEXT_TESTING_STAGE2_TASKS.json",
+    "contracts": {
+      "setup": "Accepted additive compile setupFiles / artifact ordered identities / emitted loadSetupModules in shared collect callback. I2 formalizing; A2/B2/C2 implement.",
+      "snapshotUpdates": "Explicit one-shot route-less development Node/RSC updates accepted. C stages bytes and preserves unchecked entries; B commits only after authoritative successful worker exit and cleanup. Browser and watch updates remain unsupported.",
+      "proposal": "/tmp/next-testing-stage2-I2-contract-proposal.md",
+      "watch": "Use fresh Next-owned orchestration process per generation for actual config/environment reload, with B2 coordinated descendant ownership, parent-authoritative closure and explicit subscription-error behavior. Node/RSC first; graph precision and browser watch stay separately gated."
+    },
+    "bootstrap": "Normal frozen dependency installation succeeds with automatically reviewed execution outside sandbox; initial ENOTFOUND was sandbox-related. A2/I2/J2 report complete installs. Fresh full bootstraps/native builds serialized; initial watch attempts lacked dependent build outputs and reported sandbox EMFILE.",
+    "ownershipExceptions": [
+      {
+        "owner": "P2",
+        "scope": [
+          "packages/next/src/experimental/testing/rsc/types.ts",
+          "packages/next/src/experimental/testing/rsc/index.ts",
+          "packages/next/src/experimental/testing/rsc/observe.ts",
+          "packages/next/src/experimental/testing/rsc/client-references.ts"
+        ],
+        "purpose": "Isolate public RSC declarations from renderer/build/server implementation types; existing files limited to import/reexport/type moves with runtime behavior and old internal imports preserved. Rebuilt emitted declarations and clean package consumer checks required."
+      },
+      {
+        "owner": "C2",
+        "scope": [
+          "pinned @vitest/snapshot5.0.1 pnpm patchedDependency",
+          "required root manifest/lock/patch file",
+          "regenerated primitive bundle outputs"
+        ],
+        "purpose": "Fix reproduced failed-retry new snapshot key rollback without version upgrade. P2 agrees no export wiring conflict; exact source patch and deterministic regenerated output review required."
+      }
+    ],
+    "pendingHandoffs": [
+      {
+        "owner": "B2",
+        "patch": "/tmp/next-testing-stage2-B2-setup-v1.patch",
+        "sha256": "a4f18da204bfa4ada24ab26416a3dd092e94d6742363da7d214b948c3a3a7987",
+        "status": "Integrated in first setup increment; independent acceptance active."
+      },
+      {
+        "owner": "I2",
+        "patch": "/tmp/next-testing-stage2-I2-setup-v1.patch",
+        "sha256": "706a648601688d46bf979742fbc47fbc85760f20b701558a5e0f8b2244e5051c",
+        "status": "v1 superseded by integrated setup-v2.",
+        "replacement": {
+          "patch": "/tmp/next-testing-stage2-I2-setup-v2.patch",
+          "sha256": "b9f0b926907501cb4473fdcae372218489196877b2edcd1b98fa336e96e11bd7",
+          "status": "Integrated; L independent acceptance active."
+        }
+      },
+      {
+        "owner": "L",
+        "patches": [
+          {
+            "path": "/tmp/next-testing-L-stage2-setup-preparation-v1.patch",
+            "sha256": "b25d44d7c8a677ac4afbb62a3448e00b017641356bf07d07b134c74e6423f7de"
+          },
+          {
+            "path": "/tmp/next-testing-L-stage2-setup-preparation-v2.delta.patch",
+            "sha256": "1a02e29e4b01b7e56cb053df3cb525c0d3a808c4931f705bdcd460ae13982890"
+          }
+        ],
+        "status": "Integrated in first setup increment; independent acceptance active."
+      },
+      {
+        "owner": "A2",
+        "patch": "/tmp/next-testing-stage2-a2-setup-v1.patch",
+        "sha256": "bee6989cc7edcc5d4e240317a09f2d3aa8fc741f8a2cda011556fec53826e6ee",
+        "status": "v1 rejected/superseded by integrated setup-v2; see integratedSetup manifest."
+      }
+    ],
+    "dependencyCopyInventory": {
+      "path": "/tmp/next-testing-L-dependency-copy-inventory.json",
+      "scope": "Read-only verified root+19 package dependency copies at identical relative destination paths; no absolute or checkout-escaping symlinks. Baseline output copies do not validate new stage2 source."
+    },
+    "candidateNative": {
+      "path": "/tmp/next-testing-stage2-a2-native-setup-v2-6d479c937166/next-swc.darwin-arm64.node",
+      "sha256": "6d479c93716648bedd08132957507f8510044568ca92be2db99030966f985f58",
+      "provenance": "/tmp/next-testing-stage2-a2-native-setup-v2-6d479c937166/provenance.json",
+      "requiresJavaScriptDelta": true,
+      "status": "Independently accepted for setup pair; future authoring and graph changes separately gated."
+    },
+    "reviews": [
+      {
+        "component": "J2 watch-v1 scheduler",
+        "patchSha256": "1e9f6dc9619d6fda1fdde5b70a142bf7c8f307d3ff745b0ebebe97dec31170c4",
+        "status": "Independent read-only subagent review found no additional scheduler blocker. Unit scenarios meaningful; real process/compiler cleanup remains integration gate. Old Watchpack error adapter being replaced."
+      },
+      {
+        "component": "P2 package/fixture-v1",
+        "status": "Independent review identified JavaScript typechecking excluded by TS same-basename precedence; P2 correcting distinct names and proving actual JS inclusion. Existing runtime corpus evidence unaffected; source review continues."
+      },
+      {
+        "component": "G2 frozen-v3 analyzer",
+        "status": "Confirmed arbitrary spreads omit mock-only exports, type-only vi references reject incorrectly. Factory import.meta context conditional risk. G confirmed all three persist in currentv5 and is correcting; no integration yet."
+      },
+      {
+        "component": "P2 fixture-v2",
+        "status": "Closed JS omission: distinct basenames and four actual type input inventories verified; no remaining source blocker."
+      },
+      {
+        "component": "C2 primitive-v1",
+        "status": "Independent review passes exact minimal rollback change, generated output hashes and dependency lock hash. Corrected API snapshot-read baseline still required."
+      },
+      {
+        "component": "C2 API-v1+B2snapshot-v2",
+        "status": "Parent terminal/exit/cleanup veto correct; blocker first snapshot read overwritten by finish reread, enabling concurrent user edit loss. C correcting and adding regression."
+      },
+      {
+        "component": "J2watch-v3",
+        "status": "Parent self-rename filename filtered before root identity check; Linux libuv source confirms possible silent lost subscription after parent recreation. J correcting with regression."
+      },
+      {
+        "component": "A2 lifetime-v3",
+        "status": "Parent allocator must recheck abort before emission; owner correcting and strengthening no-emission test. Other allocation/metadata source review passes."
+      },
+      {
+        "component": "I2 watch-candidate-v1",
+        "status": "Fix update failure after source closure, bounded terminal/disconnect shutdown, and fatal ownership failures in metadata discovery. Owner implementing; broker dependency pending."
+      },
+      {
+        "component": "G2 v7/v8 analyzer",
+        "status": "Original fixes closed; remaining callback rebinding through loop heads/initialized var declarations reintroduces unverified original spreads. G correcting with scope-aware regressions."
+      },
+      {
+        "component": "CAPIv4",
+        "status": "Independent correction review closed first-read source edit protection and pure parent-helper import; final21Jest/2compiled owner evidence. Integrated for L."
+      },
+      {
+        "component": "Jwatch-v5",
+        "status": "Source correction review closed parent-filter and lost native directory identity events; timer cleanup and31tests verified. No arbitrary OS event-loss or integrated watch claim."
+      },
+      {
+        "component": "Blbroker-v1",
+        "status": "Derived event-publication Promise.race rejection unhandled; owner correcting and testing actual workers. No root integration."
+      },
+      {
+        "component": "Gv9",
+        "status": "Callback rebinding fixes closed; source-map structure reviewed. BOM prefix stripped by SWC causes original byte offsets mismatch; owner correction before native freeze."
+      },
+      {
+        "component": "Bbroker-v2",
+        "status": "Returned publish race observed; ownershipClosed semantics source-approved. Negative execute/cleanup failure flag assertion requested; exact final actualworker evidence handoff pending."
+      }
+    ],
+    "integratedSetup": {
+      "manifest": "/tmp/next-testing-stage2-setup-integrated.json",
+      "patches": [
+        {
+          "path": "/tmp/next-testing-stage2-I2-setup-v2.patch",
+          "sha256": "b9f0b926907501cb4473fdcae372218489196877b2edcd1b98fa336e96e11bd7"
+        },
+        {
+          "path": "/tmp/next-testing-stage2-a2-setup-v2.patch",
+          "sha256": "9c15cae5bb8910d3343a4e520a3d745f9c85c44a1c7d5030d4fb4aa9592fa286"
+        },
+        {
+          "path": "/tmp/next-testing-stage2-B2-setup-v1.patch",
+          "sha256": "a4f18da204bfa4ada24ab26416a3dd092e94d6742363da7d214b948c3a3a7987"
+        },
+        {
+          "path": "/tmp/next-testing-L-stage2-setup-preparation-v1.patch",
+          "sha256": "b25d44d7c8a677ac4afbb62a3448e00b017641356bf07d07b134c74e6423f7de"
+        },
+        {
+          "path": "/tmp/next-testing-L-stage2-setup-preparation-v2.delta.patch",
+          "sha256": "1a02e29e4b01b7e56cb053df3cb525c0d3a808c4931f705bdcd460ae13982890"
+        }
+      ],
+      "status": "Independently accepted setup pair by L: fullbuild18/roottypes0/compiler17/actualNodeRSCsetup4/default5profiles/browserINTTERM/production3. Further authoring/watch/mock changes separately gated."
+    },
+    "candidateNativeHistory": [
+      {
+        "path": "/tmp/next-testing-stage2-a2-native-setup-d85957227f3d/next-swc.darwin-arm64.node",
+        "sha256": "d85957227f3d46a8ccb5395d858907c35341fa2f6f94000868be23b718c86e77",
+        "provenance": "/tmp/next-testing-stage2-a2-native-setup-d85957227f3d/provenance.json",
+        "requiresJavaScriptDelta": true,
+        "status": "Rejected first candidate: actual RSC setup dynamic import violates native shared chunk invariant. Existing11 compiler and new Node setup/async/loader/rejection checks pass. A2 correcting shared deferred load path, fixture target and checking stale-native fail-closed guard; replacement pair pending."
+      }
+    ],
+    "candidateHandoffs": [
+      {
+        "owner": "J2",
+        "patch": "/tmp/next-testing-stage2-J2-watch-v3.patch",
+        "sha256": "df6ee452dd4162e1891fa9cfe556b6b2c8f1cc6f6c34d7b3bcb09b576535b291",
+        "status": "Owner28checks/root+package types pass; replacement fs.watch adapter review active."
+      },
+      {
+        "owner": "P2",
+        "patches": [
+          "/tmp/next-testing-stage2-p2-package-v1.patch",
+          "/tmp/next-testing-stage2-p2-fixture-v2.patch"
+        ],
+        "status": "Package source reviewed; corrected distinct JS/TS input coverage and exact4type checks under closure review. Final integrated pack remains L gate."
+      },
+      {
+        "owner": "C2",
+        "patches": [
+          "/tmp/next-testing-stage2-C2-api-v1.patch",
+          "/tmp/next-testing-stage2-C2-primitive-v1.patch"
+        ],
+        "status": "Independent API/parent snapshot/primitive source review active; actual compiled owner fixture pending."
+      },
+      {
+        "owner": "B2",
+        "patch": "/tmp/next-testing-stage2-B2-setup-snapshot-v2.patch",
+        "sha256": "c83ca30a86c60923dd38075880c6d51168e0459307edfa8463af1a202cf01633",
+        "status": "Cumulative replacement under review; source integrated currently setup-v1 only. Owner6compiled/50units/build18/roottypes pass against documented checkpoint dependencies."
+      },
+      {
+        "owner": "I2",
+        "patch": "/tmp/next-testing-stage2-I2-update-candidate-v2.patch",
+        "sha256": "1e6a126ed1b6b0e254ac657f7f94fcd84b8af0aacf682eed65b673404e0262a0",
+        "status": "SeparablepublicsnapshotCLI source review active. ActualCLI pending; corrected unit harness awaiting pass. No watch/broker imports."
+      },
+      {
+        "owner": "B2",
+        "patch": "/tmp/next-testing-stage2-B2-broker-v4.patch",
+        "sha256": "4dd9d2f95f52579412630155f4aa745d88938cbb2418003444c38b4c45ea94ea",
+        "status": "Source reviewed and owner10actual/62unit/roottypes/build pass; marker-gated registry initialization followup required before mock integration. Heldforwatchbatch."
+      },
+      {
+        "owner": "A2",
+        "patch": "/tmp/next-testing-stage2-a2-mock-v1.patch",
+        "sha256": "1a0cc5f4217995195bb19913a140827593ab560675a5b7d96c125470d9e92144",
+        "status": "JS/native metadata boundary review passes. Rust blockers emptyobject vs throw-only exportshape and bundledpackagecycle traversal; correcting. Diagnosticnatives notaccepted."
+      },
+      {
+        "owner": "C2",
+        "patch": "/tmp/next-testing-stage2-C2-static-mock-types-after-api-v4-v1.patch",
+        "sha256": "2f8c6779f5add99cb8c97f6bf4955d461b6d7840374e08007711b60128a8dee8",
+        "status": "One-file type-only compiler mock authoring declaration; runtime unchanged. P independent externaltypeprobe pending, mock native gate unchanged."
+      }
+    ],
+    "integratedPackage": {
+      "manifest": "/tmp/next-testing-stage2-setup-package-integrated-v1.json",
+      "status": "Accepted packed Node/RSC/browser runtime and strict JS/TS checkpoint; final mock package diagnostics are tracked separately.",
+      "statusAtCheckpoint": "Independent L fresh packed install accepted Node3/RSC2/browser2 and4strict/checkJs/skipLibCheck:false checks with actual JS/TS input manifests and installed6d479 native audit. Canonical evidence handoff pending."
+    },
+    "setupAcceptance": {
+      "manifest": "/tmp/next-testing-L-stage2-setup-acceptance-v1.json",
+      "patch": "/tmp/next-testing-L-stage2-setup-acceptance-v1.patch",
+      "sha256": "9bb3355b8560e1f0dfb5303ec3247ba7c03683dbf877eec6be1aef383403a202",
+      "evidence": "test/e2e/app-dir/next-testing-reference/STAGE2_SETUP.md",
+      "status": "Accepted and integrated root."
+    },
+    "integratedAuthoring": {
+      "manifest": "/tmp/next-testing-stage2-authoring-integrated-v1.json",
+      "status": "Accepted supported APIs and safe snapshot transport; public snapshot CLI was subsequently accepted in STAGE2_UPDATE_CLI.md.",
+      "statusAtCheckpoint": "Independently accepted and integrated: setup/API/snapshot transport inNode/RSC and fresh external packageNode/RSC/browser. Public snapshot CLI remains pending."
+    },
+    "nextAcceptance": {
+      "owner": "L",
+      "manifest": "/tmp/next-testing-stage2-authoring-integrated-v1.json",
+      "status": "Complete. All stage-two acceptance gates passed within the documented scopes; no implementation work remains for this milestone.",
+      "metadataCopy": "/tmp/next-testing-stage2-contracts-authoring-v1.md"
+    },
+    "mockSourceReview": {
+      "status": "A/G graph source findings closed; final diagnostic correction also reviewed and independently accepted. External final package gate tracked separately.",
+      "aPatch": "/tmp/next-testing-stage2-a2-mock-v4.patch",
+      "gPatch": "/tmp/next-testing-stage2-G2-v15.patch",
+      "nativePromoted": false,
+      "statusAtCheckpoint": "All A mock-v4/Gv15 source findings closed, including TestSource custom-loader correction. Owner final20actual checks and21native-input audit pass on d62; independent combined L acceptance pending."
+    },
+    "rootTypesInstallVariation": {
+      "C": "Final C worktree hoisted graphql9 and reported9 dependency-only TS2307; preserved, no source workaround.",
+      "L": "Current exact combined frozen install hoists graphql7; roottypes0; /tmp/next-testing-L-stage2-authoring-octokit.json."
+    },
+    "authoringAcceptance": {
+      "manifest": "/tmp/next-testing-L-stage2-authoring-acceptance-v1.json",
+      "patch": "/tmp/next-testing-L-stage2-authoring-acceptance-v1.patch",
+      "sha256": "2ee135d9c544daccc452971c1e26224e735b7c5851b2c80d939643472b4751bb",
+      "evidence": "test/e2e/app-dir/next-testing-reference/STAGE2_AUTHORING.md",
+      "status": "Accepted and integrated; public snapshot CLI was subsequently accepted in STAGE2_UPDATE_CLI.md.",
+      "statusAtCheckpoint": "Independently accepted and integrated: setup/API/snapshot transport inNode/RSC and fresh external packageNode/RSC/browser. Public snapshot CLI remains pending."
+    },
+    "publicSnapshotUpdate": {
+      "manifest": "/tmp/next-testing-stage2-update-integrated-v1.json",
+      "status": "Independently accepted after sole test-fixture numeric narrowing; 65 focused, 4 actual CLI tests, 7 subprocess evidence records, core/declarations and roottypes pass.",
+      "correction": "/tmp/next-testing-stage2-I2-update-types-after-v2-v1.patch",
+      "correctionSha256": "a3ea3911d959410f918343e12419fc6c1faed4b12d1b869a03f05420d4427bc1",
+      "acceptancePatch": "/tmp/next-testing-L-stage2-update-acceptance-v1.patch",
+      "acceptanceSha256": "6088cc7692c8b324e8cdad764b157590792a74909ce673677cfc24f2f02af872",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_UPDATE_CLI.md",
+      "scope": "Explicit one-shot route-less development Node/RSC update. Watch/browser updates unsupported.",
+      "nativeSha256": "6d479c93716648bedd08132957507f8510044568ca92be2db99030966f985f58"
+    },
+    "watchPreflight": {
+      "manifest": "/tmp/next-testing-stage2-watch-preflight-v1.json",
+      "status": "Historical preflight completed; corrected watch composition was subsequently integrated and accepted.",
+      "nativeSha256": "6d479c93716648bedd08132957507f8510044568ca92be2db99030966f985f58",
+      "statusAtCheckpoint": "49-file source composition passes apply check and17native input hashes; not root applied pending watch review corrections."
+    },
+    "integratedWatch": {
+      "manifest": "/tmp/next-testing-stage2-watch-integrated-v1.json",
+      "status": "Integrated and independently accepted; public watch and expanded mutation checkpoints supersede the earlier internal-only gate.",
+      "statusAtCheckpoint": "Integrated after independent source review, owner I74focused+2actualwatch, B62focused+10actual, J31focused, and native17hash validation. Exact combined independent L watch acceptance pending; public watch false."
+    },
+    "mockPreflight": {
+      "manifest": "/tmp/next-testing-stage2-mock-preflight-v1.json",
+      "status": "Historical preflight completed; mock source was subsequently integrated and verified, with final d484 diagnostic correction.",
+      "localAcceptance": "/tmp/next-testing-stage2-a2-mock-acceptance-v1.md",
+      "nativeSha256": "d62aeb2983c6d90c5527a63a3b9b7a0d6313f2181515ca6f78b818d770017fc6",
+      "statusAtCheckpoint": "64-file ordered increment after watch composition; all21Rust/Cargo sourcehashes match immutable d62native. Not root applied."
+    },
+    "acceptedPublicSnapshotManifest": "/tmp/next-testing-stage2-accepted-update-v1.json",
+    "integratedMock": {
+      "manifest": "/tmp/next-testing-stage2-mock-integrated-v1.json",
+      "status": "Integrated and independently accepted within static Node scope; final source requires d484. Current public capability inventory advertises its precise supported subset.",
+      "statusAtCheckpoint": "Source integrated after A20actual and independent source-review closure; all64afterhashes and21nativeinputs verified. This source requires d62native; independent combined L validation pending. Public staticmock/watch capabilities remain false."
+    },
+    "internalWatchCheckpoint": {
+      "status": "Accepted 6d479 internal checkpoint; final public watch and expanded Node/RSC mutation evidence are recorded separately on d62.",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_WATCH_INTERNAL.md",
+      "acceptancePatch": "/tmp/next-testing-L-stage2-watch-internal-acceptance-v1.patch",
+      "statusAtCheckpoint": "Independently accepted bounded checkpoint on6d479:core/declarations22.83s/roottypes0/focused170/actual12/49sourcehashes unchanged. Expanded mutation and publicCLI probes pending on finalpair."
+    },
+    "mockLifecycleProbe": {
+      "patch": "/tmp/next-testing-stage2-B2-mock-lifecycle-v1.patch",
+      "sha256": "74a2438abd32b0e93f542aa5f0896603fdc8405b20377caaa47901ec466e5377",
+      "status": "Corrected2actual independentlyPASS11.071s on d62; asynccollection rejection, controlled caughtpostdisposal rejection/finalfailedcode1, nextfileisolation/PIDclosure all verified.",
+      "scope": "Async factory collection failure; controlled caught deferred factory rejection afterdisposal; followingfileisolation/PIDcleanup.",
+      "installCorrection": "/tmp/next-testing-stage2-B2-mock-lifecycle-install-fix-v1.patch",
+      "installCorrectionSha256": "8e2a2f7e1629807a40f340dc914e51d44fce82c5970177656c67ed4f865b62e9"
+    },
+    "mockIndependentCheckpoint": {
+      "status": "Accepted d62 build/types/focused82/original20 actual plus correctedB2 actual lifecycle checks. Subsequent d484 diagnostic and final external package checkpoints are separately attributed.",
+      "nativeSha256": "d62aeb2983c6d90c5527a63a3b9b7a0d6313f2181515ca6f78b818d770017fc6",
+      "packageArtifacts": "/tmp/next-testing-L-stage2-mock-frozen-package-v2/artifacts.json",
+      "sourceManifest": "/tmp/next-testing-stage2-mock-candidate-full-v1.json",
+      "subsequentFixtureOnlyChange": "/tmp/next-testing-stage2-B2-mock-lifecycle-install-fix-v1.patch",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_MOCK_INTERNAL.md",
+      "statusAtCheckpoint": "L exactd62 independentlypasses fullbuild18/roottypes0/focused82 and22actual (original20plus correctedB2only11.071s). InitialBfixtureinstallfailure retained; no source/native fix needed. Broaderwatch/publicCLI/finalordinary/externalpackage gates remain."
+    },
+    "publicWatchCandidate": {
+      "patch": "/tmp/next-testing-stage2-I2-public-watch-candidate-v1.patch",
+      "sha256": "672985d58bfaf085c1f76c7609ab51bf8f4dc2c64bc1151dfda350055452db40",
+      "fixtureCorrection": "/tmp/next-testing-stage2-I2-public-watch-fixes-after-v1-v2.patch",
+      "fixtureCorrectionSha256": "69d0fe451b440754b9c4c633385755bb95c8bda37cf61e014600c378431e78e3",
+      "status": "Integrated with corrected fixture after source review and owner actual checks; independent public acceptance is complete.",
+      "statusAtCheckpoint": "Not rootapplied. Productguards sourceclosed andowner5actualpassed; strongerRSC/cleanupfixture7actualrunning, finalsourceclosurepending."
+    },
+    "integratedPublicWatch": {
+      "manifest": "/tmp/next-testing-stage2-public-watch-integrated-v1.json",
+      "status": "Integrated and independently accepted on d62; precise static mock inventory also integrated and independently checked.",
+      "statusAtCheckpoint": "Publicwatch7fileincrement integrated after allindependentsourcefindingsclosed andowner7actualpasses6d. Independent L finald62pair public/broaderwatch verificationpending; staticmockinventoryfalse."
+    },
+    "mockCapabilityInventory": {
+      "patch": "/tmp/next-testing-stage2-I2-mock-inventory-v1.patch",
+      "sha256": "3cbd8a280b88f1737a7e791ae98d966901139c6dc2a23a8ad509f72090968cea",
+      "status": "Integrated precise G-reviewed inventory; final L public capability, CLI and type checks pass.",
+      "statusAtCheckpoint": "Rootintegrated narrow G-reviewed inventory afterL22graph/lifecycle gate andPactualexternalmock pass. No compiler/runtimechange; finalLCLI/typecheckpending."
+    },
+    "externalMockPackageReview": {
+      "candidatePatch": "/tmp/next-testing-stage2-p2-mock-runtime-fixture-v1.patch",
+      "sha256": "b04461b374287c4b6cc1b7221c968985b9ea0547ebb0a64fbb0afab7bd60d53e",
+      "status": "Accepted: final fresh package, strict types and six-command runtime pass with clean expected failures and complete worker cleanup. L independently verified raw evidence and all archive/source/fixture/native hashes. Original failed diagnostic evidence preserved.",
+      "evidence": "/tmp/next-testing-stage2-p2-mock-runtime-v1",
+      "verifierCandidate": {
+        "patch": "/tmp/next-testing-stage2-p2-runtime-verifier-fixes-after-v1-v3.patch",
+        "sha256": "fc96a939bd5cbfac596a4d289fbe93fad08d76b3f3978c1a9c81c3dc168f1084",
+        "controls": "/tmp/next-testing-stage2-p2-parent-boundary-controls-v1/passed.json",
+        "status": "Accepted and integrated after independent source review, three cleanup controls and final actual runtime."
+      },
+      "finalEvidence": "/tmp/next-testing-stage2-p2-final-diagnostics-v1",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_PACKED_DIAGNOSTIC_ACCEPTANCE.md"
+    },
+    "expandedWatchReview": {
+      "status": "Independentlyacceptedrevisedv2 Node+RSC each11stages/11d62loads/35recordedownersgone/noforcedcleanup. ExplicitheldCANCELLEDandoldownersgonebeforenextRun<10s. Originalv1 diagnosticretained.",
+      "driver": "/tmp/next-testing-L-stage2-watch-mutations-v2.cjs",
+      "supervisor": "/tmp/next-testing-L-stage2-watch-supervisor-v2.py",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_WATCH_MUTATIONS.md"
+    },
+    "publicWatchAcceptance": {
+      "patch": "/tmp/next-testing-L-stage2-public-watch-acceptance-v1.patch",
+      "sha256": "8620cb3f115dfe0a90e246521d0d61f7910965584ad7ebe433f73d1f93671217",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_PUBLIC_WATCH.md",
+      "status": "Accepted: public watch 7, CLI 73, root types and build; default 5 profiles, 9 files, 13 final cases, 18 attempts and 6 browser artifacts; ordinary production 3. Expanded Node/RSC watch mutation checks separately accepted."
+    },
+    "integratedDiagnostics": {
+      "manifest": "/tmp/next-testing-stage2-diagnostics-integrated-v1.json",
+      "status": "Accepted and integrated: final d484 independent full build/types/compiled diagnostic checks and final fresh external package diagnostics."
+    },
+    "diagnosticsAcceptance": {
+      "patch": "/tmp/next-testing-L-stage2-diagnostics-acceptance-v1.patch",
+      "sha256": "97c0566957ea3739911db940ebff0bf9395dec6e036fa50e0c3e849d7b749d08",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE2_DIAGNOSTICS.md",
+      "packageArtifacts": "/tmp/next-testing-L-stage2-diagnostics-frozen-package-v1/artifacts.json",
+      "status": "Accepted and integrated; final external gate closed by STAGE2_PACKED_DIAGNOSTIC_ACCEPTANCE.md."
+    },
+    "integratedPackageVerifier": {
+      "manifest": "/tmp/next-testing-stage2-p2-final-integrated-v1.json",
+      "status": "Accepted and integrated: exact 13 files; all three failure-path controls and final six-command external runtime pass, independently audited by L."
+    },
+    "completion": "accepted",
+    "packedDiagnosticAcceptance": {
+      "patch": "/tmp/next-testing-L-stage2-packed-diagnostic-acceptance-v1.patch",
+      "sha256": "ee3f7be75efc86cab4210e76a4ae01256ca76adc06985ca51c51af76543e28b8",
+      "file": "test/e2e/app-dir/next-testing-reference/STAGE2_PACKED_DIAGNOSTIC_ACCEPTANCE.md",
+      "fileSha256": "16f7bc190b1cd3ec86b3da574e239a47d9787fbd0102e02c0bc8bc09af00e0ef",
+      "audit": "/tmp/next-testing-L-stage2-final-package-audit.json",
+      "auditSha256": "33a3569836310e230080bf0e9e48ab9ba100724243411e92ad4176bea4036b2f",
+      "status": "Accepted and integrated; final stage-two external package gate closed."
+    },
+    "acceptedNativeSha256": "d4845161d653b0359a5b93663c546ffb603c37f792592f0f7e9c1d0fbfaab658",
+    "handoffSnapshot": "/tmp/next-testing-stage2-accepted-final-v1.json",
+    "remainingScope": [
+      "Production test-entry profiles",
+      "Browser watch and browser component mounting",
+      "Coverage and editor integration",
+      "Broader Vitest APIs and mock forms",
+      "Precise dependency-based watch selection",
+      "Broader platform validation beyond recorded darwin-arm64 acceptance"
+    ]
+  },
+  "priorMilestoneLimitations": [
+    {
+      "owner": "A/L",
+      "consumer": "coordinator",
+      "description": "Production test-entry profiles remain unsupported; ordinary-production app safety3/3 and defaultdevelopment5profile reference command independently pass. Broader API/mock/watch/packaging release gates remain future workstreams."
+    }
+  ],
+  "stage3": {
+    "coordinator": "01a0a9ab-91b9-75c0-8598-4658b78268e6",
+    "projectId": "local-223fad83d575e72518eec96469831479",
+    "model": "gpt-6-astra",
+    "thinking": "medium",
+    "baseline": "/tmp/next-testing-stage3-baseline-v2.json",
+    "plan": "NEXT_TESTING_STAGE3_PLAN.md",
+    "buildSlot": "/tmp/next-testing-stage3-build-slot",
+    "firstHeavyWindow": "A3",
+    "status": "Stage three accepted and integrated: production Node/RSC/browser profiles, registered development component mounting, scoped Node line coverage, and clean packaged adoption.",
+    "tasks": [
+      {
+        "code": "A3",
+        "title": "Next testing stage 3: Production compilation",
+        "clientThreadId": "client-new-thread:137069ce-8280-4879-92e3-7c11443e9ca0",
+        "hostId": "local",
+        "status": "Accepted: production Node/RSC compiler, component fixture producer and exact27-input bf3a native independently verified and integrated.",
+        "threadId": "01a0ae2f-40e2-7600-a840-7101aae219b3",
+        "worktree": "/Users/timneutkens/.codex/worktrees/f714/next.js-2"
+      },
+      {
+        "code": "I3",
+        "title": "Next testing stage 3: Contracts and integration",
+        "clientThreadId": "client-new-thread:ce5a68fd-d1e8-4a48-a0fb-7e922cf735ca",
+        "hostId": "local",
+        "status": "Accepted: shared contracts, public capability inventory/CLI and orchestration integrated; exact scopes independently verified.",
+        "threadId": "01a0ae2f-40e2-7600-a840-70eb42350087",
+        "worktree": "/Users/timneutkens/.codex/worktrees/4ed3/next.js-2"
+      },
+      {
+        "code": "B3",
+        "title": "Next testing stage 3: Execution lifecycle",
+        "clientThreadId": "client-new-thread:103f4af4-864c-4d78-a55e-4e24c5f03d55",
+        "hostId": "local",
+        "status": "Accepted: production execution, worker coverage ownership, diagnostics, cancellation and cleanup verified through focused and actual integration checks.",
+        "threadId": "01a0ae2f-40e2-7600-a840-70cbc975c3c3",
+        "worktree": "/Users/timneutkens/.codex/worktrees/dd63/next.js-2"
+      },
+      {
+        "code": "E3",
+        "title": "Next testing stage 3: Rendering and fixture registration",
+        "clientThreadId": "client-new-thread:65371a52-0cbd-4107-bbb9-3a059ea089e1",
+        "hostId": "local",
+        "status": "Accepted: route-less production RSC rendering and registered server fixture semantics; real rendering, serialization and isolation checks pass.",
+        "threadId": "01a0ae2f-a4bc-7501-932b-26fe8b0b0f9b",
+        "worktree": "/Users/timneutkens/.codex/worktrees/23bf/next.js-2"
+      },
+      {
+        "code": "H3",
+        "title": "Next testing stage 3: Browser components and production e2e",
+        "clientThreadId": "client-new-thread:c39b4739-f028-4e29-a609-792ca0b08ef9",
+        "hostId": "local",
+        "status": "Accepted: production browser7/7 and development mounting5/5, plus clean external browser/mount phases and strict process/artifact evidence.",
+        "threadId": "01a0ae2f-a481-7af3-a3b6-fbe90ced4b6a",
+        "worktree": "/Users/timneutkens/.codex/worktrees/9ad5/next.js-2"
+      },
+      {
+        "code": "K3",
+        "title": "Next testing stage 3: Coverage and diagnostics",
+        "clientThreadId": "client-new-thread:33ba659a-a26a-4ec0-8add-d99e1fa8daf6",
+        "hostId": "local",
+        "status": "Accepted: mapped original-line Node coverage with independent multiline10/15 and retry9/15 oracles, public/external reports, rejection and lifecycle checks.",
+        "threadId": "01a0ae2f-a47b-7253-8c77-7821f779ae4a",
+        "worktree": "/Users/timneutkens/.codex/worktrees/d93e/next.js-2"
+      },
+      {
+        "code": "P3",
+        "title": "Next testing stage 3: Packaging and adoption",
+        "clientThreadId": "client-new-thread:93e902a4-2187-47ab-af07-37a2499e9a58",
+        "hostId": "local",
+        "status": "Accepted: all five clean external phases, installed declarations/bytes/native/runtime provenance, runnable guide and adoption record. Heavy slot released.",
+        "threadId": "01a0ae2f-a49e-7ff0-b149-ca6b6f81d4c0",
+        "worktree": "/Users/timneutkens/.codex/worktrees/f40c/next.js-2"
+      },
+      {
+        "code": "L3",
+        "title": "Next testing stage 3: Independent validation",
+        "clientThreadId": "client-new-thread:6a3017c6-053e-41b7-b99c-ff2dd1c2c422",
+        "hostId": "local",
+        "status": "Accepted: independent combined build/types/unit/integration/browser/coverage gates and all five external phases; canonical evidence and final source handoff integrated.",
+        "threadId": "01a0ae2f-b60c-72b3-91be-8dc5c1d57b7a",
+        "worktree": "/Users/timneutkens/.codex/worktrees/6bd1/next.js-2"
+      }
+    ],
+    "sourceBaselineAccepted": true,
+    "completion": "complete",
+    "contractsPending": [],
+    "taskBriefs": "/tmp/next-testing-stage3-task-briefs-v1.json",
+    "integrationPolicy": "Reviewed immutable patches and matching native/source provenance; independent acceptance by L3. Stage-two accepted source remains unchanged until increments pass.",
+    "firstHeavyWindowStatus": "Released after A3 verified baseline frozen installation and 18/18 full bootstrap tasks.",
+    "bootstrap": {
+      "status": "A3 verified accepted baseline source/native, frozen install and full build 18/18; watch stopped and slot released. This does not validate new stage-three source.",
+      "log": "/tmp/next-testing-stage3-a3-baseline-build.log",
+      "dependencyNetwork": "Configured-registry sandbox DNS failure resolved by normal frozen install via approved network-enabled execution; no registry or release-age bypass.",
+      "interruptedAttempt": "B3 acquired no slot but an unguarded shell started bootstrap; immediately interrupted with exit130 before build output. No result counted or foreign slot removed. Acquisition now requires a separate successful tool invocation plus ownership recheck."
+    },
+    "acceptancePreparation": {
+      "patch": "/tmp/next-testing-L3-matrix-v1.patch",
+      "sha256": "1a457b010faddb2a35db60e07866a920fdd80c9ca2ed1fc30006b0037cab10e3",
+      "canonicalEvidence": "test/e2e/app-dir/next-testing-reference/STAGE3_ACCEPTANCE.md",
+      "status": "Reviewed and integrated preparation matrix; no new capability accepted."
+    },
+    "contractAgreements": {
+      "production": "Version-2 artifacts retain exact profile mode; explicit optimized test graph and resolved request mode; test-driver compilation closes before H application build/start lease.",
+      "fixtures": "Canonical project-contained registered fixture IDs/data. H sole app compiler/server owns private host; A native synthetic standalone App Page and hot-reloader integration; E same-RSC semantics. No ordinary application route admission.",
+      "coverage": "I3-COV-1: K worker collector captures V8 ranges/exact script identity; B validates completion after authoritative exit/cleanup; I awaits K parent remapping exactly once while artifact maps remain leased, aggregates and seals report before run-end."
+    },
+    "ownershipExtensions": [
+      {
+        "owner": "H3",
+        "scope": "Internal BrowserFixtureHost plumbing through server-worker/start-server/router/setup-dev-bundler; A retains hot-reloader/native producer."
+      },
+      {
+        "owner": "B3",
+        "scope": "Narrow runner interrupted-result metadata and regression checks for timeout/abort versus ordinary assertion failure."
+      },
+      {
+        "owner": "A3",
+        "scope": "Virtual fixture filesystem/router admission in setup-dev-bundler on top of H3 field plumbing; immutable registered definitions preserved across refresh. H owns resolved basePath and external mount URLs."
+      },
+      {
+        "owner": "H3",
+        "scope": "Optional resolved basePath on internal server readiness result, including render-server result type; external fixture URL only, native logical route keys unchanged."
+      }
+    ],
+    "pendingContractSource": {
+      "patch": "/tmp/next-testing-stage3-I3-contracts-v1.patch",
+      "sha256": "55616d40446e9adcd96da31efe3a600d9b26a1b445ec659939a45904f3a142a1",
+      "status": "Historical contract handoff superseded by accepted integrated I3 source and stage-three contracts."
+    },
+    "buildQueue": "Complete; P released slot, no heavy work remains.",
+    "independentBaselineBootstrap": {
+      "owner": "L3",
+      "status": "Full unchanged baseline build passed 18/18 (16 cache) in 3m53s; no native dlopen observed and no new-source acceptance. Slot released; generator network stall stopped separately.",
+      "log": "/tmp/next-testing-L3-baseline-build.log"
+    },
+    "candidateNative": {
+      "manifest": "/tmp/next-testing-stage3-A3-native-fixture-v8.json",
+      "nativeSha256": "bf3a816d5b789d01340c913bfd20134a98b486baf413fcffb6ac4a522ce111d2",
+      "status": "Accepted and integrated; acceptedNative/sourceNative reference exact27-input bf3a pair."
+    },
+    "candidateHandoffs": [
+      {
+        "owner": "A3",
+        "patch": "/tmp/next-testing-stage3-A3-production-v3.patch",
+        "manifest": "/tmp/next-testing-stage3-A3-production-v3.json",
+        "sha256": "e88a69f152e890947e0486dac6f406227b4c850574f9ddf2848801d6e01ef441",
+        "status": "Accepted: production Node/RSC compiler, component fixture producer and exact27-input bf3a native independently verified and integrated."
+      },
+      {
+        "owner": "I3",
+        "patch": "/tmp/next-testing-stage3-I3-source-v4.patch",
+        "manifest": "/tmp/next-testing-stage3-I3-source-v4.json",
+        "sha256": "9f710accb720f5721ee49344e4a7519b3695bc00eb0292a6e7daa0a284aec3a5",
+        "status": "Accepted: shared contracts, public capability inventory/CLI and orchestration integrated; exact scopes independently verified."
+      },
+      {
+        "owner": "B3",
+        "patch": "/tmp/next-testing-stage3-B3-source-v3.patch",
+        "manifest": "/tmp/next-testing-stage3-B3-source-v3.json",
+        "sha256": "e5bf1f49ca5db6fca44135ded6cfbe75444fa8ebe8d3b38a8c1a349f3591ceb7",
+        "status": "Accepted: production execution, worker coverage ownership, diagnostics, cancellation and cleanup verified through focused and actual integration checks."
+      },
+      {
+        "owner": "E3",
+        "patch": "/tmp/next-testing-stage3-E3-source-v3.patch",
+        "manifest": "/tmp/next-testing-stage3-E3-source-v3.json",
+        "sha256": "7004132088162183e3b64f5bb0d293c1cbd70b876406f19cc7ba697b26a6ebbd",
+        "status": "Accepted: route-less production RSC rendering and registered server fixture semantics; real rendering, serialization and isolation checks pass."
+      },
+      {
+        "owner": "H3",
+        "patch": "/tmp/next-testing-stage3-H3-source-v7.patch",
+        "manifest": "/tmp/next-testing-stage3-H3-source-v7.json",
+        "sha256": "ef8905a57b61f66155fc257920a367b8da2f2097b68dab914e7aab0bc35e7234",
+        "status": "Accepted: production browser7/7 and development mounting5/5, plus clean external browser/mount phases and strict process/artifact evidence."
+      },
+      {
+        "owner": "K3",
+        "patch": "/tmp/next-testing-stage3-K3-source-v4.patch",
+        "manifest": "/tmp/next-testing-stage3-K3-source-v4.json",
+        "sha256": "cb35402eb2f03ea1e9adb703b15d74c52f59e97c4f325bc52ef25f37d1db2640",
+        "status": "Accepted: mapped original-line Node coverage with independent multiline10/15 and retry9/15 oracles, public/external reports, rejection and lifecycle checks."
+      },
+      {
+        "owner": "P3",
+        "patch": "/tmp/next-testing-stage3-p3-v6.patch",
+        "manifest": "/tmp/next-testing-stage3-p3-v6.json",
+        "sha256": "855c72cbc86aea51a95662f7817068e0bce696ac93df2d697fb031c3f15f2b9b",
+        "status": "Accepted: all five clean external phases, installed declarations/bytes/native/runtime provenance, runnable guide and adoption record. Heavy slot released."
+      },
+      {
+        "owner": "L3",
+        "patch": "/tmp/next-testing-L3-reference-fixture-v4.patch",
+        "manifest": "/tmp/next-testing-L3-reference-fixture-v4.json",
+        "sha256": "9aa2e33208ce72708f7d35c39425a836e7fa22e2ce960a20ffcff16d98c7e365",
+        "status": "Accepted: independent combined build/types/unit/integration/browser/coverage gates and all five external phases; canonical evidence and final source handoff integrated."
+      }
+    ],
+    "sourceReviewCorrections": {
+      "productionServer": "H exact ready output identity and inherited build env fixes reviewed; owner production gates pass.",
+      "browserErrors": "H retains errors through resource closure; focused31 checks and owner browser gates pass.",
+      "fixtureData": "E proxy admission correction reviewed and focused checks pass.",
+      "coverage": "K4 exact source/map identity reviewed; focused15 and actual public exact-line/retry gates pass on selected runtime.",
+      "packaging": "P6 plus reviewed distinct preload, /docs mounting fixture and process runtime provenance deltas includedv9; actual external consumers pending.",
+      "executionCancellation": "B exact abort-reason handling reviewed; focused execution108 and actual worker cancellation checks reached successfully.",
+      "virtualRouting": "A fixture7 admission/refresh/fallback and standard builtin boundaries reviewed; real owner Chromium5/5 passes.",
+      "basePath": "H actual ready basePath prefix verified in owner /docs mount gate.",
+      "harnessCleanup": "H10 removes competing outer timeout, reuses accepted owned-process supervisor and portable native lookup; reviewed forced-timeout cleanup evidence.",
+      "watchRegression": "Controlled null-filename notification preserves exact root-only assertion; real native watcher checks unchanged.",
+      "staticMocksRegression": "Explicit retained jsconfig makes existing alias assertion reproducible in frozen fixture.",
+      "nodeTestReporting": "Five wrappers explicitly select TAP so exact assertions survive Node24 default reporter change;21 tests pass."
+    },
+    "combinedSourcePreflight": {
+      "manifest": "/tmp/next-testing-stage3-source-preflight-v2.json",
+      "patch": "/tmp/next-testing-stage3-source-preflight-v2.patch",
+      "sha256": "80f607ce0ece6f93351cd4a6d494e87f8b4bc5caa0bf9b0d5fc0c986520e0881",
+      "files": 100,
+      "nativeInputsVerified": 21,
+      "status": "Private index only; root product unchanged. Known pending replacements B3 cancellation error classification, H4 fixture oracle, E3 final type-test fix and I public Node candidate."
+    },
+    "renderingFocusedVerification": {
+      "owner": "E3",
+      "manifest": "/tmp/next-testing-stage3-E3-evidence-v3.json",
+      "source": "/tmp/next-testing-stage3-E3-source-v3.json",
+      "result": "Build18/18,7 suites101 tests, final bridge39 and root types pass with native9709. Actual production RSC and registered browser still pending."
+    },
+    "nodeCandidateDispatch": {
+      "manifest": "/tmp/next-testing-stage3-node-candidate-v3.json",
+      "patch": "/tmp/next-testing-stage3-node-candidate-v3.patch",
+      "sha256": "c4a794eecbbc3d4bd51849d1f0795071966c80d0b1412ced0a988a1901caa72b",
+      "files": 136,
+      "nativeSha256": "9709a15f96964c3923a2b16e30150e1defb1d358c06426bba3e9b2e0dadf7fbe",
+      "status": "L independently materialized v2 (135 paths); reviewed five-path v3 correction dispatched. Actual combined public/worker acceptance pending.",
+      "materialization": "L3 applied once and independently verified133/133 source and21/21 native input hashes; installed exact9709 local native. Runtime pending assigned slot.",
+      "increment": "/tmp/next-testing-stage3-node-after-v2-v3.patch",
+      "incrementSha256": "b431127e2c786d6a980eb4525a7ca0b5faea59c3e51d3b1b31bf59aaf74643ae"
+    },
+    "coverageLimitations": [
+      "One-shot development Node imported-source line coverage only.",
+      "No snapshot update combined with coverage; no cross-output transaction.",
+      "No mocked artifacts, watch, broader environments or branch/function parity."
+    ],
+    "coverageVerification": {
+      "owner": "B3/K3",
+      "status": "Independent real multiline and two-worker/retry producer checks pass exact pre-execution eligible/covered line sets:15/10 and15/9. Failed-attempt-only contributions retained, uncalled bodies uncovered; complete/errors[], artifacts removed and supervised processes absent. Public capability/CLI/report acceptance pending.",
+      "logs": [
+        "/tmp/next-testing-stage3-b3-focused-v1.log",
+        "/tmp/next-testing-stage3-b3-k-focused-v2.log",
+        "/tmp/next-testing-stage3-b3-actual-v1.log",
+        "/tmp/next-testing-L3-worker-v1.log"
+      ],
+      "scope": "Compiler metadata and actual worker/remapping execute. Full public coverage remains gated. Original failed suite remains recorded; no rewritten result.",
+      "correctedEvidence": [
+        "/tmp/next-testing-stage3-K3-evidence-v1.json",
+        "/tmp/next-testing-stage3-B3-evidence-v1.json"
+      ],
+      "sourceReview": "K4 mapping and B collector.js corrections verified in actual run. B exact original-frame/reporting assertion delta reviewed without product changes.",
+      "diagnosticAudit": "/tmp/next-testing-L3-worker-v1-diagnostic-audit.json",
+      "independentEvidence": "/tmp/next-testing-L3-coverage-producer-evidence-v1.json",
+      "multilineOracle": "/tmp/next-testing-L3-coverage-v1/expected-lines.json",
+      "retryOracle": "/tmp/next-testing-L3-coverage-retry-v1/expected-lines.json",
+      "metric": "Original-source lines represented by mapped non-whitespace generated spans; mapped delimiters may count and eliminated syntax may be absent. Not Istanbul statement/branch/function parity."
+    },
+    "pendingDeltas": [],
+    "componentProducerCandidate": {
+      "manifest": "/tmp/next-testing-stage3-A3-native-fixture-v7.json",
+      "nativeSha256": "bc4e1d17dfe34f9e50b29101ffb6f881c5c20b8dffd39040ac7504a97dd62439",
+      "evidence": "/tmp/next-testing-stage3-A3-fixture-evidence-v2.json",
+      "status": "A owner native/full build18/18 and real H8 Chromium5/5 pass: normal route, registered async SSR/hydration, cancellation isolation, router refresh,/docs. All owned audited processes exited. Earlier failure logs retained; H production and L combined gates pending."
+    },
+    "componentCandidateDispatch": {
+      "patch": "/tmp/next-testing-stage3-component-candidate-v9.patch",
+      "sha256": "835808595938e9e404dc4d7b00b8db68ec7f7c8122502e4f50ffd2c7a63ae0bb",
+      "increment": "/tmp/next-testing-stage3-component-after-v8-v9.patch",
+      "incrementSha256": "cea8167580e5406dd7e0d73bfb503deac02dc9538bbc7c415549d57b5a519383",
+      "nativeManifest": "/tmp/next-testing-stage3-A3-native-fixture-v8.json",
+      "nativeSha256": "bf3a816d5b789d01340c913bfd20134a98b486baf413fcffb6ac4a522ce111d2",
+      "manifest": "/tmp/next-testing-stage3-component-candidate-v9.json",
+      "files": 158,
+      "status": "Exact v9 producer independently accepted; immutable package bytes remain tied to this source. Final integration adds reviewed verifier/fixture/documentation changes only."
+    },
+    "rscAcceptanceApproach": "L first validates real isolated production RSC producer against normal-route oracle via internal compiler/executor, no mocks/capability override; I scope widens after evidence, then L/P ordinary public CLI/package acceptance. No prerender/PPR/context claim.",
+    "browserOwnerVerification": {
+      "owner": "H3",
+      "status": "Owner production7/7 passed including actual compile\u2192shutdown\u2192ordinary app\u2192browser worker, instrumentation positive control, output contention and stale output rejection. Dev Chromium5/5 also passed. H10 test-only timeout supervision and portable binding lookup reviewed; forced timeout and nominal control pass. Full H10 independent rerun pending.",
+      "evidence": "/tmp/next-testing-stage3-H3-final-evidence-v1.json",
+      "harnessCorrection": "/tmp/next-testing-stage3-H3-after-v8-v10.json",
+      "timeoutEvidence": "/tmp/next-testing-stage3-H3-timeout-evidence-v1.json"
+    },
+    "independentCombinedChecks": {
+      "candidate": "/tmp/next-testing-stage3-component-candidate-v2.json",
+      "build": "18/18 passed, zero cache",
+      "types": "Root pnpm typescript passed",
+      "cli": "85/85 passed",
+      "packagingSource": "P6 all33 source hashes and23 JS/TS ESLint passed",
+      "logs": [
+        "/tmp/next-testing-L3-component-v2-build.log",
+        "/tmp/next-testing-L3-component-v2-types.log",
+        "/tmp/next-testing-L3-component-v2-cli-unit.log",
+        "/tmp/next-testing-L3-P3-v6-lint.log"
+      ],
+      "latestBuild": {
+        "candidate": "/tmp/next-testing-stage3-component-candidate-v5.json",
+        "log": "/tmp/next-testing-L3-component-v5-build-unrestricted.log",
+        "result": "18/18 passed41.023s. Initial sandbox-local-port denial retained separately; no source correction required."
+      }
+    },
+    "independentProductionVerification": {
+      "log": "/tmp/next-testing-L3-reference-v4.log",
+      "nativeAudit": "/tmp/next-testing-L3-reference-v4-native.jsonl",
+      "candidate": "/tmp/next-testing-stage3-component-candidate-v5.json",
+      "result": "3/3 independent reference checks passed46.42s on exactbf3a native. Public production Node2files/2cases and ordinary route pass. Real internal production RSC2cases pass cookie isolation, client identity and precise invalid serialization assertion. Coverage/update negative passes. Public RSC activation and ordinary CLI check pending.",
+      "priorFailure": "Reference-v2 production RSC metadata inventory omission retained; corrected AppEndpoint::Test production inventory and paired nativebf3a resolve it.",
+      "cleanup": "Frozen evidence confirms artifacts removed and all6owned PIDs absent; /tmp/next-testing-L3-reference-v4-evidence.json."
+    },
+    "coverageOracleRequirement": "Freeze exact eligible/covered source-line sets before first report inspection, including multiline expressions and retained uncalled bodies. Mapping anchors alone cannot define expected eligibility; no Istanbul branch/function parity claim.",
+    "independentBrowserChecks": {
+      "development": {
+        "log": "/tmp/next-testing-L3-component-dev-v1.log",
+        "passed": 4,
+        "failed": 1,
+        "remaining": "BasePath mount500: installed Next pages runtime cannot resolve @swc/helpers/_/_interop_require_default. H investigating preserved fixture; no assertion relaxed.",
+        "diagnosis": "Helpers installed and real .pnpm path resolves. Failed restarted server uses logical package symlink paths. A/H found no justified compiler/native/dependency change; L preparing scoped resolver trace.",
+        "tracedResult": "5/5 passed, but realpath tracing masks underlying Node bug; not accepted as final untraced gate.",
+        "untracedReproduction": "Both initial and basePath server fail onNode20.20.0; standalone no-Next repro proves Nodecore cached-prefix/shared-stat-buffer issue.",
+        "latestLog": "/tmp/next-testing-L3-component-dev-node24-v1.log",
+        "latestResult": "Untraced5/5 passed24.123s on stock Node24.21.0; strict runtime/native audits pass. Earlier failures and masked traced run retained."
+      },
+      "production": {
+        "log": "/tmp/next-testing-L3-component-prod-v1.log",
+        "passed": 6,
+        "failed": 1,
+        "remaining": "Compiled browser-driver test fails strict owned-process supervision due missing descendant startup records. H/P investigating retained evidence; ordinary/instrumented app, lock, omission and phase-output checks pass.",
+        "diagnosis": "Driver itself passed. Next worker option formatting collapses duplicate --require, losing startup audit when native-audit preload follows. P preparing native audit --import while accepted startup --require remains; strict missing-record checks retained.",
+        "latestEvidence": "/tmp/next-testing-L3-browser-production-v2-evidence.json",
+        "latestLog": "/tmp/next-testing-L3-component-prod-v2.log",
+        "latestResult": "7/7 passes47.913s;13ownedPIDs absent, startuprecords complete, no leaks/cleanup failures; unchanged product source."
+      },
+      "status": "Both actual browser gates now pass with strict supervision. Earlier failures remain documented; no product resolver shim or filesystem warmup."
+    },
+    "independentPublicVerification": {
+      "evidence": "/tmp/next-testing-L3-public-v6-evidence.json",
+      "productionRsc": "1file2cases passed through normal CLI",
+      "multilineCoverage": "1file1case exact10/15 lines, complete JSON and text reports",
+      "retryCoverage": "2files2cases exact9/15, failed-attempt branch retained, finalpass/exit0 with expected retry diagnostic",
+      "runtime": "Exact multiline/retry coverage repeated successfully on Node24.21.0; /tmp/next-testing-L3-public-coverage-node24-evidence-v1.json. Production RSC prior public CLI also passed.",
+      "cleanup": "Strict audit passed; all owned PIDs absent."
+    },
+    "validationRuntime": {
+      "selected": "Node24.21.0 darwin-arm64, per-command only",
+      "verification": "/tmp/next-testing-stage3-node-v24.21.0/verification.json",
+      "binary": "/tmp/next-testing-stage3-node-v24.21.0/node-v24.21.0-darwin-arm64/bin/node",
+      "binarySha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+      "officialArchiveSha256": "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057",
+      "upstreamSource": "https://github.com/nodejs/node/blob/v24.21.0/lib/fs.js",
+      "release": "https://nodejs.org/en/blog/release/v24.21.0",
+      "cause": "Cached realpath prefix incorrectly inspected shared global stat result from unrelated FIFO/socket stat; upstream corrected traversal-local reachedPipeOrSocket state.",
+      "proof": [
+        "/tmp/next-testing-stage3-H3-node-realpath-repro-v1.json",
+        "/tmp/next-testing-stage3-A3-node-realpath-evidence.json",
+        "/tmp/next-testing-stage3-root-node-realpath-matrix.json",
+        "/tmp/next-testing-stage3-root-node-realpath-matrix-extended.json"
+      ],
+      "decision": "Stock Node24.21.0 per command, official archive/binary hashes verified. Untraced dev, public coverage/regressions and all clean external phases pass. Older reproduced upstream realpath defect retained; no package engine-range or global/project runtime change."
+    },
+    "regressionVerification": {
+      "unitLog": "/tmp/next-testing-L3-regression-unit-node24-v1.log",
+      "unitResult": "Explicit26-file run initially20 suites passed6 failed: five reporter assumptions corrected and passed21 tests; deterministic null watcher correction pending focused rerun.",
+      "integrationLog": "/tmp/next-testing-L3-regression-integration-node24-v1.log",
+      "integrationResult": "Actual stage3 worker, snapshot-update CLI and watch CLI pass. Static mocks retained alias config correction pending focused rerun.",
+      "candidate": "/tmp/next-testing-stage3-component-candidate-v9.json",
+      "correctionScope": "Test inputs/reporting and package validation runtime provenance only; no new product/native changes.",
+      "correctedResults": "Five explicit TAP wrappers21 tests, deterministic watcher20/20 and actual static-mocks4/4 pass. Original failures retained separately.",
+      "finalTypes": "Final root pnpm typescript passed afterv9, targeted formatting/lint passed."
+    },
+    "packageFreeze": {
+      "directory": "/tmp/next-testing-stage3-L3-packages-v1",
+      "manifestHashes": {
+        "artifacts.json": "6a2ea80e202d4e342f73ac70a478701d1244561dd29b51fd5f2281e5823c7522",
+        "source-manifest.json": "57b7952f3f6eeafa534d1cd1eabbc7f49559f362ce4b15338b67ac73a1cf76c1",
+        "archive-verification.json": "91c15009769aad28c9030fd151f6898413b6cdc936647664947b866e9200715c"
+      },
+      "artifacts": {
+        "next": {
+          "path": "/private/tmp/next-testing-stage3-L3-packages-v1/packs/next-16.4.0-canary.17.tgz",
+          "sha256": "6951906b4006696b4137a2d1c7a3b7df11ee43dc831c1f3c3f5ed171942cb0b8"
+        },
+        "@next/env": {
+          "path": "/private/tmp/next-testing-stage3-L3-packages-v1/packs/next-env-16.4.0-canary.17.tgz",
+          "sha256": "8180e08190aede6fbdc85ff4e0562516843220447db649ece0de6e848ea42d20"
+        },
+        "@next/swc-darwin-arm64": {
+          "path": "/private/tmp/next-testing-stage3-L3-packages-v1/packs/next-swc-darwin-arm64-16.4.0-canary.17.tgz",
+          "sha256": "a70e5efe8446495dd8668074f8e142cbc73d67a06eec4a8a011ac1b7ab7cb224"
+        },
+        "@next/playwright": {
+          "path": "/private/tmp/next-testing-stage3-L3-packages-v1/packs/next-playwright-16.4.0-canary.17.tgz",
+          "sha256": "c0937ce44970e0b05ce84d55e0807461770132e27276220e9ddcc9e2beddb318"
+        }
+      },
+      "source": "/tmp/next-testing-stage3-component-candidate-v9.json",
+      "status": "Accepted: all archive bytes/provenance and all five external installed-package phases independently verified."
+    },
+    "integrationCandidate": {
+      "manifest": "/tmp/next-testing-stage3-integration-candidate-v12.json",
+      "patch": "/tmp/next-testing-stage3-integration-candidate-v12.patch",
+      "sha256": "35067bc80c763f43fd9a7a436cbbc4731ff027b9694219a83aa03edb0f58ce00",
+      "paths": 195,
+      "status": "All root postimages verified after source/doc integration. Exact product/runtime archive producer remainsv9; final verifier, fixtures and documentation included in v12."
+    },
+    "externalAcceptance": {
+      "consumer": "/tmp/next-testing-stage3-P3-consumer-v1",
+      "producer": "/tmp/next-testing-stage3-component-candidate-v9.json",
+      "status": "Accepted: five clean external phases plus strict installed JS/TS declarations, exact original-line coverage, browser artifacts and owned-process cleanup independently audited.",
+      "verifierCorrection": "Coverage fixture intentionally retains exact first failed-attempt diagnostic after successful retry; narrow assertion correction before coverage run. Frozen producer/archive provenance unchanged; record verifier delta separately.",
+      "aggregate": "/tmp/next-testing-stage3-P3-acceptance-v1.json",
+      "independentAudit": "/tmp/next-testing-L3-packed-final-audit-v1.json",
+      "rootEvidenceHashesVerified": 174
+    },
+    "sourceIntegration": {
+      "status": "Final source, verifier, fixtures and documentation integrated and independently accepted.",
+      "manifest": "/tmp/next-testing-stage3-integration-candidate-v11.json",
+      "patchSha256": "423c7379d9d8f614ca0981f3dfb4bc5b400d8c6eee37c6ee5af9109789bac986",
+      "sourcePathsVerified": 194,
+      "nativeInputsVerified": 27,
+      "nativeSha256": "bf3a816d5b789d01340c913bfd20134a98b486baf413fcffb6ac4a522ce111d2",
+      "independentPackageAudit": "/tmp/next-testing-L3-packed-final-audit-v1.json",
+      "independentPackageAuditSha256": "c5468064fbf6fbd0deec2bc43b7ab35e823052086fd3e82e19cd7b7b685b2bbd",
+      "packageEvidenceFilesVerified": 174,
+      "finalManifest": "/tmp/next-testing-stage3-integration-candidate-v12.json",
+      "finalSourcePathsVerified": 195
+    },
+    "documentation": {
+      "guide": "test/e2e/app-dir/next-testing-package/GUIDE.md",
+      "packageAcceptance": "test/e2e/app-dir/next-testing-package/STAGE3_PACKAGING.md",
+      "independentAcceptance": "test/e2e/app-dir/next-testing-reference/STAGE3_ACCEPTANCE.md",
+      "status": "Independent scope, runnable commands, source/evidence hashes and links reviewed; final three docs Prettier check passes."
+    },
+    "finalSnapshot": {
+      "manifest": "/tmp/next-testing-stage3-accepted-final-v1.json",
+      "snapshot": "/tmp/next-testing-stage3-accepted-final-v1.patch",
+      "materialization": "Full snapshot applied once to base602a2aba900e45fb2edd694f463f435430678e1f. Do not layer historical patches. Matching native source/binary required."
+    },
+    "remainingScope": [
+      "Production component mounting",
+      "Browser watch and precise affected selection",
+      "Coverage outside one-shot development Node imported original-line metric",
+      "Coverage with mocks or snapshot updates; branch/function parity, thresholds and unimported-file scanning",
+      "Production mocks, RSC prerender/PPR/action transport and route/layout inference",
+      "Further Vitest APIs and broader platform/browser/runtime evidence"
+    ]
+  }
+}

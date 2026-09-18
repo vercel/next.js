@@ -10,7 +10,11 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bytes::Bytes;
-use futures::join;
+use futures::{
+    FutureExt,
+    future::{BoxFuture, Shared, join_all},
+    join,
+};
 use owo_colors::OwoColorize;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
@@ -32,7 +36,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, ShutdownPoolFuture},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
@@ -568,6 +572,19 @@ type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
 /// All non-empty `IdleProcessQueues`s of the whole application.
 /// This is used to scale down processes globally.
 static ACTIVE_POOLS: LazyLock<IdleProcessQueues> = LazyLock::new(Default::default);
+type ProcessClosure = Shared<BoxFuture<'static, Result<(), String>>>;
+static PENDING_CLOSURES: Mutex<Vec<ProcessClosure>> = Mutex::new(Vec::new());
+static PENDING_PREWARMS: Mutex<Vec<Shared<BoxFuture<'static, ()>>>> = Mutex::new(Vec::new());
+
+fn track_prewarm(operation: impl Future<Output = ()> + Send + 'static) {
+    let operation = operation.boxed().shared();
+    {
+        let mut pending = PENDING_PREWARMS.lock();
+        pending.retain(|operation| operation.peek().is_none());
+        pending.push(operation.clone());
+    }
+    tokio::spawn(operation);
+}
 
 /// Arguments needed to spawn a new Node.js process. Extracted so that
 /// `pre_warm` can clone them once instead of cloning each pool field
@@ -731,6 +748,45 @@ impl NodeBackend for ChildProcessesBackend {
         ChildProcessPool::scale_zero();
         Ok(())
     }
+
+    fn shutdown(&self) -> ShutdownPoolFuture {
+        Box::pin(async {
+            // Prewarming is detached from task execution, so include it before draining idle pools.
+            let prewarms = PENDING_PREWARMS.lock().clone();
+            join_all(prewarms).await;
+            PENDING_PREWARMS
+                .lock()
+                .retain(|operation| operation.peek().is_none());
+            let pools = ACTIVE_POOLS.lock().clone();
+            for pool in pools {
+                for mut process in pool.drain_available(&ACTIVE_POOLS) {
+                    let operation = async move {
+                        if let Some(mut child) = process.child.take() {
+                            child.kill().await.map_err(|error| error.to_string())?;
+                        }
+                        Ok(())
+                    }
+                    .boxed()
+                    .shared();
+                    PENDING_CLOSURES.lock().push(operation.clone());
+                    tokio::spawn(async move {
+                        let _ = operation.await;
+                    });
+                }
+            }
+            // Retain closure futures until completion, even if this shutdown waiter is cancelled.
+            let pending = PENDING_CLOSURES.lock().clone();
+            let results = join_all(pending.iter().cloned()).await;
+            PENDING_CLOSURES
+                .lock()
+                .retain(|operation| !pending.iter().any(|awaited| operation.ptr_eq(awaited)));
+            let errors: Vec<_> = results.into_iter().filter_map(Result::err).collect();
+            if !errors.is_empty() {
+                bail!("Failed to close loader processes: {}", errors.join("; "));
+            }
+            Ok(())
+        })
+    }
 }
 
 #[async_trait::async_trait]
@@ -769,7 +825,7 @@ impl EvaluateOperation for ChildProcessPool {
         let idle_processes = self.idle_processes.clone();
         let stats = self.stats.clone();
 
-        tokio::spawn(async move {
+        track_prewarm(async move {
             let Ok(bootup_permit) = bootup_semaphore.clone().acquire_owned().await else {
                 return;
             };
@@ -974,5 +1030,40 @@ impl Drop for ChildProcessOperation {
                 self.idle_processes.push(process, &ACTIVE_POOLS);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+
+    use super::*;
+
+    #[tokio::test]
+    async fn shutdown_waits_for_delayed_prewarm_after_cancelled_wait() {
+        let (release, blocked) = tokio::sync::oneshot::channel();
+        let completed = Arc::new(AtomicBool::new(false));
+        track_prewarm({
+            let completed = completed.clone();
+            async move {
+                blocked.await.unwrap();
+                completed.store(true, Ordering::Release);
+            }
+        });
+        let mut first = ChildProcessesBackend.shutdown();
+        assert!(futures::poll!(&mut first).is_pending());
+        drop(first);
+        let mut second = ChildProcessesBackend.shutdown();
+        assert!(futures::poll!(&mut second).is_pending());
+        assert!(!completed.load(Ordering::Acquire));
+        release.send(()).unwrap();
+        timeout(Duration::from_secs(5), second)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(completed.load(Ordering::Acquire));
     }
 }

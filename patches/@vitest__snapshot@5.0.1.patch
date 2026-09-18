@@ -1,0 +1,16 @@
+diff --git a/dist/index.js b/dist/index.js
+index 18a9f523d7fc05343724f3e9124bc6c636c848dd..e3ee1597971671d68755669fb2fa6821fd9e4468 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -291,8 +291,10 @@ class SnapshotState {
+ 			const name = keyToTestName(key);
+ 			const count = this._counters.get(name);
+ 			if (count > 0) {
+-				if (key in this._snapshotData || key in this._initialData) {
++				if (key in this._initialData) {
+ 					this._snapshotData[key] = this._initialData[key];
++				} else {
++					delete this._snapshotData[key];
+ 				}
+ 				this._counters.set(name, count - 1);
+ 			}

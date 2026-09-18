@@ -80,6 +80,9 @@ use crate::{
 #[turbo_tasks::value(shared, task_input)]
 #[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
+    /// An explicitly registered Node test or Node browser-driver entry. This is
+    /// not a route, React server component, or browser-realm module.
+    Test,
     Pages {
         pages_dir: FileSystemPath,
     },
@@ -202,7 +205,7 @@ pub async fn get_server_resolve_options_context(
 
     if *next_config.enable_cache_components().await?
         // Middleware shouldn't use the "next-js" condition because it doesn't have all Next.js APIs available
-        && !matches!(ty, ServerContextType::Middleware { .. } |  ServerContextType::Instrumentation { .. })
+        && !matches!(ty, ServerContextType::Test | ServerContextType::Middleware { .. } |  ServerContextType::Instrumentation { .. })
     {
         custom_conditions.push(rcstr!("next-js"));
     };
@@ -240,6 +243,12 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. } => {
             vec![
                 ResolvedVc::upcast(next_node_shared_runtime_plugin),
+                ResolvedVc::upcast(server_external_packages_plugin),
+                ResolvedVc::upcast(next_external_plugin),
+            ]
+        }
+        ServerContextType::Test => {
+            vec![
                 ResolvedVc::upcast(server_external_packages_plugin),
                 ResolvedVc::upcast(next_external_plugin),
             ]
@@ -594,7 +603,9 @@ pub async fn get_server_module_options_context(
     };
 
     let module_options_context = match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Test
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesApi { .. } => {
             next_server_rules.extend(source_transform_rules);
             if let ServerContextType::Pages { .. } = ty {
                 next_server_rules.push(
@@ -602,13 +613,18 @@ pub async fn get_server_module_options_context(
                         .await?,
                 );
             }
-            next_server_rules.extend(page_transform_rules);
+            if !matches!(ty, ServerContextType::Test) {
+                next_server_rules.extend(page_transform_rules);
+            }
 
             foreign_next_server_rules.extend(internal_custom_rules);
 
             let (url_rewrite_behavior, static_url_tag) = {
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
-                if let ServerContextType::PagesApi { .. } = ty {
+                if matches!(
+                    ty,
+                    ServerContextType::Test | ServerContextType::PagesApi { .. }
+                ) {
                     (Some(UrlRewriteBehavior::Full), None)
                 } else {
                     (Some(UrlRewriteBehavior::Relative), Some(rcstr!("client")))

@@ -689,6 +689,42 @@ function bindingToApi(
       }
     }
 
+    async testEntry({
+      file,
+      id,
+      environment,
+      setupFiles = [],
+    }: {
+      file: string
+      id: string
+      environment: 'rsc' | 'node' | 'browser'
+      setupFiles?: readonly string[]
+    }): Promise<Endpoint> {
+      if (typeof binding.projectTestEntry !== 'function') {
+        throw new Error(
+          'The installed Turbopack binding does not support test entries'
+        )
+      }
+      if (
+        setupFiles.length > 0 &&
+        (typeof binding.projectTestEntrySetupVersion !== 'function' ||
+          binding.projectTestEntrySetupVersion() !== 1)
+      ) {
+        throw new Error(
+          'The installed Turbopack binding does not support compiled test setup files'
+        )
+      }
+      return new EndpointImpl(
+        await binding.projectTestEntry(
+          this._nativeProject,
+          file,
+          id,
+          environment,
+          [...setupFiles]
+        )
+      )
+    }
+
     async update(options: PartialProjectOptions) {
       await binding.projectUpdate(
         this._nativeProject,
@@ -855,6 +891,15 @@ function bindingToApi(
 
     constructor(nativeEndpoint: { __napiType: 'Endpoint' }) {
       this._nativeEndpoint = nativeEndpoint
+    }
+
+    async writeToDiskSnapshot(
+      directory: string
+    ): Promise<TurbopackResult<WrittenEndpoint>> {
+      return (await binding.endpointWriteToDisk(
+        this._nativeEndpoint,
+        directory
+      )) as TurbopackResult<WrittenEndpoint>
     }
 
     async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {

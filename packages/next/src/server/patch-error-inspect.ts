@@ -190,7 +190,9 @@ interface SourcemappableStackFrame extends StackFrame {
 }
 
 interface SourceMappedFrame {
+  original: boolean
   stack: IgnorableStackFrame
+  getSourceContent?: () => string | null
   // DEV only
   code: string | null
 }
@@ -199,6 +201,7 @@ function createUnsourcemappedFrame(
   frame: SourcemappableStackFrame
 ): SourceMappedFrame {
   return {
+    original: false,
     stack: {
       file: frame.file,
       line1: frame.line1,
@@ -237,10 +240,7 @@ function getSourcemappedFrameIfPossible(
   frame: SourcemappableStackFrame,
   sourceMapCache: SourceMapCache,
   inspectOptions: util.InspectOptions
-): {
-  stack: IgnorableStackFrame
-  code: string | null
-} {
+): SourceMappedFrame {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
@@ -360,6 +360,7 @@ function getSourcemappedFrameIfPossible(
     sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
     return {
+      original: false,
       stack: {
         arguments: frame.arguments,
         file: frame.file,
@@ -409,25 +410,73 @@ function getSourcemappedFrameIfPossible(
 
   /** undefined = not yet computed */
   let codeFrame: string | null | undefined
+  const getSourceContent = () =>
+    sourceMapConsumer.sourceContentFor(
+      sourcePosition.source,
+      /* returnNullOnMissing */ true
+    ) ?? null
 
   return {
+    original: true,
     stack: originalFrame,
+    getSourceContent,
     get code() {
       if (codeFrame === undefined) {
-        const sourceContent: string | null =
-          sourceMapConsumer.sourceContentFor(
-            sourcePosition.source,
-            /* returnNullOnMissing */ true
-          ) ?? null
         codeFrame = getOriginalCodeFrame(
           originalFrame,
-          sourceContent,
+          getSourceContent(),
           inspectOptions.colors
         )
       }
       return codeFrame
     },
   }
+}
+
+/**
+ * Source attribution for structured diagnostics, using the same lookup and
+ * consumer as Error inspection. Retains ignored and unmapped frames as evidence;
+ * never computes code frames or changes the original error's stack. Source
+ * content access is opt-in and lazy, and uses only the mapped payload.
+ */
+export function getSourceMappedStackFrames(
+  stack: string,
+  options: { includeSourceContent?: boolean } = {}
+): Array<
+  StackFrame & {
+    original: boolean
+    ignored: boolean
+    getSourceContent?: () => string | null
+  }
+> {
+  const cache: SourceMapCache = new Map()
+  return parseStack(stack).map((frame) => {
+    if (frame.file === null || frame.line1 === null || frame.column1 === null) {
+      return { ...frame, original: false, ignored: false }
+    }
+    try {
+      const mapped = getSourcemappedFrameIfPossible(
+        frame as SourcemappableStackFrame,
+        cache,
+        { colors: false }
+      )
+      return {
+        ...mapped.stack,
+        original: mapped.original,
+        ...(options.includeSourceContent &&
+        mapped.original &&
+        !mapped.stack.ignored
+          ? { getSourceContent: mapped.getSourceContent }
+          : {}),
+      }
+    } catch {
+      // Invalid maps or a throwing bundler lookup must not mask the test error.
+      return {
+        ...createUnsourcemappedFrame(frame as SourcemappableStackFrame).stack,
+        original: false,
+      }
+    }
+  })
 }
 
 function parseAndSourceMap(
