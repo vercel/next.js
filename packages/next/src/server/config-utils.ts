@@ -1,3 +1,5 @@
+import { createRequire } from 'module'
+
 let installed: boolean = false
 
 export function loadWebpackHook() {
@@ -140,5 +142,78 @@ export function loadWebpackHook() {
       // Use dynamic require.resolve to avoid statically analyzable since they're only for build time
       ([request, replacement]) => [request, require.resolve(replacement)]
     )
+  )
+}
+
+export function loadCustomWebpackHook(webpackProjectDir: string) {
+  // Ensure the require hook and its bundled webpack aliases are initialized.
+  loadWebpackHook()
+
+  const requireHook =
+    require('../server/require-hook') as typeof import('../server/require-hook')
+  const isWebpackAlias = (request: string) =>
+    request === 'webpack' ||
+    request.startsWith('webpack/') ||
+    request === 'webpack-sources' ||
+    request.startsWith('webpack-sources/')
+  const localWebpackRequests = [
+    'webpack/lib/javascript/BasicEvaluatedExpression',
+    'webpack/lib/optimize/ConcatenatedModule',
+    'webpack/lib/util/identifier',
+    'webpack/lib/RuntimeGlobals',
+    'webpack/lib/SourceMapDevToolModuleOptionsPlugin',
+    'webpack/lib/util/StringXor',
+  ]
+  const webpackAliasNames = [
+    ...Array.from(requireHook.hookPropertyMap.keys()).filter(isWebpackAlias),
+    ...localWebpackRequests,
+  ]
+  const previousAliases = webpackAliasNames.flatMap(
+    (request): [string, string][] => {
+      const replacement = requireHook.hookPropertyMap.get(request)
+      return replacement ? [[request, replacement]] : []
+    }
+  )
+
+  // Stop the bundled aliases from intercepting resolution of the project's
+  // webpack package.
+  requireHook.removeHookAliases(webpackAliasNames)
+
+  let webpackRequire: NodeRequire
+  try {
+    const webpackPackagePath = require.resolve('webpack/package.json', {
+      paths: [webpackProjectDir],
+    })
+    webpackRequire = createRequire(webpackPackagePath)
+  } catch (cause) {
+    // Leave the process using bundled webpack when custom webpack could not be
+    // activated. This matters when callers catch and report the config error.
+    requireHook.addHookAliases(previousAliases)
+    throw new Error(
+      '`experimental.customWebpack` requires webpack to be installed in your project. Install it with `npm install --save-dev webpack`.',
+      { cause }
+    )
+  }
+
+  requireHook.addHookAliases(
+    webpackAliasNames.flatMap((request): [string, string][] => {
+      let localRequest = request
+      if (request === 'webpack/package') {
+        localRequest = 'webpack/package.json'
+      } else if (
+        request === 'webpack-sources' ||
+        request.startsWith('webpack-sources/')
+      ) {
+        localRequest = 'webpack-sources'
+      }
+
+      try {
+        return [[request, webpackRequire.resolve(localRequest)]]
+      } catch {
+        // Older compatibility aliases are not present in every supported
+        // webpack version. Let Node report the missing deep import if used.
+        return []
+      }
+    })
   )
 }

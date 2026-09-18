@@ -28,7 +28,7 @@ import type {
   NextConfigRuntime,
 } from './config-shared'
 
-import { loadWebpackHook } from './config-utils'
+import { loadCustomWebpackHook, loadWebpackHook } from './config-utils'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
@@ -57,7 +57,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
-import { Bundler } from '../lib/bundler'
+import { Bundler, getBundlerFromEnv } from '../lib/bundler'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
@@ -1926,6 +1926,15 @@ export default async function loadConfig(
   const logTiming = opts.silent === false
   const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
+
+  if (
+    config.experimental.customWebpack &&
+    (phase === PHASE_DEVELOPMENT_SERVER || phase === PHASE_PRODUCTION_BUILD) &&
+    (opts.bundler ?? getBundlerFromEnv()) === Bundler.Webpack
+  ) {
+    loadCustomWebpackHook(dir)
+    process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
+  }
 
   warnIfReact18IsInstalled(phase, dir, opts.silent)
 

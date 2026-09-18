@@ -1185,6 +1185,12 @@ export interface ExperimentalConfig {
   webpackBuildWorker?: boolean
 
   /**
+   * Use the project's installed `webpack` dependency instead of the version
+   * bundled with Next.js.
+   */
+  customWebpack?: boolean
+
+  /**
    * Enables optimizations to reduce memory usage in Webpack. This reduces the max size of the heap
    * but may increase compile times slightly.
    * Valid values are:
@@ -2385,6 +2391,7 @@ export const defaultConfig = Object.freeze({
     ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
+    customWebpack: false,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,

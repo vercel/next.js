@@ -43,6 +43,12 @@ export function addHookAliases(aliases: [string, string][] = []) {
   }
 }
 
+export function removeHookAliases(aliases: string[] = []) {
+  for (const key of aliases) {
+    hookPropertyMap.delete(key)
+  }
+}
+
 addHookAliases(toResolveMap(defaultOverrides))
 
 // @ts-expect-error
