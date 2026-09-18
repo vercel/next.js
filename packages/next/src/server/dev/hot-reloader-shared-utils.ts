@@ -24,7 +24,7 @@ export async function getVersionInfo(): Promise<VersionInfo> {
     if (
       !response.ok ||
       // only reject if content-type is explicitly not JSON, absent content-type is treated as valid registry response
-      (contentType !== null && contentType !== 'application/json')
+      (contentType !== null && !contentType.includes('application/json'))
     ) {
       return { installed, staleness: 'unknown' }
     }
