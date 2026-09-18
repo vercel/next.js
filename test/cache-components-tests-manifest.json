@@ -212,7 +212,7 @@
       "test/e2e/app-dir/next-after-app/index.test.ts",
       "test/e2e/app-dir/next-dynamic-css/next-dynamic-css.test.ts",
       "test/e2e/app-dir/next-font/**/*",
-      "test/e2e/app-dir/next-image/next-image-https.test.ts",
+      "test/development/app-dir/next-image-https/next-image-https.test.ts",
       "test/e2e/app-dir/next-image/next-image-proxy.test.ts",
       "test/e2e/app-dir/next-image/next-image.test.ts",
       "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts",

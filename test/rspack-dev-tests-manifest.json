@@ -1505,7 +1505,7 @@
   "test/development/basic/define-class-fields/define-class-fields.test.ts": {
     "passed": [
       "useDefineForClassFields SWC option Initializes resident to undefined after the call to 'super()' when with useDefineForClassFields enabled",
-      "useDefineForClassFields SWC option set accessors from base classes won’t get triggered with useDefineForClassFields enabled",
+      "useDefineForClassFields SWC option set accessors from base classes won\u2019t get triggered with useDefineForClassFields enabled",
       "useDefineForClassFields SWC option tsx should compile with useDefineForClassFields enabled"
     ],
     "failed": [],
@@ -6100,19 +6100,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
-    "passed": [
-      "instant validation causes aliased export - export { instantConfig as instant }",
-      "instant validation causes does not add an instant stack for random instant exports",
-      "instant validation causes indirect export - const instantConfig = _instant; export { instantConfig as instant }",
-      "instant validation causes named export - export { instant }",
-      "instant validation causes re-export - export { instant } from \"./config\""
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
       "app dir - instant-validation-client should error when a client component exports instant"
@@ -8037,15 +8024,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - next-image (with https) loads images without any errors"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10905,20 +10883,6 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
-    "passed": [
-      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws a plain string",
-      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws an Error",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a filesystem error",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a plain string",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error without stack"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -23950,6 +23914,42 @@
     "failed": [],
     "pending": [
       "Web Workers with webpack 5 production mode should pass on both client and worker"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
+    "passed": [
+      "instant validation causes aliased export - export { instantConfig as instant }",
+      "instant validation causes does not add an instant stack for random instant exports",
+      "instant validation causes indirect export - const instantConfig = _instant; export { instantConfig as instant }",
+      "instant validation causes named export - export { instant }",
+      "instant validation causes re-export - export { instant } from \"./config\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
+    "passed": [
+      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws a plain string",
+      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws an Error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a filesystem error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a plain string",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error without stack"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/next-image-https/next-image-https.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
     ],
     "flakey": [],
     "runtimeError": false
