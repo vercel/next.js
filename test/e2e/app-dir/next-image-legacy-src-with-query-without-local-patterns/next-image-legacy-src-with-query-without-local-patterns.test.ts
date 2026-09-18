@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-image-legacy-src-with-query-without-local-patterns', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -15,7 +15,13 @@ describe('next-image-legacy-src-with-query-without-local-patterns', () => {
       )
     } else {
       await expect(next.start()).rejects.toThrow()
-      const cliOutput = next.cliOutput
+      // Deployment build logs prefix each line with an ISO timestamp.
+      const cliOutput = isNextDeploy
+        ? next.cliOutput.replace(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/gm,
+            ''
+          )
+        : next.cliOutput
       expect(cliOutput).toContain(
         'Image with src "/test.png?v=1" is using a query string which is not configured in images.localPatterns.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns'
       )
