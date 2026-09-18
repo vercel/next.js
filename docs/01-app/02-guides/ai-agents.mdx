@@ -84,9 +84,9 @@ Next.js updates only the content between the agent rules markers and preserves t
 
 ### Automatic agent feedback
 
-Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents retain potential Next.js issues without interrupting an active task. At a natural stopping point, the agent prepares each qualifying issue as a separate report and attempts to open it once in your default browser using the browser-opening capability available in the agent environment. If the browser does not open, the agent continues the task without investigating the failure or changing your system.
+Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents keep track of potential Next.js issues without interrupting an active task. At a natural stopping point, each qualifying issue opens as a separate review form in your default browser.
 
-The instructions tell the agent to attempt to anonymize each report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. You can also close the form without sending it. Nothing is sent when the form opens, and agent feedback is separate from [Next.js Telemetry](/telemetry).
+Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. Nothing is sent until you select **Send feedback**, and agent feedback is separate from [Next.js Telemetry](/telemetry).
 
 With the option enabled, `next dev` adds the following managed feedback instructions to the agent file when it detects an AI coding agent:
 
