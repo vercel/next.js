@@ -25,6 +25,7 @@ import {
 import { formatBytes } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import type { SourceLoadScope } from '@/lib/module-graph'
 
 /** Which column the table is currently sorted by. */
 type SortColumn = 'name' | 'a' | 'b' | 'delta'
@@ -75,6 +76,8 @@ interface DiffTableProps<Row extends DiffRow> {
   searchQuery?: string
   /** Empty-state message shown when the active source filters remove all rows. */
   emptyState?: ReactNode
+  /** Load-scope attribution for single-build source rows. */
+  getLoadScope?: (row: Row) => SourceLoadScope
 }
 
 const virtuosoComponents = {
@@ -115,6 +118,7 @@ export function DiffTable<Row extends DiffRow>({
   mode = 'compare',
   searchQuery,
   emptyState,
+  getLoadScope,
 }: DiffTableProps<Row>) {
   const isSingle = mode === 'single'
   const [statusFilter, setStatusFilter] = useState<DiffStatus | 'all'>('all')
@@ -278,6 +282,7 @@ export function DiffTable<Row extends DiffRow>({
               onClick={onRowSelect ? () => onRowSelect(item.row) : undefined}
               isSelected={selectedKey === item.row.key}
               mode={mode}
+              loadScope={isSingle ? getLoadScope?.(item.row) : undefined}
             />
           )
         }}
@@ -514,6 +519,7 @@ function DiffPackageHeaderRow<Row extends DiffRow>({
   isExpanded,
   onToggle,
   mode = 'compare',
+  loadScope,
 }: {
   packageName: string
   rows: Row[]
@@ -521,6 +527,7 @@ function DiffPackageHeaderRow<Row extends DiffRow>({
   isExpanded: boolean
   onToggle: () => void
   mode?: 'compare' | 'single'
+  loadScope?: SourceLoadScope
 }) {
   const isSingle = mode === 'single'
   const agg = aggregatePackage(rows)
@@ -777,6 +784,7 @@ function DiffTableRow<Row extends DiffRow>({
   indent = false,
   isSelected = false,
   mode = 'compare',
+  loadScope,
 }: {
   row: Row
   useCompressed: boolean
@@ -786,6 +794,7 @@ function DiffTableRow<Row extends DiffRow>({
   /** When true, the row is highlighted as the active selection. */
   isSelected?: boolean
   mode?: 'compare' | 'single'
+  loadScope?: SourceLoadScope
 }) {
   const isSingle = mode === 'single'
   const d = delta(row, useCompressed)
@@ -810,6 +819,7 @@ function DiffTableRow<Row extends DiffRow>({
           row={row}
           hidePackageBadge={indent}
           hideStatusIcon={isSingle}
+          loadScope={loadScope}
         />
       </td>
       {!isSingle ? (
@@ -869,6 +879,7 @@ function DiffRowName<Row extends DiffRow>({
   row,
   hidePackageBadge = false,
   hideStatusIcon = false,
+  loadScope,
 }: {
   row: Row
   /** When true, only render the within-package path (no package chip). Used
@@ -878,6 +889,7 @@ function DiffRowName<Row extends DiffRow>({
   /** When true, omit the per-status icon (used in single-build mode where
    * every row is `identical` against itself, making the icon noise). */
   hideStatusIcon?: boolean
+  loadScope?: SourceLoadScope
 }) {
   // Narrow without dragging SourceDiffRow's typings into the generic table.
   const pathKind = (row as unknown as { pathKind?: 'package' | 'project' })
@@ -897,6 +909,7 @@ function DiffRowName<Row extends DiffRow>({
           <span className="truncate text-muted-foreground">
             {rest || packageName}
           </span>
+          <LoadScopeBadge scope={loadScope} />
           <EnvBadges client={client} server={server} />
         </span>
       )
@@ -916,6 +929,7 @@ function DiffRowName<Row extends DiffRow>({
             <span className="truncate text-muted-foreground">{rest}</span>
           ) : null}
         </span>
+        <LoadScopeBadge scope={loadScope} />
         <EnvBadges client={client} server={server} />
       </span>
     )
@@ -928,8 +942,35 @@ function DiffRowName<Row extends DiffRow>({
       <span className="truncate" title={row.key}>
         {row.name}
       </span>
+      <LoadScopeBadge scope={loadScope} />
       <EnvBadges client={client} server={server} />
     </span>
+  )
+}
+
+function LoadScopeBadge({ scope }: { scope?: SourceLoadScope }) {
+  if (scope !== 'async' && scope !== 'mixed') return null
+
+  const label = scope === 'async' ? 'async' : 'initial + async'
+  const title =
+    scope === 'async'
+      ? 'Reachable only through an async import boundary; it may still be requested during the initial render'
+      : 'Reachable through both initial and async import paths'
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'shrink-0 text-[10px] font-normal',
+        scope === 'async' &&
+          'bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,currentColor_3px,currentColor_4px)] bg-[length:7px_7px]'
+      )}
+      title={title}
+    >
+      <span className={scope === 'async' ? 'bg-background/90 px-0.5' : ''}>
+        {label}
+      </span>
+    </Badge>
   )
 }
 
