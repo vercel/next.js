@@ -88,6 +88,34 @@ export type RequestInsightsSnapshot = {
   requests: RequestInsight[]
 }
 
+export type RequestInsightDelta = RequestInsight & {
+  spanOffset: number
+  fetchOffset: number
+}
+
+const MAX_REQUEST_INSIGHT_DELTA_RECORDS = 128
+
+export function createRequestInsightDelta(
+  request: RequestInsight,
+  spanOffset: number,
+  fetchOffset: number
+): RequestInsightDelta {
+  const spans = request.spans.slice(
+    spanOffset,
+    spanOffset + MAX_REQUEST_INSIGHT_DELTA_RECORDS
+  )
+  return {
+    ...request,
+    spanOffset,
+    fetchOffset,
+    spans,
+    fetches: request.fetches.slice(
+      fetchOffset,
+      fetchOffset + MAX_REQUEST_INSIGHT_DELTA_RECORDS - spans.length
+    ),
+  }
+}
+
 export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 100
 
 export function isSameRequestInsightFetch(
