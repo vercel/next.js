@@ -70,7 +70,7 @@ export function headers(): Promise<ReadonlyHeaders> {
         }
         case 'unstable-cache':
           throw createHeadersInUnstableCacheError(workStore.route)
-        case 'generate-static-params':
+        case 'build-time-generator':
           throw new Error(
             `Route ${workStore.route} used \`headers()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )

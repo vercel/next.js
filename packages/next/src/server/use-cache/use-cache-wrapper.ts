@@ -803,7 +803,7 @@ function createUseCacheStore(
       case 'prerender':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         outerWorkUnitStore satisfies never
@@ -865,7 +865,7 @@ function captureOuterOwnerStack(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never
@@ -1025,7 +1025,7 @@ function propagateCacheEntryMetadata(
         )
         break
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         cacheContext.outerWorkUnitStore satisfies never
@@ -1093,7 +1093,7 @@ function maybePropagateCacheEntryMetadata(
       propagateCacheEntryMetadata(cacheContext, metadata)
       break
     }
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default: {
       outerWorkUnitStore satisfies never
@@ -1338,7 +1338,7 @@ async function generateCacheEntryImpl(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   outerWorkUnitStore satisfies never
@@ -1598,7 +1598,7 @@ async function generateCacheEntryImpl(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       stream = renderToReadableStream(
         resultPromise,
         clientReferenceManifest.clientModules,
@@ -1788,7 +1788,7 @@ export async function cache(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never
@@ -1914,7 +1914,7 @@ export async function cache(
           handlerKind: kind,
         }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw wrapAsInvalidDynamicUsageError(
           createUseCachePrivateOutsideRequestContextError(workStore.route)
         )
@@ -1965,7 +1965,7 @@ export async function cache(
       // TODO: We should probably forbid nesting "use cache" inside
       // unstable_cache. (fallthrough)
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         cacheContext = {
           kind: 'public',
           outerWorkUnitStore: workUnitStore,
@@ -2203,7 +2203,7 @@ export async function cache(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
     case undefined:
       encodedCacheKeyParts = await encodeCacheKeyParts()
       break
@@ -2340,7 +2340,7 @@ export async function cache(
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
-        case 'generate-static-params':
+        case 'build-time-generator':
           break
         default:
           workUnitStore satisfies never
@@ -2523,7 +2523,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -2668,7 +2668,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -2788,7 +2788,7 @@ export async function cache(
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
-        case 'generate-static-params':
+        case 'build-time-generator':
           break
         default:
           workUnitStore satisfies never
@@ -3236,7 +3236,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -3298,7 +3298,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               // A handler read in a prerender context is a cache-filling read.
               // The stale exclusions for those are applied when the RDC is
               // read in the final prerender, so there's nothing to do here.
@@ -3563,7 +3563,7 @@ export async function cache(
               case 'prerender-runtime':
               case 'prerender-legacy':
               case 'unstable-cache':
-              case 'generate-static-params':
+              case 'build-time-generator':
                 break
               default:
                 workUnitStore satisfies never
@@ -3834,7 +3834,7 @@ function shouldForceRevalidate(
       case 'validation-client':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -3882,7 +3882,7 @@ function shouldDiscardCacheEntry(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never
