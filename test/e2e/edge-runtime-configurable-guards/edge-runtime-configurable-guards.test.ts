@@ -345,7 +345,6 @@ describe('Edge runtime configurable guards', () => {
       files: __dirname,
       skipStart: true,
       env: shouldUseTurbopack() ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
-      skipDeployment: true,
     })
     if (skipped) return
 

@@ -3657,7 +3657,6 @@ describe('Custom routes solo types', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
   if (isNextDeploy) return
 
