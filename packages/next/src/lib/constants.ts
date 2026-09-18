@@ -1,8 +1,12 @@
 import type { ServerRuntime } from '../types'
 
 export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
+export const TEXT_PLAIN_UTF8_CONTENT_TYPE_HEADER = 'text/plain; charset=utf-8'
 export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
+export const MARKDOWN_CONTENT_TYPE_HEADER = 'text/markdown; charset=utf-8'
+export const MARKDOWN_SUFFIX = '.md'
+export const PLAINTEXT_SUFFIX = '.txt'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
@@ -14,6 +18,8 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
 export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
 export const RSC_SUFFIX = '.rsc'
+/** Incremental-cache sibling of `.html` for Markdown-for-Agents. */
+export const MARKDOWN_CACHE_SUFFIX = '.md'
 export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'

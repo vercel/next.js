@@ -132,6 +132,9 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
+import { MarkdownPathnameNormalizer } from './normalizers/request/markdown'
+import { appendVary } from './lib/markdown-for-agents/accept'
+import { normalizeMarkdownConfig } from './lib/markdown-for-agents/config'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -452,6 +455,7 @@ export default abstract class Server<
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
+    readonly markdown: MarkdownPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
@@ -565,6 +569,11 @@ export default abstract class Server<
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
+      markdown:
+        this.enabledDirectories.app &&
+        normalizeMarkdownConfig(this.nextConfig.markdownAgents).suffix
+          ? new MarkdownPathnameNormalizer()
+          : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -686,6 +695,12 @@ export default abstract class Server<
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
+    } else if (this.normalizers.markdown?.match(parsedUrl.pathname)) {
+      const extracted = this.normalizers.markdown.extract(parsedUrl.pathname)
+      if (extracted) {
+        parsedUrl.pathname = extracted.pathname
+        addRequestMeta(req, 'markdownRepresentation', extracted.representation)
+      }
     } else if (req.headers['x-now-route-matches']) {
       // If we didn't match, return with the flight headers stripped. If in
       // minimal mode we didn't match based on the path, this can't be a RSC
@@ -1725,6 +1740,10 @@ export default abstract class Server<
       normalizers.push(this.normalizers.rsc)
     }
 
+    if (this.normalizers.markdown) {
+      normalizers.push(this.normalizers.markdown)
+    }
+
     for (const normalizer of normalizers) {
       if (!normalizer.match(pathname)) continue
 
@@ -2352,18 +2371,30 @@ export default abstract class Server<
   ): void {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
+    const varyAccept =
+      isAppPath &&
+      !isRSCRequest &&
+      normalizeMarkdownConfig(this.nextConfig.markdownAgents).enabled
 
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader(
+        'vary',
+        varyAccept
+          ? appendVary(`${baseVaryHeader}, ${NEXT_URL}`, 'Accept')
+          : `${baseVaryHeader}, ${NEXT_URL}`
+      )
       addedNextUrlToVary = true
     } else if (isAppPath || isRSCRequest) {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.appendHeader('vary', baseVaryHeader)
+      res.appendHeader(
+        'vary',
+        varyAccept ? appendVary(baseVaryHeader, 'Accept') : baseVaryHeader
+      )
     }
 
     if (!addedNextUrlToVary) {

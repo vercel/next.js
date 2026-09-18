@@ -76,6 +76,10 @@ import {
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
+import { appendVary } from '../../server/lib/markdown-for-agents/accept' with { 'turbopack-transition': 'next-server-utility' }
+import { loadAuthoredRepresentation } from '../../server/lib/markdown-for-agents/authored' with { 'turbopack-transition': 'next-server-utility' }
+import { buildCachedMarkdown } from '../../server/lib/markdown-for-agents/cache' with { 'turbopack-transition': 'next-server-utility' }
+import { normalizeMarkdownConfig } from '../../server/lib/markdown-for-agents/config' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -262,6 +266,29 @@ export function createAppPageEntrypoint({
     } = prepareResult
 
     let { isOnDemandRevalidate } = prepareResult
+
+    const projectDir =
+      process.env.NEXT_RUNTIME === 'nodejs'
+        ? (require('path') as typeof import('path')).join(
+            /* turbopackIgnore: true */
+            process.cwd(),
+            routeModule.relativeProjectDir
+          )
+        : `${process.cwd()}/${routeModule.relativeProjectDir}`
+
+    const sendPageRenderResult = (
+      options: Parameters<typeof sendRenderResult>[0]
+    ) =>
+      sendRenderResult({
+        ...options,
+        markdownAgents: nextConfig.markdownAgents,
+        dir: projectDir,
+        page,
+        precomputedMarkdown:
+          options.precomputedMarkdown ?? cachedMarkdownForRequest,
+      })
+
+    let cachedMarkdownForRequest: string | undefined
 
     // We use the resolvedPathname instead of the parsedUrl.pathname because it
     // is not rewritten as resolvedPathname is. This will ensure that the correct
@@ -731,10 +758,16 @@ export function createAppPageEntrypoint({
     }
 
     try {
-      const varyHeader = routeModule.getVaryHeader(
+      let varyHeader = routeModule.getVaryHeader(
         resolvedPathname,
         interceptionRoutePatterns
       )
+      if (
+        !isRSCRequest &&
+        normalizeMarkdownConfig(nextConfig.markdownAgents).enabled
+      ) {
+        varyHeader = appendVary(varyHeader, 'Accept')
+      }
       res.setHeader('Vary', varyHeader)
       let parentSpan: Span | undefined
       const invokeRouteModule = async (
@@ -891,6 +924,7 @@ export function createAppPageEntrypoint({
                     routeModule.relativeProjectDir
                   )
                 : `${process.cwd()}/${routeModule.relativeProjectDir}`,
+            markdownAgents: nextConfig.markdownAgents,
             isDraftMode,
             botType,
             isOnDemandRevalidate,
@@ -1064,12 +1098,35 @@ export function createAppPageEntrypoint({
           throw err
         }
 
+        let markdown: string | undefined
+        const markdownAgentsConfig = normalizeMarkdownConfig(
+          nextConfig.markdownAgents
+        )
+        if (markdownAgentsConfig.enabled && !result.isDynamic) {
+          try {
+            const html = result.toUnchunkedString()
+            const authored = await loadAuthoredRepresentation({
+              dir: projectDir,
+              page,
+            })
+            markdown = buildCachedMarkdown({
+              html,
+              url: resolvedPathname,
+              config: markdownAgentsConfig,
+              authored,
+            })
+          } catch {
+            markdown = undefined
+          }
+        }
+
         return {
           value: {
             kind: CachedRouteKind.APP_PAGE,
             html: result,
             headers,
             rscData: metadata.flightData,
+            markdown,
             postponed: metadata.postponed,
             status: metadata.statusCode,
             segmentData: metadata.segmentData,
@@ -1713,6 +1770,9 @@ export function createAppPageEntrypoint({
           res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
         }
         const { value: cachedData } = cacheEntry
+        if (cachedData?.kind === CachedRouteKind.APP_PAGE) {
+          cachedMarkdownForRequest = cachedData.markdown
+        }
 
         // Coerce the cache control parameter from the render.
         let cacheControl: CacheControl | undefined
@@ -1797,7 +1857,7 @@ export function createAppPageEntrypoint({
           )
           if (matchedSegment !== undefined) {
             // Cache hit
-            return sendRenderResult({
+            return sendPageRenderResult({
               req,
               res,
               generateEtags: nextConfig.generateEtags,
@@ -1815,7 +1875,7 @@ export function createAppPageEntrypoint({
           // at a minimum there should always be a fallback entry) or there's no
           // match for the requested segment. Respond with a 404.
           res.statusCode = 404
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -1918,7 +1978,7 @@ export function createAppPageEntrypoint({
             if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
               if (nextConfig.cacheComponents) {
                 res.statusCode = 404
-                return sendRenderResult({
+                return sendPageRenderResult({
                   req,
                   res,
                   generateEtags: nextConfig.generateEtags,
@@ -1934,7 +1994,7 @@ export function createAppPageEntrypoint({
               }
             }
 
-            return sendRenderResult({
+            return sendPageRenderResult({
               req,
               res,
               generateEtags: nextConfig.generateEtags,
@@ -1946,7 +2006,7 @@ export function createAppPageEntrypoint({
 
           // As this isn't a prefetch request, we should serve the static flight
           // data.
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2000,7 +2060,7 @@ export function createAppPageEntrypoint({
               `<a href="https://preview.nextjs.org/docs/app/guides/instant-navigation">Instant Navigation docs</a>.</p>` +
               `</body></html>`
 
-            return sendRenderResult({
+            return sendPageRenderResult({
               req,
               res,
               generateEtags: nextConfig.generateEtags,
@@ -2026,7 +2086,7 @@ export function createAppPageEntrypoint({
               },
             })
           )
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2055,7 +2115,7 @@ export function createAppPageEntrypoint({
             body.unshift(createPPRBoundarySentinel())
           }
 
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2081,7 +2141,7 @@ export function createAppPageEntrypoint({
             })
           )
 
-          return sendRenderResult({
+          return sendPageRenderResult({
             req,
             res,
             generateEtags: nextConfig.generateEtags,
@@ -2147,7 +2207,7 @@ export function createAppPageEntrypoint({
             })
           })
 
-        return sendRenderResult({
+        return sendPageRenderResult({
           req,
           res,
           generateEtags: nextConfig.generateEtags,

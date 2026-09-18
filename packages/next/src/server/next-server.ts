@@ -563,6 +563,9 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       cacheControl: options.cacheControl,
+      markdownAgents: this.nextConfig.markdownAgents,
+      dir: this.dir,
+      page: getRequestMeta(req, 'match')?.definition.page,
     })
   }
 

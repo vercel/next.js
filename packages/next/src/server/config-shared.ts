@@ -16,6 +16,7 @@ import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
+import type { MarkdownAgentsConfig } from './lib/markdown-for-agents/config'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -2078,6 +2079,15 @@ export interface NextConfig {
   logging?: LoggingConfig | false
 
   /**
+   * Markdown for Agents: same page URL can return Markdown when the client
+   * sends `Accept: text/markdown`. Named `markdownAgents` so it is not confused
+   * with MDX. Colocate `page.md` next to `page.tsx`; that file is not a route.
+   *
+   * @see [Markdown for Agents](https://nextjs.org/docs/app/api-reference/file-conventions/page-markdown)
+   */
+  markdownAgents?: MarkdownAgentsConfig
+
+  /**
    * Enables source maps while generating static pages.
    * Helps with errors during the prerender phase in `next build`.
    * Defaults to `true`. Set to `false` to disable.
@@ -2429,6 +2439,7 @@ export const defaultConfig = Object.freeze({
     turbopackMangleExportNames: isStableBuild() ? false : undefined,
   },
   htmlLimitedBots: undefined,
+  markdownAgents: false,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
@@ -2487,6 +2498,7 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  markdownAgents?: NextConfigComplete['markdownAgents']
   adapterPath?: NextConfigComplete['adapterPath']
   staticPageGenerationTimeout: NextConfigComplete['staticPageGenerationTimeout']
 
@@ -2654,6 +2666,7 @@ export function getNextConfigRuntime(
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
     logging: config.logging,
+    markdownAgents: config.markdownAgents,
     staticPageGenerationTimeout: config.staticPageGenerationTimeout,
 
     experimental,

@@ -62,6 +62,8 @@ import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import { appendVary } from '../../server/lib/markdown-for-agents/accept'
+import { normalizeMarkdownConfig } from '../../server/lib/markdown-for-agents/config'
 
 interface SharedRouteFields {
   /**
@@ -1256,6 +1258,11 @@ export async function handleBuildComplete({
         contentTypeHeader: rscContentTypeHeader,
       } = routesManifest.rsc
 
+      const htmlVaryHeader = normalizeMarkdownConfig(config.markdownAgents)
+        .enabled
+        ? appendVary(varyHeader, 'Accept')
+        : varyHeader
+
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutput['PRERENDER'],
@@ -1576,9 +1583,17 @@ export async function handleBuildComplete({
                     (isNotFoundTrue ? 404 : undefined),
                   initialHeaders: {
                     ...initialHeaders,
-                    vary: varyHeader,
+                    vary: htmlVaryHeader,
                     'content-type': HTML_CONTENT_TYPE_HEADER,
                     ...meta.headers,
+                    ...(htmlVaryHeader !== varyHeader
+                      ? {
+                          vary: appendVary(
+                            meta.headers?.vary ?? htmlVaryHeader,
+                            'Accept'
+                          ),
+                        }
+                      : {}),
                   },
                   initialExpiration,
                   initialRevalidate:
@@ -1658,6 +1673,7 @@ export async function handleBuildComplete({
                   'content-type': isAppPage
                     ? rscContentTypeHeader
                     : JSON_CONTENT_TYPE_HEADER,
+                  vary: varyHeader,
                 },
                 filePath: undefined,
               },
@@ -1678,6 +1694,7 @@ export async function handleBuildComplete({
                       'content-type': isAppPage
                         ? rscContentTypeHeader
                         : JSON_CONTENT_TYPE_HEADER,
+                      vary: varyHeader,
                     },
                     postponedState: undefined,
                     filePath: dataFilePath,
@@ -1853,9 +1870,17 @@ export async function handleBuildComplete({
                   initialStatus: fallbackStatus ?? meta.status,
                   initialHeaders: {
                     ...fallbackHeaders,
-                    ...(appPageKeys?.length ? { vary: varyHeader } : {}),
+                    ...(appPageKeys?.length ? { vary: htmlVaryHeader } : {}),
                     'content-type': HTML_CONTENT_TYPE_HEADER,
                     ...meta.headers,
+                    ...(appPageKeys?.length && htmlVaryHeader !== varyHeader
+                      ? {
+                          vary: appendVary(
+                            meta.headers?.vary ?? htmlVaryHeader,
+                            'Accept'
+                          ),
+                        }
+                      : {}),
                   },
                   initialExpiration: fallbackExpire,
                   initialRevalidate: fallbackRevalidate ?? 1,
@@ -1948,6 +1973,7 @@ export async function handleBuildComplete({
                   'content-type': isAppPage
                     ? rscContentTypeHeader
                     : JSON_CONTENT_TYPE_HEADER,
+                  vary: varyHeader,
                 },
               },
 

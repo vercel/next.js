@@ -20,6 +20,7 @@ import {
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
+  MARKDOWN_CACHE_SUFFIX,
 } from '../../../lib/constants'
 import { areTagsExpired, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
@@ -242,12 +243,26 @@ export default class FileSystemCache implements CacheHandler {
               )
             }
 
+            let markdown: string | undefined
+            try {
+              markdown = await this.fs.readFile(
+                this.getFilePath(
+                  `${key}${MARKDOWN_CACHE_SUFFIX}`,
+                  IncrementalCacheKind.APP_PAGE
+                ),
+                'utf8'
+              )
+            } catch {
+              // Older prerenders have no sibling .md; request path may convert.
+            }
+
             data = {
               lastModified: mtime.getTime(),
               value: {
                 kind: CachedRouteKind.APP_PAGE,
                 html: fileData,
                 rscData,
+                markdown,
                 postponed: meta?.postponed,
                 headers: meta?.headers,
                 status: meta?.status,
@@ -397,6 +412,20 @@ export default class FileSystemCache implements CacheHandler {
       )
 
       writer.append(htmlPath, data.html)
+
+      if (
+        isAppPath &&
+        data.kind === CachedRouteKind.APP_PAGE &&
+        typeof data.markdown === 'string'
+      ) {
+        writer.append(
+          this.getFilePath(
+            `${key}${MARKDOWN_CACHE_SUFFIX}`,
+            IncrementalCacheKind.APP_PAGE
+          ),
+          data.markdown
+        )
+      }
 
       // Fallbacks don't generate a data file.
       if (!ctx.fetchCache && !ctx.isFallback && !ctx.isRoutePPREnabled) {

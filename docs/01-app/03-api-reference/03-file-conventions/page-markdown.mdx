@@ -1,0 +1,105 @@
+---
+title: page.md
+description: Colocate Markdown or plain text with a page for Accept-based content negotiation.
+related:
+  links:
+    - app/api-reference/config/next-config-js/markdownAgents
+    - app/api-reference/file-conventions/page
+    - app/guides/backend-for-frontend
+---
+
+Place `page.md` or `page.txt` next to `page.js` to serve a Markdown (or plain text) representation of the **same URL**. Clients request it with `Accept: text/markdown`. This is not MDX and does not create a new route.
+
+```txt
+app/
+  about/
+    page.tsx
+    page.md
+```
+
+Enable it in `next.config.ts`:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  markdownAgents: true,
+}
+
+export default nextConfig
+```
+
+```bash
+# HTML (browser)
+curl https://example.com/about
+
+# Markdown (agent) — same URL
+curl -H "Accept: text/markdown" https://example.com/about
+```
+
+## Authored files
+
+`page.md` is returned as `text/markdown; charset=utf-8`. `page.txt` is returned as `text/plain` when the client prefers plain text, otherwise as a Markdown body.
+
+When `markdownAgents.mode` is `'prefer-authored'` (the default once enabled):
+
+1. `page.md`
+2. `page.txt`
+3. Automatic HTML → Markdown conversion
+
+## Automatic conversion
+
+If no sibling file exists, Next.js converts the rendered HTML:
+
+- Prefers `<main>`, `[role=main]`, then `<article>`
+- Strips `nav`, `header`, `footer`, `script`, `style`, and similar chrome
+- Adds YAML frontmatter from the document title and description
+- Appends JSON-LD when present
+- Sets `Vary: Accept` so caches keep HTML and Markdown apart
+- Stores the Markdown next to HTML/RSC in the route cache (build and ISR). Static pages are not converted on every agent request. Dynamic pages still convert at request time.
+
+## Actions
+
+When `markdownAgents.actions` is true (default), conversion appends an **Actions** section for each `<form>` on the page. Agents POST to the **same URL**. Mark forms for a stable id:
+
+```tsx filename="app/subscribe/page.tsx"
+export default function Page() {
+  async function subscribe(formData: FormData) {
+    'use server'
+    // ...
+  }
+
+  return (
+    <main>
+      <form
+        action={subscribe}
+        data-agent-action="subscribe"
+        data-agent-summary="Subscribe the given email to updates"
+      >
+        <input type="email" name="email" required />
+        <button type="submit">Subscribe</button>
+      </form>
+    </main>
+  )
+}
+```
+
+The Markdown includes YAML plus a copy-pasteable `curl` example. Server Actions are invoked with `multipart/form-data` and the `$ACTION_ID_…` field from the **current** HTML (it can change across deploys). POST the same path you fetched — not `/subscribe.md`.
+
+```bash
+curl -X POST '/subscribe' \
+  -F '$ACTION_ID_<hash>=' \
+  -F 'email=ada@example.com'
+```
+
+Auth, cookies, and CSRF rules from the HTML form still apply.
+
+## Suffix mode
+
+The default is the canonical path plus `Accept`. `page.md` next to `page.tsx` is not a URL. Set `markdownAgents.suffix: true` only if you also want `/about.md` as an alias. `/index.md` maps to `/`.
+
+## Version History
+
+| Version   | Changes                                                          |
+| --------- | ---------------------------------------------------------------- |
+| `v16.4.0` | `markdownAgents` config, colocated `page.md` / `page.txt`, optional URL suffix |

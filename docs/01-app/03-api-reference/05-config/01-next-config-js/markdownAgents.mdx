@@ -1,0 +1,70 @@
+---
+title: markdownAgents
+description: Serve Markdown to agents from the same URL as HTML using content negotiation.
+---
+
+Enable [Markdown for Agents](/docs/app/api-reference/file-conventions/page-markdown) so the same page URL can return HTML to browsers and Markdown to clients that send `Accept: text/markdown`.
+
+This is **not MDX**. MDX compiles Markdown into React pages. `markdownAgents` is a response representation for agents. Authored files are `page.md` / `page.txt` **next to** `page.tsx` in the same folder. They are not routes.
+
+Static and ISR pages prerender Markdown into the same route cache as HTML and RSC. Dynamic pages convert on the request.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  markdownAgents: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  markdownAgents: true,
+}
+
+module.exports = nextConfig
+```
+
+`markdownAgents: true` is the same as:
+
+```ts
+markdownAgents: {
+  enabled: true,
+  mode: 'prefer-authored',
+  actions: true,
+  suffix: false,
+}
+```
+
+## Options
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `false` | Master switch. |
+| `mode` | `'prefer-authored'` | `prefer-authored` uses colocated `page.md` / `page.txt` when present, otherwise converts HTML. `authored` never converts. `auto` always converts. |
+| `actions` | `true` | Append an Actions section (YAML + curl) inferred from `<form>` elements. |
+| `suffix` | `false` | Optional URL aliases `/about.md` and `/about.txt`. Off by default. `page.md` still lives beside `page.tsx`. |
+| `frontmatter` | `true` | YAML frontmatter from title, description, and canonical. |
+| `jsonLd` | `true` | Append JSON-LD from the page. |
+| `tokenHeaders` | `true` | Send `x-markdown-tokens` and `x-original-tokens`. |
+| `contentTags` | `['main','article']` | Extra tags treated as the content root. |
+| `stripTags` | nav, header, footer, script, … | Extra tags stripped before conversion. |
+
+## Suffix URLs (optional)
+
+Default is the canonical path plus `Accept`. `page.md` in the route folder does **not** create `/about.md`. Set `suffix: true` only if you also want that alias:
+
+```ts
+markdownAgents: {
+  enabled: true,
+  suffix: true,
+}
+```
+
+```bash
+curl -H "Accept: text/markdown" https://example.com/about
+curl https://example.com/about.md
+```

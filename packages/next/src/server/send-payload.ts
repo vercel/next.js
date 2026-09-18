@@ -1,12 +1,30 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
 import type { CacheControl } from './lib/cache-control'
+import type { MarkdownAgentsConfig } from './lib/markdown-for-agents/config'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import { getCacheControlHeader } from './lib/cache-control'
-import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
+import {
+  HTML_CONTENT_TYPE_HEADER,
+  MARKDOWN_CONTENT_TYPE_HEADER,
+} from '../lib/constants'
+import { getRequestMeta } from './request-meta'
+import {
+  appendVary,
+  negotiateRepresentation,
+} from './lib/markdown-for-agents/accept'
+import { canonicalPagePath } from './lib/markdown-for-agents/actions'
+import { loadAuthoredRepresentation } from './lib/markdown-for-agents/authored'
+import { normalizeMarkdownConfig } from './lib/markdown-for-agents/config'
+import { estimateTokens } from './lib/markdown-for-agents/html-to-markdown'
+import {
+  representationsForMode,
+  shouldBufferHtmlForAgents,
+  transformPageRepresentation,
+} from './lib/markdown-for-agents/transform'
 
 export function sendEtagResponse(
   req: IncomingMessage,
@@ -39,6 +57,10 @@ export async function sendRenderResult({
   generateEtags,
   poweredByHeader,
   cacheControl,
+  markdownAgents,
+  dir,
+  page,
+  precomputedMarkdown,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -46,6 +68,11 @@ export async function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   cacheControl: CacheControl | undefined
+  markdownAgents?: MarkdownAgentsConfig
+  dir?: string
+  page?: string
+  /** Prerendered Markdown from the App page cache. */
+  precomputedMarkdown?: string
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -61,7 +88,144 @@ export async function sendRenderResult({
     res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
 
-  const payload = result.isDynamic ? null : result.toUnchunkedString()
+  let payload: string | null = result.isDynamic
+    ? null
+    : result.toUnchunkedString()
+  let markdownApplied = false
+
+  const markdownAgentsConfig = normalizeMarkdownConfig(markdownAgents)
+  const isRsc = Boolean(getRequestMeta(req, 'isRSCRequest'))
+  const forced = getRequestMeta(req, 'markdownRepresentation')
+  const acceptHeader =
+    typeof req.headers.accept === 'string' ? req.headers.accept : undefined
+  if (
+    markdownAgentsConfig.enabled &&
+    !isRsc &&
+    result.contentType === HTML_CONTENT_TYPE_HEADER
+  ) {
+    // Always vary HTML routes when the feature is on so a cached HTML
+    // response is not reused for Accept: text/markdown.
+    res.setHeader(
+      'Vary',
+      appendVary(
+        res.getHeader('Vary') as string | string[] | undefined,
+        'Accept'
+      )
+    )
+  }
+  if (
+    markdownAgentsConfig.enabled &&
+    !isRsc &&
+    result.contentType === HTML_CONTENT_TYPE_HEADER
+  ) {
+    const match = getRequestMeta(req, 'match')
+    const authored = dir
+      ? await loadAuthoredRepresentation({
+          dir,
+          pageFilename: match?.definition.filename,
+          page: match?.definition.page || page,
+        })
+      : {}
+    const url = canonicalPagePath((req.url || '/').split('?')[0] || '/')
+    // Prerender copies page.md into the cache slot. Offer markdown from that
+    // payload even when the source file is not on disk at request time
+    // (`mode: 'authored'`).
+    const authoredForChoice = precomputedMarkdown
+      ? { ...authored, markdown: authored.markdown ?? precomputedMarkdown }
+      : authored
+    const available = representationsForMode(
+      markdownAgentsConfig,
+      authoredForChoice
+    )
+    const chosen =
+      markdownAgentsConfig.suffix && forced && available.includes(forced)
+        ? forced
+        : negotiateRepresentation(acceptHeader, available)
+    const wantsAlternate = Boolean(chosen && chosen !== 'html')
+
+    if (wantsAlternate) {
+      // Auto-converted Markdown depends on the HTML for this request, so a
+      // dynamic result (SSR or PPR resume) must convert at request time.
+      // Authored Markdown (`authored`, or `prefer-authored` with a sibling
+      // file / prerendered cache slot) does not, and can be served as-is.
+      const markdownFromAuthoredSource = !shouldBufferHtmlForAgents(
+        markdownAgentsConfig,
+        authoredForChoice,
+        chosen
+      )
+      if (
+        chosen === 'markdown' &&
+        precomputedMarkdown &&
+        (!result.isDynamic || markdownFromAuthoredSource)
+      ) {
+        const originalHtml = payload
+        payload = precomputedMarkdown
+        markdownApplied = true
+        res.setHeader('Content-Type', MARKDOWN_CONTENT_TYPE_HEADER)
+        if (markdownAgentsConfig.tokenHeaders) {
+          res.setHeader(
+            'x-markdown-tokens',
+            String(estimateTokens(precomputedMarkdown))
+          )
+          if (originalHtml) {
+            res.setHeader(
+              'x-original-tokens',
+              String(estimateTokens(originalHtml))
+            )
+          }
+        }
+        res.removeHeader('ETag')
+        res.removeHeader('Last-Modified')
+      } else {
+        let html = payload ?? ''
+        let consumedDynamic = false
+        if (
+          shouldBufferHtmlForAgents(
+            markdownAgentsConfig,
+            authoredForChoice,
+            chosen
+          ) &&
+          result.isDynamic &&
+          payload === null
+        ) {
+          html = await result.toUnchunkedString(true)
+          consumedDynamic = true
+        }
+
+        const transformed = transformPageRepresentation({
+          accept: acceptHeader,
+          html,
+          url,
+          config: markdownAgentsConfig,
+          authored: authoredForChoice,
+          forced: markdownAgentsConfig.suffix ? (forced ?? null) : null,
+        })
+        if (transformed) {
+          payload = transformed.body
+          markdownApplied = true
+          res.setHeader('Content-Type', transformed.contentType)
+          if (transformed.markdownTokens != null) {
+            res.setHeader(
+              'x-markdown-tokens',
+              String(transformed.markdownTokens)
+            )
+          }
+          if (transformed.originalTokens != null) {
+            res.setHeader(
+              'x-original-tokens',
+              String(transformed.originalTokens)
+            )
+          }
+          res.removeHeader('ETag')
+          res.removeHeader('Last-Modified')
+        } else if (consumedDynamic) {
+          // The render stream is spent. Send the HTML we already read —
+          // never pipeToNodeResponse on a consumed stream.
+          payload = html
+        }
+      }
+    }
+  }
 
   if (generateEtags && payload !== null) {
     const etag = generateETag(payload)
@@ -85,6 +249,10 @@ export async function sendRenderResult({
 
   if (payload !== null) {
     res.end(payload)
+    return
+  }
+
+  if (markdownApplied) {
     return
   }
 
