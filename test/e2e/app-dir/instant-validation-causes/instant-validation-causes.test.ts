@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
-import type { ValidationEvent } from 'next/dist/server/app-render/dev-validation-events'
+import { createGetInstantInsight } from 'e2e-utils/instant-validation'
 
 describe('instant validation causes', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -28,67 +27,11 @@ describe('instant validation causes', () => {
     return next.cliOutput.slice(currentCliOutputIndex)
   }
 
-  function parseValidationMessages(output: string): ValidationEvent[] {
-    const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
-    const events: ValidationEvent[] = []
-    let match: RegExpExecArray | null
-    while ((match = messageRe.exec(output)) !== null) {
-      try {
-        events.push(JSON.parse(match[1]))
-      } catch (err) {
-        throw new Error(`Failed to parse message '${match[1]}'`, {
-          cause: err,
-        })
-      }
-    }
-    return events
-  }
-
-  function normalizeValidationUrl(url: string): string {
-    const parsed = new URL(url, 'http://n')
-    parsed.searchParams.delete('_rsc')
-    return parsed.pathname + parsed.search + parsed.hash
-  }
-
-  async function waitForValidation(targetUrl: string) {
-    const parsedTargetUrl = new URL(targetUrl)
-    const relativeTargetUrl =
-      parsedTargetUrl.pathname + parsedTargetUrl.search + parsedTargetUrl.hash
-
-    const requestId = await retry(
-      async () => {
-        const events = parseValidationMessages(getCliOutputSinceMark())
-        const start = events.find(
-          (e) =>
-            e.type === 'validation_start' &&
-            normalizeValidationUrl(e.url) === relativeTargetUrl
-        )
-        expect(start).toBeDefined()
-        return start!.requestId
-      },
-      undefined,
-      undefined,
-      `wait for validation of '${relativeTargetUrl}' to start`
-    )
-
-    await retry(
-      async () => {
-        const events = parseValidationMessages(getCliOutputSinceMark())
-        const end = events.find(
-          (e) => e.type === 'validation_end' && e.requestId === requestId
-        )
-        expect(end).toBeDefined()
-      },
-      undefined,
-      undefined,
-      'wait for validation to end'
-    )
-  }
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
 
   it('named export - export { instant }', async () => {
     const browser = await next.browser('/named-export')
-    await waitForValidation(await browser.url())
-    await expect(browser).toDisplayCollapsedRedbox(`
+    expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
      {
        "cause": [
          {
@@ -117,8 +60,7 @@ describe('instant validation causes', () => {
 
   it('aliased export - export { instantConfig as instant }', async () => {
     const browser = await next.browser('/aliased-export')
-    await waitForValidation(await browser.url())
-    await expect(browser).toDisplayCollapsedRedbox(`
+    expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
      {
        "cause": [
          {
@@ -147,8 +89,7 @@ describe('instant validation causes', () => {
 
   it('re-export - export { instant } from "./config"', async () => {
     const browser = await next.browser('/reexport')
-    await waitForValidation(await browser.url())
-    await expect(browser).toDisplayCollapsedRedbox(`
+    expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
      {
        "cause": [
          {
@@ -177,11 +118,10 @@ describe('instant validation causes', () => {
 
   it('indirect export - const instantConfig = _instant; export { instantConfig as instant }', async () => {
     const browser = await next.browser('/indirect-export')
-    await waitForValidation(await browser.url())
     // Ideally we'd be pointing at the original value declaration.
     // We're not following declarations recursively mostly to keep the implementation simpler
     // presuming that almost all configs are just `export const instant = ...`
-    await expect(browser).toDisplayCollapsedRedbox(`
+    expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
      {
        "cause": [
          {

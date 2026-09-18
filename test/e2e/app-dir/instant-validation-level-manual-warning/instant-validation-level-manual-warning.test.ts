@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  createGetInstantInsight,
   expectBuildValidationSkipped,
   extractBuildValidationError,
   parseValidationMessages,
@@ -23,9 +24,30 @@ describe('instant validation - level manual-warning', () => {
     return
   }
 
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
+
   if (isNextStart) {
     beforeAll(async () => {
-      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+        )
+      }
     })
     afterEach(async () => {
       await next.stop()
@@ -79,7 +101,7 @@ describe('instant validation - level manual-warning', () => {
           const browser = await next.browser(
             '/with-root-suspense/explicit-error'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -110,7 +132,7 @@ describe('instant validation - level manual-warning', () => {
           const browser = await next.browser(
             '/with-root-suspense/explicit-true'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -141,7 +163,7 @@ describe('instant validation - level manual-warning', () => {
           const browser = await next.browser(
             '/with-root-suspense/explicit-warning'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -224,7 +246,7 @@ describe('instant validation - level manual-warning', () => {
           // the top of the page. The captured snapshot should NOT contain
           // the "Instant" label — that's the proof that instant validation
           // did not run under 'manual-warning'.
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
@@ -243,7 +265,7 @@ describe('instant validation - level manual-warning', () => {
           const browser = await next.browser(
             '/without-root-suspense/explicit-error'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
@@ -262,7 +284,7 @@ describe('instant validation - level manual-warning', () => {
           const browser = await next.browser(
             '/without-root-suspense/explicit-true'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
@@ -281,7 +303,7 @@ describe('instant validation - level manual-warning', () => {
           const browser = await next.browser(
             '/without-root-suspense/explicit-warning'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
