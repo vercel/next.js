@@ -3,14 +3,15 @@ import { mkdir, readFile, realpath, rename, rm, writeFile } from 'fs/promises'
 import { join, resolve } from 'path'
 import { emitKeypressEvents, type Key } from 'readline'
 
-import semver from 'next/dist/compiled/semver'
-
 import * as Log from '../../build/output/log'
 import { isCI } from '../../server/ci-info'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
 import { cyan, dim } from '../picocolors'
-import { futureDefaults, type FutureDefaultsConfig } from './future-defaults'
+import {
+  getPendingFutureDefaults,
+  type FutureDefaultsConfig,
+} from './future-defaults'
 import { getUpgradePreferenceKey, upgradePreferences } from './preferences'
 import { runChildProcess } from './run-child-process'
 
@@ -104,19 +105,8 @@ export async function assessUpgrade(
       if (audience === 'interactive') return null
     }
 
-    if (audience === 'interactive') return null
-    if (
-      policy !== 'future' ||
-      !semver.valid(installedVersion) ||
-      semver.prerelease(installedVersion)
-    ) {
-      return null
-    }
-    const pending = futureDefaults.filter(
-      (entry) =>
-        semver.gte(installedVersion, entry.availableSince) &&
-        !entry.isAdopted(context)
-    )
+    if (policy !== 'future' || isDismissed('future')) return null
+    const pending = getPendingFutureDefaults(context, installedVersion)
     if (pending.length === 0) return null
     return {
       ...nudge,
@@ -302,11 +292,9 @@ async function nudgeForFuture(
     options,
     version,
     'future',
-    `Installed Next.js ${version} includes Future Defaults available for this app:
+    `Installed Next.js ${version} includes future default(s) available for this app:
 
 ${defaults}
-
-**We recommend you adopt these Future Defaults.**
 
 This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
 
@@ -363,8 +351,11 @@ We strongly recommend you upgrade Next.js.`
     case 'latest':
       message = `Next.js ${nudge.latestVersion} is available. You're using ${nudge.installedVersion}.`
       break
-    default:
-      return false
+    case 'future':
+      message = `Installed Next.js ${nudge.installedVersion} includes future default(s) available for this app:
+
+${nudge.names.map((name) => `- ${name}`).join('\n')}`
+      break
   }
   Log.warn()
   Log.warn(`${message}
