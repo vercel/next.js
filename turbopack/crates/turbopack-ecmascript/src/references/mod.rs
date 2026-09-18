@@ -307,10 +307,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 self.add_code_gen(code_gen);
             }
             ValueLinkContext::InAlternative => {
-                debug_assert!(
-                    self.analyze_mode.trace_file_references,
-                    "unexpected add_reference_code_gen InAlternative in non-tracing mode"
-                );
                 self.references.insert(reference.into_reference());
             }
         }
@@ -2013,12 +2009,6 @@ where
 {
     fn explain_args(args: &[JsValue<'_>]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
-    }
-
-    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.skip_codegen {
-        // We are in an alternative (can't do any replacement anyway) and are running codegen, so
-        // assume that we only care about the bundled output. Not the emitted references.
-        return Ok(());
     }
 
     let error_mode = if attributes.optional {
