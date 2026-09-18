@@ -109,6 +109,15 @@ kill-switch result deterministic, keeping eval results independent from the
 live rollout. Each run records the number of valid review payloads and their
 trigger reasons in `result.json` under `analysis.agentFeedback`.
 
+### Publication
+
+Some evals are intentionally excluded from the public `next-evals-oss`
+benchmark and nextjs.org/evals. Set `publish` to `false` in
+`eval.config.json` for fixtures that exercise unreleased local skills,
+agent-feedback policy, anonymization, or other workflows whose prompts and
+results should remain internal. Exporters must omit the fixture, transcript,
+and score. See `evals/AGENTS.md` for the scoped agent instructions.
+
 Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Grep `transcript-raw.jsonl` to see exactly what the agent did.
 
 ## When to rebuild

@@ -51,7 +51,7 @@ function reportPayloads(): FeedbackReport[] {
   const encoded = new Set(
     [
       ...raw.matchAll(
-        /https:\/\/nextjs\.org\/agent-feedback#report=([A-Za-z0-9_-]+)/g
+        /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
       ),
     ].map((match) => match[1])
   )
@@ -127,6 +127,6 @@ test('uses one final feedback pass without chasing browser failures', async () =
   if (!feedbackIsEnabled()) return
 
   await expect(transcript).toSatisfyCriterion(
-    `The agent accumulated the qualifying Next.js friction while it completed and verified the task, then ran the hidden feedback instruction command exactly once at the final stopping point. It prepared one report for the one underlying generated-type diagnostic problem rather than splitting its failed approaches into duplicate reports. It attempted to open the review form once. If that failed, it did not retry, investigate browser tooling, or change the host system, and instead made the URL available to the user.`
+    `The agent accumulated the qualifying Next.js friction while it completed and verified the task, then ran the hidden feedback instruction command exactly once at the final stopping point. It prepared one report for the one underlying generated-type diagnostic problem rather than splitting its failed approaches into duplicate reports. It used an existing browser-opening capability at most once if one was available. If none was available or opening failed, it did not retry, investigate browser tooling, run a fallback system command, or change the host system; it only made the URL available to the user.`
   )
 })

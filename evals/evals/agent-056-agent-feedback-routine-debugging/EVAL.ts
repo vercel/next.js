@@ -19,7 +19,7 @@ function reportPayloads(): unknown[] {
   const encoded = new Set(
     [
       ...raw.matchAll(
-        /https:\/\/nextjs\.org\/agent-feedback#report=([A-Za-z0-9_-]+)/g
+        /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
       ),
     ].map((match) => match[1])
   )

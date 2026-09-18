@@ -247,7 +247,7 @@ require(path.join(nextRoot, 'dist/server/lib/generate-agent-files.js'))
 }
 
 const REPORT_URL_PATTERN =
-  /https:\/\/nextjs\.org\/agent-feedback#report=([A-Za-z0-9_-]+)/g
+  /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
 
 /** Attach report counts to result.json so repeated runs expose trigger rates. */
 export function analyzeAgentFeedbackRun({
