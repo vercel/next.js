@@ -71,7 +71,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the security upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```/
+        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the security upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai=security\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -96,14 +96,6 @@ describe('security upgrade nudge', () => {
     await run()
 
     expect(getSecurityAdvisory).toHaveBeenCalledTimes(1)
-    expect(warn).not.toHaveBeenCalled()
-  })
-
-  it('stays silent when prerelease security assessment is deferred', async () => {
-    jest.mocked(getSecurityAdvisory).mockResolvedValue(null)
-
-    await run()
-
     expect(warn).not.toHaveBeenCalled()
   })
 
@@ -182,8 +174,16 @@ describe('latest nudge release selection', () => {
     ['16.1.0', '17.0.0-canary.1', null],
     ['16.1.0-canary.1', '16.1.0', null],
     ['16.0.0-canary.1', '16.1.0', null],
+    ['17.2.0-canary.4', '17.2.1-canary.0', null],
+    ['17.1.0-canary.4', '17.2.0-canary.0', '17.2.0-canary.0'],
+    ['17.2.0-rc.1', '17.2.0', '17.2.0'],
+    ['17.2.0-beta.1', '17.2.0', '17.2.0'],
+    ['17.2.0-preview.1', '17.2.0', '17.2.0'],
+    ['17.2.0-1', '17.2.0', '17.2.0'],
+    ['17.2.0-rc.1', '17.1.0', null],
+    ['17.2.0-beta.1', '17.2.0-rc.1', null],
   ])(
-    'selects %s → %s for a nudge only across major/minor versions',
+    'selects %s → %s for a major/minor upgrade or stable promotion',
     async (installed, latest, expected) => {
       jest
         .spyOn(global, 'fetch')
@@ -200,6 +200,27 @@ describe('latest upgrade nudge', () => {
     jest.mocked(getAgentName).mockResolvedValue('codex')
     jest.mocked(getSecurityAdvisory).mockResolvedValue(null)
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
+  })
+
+  describe.each(['latest', 'future'] as const)('%s policy', (policy) => {
+    it.each([
+      ['17.0.0', 'latest'],
+      ['17.0.0-canary.1', 'canary'],
+    ])('links %s to its %s dist-tag', async (targetVersion, distTag) => {
+      jest.mocked(getLatestUpgradeVersion).mockResolvedValue(targetVersion)
+      const reference = `Reference: https://registry.npmjs.org/next/${distTag}`
+
+      await expect(
+        nudgeForUpgrade(directory, config(policy), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(reference),
+      })
+      await expect(
+        nudgeForUpgrade(directory, config(policy), 'build')
+      ).resolves.toBeUndefined()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(reference))
+    })
   })
 
   it('stops once and allows a matching retry with a warning', async () => {
@@ -264,7 +285,7 @@ describe('composed latest nudge', () => {
   })
 
   it.each(['latest', 'future'] as const)(
-    'preserves the %s policy when security takes priority',
+    'recommends explicit security assessment under the %s policy',
     async (policy) => {
       jest.mocked(getSecurityAdvisory).mockResolvedValue({
         reference: 'https://api.github.com/advisories?affects=next%4015.0.0',
@@ -274,7 +295,9 @@ describe('composed latest nudge', () => {
       await expect(nudge).rejects.toMatchObject({
         name: 'SecurityFatalError',
         exitCode: 1,
-        message: expect.stringContaining('```\nnext upgrade --ai\n```'),
+        message: expect.stringContaining(
+          '```\nnext upgrade --ai=security\n```'
+        ),
       })
       await expect(nudge).rejects.toMatchObject({
         message: expect.stringContaining(
@@ -296,11 +319,23 @@ describe('composed future nudge', () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
   })
 
-  it('does not offer Future Defaults from a prerelease', async () => {
+  it.each(['16.4.0-canary.1', '16.4.0-rc.1'])(
+    'offers available Future Defaults for %s',
+    async (installedVersion) => {
+      await expect(
+        getFutureUpgrade(
+          config('future', { cacheComponents: false }),
+          installedVersion
+        )
+      ).resolves.toEqual({ installedVersion, names: ['Cache Components'] })
+    }
+  )
+
+  it('does not offer defaults before their availability version', async () => {
     await expect(
       getFutureUpgrade(
         config('future', { cacheComponents: false }),
-        '16.4.0-canary.1'
+        '16.3.0-canary.1'
       )
     ).resolves.toBeNull()
   })

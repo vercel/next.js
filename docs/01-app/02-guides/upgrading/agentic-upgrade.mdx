@@ -13,8 +13,6 @@ as instructed so the original task can continue with a warning. Tell the user
 about the finding and ask whether they want to run the upgrade. Continue
 independent work while waiting. If approved, complete the upgrade.
 
-For `latest`, the CLI pins npm's latest stable Next.js release as the target.
-
 ## 1. Check for duplicates
 
 Before reading another guide or changing files, complete every item:
@@ -67,8 +65,8 @@ references in the prompt instead of the codemod steps below.
 - [ ] Complete the codemod's manual steps, resolve its review markers, and
       complete every applicable migration item. Keep only changes required by
       the final target.
-- [ ] Set `experimental.agenticAutoUpgrade` to the policy specified in the
-      prompt, preserving unrelated configuration. If the target Next.js version
+- [ ] Follow the prompt's instructions for `experimental.agenticAutoUpgrade`,
+      preserving unrelated configuration. If the target Next.js version
       does not support this option, skip the setting and report why.
 
 ## 4. Verify
