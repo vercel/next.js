@@ -129,7 +129,7 @@ export interface RunSummary {
   runId: string
   status: 'running' | Exclude<ResultStatus, 'skipped'>
   files: ResultCounts
-  /** Last retry per entry/case/repeat. Earlier attempts remain in the event log. */
+  /** One final result per entry/case. Earlier retries and repeats remain in the event log. */
   cases: ResultCounts
   attempts: ResultCounts
   errors: number

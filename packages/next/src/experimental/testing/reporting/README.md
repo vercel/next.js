@@ -11,8 +11,9 @@ Select that reporter explicitly when comparing output: Vitest can select its
 minimal reporter automatically inside an agent environment.
 
 The reporter consumes structured events and owns no execution resources. Final
-retry results determine the displayed outcome; all attempts remain in the event
-history. Ignored stack frames remain in diagnostic evidence but are omitted from
+retry results determine each repeat's outcome, while each declaration is counted
+once and fails if any repeat fails. All attempts remain in the event history.
+Ignored stack frames remain in diagnostic evidence but are omitted from
 terminal failures. Source excerpts come only from the retained compiled
 revision's source maps, never from reading a potentially edited source file.
 The separately bundled diff formatter does not initialize matcher globals.

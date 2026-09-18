@@ -26,7 +26,7 @@ const invoke = (filter: string, color = false) =>
 
 it('executes lifecycle callbacks in actual compiled Next test entries', async () => {
   const { stdout, stderr } = await invoke('lifecycle.case')
-  expect(stdout).toMatch(/Tests\s+2 passed \(2\)/)
+  expect(stdout).toMatch(/Tests\s+10 passed \(10\)/)
   expect(stdout + stderr).not.toContain('expected first-attempt failure')
   expect(stderr).not.toContain('Failed Tests')
   expect(stdout).not.toContain('\x1b[')
