@@ -1,6 +1,11 @@
-use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
+#[cfg(not(miri))]
+use std::cell::RefCell;
+use std::{mem::MaybeUninit, rc::Rc, sync::Arc};
 
-use anyhow::{Context, Result, ensure};
+#[cfg(not(miri))]
+use anyhow::Context;
+use anyhow::{Result, ensure};
+#[cfg(not(miri))]
 use lz4_flex::block::{
     CompressTable, compress_into_with_table, decompress_into, get_maximum_output_size,
 };
@@ -16,6 +21,7 @@ pub enum Compression {
     Zstd3 = 1,
 }
 
+#[cfg(not(miri))]
 thread_local! {
     /// Reuse lz4_flex's large hash table across independent blocks. Starting large improves
     /// compression speed and produces faster-to-decode streams for typical persistence blocks.
@@ -37,30 +43,43 @@ fn decompress_block(
 ) -> Result<()> {
     debug_assert!(
         expected_len > 0,
-        "decompress_block called with uncompressed_length=0; uncompressed blocks should use \
-         zero-copy mmap path"
+        "decompress_block called with uncompressed_length=0; uncompressed blocks are served \
+         directly from their backing"
     );
-    let bytes_written = match compression {
-        Compression::Lz4 => decompress_into(block, dest).map_err(anyhow::Error::from),
-        Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
-            decompressor
-                .decompress_to_buffer(block, dest)
-                .map_err(anyhow::Error::from)
-        }),
+    #[cfg(not(miri))]
+    {
+        let bytes_written = match compression {
+            Compression::Lz4 => decompress_into(block, dest).map_err(anyhow::Error::from),
+            Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
+                decompressor
+                    .decompress_to_buffer(block, dest)
+                    .map_err(anyhow::Error::from)
+            }),
+        }
+        .with_context(|| {
+            format!(
+                "Failed to decompress {compression:?} block ({} bytes compressed, {} bytes \
+                 uncompressed)",
+                block.len(),
+                expected_len
+            )
+        })?;
+        ensure!(
+            bytes_written == expected_len as usize,
+            "Decompressed length does not match expected length: decompressed {bytes_written} \
+             bytes, expected {expected_len}"
+        );
     }
-    .with_context(|| {
-        format!(
-            "Failed to decompress {compression:?} block ({} bytes compressed, {} bytes \
-             uncompressed)",
-            block.len(),
-            expected_len
-        )
-    })?;
-    ensure!(
-        bytes_written == expected_len as usize,
-        "Decompressed length does not match expected length: decompressed {bytes_written} bytes, \
-         expected {expected_len}"
-    );
+    #[cfg(miri)]
+    {
+        // Compression is skipped under Miri, so Miri-created blob payloads are verbatim.
+        let _ = compression;
+        ensure!(
+            block.len() == expected_len as usize,
+            "Miri builds skip compression, so a compressed block cannot be read under Miri"
+        );
+        dest.copy_from_slice(block);
+    }
     Ok(())
 }
 
@@ -108,18 +127,24 @@ pub fn checksum_block(data: &[u8]) -> u32 {
 /// Reusable compressor for a stream of blocks using the same family configuration.
 pub(crate) struct Compressor {
     compression: Compression,
+    #[cfg(not(miri))]
     zstd: Option<zstd::bulk::Compressor<'static>>,
 }
 
 impl Compressor {
     pub(crate) fn new(compression: Compression) -> Result<Self> {
+        #[cfg(not(miri))]
         let zstd = match compression {
             Compression::Zstd3 => {
                 Some(zstd::bulk::Compressor::new(3).context("Failed to create zstd compressor")?)
             }
             Compression::Lz4 => None,
         };
-        Ok(Self { compression, zstd })
+        Ok(Self {
+            compression,
+            #[cfg(not(miri))]
+            zstd,
+        })
     }
 
     /// Compresses `block` into reusable storage, replacing its contents.
@@ -130,6 +155,7 @@ impl Compressor {
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
         buffer.clear();
+        #[cfg(not(miri))]
         match self.compression {
             Compression::Lz4 => {
                 let max_output_size = get_maximum_output_size(block.len());
@@ -155,6 +181,14 @@ impl Compressor {
                     .compress_to_buffer(block, buffer)
                     .context("zstd compression failed")?;
             }
+        }
+        #[cfg(miri)]
+        {
+            // Compression is deliberately skipped under Miri. This avoids native Zstd, and using
+            // the same raw representation for both algorithms keeps blob reads on the matching
+            // copy path above. The caller's savings check stores SST blocks as uncompressed.
+            let _ = self.compression;
+            buffer.extend_from_slice(block);
         }
         Ok(())
     }
