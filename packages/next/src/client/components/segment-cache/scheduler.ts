@@ -298,6 +298,48 @@ export function startRevalidationCooldown(): void {
   }, REVALIDATION_COOLDOWN_MS)
 }
 
+// Draft mode prevents ordinary prefetch tasks from entering the queue. The
+// state is separate from router state because an action can change its cookie
+// even when the router discards the action's render result.
+let isDraftMode: boolean | null = null
+
+export function setIsDraftMode(value: boolean): void {
+  if (isDraftMode === value) {
+    return
+  }
+  isDraftMode = value
+
+  if (!value || taskHeap.length === 0) {
+    return
+  }
+
+  // Cancel queued prefetches at the transition. Blocked tasks must pass the
+  // same policy when their responses requeue them through pingPrefetchTask.
+  let navigationTasks: PrefetchTask[] | null = null
+  let task = heapPop(taskHeap)
+  while (task !== null) {
+    if (
+      process.env.__NEXT_EXPOSE_TESTING_API &&
+      task._navigationLockPrefetch != null
+    ) {
+      if (navigationTasks === null) {
+        navigationTasks = []
+      }
+      navigationTasks.push(task)
+    } else {
+      cancelPrefetchTask(task)
+    }
+    task = heapPop(taskHeap)
+  }
+
+  if (navigationTasks !== null) {
+    for (const navigationTask of navigationTasks) {
+      heapPush(taskHeap, navigationTask)
+    }
+  }
+  pingPrefetchScheduler()
+}
+
 export type IncludeDynamicData = null | 'full' | 'dynamic'
 
 /**
@@ -305,7 +347,8 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * is already in progress, this will bump it to the top of the queue.
  *
  * This is not a user-facing function. By the time this is called, the href is
- * expected to be validated and normalized.
+ * expected to be validated and normalized. Returns null when prefetching is
+ * disabled, unless the task drives a locked navigation.
  *
  * @param key The RouteCacheKey to prefetch.
  * @param treeAtTimeOfPrefetch The app's current FlightRouterState
@@ -322,7 +365,11 @@ export function schedulePrefetchTask(
   priority: PrefetchPriority,
   onInvalidate: null | (() => void),
   navigationLockPrefetch: NavigationLockPrefetch | null
-): PrefetchTask {
+): PrefetchTask | null {
+  if (!isPrefetchingAllowed(navigationLockPrefetch)) {
+    return null
+  }
+
   // Bind the task to the segment cache map that is active right now: the
   // shared map, unless the Instant Navigation Testing lock is held, in which
   // case the task gets the lock scope's private map. This is the single
@@ -395,6 +442,17 @@ export function reschedulePrefetchTask(
   fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority
 ): void {
+  if (
+    !isPrefetchingAllowed(
+      process.env.__NEXT_EXPOSE_TESTING_API
+        ? task._navigationLockPrefetch
+        : null
+    )
+  ) {
+    cancelPrefetchTask(task)
+    return
+  }
+
   // Bump the prefetch task to the top of the queue, as if it were a fresh
   // task. This is essentially the same as canceling the task and scheduling
   // a new one, except it reuses the original object.
@@ -476,6 +534,23 @@ export function pingPrefetchScheduler() {
   }
   didScheduleMicrotask = true
   scheduleMicrotask(processQueueInMicrotask)
+}
+
+export function isPrefetchingAllowed(
+  navigationLockPrefetch: NavigationLockPrefetch | null | undefined
+): boolean {
+  if (process.env.__NEXT_EXPOSE_TESTING_API && navigationLockPrefetch != null) {
+    // The testing API uses this task to fulfill a navigation, not to fetch
+    // speculative data. Blocking it would leave that navigation waiting
+    // forever.
+    return true
+  }
+  if (isDraftMode === null) {
+    throw new Error(
+      'Internal Next.js error: Prefetch scheduled before hydration.'
+    )
+  }
+  return !isDraftMode
 }
 
 /**
@@ -575,6 +650,16 @@ export function pingPrefetchTask(task: PrefetchTask) {
     // Check if prefetch is already queued.
     task._heapIndex !== -1
   ) {
+    return
+  }
+  if (
+    !isPrefetchingAllowed(
+      process.env.__NEXT_EXPOSE_TESTING_API
+        ? task._navigationLockPrefetch
+        : null
+    )
+  ) {
+    cancelPrefetchTask(task)
     return
   }
   // Add the task back to the queue.
