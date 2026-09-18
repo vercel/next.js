@@ -273,7 +273,7 @@ program
         if (options.experimentalCpuProf) {
           await mod.saveCpuProfile()
         }
-        process.exit(0)
+        process.exit(process.exitCode ?? 0)
       })
     )
   })

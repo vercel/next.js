@@ -72,6 +72,9 @@ let distDir: string | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
+let humanNudgeShown = false
+let humanNudgeController: AbortController | null = null
+let upgrading = false
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
   'missing-next-dir': false,
@@ -105,7 +108,11 @@ const CHILD_EXIT_TIMEOUT_MS = parseInt(
 const shouldWaitForChildExit =
   process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1'
 
-const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+const handleSessionStop = async (
+  signal: NodeJS.Signals | number | null,
+  exit = true
+) => {
+  humanNudgeController?.abort()
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
@@ -191,11 +198,19 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(exitCode)
+  if (exit) process.exit(exitCode)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+const onInterrupt = () => {
+  if (upgrading && sessionStopHandled) process.exit(130)
+  void handleSessionStop('SIGINT')
+}
+const onTerminate = () => {
+  if (upgrading && sessionStopHandled) process.exit(143)
+  void handleSessionStop('SIGTERM')
+}
+process.on('SIGINT', onInterrupt)
+process.on('SIGTERM', onTerminate)
 
 // exit event must be synchronous
 process.on('exit', () => {
@@ -449,12 +464,58 @@ const nextDev = async (
 
             resolved = true
             resolve()
+            if (!humanNudgeShown && msg.humanUpgradeContext?.policy) {
+              const worker = child
+              const controller = new AbortController()
+              humanNudgeController = controller
+              void (async () => {
+                const {
+                  assessHumanUpgrade,
+                  promptHumanUpgrade,
+                  runHumanUpgrade,
+                } = await import('../lib/upgrade/human-nudge.js')
+                const nudge = await assessHumanUpgrade(
+                  dir,
+                  msg.humanUpgradeContext
+                )
+                if (
+                  !nudge ||
+                  controller.signal.aborted ||
+                  worker !== child ||
+                  sessionStopHandled
+                )
+                  return
+                humanNudgeShown = true
+                if (!(await promptHumanUpgrade(nudge, controller.signal)))
+                  return
+                upgrading = true
+                await handleSessionStop('SIGTERM', false)
+                process.removeListener('SIGINT', onInterrupt)
+                process.removeListener('SIGTERM', onTerminate)
+                let code = 1
+                try {
+                  code = await runHumanUpgrade(dir, nudge.policy)
+                } catch {
+                  Log.error(
+                    'Could not start the upgrade. Run next upgrade --ai to try again.'
+                  )
+                }
+                process.exit(code)
+              })().catch(() => {
+                // A failed reminder must not stop a working development server.
+                if (upgrading) {
+                  Log.error('Could not hand off to the upgrade command.')
+                  process.exit(1)
+                }
+              })
+            }
           }
         }
       })
 
       child.on('exit', async (code, signal) => {
-        if (sessionStopHandled || signal) {
+        humanNudgeController?.abort()
+        if (upgrading || sessionStopHandled || signal) {
           return
         }
         if (code === RESTART_EXIT_CODE) {

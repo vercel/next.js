@@ -1103,6 +1103,9 @@ export async function initialize(opts: {
 
   return {
     requestHandler,
+    humanUpgradeContext: {
+      policy: development?.config.experimental.agenticAutoUpgrade,
+    },
     upgradeHandler,
     server: handlers.server,
     closeUpgraded() {
