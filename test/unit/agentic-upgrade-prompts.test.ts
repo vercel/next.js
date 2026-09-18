@@ -15,6 +15,7 @@ import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { getNpxCommand } from 'next/dist/lib/helpers/get-npx-command'
+import { getPkgManager } from 'next/dist/lib/helpers/get-pkg-manager'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -54,6 +55,9 @@ jest.mock('next/dist/lib/get-project-dir', () => ({
 }))
 jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
   getNpxCommand: jest.fn(),
+}))
+jest.mock('next/dist/lib/helpers/get-pkg-manager', () => ({
+  getPkgManager: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
   bold: (text: string) => text,
@@ -128,6 +132,7 @@ describe('agentic upgrade prompts', () => {
     global.fetch = jest.fn()
     process.exitCode = undefined
 
+    jest.mocked(getPkgManager).mockReturnValue('npm')
     jest.mocked(getNpxCommand).mockReturnValue('npx')
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
@@ -179,40 +184,103 @@ describe('agentic upgrade prompts', () => {
     }
   })
 
-  it('revalidates canary and reuses the matching CLI', async () => {
-    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-    jest
-      .mocked(global.fetch)
-      .mockResolvedValue(Response.json({ version: currentCliVersion }))
-
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: true,
-    })
-
-    expect(global.fetch).toHaveBeenCalledTimes(1)
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://registry.npmjs.org/next/canary',
-      expect.objectContaining({
-        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
-        cache: 'no-store',
-        signal: expect.any(AbortSignal),
-        redirect: 'error',
+  function mockQuery(output: string, code: number | null = 0) {
+    crossSpawn.mockImplementationOnce(() => {
+      const child = Object.assign(new EventEmitter(), {
+        stdout: Object.assign(new EventEmitter(), { setEncoding: jest.fn() }),
+        stderr: { resume: jest.fn() },
       })
-    )
-    expect(crossSpawn).not.toHaveBeenCalled()
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
-  })
+      queueMicrotask(() => {
+        child.stdout.emit('data', output)
+        child.emit('close', code)
+      })
+      return child
+    })
+  }
+
+  it.each(['npm', 'pnpm'] as const)(
+    'revalidates canary with %s from the app directory and reuses the matching CLI',
+    async (packageManager) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      jest.mocked(getPkgManager).mockReturnValue(packageManager)
+      mockQuery(JSON.stringify(currentCliVersion))
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      })
+
+      expect(getPkgManager).toHaveBeenCalledWith('/workspace/app')
+      expect(crossSpawn).toHaveBeenCalledTimes(1)
+      expect(crossSpawn).toHaveBeenCalledWith(
+        packageManager,
+        [
+          'view',
+          'next',
+          'dist-tags.canary',
+          '--json',
+          '--prefer-online',
+          '--prefer-offline=false',
+          '--offline=false',
+        ],
+        {
+          cwd: '/workspace/app',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 10_000,
+        }
+      )
+      expect(global.fetch).not.toHaveBeenCalled()
+      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+    }
+  )
+
+  it.each(['1.22.22', '4.9.2'])(
+    'resolves canary through Yarn %s configuration',
+    async (yarnVersion) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      jest.mocked(getPkgManager).mockReturnValue('yarn')
+      mockQuery(yarnVersion)
+      const classic = yarnVersion.startsWith('1.')
+      mockQuery(
+        classic
+          ? JSON.stringify({ type: 'info', data: 'notice' }) +
+              '\n' +
+              JSON.stringify({ type: 'inspect', data: currentCliVersion })
+          : JSON.stringify({
+              name: 'next',
+              'dist-tags': { canary: currentCliVersion },
+            })
+      )
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      })
+
+      expect(crossSpawn).toHaveBeenNthCalledWith(
+        2,
+        'yarn',
+        classic
+          ? ['info', 'next', 'dist-tags.canary', '--json']
+          : ['npm', 'info', 'next', '--fields', 'dist-tags', '--json'],
+        {
+          cwd: '/workspace/app',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 10_000,
+        }
+      )
+      expect(prepareUpgrade).toHaveBeenCalled()
+    }
+  )
 
   it.each(['npx --yes', 'pnpm --silent dlx', 'yarn --quiet dlx'])(
     'delegates to an exact version with %s and preserves its exit code',
     async (runner) => {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       jest.mocked(getNpxCommand).mockReturnValue(runner)
-      jest
-        .mocked(global.fetch)
-        .mockResolvedValue(Response.json({ version: '99.0.0-canary.1' }))
+      mockQuery(JSON.stringify('99.0.0-canary.1'))
       crossSpawn.mockImplementationOnce(() => {
         const child = new EventEmitter()
         queueMicrotask(() => child.emit('close', 7))
@@ -283,39 +351,44 @@ describe('agentic upgrade prompts', () => {
     expect(process.exitCode).toBe(1)
   })
 
-  it.each(['network', 'timeout', 'http', 'invalid JSON', 'invalid version'])(
-    'stops when the canary lookup fails: %s',
-    async (failure) => {
-      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-      if (failure === 'network' || failure === 'timeout') {
-        jest.mocked(global.fetch).mockRejectedValue(new Error(failure))
-      } else {
-        jest
-          .mocked(global.fetch)
-          .mockResolvedValue(
-            failure === 'http'
-              ? new Response(null, { status: 503 })
-              : failure === 'invalid JSON'
-                ? new Response('not JSON')
-                : Response.json({ version: '--invalid' })
-          )
-      }
-
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: true,
+  it.each([
+    'command error',
+    'timeout',
+    'nonzero exit',
+    'invalid JSON',
+    'invalid version',
+    'missing tag',
+  ])('stops when the canary lookup fails: %s', async (failure) => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    if (failure === 'command error') {
+      crossSpawn.mockImplementationOnce(() => {
+        const child = new EventEmitter()
+        queueMicrotask(() => child.emit('error', new Error('ENOENT')))
+        return child
       })
-
-      expect(crossSpawn).not.toHaveBeenCalled()
-      expect(prepareUpgrade).not.toHaveBeenCalled()
-      expect(Log.error).toHaveBeenCalledWith(
-        'Could not prepare the upgrade:',
-        'Could not determine the current Next.js canary version. Please try again.'
+    } else {
+      mockQuery(
+        failure === 'invalid JSON'
+          ? 'not JSON'
+          : JSON.stringify(failure === 'missing tag' ? null : '--invalid'),
+        failure === 'timeout' ? null : failure === 'nonzero exit' ? 1 : 0
       )
-      expect(process.exitCode).toBe(1)
     }
-  )
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
+
+    expect(crossSpawn).toHaveBeenCalledTimes(1)
+    expect(prepareUpgrade).not.toHaveBeenCalled()
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      'Could not determine the current Next.js canary version. Please try again.'
+    )
+    expect(process.exitCode).toBe(1)
+  })
 
   it('uses the planned multiple-agent question and choices', async () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION

@@ -8,6 +8,7 @@ import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { getPkgManager } from '../lib/helpers/get-pkg-manager'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
@@ -144,26 +145,71 @@ async function resolveAIUpgradeType(
     : 'security'
 }
 
-async function resolveCanaryVersion(): Promise<string> {
-  try {
-    const response = await fetch('https://registry.npmjs.org/next/canary', {
-      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(10_000),
-      redirect: 'error',
+async function resolveCanaryVersion(directory: string): Promise<string> {
+  const spawnCommand =
+    require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+  const packageManager = getPkgManager(directory)
+  const query = (args: string[]): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const child = spawnCommand(packageManager, args, {
+        cwd: directory,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 10_000,
+      })
+      let stdout = ''
+      child.stdout?.setEncoding('utf8')
+      child.stdout?.on('data', (chunk: string) => {
+        stdout += chunk
+      })
+      // Drain diagnostics without exposing registry credentials in errors.
+      child.stderr?.resume()
+      child.once('error', reject)
+      child.once('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`${packageManager} exited with code ${code}`))
+          return
+        }
+        resolve(stdout.trim())
+      })
     })
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
 
-    const release = (await response.json()) as { version: unknown } | null
-    if (
-      typeof release?.version !== 'string' ||
-      !semver.valid(release.version)
-    ) {
+  try {
+    let version: unknown
+    if (packageManager === 'yarn') {
+      const yarnVersion = await query(['--version'])
+      if (!semver.valid(yarnVersion)) {
+        throw new Error('Invalid Yarn version')
+      }
+      const classic = semver.major(yarnVersion) === 1
+      const output = await query(
+        classic
+          ? ['info', 'next', 'dist-tags.canary', '--json']
+          : ['npm', 'info', 'next', '--fields', 'dist-tags', '--json']
+      )
+      const records = output.split('\n').map((line) => JSON.parse(line))
+      version = classic
+        ? records.find((record) => record.type === 'inspect')?.data
+        : records.find((record) => record.name === 'next')?.['dist-tags']
+            ?.canary
+    } else {
+      // view uses the package manager's registry/auth/proxy configuration.
+      // Query the tag itself and revalidate metadata, even with a warm cache.
+      version = JSON.parse(
+        await query([
+          'view',
+          'next',
+          'dist-tags.canary',
+          '--json',
+          '--prefer-online',
+          '--prefer-offline=false',
+          '--offline=false',
+        ])
+      )
+    }
+    if (typeof version !== 'string' || !semver.valid(version)) {
       throw new Error('Invalid Next.js version')
     }
-    return release.version
+    return version
   } catch (error) {
     throw new Error(
       'Could not determine the current Next.js canary version. Please try again.',
@@ -192,7 +238,7 @@ export async function spawnNextUpgrade(
         }
       } else {
         Log.info(dim('Preparing upgrade...'))
-        const canaryVersion = await resolveCanaryVersion()
+        const canaryVersion = await resolveCanaryVersion(baseDir)
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const aiArgument =
