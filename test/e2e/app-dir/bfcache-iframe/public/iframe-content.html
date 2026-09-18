@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Iframe</title>
+  </head>
+  <body>
+    <p id="iframe-text">Iframe content</p>
+    <p>Loaded at: <span id="load-time"></span></p>
+    <script>
+      const timestamp =
+        new Date().toISOString() + ' (' + performance.now() + ')'
+      document.getElementById('load-time').innerText = timestamp
+      window.__iframeLoadTimestamp = timestamp
+      console.log('[IFRAME_LOADED]', timestamp)
+    </script>
+  </body>
+</html>

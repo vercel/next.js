@@ -101,6 +101,7 @@ export const LayoutRouterContext = React.createContext<{
   debugNameContext: string
   url: string
   isActive: boolean
+  activeHistoryId?: number
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
