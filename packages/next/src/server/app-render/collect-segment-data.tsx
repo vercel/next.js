@@ -420,9 +420,9 @@ export async function collectPrefetchHints(
   if (inlining === false) {
     // Prefetch inlining is disabled: nothing to measure, and no inlining
     // bits may be emitted (the client would act on them even though the
-    // responses aren't bundled). Mirror the route tree's shape, preserving
-    // each node's closed-parameter hint alongside the page-global base hints.
-    return createHintTree(rootNode, baseHints)
+    // responses aren't bundled). Just mirror the route tree's shape with
+    // the base hints on every node.
+    return createUniformHintTree(rootNode, baseHints)
   }
   const { maxSize, maxBundleSize } = inlining
 
@@ -711,7 +711,7 @@ async function collectPrefetchHintsImpl(
   // Mark this segment as InlinedIntoChild if one of its children accepted.
   // This means this segment doesn't need its own prefetch response — its
   // data is included in the accepting child's response instead.
-  let hints = baseHints | ((node.h ?? 0) & PrefetchHint.IsClosedParam)
+  let hints = baseHints
   if (didInlineIntoChild) {
     hints |= PrefetchHint.InlinedIntoChild
   }
@@ -805,10 +805,10 @@ async function collectPrefetchHintsImpl(
 // tree — the client reads the bit per node, and the runtime hint merging
 // (createTransportTreeFromLoaderTree) walks the manifest tree in parallel
 // with the loader tree, so a bit that's missing from a node never reaches the
-// corresponding segment. Closed-parameter hints stay on their original nodes.
-function createHintTree(
+// corresponding segment.
+function createUniformHintTree(
   node: FullTransportNode,
-  baseHints: number
+  hints: number
 ): PrefetchHints {
   let slots: Record<string, PrefetchHints> | null = null
   const children = node.c
@@ -817,13 +817,10 @@ function createHintTree(
       if (slots === null) {
         slots = {}
       }
-      slots[parallelRouteKey] = createHintTree(childNode, baseHints)
+      slots[parallelRouteKey] = createUniformHintTree(childNode, hints)
     }
   }
-  return {
-    hints: baseHints | ((node.h ?? 0) & PrefetchHint.IsClosedParam),
-    slots,
-  }
+  return { hints, slots }
 }
 
 // We use gzip size rather than raw size because it better reflects the actual
