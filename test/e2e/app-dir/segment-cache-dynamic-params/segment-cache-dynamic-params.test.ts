@@ -1,12 +1,36 @@
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
+import type { FlightRouterState } from 'next/dist/shared/lib/app-router-types'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache closed params (dynamicParams = false)', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
+
+  async function getClosedSegments(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    // If this private tree representation changes, reconstruct the regression
+    // rather than preserving or exposing router internals just for this test.
+    return browser.eval(() => {
+      const closedSegments: string[] = []
+      function visit(tree: FlightRouterState) {
+        // PrefetchHint.IsClosedParam is a const enum bit. Check every node so
+        // stamping the root, static segments, or page nodes also fails.
+        if (((tree[4] ?? 0) & 0b1000000000000000) !== 0) {
+          const segment = tree[0]
+          closedSegments.push(
+            typeof segment === 'string' ? segment : `[${segment[0]}]`
+          )
+        }
+        for (const child of Object.values(tree[1])) visit(child)
+      }
+      visit(window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree)
+      return closedSegments
+    })
+  }
 
   // @force-gate prefetching
   it('rejects unlisted params at the routing level', async () => {
@@ -72,15 +96,9 @@ describe('segment cache closed params (dynamicParams = false)', () => {
         'Allowed product page'
       )
 
-      // A successful response must retain the restriction on other values.
-      // An eventual 404 alone also passed before the hint existed. If this
-      // private tree representation changes, reconstruct that regression
-      // rather than preserving or exposing router internals just for this test.
-      const rootHints = await browser.eval(
-        'window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree[4]'
-      )
-      // PrefetchHint.HasNotFoundParams is a const enum bit.
-      expect((rootHints ?? 0) & 0b1000000000000000).not.toBe(0)
+      // The restriction belongs to the parameter, not the response root.
+      // An eventual 404 alone also passed before the hint existed.
+      expect(await getClosedSegments(browser)).toEqual(['[slug]'])
       await browser.close()
     }
   )
@@ -90,10 +108,37 @@ describe('segment cache closed params (dynamicParams = false)', () => {
     expect(await browser.elementById('open-product-page').text()).toBe(
       'Open product page'
     )
-    const rootHints = await browser.eval(
-      'window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree[4]'
+    expect(await getClosedSegments(browser)).toEqual([])
+    await browser.close()
+  })
+
+  it('marks every parameter in a closed tuple but not its static segments', async () => {
+    const browser = await next.browser('/catalog/en/products/allowed/details')
+    expect(await browser.elementById('catalog-page').text()).toBe(
+      'Allowed catalog page'
     )
-    expect((rootHints ?? 0) & 0b1000000000000000).toBe(0)
+    expect(await getClosedSegments(browser)).toEqual(['[lang]', '[slug]'])
+    await browser.close()
+  })
+
+  it('updates a shared parameter when navigating between open and closed siblings', async () => {
+    const browser = await next.browser('/shared/allowed/open')
+    expect(await browser.elementById('shared-open-page').text()).toBe(
+      'Open sibling'
+    )
+    expect(await getClosedSegments(browser)).toEqual([])
+
+    await browser.elementById('closed-sibling').click()
+    expect(await browser.elementById('shared-closed-page').text()).toBe(
+      'Closed sibling'
+    )
+    expect(await getClosedSegments(browser)).toEqual(['[slug]'])
+
+    await browser.elementById('open-sibling').click()
+    expect(await browser.elementById('shared-open-page').text()).toBe(
+      'Open sibling'
+    )
+    expect(await getClosedSegments(browser)).toEqual([])
     await browser.close()
   })
 
@@ -149,11 +194,7 @@ describe('segment cache closed params (dynamicParams = false)', () => {
     // A successful URL must still advertise that other parameter values may
     // not exist. Check the tree used by the navigation, not just the eventual
     // 404, which can also be recovered by a full document navigation.
-    const rootHints = await browser.eval(
-      'window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree[4]'
-    )
-    // PrefetchHint is a const enum, so use its HasNotFoundParams bit here.
-    expect((rootHints ?? 0) & 0b1000000000000000).not.toBe(0)
+    expect(await getClosedSegments(browser)).toEqual(['[slug]'])
   })
 
   // @force-gate prefetching

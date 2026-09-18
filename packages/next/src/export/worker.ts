@@ -102,7 +102,7 @@ async function exportPageImpl(
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
 
-    _hasNotFoundParams: hasNotFoundParams = false,
+    _notFoundParams: notFoundParams,
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -281,7 +281,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
-    hasNotFoundParams,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
