@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile as execFileCallback } from 'node:child_process'
 import {
-  copyFile,
   mkdir,
   mkdtemp,
   readFile,
@@ -10,7 +9,6 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -24,23 +22,9 @@ const scratchRoot = await mkdtemp(
   path.join(path.dirname(repoRoot), 'next-wasi-build-smoke-')
 )
 const sitePath = path.join(scratchRoot, 'site')
-const packagePath = path.join(scratchRoot, 'wasi-package')
+const packagePath = path.join(repoRoot, 'packages/next-swc-wasm-wasi')
 const targetLog = path.join(scratchRoot, 'targets.jsonl')
 const nextBin = path.join(repoRoot, 'packages/next/dist/bin/next')
-const wasmPath = path.resolve(
-  process.argv[2] ??
-    path.join(
-      repoRoot,
-      'target/wasm32-wasip1-threads/debug/next_napi_bindings.wasm'
-    )
-)
-const emnapiLinkDir = process.env.EMNAPI_LINK_DIR
-assert.ok(
-  emnapiLinkDir,
-  'EMNAPI_LINK_DIR is missing; source scripts/setup-wasi-env.sh first'
-)
-const emnapiNodeModules = path.resolve(emnapiLinkDir, '../../..')
-const require = createRequire(import.meta.url)
 
 async function writeConfig(experimental = {}) {
   await writeFile(
@@ -89,34 +73,11 @@ async function expectFailure(args, pattern, env) {
 
 try {
   await mkdir(path.join(sitePath, 'app'), { recursive: true })
-  await mkdir(path.join(packagePath, 'node_modules/@emnapi'), {
-    recursive: true,
-  })
   await symlink(
     path.join(repoRoot, 'node_modules'),
     path.join(sitePath, 'node_modules')
   )
-  await symlink(
-    path.join(emnapiNodeModules, '@emnapi/core'),
-    path.join(packagePath, 'node_modules/@emnapi/core')
-  )
-  await symlink(
-    path.join(emnapiNodeModules, '@emnapi/runtime'),
-    path.join(packagePath, 'node_modules/@emnapi/runtime')
-  )
-  await symlink(
-    path.dirname(require.resolve('@emnapi/wasi-threads/package.json')),
-    path.join(packagePath, 'node_modules/@emnapi/wasi-threads')
-  )
-  await copyFile(wasmPath, path.join(packagePath, 'next-swc.wasm32-wasi.wasm'))
-  await writeFile(
-    path.join(packagePath, 'package.json'),
-    JSON.stringify({
-      name: '@next/swc-wasm-wasi',
-      version: '0.0.0-test',
-      private: true,
-    })
-  )
+  await readFile(path.join(packagePath, 'next-swc.wasm32-wasi.wasm'))
   await writeFile(
     path.join(sitePath, 'package.json'),
     JSON.stringify({

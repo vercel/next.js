@@ -1,0 +1,5 @@
+/LICENSE.emnapi
+/emnapi-core.mjs
+/emnapi-runtime.mjs
+/next-swc.wasm32-wasi.wasm
+/wasi-threads.mjs

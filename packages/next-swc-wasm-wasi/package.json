@@ -1,0 +1,34 @@
+{
+  "name": "@next/swc-wasm-wasi",
+  "version": "16.4.0-canary.33",
+  "description": "N-API/WASI bindings for Next.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-swc-wasm-wasi"
+  },
+  "files": [
+    "LICENSE.emnapi",
+    "emnapi-core.mjs",
+    "emnapi-runtime.mjs",
+    "next-swc.wasm32-wasi.wasm",
+    "wasi-threads.mjs",
+    "license.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "devDependencies": {
+    "@emnapi/core": "2.0.0-alpha.4",
+    "@emnapi/runtime": "2.0.0-alpha.4",
+    "@emnapi/wasi-threads": "2.1.0"
+  },
+  "scripts": {
+    "build-wasi": "bash ../../scripts/build-next-swc-wasi.sh"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
