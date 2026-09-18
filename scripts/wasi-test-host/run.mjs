@@ -14,7 +14,11 @@ import { readFileSync } from 'node:fs'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import { createReadCustomSection, parseImportedMemory } from './lib.mjs'
+import {
+  createReadCustomSection,
+  createWasiEnvironment,
+  parseImportedMemory,
+} from './lib.mjs'
 import { createThreadRuntime } from './spawn.mjs'
 
 const THREAD_WORKER = fileURLToPath(new URL('./thread.mjs', import.meta.url))
@@ -44,10 +48,11 @@ const memory = new WebAssembly.Memory({
 // argv[0] is the program name, as a C `main` expects.
 const args = [wasmPath, ...testArgs]
 
+const env = createWasiEnvironment(process.env)
 const wasi = new WASI({
   version: 'preview1',
   args,
-  env: process.env,
+  env,
   // Tests may touch the filesystem (tempfiles, fixtures); expose the working directory only.
   preopens: { '/': process.cwd() },
   returnOnExit: true,
@@ -66,7 +71,7 @@ const { threadSpawn } = await createThreadRuntime({
   workerPath: THREAD_WORKER,
   workerData: {
     args,
-    env: process.env,
+    env,
     cwd: process.cwd(),
   },
   onError: (error, threadId) => {

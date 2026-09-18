@@ -8,11 +8,11 @@
  * compiled copy so the production loader and test runner cannot drift.
  *
  * This is groundwork only — nothing here is wired into the SWC-only wasm fallback in `./index.ts`,
- * and `module_init` (absent on wasm) and packaging are deliberately out of scope, so loading
- * Turbopack from wasm does not work yet.
+ * and packaging is deliberately out of scope, so loading Turbopack from wasm does not work yet.
  */
 
 import path from 'node:path'
+import { WASI } from 'node:wasi'
 
 import {
   createImportedMemory,
@@ -50,6 +50,14 @@ export type WasiLike = {
   getImportObject(): object
   initialize(instance: WebAssembly.Instance): void
 }
+
+type WasiConstructor = new (options: {
+  version: 'preview1'
+  args: string[]
+  env: Record<string, string>
+  preopens: Record<string, string>
+  returnOnExit: true
+}) => WasiLike
 
 export type WasiThreadWorkerData = RuntimeWorkerData & {
   args: string[]
@@ -92,11 +100,24 @@ export function createWasiImportObject(options: {
   }
 }
 
-/**
- * Bind WASI for a worker without running the command-only `_start` export.
+/** Populate napi-rs's wasm-side export registry before `napiModule.init()` consumes it. */
+export function registerNapiExports(instance: WebAssembly.Instance) {
+  for (const [name, register] of Object.entries(instance.exports)) {
+    if (name.startsWith('__napi_register__')) {
+      if (typeof register !== 'function') {
+        throw new TypeError(`${name} must be a WebAssembly function`)
+      }
+      register()
+    }
+  }
+}
+
+/** Bind WASI for a worker without rerunning process initialization.
  *
- * `WASI#initialize` rejects a command exporting `_start`, which must run exactly once on the main
- * thread. `ThreadMessageHandler` enters the bound instance through `wasi_thread_start` instead.
+ * `WASI#initialize` rejects a command's `_start` and invokes a reactor's `_initialize`; both entry
+ * points belong to the main instance. A spawned thread hides both while binding WASI, then
+ * `ThreadMessageHandler` enters through `wasi_thread_start`. This is especially important now that
+ * `_initialize` constructs the process-wide Tokio runtime.
  */
 export function initializeWasiThread(
   wasi: WasiLike,
@@ -108,6 +129,7 @@ export function initializeWasiThread(
   }
   const threadExports = { ...instance.exports }
   delete threadExports._start
+  delete threadExports._initialize
   wasi.initialize({ exports: threadExports } as WebAssembly.Instance)
   return threadStart
 }
@@ -115,7 +137,6 @@ export function initializeWasiThread(
 export async function instantiateWasiNapiModule(options: {
   bytes: Uint8Array
   napiModule: NapiModuleLike
-  wasi: WasiLike
   args?: string[]
   env?: Record<string, string>
   preopens?: Record<string, string>
@@ -123,16 +144,25 @@ export async function instantiateWasiNapiModule(options: {
   workerPath?: string
   napiModuleSpecifier?: string
   wasiThreadsModuleSpecifier?: string
+  WasiClass?: WasiConstructor
 }) {
-  const { bytes, napiModule, wasi } = options
+  const { bytes, napiModule } = options
   const args = options.args ?? []
-  const env = options.env ?? {}
+  const env = createWasiEnvironment(options.env)
   const preopens = options.preopens ?? {}
   const workerPath =
     options.workerPath ?? path.join(__dirname, 'wasi-loader-worker.js')
   const napiModuleSpecifier = options.napiModuleSpecifier ?? '@emnapi/core'
   const wasiThreadsModuleSpecifier =
     options.wasiThreadsModuleSpecifier ?? '@emnapi/wasi-threads'
+  const WasiClass = options.WasiClass ?? WASI
+  const wasi = new WasiClass({
+    version: 'preview1',
+    args,
+    env,
+    preopens,
+    returnOnExit: true,
+  })
 
   const module = await WebAssembly.compile(Uint8Array.from(bytes))
   const memory = createImportedMemory(bytes)
@@ -163,6 +193,7 @@ export async function instantiateWasiNapiModule(options: {
   })
   const instance = await WebAssembly.instantiate(module, imports)
   wasi.initialize(instance)
+  registerNapiExports(instance)
   napiModule.init({ instance, module, memory })
   return { instance, module, memory, threadIds }
 }

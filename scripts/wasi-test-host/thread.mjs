@@ -48,8 +48,11 @@ const handler = new ThreadMessageHandler({
       wasi: { 'thread-spawn': threadSpawn },
     })
 
+    // Hide process constructors before binding WASI. `ThreadMessageHandler` enters only through
+    // `wasi_thread_start`, so workers neither rerun `_start` nor create another Tokio runtime.
     const threadExports = { ...instance.exports }
     delete threadExports._start
+    delete threadExports._initialize
     wasi.initialize({ exports: threadExports })
     return { module: wasmModule, instance }
   },
