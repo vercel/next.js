@@ -822,22 +822,7 @@ impl EsmExports {
                                     }
                                 },
                                 ReferencedAssetIdent::Module { can_value_bind, .. } => {
-                                    // The re-exported module is in another scope hoisting group, so
-                                    // its binding is read through the namespace. `can_value_bind`
-                                    // is the result of walking the re-export chain to the
-                                    // originating local binding: it is only true when that binding
-                                    // is `Liveness::Constant` and the module holding it is not a
-                                    // circuit breaker, so the value is already final and can be
-                                    // captured instead of read on every access.
-                                    //
-                                    // That relies on the namespace being populated before this
-                                    // export map is built. It is: the `__turbopack_import__` call
-                                    // backing the namespace is an early hoisted statement, and
-                                    // `merge_modules` lifts those ahead of the whole merged group,
-                                    // while `__turbopack_esm__` is emitted as a late statement
-                                    // below. The one exception is when *we* are a circuit breaker,
-                                    // because then our export map is emitted early instead, ahead
-                                    // of our own imports.
+                                    // See if we can capture the module export as a 'value' to re-export it
                                     if !*mutable
                                         && *can_value_bind
                                         && !export_usage_info.is_circuit_breaker
