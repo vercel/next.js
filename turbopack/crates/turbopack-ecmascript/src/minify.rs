@@ -7,7 +7,7 @@ use swc_core::{
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
-        comments::{Comments, SingleThreadedComments},
+        comments::SingleThreadedComments,
     },
     ecma::{
         self,
@@ -132,9 +132,9 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                         }));
                     }
 
-                    let program = program.apply(ecma::transforms::base::fixer::fixer(Some(
-                        &comments as &dyn Comments,
-                    )));
+                    // The final emitter drops comments, so don't preserve parentheses whose only
+                    // purpose is to scope an annotation that won't be emitted.
+                    let program = program.apply(ecma::transforms::base::fixer::fixer(None));
 
                     Ok((program, source_map_names))
                 })
