@@ -4,6 +4,9 @@ import { retry, waitFor } from 'next-test-utils'
 describe('turbopack-loader-file-dependencies', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      'build-dependency-package': 'file:./build-dependency-package',
+    },
   })
 
   it('should update when the dependency file changes', async () => {
@@ -64,9 +67,27 @@ describe('turbopack-loader-file-dependencies', () => {
     await retry(() => {
       const output = next.cliOutput.slice(outputIndex)
       expect(output).toContain('Unsupported webpack loader build dependency')
-      expect(output).toContain('/utils')
+      expect(output).toContain('missing-build-dependency.js')
       expect(output).toContain('exact existing file')
       expect(output).not.toMatch(/EISDIR|ELOOP/)
     })
+  })
+
+  it('updates when a file in a build dependency directory changes', async () => {
+    const $ = await next.render$('/directory')
+    expect($('p').text()).toContain('directory build dependency: package-one')
+
+    await next.patchFile(
+      'node_modules/build-dependency-package/one.js',
+      "module.exports = 'package-two'",
+      async () => {
+        await retry(async () => {
+          const $2 = await next.render$('/directory')
+          expect($2('p').text()).toContain(
+            'directory build dependency: package-two'
+          )
+        }, 10000)
+      }
+    )
   })
 })

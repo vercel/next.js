@@ -258,6 +258,23 @@ async fn build_files_changed(
     Ok(Completion::new())
 }
 
+#[turbo_tasks::function]
+async fn build_directories_changed(
+    cwd: FileSystemPath,
+    paths: Vec<RcStr>,
+) -> Result<Vc<Completion>> {
+    paths
+        .iter()
+        .map(async |path| {
+            cwd.join(path)?
+                .track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), true)
+                .await
+        })
+        .try_join()
+        .await?;
+    Ok(Completion::new())
+}
+
 #[turbo_tasks::value_impl]
 impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
@@ -466,6 +483,8 @@ pub enum InfoMessage {
         directories: Vec<(RcStr, RcStr)>,
         #[serde(default)]
         build_file_paths: Vec<RcStr>,
+        #[serde(default)]
+        build_directories: Vec<RcStr>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -643,6 +662,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 file_paths,
                 directories,
                 build_file_paths,
+                build_directories,
             } => {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
@@ -671,6 +691,10 @@ impl EvaluateContext for WebpackLoaderContext {
                         .await?;
                         Ok::<_, anyhow::Error>(())
                     };
+                    let build_directory_subscriptions = async {
+                        build_directories_changed(self.cwd.clone(), build_directories).await?;
+                        Ok::<_, anyhow::Error>(())
+                    };
                     let directory_subscriptions = directories
                         .iter()
                         .map(async |(dir, glob)| {
@@ -684,6 +708,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         env_subscriptions,
                         file_subscriptions,
                         build_file_subscriptions,
+                        build_directory_subscriptions,
                         directory_subscriptions
                     )?;
                 }
@@ -1041,9 +1066,9 @@ impl Issue for BuildDependencyIssue {
             StyledString::Text(rcstr!("The path at ")),
             StyledString::Code(self.path.to_string().into()),
             StyledString::Text(
-                " was passed to this.addBuildDependency, but it is not an exact existing file. \
-                 Only exact existing file paths are supported; other inputs may require \
-                 restarting the development server."
+                " was passed to this.addBuildDependency, but it is not an exact existing file or \
+                 an explicit directory. Only exact existing file paths and explicit directories \
+                 are supported; other inputs may require restarting the development server."
                     .into(),
             ),
         ])))

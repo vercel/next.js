@@ -5,10 +5,26 @@ const loader = async function (content) {
   this.async()
 
   if (this.resourcePath.endsWith('unsupported-build-dependency.ts')) {
-    this.addBuildDependency(path.join(__dirname, 'utils'))
+    this.addBuildDependency(path.join(__dirname, 'missing-build-dependency.js'))
     return this.callback(
       null,
       `export const utilFn = () => 'unsupported build dependency';`
+    )
+  }
+
+  const directoryBuildDependency = this.resourcePath.endsWith(
+    'directory-build-dependency.ts'
+  )
+  if (directoryBuildDependency) {
+    const packageEntry = require.resolve('build-dependency-package')
+    const packageDirectory = path.dirname(packageEntry)
+    this.addBuildDependency(packageDirectory)
+    const packageValue = fs
+      .readFileSync(packageEntry, 'utf8')
+      .match(/'([^']+)'/)[1]
+    return this.callback(
+      null,
+      `export const utilFn = () => 'directory build dependency: ${packageValue}';`
     )
   }
 
