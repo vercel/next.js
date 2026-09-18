@@ -79,6 +79,21 @@ describe('param-matching-exports', () => {
     }
   )
 
+  it('rejects private caches with the same request-context error as generateStaticParams', async () => {
+    const outputStart = next.cliOutput.length
+    await next.patchFile(
+      layoutFile,
+      `${layout}\nexport { experimental_generateParamMatching } from '../../matchers/generated-private-cache'\n`
+    )
+    await expectValidationError(
+      outputStart,
+      '`"use cache: private"` needs an active request'
+    )
+    expect(next.cliOutput.slice(outputStart)).not.toContain(
+      'Expected a WorkUnitStore'
+    )
+  })
+
   it('checks the feature flag before invoking a generated matcher', async () => {
     await next.patchFile(
       'next.config.ts',

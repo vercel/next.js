@@ -2754,6 +2754,13 @@ export default abstract class Server<
           // dynamically; only an explicit not-found match changes their
           // foreground behavior.
           addRequestMeta(req, 'devPrerenderMatcherOutcome', 'render')
+          addRequestMeta(
+            req,
+            'devHasNotFoundParams',
+            Object.values(pathsResults.prerenderMatcher ?? {}).includes(
+              'not-found'
+            )
+          )
         }
 
         if (

@@ -983,13 +983,24 @@ export async function buildAppStaticPaths({
     previouslyRevalidatedTags: [],
   })
 
-  const prerenderMatcher = await workAsyncStorage.run(
-    store,
-    compilePrerenderMatcher,
-    page,
-    segmentTree,
-    pathnameRouteParamSegments
-  )
+  const prerenderMatcher = hasPrerenderMatcherExport
+    ? await workAsyncStorage.run(store, async () => {
+        const generatorStore: BuildTimeGeneratorStore = {
+          type: 'build-time-generator',
+          phase: 'render',
+          implicitTags: await getImplicitTags(page, page, null),
+          // Matching configuration does not receive concrete parameter values.
+          rootParams: {},
+        }
+        return workUnitAsyncStorage.run(
+          generatorStore,
+          compilePrerenderMatcher,
+          page,
+          segmentTree,
+          pathnameRouteParamSegments
+        )
+      })
+    : undefined
 
   const routeParams = await workAsyncStorage.run(
     store,
