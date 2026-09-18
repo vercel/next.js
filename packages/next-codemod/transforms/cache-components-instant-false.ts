@@ -20,7 +20,7 @@ import { NEXT_CODEMOD_IGNORE_ERROR_PREFIX } from '../lib/utils'
 export default function transformer(file: FileInfo, _api: API) {
   if (
     process.env.NODE_ENV !== 'test' &&
-    !/(^|[/\\])app[/\\](?:.*[/\\])?(page|layout|default)\.[^./\\]+$/.test(
+    !/(^|[/\\])app[/\\](?:.*[/\\])?(page|layout|default)\.[^/\\]+$/.test(
       file.path
     )
   ) {
