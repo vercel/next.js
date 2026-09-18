@@ -271,16 +271,9 @@ impl TurboTasksBackend {
                 }
                 // Delete all the edges but defer rebalance requests
 
-                if let Some(mut queue) = CleanupOldEdgesOperation::run_edge_deletions_only(
-                    task_id,
-                    old_edges,
-                    AggregationUpdateQueue::new_without_optimizations(),
-                    &mut ctx,
-                ) {
-                    stats
-                        .deferred_balance_edges
-                        .extend(queue.take_deferred_balance_edges());
-                }
+                stats.deferred_balance_edges.extend(
+                    CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx),
+                );
                 ControlFlow::Continue(())
             },
             GcPassOutcome::merge,
