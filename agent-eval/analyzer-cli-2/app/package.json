@@ -1,0 +1,15 @@
+{
+  "name": "analyzer-cli-eval-2",
+  "private": true,
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.3.1",
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
+    "@fortawesome/react-fontawesome": "^3.5.0",
+    "date-fns": "^4.4.0",
+    "echarts": "^6.1.0",
+    "monaco-editor": "^0.56.0",
+    "next": "16.4.0-canary.34",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
