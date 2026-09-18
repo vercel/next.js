@@ -413,16 +413,16 @@ export async function collectPrefetchHints(
   // page-global (the tracking that feeds it is), so it goes on every node,
   // non-propagating — the client reads it per segment, and the runtime
   // hint merging walks the manifest tree node-by-node.
-  const baseHints =
-    ((rootNode.h ?? 0) & PrefetchHint.HasNotFoundParams) |
-    (shouldAttemptStaticPrefetch ? PrefetchHint.ShouldAttemptStaticPrefetch : 0)
+  const baseHints = shouldAttemptStaticPrefetch
+    ? PrefetchHint.ShouldAttemptStaticPrefetch
+    : 0
 
   if (inlining === false) {
     // Prefetch inlining is disabled: nothing to measure, and no inlining
     // bits may be emitted (the client would act on them even though the
-    // responses aren't bundled). Just mirror the route tree's shape with
-    // the base hints on every node.
-    return createUniformHintTree(rootNode, baseHints)
+    // responses aren't bundled). Mirror the route tree's shape, preserving
+    // each node's closed-parameter hint alongside the page-global base hints.
+    return createHintTree(rootNode, baseHints)
   }
   const { maxSize, maxBundleSize } = inlining
 
@@ -711,7 +711,7 @@ async function collectPrefetchHintsImpl(
   // Mark this segment as InlinedIntoChild if one of its children accepted.
   // This means this segment doesn't need its own prefetch response — its
   // data is included in the accepting child's response instead.
-  let hints = baseHints
+  let hints = baseHints | ((node.h ?? 0) & PrefetchHint.IsClosedParam)
   if (didInlineIntoChild) {
     hints |= PrefetchHint.InlinedIntoChild
   }
@@ -805,10 +805,10 @@ async function collectPrefetchHintsImpl(
 // tree — the client reads the bit per node, and the runtime hint merging
 // (createTransportTreeFromLoaderTree) walks the manifest tree in parallel
 // with the loader tree, so a bit that's missing from a node never reaches the
-// corresponding segment.
-function createUniformHintTree(
+// corresponding segment. Closed-parameter hints stay on their original nodes.
+function createHintTree(
   node: FullTransportNode,
-  hints: number
+  baseHints: number
 ): PrefetchHints {
   let slots: Record<string, PrefetchHints> | null = null
   const children = node.c
@@ -817,10 +817,13 @@ function createUniformHintTree(
       if (slots === null) {
         slots = {}
       }
-      slots[parallelRouteKey] = createUniformHintTree(childNode, hints)
+      slots[parallelRouteKey] = createHintTree(childNode, baseHints)
     }
   }
-  return { hints, slots }
+  return {
+    hints: baseHints | ((node.h ?? 0) & PrefetchHint.IsClosedParam),
+    slots,
+  }
 }
 
 // We use gzip size rather than raw size because it better reflects the actual
