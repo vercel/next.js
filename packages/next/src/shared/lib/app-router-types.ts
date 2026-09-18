@@ -281,6 +281,9 @@ export const enum PrefetchHint {
   // Route-level restriction: at least one parameter only accepts build-time
   // values. A successful URL cannot establish that another URL with the same
   // shape exists, so this route must not be used for optimistic prediction.
+  // Consumers read this from the root. RSC rendering sets it on the root;
+  // prefetch-hint collection also repeats it on every node. Both forms
+  // describe the same route-level restriction.
   HasNotFoundParams = 0b1000000000000000,
 }
 
