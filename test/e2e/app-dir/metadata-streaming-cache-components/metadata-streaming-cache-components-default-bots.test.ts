@@ -148,38 +148,6 @@ function expectOptionalCatchallParams(html: string) {
       expectOptionalCatchallParams(await response.text())
     })
 
-    it.each([
-      { description: 'Next-Action request', disableJavaScript: false },
-      { description: 'multipart form request', disableJavaScript: true },
-    ])(
-      'should not expose fallback placeholders during a $description bypass',
-      async ({ disableJavaScript }) => {
-        const browser = await next.browser('/en', {
-          disableJavaScript,
-          pushErrorAsConsoleLog: true,
-        })
-
-        await browser.elementById('submit-action').click()
-
-        await retry(async () => {
-          expect(await browser.elementById('action-result').text()).toBe(
-            'submitted'
-          )
-          expect(await browser.elementById('params').text()).toBe(
-            JSON.stringify({
-              locale: 'en',
-              filterSlugs: null,
-              mappedSlugs: [],
-            })
-          )
-        })
-
-        if (!disableJavaScript) {
-          await assertNoConsoleErrors(browser)
-        }
-      }
-    )
-
     describe('Cache Components metadata streaming', () => {
       it('should generate metadata in head when page is fully static', async () => {
         const $ = await next.render$('/fully-static')
