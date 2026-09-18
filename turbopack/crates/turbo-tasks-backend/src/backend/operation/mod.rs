@@ -12,7 +12,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use parking_lot::RwLockReadGuard;
 use tracing::info_span;
@@ -344,6 +344,12 @@ impl<'e> ExecuteContextImpl<'e> {
                 }
 
                 if do_data || do_meta || data_restoring || meta_restoring {
+                    let waiting_for_restore = data_restoring || meta_restoring;
+                    if waiting_for_restore {
+                        // Protect the category after the other restorer clears its bit but before
+                        // this caller acquires the task for use.
+                        task.pin_restore_handoff();
+                    }
                     // Drop lock while doing I/O (our I/O can overlap with the other thread).
                     drop(task);
 
@@ -369,6 +375,11 @@ impl<'e> ExecuteContextImpl<'e> {
                     } else {
                         self.backend.storage.access_mut(task_id)
                     };
+                    if waiting_for_restore {
+                        // This caller owns the pin and releases it only after acquiring the task
+                        // guard it is about to use.
+                        task.unpin_restore_handoff();
+                    }
 
                     // Apply results and clear restoring bits.
                     if let Some(result) = storage_data
@@ -473,53 +484,94 @@ impl<'e> ExecuteContextImpl<'e> {
 
     /// Waits for another thread's in-progress restore of a task to complete.
     ///
-    /// Precondition: the caller must have observed `is_restoring()` == true for
-    /// `task_id`+`category` and must have dropped the task lock before calling this.
+    /// Precondition: the caller must have observed `is_restoring()` == true, taken one restore
+    /// handoff pin for `task_id`, and dropped the task lock before calling this.
     ///
-    /// Returns the `StorageWriteGuard` acquired at the end of the wait when successful,
-    /// or `Err` if the restoring thread failed (restoring was cleared without setting restored).
+    /// Returns the `StorageWriteGuard` acquired at the end of the wait with the caller's handoff
+    /// pin still held. The caller releases that pin at its actual use boundary; this keeps pin
+    /// ownership consistent for single, paired, and batched task access.
     fn wait_for_restoring_task(
         &self,
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<StorageWriteGuard<'e>> {
-        // Fast path: acquire the write guard and check flags directly.
-        // By the time this is called, some I/O has elapsed and the other thread has
-        // likely already finished restoring.
+        // Fast path: the restoring thread usually finishes its I/O before this waiter gets here.
+        // Avoid registering a listener when the requested category is already available.
         {
             let task = self.backend.storage.access_mut(task_id);
-            let is_restoring = task.flags.is_restoring(category);
-            let is_restored = task.flags.is_restored(category);
-            if is_restored {
+            if task.flags.is_restored(category) {
                 return Ok(task);
             }
-            if !is_restoring {
-                bail!("restoring failed");
-            }
-            // Still restoring — drop the write guard before waiting.
-            drop(task);
         }
 
-        // Slow path: register a listener and wait until the other thread signals completion.
         loop {
-            // Register a listener BEFORE re-acquiring the lock (avoids a lost-wakeup race).
+            // Register before taking the task lock to avoid a lost wakeup when another restorer is
+            // still active. It is harmless when this thread becomes the replacement restorer.
             let listener = self.backend.storage.restored.listen();
+            let mut task = self.backend.storage.access_mut(task_id);
 
-            let task = self.backend.storage.access_mut(task_id);
-            let is_restoring = task.flags.is_restoring(category);
-            let is_restored = task.flags.is_restored(category);
-
-            if is_restored {
-                // The restoring thread finished successfully; return the write guard directly.
+            if task.flags.is_restored(category) {
                 return Ok(task);
             }
-            if !is_restoring {
-                // The restoring bit was cleared without setting the restored bit.
-                // This means the restoring thread encountered an error.
-                bail!("restoring failed");
+
+            // No thread owns a missing category after a prior restore attempt failed and cleared
+            // its restoring bit. GC can expose the same state when replaying a suspended operation
+            // after collected task data was discarded. Keep our handoff pin while claiming the
+            // category and retrying the restore.
+            let restore_data = category.includes_data()
+                && !task.flags.data_restored()
+                && !task.flags.data_restoring();
+            let restore_meta = category.includes_meta()
+                && !task.flags.meta_restored()
+                && !task.flags.meta_restoring();
+
+            if restore_data || restore_meta {
+                if restore_data {
+                    task.flags.set_data_restoring(true);
+                }
+                if restore_meta {
+                    task.flags.set_meta_restoring(true);
+                }
+                drop(task);
+
+                let storage_data = restore_data
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
+                let storage_meta = restore_meta
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+
+                let mut task = self.backend.storage.access_mut(task_id);
+                let mut restore_error = None;
+                if let Some(result) = storage_data
+                    && let Err(error) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data)
+                {
+                    restore_error = Some(error);
+                }
+                if let Some(result) = storage_meta
+                    && let Err(error) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
+                    && restore_error.is_none()
+                {
+                    restore_error = Some(error);
+                }
+
+                // The caller's handoff pin keeps eviction and GC out while notification happens
+                // outside the shard lock and we re-acquire the task for use.
+                drop(task);
+                self.backend.storage.restored.notify(usize::MAX);
+                let mut task = self.backend.storage.access_mut(task_id);
+                if let Some(error) = restore_error {
+                    task.unpin_restore_handoff();
+                    return Err(error);
+                }
+                if task.flags.is_restored(category) {
+                    return Ok(task);
+                }
+                drop(task);
+                continue;
             }
 
-            // Still restoring; drop the lock and block until notified, then loop to re-check.
+            // Every missing category is still owned by another restorer.
             drop(task);
             let _span = info_span!("blocking").entered();
             listener.wait();
@@ -537,7 +589,7 @@ impl<'e> ExecuteContextImpl<'e> {
         match self.wait_for_restoring_task(task_id, category) {
             Ok(guard) => guard,
             Err(e) => {
-                panic!("Restore of {category:?} for task {task_id} failed in another thread: {e:?}")
+                panic!("Restore of {category:?} for task {task_id} failed while waiting: {e:?}")
             }
         }
     }
@@ -614,6 +666,7 @@ impl<'e> ExecuteContextImpl<'e> {
                 wait_meta: false,
                 task_type: None,
                 self_restored: false,
+                handoff_pinned: false,
             })
             .collect::<Vec<_>>();
         data_count += all_count;
@@ -660,6 +713,13 @@ impl<'e> ExecuteContextImpl<'e> {
                     tasks_to_restore_for_meta.push(task_id);
                     tasks_to_restore_for_meta_indices.push(i);
                 }
+            }
+
+            if !ready {
+                // Cover both self-restoration and waiting until the prepared callback acquires the
+                // task. The pin is released immediately before handing that guard to the callback.
+                task.pin_restore_handoff();
+                entry.handoff_pinned = true;
             }
 
             self.task_lock_counter.release();
@@ -792,6 +852,16 @@ impl<'e> ExecuteContextImpl<'e> {
         }
 
         if !restore_errors.is_empty() {
+            // No callback will consume these entries, so release every handoff pin before the
+            // aggregated restore error tears the operation down.
+            for entry in &tasks {
+                if entry.handoff_pinned {
+                    self.backend
+                        .storage
+                        .access_mut(entry.task_id)
+                        .unpin_restore_handoff();
+                }
+            }
             let msgs: Vec<String> = restore_errors
                 .iter()
                 .map(|(id, cat, e)| format!("Failed to restore {cat} for task {id}: {e:?}"))
@@ -816,7 +886,10 @@ impl<'e> ExecuteContextImpl<'e> {
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
             if !entry.wait_data && !entry.wait_meta {
-                let task = self.backend.storage.access_mut(entry.task_id);
+                // The classification-time pin prevents eviction between Phase 1c clearing the
+                // restoring bit and this callback acquiring the task.
+                let mut task = self.wait_for_restore_or_panic(entry.task_id, entry.category);
+                task.unpin_restore_handoff();
                 prepared_task_callback(self, entry.task_id, entry.category, task);
             }
         }
@@ -830,7 +903,8 @@ impl<'e> ExecuteContextImpl<'e> {
                     // Blocks (using shared read locks) until this task is fully restored.
                     // Returns the write guard so we call the callback without re-acquiring.
                     self.task_lock_counter.acquire();
-                    let task = self.wait_for_restore_or_panic(entry.task_id, cat);
+                    let mut task = self.wait_for_restore_or_panic(entry.task_id, cat);
+                    task.unpin_restore_handoff();
                     self.task_lock_counter.release();
                     prepared_task_callback(self, entry.task_id, entry.category, task);
                 }
@@ -857,6 +931,8 @@ struct TaskRestoreEntry {
     task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
+    /// A restore-to-callback handoff pin was taken during classification.
+    handoff_pinned: bool,
 }
 
 /// Whether a restore we performed proves the task exists on disk: we ran the I/O (outer `Some`), it
@@ -1056,6 +1132,14 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             || data2_restoring
             || meta2_restoring
         {
+            let waiting1 = data1_restoring || meta1_restoring;
+            let waiting2 = data2_restoring || meta2_restoring;
+            if waiting1 {
+                task1.pin_restore_handoff();
+            }
+            if waiting2 {
+                task2.pin_restore_handoff();
+            }
             // Drop both locks while doing I/O or waiting.
             drop(task1);
             drop(task2);
@@ -1093,6 +1177,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
             task1 = t1;
             task2 = t2;
+            if waiting1 {
+                task1.unpin_restore_handoff();
+            }
+            if waiting2 {
+                task2.unpin_restore_handoff();
+            }
 
             // Apply results and clear restoring bits.
             // On error: drop both locks, notify waiters, then panic.
