@@ -18,5 +18,18 @@
   "agent-055-stale-build-error": {
     "skills": ["next-dev-loop"],
     "timeout": 900
+  },
+  "agent-056-agent-feedback-routine-debugging": {
+    "agentFeedback": true,
+    "timeout": 900
+  },
+  "agent-057-agent-feedback-anonymization": {
+    "agentFeedback": true,
+    "skills": ["next-dev-loop"],
+    "timeout": 1200
+  },
+  "agent-058-agent-feedback-distinct-issues": {
+    "agentFeedback": true,
+    "timeout": 900
   }
 }
