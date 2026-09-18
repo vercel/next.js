@@ -2,7 +2,6 @@ import React, { Suspense, cache } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { Params } from '../../server/request/params'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { SearchParams } from '../../server/request/search-params'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
 import type { MetadataErrorType } from './metadata-resolution-primitives'
@@ -25,7 +24,6 @@ import {
 export function createMetadataComponents({
   tree,
   pathname,
-  parsedQuery,
   metadataContext,
   interpolatedParams,
   errorType,
@@ -33,7 +31,6 @@ export function createMetadataComponents({
 }: {
   tree: LoaderTree
   pathname: string
-  parsedQuery: SearchParams
   metadataContext: MetadataContext
   interpolatedParams: Params
   errorType?: MetadataErrorType | 'redirect'
@@ -43,7 +40,7 @@ export function createMetadataComponents({
   Metadata: React.ComponentType
   MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
 } {
-  const searchParams = createServerSearchParamsForMetadata(parsedQuery)
+  const searchParams = createServerSearchParamsForMetadata()
   const pathnameForMetadata = createServerPathnameForMetadata(pathname)
 
   async function Viewport() {
