@@ -195,6 +195,7 @@ export const experimentalSchema = {
   agenticAutoUpgrade: z
     .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
     .optional(),
+  agentFeedback: z.boolean().optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),

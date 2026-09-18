@@ -1113,6 +1113,7 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    agentFeedback: config.experimental.agentFeedback,
     devMemoryThresholdRestart,
   }
 }
