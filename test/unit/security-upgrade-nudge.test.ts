@@ -71,13 +71,13 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the security upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```/
+        /affected by a published security advisory[\s\S]*We strongly recommend you upgrade Next\.js\.[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the security upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
   })
 
-  it('shows the npm fallback reference', async () => {
+  it('uses the same security message for npm fallback advisories', async () => {
     jest.mocked(getSecurityAdvisory).mockResolvedValue({
       reference: 'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk',
     })
@@ -86,7 +86,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*registry\.npmjs\.org/
+        /affected by a published security advisory\.\n\nWe strongly recommend you upgrade Next\.js\./
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -143,9 +143,7 @@ describe('security upgrade nudge', () => {
     await expect(run('build')).resolves.toBeUndefined()
 
     expect(warn).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /continuing after the reminder you configured[\s\S]*Reference:/
-      )
+      expect.stringMatching(/continuing after the reminder you configured\.$/)
     )
   })
 

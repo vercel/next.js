@@ -3,15 +3,14 @@ import { mkdir, readFile, realpath, rename, rm, writeFile } from 'fs/promises'
 import { join, resolve } from 'path'
 import { emitKeypressEvents, type Key } from 'readline'
 
+import semver from 'next/dist/compiled/semver'
+
 import * as Log from '../../build/output/log'
 import { isCI } from '../../server/ci-info'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
-import { cyan } from '../picocolors'
-import {
-  getPendingFutureDefaults,
-  type FutureDefaultsConfig,
-} from './future-defaults'
+import { cyan, dim } from '../picocolors'
+import { futureDefaults, type FutureDefaultsConfig } from './future-defaults'
 import { getUpgradePreferenceKey, upgradePreferences } from './preferences'
 import { runChildProcess } from './run-child-process'
 
@@ -98,16 +97,24 @@ export async function assessUpgrade(
     }
 
     if (audience === 'interactive') return null
-    if (policy === 'security' || isDismissed('latest')) return null
+    if (policy === 'security') return null
     try {
       const latestVersion = await getLatestUpgradeVersion(installedVersion)
       if (latestVersion) return { ...nudge, kind: 'latest', latestVersion }
-    } catch {
-      // Agent release reminders are best-effort.
-    }
+    } catch {}
 
-    if (policy !== 'future' || isDismissed('future')) return null
-    const pending = getPendingFutureDefaults(context, installedVersion)
+    if (
+      policy !== 'future' ||
+      !semver.valid(installedVersion) ||
+      semver.prerelease(installedVersion)
+    ) {
+      return null
+    }
+    const pending = futureDefaults.filter(
+      (entry) =>
+        semver.gte(installedVersion, entry.availableSince) &&
+        !entry.isAdopted(context)
+    )
     if (pending.length === 0) return null
     return {
       ...nudge,
@@ -235,14 +242,14 @@ async function nudgeForSecurity(
   options: NudgeOptions,
   nudge: Extract<UpgradeNudge, { kind: 'security' }>
 ): Promise<void> {
-  const { installedVersion: version, policy, reference } = nudge
+  const { installedVersion: version, policy } = nudge
   await showNudge(
     options,
     version,
     'security',
-    `Your version of Next.js is affected by a published security advisory and can be automatically upgraded.
+    `Your version of Next.js is affected by a published security advisory.
 
-**We strongly recommend you upgrade Next.js.**
+We strongly recommend you upgrade Next.js.
 
 This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
 
@@ -252,10 +259,8 @@ At the end of the task, ask the user whether they want you to run the security u
 next upgrade --ai
 \`\`\`
 
-Reference: ${reference}
-
-Note: This security gate is enabled by \`experimental.agenticAutoUpgrade: '${policy}'\`.`,
-    `Your version of Next.js is affected by a published security advisory. This command is continuing after the reminder you configured.\nReference: ${reference}`,
+Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${policy}'\`.`,
+    `Your version of Next.js is affected by a published security advisory. This command is continuing after the reminder you configured.`,
     'SecurityFatalError'
   )
 }
@@ -354,16 +359,18 @@ export async function promptUpgrade(
   let message: string
   switch (nudge.kind) {
     case 'security':
-      message = `Your version of Next.js is affected by a published security advisory.\nWe strongly recommend you upgrade Next.js.\nReference: ${nudge.reference}`
+      message = `Your version of Next.js is affected by a published security advisory.
+
+We strongly recommend you upgrade Next.js.`
       break
-    case 'latest':
-      message = `Next.js ${nudge.latestVersion} is available. You're using ${nudge.installedVersion}.\nReference: https://www.npmjs.com/package/next`
-      break
-    case 'future':
-      message = `Your app can adopt these Next.js Future Defaults:\n${nudge.names.map((name) => `- ${name}`).join('\n')}`
-      break
+    default:
+      return false
   }
-  Log.bootstrap(`\n${message}\n`)
+  Log.warn()
+  Log.warn(`${message}
+
+${dim(`Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${nudge.policy}'\`.`)}
+`)
   const action = await new Promise<'update' | 'skip' | 'dismiss'>(
     (resolveAction) => {
       const input = process.stdin
