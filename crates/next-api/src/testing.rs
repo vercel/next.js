@@ -19,7 +19,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, EntryChunkGroupResult, availability_info::AvailabilityInfo},
     context::AssetContext,
     file_source::FileSource,
-    ident::AssetIdent,
+    ident::{AssetIdent, Layer},
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{
@@ -382,6 +382,7 @@ async fn mock_module_options(
 
 struct PreparedNodeTest {
     context: ResolvedVc<ModuleAssetContext>,
+    setup_context: ResolvedVc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
     registration: Option<ResolvedVc<Box<dyn Module>>>,
 }
@@ -390,23 +391,33 @@ async fn prepare_node_test(
     project: ResolvedVc<Project>,
     path: &FileSystemPath,
     id: &RcStr,
-    setup_paths: &[FileSystemPath],
 ) -> Result<PreparedNodeTest> {
     let context = project.node_test_context().to_resolved().await?;
     let plan = static_mock_plan(path).await?;
     if plan.declarations.is_empty() {
         return Ok(PreparedNodeTest {
             context,
+            setup_context: context,
             source: ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
             registration: None,
         });
     }
-    if !setup_paths.is_empty() {
-        return Err(test_input_error(
-            path.clone(),
-            "Static module mocks with setup files are not supported yet",
-        ));
-    }
+    // Setup files run before the spec's hoisted registrations. Compile them in
+    // the ordinary Node context so their imports retain the unmocked graph,
+    // while the spec below receives the per-file substitution context.
+    let setup_base = context.await?;
+    let setup_context = ModuleAssetContext::new(
+        *setup_base.transitions,
+        *setup_base.compile_time_info,
+        *setup_base.module_options_context,
+        *setup_base.resolve_options_context,
+        Layer::new_with_user_friendly_name(
+            rcstr!("next-test-node-setup"),
+            rcstr!("Node Test Setup"),
+        ),
+    )
+    .to_resolved()
+    .await?;
     // Resolve originals and validate cycles with the same unfragmented module
     // identities used by the replacement graph. Fragmented export parts can
     // hide a return edge to the whole original module.
@@ -425,7 +436,13 @@ async fn prepare_node_test(
     let mut imports = ImportMap::empty();
     let mut targets: FxIndexMap<
         FileSystemPath,
-        (String, String, ResolvedVc<Box<dyn Module>>, Vec<String>),
+        (
+            String,
+            String,
+            ResolvedVc<Box<dyn Module>>,
+            Vec<String>,
+            Vec<String>,
+        ),
     > = FxIndexMap::default();
     let mut registrations = Vec::new();
     for declaration in &plan.declarations {
@@ -529,9 +546,11 @@ async fn prepare_node_test(
                 format!("next-test-original:{id}:{index}"),
                 original,
                 Vec::new(),
+                Vec::new(),
             )
         });
         entry.3 = declaration.export_names.clone();
+        entry.4 = declaration.export_names.clone();
         if declaration.has_spread || !declaration.has_object_return {
             entry
                 .3
@@ -559,7 +578,7 @@ async fn prepare_node_test(
         .await?;
     let mut query_seen = HashSet::new();
     let mut query_queue = vec![spec];
-    query_queue.extend(targets.values().map(|(_, _, original, _)| *original));
+    query_queue.extend(targets.values().map(|(_, _, original, _, _)| *original));
     while let Some(module) = query_queue.pop() {
         if !query_seen.insert(module) {
             continue;
@@ -577,7 +596,7 @@ async fn prepare_node_test(
     }
     // Reject cycles involving mocked originals before creating asynchronous
     // substitutions, which could otherwise turn a module cycle into a deadlock.
-    for (target_path, (_, _, original, _)) in &targets {
+    for (target_path, (_, _, original, _, _)) in &targets {
         let mut seen = HashSet::new();
         let mut queue = primary_referenced_modules(**original).await?.to_vec();
         while let Some(module) = queue.pop() {
@@ -600,7 +619,7 @@ async fn prepare_node_test(
     }
     let runtime_request = "next/dist/experimental/testing/mocking/runtime";
     let mut graph_targets = Vec::new();
-    for (target_path, (key, original_request, _, exports)) in targets {
+    for (target_path, (key, original_request, _, exports, mocked_exports)) in targets {
         imports.insert_exact_alias(
             original_request.clone(),
             ImportMapping::Direct(
@@ -613,7 +632,13 @@ async fn prepare_node_test(
         );
         let wrapper_source = virtual_test_source(
             target_path.append(".next-test-mock.js")?,
-            mock_wrapper_source(runtime_request, &key, &exports)?,
+            mock_wrapper_source(
+                runtime_request,
+                &key,
+                &original_request,
+                &exports,
+                &mocked_exports,
+            )?,
         )
         .await?;
         graph_targets.push(
@@ -671,6 +696,7 @@ async fn prepare_node_test(
         .await?;
     Ok(PreparedNodeTest {
         context,
+        setup_context,
         source: test_source(
             path.clone(),
             None,
@@ -694,9 +720,9 @@ struct NodeTestEndpoint {
 impl NodeTestEndpoint {
     #[turbo_tasks::function]
     async fn entry_module(&self) -> Result<Vc<Box<dyn Module>>> {
-        let prepared =
-            prepare_node_test(self.project, &self.path, &self.id, &self.setup_paths).await?;
+        let prepared = prepare_node_test(self.project, &self.path, &self.id).await?;
         let context = prepared.context;
+        let setup_context = prepared.setup_context;
         let module = context
             .process(
                 *prepared.source,
@@ -709,7 +735,7 @@ impl NodeTestEndpoint {
         let mut setup_loads = String::new();
         for (index, path) in self.setup_paths.iter().enumerate() {
             let name = format!("INNER_TEST_SETUP_{index}");
-            let module = context
+            let module = setup_context
                 .process(
                     Vc::upcast(FileSource::new(path.clone())),
                     ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),

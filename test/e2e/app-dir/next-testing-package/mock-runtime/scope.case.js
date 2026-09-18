@@ -7,7 +7,10 @@ vi.mock('../mock-authoring/dependency-js', () => ({
   retained: 42,
 }))
 
-test('unsupported profile must prevent this body', () => {
-  writeFileSync('unexpected-scope-body', 'executed')
+test('setup observes the original graph before the mocked spec', () => {
+  if (!globalThis.__nextPackedMockSetup) {
+    writeFileSync('unexpected-scope-body', 'executed')
+  }
+  expect(globalThis.__nextPackedMockSetup).toEqual({ value: 'original' })
   expect(captured.value).toBe('mocked')
 })

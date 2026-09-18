@@ -1,3 +1,3 @@
-import { writeFileSync } from 'node:fs'
+import { value } from '../mock-authoring/dependency-js'
 
-writeFileSync('unexpected-setup', 'executed')
+globalThis.__nextPackedMockSetup = { value }

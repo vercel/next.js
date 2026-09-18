@@ -1,8 +1,8 @@
 import { expect, test, vi } from 'next/experimental/testing/vitest'
 import { captured } from './subject-ts'
 
-vi.mock('./dependency-ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./dependency-ts')>()
+vi.mock(import('./dependency-ts'), async (importOriginal) => {
+  const actual = await importOriginal()
   return { ...actual, value: 'mocked' }
 })
 

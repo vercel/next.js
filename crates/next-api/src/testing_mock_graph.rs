@@ -299,7 +299,9 @@ pub(crate) fn mock_spec_source(
 pub(crate) fn mock_wrapper_source(
     runtime_request: &str,
     key: &str,
+    original_request: &str,
     export_names: &[String],
+    mocked_export_names: &[String],
 ) -> Result<String> {
     let mut source = format!(
         "import {{ resolveModuleMock }} from {};\nconst __next_mock_exports = await \
@@ -309,11 +311,20 @@ pub(crate) fn mock_wrapper_source(
         serde_json::to_string(export_names)?,
     );
     for (index, name) in export_names.iter().enumerate() {
+        let is_mocked = mocked_export_names.contains(name);
         let name = serde_json::to_string(name)?;
-        source.push_str(&format!(
-            "const __next_mock_export_{index} = __next_mock_exports[{name}];\nexport {{ \
-             __next_mock_export_{index} as {name} }};\n",
-        ));
+        if is_mocked {
+            source.push_str(&format!(
+                "const __next_mock_export_{index} = __next_mock_exports[{name}];\nexport {{ \
+                 __next_mock_export_{index} as {name} }};\n",
+            ));
+        } else {
+            source.push_str(&format!(
+                "import {{ {name} as __next_original_export_{index} }} from {};\nexport {{ \
+                 __next_original_export_{index} as {name} }};\n",
+                serde_json::to_string(original_request)?,
+            ));
+        }
     }
     Ok(source)
 }
@@ -321,8 +332,25 @@ pub(crate) fn mock_wrapper_source(
 #[cfg(test)]
 mod tests {
     use crate::testing_mock_graph::{
-        MockRegistrationSource, mock_registration_source, mock_spec_source,
+        MockRegistrationSource, mock_registration_source, mock_spec_source, mock_wrapper_source,
     };
+
+    #[test]
+    fn preserves_live_original_bindings_beside_fixed_mock_exports() {
+        let generated = mock_wrapper_source(
+            "next/mock-runtime",
+            "node:dep",
+            "original:dep",
+            &["count".into(), "label".into()],
+            &["label".into()],
+        )
+        .unwrap();
+        assert!(
+            generated
+                .contains("import { \"count\" as __next_original_export_0 } from \"original:dep\"")
+        );
+        assert!(generated.contains("const __next_mock_export_1 = __next_mock_exports[\"label\"]"));
+    }
 
     #[test]
     fn maps_unicode_columns_on_the_same_line() {

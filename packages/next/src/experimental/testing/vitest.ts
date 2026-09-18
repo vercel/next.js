@@ -92,16 +92,17 @@ type SpyApi = Pick<
 >
 type StaticMockApi = {
   /**
-   * Compiler-only: requires a literal path and an inline factory with statically
-   * named exports. Untransformed calls throw; graph support is capability-gated.
+   * Compiler-only: requires a literal path (or literal import()) and an inline
+   * factory with statically named exports. Untransformed calls throw; graph
+   * support is capability-gated.
    */
-  mock(
-    path: string,
+  mock<T extends object = Record<string, unknown>>(
+    path: string | Promise<T>,
     factory: (
-      importOriginal: <
-        T extends object = Record<string, unknown>,
-      >() => Promise<T>
-    ) => Record<string, unknown> | Promise<Record<string, unknown>>
+      importOriginal: <Original extends T = T>() => Promise<Original>
+    ) =>
+      | (Partial<T> & Record<string, unknown>)
+      | Promise<Partial<T> & Record<string, unknown>>
   ): void
 }
 const spyMethods = new Set([
