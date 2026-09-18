@@ -11,6 +11,7 @@ import {
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
+import findUp from 'next/dist/compiled/find-up'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
@@ -47,6 +48,10 @@ jest.mock('next/dist/compiled/cli-select', () => ({
   default: jest.fn(),
 }))
 jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
+jest.mock('next/dist/compiled/find-up', () => ({
+  __esModule: true,
+  default: { sync: jest.fn() },
+}))
 jest.mock('next/dist/lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
@@ -191,14 +196,25 @@ describe('agentic upgrade prompts', () => {
     }
   })
 
-  function mockQuery(output: string, code: number | null = 0) {
-    crossSpawn.mockImplementationOnce(() => {
-      const child = Object.assign(new EventEmitter(), {
-        stdout: Object.assign(new EventEmitter(), { setEncoding: jest.fn() }),
-        stderr: { resume: jest.fn() },
+  function queryChild() {
+    const stream = () =>
+      Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+        destroy: jest.fn(),
       })
+    return Object.assign(new EventEmitter(), {
+      stdout: stream(),
+      stderr: stream(),
+      unref: jest.fn(),
+    })
+  }
+
+  function mockQuery(output: string, code: number | null = 0, stderr = '') {
+    crossSpawn.mockImplementationOnce(() => {
+      const child = queryChild()
       queueMicrotask(() => {
         child.stdout.emit('data', output)
+        child.stderr.emit('data', stderr)
         child.emit('close', code)
       })
       return child
@@ -234,7 +250,7 @@ describe('agentic upgrade prompts', () => {
         {
           cwd: '/workspace/app',
           stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: 10_000,
+          detached: process.platform !== 'win32',
         }
       )
       expect(global.fetch).not.toHaveBeenCalled()
@@ -275,7 +291,7 @@ describe('agentic upgrade prompts', () => {
         {
           cwd: '/workspace/app',
           stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: 10_000,
+          detached: process.platform !== 'win32',
         }
       )
       expect(prepareUpgrade).toHaveBeenCalled()
@@ -325,6 +341,145 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
+  it('looks up pnpm metadata at the workspace root and delegates from the app', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest.mocked(getPkgManager).mockReturnValue('pnpm')
+    jest.mocked(findUp.sync).mockReturnValue('/workspace/pnpm-workspace.yaml')
+    jest.mocked(getNpxCommand).mockReturnValue('pnpm --loglevel=error dlx')
+    mockQuery(JSON.stringify('99.0.0-canary.1'))
+    crossSpawn.mockImplementationOnce(() => {
+      const child = new EventEmitter()
+      queueMicrotask(() => child.emit('close', 0))
+      return child
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'future',
+    })
+
+    expect(findUp.sync).toHaveBeenCalledWith('pnpm-workspace.yaml', {
+      cwd: '/workspace/app',
+    })
+    expect(crossSpawn).toHaveBeenNthCalledWith(
+      1,
+      'pnpm',
+      expect.arrayContaining(['view']),
+      expect.objectContaining({ cwd: '/workspace' })
+    )
+    expect(crossSpawn).toHaveBeenNthCalledWith(
+      2,
+      'pnpm',
+      expect.arrayContaining(['dlx', 'next@99.0.0-canary.1']),
+      expect.objectContaining({ cwd: '/workspace/app' })
+    )
+  })
+
+  it.each([
+    ['npm', '{"error":{"code":"E401","detail":"secret-token"}}', '', 'E401'],
+    [
+      'pnpm',
+      '',
+      'npm error ENOTFOUND https://user:secret-token@registry.invalid',
+      'ENOTFOUND',
+    ],
+    ['yarn', '', 'YN0041: secret-token', 'YN0041'],
+  ] as const)(
+    'reports %s lookup failures without exposing raw diagnostics',
+    async (manager, stdout, stderr, reason) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      jest.mocked(getPkgManager).mockReturnValue(manager)
+      if (manager === 'yarn') mockQuery('4.9.2')
+      mockQuery(stdout, 1, stderr)
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: true,
+        ai: true,
+      })
+
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare the upgrade:',
+        expect.stringContaining(
+          `metadata lookup failed (${reason}), exit code 1`
+        )
+      )
+      expect(JSON.stringify(jest.mocked(Log.error).mock.calls)).not.toContain(
+        'secret-token'
+      )
+      expect(prepareUpgrade).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(1)
+    }
+  )
+
+  it('does not expose malformed registry output', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    mockQuery('secret-token is not JSON')
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: true,
+      ai: true,
+    })
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      expect.stringContaining('invalid JSON metadata')
+    )
+    expect(JSON.stringify(jest.mocked(Log.error).mock.calls)).not.toContain(
+      'secret-token'
+    )
+  })
+
+  it('settles at the deadline even when the child never closes its pipes', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest.useFakeTimers()
+    const kill = jest.spyOn(process, 'kill').mockReturnValue(true)
+    const taskkill = jest
+      .spyOn(require('child_process'), 'spawnSync')
+      .mockReturnValue({})
+    const child = Object.assign(queryChild(), { pid: 12345 })
+    crossSpawn.mockReturnValueOnce(child)
+    const interrupts = process.listenerCount('SIGINT')
+    const terminations = process.listenerCount('SIGTERM')
+
+    try {
+      const upgrade = spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      })
+      jest.advanceTimersByTime(10_000)
+      await upgrade
+
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare the upgrade:',
+        expect.stringContaining('timed out after 10 seconds')
+      )
+      if (process.platform === 'win32') {
+        expect(taskkill).toHaveBeenCalledWith(
+          'taskkill',
+          ['/pid', '12345', '/T', '/F'],
+          expect.any(Object)
+        )
+      } else {
+        expect(kill).toHaveBeenCalledWith(-12345, 'SIGKILL')
+      }
+      expect(child.stdout.destroy).toHaveBeenCalled()
+      expect(child.stderr.destroy).toHaveBeenCalled()
+      expect(child.unref).toHaveBeenCalled()
+      expect(process.listenerCount('SIGINT')).toBe(interrupts)
+      expect(process.listenerCount('SIGTERM')).toBe(terminations)
+      expect(prepareUpgrade).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(1)
+    } finally {
+      kill.mockRestore()
+      taskkill.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
   it('consumes both handoff flags without another lookup or launch', async () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = currentCliVersion
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
@@ -364,7 +519,7 @@ describe('agentic upgrade prompts', () => {
 
   it.each([
     'command error',
-    'timeout',
+    'signal exit',
     'nonzero exit',
     'invalid JSON',
     'invalid version',
@@ -373,8 +528,13 @@ describe('agentic upgrade prompts', () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     if (failure === 'command error') {
       crossSpawn.mockImplementationOnce(() => {
-        const child = new EventEmitter()
-        queueMicrotask(() => child.emit('error', new Error('ENOENT')))
+        const child = queryChild()
+        queueMicrotask(() =>
+          child.emit(
+            'error',
+            Object.assign(new Error('private details'), { code: 'ENOENT' })
+          )
+        )
         return child
       })
     } else {
@@ -382,7 +542,7 @@ describe('agentic upgrade prompts', () => {
         failure === 'invalid JSON'
           ? 'not JSON'
           : JSON.stringify(failure === 'missing tag' ? null : '--invalid'),
-        failure === 'timeout' ? null : failure === 'nonzero exit' ? 1 : 0
+        failure === 'signal exit' ? null : failure === 'nonzero exit' ? 1 : 0
       )
     }
 
@@ -396,7 +556,9 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).not.toHaveBeenCalled()
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
-      'Could not determine the current Next.js canary version. Please try again.'
+      expect.stringContaining(
+        'Could not determine the current Next.js canary version.'
+      )
     )
     expect(process.exitCode).toBe(1)
   })

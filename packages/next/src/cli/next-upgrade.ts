@@ -1,8 +1,9 @@
-import { spawn } from 'child_process'
+import { spawn, spawnSync } from 'child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
 import semver from 'next/dist/compiled/semver'
+import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
@@ -145,28 +146,102 @@ async function resolveAIUpgradeType(
     : 'security'
 }
 
+class MetadataLookupError extends Error {}
+
 async function resolveCanaryVersion(directory: string): Promise<string> {
   const spawnCommand =
     require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
   const packageManager = getPkgManager(directory)
+  // pnpm view delegates to npm, which does not discover pnpm workspace roots.
+  // Run there so metadata and dlx use the same workspace .npmrc.
+  const workspace =
+    packageManager === 'pnpm'
+      ? findUp.sync('pnpm-workspace.yaml', { cwd: directory })
+      : undefined
   const query = (args: string[]): Promise<string> =>
     new Promise((resolve, reject) => {
       const child = spawnCommand(packageManager, args, {
-        cwd: directory,
+        cwd: workspace ? dirname(workspace) : directory,
+        detached: process.platform !== 'win32',
         stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 10_000,
       })
       let stdout = ''
+      let stderr = ''
+      const terminate = () => {
+        if (child.pid !== undefined) {
+          if (process.platform === 'win32') {
+            spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+              stdio: 'ignore',
+              windowsHide: true,
+              timeout: 1_000,
+            })
+          } else {
+            try {
+              process.kill(-child.pid, 'SIGKILL')
+            } catch {
+              // The process group may already have exited.
+            }
+          }
+        }
+        child.stdout?.destroy()
+        child.stderr?.destroy()
+        child.unref()
+      }
+      const onInterrupt = () => {
+        terminate()
+        process.exit(130)
+      }
+      const onTerminate = () => {
+        terminate()
+        process.exit(143)
+      }
+      const cleanup = () => {
+        clearTimeout(timer)
+        process.removeListener('SIGINT', onInterrupt)
+        process.removeListener('SIGTERM', onTerminate)
+      }
+      const timer = setTimeout(() => {
+        cleanup()
+        terminate()
+        reject(
+          new MetadataLookupError(
+            `${packageManager} metadata lookup timed out after 10 seconds.`
+          )
+        )
+      }, 10_000)
+      process.once('SIGINT', onInterrupt)
+      process.once('SIGTERM', onTerminate)
+
       child.stdout?.setEncoding('utf8')
+      child.stderr?.setEncoding('utf8')
       child.stdout?.on('data', (chunk: string) => {
-        stdout += chunk
+        stdout = (stdout + chunk).slice(-16_384)
       })
-      // Drain diagnostics without exposing registry credentials in errors.
-      child.stderr?.resume()
-      child.once('error', reject)
+      child.stderr?.on('data', (chunk: string) => {
+        stderr = (stderr + chunk).slice(-16_384)
+      })
+      child.once('error', (error: NodeJS.ErrnoException) => {
+        cleanup()
+        terminate()
+        reject(
+          new MetadataLookupError(
+            `Could not start ${packageManager} metadata lookup (${error.code === 'ENOENT' ? 'command not found' : 'process error'}).`
+          )
+        )
+      })
       child.once('close', (code) => {
+        cleanup()
         if (code !== 0) {
-          reject(new Error(`${packageManager} exited with code ${code}`))
+          // Report known failure codes only: package-manager diagnostics can
+          // contain registry URLs, credentials, and other private configuration.
+          const reason = (stdout + '\n' + stderr).match(
+            /\b(?:E401|E403|E404|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|CERT_HAS_EXPIRED|DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_VERIFY_LEAF_SIGNATURE|YN0033|YN0035|YN0041|YN0080|ERR_PNPM_FETCH_401|ERR_PNPM_FETCH_403|ERR_PNPM_FETCH_404)\b/
+          )?.[0]
+          reject(
+            new MetadataLookupError(
+              `${packageManager} metadata lookup failed${reason ? ` (${reason})` : ''}, exit code ${code ?? 'unknown'}. Check your registry and network configuration.`
+            )
+          )
           return
         }
         resolve(stdout.trim())
@@ -178,7 +253,7 @@ async function resolveCanaryVersion(directory: string): Promise<string> {
     if (packageManager === 'yarn') {
       const yarnVersion = await query(['--version'])
       if (!semver.valid(yarnVersion)) {
-        throw new Error('Invalid Yarn version')
+        throw new MetadataLookupError('Invalid Yarn version')
       }
       const classic = semver.major(yarnVersion) === 1
       const output = await query(
@@ -207,12 +282,18 @@ async function resolveCanaryVersion(directory: string): Promise<string> {
       )
     }
     if (typeof version !== 'string' || !semver.valid(version)) {
-      throw new Error('Invalid Next.js version')
+      throw new MetadataLookupError('Invalid Next.js version')
     }
     return version
   } catch (error) {
+    const reason =
+      error instanceof MetadataLookupError
+        ? error.message
+        : error instanceof SyntaxError
+          ? 'The package manager returned invalid JSON metadata.'
+          : 'Please try again.'
     throw new Error(
-      'Could not determine the current Next.js canary version. Please try again.',
+      `Could not determine the current Next.js canary version. ${reason}`,
       { cause: error }
     )
   }
