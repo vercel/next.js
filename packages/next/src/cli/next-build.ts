@@ -22,6 +22,7 @@ export type NextBuildOptions = {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
+  wasi?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
@@ -68,6 +69,18 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     printAndExit(
       '--experimental-analyze is only compatible with the Turbopack bundler.'
     )
+  }
+
+  if (options.wasi && bundler !== Bundler.Turbopack) {
+    printAndExit('--wasi is only compatible with the Turbopack bundler.')
+  }
+  if (options.wasi && experimentalAnalyze) {
+    printAndExit('--wasi does not yet support --experimental-analyze.')
+  }
+  if (options.wasi) {
+    // Private process-wide selection is inherited by Next build workers. It is set before config
+    // loading so a next.config.ts transform uses the same N-API/WASI binding as the build.
+    process.env.NEXT_PRIVATE_BUILD_WASI = '1'
   }
 
   if (!mangling) {
@@ -117,6 +130,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
       experimentalBuildMode:
         experimentalBuildMode !== 'default' ? experimentalBuildMode : undefined,
       experimentalCpuProf: options.experimentalCpuProf,
+      wasi: options.wasi,
     }).filter(([_, value]) => value !== undefined && value !== false)
   )
 

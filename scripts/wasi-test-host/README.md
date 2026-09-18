@@ -49,11 +49,14 @@ node --test packages/next/src/build/swc/wasi-loader.test.mjs
 source scripts/setup-wasi-env.sh
 cargo build -p next-napi-bindings --target wasm32-wasip1-threads
 node scripts/wasi-test-host/napi-async-smoke.mjs
+node scripts/wasi-test-host/next-build-smoke.mjs
 ```
 
 The async smoke uses the full emnapi runtime installed by `setup-wasi-env.sh`. It proves real
 `projectNew` and `projectShutdown` promises complete across pthread Workers; the lower-crate Cargo
 runner does not provide N-API imports and cannot run `next-napi-bindings` test artifacts directly.
+The build smoke invokes the normal `next build --wasi` CLI with a TypeScript config and proves the
+parent plus every build worker selected WASI without creating persistent cache files.
 
 (Pass the files. `node --test <dir>` tries to resolve the directory as a module and fails.)
 
