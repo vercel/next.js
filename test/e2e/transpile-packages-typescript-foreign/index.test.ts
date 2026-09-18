@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// vercel.json uses pnpm so file: dependencies are installed inside node_modules.
+// npm links them to fixture source, which is transpiled without transpilePackages.
 describe('transpile-packages-typescript-foreign', () => {
   describe('without transpilePackages', () => {
     const { next, isNextDev } = nextTestSetup({
