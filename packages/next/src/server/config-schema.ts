@@ -192,6 +192,9 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  agenticAutoUpgrade: z
+    .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
+    .optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -376,6 +379,15 @@ export const experimentalSchema = {
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryEviction: z
     .union([z.literal(false), z.literal('full'), z.literal('auto')])
+    .optional(),
+  turbopackGc: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        minProgressMs: z.number().min(0).finite().optional(),
+        rootTtlMs: z.number().min(0).finite().optional(),
+      }),
+    ])
     .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])

@@ -1,0 +1,278 @@
+diff --git a/dist/lib/agents/plugin/orchestrator.js b/dist/lib/agents/plugin/orchestrator.js
+index 8a95213..8f04f85 100644
+--- a/dist/lib/agents/plugin/orchestrator.js
++++ b/dist/lib/agents/plugin/orchestrator.js
+@@ -87,8 +87,25 @@ export function resolveJudgeRuntime(def, options) {
+  * Run all install steps for an agent, reproducing the old per-step error wording.
+  * Throws on final failure so the caller's catch turns it into an error result.
+  */
+-async function runInstallSteps(sandbox, def, options) {
++function isProjectInstall(step) {
++    return step.kind === 'command' &&
++        step.cmd === 'npm' &&
++        step.args?.length === 1 &&
++        step.args[0] === 'install';
++}
++async function runInstallSteps(sandbox, def, options, projectOnly = false, env) {
+     for (const step of def.install(options)) {
++        if (projectOnly && !isProjectInstall(step))
++            continue;
++        if (process.env.AGENT_EVAL_SANDBOX_SNAPSHOT_ID !== undefined &&
++            step.kind === 'command' &&
++            step.cmd === 'npm' &&
++            step.args?.[0] === 'install' &&
++            step.args[1] === '-g' &&
++            (step.args[2] === '@anthropic-ai/claude-code' ||
++                step.args[2] === '@openai/codex')) {
++            continue;
++        }
+         const exec = () => step.kind === 'shell'
+-            ? sandbox.runShell(step.script ?? '')
+-            : sandbox.runCommand(step.cmd ?? '', step.args ?? []);
++            ? sandbox.runShell(step.script ?? '', env)
++            : sandbox.runCommand(step.cmd ?? '', step.args ?? [], { env });
+@@ -109,6 +126,73 @@ async function runInstallSteps(sandbox, def, options) {
+         }
+     }
+ }
++const preparedFixtures = new Map();
++async function preparedFixture(fixturePath, workspaceFiles, def, options) {
++    let pending = preparedFixtures.get(fixturePath);
++    if (!pending) {
++        pending = (async () => {
++            const preparedSandbox = await createSandbox({
++                timeout: options.timeout,
++                runtime: 'node24',
++                backend: options.sandbox,
++            });
++            try {
++                await preparedSandbox.uploadFiles(workspaceFiles);
++                await initGitAndCommit(preparedSandbox);
++                const setupResult = options.setup
++                    ? await options.setup(preparedSandbox)
++                    : undefined;
++                const neutralWorkspace = await prepareNeutralWorkspace(preparedSandbox);
++                await runInstallSteps(preparedSandbox, def, options, true, setupResult?.env);
++                await verifyNoTestFiles(preparedSandbox);
++                const snapshot = await preparedSandbox.snapshot({
++                    expiration: 24 * 60 * 60 * 1000,
++                });
++                return {
++                    snapshot,
++                    setupResult,
++                    neutralWorkspace,
++                    remaining: Number(process.env.AGENT_EVAL_PREPARED_FIXTURE_CONSUMERS ?? 2),
++                };
++            }
++            catch (error) {
++                await preparedSandbox.stop().catch(() => { });
++                throw error;
++            }
++        })();
++        preparedFixtures.set(fixturePath, pending);
++    }
++    return pending;
++}
++async function forkPreparedFixture(fixturePath, workspaceFiles, def, options) {
++    const prepared = await preparedFixture(fixturePath, workspaceFiles, def, options);
++    try {
++        const sandbox = await createSandbox({
++            timeout: options.timeout,
++            runtime: 'node24',
++            backend: options.sandbox,
++            snapshotId: prepared.snapshot.snapshotId,
++        });
++        sandbox.setWorkingDirectory(prepared.neutralWorkspace.cwd);
++        return {
++            sandbox,
++            setupResult: prepared.setupResult,
++            neutralWorkspace: prepared.neutralWorkspace,
++        };
++    }
++    finally {
++        prepared.remaining -= 1;
++        if (prepared.remaining === 0) {
++            preparedFixtures.delete(fixturePath);
++            try {
++                await prepared.snapshot.delete();
++            }
++            catch (error) {
++                console.error('Failed to delete prepared fixture snapshot:', error);
++            }
++        }
++    }
++}
+ /** Write the agent's config files into the sandbox (codex TOML, opencode.json, …). */
+ async function writeConfigFiles(sandbox, def, options) {
+     for (const cf of def.configFiles(options)) {
+@@ -226,11 +310,22 @@ async function runOnce(def, fixturePath, options) {
+         //    memoization (~/.codex/agent-eval-canary.json, see codex/run.mjs) relies
+         //    on that shared lifetime — a sandbox-per-invocation change would make
+         //    every judge assertion re-pay the canary exec.
+-        sandbox = await createSandbox({
+-            timeout: options.timeout,
+-            runtime: 'node24',
+-            backend: options.sandbox,
+-        });
++        let setupResult;
++        let neutralWorkspace;
++        const sharePreparedFixture = process.env.AGENT_EVAL_PREPARE_FIXTURE_ONCE === '1';
++        if (sharePreparedFixture) {
++            const prepared = await forkPreparedFixture(fixturePath, workspaceFiles, def, options);
++            sandbox = prepared.sandbox;
++            setupResult = prepared.setupResult;
++            neutralWorkspace = prepared.neutralWorkspace;
++        }
++        else {
++            sandbox = await createSandbox({
++                timeout: options.timeout,
++                runtime: 'node24',
++                backend: options.sandbox,
++            });
++        }
+         if (aborted) {
+             return {
+                 success: false,
+@@ -242,21 +337,25 @@ async function runOnce(def, fixturePath, options) {
+         }
+         // 3. Upload workspace, establish the git baseline, run user setup, relocate to
+         //    the neutral workspace. (All agent-agnostic; unchanged shared helpers.)
+-        await sandbox.uploadFiles(workspaceFiles);
+-        await initGitAndCommit(sandbox);
+-        if (options.setup) {
+-            await options.setup(sandbox);
++        if (!sharePreparedFixture) {
++            await sandbox.uploadFiles(workspaceFiles);
++            await initGitAndCommit(sandbox);
++            if (options.setup) {
++                setupResult = await options.setup(sandbox);
++            }
++            neutralWorkspace = await prepareNeutralWorkspace(sandbox);
++            await runInstallSteps(sandbox, def, options, false, setupResult?.env);
+         }
+-        const neutralWorkspace = await prepareNeutralWorkspace(sandbox);
+         // 4. SETUP from the definition: install (project deps + CLI) then config files.
+-        await runInstallSteps(sandbox, def, options);
+         await writeConfigFiles(sandbox, def, options);
+         // 4b. If the agentic judge is pinned to a DIFFERENT agent, install its CLI +
+         //     config too — the codegen setup above only installed the codegen agent.
+         //     (npm install of project deps re-runs idempotently; the CLI is the point.)
+         const judgeRuntime = resolveJudgeRuntime(def, options);
+         if (!judgeRuntime.isSelf) {
+-            await runInstallSteps(sandbox, judgeRuntime.judgeDef, judgeRuntime.judgeOptions);
++            if (!sharePreparedFixture) {
++                await runInstallSteps(sandbox, judgeRuntime.judgeDef, judgeRuntime.judgeOptions, false, setupResult?.env);
++            }
+             await writeConfigFiles(sandbox, judgeRuntime.judgeDef, judgeRuntime.judgeOptions);
+         }
+         // 5. Guard: no stray test files leaked into the workspace before the agent runs.
+@@ -281,7 +380,7 @@ async function runOnce(def, fixturePath, options) {
+             // that must match the TOML config). Omitted entirely for agents without it.
+             extra: def.runnerExtra?.(options),
+         };
+-        const runEnv = { ...def.authEnv(options), ...neutralWorkspace.env };
++        const runEnv = { ...def.authEnv(options), ...neutralWorkspace.env, ...setupResult?.env };
+         const nodeResult = await sandbox.runCommand('node', [RUNNER_PATH, JSON.stringify(input)], { env: runEnv });
+         // 8. Read the runner's result (file → marker → throw-on-crash).
+         const runnerResult = await readRunnerResult(sandbox, RESULT_PATH, nodeResult);
+@@ -318,7 +417,7 @@ async function runOnce(def, fixturePath, options) {
+         // re-invoke the agent in-sandbox (the vitest process inherits it to children).
+         // By default the judge is the codegen agent+model; options.judge pins a fixed one
+         // (judgeRuntime was resolved at step 4b so its CLI could be installed).
+-        const validationEnv = { ...judgeRuntime.authEnv, ...neutralWorkspace.env };
++        const validationEnv = { ...judgeRuntime.authEnv, ...neutralWorkspace.env, ...setupResult?.env };
+         if (options.validation !== 'none') {
+             await sandbox.uploadFiles(testFiles);
+             await createVitestConfig(sandbox);
+diff --git a/dist/lib/sandbox.d.ts b/dist/lib/sandbox.d.ts
+index 8803497..74d79b9 100644
+--- a/dist/lib/sandbox.d.ts
++++ b/dist/lib/sandbox.d.ts
+@@ -2,7 +2,7 @@
+  * Sandbox integration for isolated eval execution.
+  * Supports both Vercel Sandbox and Docker backends.
+  */
+-import { Sandbox as VercelSandbox } from '@vercel/sandbox';
++import { Sandbox as VercelSandbox, Snapshot } from '@vercel/sandbox';
+ import type { Sandbox } from './types.js';
+ import { DockerSandboxManager } from './docker-sandbox.js';
+ /**
+@@ -54,6 +54,8 @@ export interface SandboxOptions {
+     teamId?: string;
+     /** Optional explicit Vercel project ID for sandbox API auth */
+     projectId?: string;
++    /** Optional snapshot used as the sandbox filesystem source */
++    snapshotId?: string;
+ }
+ /**
+  * Result of running a command in the sandbox.
+@@ -126,6 +128,10 @@ export declare class SandboxManager implements Sandbox {
+      * Set the working directory.
+      */
+     setWorkingDirectory(path: string): void;
++    snapshot(options?: {
++        expiration?: number;
++        signal?: AbortSignal;
++    }): Promise<Snapshot>;
+     private resolveSandboxPath;
+     /**
+      * Stop and clean up the sandbox.
+@@ -182,4 +188,4 @@ export declare function splitTestFiles(files: SandboxFile[]): {
+  * Verify that no test files exist in the sandbox.
+  */
+ export declare function verifyNoTestFiles(sandbox: SandboxManager | DockerSandboxManager): Promise<void>;
+-//# sourceMappingURL=sandbox.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=sandbox.d.ts.map
+diff --git a/dist/lib/sandbox.js b/dist/lib/sandbox.js
+index fa7f130..9306764 100644
+--- a/dist/lib/sandbox.js
++++ b/dist/lib/sandbox.js
+@@ -94,9 +94,12 @@ export class SandboxManager {
+         const timeout = options.timeout ?? DEFAULT_SANDBOX_TIMEOUT;
+         const runtime = options.runtime ?? 'node24';
+         const credentials = resolveVercelSandboxCredentials(options);
++        const snapshotId = options.snapshotId ?? process.env.AGENT_EVAL_SANDBOX_SNAPSHOT_ID;
+         const sandbox = await VercelSandbox.create({
+-            runtime,
+             timeout,
++            ...(snapshotId
++                ? { source: { type: 'snapshot', snapshotId } }
++                : { runtime }),
+             ...(credentials ?? {}),
+         });
+         return new SandboxManager(sandbox);
+@@ -195,6 +198,9 @@ export class SandboxManager {
+     setWorkingDirectory(path) {
+         this._workingDirectory = path;
+     }
++    async snapshot(options) {
++        return this.sandbox.snapshot(options);
++    }
+     resolveSandboxPath(path) {
+         return isAbsolute(path) ? path : join(this._workingDirectory, path);
+     }
+@@ -286,6 +292,7 @@ export async function createSandbox(options = {}) {
+     return SandboxManager.create({
+         timeout: options.timeout,
+         runtime: options.runtime,
++        snapshotId: options.snapshotId,
+     });
+ }
+ /**
+diff --git a/dist/lib/types.d.ts b/dist/lib/types.d.ts
+index c6e6e93..66ac1c4 100644
+--- a/dist/lib/types.d.ts
++++ b/dist/lib/types.d.ts
+@@ -65,7 +65,10 @@ export interface Sandbox {
+  * Setup function that runs before the agent starts.
+  * Receives a sandbox instance for pre-configuration.
+  */
+-export type SetupFunction = (sandbox: Sandbox) => Promise<void>;
++export interface SetupResult {
++    env: Record<string, string>;
++}
++export type SetupFunction = (sandbox: Sandbox) => Promise<SetupResult | void>;
+ export interface RunCompleteContext {
+     fixture: EvalFixture;
+     runIndex: number;

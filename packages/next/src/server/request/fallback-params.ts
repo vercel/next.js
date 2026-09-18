@@ -88,11 +88,6 @@ export function createOpaqueFallbackRouteParams(
  * exactly that shape. Any other shell may be empty, and a request completes it
  * with the params that `generateStaticParams` can still supply. Only the params
  * that completion never resolves stay deferred.
- *
- * `next start` without `partialPrefetching` keys ISR entries by the full
- * pathname, so such an entry resolves every param. A cold staged render then
- * defers params that the entry resolves, so its static stage contains less
- * content. A resume reads the recorded set from the entry's postponed state.
  */
 export function getStagedFallbackParams(route: {
   fallbackRouteParams: readonly FallbackRouteParam[] | undefined

@@ -258,46 +258,10 @@ That symlink does not bring in per-package `node_modules` or a built `packages/n
 
 ## PR Status (CI Failures and Reviews)
 
-When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
-
-```bash
-node scripts/pr-status.js           # Auto-detects PR from current branch
-node scripts/pr-status.js <number>  # Analyze specific PR by number
-```
-
-This generates analysis files in `scripts/pr-status/`.
-
-General triage rules (always apply; `$pr-status-triage` skill expands on these):
-
-- Prioritize blocking failures first: build, lint, types, then tests.
-- Assume failures are real until disproven; use "Known Flaky Tests" as context, not auto-dismissal.
-- Reproduce with the same CI mode/env vars (especially `IS_WEBPACK_TEST=1` when present).
-- For module-resolution/build-graph fixes, use the normal mode-specific test command so package resolution is exercised.
-
-For full triage workflow (failure prioritization, mode selection, CI env reproduction, and common failure patterns), use the `$pr-status-triage` skill:
-
-- Skill file: `.agents/skills/pr-status-triage/SKILL.md`
-
-**Use `$pr-status-triage` for automated analysis** - see `.agents/skills/pr-status-triage/SKILL.md` for the full step-by-step workflow.
-
-**CI Analysis Tips:**
-
-- Prioritize CI failures over review comments
-- Prioritize blocking jobs first: build, lint, types, then test jobs
-- Common fast checks:
-  - `rust check / build` → Run `cargo fmt -- --check`, then `cargo fmt`
-  - `lint / build` → Run `pnpm prettier --write <file>` for prettier errors
-  - test failures → Run the specific failing test path locally
-
-**Run tests in the right mode:**
-
-```bash
-# Dev mode (Turbopack)
-pnpm test-dev-turbo test/path/to/test.ts
-
-# Prod mode
-pnpm test-start-turbo test/path/to/test.ts
-```
+Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
+PR status. It contains the `scripts/pr-status.js` commands, prioritization,
+review-thread workflow, and CI reproduction guidance. See
+`.agents/skills/pr-status-triage/SKILL.md`.
 
 ## GitHub Pull Requests
 

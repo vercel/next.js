@@ -180,6 +180,20 @@ async fn gc_does_not_collect_pinned_task() {
     tt.stop_and_wait().await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn construction_pin_is_released_after_connecting_task() {
+    let (tt, _persistence_dir) = create_tt("construction_pin_is_released");
+    let task_id = turbo_tasks::run_once(tt.clone(), async move {
+        let task_id = TaskId::try_from(*leaf_task_id(7).read_strongly_consistent().await?)?;
+        anyhow::Ok(task_id)
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(tt.backend().transient_ref_count_for_testing(task_id), 0);
+    tt.stop_and_wait().await;
+}
+
 /// Disposing a root task (as `RootTask::Drop` does when JS stops listening to a subscription) must
 /// release the anchor its child edges placed on the tasks it read. Disposal is also idempotent and
 /// safe after the backend has stopped, which `RootTask::Drop` relies on.

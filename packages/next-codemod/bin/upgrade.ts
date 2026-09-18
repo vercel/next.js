@@ -463,10 +463,21 @@ export async function runUpgrade(
     // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
     // `--allow-dirty` is required because the upgrade above modified package.json
     // and the lockfile; the recipe refuses to run on a dirty tree otherwise.
-    execSync(
-      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
-      { stdio: 'inherit' }
-    )
+    try {
+      execSync(
+        `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
+        { stdio: 'inherit' }
+      )
+    } catch (error) {
+      // TODO: Remove this fallback once codemod publishes a Linux binary that
+      // supports the glibc versions used by our upgrade environments.
+      console.warn(
+        new Error(
+          `${pc.yellow('⚠')} The React 19 codemod could not run. Continue the upgrade and review the React 19 migration guide manually.`,
+          { cause: error }
+        )
+      )
+    }
   }
 
   if (shouldRunReactTypesCodemods) {
