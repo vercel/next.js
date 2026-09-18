@@ -1,0 +1,10 @@
+{
+  "name": "skip-polyfill-module",
+  "version": "0.1.0",
+  "private": true,
+  "browserslist": [
+    "chrome 130",
+    "firefox 130",
+    "safari 18"
+  ]
+}
