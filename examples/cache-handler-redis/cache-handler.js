@@ -149,7 +149,13 @@ module.exports = class CacheHandler {
 
   async revalidateTag(tags) {
     const client = await getClient();
-    if (!client) return;
+    // Don't report success for a revalidation that never reached Redis: once
+    // Redis is back, every instance would serve the old entries again.
+    if (!client) {
+      throw new Error(
+        "Redis is unavailable, so the tag revalidation was not recorded",
+      );
+    }
 
     // `tags` is either a single tag or an array of tags.
     for (const tag of [tags].flat()) {
