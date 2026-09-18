@@ -452,7 +452,7 @@ pub struct ProjectContainer {
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
-    initialization_lock: tokio::sync::Mutex<()>,
+    fs_map_init_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
@@ -472,7 +472,7 @@ impl ProjectContainer {
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
-            initialization_lock: tokio::sync::Mutex::new(()),
+            fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
     }
@@ -492,7 +492,7 @@ async fn prepare_project_container_state(
     let container = container_vc.await?;
     // Operations created during initialization may begin running immediately. Keep operations that
     // require the complete filesystem map blocked until both filesystem states are populated.
-    let initialization_guard = container.initialization_lock.lock().await;
+    let fs_map_init_guard = container.fs_map_init_lock.lock().await;
 
     let map = disk_file_system_map_operation(container_vc);
     let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
@@ -524,7 +524,7 @@ async fn prepare_project_container_state(
     let project_path = options.project_path.clone();
 
     // `project_root_path_operation` reads `options_state`, so publish it first. This operation
-    // cannot depend on `initialization_lock` because we must eagerly resolve `project_fs_op` to
+    // cannot depend on `fs_map_init_lock` because we must eagerly resolve `project_fs_op` to
     // create `config_path`.
     container.options_state.set(Some(options));
 
@@ -590,7 +590,7 @@ async fn prepare_project_container_state(
     container
         .additional_roots_state
         .set(additional_roots.roots_by_name.into_iter().collect());
-    drop(initialization_guard);
+    drop(fs_map_init_guard);
 
     // perform complete invalidations of all paths and watcher setup after finalizing the `map`
     fn invalidation_reason(path: &Path) -> impl InvalidationReason + Clone + use<> {
@@ -677,7 +677,7 @@ pub(crate) async fn additional_root_path_operation(
     key: RcStr,
 ) -> Result<Vc<RcStr>> {
     let container = container.await?;
-    let _guard = container.initialization_lock.lock().await;
+    let _guard = container.fs_map_init_lock.lock().await;
     let roots = container.additional_roots_state.get();
     let root = roots
         .iter()
@@ -692,7 +692,7 @@ async fn disk_file_system_map_operation(
 ) -> Result<Vc<DiskFileSystemMap>> {
     let (project_file_system, additional_file_systems) = {
         let container = container.await?;
-        let _guard = container.initialization_lock.lock().await;
+        let _guard = container.fs_map_init_lock.lock().await;
         let file_systems = container.file_systems_state.get();
         let file_systems = file_systems
             .as_ref()
