@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 
 use crate::{
@@ -24,6 +25,7 @@ enum Repr {
         data: *const [u8],
         _backing: Rc<[u8]>,
     },
+    #[cfg(feature = "mmap")]
     Mmap {
         data: *const [u8],
         _backing: Rc<Mmap>,
@@ -48,6 +50,7 @@ impl RcBytes {
     fn backing_bytes(&self) -> Option<&[u8]> {
         match &self.repr {
             Repr::Rc { _backing, .. } => Some(_backing),
+            #[cfg(feature = "mmap")]
             Repr::Mmap { _backing, .. } => Some(_backing),
             Repr::Inline { .. } => None,
         }
@@ -78,7 +81,9 @@ impl Deref for RcBytes {
         match &self.repr {
             // SAFETY: `data` points into the backing held by the same variant, which keeps it
             // alive for as long as `self`.
-            Repr::Rc { data, .. } | Repr::Mmap { data, .. } => unsafe { &**data },
+            Repr::Rc { data, .. } => unsafe { &**data },
+            #[cfg(feature = "mmap")]
+            Repr::Mmap { data, .. } => unsafe { &**data },
             // Borrowed from `self`, so this is recomputed after a move rather than stored.
             Repr::Inline { buf, len } => &buf[..*len as usize],
         }
@@ -112,6 +117,7 @@ impl Hash for RcBytes {
 }
 
 impl SharedBytes for RcBytes {
+    #[cfg(feature = "mmap")]
     type MmapHandle = Rc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
@@ -124,6 +130,7 @@ impl SharedBytes for RcBytes {
         Self {
             repr: match self.repr {
                 Repr::Rc { _backing, .. } => Repr::Rc { data, _backing },
+                #[cfg(feature = "mmap")]
                 Repr::Mmap { _backing, .. } => Repr::Mmap { data, _backing },
                 Repr::Inline { .. } => unreachable!("handled above"),
             },
@@ -149,6 +156,7 @@ impl SharedBytes for RcBytes {
                     data,
                     _backing: _backing.clone(),
                 },
+                #[cfg(feature = "mmap")]
                 Repr::Mmap { _backing, .. } => Repr::Mmap {
                     data,
                     _backing: _backing.clone(),
@@ -160,6 +168,7 @@ impl SharedBytes for RcBytes {
         }
     }
 
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),
