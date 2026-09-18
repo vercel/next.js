@@ -46,7 +46,14 @@ Its own tests run against the same compiled production support:
 ```sh
 node --test scripts/wasi-test-host/lib.test.mjs
 node --test packages/next/src/build/swc/wasi-loader.test.mjs
+source scripts/setup-wasi-env.sh
+cargo build -p next-napi-bindings --target wasm32-wasip1-threads
+node scripts/wasi-test-host/napi-async-smoke.mjs
 ```
+
+The async smoke uses the full emnapi runtime installed by `setup-wasi-env.sh`. It proves real
+`projectNew` and `projectShutdown` promises complete across pthread Workers; the lower-crate Cargo
+runner does not provide N-API imports and cannot run `next-napi-bindings` test artifacts directly.
 
 (Pass the files. `node --test <dir>` tries to resolve the directory as a module and fails.)
 
@@ -62,7 +69,8 @@ node --test packages/next/src/build/swc/wasi-loader.test.mjs
 `@emnapi/wasi-threads` owns Worker lifecycle, compiled-module transfer, load/start ordering, and
 cleanup. A small local adapter remains because Rust imports the original one-argument
 `thread-spawn` ABI but does not export the `malloc`/`free` functions the package's high-level wrapper
-uses for that ABI.
+uses for that ABI. Every pthread Worker is registered with the main emnapi N-API instance before it
+loads; async-work and thread-safe-function completions otherwise never reach the JavaScript Promise.
 
 The memory parser is necessary because
 [`WebAssembly.Module.imports()`](https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Module/imports_static)

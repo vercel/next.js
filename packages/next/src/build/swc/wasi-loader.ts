@@ -39,6 +39,9 @@ type ImportNamespace = Record<string, WebAssembly.ImportValue>
 
 export type NapiModuleLike = {
   imports: WebAssembly.Imports
+  emnapi: {
+    addSendListener(worker: unknown): boolean
+  }
   init(options: {
     instance: WebAssembly.Instance
     module: WebAssembly.Module
@@ -183,6 +186,7 @@ export async function instantiateWasiNapiModule(options: {
       napiModuleSpecifier,
     },
     onError: options.onThreadError,
+    beforeLoad: (worker) => napiModule.emnapi.addSendListener(worker),
   })
   const imports = createWasiImportObject({
     module,
