@@ -11,9 +11,11 @@ describe('next-config-ts-type-error-esm', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    env: {
-      __NEXT_NODE_NATIVE_TS_LOADER_ENABLED: 'true',
-    },
+    // Vercel environment keys cannot start with an underscore.
+    buildCommand: isNextDeploy
+      ? '__NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true next build'
+      : undefined,
+    env: isNextDeploy ? {} : { __NEXT_NODE_NATIVE_TS_LOADER_ENABLED: 'true' },
     packageJson: {
       ...(isNextDeploy ? { engines: { node: '22.x' } } : {}),
       type: 'module',

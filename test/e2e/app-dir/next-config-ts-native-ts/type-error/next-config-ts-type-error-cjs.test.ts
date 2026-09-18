@@ -12,9 +12,11 @@ describe('next-config-ts-type-error-cjs', () => {
     files: __dirname,
     skipStart: true,
     packageJson: isNextDeploy ? { engines: { node: '22.x' } } : {},
-    env: {
-      __NEXT_NODE_NATIVE_TS_LOADER_ENABLED: 'true',
-    },
+    // Vercel environment keys cannot start with an underscore.
+    buildCommand: isNextDeploy
+      ? '__NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true next build'
+      : undefined,
+    env: isNextDeploy ? {} : { __NEXT_NODE_NATIVE_TS_LOADER_ENABLED: 'true' },
   })
 
   it('should throw with type error on build (CJS)', async () => {
