@@ -39,4 +39,34 @@ describe('turbopack-loader-file-dependencies', () => {
       }
     )
   })
+
+  it('should update when a build dependency changes', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toContain('build dependency: build-one')
+
+    await next.patchFile(
+      'utils/build-dependency.js',
+      "module.exports = 'build-two'",
+      async () => {
+        await retry(async () => {
+          const $2 = await next.render$('/')
+          expect($2('p').text()).toContain('build dependency: build-two')
+        }, 10000)
+      }
+    )
+  })
+
+  // @force-gate turbopack
+  it('warns for unsupported build dependency inputs', async () => {
+    const outputIndex = next.cliOutput.length
+    const $ = await next.render$('/unsupported')
+    expect($('p').text()).toContain('unsupported build dependency')
+    await retry(() => {
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain('Unsupported webpack loader build dependency')
+      expect(output).toContain('/utils')
+      expect(output).toContain('exact existing file')
+      expect(output).not.toMatch(/EISDIR|ELOOP/)
+    })
+  })
 })

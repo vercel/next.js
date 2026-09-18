@@ -389,11 +389,9 @@ impl<'e> ExecuteContextImpl<'e> {
                     }
 
                     if do_data || do_meta {
-                        // Drop the lock before notifying so woken threads don't
-                        // immediately contend on the same DashMap shard.
-                        drop(task);
+                        // Keep the guard through return. Once the restoring bit is clear, eviction
+                        // may otherwise drop the category before this caller can use it.
                         self.backend.storage.restored.notify(usize::MAX);
-                        task = self.backend.storage.access_mut(task_id);
                     }
 
                     // The caller asserted this task exists (`MustExist`), but it looked like a
@@ -1136,14 +1134,9 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             }
 
             if do_data1 || do_meta1 || do_data2 || do_meta2 {
-                // Drop both locks before notifying so woken threads don't
-                // immediately contend on the same DashMap shards.
-                drop(task1);
-                drop(task2);
+                // Keep both guards through return so eviction cannot clear a newly restored
+                // category before the caller can use it.
                 self.backend.storage.restored.notify(usize::MAX);
-                let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-                task1 = t1;
-                task2 = t2;
             }
 
             // A `MustExist` pair open must not fabricate: a task that looked like a fresh blank and

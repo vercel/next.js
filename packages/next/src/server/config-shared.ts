@@ -489,6 +489,8 @@ export function resolveCssChunkingMode(
 }
 
 export interface ExperimentalConfig {
+  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
