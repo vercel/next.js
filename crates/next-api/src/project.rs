@@ -478,11 +478,6 @@ impl ProjectContainer {
     }
 }
 
-#[turbo_tasks::function(operation, root)]
-fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
-    project.project()
-}
-
 /// Constructs and activates the initial project container state, including its filesystem
 /// watchers. Called by [`ProjectContainer::initialize`].
 async fn prepare_project_container_state(
@@ -619,11 +614,6 @@ async fn prepare_project_container_state(
         .read_strongly_consistent()
         .await?
         .invalidate_with_reason(invalidation_reason);
-
-    project_operation(container_vc)
-        .resolve()
-        .strongly_consistent()
-        .await?;
 
     Ok(additional_roots.issues)
 }
@@ -917,10 +907,6 @@ impl ProjectContainer {
             );
             this.options_state.set(Some(new_options));
 
-            project_operation(self)
-                .resolve()
-                .strongly_consistent()
-                .await?;
             Ok(())
         }
         .instrument(span_clone)
