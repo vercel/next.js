@@ -69,11 +69,9 @@ fn create_generation() -> Vc<Generation> {
 }
 
 // TREE shape: a `BRANCHING`-ary tree of `subtree` nodes over `width` leaves. Bumping the
-// generation disconnects the whole previous tree.
-//
-// The depth matters: only a deep enough tree pushes `effective` past `LEAF_NUMBER`, which is what
-// turns a node's children into `followers`. A flat shape produces no follower edges at all, leaving
-// the aggregation-rebalance half of a collect unmeasured.
+// generation disconnects the whole previous tree. The tree must be deep enough to push `effective`
+// past `LEAF_NUMBER` and produce follower edges, otherwise a collect's rebalance half goes
+// unmeasured.
 
 const BRANCHING: u32 = 4;
 
@@ -99,8 +97,8 @@ async fn subtree(generation: u32, index: u32, span: u32) -> Result<Vc<u32>> {
 }
 
 /// A *retained* interior node: keyed on `index`/`span` only, so the same task survives a generation
-/// bump and re-executes with new children. This is the common real shape -- a live parent whose
-/// children are collected out from under it, concurrently.
+/// bump and re-executes with new children -- a live parent whose children are collected out from
+/// under it.
 #[turbo_tasks::function]
 async fn live_parent(generation: ResolvedVc<Generation>, index: u32, span: u32) -> Result<Vc<u32>> {
     let generation_value = *generation.await?.get();
