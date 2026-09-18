@@ -54,6 +54,8 @@ export interface NextInstanceOpts {
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
+  /** Build output relative to testDir, used to collect deployment metadata. */
+  deployBuildOutputDir?: string
   buildArgs?: string[]
   startCommand?: string
   startArgs?: string[]
@@ -96,6 +98,7 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   public buildCommand?: string
+  protected deployBuildOutputDir?: string
   public buildArgs?: string[]
   protected startCommand?: string
   protected startArgs?: string[]
@@ -364,7 +367,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.deployBuildOutputDir ?? this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,

@@ -2,8 +2,8 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('upward-distdir', () => {
   const { next } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
+    deployBuildOutputDir: 'apps/.next',
     installCommand: 'pnpm install',
     buildCommand: 'pnpm next build apps/next-nx-test',
     startCommand: isNextDev
