@@ -310,8 +310,6 @@ export async function spawnNextUpgrade(
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
-      // TODO: Persist `latest` or `future` after the selected stable target
-      // includes the `experimental.agenticAutoUpgrade` implementation.
       const reason =
         upgradeType === 'security'
           ? 'the installed version is affected by a published security advisory'
@@ -337,6 +335,8 @@ Complete each adoption. Temporary opt-outs and TODO markers are intermediate wor
       const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
 
 ${taskSummary}
+
+Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
 ${futureDefaultsPrompt ? `${futureDefaultsPrompt.trimStart()}\n\n` : ''}References:
 ${references}`
