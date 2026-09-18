@@ -264,9 +264,9 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
     meta_seqs.sort_unstable();
 
-    #[cfg(not(miri))]
+    #[cfg(feature = "mmap")]
     let access_mode = turbo_persistence::AccessMode::Mmap;
-    #[cfg(miri)]
+    #[cfg(not(feature = "mmap"))]
     let access_mode = turbo_persistence::AccessMode::File;
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()

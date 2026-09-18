@@ -15,6 +15,7 @@ mod lookup_entry;
 mod merge_iter;
 pub mod meta_file;
 mod meta_file_builder;
+#[cfg(feature = "mmap")]
 pub mod mmap_helper;
 mod parallel_scheduler;
 mod rc_bytes;
@@ -40,7 +41,7 @@ pub use db::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccessMode {
     /// Memory-map the file and access blocks via the mapped region.
-    #[cfg(not(miri))]
+    #[cfg(feature = "mmap")]
     Mmap,
     /// Read blocks directly from the file via pread (no mmap).
     File,
@@ -81,30 +82,30 @@ pub struct DbConfig<const FAMILIES: usize> {
 
 /// Returns the default access mode for this execution environment.
 ///
-/// Miri does not support memory mapping, so it always uses file I/O. Native execution honors
+/// Builds without mmap support always use file I/O. Builds with mmap support honor
 /// `TURBO_PERSISTENCE_MMAP=0`; mmap remains the default otherwise.
 fn default_access_mode() -> AccessMode {
-    #[cfg(miri)]
+    #[cfg(not(feature = "mmap"))]
     return AccessMode::File;
 
-    #[cfg(not(miri))]
+    #[cfg(feature = "mmap")]
     access_mode_env_var()
 }
 
-/// Returns mmap mode where available, and file mode under Miri.
+/// Returns mmap mode when the feature is enabled, and file mode otherwise.
 ///
 /// Call sites that specifically want mmap use this helper because `AccessMode::Mmap` does not
-/// exist under Miri; they fall back to file I/O there and still exercise the surrounding logic.
+/// exist without the feature; they fall back to file I/O and still exercise surrounding logic.
 #[cfg(any(test, feature = "verify_sst_content"))]
 pub(crate) fn mmap_access_mode() -> AccessMode {
-    #[cfg(miri)]
+    #[cfg(not(feature = "mmap"))]
     return AccessMode::File;
 
-    #[cfg(not(miri))]
+    #[cfg(feature = "mmap")]
     AccessMode::Mmap
 }
 
-#[cfg(not(miri))]
+#[cfg(feature = "mmap")]
 fn access_mode_env_var() -> AccessMode {
     static ACCESS_MODE_ENV: std::sync::LazyLock<AccessMode> = std::sync::LazyLock::new(|| {
         if std::env::var("TURBO_PERSISTENCE_MMAP")

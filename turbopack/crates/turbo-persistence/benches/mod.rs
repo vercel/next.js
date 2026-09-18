@@ -1,4 +1,4 @@
-#![cfg(not(miri))]
+#![cfg(feature = "mmap")]
 
 use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 

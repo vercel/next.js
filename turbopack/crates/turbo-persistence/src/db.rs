@@ -17,11 +17,11 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
-#[cfg(not(miri))]
+#[cfg(feature = "mmap")]
 use either::Either;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
-#[cfg(not(miri))]
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
@@ -31,7 +31,7 @@ use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
-#[cfg(not(miri))]
+#[cfg(feature = "mmap")]
 use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
     DbConfig, FamilyKind, QueryKey,
@@ -706,9 +706,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
-        #[cfg(not(miri))]
+        #[cfg(feature = "mmap")]
         let file = File::open(&path)?;
-        #[cfg(not(miri))]
+        #[cfg(feature = "mmap")]
         let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
@@ -727,15 +727,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             AccessMode::File => Either::Right(fs::read(&path)?),
         };
-        #[cfg(not(miri))]
+        #[cfg(feature = "mmap")]
         let mut reader: &[u8] = match &data {
             Either::Left(mmap) => mmap,
             Either::Right(bytes) => bytes,
         };
-        // Miri does not support file-backed memory mappings, so read the blob into memory.
-        #[cfg(miri)]
+        // Without mmap support, read the whole blob into memory.
+        #[cfg(not(feature = "mmap"))]
         let data = fs::read(&path)?;
-        #[cfg(miri)]
+        #[cfg(not(feature = "mmap"))]
         let mut reader: &[u8] = &data;
         let uncompressed_length = reader
             .read_u32::<BE>()
