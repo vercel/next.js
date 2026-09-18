@@ -18,6 +18,14 @@ describe('param-matching-root-fallback', () => {
     ).toBeNull()
   })
 
+  it('retains the inferred generic render for build-time hints without matching configuration', async () => {
+    // Blocking results are not served, but the legacy build still renders
+    // them to collect hints. Only explicit matching may skip such a render.
+    expect(
+      await next.readJSON('.next/server/app/[lang]/inferred/[bottom].meta')
+    ).toBeDefined()
+  })
+
   it.each(['empty', 'fallback', 'generated', 'dynamic'])(
     'preserves root-parameter blocking for the %s matching export',
     (route) => {
@@ -38,14 +46,4 @@ describe('param-matching-root-fallback', () => {
       ).toBe('string')
     }
   )
-
-  it('lets an explicit not-found reject a match before inferred root blocking', () => {
-    expect(manifest.dynamicRoutes['/[lang]/not-found/[bottom]'].fallback).toBe(
-      false
-    )
-    expect(manifest.dynamicRoutes['/en/not-found/[bottom]'].fallback).toBe(
-      false
-    )
-    expect(manifest.routes['/en/not-found/seed']).toBeDefined()
-  })
 })

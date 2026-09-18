@@ -139,9 +139,18 @@ export async function compilePrerenderMatcher(
 
   let previousPhase = -1
   let previousParamName: string | undefined
+  let unconfiguredPrefixParamName: string | undefined
   for (const { paramName } of pathnameSegments) {
     const mode = policy[paramName]
-    if (!mode) continue
+    if (!mode) {
+      unconfiguredPrefixParamName ??= paramName
+      continue
+    }
+    if (mode === 'not-found' && unconfiguredPrefixParamName !== undefined) {
+      throw new Error(
+        `Invalid parameter matching for "${page}": Parameter "${unconfiguredPrefixParamName}" must explicitly configure "not-found" before parameter "${paramName}" uses "not-found". Configure the preceding parameter directly or in an inherited layout; it cannot be closed by inference.`
+      )
+    }
     const currentPhase = PRERENDER_PARAM_MODES.indexOf(mode)
     if (currentPhase < previousPhase) {
       throw new Error(

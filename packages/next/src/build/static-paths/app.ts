@@ -1386,13 +1386,16 @@ export async function buildAppStaticPaths({
       // Keep blocking candidates without a more specific render so the build
       // can collect best-effort prefetch hints, even with instant=false. The
       // renderer handles that validation opt-out; it must not skip this render.
-      // Candidates covered by a descendant are unnecessary, and blocking
-      // matchers never retain a fallback artifact.
-      prerenderedRoutes = prerenderedRoutes.filter(
-        (candidate) =>
-          candidate.fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER ||
-          candidate.throwOnEmptyStaticShell
-      )
+      // Explicit matching can skip candidates covered by a descendant.
+      // Without matching configuration, preserve every historical render:
+      // its output may still contribute the route's prefetch hints.
+      if (prerenderMatcher !== undefined) {
+        prerenderedRoutes = prerenderedRoutes.filter(
+          (candidate) =>
+            candidate.fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER ||
+            candidate.throwOnEmptyStaticShell
+        )
+      }
     }
   }
 
