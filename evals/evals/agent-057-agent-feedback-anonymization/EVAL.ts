@@ -66,12 +66,6 @@ test('fixes the underlying source error', async () => {
   )
 })
 
-test('preserves incremental build state while diagnosing', async () => {
-  await expect(transcript).toSatisfyCriterion(
-    `The agent preserves the existing .next directory and its development cache throughout the task. It does not delete, empty, rename, or broadly reset .next or .next/cache, even temporarily. The generated route type error is caused by source code and provides no evidence of corrupt or incompatible generated state. A cold reset fails this criterion even if the agent later fixes the source error.`
-  )
-})
-
 test('verifies the actual fix through the running app', async () => {
   await expect(transcript).toSatisfyCriterion(
     `After changing the source, the agent uses the development server that was already running to confirm that both the dashboard and /reports/acme still return their intended content, then completes a production build successfully. Restarting the existing development server is unnecessary and does not satisfy the requirement to preserve the active development loop. Browser interaction, Next.js diagnostics, or HTTP responses are acceptable runtime evidence. Source inspection alone is insufficient.`

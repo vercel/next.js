@@ -32,7 +32,6 @@
   "agent-057-agent-feedback-anonymization": {
     "agentFeedback": true,
     "publish": false,
-    "skills": ["next-dev-loop"],
     "timeout": 1200
   },
   "agent-058-agent-feedback-distinct-issues": {
