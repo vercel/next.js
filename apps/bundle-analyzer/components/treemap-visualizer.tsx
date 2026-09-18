@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AnalyzeData } from '@/lib/analyze-data'
 import {
   computeTreemapLayoutFromAnalyze,
+  type LayoutRect,
   type LayoutNode,
   type LayoutNodeInfo,
   SizeMode,
@@ -48,6 +49,9 @@ interface TreemapVisualizerProps {
    * compare view to render a red/green legend.
    */
   overlay?: React.ReactNode
+  computeLayout?: (sourceIndex: number, rect: LayoutRect) => LayoutNode
+  getParentSourceIndex?: (sourceIndex: number) => number | null
+  getSourceName?: (sourceIndex: number) => string
 }
 
 function getFileColor(node: {
@@ -652,7 +656,7 @@ function drawTreemap(
 function wrapLayoutWithAncestorsUsingIndices(
   focusedLayout: LayoutNode,
   focusedAncestorChain: number[],
-  analyzeData: AnalyzeData,
+  getSourceName: (sourceIndex: number) => string,
   fullWidth: number,
   fullHeight: number,
   minTitleBarHeight = 12
@@ -668,16 +672,13 @@ function wrapLayoutWithAncestorsUsingIndices(
   // Work backwards from the parent of focused node to the child of root
   for (let i = focusedAncestorChain.length - 2; i >= 1; i--) {
     const ancestorIndex = focusedAncestorChain[i]
-    const ancestorSource = analyzeData.source(ancestorIndex)
-    if (!ancestorSource) continue
-
     const titleBarHeight = minTitleBarHeight
 
     // This ancestor starts at cumulativeY - titleBarHeight
     cumulativeY -= titleBarHeight
 
     const ancestorNode: LayoutNode = {
-      name: ancestorSource.path,
+      name: getSourceName(ancestorIndex),
       type: 'directory',
       size: currentNode.size,
       rect: {
@@ -698,10 +699,8 @@ function wrapLayoutWithAncestorsUsingIndices(
   cumulativeY -= minTitleBarHeight
 
   const rootIndex = focusedAncestorChain[0]
-  const rootSource = analyzeData.source(rootIndex)
-
   const rootNode: LayoutNode = {
-    name: rootSource?.path || '',
+    name: getSourceName(rootIndex),
     type: 'directory',
     size: currentNode.size,
     rect: {
@@ -735,6 +734,9 @@ export function TreemapVisualizer({
   getFileColorOverride,
   getFileSizeLabel,
   overlay,
+  computeLayout,
+  getParentSourceIndex,
+  getSourceName,
 }: TreemapVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -753,7 +755,6 @@ export function TreemapVisualizer({
     canvasHeight: 800,
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
-
   // Build ancestor chain for focused source (list of source indices from root to focused)
   const focusedAncestorChain = useMemo(() => {
     const chain: number[] = []
@@ -761,13 +762,16 @@ export function TreemapVisualizer({
 
     while (currentIndex !== undefined && currentIndex !== null) {
       chain.unshift(currentIndex)
-      const source = analyzeData.source(currentIndex)
-      if (!source || source.parent_source_index === null) break
-      currentIndex = source.parent_source_index
+      const parentIndex =
+        getParentSourceIndex?.(currentIndex) ??
+        analyzeData.source(currentIndex)?.parent_source_index ??
+        null
+      if (parentIndex === null) break
+      currentIndex = parentIndex
     }
 
     return chain
-  }, [analyzeData, focusedSourceIndex])
+  }, [analyzeData, focusedSourceIndex, getParentSourceIndex])
 
   // Build ancestor chain for selected source
   const selectedAncestorChain = useMemo(() => {
@@ -776,13 +780,16 @@ export function TreemapVisualizer({
 
     while (currentIndex !== undefined && currentIndex !== null) {
       chain.unshift(currentIndex)
-      const source = analyzeData.source(currentIndex)
-      if (!source || source.parent_source_index === null) break
-      currentIndex = source.parent_source_index
+      const parentIndex =
+        getParentSourceIndex?.(currentIndex) ??
+        analyzeData.source(currentIndex)?.parent_source_index ??
+        null
+      if (parentIndex === null) break
+      currentIndex = parentIndex
     }
 
     return chain
-  }, [analyzeData, selectedSourceIndex])
+  }, [analyzeData, selectedSourceIndex, getParentSourceIndex])
 
   // Build ancestor chain for hovered node (only used for dimming)
   const hoveredAncestorChain = useMemo(() => {
@@ -798,13 +805,16 @@ export function TreemapVisualizer({
 
     while (currentIndex !== undefined && currentIndex !== null) {
       chain.unshift(currentIndex)
-      const source = analyzeData.source(currentIndex)
-      if (!source || source.parent_source_index === null) break
-      currentIndex = source.parent_source_index
+      const parentIndex =
+        getParentSourceIndex?.(currentIndex) ??
+        analyzeData.source(currentIndex)?.parent_source_index ??
+        null
+      if (parentIndex === null) break
+      currentIndex = parentIndex
     }
 
     return chain
-  }, [analyzeData, hoveredNode, shouldDimOthers])
+  }, [analyzeData, hoveredNode, shouldDimOthers, getParentSourceIndex])
 
   useEffect(() => {
     const container = containerRef.current
@@ -840,25 +850,31 @@ export function TreemapVisualizer({
 
   const layout = useMemo(() => {
     // Compute layout using the focused source index
-    const focusedLayout = computeTreemapLayoutFromAnalyze(
-      analyzeData,
-      focusedSourceIndex,
-      {
-        x: 0,
-        y: 12 * focusedAncestorChain.length,
-        width: dimensions.cssWidth,
-        height: dimensions.cssHeight,
-      },
-      filterSource,
-      sizeMode
-    )
+    const layoutRect = {
+      x: 0,
+      y: 12 * focusedAncestorChain.length,
+      width: dimensions.cssWidth,
+      height: dimensions.cssHeight,
+    }
+    const focusedLayout = computeLayout
+      ? computeLayout(focusedSourceIndex, layoutRect)
+      : computeTreemapLayoutFromAnalyze(
+          analyzeData,
+          focusedSourceIndex,
+          layoutRect,
+          filterSource,
+          sizeMode
+        )
 
     // If we're not at the root, wrap with ancestor title bars
     if (focusedAncestorChain.length > 1) {
       return wrapLayoutWithAncestorsUsingIndices(
         focusedLayout,
         focusedAncestorChain,
-        analyzeData,
+        (sourceIndex) =>
+          getSourceName?.(sourceIndex) ??
+          analyzeData.source(sourceIndex)?.path ??
+          '',
         dimensions.cssWidth,
         dimensions.cssHeight,
         12
@@ -874,6 +890,8 @@ export function TreemapVisualizer({
     dimensions.cssHeight,
     filterSource,
     sizeMode,
+    computeLayout,
+    getSourceName,
   ])
 
   useLayoutEffect(() => {
