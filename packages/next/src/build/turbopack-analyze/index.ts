@@ -40,7 +40,7 @@ export async function turbopackAnalyze(
     throw new Error(
       `Turbopack analyze is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
         `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
-        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+        `For more information, see: https://nextjs.org/docs/turbopack#supported-platforms`
     )
   }
 
