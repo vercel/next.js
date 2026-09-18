@@ -29,6 +29,7 @@ import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
+import type { NextAnalyzeQueryOptions } from '../cli/next-analyze-query.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
@@ -289,9 +290,27 @@ program
     '--baseline-name <name>',
     'Name this baseline in the snapshot metadata, overriding branch/sha in the comparison UI.'
   )
+  .addOption(
+    new Option(
+      '-o, --output',
+      'Only write analysis files to disk. Does not start the server.'
+    ).conflicts('query')
+  )
+  .addOption(
+    new Option(
+      '--query <tool>',
+      'Query previously generated analyzer data as JSON.'
+    ).conflicts('output')
+  )
   .option(
-    '-o, --output',
-    'Only write analysis files to disk. Does not start the server.'
+    '--analyze-dir <directory>',
+    'Analyzer output directory for --query.',
+    '.next/diagnostics/analyze'
+  )
+  .option(
+    '--input <json>',
+    'Tool arguments for --query as a JSON object.',
+    '{}'
   )
   .addOption(
     new Option(
@@ -303,17 +322,27 @@ program
       .default(4000)
       .env('PORT')
   )
-  .action((directory: string, options: NextAnalyzeOptions) => {
-    return import('../cli/next-analyze.js')
-      .then((mod) => mod.nextAnalyze(options, directory))
-      .then(() => {
-        if (options.output) {
-          // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
-          // TODO: Fix the underlying issue so this is not necessary.
-          process.exit(0)
-        }
-      })
-  })
+  .action(
+    (
+      directory: string,
+      options: NextAnalyzeOptions & NextAnalyzeQueryOptions
+    ) => {
+      if (options.query) {
+        return import('../cli/next-analyze-query.js').then((mod) =>
+          mod.nextAnalyzeQuery(options.query!, options)
+        )
+      }
+      return import('../cli/next-analyze.js')
+        .then((mod) => mod.nextAnalyze(options, directory))
+        .then(() => {
+          if (options.output) {
+            // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
+            // TODO: Fix the underlying issue so this is not necessary.
+            process.exit(0)
+          }
+        })
+    }
+  )
 
 program
   .command('dev', { isDefault: true })
