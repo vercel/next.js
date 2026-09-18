@@ -17,7 +17,6 @@ describe('Edge runtime configurable guards', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
     const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
     if (skipped) return
 
