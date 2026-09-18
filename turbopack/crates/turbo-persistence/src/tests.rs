@@ -125,7 +125,7 @@ fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
 fn config_with_mmap<const F: usize>(mmap: bool) -> DbConfig<F> {
     DbConfig {
         access_mode: if mmap {
-            AccessMode::Mmap
+            crate::mmap_access_mode()
         } else {
             AccessMode::File
         },
@@ -159,7 +159,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
             compression: Compression::Lz4,
         }],
         access_mode: if mmap {
-            AccessMode::Mmap
+            crate::mmap_access_mode()
         } else {
             AccessMode::File
         },
@@ -2478,7 +2478,9 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4, AccessMode::Mmap)? {
+            for item in
+                StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
+            {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
