@@ -221,6 +221,9 @@ export interface RenderOptsPartial {
    */
   prefetchHints?: Record<string, PrefetchHints>
 
+  /** Whether the route rejects novel values of any parameter. */
+  hasNotFoundParams?: boolean
+
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any
    * dynamic accesses to result in an empty shell. This is the case when there
