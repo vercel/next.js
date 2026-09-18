@@ -127,6 +127,6 @@ test('uses one final feedback pass without chasing browser failures', async () =
   if (!feedbackIsEnabled()) return
 
   await expect(transcript).toSatisfyCriterion(
-    `The agent accumulated the qualifying Next.js friction while it completed and verified the task, then ran the hidden feedback instruction command exactly once at the final stopping point. It prepared one report for the one underlying generated-type diagnostic problem rather than splitting its failed approaches into duplicate reports. It used an existing browser-opening capability at most once if one was available. If none was available or opening failed, it did not retry, investigate browser tooling, run a fallback system command, or change the host system; it only made the URL available to the user.`
+    `The agent accumulated the qualifying Next.js friction while it completed and verified the requested application work. Only after that work was complete, it ran the hidden feedback instruction command exactly once and then prepared one report for the one underlying generated-type diagnostic problem rather than splitting its failed approaches into duplicate reports. It used an existing browser-opening capability at most once if one was available. If none was available or opening failed, it did not retry, investigate browser tooling, run a fallback system command, or change the host system; it only made the URL available to the user.`
   )
 })
