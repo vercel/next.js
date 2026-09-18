@@ -1,5 +1,3 @@
-import { createRequire } from 'module'
-
 let installed: boolean = false
 
 export function loadWebpackHook(webpackProjectDir: string) {
@@ -16,22 +14,10 @@ export function loadWebpackHook(webpackProjectDir: string) {
     request.startsWith('webpack/') ||
     request === 'webpack-sources' ||
     request.startsWith('webpack-sources/')
-  const localWebpackRequests = [
-    'webpack/lib/javascript/BasicEvaluatedExpression',
-    'webpack/lib/optimize/ConcatenatedModule',
-    'webpack/lib/util/identifier',
-    'webpack/lib/RuntimeGlobals',
-    'webpack/lib/SourceMapDevToolModuleOptionsPlugin',
-    'webpack/lib/util/StringXor',
-  ]
 
-  let webpackRequire: NodeRequire | undefined
   if (customWebpack) {
     try {
-      const webpackPackagePath = require.resolve('webpack/package.json', {
-        paths: [webpackProjectDir],
-      })
-      webpackRequire = createRequire(webpackPackagePath)
+      require.resolve('webpack/package.json', { paths: [webpackProjectDir] })
     } catch (cause) {
       installed = false
       throw new Error(
@@ -41,12 +27,12 @@ export function loadWebpackHook(webpackProjectDir: string) {
     }
   }
 
-  // Hook Node.js require so webpack imports use the bundled version by
-  // default, or the project version when NEXT_PRIVATE_LOCAL_WEBPACK is set.
+  // Hook Node.js require so webpack imports resolve to the bundled webpack.
+  // With `--custom-webpack` these aliases are skipped so webpack resolves
+  // normally from the project.
   requireHook.addHookAliases(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
-      ['webpack/package', 'next/dist/compiled/webpack/package'],
       ['webpack/package.json', 'next/dist/compiled/webpack/package'],
       ['webpack/lib/webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/lib/webpack.js', 'next/dist/compiled/webpack/webpack-lib'],
@@ -164,41 +150,17 @@ export function loadWebpackHook(webpackProjectDir: string) {
       ['webpack-sources/lib', 'next/dist/compiled/webpack/sources'],
       ['webpack-sources/lib/index', 'next/dist/compiled/webpack/sources'],
       ['webpack-sources/lib/index.js', 'next/dist/compiled/webpack/sources'],
-      ...(customWebpack
-        ? localWebpackRequests.map((request): [string, string] => [
-            request,
-            request,
-          ])
-        : []),
       ['@babel/runtime', 'next/dist/compiled/@babel/runtime/package.json'],
       [
         '@babel/runtime/package.json',
         'next/dist/compiled/@babel/runtime/package.json',
       ],
-    ].flatMap(([request, replacement]): [string, string][] => {
-      if (!customWebpack || !isWebpackAlias(request)) {
+    ]
+      .filter(([request]) => !customWebpack || !isWebpackAlias(request))
+      .map(
         // Use dynamic require.resolve to avoid statically analyzable since
         // these replacements are only needed at build time.
-        return [[request, require.resolve(replacement)]]
-      }
-
-      let localRequest = request
-      if (request === 'webpack/package') {
-        localRequest = 'webpack/package.json'
-      } else if (
-        request === 'webpack-sources' ||
-        request.startsWith('webpack-sources/')
-      ) {
-        localRequest = 'webpack-sources'
-      }
-
-      try {
-        return [[request, webpackRequire!.resolve(localRequest)]]
-      } catch {
-        // Older compatibility aliases are not present in every supported
-        // webpack version. Let Node report the missing deep import if used.
-        return []
-      }
-    })
+        ([request, replacement]) => [request, require.resolve(replacement)]
+      )
   )
 }
