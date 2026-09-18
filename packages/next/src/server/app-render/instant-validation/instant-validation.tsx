@@ -167,7 +167,9 @@ function stringifySegment(segment: Segment): SegmentPath {
 //===============================================================
 
 export type SegmentStage =
+  | RenderStage.ShellStatic
   | RenderStage.Static
+  | RenderStage.NavigationStatic
   | RenderStage.ShellRuntime
   | RenderStage.Runtime
   | RenderStage.NavigationRuntime
@@ -206,7 +208,16 @@ export async function collectStagedSegmentData(
 
   let partialStages: SegmentStage[]
   switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
+    case ValidationPrefetchKind.StaticAppShell: {
+      partialStages = [
+        RenderStage.ShellStatic,
+        RenderStage.Static,
+        RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
+        RenderStage.Runtime,
+      ]
+      break
+    }
+    case ValidationPrefetchKind.RuntimeAppShell: {
       partialStages = [
         RenderStage.ShellRuntime,
         RenderStage.Runtime,
@@ -283,7 +294,9 @@ async function collectSegmentDataForStage(
     const currentStage = controller.currentStage
     switch (currentStage) {
       case RenderStage.Before:
+      case RenderStage.ShellStatic:
       case RenderStage.Static:
+      case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
       case RenderStage.Runtime:
@@ -795,7 +808,9 @@ function createSegmentCache(): SegmentCache {
 
 function createSegmentCacheItem(): SegmentCacheItem {
   return {
+    [RenderStage.ShellStatic]: null,
     [RenderStage.Static]: null,
+    [RenderStage.NavigationStatic]: null,
     [RenderStage.ShellRuntime]: null,
     [RenderStage.Runtime]: null,
     [RenderStage.NavigationRuntime]: null,
@@ -998,10 +1013,10 @@ export type ValidationPayloadResult = {
 }
 
 export enum ValidationPrefetchKind {
-  /** App Shells, for `<Link>` without `prefetch={true}` */
-  Shell = 1,
-  // TODO(app-shells): validate speculative prefetches
-  // Speculative = 2,
+  /** App Shells, for `<Link>` without `prefetch={true}`, including session data */
+  RuntimeAppShell = 1,
+  /** App Shells, for `<Link>` without `prefetch={true}`, only static data */
+  StaticAppShell = 2,
   /** Behavior when Partial Prefetching is not enabled. */
   LegacySpeculative = 3,
 }
@@ -1308,7 +1323,11 @@ export async function createCombinedPayloadAtDepth(
 
     let stage: PrefetchedSegmentStage
     switch (prefetchKind) {
-      case ValidationPrefetchKind.Shell: {
+      case ValidationPrefetchKind.StaticAppShell: {
+        stage = overrideStageForPartialSegments ?? RenderStage.ShellStatic
+        break
+      }
+      case ValidationPrefetchKind.RuntimeAppShell: {
         stage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
         break
       }
@@ -1431,7 +1450,11 @@ export async function createCombinedPayloadAtDepth(
 
   let headStage: PrefetchedSegmentStage
   switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
+    case ValidationPrefetchKind.StaticAppShell: {
+      headStage = overrideStageForPartialSegments ?? RenderStage.ShellStatic
+      break
+    }
+    case ValidationPrefetchKind.RuntimeAppShell: {
       headStage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
       break
     }
