@@ -1687,7 +1687,6 @@ if (isNextStart) {
     let collector: Collector | undefined
     const { next, skipped } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
@@ -2387,7 +2386,6 @@ if (isNextStart) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
