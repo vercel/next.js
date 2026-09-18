@@ -79,7 +79,7 @@ export async function promptHumanUpgrade(
       const input = process.stdin
       const output = process.stdout
       const wasRaw = input.isRaw
-      const wasPaused = input.isPaused()
+      const wasFlowing = input.readableFlowing
       const choices = ['Update now', 'Skip', 'Skip until next version']
       let selected = 0
       let rendered = false
@@ -111,7 +111,9 @@ export async function promptHumanUpgrade(
           choice = 'skip'
         }
         try {
-          if (wasPaused) input.pause()
+          // An untouched stream is neither flowing nor explicitly paused.
+          // Restore both idle and paused streams instead of leaving a read open.
+          if (wasFlowing !== true) input.pause()
           clear()
           output.write('\x1b[?25h')
         } catch {

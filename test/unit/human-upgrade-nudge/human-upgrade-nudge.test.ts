@@ -157,6 +157,19 @@ it('cleans terminal handlers on Update now', async () => {
   expect(preferences.dismiss).not.toHaveBeenCalled()
 })
 
+it('stops reading stdin after a menu when the stream was initially idle', async () => {
+  const wasFlowing = process.stdin.readableFlowing
+  Reflect.set(process.stdin, 'readableFlowing', null)
+  try {
+    jest.spyOn(process.stdin, 'isPaused').mockReturnValue(false)
+    const { selection } = await choose(['escape'])
+    expect(await selection).toBe(false)
+    expect(process.stdin.pause).toHaveBeenCalled()
+  } finally {
+    Reflect.set(process.stdin, 'readableFlowing', wasFlowing)
+  }
+})
+
 it.each([['down', 'return'], ['escape']])(
   'skips without persistence: %j',
   async (...keys) => {

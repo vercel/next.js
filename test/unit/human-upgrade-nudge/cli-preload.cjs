@@ -1,10 +1,14 @@
 // Exercise the real CLI lifecycle with deterministic metadata and no actual upgrade.
-if (!process.stdin.isTTY) {
-  Object.defineProperty(process.stdin, 'isTTY', { value: true })
-  process.stdin.setRawMode = () => process.stdin
+// Only the CLI owns the terminal. Do not open the inherited stdin pipe in the
+// dev worker, which shares that handle with the parent on Windows.
+if (!process.env.NEXT_PRIVATE_WORKER) {
+  if (!process.stdin.isTTY) {
+    Object.defineProperty(process.stdin, 'isTTY', { value: true })
+    process.stdin.setRawMode = () => process.stdin
+  }
+  if (!process.stdout.isTTY)
+    Object.defineProperty(process.stdout, 'isTTY', { value: true })
 }
-if (!process.stdout.isTTY)
-  Object.defineProperty(process.stdout, 'isTTY', { value: true })
 
 function replace(name, exports) {
   const id = require.resolve(name)
