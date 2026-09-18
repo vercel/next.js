@@ -8,12 +8,7 @@ const tools = dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
 const executable = join(tools, 'next/node_modules/next/dist/bin/next')
 const assessment = join(tools, 'security/assessment.mjs')
-const assessmentConfig = join(tools, 'security/assessment.json')
 
-if (existsSync(assessmentConfig)) {
-  const { source } = JSON.parse(readFileSync(assessmentConfig, 'utf8'))
-  if (source) process.env.__NEXT_VERSION = source
-}
 appendFileSync(
   join(tools, 'invocations.jsonl'),
   JSON.stringify({
