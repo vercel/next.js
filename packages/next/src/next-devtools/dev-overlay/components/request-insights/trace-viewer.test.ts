@@ -22,6 +22,30 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('preserves background cache names in verbose traces', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'revalidate use cache cache.readMetric',
+          startTime: 110,
+          durationMs: 100,
+          attributes: {
+            'next.span_type': 'UseCache.revalidate',
+            'next.span_category': 'application',
+          },
+        },
+      ],
+    })
+
+    expect(getTraceItems(request, false)).toEqual([])
+    expect(getTraceItems(request, true)).toEqual([
+      expect.objectContaining({
+        label: 'revalidate use cache cache.readMetric',
+        category: 'application',
+      }),
+    ])
+  })
+
   it('shows cache spans by default without rewriting function names', () => {
     const request = createRequest({
       spans: [
