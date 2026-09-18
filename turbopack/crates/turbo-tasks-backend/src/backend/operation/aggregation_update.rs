@@ -1181,30 +1181,44 @@ impl AggregationUpdateQueue {
 
     /// Whether only rebalance work (`balance_edge` / `optimize`) is left.
     ///
-    /// The queue drains in strict priority order — `jobs`, then aggregation-number updates, then
-    /// `balance_queue`, then `optimize_queue` — so once the first two are empty everything that
-    /// remains rebalances the graph rather than tearing edges out of it. GC uses this to stop at
-    /// that boundary and defer the rest until the parallel collect is quiescent.
+    /// GC uses this to stop once edge removal is done and defer the rebalance until the parallel
+    /// collect is quiescent.
     pub fn only_rebalance_remains(&self) -> bool {
-        self.jobs.is_empty() && self.aggregation_number_updates.is_empty()
-    }
+        let Self {
+            jobs,
+            aggregation_number_updates,
+            find_and_schedule,
+            balance_queue: _,
+            optimize_queue: _,
+            optimizations_executed: _,
+            done_aggregation_number_updates: _,
+            scheduled_tasks,
+            #[cfg(feature = "trace_aggregation_update_stats")]
+                stats: _,
+        } = self;
 
-    /// Whether any rebalance work is actually pending.
-    pub fn has_rebalance_work(&self) -> bool {
-        !self.balance_queue.is_empty() || !self.optimize_queue.is_empty()
+        assert!(
+            find_and_schedule.is_empty() && scheduled_tasks.is_empty(),
+            "GC deletion must not schedule task executions, but {} find_and_schedule and {} \
+             scheduled_tasks jobs are pending",
+            find_and_schedule.len(),
+            scheduled_tasks.len(),
+        );
+        jobs.is_empty() && aggregation_number_updates.is_empty()
     }
 
     /// Takes the deferred balance edges, leaving the queue empty of them.
     ///
-    /// Public because GC drives this from `gc.rs`; see `TurboTasksBackend::gc_collect`.
-    pub fn take_deferred_balance_edges(
+    /// Only meaningful for a queue stopped at the rebalance boundary; see
+    /// [`CleanupOldEdgesOperation::run_edge_deletions_only`], which is the only caller.
+    pub(super) fn take_deferred_balance_edges(
         &mut self,
     ) -> impl Iterator<Item = (TaskId, TaskId)> + use<> {
-        debug_assert!(
+        assert!(
             self.only_rebalance_remains(),
             "take_deferred_balance_edges expects a queue stopped at the rebalance boundary"
         );
-        debug_assert!(
+        assert!(
             self.optimize_queue.is_empty(),
             "a queue built with `new_without_optimizations` must never hold optimize jobs"
         );
