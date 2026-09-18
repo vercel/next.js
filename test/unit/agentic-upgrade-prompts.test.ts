@@ -122,6 +122,7 @@ describe('agentic upgrade prompts', () => {
   const originalPath = process.env.PATH
   const originalExpectedCliVersion =
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
   const originalFetch = global.fetch
   const originalExitCode = process.exitCode
   const currentCliVersion = require('../../packages/next/package.json').version
@@ -129,6 +130,7 @@ describe('agentic upgrade prompts', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = currentCliVersion
+    delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
     global.fetch = jest.fn()
     process.exitCode = undefined
 
@@ -173,6 +175,11 @@ describe('agentic upgrade prompts', () => {
 
     process.exitCode = originalExitCode
     global.fetch = originalFetch
+    if (originalUseCurrentCli === undefined) {
+      delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+    } else {
+      process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = originalUseCurrentCli
+    }
     if (originalExpectedCliVersion === undefined) {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     } else {
@@ -309,6 +316,7 @@ describe('agentic upgrade prompts', () => {
           stdio: 'inherit',
           env: expect.objectContaining({
             __NEXT_UPGRADE_EXPECTED_CLI_VERSION: '99.0.0-canary.1',
+            __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
           }),
         })
       )
@@ -317,8 +325,9 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it('consumes the delegated version without another lookup or launch', async () => {
+  it('consumes both handoff flags without another lookup or launch', async () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = currentCliVersion
+    process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
 
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
@@ -330,10 +339,12 @@ describe('agentic upgrade prompts', () => {
     expect(crossSpawn).not.toHaveBeenCalled()
     expect(prepareUpgrade).toHaveBeenCalled()
     expect(process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION).toBeUndefined()
+    expect(process.env.__NEXT_UPGRADE_USE_CURRENT_CLI).toBeUndefined()
   })
 
   it('rejects a delegated CLI version mismatch', async () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = '99.0.0-canary.1'
+    process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
 
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',

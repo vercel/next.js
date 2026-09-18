@@ -228,6 +228,7 @@ export async function spawnNextUpgrade(
     try {
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
 
       if (expectedVersion !== undefined) {
         // Delegated upgrades and evals pin the CLI without another registry lookup.
@@ -261,6 +262,8 @@ export async function spawnNextUpgrade(
             env: {
               ...process.env,
               __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
+              // Older canaries use this flag instead of the version pin.
+              __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
             },
           })
           return
