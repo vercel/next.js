@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 
 import * as path from 'node:path'
-import { AnalyzeQueryError, queryAnalyzeData } from '../build/analyze/query'
+import {
+  AnalyzeQueryError,
+  listAnalyzeQueries,
+  queryAnalyzeData,
+} from '../build/analyze/query'
 
 export type NextAnalyzeQueryOptions = {
   query?: string
+  listQueries?: boolean
   analyzeDir?: string
   input?: string
 }
@@ -44,4 +49,12 @@ export async function nextAnalyzeQuery(
       input as Record<string, unknown>
     )
   })
+}
+
+export async function nextAnalyzeListQueries(
+  options: NextAnalyzeQueryOptions
+): Promise<void> {
+  return printJson(async () => ({
+    queries: listAnalyzeQueries(analyzeDir(options)),
+  }))
 }

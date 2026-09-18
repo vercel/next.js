@@ -294,13 +294,19 @@ program
     new Option(
       '-o, --output',
       'Only write analysis files to disk. Does not start the server.'
-    ).conflicts('query')
+    ).conflicts(['query', 'listQueries'])
   )
   .addOption(
     new Option(
       '--query <tool>',
       'Query previously generated analyzer data as JSON.'
-    ).conflicts('output')
+    ).conflicts(['output', 'listQueries'])
+  )
+  .addOption(
+    new Option(
+      '--list-queries',
+      'List agent-readable analyzer queries and input schemas as JSON.'
+    ).conflicts(['output', 'query'])
   )
   .option(
     '--analyze-dir <directory>',
@@ -327,6 +333,11 @@ program
       directory: string,
       options: NextAnalyzeOptions & NextAnalyzeQueryOptions
     ) => {
+      if (options.listQueries) {
+        return import('../cli/next-analyze-query.js').then((mod) =>
+          mod.nextAnalyzeListQueries(options)
+        )
+      }
       if (options.query) {
         return import('../cli/next-analyze-query.js').then((mod) =>
           mod.nextAnalyzeQuery(options.query!, options)
