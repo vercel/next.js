@@ -434,7 +434,6 @@ describe('404 handling', () => {
       const { next, skipped } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
       if (skipped) return
 
@@ -508,7 +507,6 @@ describe('404 handling', () => {
       const { next, skipped } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
       if (skipped) return
 

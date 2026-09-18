@@ -580,7 +580,6 @@ describe('Edge runtime module errors', () => {
       dependencies: {
         nanoid: 'latest',
       },
-      skipDeployment: true,
     })
     if (skipped) return
 

@@ -106,7 +106,6 @@ describe('GS(S)P Page Errors', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
     if (skipped) return
 
