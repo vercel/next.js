@@ -1,5 +1,6 @@
 /// <reference lib="es2021.promise" />
 import { stageSnapshotUpdates } from './snapshots'
+import { createAttemptUtilities, type AttemptUtilities } from './utilities'
 import {
   ASYMMETRIC_MATCHERS_OBJECT,
   GLOBAL_EXPECT,
@@ -21,8 +22,13 @@ import {
   spies,
   SnapshotClient,
   NodeSnapshotEnvironment,
+  addSerializer,
+  getSerializers,
   type SnapshotStateOptions,
 } from '../../../compiled/next-test-primitives'
+
+const realSetTimeout = globalThis.setTimeout.bind(globalThis)
+const realDateNow = Date.now.bind(Date)
 
 export type { Mock, MockInstance } from '../../../compiled/next-test-primitives'
 export type {
@@ -35,6 +41,7 @@ export interface AssertionAttempt {
   id: string
   testId: string
   name: string
+  signal?: AbortSignal
 }
 
 export interface AssertionHook {
@@ -51,10 +58,22 @@ export interface TestAssertion<T = unknown>
   extends Assertion<void, T>,
     Matchers<void, T> {
   toMatchSnapshot(propertiesOrMessage?: object | string, message?: string): void
+  toMatchInlineSnapshot(
+    propertiesOrSnapshot?: object | string,
+    snapshotOrMessage?: string,
+    message?: string
+  ): void
+  toMatchFileSnapshot(filepath: string, message?: string): Promise<void>
 }
 
 export interface TestExpect extends ExpectStatic {
   <T>(actual: T, message?: string): TestAssertion<T>
+  soft<T>(actual: T, message?: string): TestAssertion<T>
+  poll<T>(
+    actual: (options: { signal: AbortSignal }) => T | Promise<T>,
+    options?: { interval?: number; timeout?: number; message?: string }
+  ): TestAssertion<Awaited<T>> & PromiseLike<void>
+  addSnapshotSerializer(plugin: Parameters<typeof addSerializer>[0]): void
   assertions(count: number): void
   hasAssertions(): void
 }
@@ -128,6 +147,8 @@ export async function createAssertionRuntime(options: {
         task: AssertionTask
         finalized: boolean
         mocks: Set<{ mock: MockInstance; restore: boolean }>
+        serializers: Set<Parameters<typeof addSerializer>[0]>
+        utilities: AttemptUtilities
       }
     | undefined
   const snapshotTests = new Set<string>()
@@ -217,6 +238,136 @@ export async function createAssertionRuntime(options: {
   Object.assign(expect, chai.expect)
   const globals = globalThis as typeof globalThis & Record<symbol, unknown>
   Object.assign(expect, globals[ASYMMETRIC_MATCHERS_OBJECT])
+  expect.soft = ((value: unknown, message?: string) =>
+    (expect(value, message) as any).withContext({
+      soft: true,
+    })) as TestExpect['soft']
+  expect.poll = ((
+    callback: (options: { signal: AbortSignal }) => unknown | Promise<unknown>,
+    pollOptions: { interval?: number; timeout?: number; message?: string } = {}
+  ) => {
+    const scope = current()
+    if (typeof callback !== 'function')
+      throw new TypeError('expect.poll() requires a callback')
+    const interval = pollOptions.interval ?? 50
+    const timeout = pollOptions.timeout ?? 1000
+    if (!Number.isFinite(interval) || interval < 0)
+      throw new TypeError(
+        'expect.poll() interval must be a non-negative number'
+      )
+    if (!Number.isFinite(timeout) || timeout < 0)
+      throw new TypeError('expect.poll() timeout must be a non-negative number')
+    const assertion = expect(null, pollOptions.message)
+    chai.util.flag(assertion, 'poll', true)
+    const unsupported = new Set([
+      'resolves',
+      'rejects',
+      'toMatchSnapshot',
+      'toMatchInlineSnapshot',
+      'toMatchFileSnapshot',
+      'toThrow',
+      'toThrowError',
+      'throws',
+      'throw',
+      'Throw',
+    ])
+    let awaited = false
+    let running: Promise<void> | undefined
+    const callsite = new Error('expect.poll() assertion failed')
+    const proxy = new Proxy(assertion as object, {
+      get(target, property, receiver) {
+        const value = Reflect.get(target, property, receiver)
+        if (value instanceof chai.Assertion) return proxy
+        if (typeof value !== 'function') return value
+        if (
+          property === 'then' ||
+          property === 'catch' ||
+          property === 'finally'
+        )
+          return undefined
+        if (typeof property === 'string' && unsupported.has(property)) {
+          throw new SyntaxError(
+            `expect.poll() is not supported in combination with .${property}().`
+          )
+        }
+        return (...args: unknown[]) => {
+          const run = async () => {
+            const started = realDateNow()
+            let lastError: unknown
+            do {
+              current()
+              const signal =
+                'signal' in scope.context ? scope.context.signal : undefined
+              signal?.throwIfAborted()
+              try {
+                chai.util.flag(
+                  assertion,
+                  'object',
+                  await callback({
+                    signal: signal ?? new AbortController().signal,
+                  })
+                )
+                await Reflect.apply(value, assertion, args)
+                return
+              } catch (error) {
+                lastError = error
+              }
+              const remaining = timeout - (realDateNow() - started)
+              if (remaining <= 0) break
+              await new Promise((resolve) =>
+                realSetTimeout(resolve, Math.min(interval, remaining))
+              )
+            } while (realDateNow() - started <= timeout)
+            if (lastError instanceof Error && callsite.stack) {
+              lastError.cause ??= new Error('Matcher did not succeed in time.')
+              lastError.stack = callsite.stack.replace(
+                callsite.message,
+                lastError.message
+              )
+            }
+            throw (
+              lastError ?? new Error('expect.poll() did not resolve in time')
+            )
+          }
+          running ??= run()
+          // Finalization reports missing consumption; observe the rejection now
+          // so an unawaited failed poll cannot escape as a process rejection.
+          void running.catch(() => {})
+          return {
+            then(onFulfilled: any, onRejected: any) {
+              awaited = true
+              return running!.then(onFulfilled, onRejected)
+            },
+            catch(onRejected: any) {
+              awaited = true
+              return running!.catch(onRejected)
+            },
+            finally(onFinally: any) {
+              awaited = true
+              return running!.finally(onFinally)
+            },
+          }
+        }
+      },
+    })
+    scope.task.onFinished?.push(() => {
+      if (!awaited) {
+        const error = new Error(
+          'expect.poll() assertion was not awaited. This assertion is asynchronous and must be awaited.'
+        )
+        if (callsite.stack)
+          error.stack = callsite.stack.replace(callsite.message, error.message)
+        throw error
+      }
+    })
+    return proxy
+  }) as TestExpect['poll']
+  expect.addSnapshotSerializer = (plugin) => {
+    requireScopeAccess()
+    addSerializer(plugin)
+    if (active) active.serializers.add(plugin)
+    else fileSerializers.add(plugin)
+  }
   expect.getState = () => {
     requireScopeAccess()
     return getState(expect)
@@ -333,6 +484,69 @@ export async function createAssertionRuntime(options: {
         assertionName: 'toMatchSnapshot',
       })
     },
+    toMatchInlineSnapshot(
+      received,
+      propertiesOrSnapshot?: object | string,
+      snapshotOrMessage?: string,
+      message?: string
+    ) {
+      if (this.isNot)
+        throw new Error('toMatchInlineSnapshot cannot be used with not')
+      const { context, kind } = current()
+      if (kind !== 'attempt' || !('testId' in context)) {
+        throw new Error(
+          'Snapshots are unsupported in suite hooks without a test identity'
+        )
+      }
+      snapshotTests.add(context.testId)
+      const hasProperties =
+        typeof propertiesOrSnapshot === 'object' &&
+        propertiesOrSnapshot !== null
+      const error = new Error()
+      Error.captureStackTrace?.(error, (this as any).toMatchInlineSnapshot)
+      return snapshots.match({
+        received,
+        filepath: options.testPath,
+        name: context.name,
+        testId: context.testId,
+        properties: hasProperties ? propertiesOrSnapshot : undefined,
+        inlineSnapshot: hasProperties
+          ? snapshotOrMessage
+          : typeof propertiesOrSnapshot === 'string'
+            ? propertiesOrSnapshot
+            : undefined,
+        message: hasProperties ? message : snapshotOrMessage,
+        error,
+        isInline: true,
+        assertionName: 'toMatchInlineSnapshot',
+      })
+    },
+    async toMatchFileSnapshot(received, filepath: string, message?: string) {
+      if (this.isNot)
+        throw new Error('toMatchFileSnapshot cannot be used with not')
+      if (typeof filepath !== 'string' || !filepath)
+        throw new TypeError('toMatchFileSnapshot requires a file path')
+      const { context, kind } = current()
+      if (kind !== 'attempt' || !('testId' in context)) {
+        throw new Error(
+          'Snapshots are unsupported in suite hooks without a test identity'
+        )
+      }
+      snapshotTests.add(context.testId)
+      const error = new Error()
+      Error.captureStackTrace?.(error, (this as any).toMatchFileSnapshot)
+      await snapshots.assertRaw({
+        received,
+        filepath: options.testPath,
+        name: context.name,
+        testId: context.testId,
+        message,
+        error,
+        rawSnapshot: { file: filepath },
+        assertionName: 'toMatchFileSnapshot',
+      })
+      return { pass: true, message: () => '' }
+    },
   })
 
   function mutateMocks<T>(callback: () => T): T {
@@ -371,6 +585,15 @@ export async function createAssertionRuntime(options: {
   }
 
   const fileMocks = new Set<{ mock: MockInstance; restore: boolean }>()
+  const fileSerializers = new Set<Parameters<typeof addSerializer>[0]>()
+  function removeSerializers(owned: Set<Parameters<typeof addSerializer>[0]>) {
+    const serializers = getSerializers()
+    for (const serializer of owned) {
+      const index = serializers.indexOf(serializer)
+      if (index !== -1) serializers.splice(index, 1)
+    }
+    owned.clear()
+  }
   function drainMocks(mocks: typeof fileMocks): unknown[] {
     const errors: unknown[] = []
     try {
@@ -479,7 +702,15 @@ export async function createAssertionRuntime(options: {
       task,
       finalized: false,
       mocks: new Set<{ mock: MockInstance; restore: boolean }>(),
+      serializers: new Set<Parameters<typeof addSerializer>[0]>(),
+      utilities: undefined as unknown as AttemptUtilities,
     }
+    scope.utilities = createAttemptUtilities(() => {
+      if (current() !== scope)
+        throw new Error(
+          'Test utility belongs to a different Next assertion scope'
+        )
+    })
     active = scope
     if (kind === 'attempt' && 'testId' in context) {
       snapshotTests.delete(context.testId)
@@ -557,13 +788,20 @@ export async function createAssertionRuntime(options: {
       async dispose() {
         if (active !== scope) return
         scope.finalized = true
+        const errors: unknown[] = []
         try {
-          const errors = drainMocks(scope.mocks)
-          if (errors.length)
-            throw new AggregateError(errors, 'Test spy cleanup failed')
+          try {
+            scope.utilities.dispose()
+          } catch (error) {
+            errors.push(error)
+          }
+          removeSerializers(scope.serializers)
+          errors.push(...drainMocks(scope.mocks))
         } finally {
           active = undefined
         }
+        if (errors.length)
+          throw new AggregateError(errors, 'Test assertion cleanup failed')
       },
     }
   }
@@ -571,6 +809,14 @@ export async function createAssertionRuntime(options: {
   return {
     expect,
     spies: trackedSpies,
+    utilities: new Proxy({} as AttemptUtilities, {
+      get(_target, property) {
+        const utility = Reflect.get(current().utilities, property)
+        return typeof utility === 'function'
+          ? utility.bind(current().utilities)
+          : utility
+      },
+    }),
     beginAttempt: (context: AssertionAttempt) => beginScope(context, 'attempt'),
     beginHook: (context: AssertionHook) => beginScope(context, 'hook'),
     takeSnapshotUpdates() {
@@ -601,6 +847,7 @@ export async function createAssertionRuntime(options: {
         errors.push(error)
       }
       errors.push(...drainMocks(fileMocks))
+      removeSerializers(fileSerializers)
       // Drain our own resources before global fallback helpers, which can stop
       // on a user-overridden mock method. Each fallback is attempted separately.
       try {

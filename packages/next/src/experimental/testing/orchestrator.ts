@@ -16,6 +16,10 @@ import {
   createTestReporter,
   type TestReporterOptions,
 } from './reporting/reporter'
+import {
+  commitSnapshotUpdates,
+  type SnapshotUpdate,
+} from './assertions/snapshots'
 
 interface PreparedTest {
   entry: TestEntry
@@ -70,21 +74,8 @@ export async function runTests(
   if (options.updateSnapshots) {
     requireTestCapability('snapshotUpdate')
     const selected = projects.filter((project) => project.entries.length > 0)
-    if (selected.some((project) => project.profile.environment === 'browser')) {
-      throw new Error(
-        'Browser snapshot updates require parent-owned snapshot commit after browser cleanup.'
-      )
-    }
-    if (
-      selected.some(
-        (project) =>
-          project.profile.mode !== 'development' ||
-          project.profile.route !== undefined
-      )
-    ) {
-      throw new Error(
-        'Snapshot updates require route-less development Node or RSC profiles.'
-      )
+    if (selected.some((project) => project.profile.route !== undefined)) {
+      throw new Error('Snapshot updates require route-less profiles.')
     }
   }
   const coverageModule = options.coverage
@@ -229,6 +220,7 @@ export async function runTests(
       | undefined
     let fileFailed = false
     let coverageReceived = false
+    let stagedSnapshotUpdates: SnapshotUpdate[] | undefined
     const executionEvent = (event: ResultEvent) => {
       if (!ownsFileEnd || event.type !== 'file-end') {
         onEvent(event)
@@ -323,6 +315,18 @@ export async function runTests(
         entry,
         setupFiles: project.setupFiles,
         updateSnapshots: options.updateSnapshots ?? false,
+        ...(project.profile.environment === 'browser' && options.updateSnapshots
+          ? {
+              onSnapshotUpdates: async (
+                _file: string,
+                updates: SnapshotUpdate[]
+              ) => {
+                if (stagedSnapshotUpdates)
+                  throw new Error('Duplicate browser snapshot update plan.')
+                stagedSnapshotUpdates = updates
+              },
+            }
+          : {}),
         ...(coverageReport
           ? {
               coverage: { version: 1 as const, kind: 'node-line' as const },
@@ -406,6 +410,23 @@ export async function runTests(
           // Failed parent disposal may leave an output owner alive. Do not
           // acquire another server or resume compilation in this run.
           controller.abort(error)
+        }
+      }
+      if (
+        stagedSnapshotUpdates &&
+        !fileFailed &&
+        executionStatus === 'passed' &&
+        !controller.signal.aborted
+      ) {
+        try {
+          await commitSnapshotUpdates(entry.file, stagedSnapshotUpdates, {
+            signal: controller.signal,
+            sourceHash: artifact.sourceHash,
+          })
+        } catch (error) {
+          fileFailed = true
+          failed = true
+          diagnostic(error, 'cleanup', entry)
         }
       }
       if (ownsFileEnd) {

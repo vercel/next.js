@@ -32,6 +32,7 @@ import {
   ApplicationServerError,
 } from 'next/dist/experimental/testing/browser/server'
 import { createBrowserHost } from 'next/dist/experimental/testing/browser/host'
+import { commitSnapshotUpdates } from 'next/dist/experimental/testing/assertions/snapshots'
 import type { CompiledTestArtifact } from 'next/dist/experimental/testing/contracts'
 import type { DiscoveredTestProject } from 'next/dist/experimental/testing/discovery'
 import type { ResultEvent } from 'next/dist/experimental/testing/reporting/events'
@@ -53,6 +54,10 @@ jest.mock('next/dist/experimental/testing/compiler', () => ({
 }))
 jest.mock('next/dist/experimental/testing/execution/execute', () => ({
   execute: jest.fn(),
+}))
+jest.mock('next/dist/experimental/testing/assertions/snapshots', () => ({
+  ...jest.requireActual('next/dist/experimental/testing/assertions/snapshots'),
+  commitSnapshotUpdates: jest.fn(),
 }))
 jest.mock('next/dist/experimental/testing/incremental/watch-files', () => ({
   watchTestFiles: jest.fn(),
@@ -318,29 +323,6 @@ describe('Next-owned test discovery and configuration', () => {
       await expect(nextTestRunner(directory, options)).rejects.toThrow(message)
     }
   )
-
-  it('rejects browser snapshot updates before compiling or starting resources', async () => {
-    await writeFile(
-      path.join(directory, 'next.test.config.json'),
-      JSON.stringify({
-        projects: [{ name: 'browser', environment: 'browser' }],
-      })
-    )
-    const projects = await discoverTests(
-      directory,
-      await loadTestConfig(directory)
-    )
-    await expect(
-      runTests(directory, projects, {
-        signal: new AbortController().signal,
-        write: () => {},
-        updateSnapshots: true,
-      })
-    ).rejects.toThrow(
-      'Browser snapshot updates require parent-owned snapshot commit'
-    )
-    expect(createTestCompilerSession).not.toHaveBeenCalled()
-  })
 
   it('rejects setup symlinks outside the project', async () => {
     await symlink(__filename, path.join(directory, 'outside.ts'))
@@ -1102,6 +1084,54 @@ describe('Next test orchestration', () => {
         distDir: '/application/custom-dist',
       })
     )
+  })
+
+  it('authorizes browser snapshot writes only after browser and server disposal', async () => {
+    const compiled = useBrowserProject()
+    compiled.sourceHash = 'compiled-source'
+    const order: string[] = []
+    browserDispose.mockImplementation(async () => {
+      order.push('browser disposed')
+    })
+    serverDispose.mockImplementation(async () => {
+      order.push('server disposed')
+    })
+    jest.mocked(commitSnapshotUpdates).mockImplementation(async () => {
+      expect(browserDispose).toHaveBeenCalledTimes(1)
+      expect(serverDispose).toHaveBeenCalledTimes(1)
+      order.push('snapshots committed')
+    })
+    const originalExecute = executeFile.getMockImplementation()!
+    executeFile.mockImplementation(async (input, options) => {
+      await options.onSnapshotUpdates!(options.entry.file, [
+        {
+          path: '/application/__snapshots__/flow.spec.ts.snap',
+          content: 'updated',
+          previousContent: null,
+        },
+      ])
+      return originalExecute(input, options)
+    })
+
+    expect(
+      (
+        await runTests('/application', [project], {
+          signal: new AbortController().signal,
+          write: jest.fn(),
+          updateSnapshots: true,
+        })
+      ).status
+    ).toBe('passed')
+    expect(commitSnapshotUpdates).toHaveBeenCalledWith(
+      project.entries[0].file,
+      expect.any(Array),
+      expect.objectContaining({ sourceHash: 'compiled-source' })
+    )
+    expect(order).toEqual([
+      'browser disposed',
+      'server disposed',
+      'snapshots committed',
+    ])
   })
 
   it('rejects production drivers without resolved absolute application output evidence', async () => {

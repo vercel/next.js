@@ -149,6 +149,9 @@ export async function createTestCompilerSession(
       return file.split(sep).join('/')
     }
     const file = projectFile(entry.file)
+    const sourceHash = createHash('sha256')
+      .update(await readFile(entry.file))
+      .digest('hex')
     const setup = setupFiles.map(projectFile)
     const nativeId = createHash('sha256').update(entry.id).digest('hex')
     const endpoint = await project.testEntry({
@@ -301,6 +304,12 @@ export async function createTestCompilerSession(
           })
         : undefined
       signal.throwIfAborted()
+      const publishedSourceHash = createHash('sha256')
+        .update(await readFile(entry.file))
+        .digest('hex')
+      if (publishedSourceHash !== sourceHash) {
+        throw new Error('Test source changed while its artifact was compiled')
+      }
       await rename(staging, rootDir)
       directories.delete(staging)
       if (!options.allocateArtifact) directories.add(rootDir)
@@ -311,6 +320,7 @@ export async function createTestCompilerSession(
         setupFiles: [...setupFiles],
         ...(moduleMocking ? { moduleMocking } : {}),
         revision,
+        sourceHash,
         rootDir,
         entryPath: output.entryPath,
         files,

@@ -26,7 +26,8 @@ describe('Next-owned assertion primitives', () => {
     await writeFile(
       join(directory, '__snapshots__', 'example.test.ts.snap'),
       '// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n' +
-        'exports[`suite > case 1`] = `\n{\n  "answer": 42,\n}\n`;\n'
+        'exports[`suite > case 1`] = `\n{\n  "answer": 42,\n}\n`;\n' +
+        'exports[`suite > case > serializer 1`] = `serialized`;\n'
     )
     runtime = await createAssertionRuntime({
       testPath,
@@ -85,6 +86,98 @@ describe('Next-owned assertion primitives', () => {
     await check(Promise.resolve(6)).toResolveDouble(3)
     assert.throws(() => check(3).toBeDouble(2), /expected twice the value/)
     await scope!.finalize()
+  })
+
+  it('collects soft assertion failures without stopping the attempt', async () => {
+    begin()
+    runtime.expect.soft(1).toBe(2)
+    runtime.expect.soft({ value: 1 }).toEqual({ value: 2 })
+    runtime.expect('continued').toBe('continued')
+    await assert.rejects(scope!.finalize(), (error: AggregateError) => {
+      assert.equal(error.errors.length, 2)
+      assert.deepEqual(
+        error.errors.map((item) => item.actual),
+        ['1', '{\n  "value": 1,\n}']
+      )
+      return true
+    })
+  })
+
+  it('polls with real scheduling and preserves the matcher callsite', async () => {
+    begin()
+    let value = 0
+    setTimeout(() => value++, 15)
+    await runtime.expect
+      .poll(() => value, { interval: 2, timeout: 200 })
+      .toBe(1)
+    await assert.rejects(
+      runtime.expect.poll(() => value, { interval: 2, timeout: 10 }).toBe(2),
+      (error: Error) => {
+        assert.match(error.stack!, /cases.ts/)
+        assert.ok(error.cause)
+        return true
+      }
+    )
+    await scope!.finalize()
+  })
+
+  it('rejects an unawaited polling assertion', async () => {
+    begin()
+    runtime.expect.poll(() => 1).toBe(1)
+    await assert.rejects(scope!.finalize(), (error: AggregateError) => {
+      assert.match(
+        error.errors[0].message,
+        /expect\.poll\(\) assertion was not awaited/
+      )
+      return true
+    })
+  })
+
+  it('scopes global and environment stubs to one attempt', async () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, '__nextStub')
+    const previousEnv = process.env.NEXT_TEST_ATTEMPT_STUB
+    begin()
+    runtime.utilities.stubGlobal('__nextStub', 42)
+    runtime.utilities.stubEnv('NEXT_TEST_ATTEMPT_STUB', 'changed')
+    assert.equal((globalThis as any).__nextStub, 42)
+    assert.equal(process.env.NEXT_TEST_ATTEMPT_STUB, 'changed')
+    await scope!.finalize()
+    await scope!.dispose()
+    scope = undefined
+    assert.deepEqual(
+      Object.getOwnPropertyDescriptor(globalThis, '__nextStub'),
+      original
+    )
+    assert.equal(process.env.NEXT_TEST_ATTEMPT_STUB, previousEnv)
+  })
+
+  it('restores fake timers and snapshot serializers after the attempt', async () => {
+    const realDate = Date
+    const realTimeout = setTimeout
+    begin()
+    runtime.utilities.useFakeTimers({ now: new Date('2020-01-02T00:00:00Z') })
+    let fired = false
+    setTimeout(() => {
+      fired = true
+    }, 25)
+    runtime.utilities.advanceTimersByTime(25)
+    assert.equal(fired, true)
+    assert.equal(Date.now(), Date.parse('2020-01-02T00:00:00Z') + 25)
+    runtime.expect.addSnapshotSerializer({
+      test(value) {
+        return !!value && (value as any).serializable === true
+      },
+      serialize() {
+        return 'serialized'
+      },
+    })
+    active!.name = 'suite > case > serializer'
+    runtime.expect({ serializable: true }).toMatchSnapshot()
+    await scope!.finalize()
+    await scope!.dispose()
+    scope = undefined
+    assert.equal(Date, realDate)
+    assert.equal(setTimeout, realTimeout)
   })
 
   it('checks assertion counts at finalization and resets between retries', async () => {

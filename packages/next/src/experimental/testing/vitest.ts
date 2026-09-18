@@ -56,8 +56,6 @@ export const expect: TestExpect = new Proxy(
   } as TestExpect,
   {
     get(_target, key) {
-      if (key === 'soft' || key === 'poll' || key === 'addSnapshotSerializer')
-        unsupported(`expect.${key}`)
       const value = Reflect.get(getAssertionRuntime().expect, key)
       if (value === undefined && typeof key === 'string')
         unsupported(`expect.${key}`)
@@ -90,6 +88,10 @@ type SpyApi = Pick<
   | 'resetAllMocks'
   | 'restoreAllMocks'
 >
+type UtilityApi = Omit<
+  ReturnType<typeof getAssertionRuntime>['utilities'],
+  'dispose'
+>
 type StaticMockApi = {
   /**
    * Compiler-only: requires a literal path (or literal import()) and an inline
@@ -113,8 +115,30 @@ const spyMethods = new Set([
   'resetAllMocks',
   'restoreAllMocks',
 ])
+const utilityMethods = new Set([
+  'stubGlobal',
+  'stubEnv',
+  'unstubAllGlobals',
+  'unstubAllEnvs',
+  'useFakeTimers',
+  'useRealTimers',
+  'isFakeTimers',
+  'clearAllTimers',
+  'getTimerCount',
+  'getMockedSystemTime',
+  'getRealSystemTime',
+  'setSystemTime',
+  'advanceTimersByTime',
+  'advanceTimersByTimeAsync',
+  'advanceTimersToNextTimer',
+  'advanceTimersToNextTimerAsync',
+  'runOnlyPendingTimers',
+  'runOnlyPendingTimersAsync',
+  'runAllTimers',
+  'runAllTimersAsync',
+])
 const spyCalls = new Map<string, Function>()
-export const vi = new Proxy({} as SpyApi & StaticMockApi, {
+export const vi = new Proxy({} as SpyApi & UtilityApi & StaticMockApi, {
   get(_target, key) {
     if (typeof key === 'string' && spyMethods.has(key)) {
       getAssertionRuntime()
@@ -123,6 +147,20 @@ export const vi = new Proxy({} as SpyApi & StaticMockApi, {
         method = (...args: unknown[]) =>
           Reflect.apply(
             Reflect.get(getAssertionRuntime().spies, key),
+            undefined,
+            args
+          )
+        spyCalls.set(key, method)
+      }
+      return method
+    }
+    if (typeof key === 'string' && utilityMethods.has(key)) {
+      getAssertionRuntime()
+      let method = spyCalls.get(key)
+      if (!method) {
+        method = (...args: unknown[]) =>
+          Reflect.apply(
+            Reflect.get(getAssertionRuntime().utilities, key),
             undefined,
             args
           )

@@ -33,6 +33,52 @@ function initial() {
 const options = () => ({ runId: 'run', signal: new AbortController().signal })
 
 check(
+  'public facade scopes soft, poll, stubs, timers, and serializers',
+  async () => {
+    await fixture(async (path) => {
+      const previousEnv = process.env.NEXT_TEST_STAGE2_STUB
+      const previousGlobal = Object.getOwnPropertyDescriptor(
+        globalThis,
+        '__nextStage2Stub'
+      )
+      const realDate = Date
+      const file = initializeTestFile({ fileId: 'file', filePath: path })
+      await file.collect(async () => {
+        test('utilities', async () => {
+          expect.soft(1).toBe(1)
+          let value = 0
+          setTimeout(() => value++, 5)
+          await expect.poll(() => value, { interval: 1, timeout: 100 }).toBe(1)
+          vi.stubGlobal('__nextStage2Stub', 42)
+          vi.stubEnv('NEXT_TEST_STAGE2_STUB', 'owned')
+          vi.useFakeTimers({ now: 100 })
+          let fired = false
+          setTimeout(() => {
+            fired = true
+          }, 10)
+          vi.advanceTimersByTime(10)
+          expect(fired).toBe(true)
+          expect(Date.now()).toBe(110)
+          expect.addSnapshotSerializer({
+            test: () => false,
+            serialize: () => 'unused',
+          })
+        })
+      })
+      const result = await file.run(options())
+      await file.dispose()
+      assert.equal(result.cases[0].status, 'passed')
+      assert.equal(Date, realDate)
+      assert.deepEqual(
+        Object.getOwnPropertyDescriptor(globalThis, '__nextStage2Stub'),
+        previousGlobal
+      )
+      assert.equal(process.env.NEXT_TEST_STAGE2_STUB, previousEnv)
+    })
+  }
+)
+
+check(
   'ordered setup shares authoring, extension, spies and fixtures with spec',
   async () => {
     await fixture(async (path) => {
@@ -325,7 +371,9 @@ check(
       await file.dispose()
       const updates = file.takeSnapshotUpdates()
       await assert.rejects(
-        commitSnapshotUpdates(path, [{ ...updates[0], path }]),
+        commitSnapshotUpdates(path, [
+          { ...updates[0], path: join(tmpdir(), 'unrelated-next-test.snap') },
+        ]),
         /original test file/
       )
       const controller = new AbortController()
