@@ -64,6 +64,18 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
+  /**
+   * Append Vercel runtime messages to cliOutput in deploy mode. Delivery is
+   * asynchronous: use retry() for positive assertions. An empty stream alone
+   * does not establish that an application message was not logged.
+   * Messages append in arrival order, not guaranteed execution order. String
+   * offsets do not isolate requests, and remote severity only approximates the
+   * original stdout/stderr stream. Collection startup has no readiness barrier.
+   * The CLI currently limits a live stream to five minutes; expiry fails the
+   * test rather than silently leaving cliOutput stale. Unsupported for custom
+   * deployment/log scripts. Has no effect in dev or start mode.
+   */
+  captureRuntimeLogs?: boolean
   disableAutoSkewProtection?: boolean
   /**
    * Delete the `pnpm-workspace.yaml` that `createNextInstall` writes for
