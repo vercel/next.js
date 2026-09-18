@@ -1,0 +1,12 @@
+@font-face {
+  font-family: 'GlobalCssFont';
+  src: url('./font-noto-sans.woff2') format('woff2');
+}
+
+p {
+  color: yellow;
+}
+
+#global-css-font {
+  font-family: 'GlobalCssFont';
+}
