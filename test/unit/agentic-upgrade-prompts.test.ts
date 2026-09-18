@@ -275,7 +275,7 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it.each(['npx --yes', 'pnpm --silent dlx', 'yarn --quiet dlx'])(
+  it.each(['npx --yes', 'pnpm --loglevel=error dlx', 'yarn --quiet dlx'])(
     'delegates to an exact version with %s and preserves its exit code',
     async (runner) => {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
