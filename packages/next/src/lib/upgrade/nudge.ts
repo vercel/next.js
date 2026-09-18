@@ -213,7 +213,8 @@ async function nudgeForLatest(
   if (!latest) return false
 
   const { installedVersion, latestVersion } = latest
-  const reference = 'https://registry.npmjs.org/next/latest'
+  const distTag = semver.prerelease(latestVersion)?.[0] ?? 'latest'
+  const reference = `https://registry.npmjs.org/next/${encodeURIComponent(distTag)}`
   await showNudge(
     options,
     version,

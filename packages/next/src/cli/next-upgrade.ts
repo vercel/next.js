@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
@@ -310,12 +311,16 @@ export async function spawnNextUpgrade(
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
+      const prereleaseTag = semver.prerelease(result.targetVersion)?.[0]
+      const releaseDescription = prereleaseTag
+        ? `Next.js release on the ${prereleaseTag} dist-tag`
+        : 'stable Next.js release'
       const reason =
         upgradeType === 'security'
           ? 'the installed version is affected by a published security advisory'
           : upgradeType === 'latest'
-            ? 'a newer stable Next.js release is available'
-            : 'the Future policy applies the latest stable release and adopts its Future Defaults'
+            ? `a newer ${releaseDescription} is available`
+            : `the Future policy applies the latest ${releaseDescription} and adopts its Future Defaults`
       const futureDefaultsPrompt = preparedFutureDefaults.length
         ? `
 ${needsVersionMigration ? 'After completing and verifying the version migration, adopt' : 'Adopt'} these Future Defaults in order:

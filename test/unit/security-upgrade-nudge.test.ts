@@ -194,6 +194,30 @@ describe('latest upgrade nudge', () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
   })
 
+  describe.each(['latest', 'future'] as const)('%s policy', (policy) => {
+    it.each([
+      ['17.0.0', 'latest'],
+      ['17.0.0-canary.1', 'canary'],
+      ['17.0.0-rc.1', 'rc'],
+      ['17.0.0-beta.1', 'beta'],
+      ['17.0.0-preview.1', 'preview'],
+    ])('links %s to its %s dist-tag', async (targetVersion, distTag) => {
+      jest.mocked(getLatestUpgradeVersion).mockResolvedValue(targetVersion)
+      const reference = `Reference: https://registry.npmjs.org/next/${distTag}`
+
+      await expect(
+        nudgeForUpgrade(directory, config(policy), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(reference),
+      })
+      await expect(
+        nudgeForUpgrade(directory, config(policy), 'build')
+      ).resolves.toBeUndefined()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(reference))
+    })
+  })
+
   it('stops once and allows a matching retry with a warning', async () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue('17.0.0')
 

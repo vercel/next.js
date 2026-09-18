@@ -382,6 +382,48 @@ describe('agentic upgrade prompts', () => {
     `)
   })
 
+  describe.each(['latest', 'future'] as const)(
+    '%s prerelease guidance',
+    (policy) => {
+      it.each(['canary', 'rc', 'beta', 'preview'])(
+        'describes the selected %s channel in the handoff',
+        async (distTag) => {
+          const installedVersion = `17.1.0-${distTag}.1`
+          const targetVersion = `17.2.0-${distTag}.1`
+          const reference = `https://registry.npmjs.org/next/${distTag}`
+          jest.mocked(prepareUpgrade).mockResolvedValue({
+            status: 'ready',
+            installedVersion,
+            targetVersion,
+            references: [reference],
+            futureDefaults: [],
+          })
+
+          await spawnNextUpgrade('/workspace/app', {
+            revision: 'latest',
+            verbose: false,
+            ai: policy,
+          })
+
+          expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+          const prompt = normalizedBootstrapCalls().flat().join('\n')
+          expect(prompt).toContain(
+            `from Next.js ${installedVersion} to ${targetVersion}`
+          )
+          expect(prompt).toContain(`Next.js release on the ${distTag} dist-tag`)
+          expect(prompt).toContain(reference)
+          expect(prompt).not.toContain('stable')
+          expect(normalizedFileWriteCalls()).toContainEqual([
+            '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
+            expect.stringContaining(
+              `upgrade ${targetVersion} --yes --skip-adoption`
+            ),
+          ])
+        }
+      )
+    }
+  )
+
   it('adds temporary Future Default instructions to the migration prompt', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
@@ -443,7 +485,7 @@ describe('agentic upgrade prompts', () => {
          [
            "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
 
-     We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
+     We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable Next.js release and adopts its Future Defaults.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
