@@ -148,6 +148,29 @@ function expectOptionalCatchallParams(html: string) {
       expectOptionalCatchallParams(await response.text())
     })
 
+    it('should not expose fallback placeholders during a Next-Action request bypass', async () => {
+      const browser = await next.browser('/en', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementById('submit-action').click()
+
+      await retry(async () => {
+        expect(await browser.elementById('action-result').text()).toBe(
+          'submitted'
+        )
+        expect(await browser.elementById('params').text()).toBe(
+          JSON.stringify({
+            locale: 'en',
+            filterSlugs: null,
+            mappedSlugs: [],
+          })
+        )
+      })
+
+      await assertNoConsoleErrors(browser)
+    })
+
     describe('Cache Components metadata streaming', () => {
       it('should generate metadata in head when page is fully static', async () => {
         const $ = await next.render$('/fully-static')

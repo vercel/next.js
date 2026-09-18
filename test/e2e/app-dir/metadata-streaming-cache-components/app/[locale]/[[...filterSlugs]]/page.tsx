@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { ActionForm } from './action-form'
 
 type Params = {
   locale: string
@@ -26,8 +27,11 @@ async function ParamsValue({ params }: { params: Promise<Params> }) {
 
 export default function Page({ params }: { params: Promise<Params> }) {
   return (
-    <Suspense fallback={<p>Loading params</p>}>
-      <ParamsValue params={params} />
-    </Suspense>
+    <>
+      <Suspense fallback={<p>Loading params</p>}>
+        <ParamsValue params={params} />
+      </Suspense>
+      <ActionForm />
+    </>
   )
 }
