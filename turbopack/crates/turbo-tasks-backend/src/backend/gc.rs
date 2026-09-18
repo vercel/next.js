@@ -213,13 +213,13 @@ impl TurboTasksBackend {
             None
         };
 
-        let mut stats: GcPassOutcome = scope_unbounded_with(
+        let mut outcome: GcPassOutcome = scope_unbounded_with(
             // Start by scanning all shards and collecting the aged out roots from prior sessions.
             (0..self.storage.shard_count())
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
             GcPassOutcome::default,
-            |spawner, job, stats| {
+            |spawner, job, outcome| {
                 // Abort the gc loop if we are interrupted
                 if let Some(budget) = &budget
                     && budget.should_stop()
@@ -262,16 +262,17 @@ impl TurboTasksBackend {
                     let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 }
                 drop(task); // drop the lock so CleanupOldEdgesOperation can run
-                stats.collected += 1;
-                stats.edges_deleted += old_edges.len();
+                outcome.collected += 1;
+                outcome.edges_deleted += old_edges.len();
                 // If we happened to delete a known root at this point record it so we can reconcile
                 // later.
                 if roots.contains_key(&task_id) {
-                    stats.deleted_roots.push(task_id);
+                    outcome.deleted_roots.push(task_id);
                 }
-                // Delete all the edges but defer rebalance requests
-
-                stats.deferred_balance_edges.extend(
+                // Delete outgoing edges but don't update the aggregation graph yet.
+                // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
+                // we defer all rebalancing to the end
+                outcome.deferred_balance_edges.extend(
                     CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx),
                 );
                 ControlFlow::Continue(())
@@ -280,14 +281,13 @@ impl TurboTasksBackend {
         );
 
         // Drop the entries for the roots this pass collected, recorded as they were deleted.
-        for id in &stats.deleted_roots {
+        for id in &outcome.deleted_roots {
             roots.remove(id);
         }
 
         // Process the rebalance requests now that deletion work is done
         // Do this before computing roots so all uppers are settled
-        // NOTE: this is a latency risk
-        let deferred = std::mem::take(&mut stats.deferred_balance_edges);
+        let deferred = std::mem::take(&mut outcome.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
             let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
@@ -304,16 +304,16 @@ impl TurboTasksBackend {
             roots.insert(id, TtlCounter::MostRecent);
         }
 
-        stats.gc_roots = roots.len();
-        stats.aged_out_roots = aged_out_count;
-        stats.interrupted = budget
+        outcome.gc_roots = roots.len();
+        outcome.aged_out_roots = aged_out_count;
+        outcome.interrupted = budget
             .as_ref()
             .is_some_and(|budget| budget.was_interrupted());
 
         // Only persist the roots map if it actually changed
         let roots_to_persist: Option<Vec<_>> =
             (roots != roots_before).then(|| roots.into_iter().collect());
-        (stats, roots_to_persist)
+        (outcome, roots_to_persist)
     }
 
     /// Compute which persisted roots have expired their TTL
