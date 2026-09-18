@@ -6,52 +6,55 @@ import Head, * as headEsm from 'next/head'
 import Image, * as imageEsm from 'next/image'
 import LegacyImage, * as legacyImageEsm from 'next/legacy/image'
 import Link, * as linkEsm from 'next/link'
-import navigation, * as navigationEsm from 'next/navigation'
 import og, * as ogEsm from 'next/og'
 import Script, * as scriptEsm from 'next/script'
 import server, * as serverEsm from 'next/server'
-import { defaultExportMatches, namespaceExportsMatch } from './export-matches'
+import { describeEntry } from './export-matches'
 
-const cacheCjs = require('next/cache')
-const constantsCjs = require('next/constants')
-const dynamicCjs = require('next/dynamic')
-const formCjs = require('next/form')
-const headCjs = require('next/head')
-const imageCjs = require('next/image')
-const legacyImageCjs = require('next/legacy/image')
-const linkCjs = require('next/link')
-const navigationCjs = require('next/navigation')
-const ogCjs = require('next/og')
-const scriptCjs = require('next/script')
-const serverCjs = require('next/server')
+export { describeEntry }
 
-export { defaultExportMatches, namespaceExportsMatch }
-
+// `next/error` and `next/navigation` are intentionally absent here: they are
+// aliased to `.react-server` variants in the react-server layer, so their shape
+// differs per layer and each entrypoint asserts them separately.
+//
+// The default imports are part of the coverage even for entries recorded as
+// having no default export. In the react-server layer, default-importing an
+// entry that lacks one is a *build* error, so a regression in the aliasing fails
+// before any assertion runs.
 export const apiExportChecks = {
-  cache: namespaceExportsMatch(cache, cacheEsm, cacheCjs, 'unstable_cache'),
-  constants: namespaceExportsMatch(
-    constants,
-    constantsEsm,
-    constantsCjs,
-    'PHASE_PRODUCTION_BUILD'
-  ),
-  dynamic: defaultExportMatches(dynamic, dynamicEsm, dynamicCjs),
-  form: defaultExportMatches(Form, formEsm, formCjs),
-  head: defaultExportMatches(Head, headEsm, headCjs),
-  image: defaultExportMatches(Image, imageEsm, imageCjs),
-  'legacy/image': defaultExportMatches(
+  cache: describeEntry(cache, cacheEsm, require('next/cache'), [
+    'unstable_cache',
+    'revalidateTag',
+    'cacheLife',
+  ]),
+  constants: describeEntry(constants, constantsEsm, require('next/constants'), [
+    'PHASE_PRODUCTION_BUILD',
+    'PHASE_DEVELOPMENT_SERVER',
+  ]),
+  dynamic: describeEntry(dynamic, dynamicEsm, require('next/dynamic'), [
+    'noSSR',
+  ]),
+  form: describeEntry(Form, formEsm, require('next/form'), []),
+  head: describeEntry(Head, headEsm, require('next/head'), []),
+  image: describeEntry(Image, imageEsm, require('next/image'), [
+    'getImageProps',
+  ]),
+  'legacy/image': describeEntry(
     LegacyImage,
     legacyImageEsm,
-    legacyImageCjs
+    require('next/legacy/image'),
+    []
   ),
-  link: defaultExportMatches(Link, linkEsm, linkCjs),
-  navigation: namespaceExportsMatch(
-    navigation,
-    navigationEsm,
-    navigationCjs,
-    'redirect'
-  ),
-  og: namespaceExportsMatch(og, ogEsm, ogCjs, 'ImageResponse'),
-  script: defaultExportMatches(Script, scriptEsm, scriptCjs),
-  server: namespaceExportsMatch(server, serverEsm, serverCjs, 'NextResponse'),
+  link: describeEntry(Link, linkEsm, require('next/link'), ['useLinkStatus']),
+  og: describeEntry(og, ogEsm, require('next/og'), ['ImageResponse']),
+  script: describeEntry(Script, scriptEsm, require('next/script'), [
+    'handleClientScriptLoad',
+    'initScriptLoader',
+  ]),
+  server: describeEntry(server, serverEsm, require('next/server'), [
+    'NextRequest',
+    'NextResponse',
+    'after',
+    'connection',
+  ]),
 }

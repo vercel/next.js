@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - esm js extension', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -23,103 +23,205 @@ describe('app-dir - esm js extension', () => {
     expect($('head link[href="/test.js"]').length).toBe(1)
   })
 
-  async function getApiExportResults(pathname: string) {
+  // Each entry records which module a `next/*` entrypoint resolved to in a given
+  // layer, so a change in aliasing or in what an entry exports shows up as a
+  // diff rather than a silent pass. `default` is the `import x from` binding,
+  // `namespace-default` the namespace's `default`, `absent-markers` any expected
+  // export the entry is missing, and `missing-from-cjs` any named export the
+  // CommonJS form lacks.
+  async function getApiExportShapes(pathname: string, layer?: string) {
     const $ = await next.render$(pathname)
+    const selector = layer ? `[data-layer="${layer}"]` : '[data-api]'
 
-    return Object.fromEntries(
-      $('[data-api]')
-        .map((_index, element) => ({
-          name: $(element).attr('data-api'),
-          passed: $(element).attr('data-passed') === 'true',
-        }))
-        .get()
-        .map(({ name, passed }) => [name, passed])
-    )
+    const entries = $(selector)
+      .map((_index, element) => ({
+        name: $(element).attr('data-api'),
+        shape: $(element).attr('data-shape'),
+      }))
+      .get()
+
+    expect(entries.length).toBeGreaterThan(0)
+
+    return Object.fromEntries(entries.map(({ name, shape }) => [name, shape]))
   }
 
-  it('should preserve Pages Router API exports for ESM and CommonJS imports', async () => {
-    const results = await getApiExportResults('/api-exports')
+  it('should not expose client-only navigation hooks in the react-server layer', async () => {
+    const $ = await next.render$('/app/api-exports')
+    const leaked = $('[data-leaked-client-navigation]')
 
-    expect(results).toEqual({
-      app: true,
-      cache: true,
-      client: true,
-      'compat/router': true,
-      constants: true,
-      document: true,
-      dynamic: true,
-      error: true,
-      form: true,
-      head: true,
-      image: true,
-      'legacy/image': true,
-      link: true,
-      navigation: true,
-      offline: true,
-      og: true,
-      router: true,
-      script: true,
-      server: true,
-      'web-vitals': true,
-    })
+    expect(leaked.length).toBe(1)
+    // `next/navigation` must resolve to `navigation.react-server` here, which
+    // omits the client hooks entirely.
+    expect(leaked.attr('data-leaked-client-navigation')).toBe('')
   })
 
-  it('should preserve App Router API exports for ESM and CommonJS imports', async () => {
-    const results = await getApiExportResults('/app/api-exports')
+  it('should preserve Pages Router API exports for ESM and CommonJS imports', async () => {
+    const shapes = await getApiExportShapes('/api-exports')
 
-    expect(results).toEqual({
-      cache: true,
-      client: true,
-      'compat/router': true,
-      constants: true,
-      dynamic: true,
-      error: true,
-      form: true,
-      head: true,
-      headers: true,
-      image: true,
-      'legacy/image': true,
-      link: true,
-      navigation: true,
-      offline: true,
-      og: true,
-      script: true,
-      server: true,
-      'web-vitals': true,
-    })
+    if (isTurbopack) {
+      expect(shapes).toMatchInlineSnapshot(`
+            {
+              "app": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "client": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "compat/router": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "constants": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "document": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "dynamic": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "navigation": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "offline": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "og": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "script": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "server": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "web-vitals": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+            }
+            `)
+    } else {
+      expect(shapes).toMatchInlineSnapshot(`
+       {
+         "app": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
+         "client": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "compat/router": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "constants": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "document": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "dynamic": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "offline": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "og": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "script": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "server": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
+         "web-vitals": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+       }
+      `)
+    }
+  })
+
+  it('should preserve react-server layer API exports for ESM and CommonJS imports', async () => {
+    const shapes = await getApiExportShapes('/app/api-exports', 'react-server')
+
+    if (isTurbopack) {
+      expect(shapes).toMatchInlineSnapshot(`
+            {
+              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "constants": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "dynamic": "default:yes namespace-default:yes absent-markers:noSSR missing-from-cjs:",
+              "error": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+              "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "headers": "default:no namespace-default:yes absent-markers: missing-from-cjs:",
+              "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:then,catch,finally",
+              "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+              "og": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "script": "default:yes namespace-default:yes absent-markers:handleClientScriptLoad,initScriptLoader missing-from-cjs:then,catch,finally",
+              "server": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+            }
+            `)
+    } else {
+      expect(shapes).toMatchInlineSnapshot(`
+       {
+         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
+         "constants": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "dynamic": "default:yes namespace-default:yes absent-markers:noSSR missing-from-cjs:",
+         "error": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "headers": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "og": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "script": "default:yes namespace-default:yes absent-markers:handleClientScriptLoad,initScriptLoader missing-from-cjs:",
+         "server": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+       }
+      `)
+    }
+  })
+
+  it('should preserve client layer API exports for ESM and CommonJS imports', async () => {
+    const shapes = await getApiExportShapes('/app/api-exports', 'client')
+
+    if (isTurbopack) {
+      expect(shapes).toMatchInlineSnapshot(`
+            {
+              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "client": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "compat/router": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "navigation": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "offline": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "web-vitals": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+            }
+            `)
+    } else {
+      expect(shapes).toMatchInlineSnapshot(`
+       {
+         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
+         "client": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "compat/router": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "offline": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "web-vitals": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+       }
+      `)
+    }
   })
 
   it('should preserve browser API exports for ESM and CommonJS imports', async () => {
     const browser = await next.browser('/app/api-exports')
-    const results = await browser.eval(() =>
+    const shapes = await browser.eval(() =>
       Object.fromEntries(
-        Array.from(document.querySelectorAll('[data-api]'), (element) => [
-          element.getAttribute('data-api'),
-          element.getAttribute('data-passed') === 'true',
-        ])
+        Array.from(
+          document.querySelectorAll('[data-layer="client"]'),
+          (element) => [
+            element.getAttribute('data-api'),
+            element.getAttribute('data-shape'),
+          ]
+        )
       )
     )
 
-    expect(results).toEqual({
-      cache: true,
-      client: true,
-      'compat/router': true,
-      constants: true,
-      dynamic: true,
-      error: true,
-      form: true,
-      head: true,
-      headers: true,
-      image: true,
-      'legacy/image': true,
-      link: true,
-      navigation: true,
-      offline: true,
-      og: true,
-      script: true,
-      server: true,
-      'web-vitals': true,
-    })
+    if (isTurbopack) {
+      expect(shapes).toMatchInlineSnapshot(`
+            {
+              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "client": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "compat/router": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "navigation": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "offline": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+              "web-vitals": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+            }
+            `)
+    } else {
+      expect(shapes).toMatchInlineSnapshot(`
+       {
+         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
+         "client": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "compat/router": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
+         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "offline": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "web-vitals": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+       }
+      `)
+    }
   })
 
   it('should be able to use nextjs api in pages router', async () => {
