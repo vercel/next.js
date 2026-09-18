@@ -1,7 +1,10 @@
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import crypto from 'crypto'
+import execa from 'execa'
+import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
+import type { NextAdapter } from 'next'
 import {
   fetchViaHTTP,
   findPort,
@@ -10,53 +13,48 @@ import {
   retry,
 } from 'next-test-utils'
 
-// Deploy only uploads `project`, but this suite intentionally uses a sibling filesystem root.
-//
-// @force-gate turbopack && !deploy
+// Non-adapter deploys do not exercise Next.js' adapter asset contract.
+// @force-gate turbopack && (!deploy || adapter)
 describe('turbopack additional roots', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     subDir: 'project',
-    nextConfig: {
-      output: 'standalone',
-      serverExternalPackages: ['sibling'],
-      experimental: {
-        turbopackAdditionalRoots: {
-          linkedPackages: { path: '../additional-root' },
-          missingOptional: {
-            path: './missing-optional-root',
-            ignoreIfMissing: false,
-          },
-        },
+    packageJson: {
+      scripts: {
+        prebuild: 'node prepare-deploy-additional-root.mjs',
       },
+    },
+    env: {
+      ...(isNextStart && { NEXT_TEST_CAPTURE_ADAPTER: '1' }),
     },
     skipStart: true,
   })
 
-  let externalRoot: string
-  let linkedPackage: string
+  let externalRoot: string | undefined
 
   beforeAll(async () => {
-    externalRoot = path.resolve(next.testDir, '../additional-root')
-    linkedPackage = path.join(externalRoot, 'packages/linked')
-
-    await fs.copy(
-      path.join(__dirname, 'fixtures/additional-root'),
-      externalRoot
-    )
-
-    await fs.symlink(
-      linkedPackage,
-      path.join(next.testDir, 'linked'),
-      'junction' // use a junction point on windows (this argument is ignored everywhere else)
-    )
+    if (!isNextDeploy) {
+      const result = await execa(
+        'node',
+        ['prepare-deploy-additional-root.mjs'],
+        {
+          cwd: next.testDir,
+        }
+      )
+      externalRoot = result.stdout
+    }
 
     await next.start()
   })
 
   afterAll(async () => {
-    await next.stop()
-    await fs.remove(externalRoot)
+    try {
+      await next.stop()
+    } finally {
+      if (!isNextDeploy && externalRoot) {
+        await fs.remove(externalRoot)
+      }
+    }
   })
 
   it('resolves a linked package, sibling dependency, and next/dist', async () => {
@@ -69,6 +67,7 @@ describe('turbopack additional roots', () => {
 
   it('reports initialization warnings when startup succeeds', () => {
     expect(next.cliOutput).toContain('Invalid Turbopack additional root')
+    expect(next.cliOutput).not.toContain('overlaps the project root')
   })
 
   if (isNextDev) {
@@ -76,7 +75,10 @@ describe('turbopack additional roots', () => {
       const browser = await next.browser('/')
 
       await next.patchFile(
-        '../additional-root/packages/linked/index.js',
+        path.relative(
+          next.testDir,
+          path.join(externalRoot!, 'packages/linked/index.js')
+        ),
         (content) => content.replace('linked-', 'updated-'),
         async () => {
           await retry(async () => {
@@ -96,6 +98,9 @@ describe('turbopack additional roots', () => {
         '.next/server/app/page.js.nft.json'
       )
       const nft = await fs.readJson(nftPath)
+      expect(
+        path.resolve(path.dirname(nftPath), nft.additionalRoots[0].path)
+      ).toBe(externalRoot)
       const crossRootSymlinks = nft.symlinks
         .filter((symlink: [number, string, number?]) => symlink.length === 3)
         .map(
@@ -112,6 +117,7 @@ describe('turbopack additional roots', () => {
       const additionalRoots = nft.additionalRoots.map((root: any) => {
         const copy = { ...root }
         delete copy.fileHashes
+        copy.path = '<temporary-root>'
         return copy
       })
 
@@ -132,15 +138,96 @@ describe('turbopack additional roots', () => {
              "node_modules/sibling/package.json",
            ],
            "name": "linkedPackages",
-           "path": "../../../../additional-root",
+           "path": "<temporary-root>",
            "symlinks": [],
          },
        ]
       `)
     })
 
+    it('provides relocatable synthetic symlinks through adapter assets', async () => {
+      const buildComplete: Parameters<
+        NonNullable<NextAdapter['onBuildComplete']>
+      >[0] = await next.readJSON('build-complete.json')
+      const rootOutput = buildComplete.outputs.appPages.find(
+        (output) => output.pathname === '/'
+      )
+      expect(rootOutput).toBeDefined()
+      expect(rootOutput).not.toHaveProperty('assetSymlinks')
+
+      const crossRootAsset = Object.entries(rootOutput!.assets).find(
+        ([destination]) => path.basename(destination).startsWith('sibling-')
+      )
+      expect(crossRootAsset).toBeDefined()
+
+      const [destination, source] = crossRootAsset!
+      const stagingRoot = path.join(
+        buildComplete.distDir,
+        'adapter',
+        'synthetic_symlinks'
+      )
+      expect(path.dirname(source)).toBe(stagingRoot)
+      expect(path.basename(source)).toMatch(/^[0-9a-f]{32}$/)
+      expect((await fs.lstat(source)).isSymbolicLink()).toBe(true)
+
+      const target = path.join(
+        'next_additional_roots',
+        'linkedPackages',
+        'node_modules',
+        'sibling'
+      )
+      const expectedPayload = path.relative(path.dirname(destination), target)
+      expect(await fs.readlink(source)).toBe(expectedPayload)
+      expect(
+        path.normalize(path.join(path.dirname(destination), expectedPayload))
+      ).toBe(target)
+
+      const expectedHash = crypto
+        .createHash('sha256')
+        .update('adapter-symlink-test')
+        .update('link')
+        .update(expectedPayload)
+        .digest('hex')
+      expect(rootOutput!.assetsHashes[destination]).toBe(expectedHash)
+
+      const nft = await fs.readJson(
+        path.join(next.testDir, '.next/server/app/page.js.nft.json')
+      )
+      const [sourceFileIndex] = nft.symlinks.find(
+        (symlink: [number, string, number?]) => symlink.length === 3
+      )
+      expect(rootOutput!.assetsHashes[destination]).not.toBe(
+        nft.fileHashes[sourceFileIndex]
+      )
+
+      const instrumentationNft = await fs.readJson(
+        path.join(next.testDir, '.next/server/instrumentation.js.nft.json')
+      )
+      expect(
+        instrumentationNft.symlinks.some(
+          (symlink: [number, string, number?]) => symlink.length === 3
+        )
+      ).toBe(true)
+      expect(await fs.readdir(stagingRoot)).toEqual([path.basename(source)])
+
+      const equivalentSources = buildComplete.outputs.appPages
+        .map((output) => output.assets[destination])
+        .filter(Boolean)
+      expect(equivalentSources.length).toBeGreaterThan(1)
+      expect(new Set(equivalentSources)).toEqual(new Set([source]))
+    })
+
     it('runs after relocating standalone output away from the source root', async () => {
       await next.stop()
+      const syntheticSymlinkRoot = path.join(
+        next.testDir,
+        '.next/adapter/synthetic_symlinks'
+      )
+      await fs.remove(syntheticSymlinkRoot)
+      delete next.env.NEXT_TEST_CAPTURE_ADAPTER
+      expect((await next.build()).exitCode).toBe(0)
+      expect(await fs.pathExists(syntheticSymlinkRoot)).toBe(false)
+
       const temporaryDirectory = await fs.mkdtemp(
         path.join(os.tmpdir(), 'next-additional-roots-')
       )

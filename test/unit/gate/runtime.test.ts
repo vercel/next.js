@@ -196,6 +196,12 @@ describe('@gate runtime', () => {
       expect(await gate((c) => c.mode === 'start' && c.webpack)).toBe(true)
     })
 
+    it('reports the host platform', async () => {
+      expect(await gate((c) => c.linux)).toBe(process.platform === 'linux')
+      expect(await gate((c) => c.macos)).toBe(process.platform === 'darwin')
+      expect(await gate((c) => c.windows)).toBe(process.platform === 'win32')
+    })
+
     it('reads a lazy condition from the running fixture', async () => {
       const getResolvedConfig = fixtureWith({ cacheComponents: true })
       expect(await gate((c) => c.cacheComponents)).toBe(true)
