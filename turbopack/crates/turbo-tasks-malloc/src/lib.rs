@@ -96,7 +96,7 @@ impl TurboMalloc {
     /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
     /// which is approximate because threads buffer their updates.
     pub fn memory_usage() -> usize {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
         {
             // `current_commit` is a relaxed atomic load, but `mi_process_info` also calls
             // `_mi_prim_process_info`, which is a `getrusage` (plus a `task_info` on macOS). All
@@ -117,7 +117,7 @@ impl TurboMalloc {
             }
             current_commit
         }
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             self::counter::get()
         }
