@@ -1,5 +1,6 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
+  createGetInstantInsight,
   expectBuildValidationSkipped,
   expectNoBuildValidationErrors,
   extractBuildValidationError,
@@ -48,6 +49,8 @@ describe('instant validation - parallel slot configs', () => {
     }
     return next.cliOutput.slice(currentCliOutputIndex)
   }
+
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
 
   const prerender = async (pathname: string) => {
     const args = [
@@ -110,7 +113,7 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(
             '/suspense-in-root/parallel/slot-config-only'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -168,7 +171,7 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(
             '/suspense-in-root/parallel/slot-layout-config'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -247,7 +250,7 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(
             '/suspense-in-root/parallel/children-config-with-slot'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -306,7 +309,7 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(
             '/suspense-in-root/parallel/fork-layout-config-with-slot'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            [
              {
                "cause": [
@@ -470,7 +473,7 @@ describe('instant validation - parallel slot configs', () => {
           '/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked'
         if (isNextDev) {
           const browser = await navigateTo(href)
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -528,7 +531,7 @@ describe('instant validation - parallel slot configs', () => {
           '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked'
         if (isNextDev) {
           const browser = await navigateTo(href)
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -560,7 +563,7 @@ describe('instant validation - parallel slot configs', () => {
           '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked'
         if (isNextDev) {
           const browser = await navigateTo(href)
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {

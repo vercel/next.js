@@ -74,8 +74,8 @@ describe('instant validation - server errors', () => {
           : await next.browser(
               '/suspense-in-root/static/server-error-blocks-children'
             )
-        await waitForRedbox(browser)
         await waitForValidation(await browser.url(), getCliOutputSinceMark)
+        await waitForRedbox(browser)
         const errors = await createRedboxSnapshot(browser, next)
         expect(errors).toMatchInlineSnapshot(`
          {
@@ -134,8 +134,8 @@ describe('instant validation - server errors', () => {
           : await next.browser(
               '/suspense-in-root/static/server-error-inside-boundary'
             )
-        await waitForRedbox(browser)
         await waitForValidation(await browser.url(), getCliOutputSinceMark)
+        await waitForRedbox(browser)
         const errors = await createRedboxSnapshot(browser, next)
         expect(errors).toMatchInlineSnapshot(`
          {

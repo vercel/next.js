@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  createGetInstantInsight,
   expectBuildValidationSkipped,
   extractBuildValidationError,
 } from 'e2e-utils/instant-validation'
@@ -20,6 +21,20 @@ describe('instant validation - level error', () => {
     it.skip('TODO: snapshot tests for webpack', () => {})
     return
   }
+
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
 
   if (isNextStart) {
     beforeAll(async () => {
@@ -58,7 +73,7 @@ describe('instant validation - level error', () => {
     describe('dev', () => {
       it('bare page: implicit validation surfaces a redbox (error level fires)', async () => {
         const browser = await next.browser('/bare')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
@@ -75,7 +90,7 @@ describe('instant validation - level error', () => {
 
       it('explicit-error page: explicit override at the configured level, instant redbox in dev', async () => {
         const browser = await next.browser('/explicit-error')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -104,7 +119,7 @@ describe('instant validation - level error', () => {
 
       it('explicit-true page: aliases to error level, instant redbox in dev', async () => {
         const browser = await next.browser('/explicit-true')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -133,7 +148,7 @@ describe('instant validation - level error', () => {
 
       it('explicit-warning page: per-segment de-escalation still validates in dev', async () => {
         const browser = await next.browser('/explicit-warning')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -171,7 +186,7 @@ describe('instant validation - level error', () => {
         // that's per-segment — it doesn't shield descendants. The bare
         // page should still surface an instant redbox in dev.
         const browser = await next.browser('/layered')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
