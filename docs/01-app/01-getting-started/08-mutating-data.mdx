@@ -1,6 +1,6 @@
 ---
 title: Mutating Data
-description: Learn how to mutate data using Server Functions and Server Actions in Next.js.
+description: Learn how to mutate data with Server Functions, refresh or revalidate affected data, and show pending and error states.
 related:
   title: Next Steps
   description: Learn more about Server Actions and the APIs mentioned on this page.
@@ -12,9 +12,11 @@ related:
     - app/api-reference/functions/redirect
 ---
 
-You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions), which run on the server and write directly to your database or filesystem. This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions, how to [revalidate](#revalidating-the-cache) the content that changed, and how to [show progress and errors](#making-it-feel-responsive) while the mutation is running. To handle a write from a caller that isn't your own frontend, such as a webhook, use a [Route Handler](/docs/app/api-reference/file-conventions/route).
+You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions). Server Functions run on the server, where they can update a database, filesystem, or other data source, and can be invoked from forms or event handlers.
 
-For Next.js-specific behaviors (single-roundtrip response, sequential dispatch, security, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
+This page walks you through [creating](#creating-server-functions) and [invoking](#invoking-server-functions) Server Functions, updating the UI and cached data after a mutation, and showing pending and error states while it runs. For writes initiated by an external caller, such as a webhook, use a [Route Handler](/docs/app/getting-started/route-handlers-and-proxy).
+
+For Next.js-specific behavior (single-roundtrip responses, sequential dispatch, security, and deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
 
 ## What are Server Functions?
 
