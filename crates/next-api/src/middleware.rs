@@ -387,6 +387,7 @@ impl Endpoint for MiddlewareEndpoint {
                 .resolved_cell(),
                 output_assets: output_assets.to_resolved().await?,
                 project: this.project,
+                server_hmr_chunks: None,
             }
             .cell())
         }

@@ -3,18 +3,23 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ReadRef,
+    ResolvedVc, State, TaskInput, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
     trace::TraceRawVcs,
     turbo_tasks,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
+    asset::Asset,
+    output::OutputAsset,
     update_instruction::UpdateInstruction,
     version::{PartialUpdate, Update, Version},
 };
@@ -27,10 +32,44 @@ use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
     EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
 };
 
+use crate::route::EndpointOutput;
+
+/// Canonical JSON key identifying a Next.js entrypoint by router, side, and page.
+#[derive(Clone, Debug, Decode, Encode, Eq, Hash, NonLocalValue, PartialEq, TraceRawVcs)]
+pub struct ServerHmrEntryKey(RcStr);
+
+impl TaskInput for ServerHmrEntryKey {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+
+impl ServerHmrEntryKey {
+    pub fn new(value: RcStr) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrChunkList {
-    pub relative_path: RcStr,
+    pub path: FileSystemPath,
     pub versioned_content: ResolvedVc<EcmascriptBuildNodeChunkListContent>,
+}
+
+impl ServerHmrChunkList {
+    /// `chunk_list` must be an `EcmascriptBuildNodeChunkList`; only its content type carries the
+    /// per-chunk versions the aggregate diff needs.
+    pub async fn from_chunk_list(chunk_list: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Self> {
+        let path = chunk_list.path().owned().await?;
+        let content = chunk_list.versioned_content().to_resolved().await?;
+        let versioned_content =
+            ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
+                .with_context(|| format!("server HMR entry {path} is not a Node.js chunk list"))?;
+        Ok(Self {
+            path,
+            versioned_content,
+        })
+    }
 }
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
@@ -45,10 +84,45 @@ impl ServerHmrChunkLists {
     pub fn as_slice(&self) -> &[ServerHmrChunkList] {
         &self.0
     }
+}
 
-    pub fn retain_entry_paths(&mut self, entry_paths: &FxIndexSet<RcStr>) {
-        self.0
-            .retain(|chunk_list| entry_paths.contains(&chunk_list.relative_path));
+#[derive(Debug)]
+pub struct ServerHmrEntryMap {
+    entries: State<FxIndexMap<ServerHmrEntryKey, GcRoot<EndpointOutput>>>,
+}
+
+unsafe impl OperationValue for ServerHmrEntryKey {}
+
+impl Default for ServerHmrEntryMap {
+    fn default() -> Self {
+        Self {
+            entries: State::new(FxIndexMap::default()),
+        }
+    }
+}
+
+impl PartialEq for ServerHmrEntryMap {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
+impl Eq for ServerHmrEntryMap {}
+
+impl ServerHmrEntryMap {
+    pub fn set(&self, entry_key: ServerHmrEntryKey, output: OperationVc<EndpointOutput>) {
+        let output = GcRoot::pin(turbo_tasks(), output);
+        self.entries.update_conditionally(|entries| {
+            if entries.get(&entry_key) == Some(&output) {
+                return false;
+            }
+            entries.insert(entry_key, output);
+            true
+        });
+    }
+
+    pub fn get(&self, entry_key: &ServerHmrEntryKey) -> Option<OperationVc<EndpointOutput>> {
+        self.entries.get().get(entry_key).map(|output| **output)
     }
 }
 
@@ -56,7 +130,7 @@ impl ServerHmrChunkLists {
 #[derive(Debug)]
 pub struct ServerHmrChunkListVersion {
     #[turbo_tasks(trace_ignore)]
-    pub versions_by_chunk_list_path: FxIndexMap<RcStr, ReadRef<ChunkListVersion>>,
+    pub versions_by_chunk_list_path: FxIndexMap<FileSystemPath, ReadRef<ChunkListVersion>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -66,7 +140,7 @@ impl Version for ServerHmrChunkListVersion {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_value(self.versions_by_chunk_list_path.len());
         for (path, version) in &self.versions_by_chunk_list_path {
-            hasher.write_value(path.as_str());
+            hasher.write_value(path.path.as_str());
             hasher.write_value(version.id.as_str());
         }
         Ok(Vc::cell(encode_base64(hasher.finish()).into()))
@@ -78,11 +152,11 @@ impl ServerHmrChunkListVersion {
         let versions_by_chunk_list_path = chunk_lists
             .iter()
             .map(|chunk_list| {
-                let relative_path = chunk_list.relative_path.clone();
+                let path = chunk_list.path.clone();
                 let versioned_content = chunk_list.versioned_content;
                 async move {
                     let version = versioned_content.version().await?;
-                    anyhow::Ok((relative_path, version))
+                    anyhow::Ok((path, version))
                 }
             })
             .try_join()
@@ -207,7 +281,7 @@ async fn diff_chunks_against(
 ) -> Result<DiffResult> {
     let current_chunk_list_paths = chunk_lists
         .iter()
-        .map(|chunk_list| &chunk_list.relative_path)
+        .map(|chunk_list| &chunk_list.path)
         .collect::<FxIndexSet<_>>();
     let has_removed_chunk_lists = from
         .versions_by_chunk_list_path
@@ -218,16 +292,15 @@ async fn diff_chunks_against(
         .iter()
         .filter_map(
             |ServerHmrChunkList {
-                 relative_path,
+                 path,
                  versioned_content,
              }| {
                 if *TRACE_DIFFING {
                     turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
-                        chunk_list_path: relative_path.clone(),
+                        chunk_list_path: path.path.clone(),
                     }));
                 }
-                let Some(prev) = from.versions_by_chunk_list_path.get(relative_path).cloned()
-                else {
+                let Some(prev) = from.versions_by_chunk_list_path.get(path).cloned() else {
                     has_new_chunk_lists = true;
                     return None;
                 };
@@ -334,8 +407,20 @@ pub async fn compute_server_hmr_update(
 
 #[cfg(test)]
 mod tests {
-    use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef};
-    use turbopack_core::update_instruction::UpdateInstruction;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use anyhow::Result;
+    use turbo_tasks::{
+        FxIndexMap, FxIndexSet, OperationVc, ReadRef, ResolvedVc, State, TransientInstance, Vc,
+    };
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbopack_core::{
+        asset::AssetContent, update_instruction::UpdateInstruction, version::Version,
+        virtual_output::VirtualOutputAsset,
+    };
     use turbopack_ecmascript::chunk_list::{
         merged_update::{
             EcmascriptMergedChunkDeleted, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
@@ -345,8 +430,280 @@ mod tests {
 
     use super::{
         ChunkListMembershipChange, ChunkListUpdateBuilder, ServerHmrChunkListVersion,
-        ServerHmrChunkUpdate, ServerHmrUpdate, classify_server_hmr_update,
+        ServerHmrChunkUpdate, ServerHmrEntryKey, ServerHmrEntryMap, ServerHmrUpdate,
+        classify_server_hmr_update,
     };
+    use crate::{
+        project::{
+            DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
+            ProjectOptions, WatchOptions,
+        },
+        route::{EndpointOutput, EndpointOutputPaths},
+    };
+
+    #[derive(turbo_tasks::NonLocalValue, turbo_tasks::trace::TraceRawVcs)]
+    struct EndpointInputs {
+        content: State<super::RcStr>,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    fn current_project(container: OperationVc<ProjectContainer>) -> Vc<Project> {
+        container.connect().project()
+    }
+
+    #[turbo_tasks::function(operation)]
+    async fn changing_endpoint_output(
+        project: ResolvedVc<Project>,
+        inputs: TransientInstance<EndpointInputs>,
+    ) -> Result<Vc<EndpointOutput>> {
+        let root = project.node_root().owned().await?;
+        let asset = VirtualOutputAsset::new(
+            root.join("app/test.js")?,
+            AssetContent::file(
+                turbo_tasks_fs::FileContent::Content(turbo_tasks_fs::File::from(
+                    inputs.content.get().to_string(),
+                ))
+                .cell(),
+            ),
+        );
+        let assets = ResolvedVc::cell(vec![ResolvedVc::upcast(asset.to_resolved().await?)]);
+        let content = super::EcmascriptBuildNodeChunkListContent::new_from_chunks(
+            project.server_chunking_context(false),
+            *assets,
+        )
+        .to_resolved()
+        .await?;
+        Ok(EndpointOutput {
+            output_assets: assets,
+            output_paths: EndpointOutputPaths::NotFound.resolved_cell(),
+            project,
+            server_hmr_chunks: Some(
+                super::ServerHmrChunkLists::new(vec![super::ServerHmrChunkList {
+                    path: root.join("app/test.js")?,
+                    versioned_content: content,
+                }])
+                .resolved_cell(),
+            ),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn read_chunk_list_version(
+        project: ResolvedVc<Project>,
+        entry_key: ServerHmrEntryKey,
+        reads: TransientInstance<AtomicUsize>,
+    ) -> Result<Vc<super::RcStr>> {
+        reads.fetch_add(1, Ordering::SeqCst);
+        let chunks = project.await?.server_hmr_chunk_lists(&entry_key).await?;
+        let version = ServerHmrChunkListVersion::from_chunk_lists(chunks.as_slice()).await?;
+        Ok(version.cell().id())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn registry_snapshots_follow_content_and_replacement() {
+        let directory = tempfile::tempdir().unwrap();
+        let tasks = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tasks
+            .run_once(async move {
+                let container = ProjectContainer::new_operation("hmr-registry-test".into(), true);
+                ProjectContainer::initialize(
+                    container,
+                    ProjectOptions {
+                        root_path: directory.path().to_string_lossy().into_owned().into(),
+                        project_path: "".into(),
+                        next_config: r#"{"distDir":".next/dev","distDirRoot":".next"}"#.into(),
+                        env: vec![],
+                        define_env: DefineEnv {
+                            client: vec![],
+                            edge: vec![],
+                            nodejs: vec![],
+                        },
+                        watch: WatchOptions {
+                            enable: false,
+                            poll_interval: None,
+                        },
+                        dev: true,
+                        encryption_key: "test".into(),
+                        build_id: "test".into(),
+                        preview_props: DraftModeOptions {
+                            preview_mode_id: "test".into(),
+                            preview_mode_encryption_key: "test".into(),
+                            preview_mode_signing_key: "test".into(),
+                        },
+                        browserslist_query: "last 1 Chrome version".into(),
+                        no_mangling: false,
+                        write_routes_hashes_manifest: false,
+                        current_node_js_version: "22.0.0".into(),
+                        debug_build_paths: None,
+                        deferred_entries: None,
+                        is_persistent_caching_enabled: false,
+                        next_version: "test".into(),
+                        server_hmr: true,
+                    },
+                )
+                .await?;
+                let project = current_project(container)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let first = TransientInstance::new(EndpointInputs {
+                    content: State::new("first".into()),
+                });
+                let second = TransientInstance::new(EndpointInputs {
+                    content: State::new("second".into()),
+                });
+                let other = TransientInstance::new(EndpointInputs {
+                    content: State::new("other".into()),
+                });
+                let route = ServerHmrEntryKey::new("route".into());
+                let other_route = ServerHmrEntryKey::new("other-route".into());
+                let reads = TransientInstance::new(AtomicUsize::new(0));
+                let other_reads = TransientInstance::new(AtomicUsize::new(0));
+                let snapshot = read_chunk_list_version(project, route.clone(), reads.clone());
+                let other_snapshot =
+                    read_chunk_list_version(project, other_route.clone(), other_reads.clone());
+                let empty = snapshot.read_strongly_consistent().await?;
+                project.await?.register_server_hmr_entry(
+                    route.clone(),
+                    changing_endpoint_output(project, first.clone()),
+                );
+                project.await?.register_server_hmr_entry(
+                    other_route,
+                    changing_endpoint_output(project, other.clone()),
+                );
+                let initial = snapshot.read_strongly_consistent().await?;
+                assert_ne!(initial, empty);
+                let other_initial = other_snapshot.read_strongly_consistent().await?;
+                let other_reads_before = other_reads.load(Ordering::SeqCst);
+
+                first.content.set("edited".into());
+                let edited = snapshot.read_strongly_consistent().await?;
+                assert_ne!(edited, initial);
+                assert_eq!(
+                    other_snapshot.read_strongly_consistent().await?,
+                    other_initial
+                );
+                assert_eq!(other_reads.load(Ordering::SeqCst), other_reads_before);
+
+                project.await?.register_server_hmr_entry(
+                    route.clone(),
+                    changing_endpoint_output(project, second.clone()),
+                );
+                let replaced = snapshot.read_strongly_consistent().await?;
+                assert_ne!(replaced, edited);
+                let reads_before = reads.load(Ordering::SeqCst);
+                first.content.set("obsolete".into());
+                other.content.set("unrelated".into());
+                assert_eq!(snapshot.read_strongly_consistent().await?, replaced);
+                assert_eq!(reads.load(Ordering::SeqCst), reads_before);
+                second.content.set("replacement edited".into());
+                let latest = snapshot.read_strongly_consistent().await?;
+                assert_ne!(latest, replaced);
+
+                container
+                    .resolve()
+                    .strongly_consistent()
+                    .await?
+                    .update(PartialProjectOptions {
+                        env: Some(vec![("REGISTRY_TEST".into(), "updated".into())]),
+                        ..Default::default()
+                    })
+                    .await?;
+                let updated_project = current_project(container)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let updated_snapshot =
+                    read_chunk_list_version(updated_project, route.clone(), reads.clone());
+                assert_eq!(updated_snapshot.read_strongly_consistent().await?, empty);
+                updated_project.await?.register_server_hmr_entry(
+                    route,
+                    changing_endpoint_output(updated_project, second.clone()),
+                );
+                assert_eq!(updated_snapshot.read_strongly_consistent().await?, latest);
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn registry_can_register_outside_task_execution() {
+        let tasks = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let registry = turbo_tasks::run_once(tasks.clone(), async {
+            anyhow::Ok(Arc::new(ServerHmrEntryMap::default()))
+        })
+        .await
+        .unwrap();
+
+        let output = tasks
+            .run_once(async {
+                let container = ProjectContainer::new_operation("hmr-registry-test".into(), true);
+                ProjectContainer::initialize(
+                    container,
+                    ProjectOptions {
+                        root_path: "".into(),
+                        project_path: "".into(),
+                        next_config: r#"{"distDir":".next/dev","distDirRoot":".next"}"#.into(),
+                        env: vec![],
+                        define_env: DefineEnv {
+                            client: vec![],
+                            edge: vec![],
+                            nodejs: vec![],
+                        },
+                        watch: WatchOptions {
+                            enable: false,
+                            poll_interval: None,
+                        },
+                        dev: true,
+                        encryption_key: "test".into(),
+                        build_id: "test".into(),
+                        preview_props: DraftModeOptions {
+                            preview_mode_id: "test".into(),
+                            preview_mode_encryption_key: "test".into(),
+                            preview_mode_signing_key: "test".into(),
+                        },
+                        browserslist_query: "last 1 Chrome version".into(),
+                        no_mangling: false,
+                        write_routes_hashes_manifest: false,
+                        current_node_js_version: "22.0.0".into(),
+                        debug_build_paths: None,
+                        deferred_entries: None,
+                        is_persistent_caching_enabled: false,
+                        next_version: "test".into(),
+                        server_hmr: true,
+                    },
+                )
+                .await?;
+                let project = current_project(container)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                anyhow::Ok(changing_endpoint_output(
+                    project,
+                    TransientInstance::new(EndpointInputs {
+                        content: State::new("first".into()),
+                    }),
+                ))
+            })
+            .await
+            .unwrap();
+
+        let registered = turbo_tasks::run(tasks, async move {
+            registry.set(ServerHmrEntryKey::new("route".into()), output);
+            anyhow::Ok(registry.get(&ServerHmrEntryKey::new("route".into())))
+        })
+        .await
+        .unwrap();
+        assert_eq!(registered, Some(output));
+    }
 
     fn version() -> ReadRef<ServerHmrChunkListVersion> {
         ReadRef::new_owned(ServerHmrChunkListVersion {
