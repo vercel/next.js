@@ -98,6 +98,27 @@ export function getPkgManager(baseDir: string): PackageManager {
   }
 }
 
+/**
+ * Get the command that runs a package without installing it, for the given
+ * package manager. `cwd` is only used to probe for `yarn dlx`, which Yarn 1
+ * doesn't have.
+ */
+export function getNpxCommand(pkgManager: PackageManager, cwd: string): string {
+  let command = 'npx --yes'
+  if (pkgManager === 'pnpm') {
+    command = 'pnpm --silent dlx'
+  } else if (pkgManager === 'yarn') {
+    try {
+      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
+      command = 'yarn --quiet dlx'
+    } catch {}
+  } else if (pkgManager === 'bun') {
+    command = 'bunx'
+  }
+
+  return command
+}
+
 export function uninstallPackage(
   packageToUninstall: string,
   pkgManager?: PackageManager
