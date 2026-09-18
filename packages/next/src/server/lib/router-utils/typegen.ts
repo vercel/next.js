@@ -429,8 +429,11 @@ declare module 'next/form' {
 `
 }
 
-const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
-type ParamMatchFragment<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
+// Object literals and unannotated generator returns widen their mode values to
+// string. Runtime validation checks those values; generated types still enforce
+// the parameter scope and mutually exclusive export forms. Users can opt into
+// contextual mode checking with `satisfies ParamMatching` from 'next'.
+const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type ParamMatchFragment<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], string>>
 type ParamMatchingExports<Route extends keyof ParamMap> =
   | { experimental_paramMatching?: ParamMatchFragment<Route>; experimental_generateParamMatching?: never }
   | { experimental_paramMatching?: never; experimental_generateParamMatching?: () => Promise<ParamMatchFragment<Route>> | ParamMatchFragment<Route> }

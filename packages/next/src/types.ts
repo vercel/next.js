@@ -18,6 +18,7 @@ import type {
   NextApiHandler,
 } from './shared/lib/utils'
 import type { GetStaticPathsFallback } from './lib/fallback'
+import type { PrerenderParamMode } from './build/segment-config/app/app-segments'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -41,6 +42,15 @@ export type {
 } from './lib/metadata/types/metadata-interface'
 
 export type { Instant } from './build/segment-config/app/app-segment-config'
+
+/**
+ * Optional contextual typing for parameter matching exports. Use
+ * `satisfies ParamMatching` to check modes without widening the object's keys,
+ * or provide parameter names for an explicit type annotation.
+ */
+export type ParamMatching<ParamName extends string = string> = Partial<
+  Record<ParamName, PrerenderParamMode>
+>
 
 export type { Instrumentation } from './server/instrumentation/types'
 export type {

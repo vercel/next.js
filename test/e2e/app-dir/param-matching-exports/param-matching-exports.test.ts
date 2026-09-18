@@ -61,6 +61,11 @@ describe('param-matching-exports', () => {
       'Invalid mode for parameter "lang"',
     ],
     [
+      'static-invalid-mode',
+      'experimental_paramMatching',
+      'Invalid mode for parameter "lang"',
+    ],
+    [
       'generated-null',
       'experimental_generateParamMatching',
       'Expected an object, but received null',
