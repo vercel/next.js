@@ -279,13 +279,16 @@ async fn chunk_group_content_operation(
         collecting_modules: FxIndexSet::default(),
     };
 
+    let chunk_group_info = module_graph.chunk_group_info();
+    let chunk_group_index = *chunk_group_info.get_index_of(chunk_group.clone()).await?;
+    let chunk_group_info = chunk_group_info.await?;
     let available_modules = match availability_info.available_modules() {
         Some(available_modules) => Some(available_modules.snapshot().await?),
         None => None,
     };
 
-    let entries = chunk_group
-        .entries()
+    let entries = module_batches_graph
+        .get_ordered_entries(&chunk_group_info, chunk_group_index)
         .map(|entry| module_batches_graph.get_entry_index(entry))
         .try_join()
         .await?;

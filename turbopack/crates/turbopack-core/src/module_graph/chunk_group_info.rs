@@ -87,8 +87,22 @@ impl Hash for RoaringBitmapWrapper {
 pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
 
 #[turbo_tasks::value]
+pub struct ChunkGroupWithIndex {
+    pub index: u32,
+    pub chunk_group: ChunkGroup,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkGroups(Vec<ChunkGroupWithIndex>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionChunkGroupWithIndex(Option<ChunkGroupWithIndex>);
+
+#[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
+    /// For each async module, the chunk groups that contain its async loader.
+    pub async_loader_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
@@ -156,6 +170,76 @@ impl ChunkGroupInfo {
                 bail!("Couldn't find chunk group index")
             }
         }
+    }
+
+    /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
+    /// graph.
+    #[turbo_tasks::function]
+    pub async fn chunk_groups_for_module(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroups>> {
+        let module_chunk_groups = self.module_chunk_groups.await?;
+        let Some(groups) = module_chunk_groups.get(&module) else {
+            return Ok(Vc::cell(Vec::new()));
+        };
+        Ok(Vc::cell(
+            groups
+                .iter()
+                .map(|index| ChunkGroupWithIndex {
+                    index,
+                    chunk_group: self.chunk_groups[index as usize].clone(),
+                })
+                .collect(),
+        ))
+    }
+
+    /// Returns the first graph-derived group in which `module` is itself an entry.
+    #[turbo_tasks::function]
+    pub async fn chunk_group_for_entry_module(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroupWithIndex>> {
+        let module_chunk_groups = self.module_chunk_groups.await?;
+        let Some(groups) = module_chunk_groups.get(&module) else {
+            bail!("Module is not part of any chunk group");
+        };
+        for index in groups.iter() {
+            let chunk_group = &self.chunk_groups[index as usize];
+            if chunk_group.entries().any(|entry| entry == module) {
+                return Ok(ChunkGroupWithIndex {
+                    index,
+                    chunk_group: chunk_group.clone(),
+                }
+                .cell());
+            }
+        }
+        bail!("Module is not an entry of any chunk group")
+    }
+
+    /// Returns the shared merged chunk group with `merge_tag` that `parent` is the parent of, if
+    /// the graph produced one.
+    ///
+    /// A merge tag collects everything reachable through the tagged shared references of one
+    /// parent group into a single group, so there is at most one such group per parent and tag.
+    #[turbo_tasks::function]
+    pub fn shared_merged_chunk_group(
+        &self,
+        parent: usize,
+        merge_tag: RcStr,
+    ) -> Vc<OptionChunkGroupWithIndex> {
+        let key = ChunkGroupKey::SharedMerged {
+            parent: ChunkGroupId::from(parent),
+            merge_tag,
+        };
+        Vc::cell(
+            self.chunk_group_keys
+                .get_index_of(&key)
+                .map(|index| ChunkGroupWithIndex {
+                    index: index as u32,
+                    chunk_group: self.chunk_groups[index].clone(),
+                }),
+        )
     }
 }
 
@@ -520,6 +604,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         // that module is part of.
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
+        let mut async_loader_chunk_groups: FxHashMap<
+            ResolvedVc<Box<dyn Module>>,
+            RoaringBitmapWrapper,
+        > = FxHashMap::default();
 
         let module_count = graph
             .graphs
@@ -648,9 +736,19 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let chunk_groups = if let Some((parent, ref_data, _)) = parent_info {
                     match &ref_data.chunking_type {
                         ChunkingType::Parallel { .. } => ChunkGroupInheritance::Inherit(parent),
-                        ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                            std::iter::once(ChunkGroupKey::Async(node)),
-                        )),
+                        ChunkingType::Async => {
+                            // The async loader for `node` is emitted in every chunk group that
+                            // contains the referencing module, so availability checks for async
+                            // loaders can use the same bitmap intersection as regular modules.
+                            let parent_groups = module_chunk_groups
+                                .get(&parent)
+                                .context("Module chunk group not found")?;
+                            **async_loader_chunk_groups.entry(node).or_default() |=
+                                &**parent_groups;
+                            ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                                ChunkGroupKey::Async(node),
+                            )))
+                        }
                         ChunkingType::Isolated {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
@@ -951,6 +1049,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
+            async_loader_chunk_groups: ResolvedVc::cell(async_loader_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,
