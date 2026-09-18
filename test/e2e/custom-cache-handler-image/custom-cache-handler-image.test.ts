@@ -1,12 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('custom-cache-handler-image', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    captureRuntimeLogs: true,
     env: {
       // Set max cache entries to 2 to easily test eviction
       MAX_IMAGE_CACHE_ENTRIES: '2',

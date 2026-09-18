@@ -1,15 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 
 describe('client-max-body-size', () => {
   describe('default 10MB limit', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      // Deployed environment has it's own configured limits.
-      skipDeployment: true,
+      captureRuntimeLogs: true,
     })
-
-    if (skipped) return
 
     it('should accept request body over 10MB but only buffer up to limit', async () => {
       const bodySize = 11 * 1024 * 1024 // 11MB
@@ -31,9 +28,11 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 10MB, not the full 11MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(10 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 10MB for /api/echo'
-      )
+      await retry(() => {
+        expect(next.cliOutput).toContain(
+          'Request body exceeded 10MB for /api/echo'
+        )
+      })
     })
 
     it('should accept request body at exactly 10MB', async () => {
@@ -78,17 +77,15 @@ describe('client-max-body-size', () => {
   })
 
   describe('custom limit with string format', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
+      captureRuntimeLogs: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: '5mb',
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body over custom 5MB limit but only buffer up to limit', async () => {
       const bodySize = 6 * 1024 * 1024 // 6MB
@@ -110,9 +107,11 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 5MB, not the full 6MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(5 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 5MB for /api/echo'
-      )
+      await retry(() => {
+        expect(next.cliOutput).toContain(
+          'Request body exceeded 5MB for /api/echo'
+        )
+      })
     })
 
     it('should accept request body under custom 5MB limit', async () => {
@@ -137,17 +136,15 @@ describe('client-max-body-size', () => {
   })
 
   describe('custom limit with number format', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
+      captureRuntimeLogs: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body over custom 2MB limit but only buffer up to limit', async () => {
       const bodySize = 3 * 1024 * 1024 // 3MB
@@ -169,9 +166,11 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 2MB, not the full 3MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(2 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 2MB for /api/echo'
-      )
+      await retry(() => {
+        expect(next.cliOutput).toContain(
+          'Request body exceeded 2MB for /api/echo'
+        )
+      })
     })
 
     it('should accept request body under custom 2MB limit', async () => {
@@ -196,17 +195,15 @@ describe('client-max-body-size', () => {
   })
 
   describe('large custom limit', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
+      captureRuntimeLogs: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: '50mb',
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body up to 50MB with custom limit', async () => {
       const bodySize = 20 * 1024 * 1024 // 20MB
@@ -248,9 +245,11 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 50MB, not the full 51MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(50 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 50MB for /api/echo'
-      )
+      await retry(() => {
+        expect(next.cliOutput).toContain(
+          'Request body exceeded 50MB for /api/echo'
+        )
+      })
     })
   })
 })
