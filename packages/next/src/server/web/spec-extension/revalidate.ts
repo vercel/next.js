@@ -153,7 +153,7 @@ function revalidate(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':

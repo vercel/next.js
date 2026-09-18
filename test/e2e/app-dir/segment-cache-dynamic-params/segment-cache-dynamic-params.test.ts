@@ -104,6 +104,15 @@ describe('segment cache closed params (dynamicParams = false)', () => {
       await browser.elementByCss('#product-page, #root-not-found').text()
     ).toBe('Allowed product page')
     expect(await browser.hasElementByCss('#root-not-found')).toBe(false)
+
+    // A successful URL must still advertise that other parameter values may
+    // not exist. Check the tree used by the navigation, not just the eventual
+    // 404, which can also be recovered by a full document navigation.
+    const rootHints = await browser.eval(
+      'window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree[4]'
+    )
+    // PrefetchHint is a const enum, so use its HasNotFoundParams bit here.
+    expect((rootHints ?? 0) & 0b1000000000000000).not.toBe(0)
   })
 
   it('does not reuse an allowed route for a parameter value that must 404', async () => {
