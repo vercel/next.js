@@ -928,7 +928,12 @@ export abstract class RouteModule<
       serverUtils.normalizeQueryParams(
         query,
         routeParamKeys,
-        capturedRouteParamKeys
+        // Pages Router captures still need the platform's pathname decode,
+        // including encoded separators in catch-all data requests.
+        this.definition.kind === RouteKind.APP_PAGE ||
+          this.definition.kind === RouteKind.APP_ROUTE
+          ? capturedRouteParamKeys
+          : undefined
       )
     } else {
       serverUtils.filterInternalQuery(query, [])

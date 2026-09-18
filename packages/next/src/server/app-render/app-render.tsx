@@ -9578,11 +9578,13 @@ async function prerenderToStream(
       })
 
       let htmlStream: AnyStream = prelude
-      // A static component tree can still contain unresolved fallback params in
-      // its router state. Record a resume even when no Server Component used
-      // them, so deployments resolve those values for navigations instead of
-      // serving the shared RSC payload with opaque placeholder keys.
-      if (resultIsPartial || (fallbackRouteParams?.size ?? 0) > 0) {
+      // Legacy deployment builders need a resume to avoid serving shared RSC
+      // with unresolved router params. Adapters and the Next server already
+      // handle static fallback shells, so retain their static classification.
+      if (
+        resultIsPartial ||
+        (renderOpts.isLegacyPrerender && (fallbackRouteParams?.size ?? 0) > 0)
+      ) {
         if (postponed != null) {
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
