@@ -1,5 +1,4 @@
 import { defineRule } from '../utils/define-rule'
-import * as path from 'path'
 
 const NEXT_EXPORT_FUNCTIONS = [
   'getStaticProps',
@@ -72,8 +71,13 @@ export default defineRule({
     }
     return {
       ExportNamedDeclaration(node) {
-        const page = context.filename.split('pages', 2)[1]
-        if (!page || path.parse(page).dir.startsWith('/api')) {
+        // `context.filename` uses the platform separator, so normalize it
+        // before matching. On Windows the path is `pages\api\route.js`, which
+        // no `/api` check would ever match.
+        const page = context.filename.replace(/\\/g, '/').split('pages', 2)[1]
+        // Data fetching functions don't apply to API routes. Match the `api`
+        // segment exactly, so that `pages/apixyz/page.js` is still checked.
+        if (!page || page.startsWith('/api/')) {
           return
         }
 
