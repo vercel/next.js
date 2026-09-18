@@ -138,6 +138,7 @@ impl ModuleReference for EcmascriptModulePartReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: self.export_usage.clone(),
+            evaluation_timing: Default::default(),
         }
     }
 }

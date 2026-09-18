@@ -161,6 +161,7 @@ impl ModuleReference for LazyCompilationReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: ExportUsage::All,
+            evaluation_timing: Default::default(),
         }
     }
 }

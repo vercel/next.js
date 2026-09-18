@@ -114,6 +114,7 @@ impl ModuleReference for SingleChunkableModuleReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: self.export.clone(),
+            evaluation_timing: Default::default(),
         }
     }
 }

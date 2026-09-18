@@ -1,7 +1,7 @@
 use bumpalo::boxed::Box as BumpBox;
 use swc_core::{atoms::Atom, common::Span, ecma::visit::fields::*};
 use turbo_rcstr::RcStr;
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, ModuleEvaluationTiming};
 
 use crate::{
     analyzer::{Bump, BumpVec, JsValue},
@@ -133,6 +133,7 @@ pub enum Effect<'a> {
         span: Span,
         in_try: bool,
         new: bool,
+        evaluation_timing: ModuleEvaluationTiming,
     },
     /// A function call or a new call of a property of an object.
     MemberCall {
@@ -143,6 +144,7 @@ pub enum Effect<'a> {
         span: Span,
         in_try: bool,
         new: bool,
+        evaluation_timing: ModuleEvaluationTiming,
     },
     /// A property access.
     Member {
@@ -206,6 +208,7 @@ pub enum Effect<'a> {
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
+        evaluation_timing: ModuleEvaluationTiming,
         /// The export usage extracted from the usage pattern.
         export_usage: ExportUsage,
     },
