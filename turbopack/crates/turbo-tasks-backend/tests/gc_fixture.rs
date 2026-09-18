@@ -78,9 +78,9 @@ pub fn create_generation() -> Vc<Generation> {
 
 /// Children per interior node in [`wide_root`]'s tree.
 ///
-/// The tree has to be deep enough for `effective` to cross `LEAF_NUMBER`, which is the transition
-/// that converts a node's children into `followers`. A flat tree never gets there no matter how
-/// wide, so the previous fixture produced zero follower edges and left the rebalance path untested.
+/// The tree must be deep enough for `effective` to cross `LEAF_NUMBER`, the transition that
+/// converts a node's children into `followers`. A flat tree never gets there however wide it is,
+/// and so exercises no follower edges.
 pub const BRANCHING: u32 = 4;
 
 /// A leaf keyed by (generation, index).
@@ -91,8 +91,8 @@ pub fn leaf(generation: u32, index: u32) -> Vc<u32> {
 
 /// One interior node of the tree, covering `[index, index + span)`.
 ///
-/// Recurses until the span fits in a single [`leaf`], so the garbage from one generation is a
-/// genuine multi-level subtree rather than a two-layer fan-out.
+/// Recurses until the span fits in a single [`leaf`], making one generation's garbage a
+/// multi-level subtree rather than a two-layer fan-out.
 #[turbo_tasks::function]
 pub async fn subtree(generation: u32, index: u32, span: u32) -> Result<Vc<u32>> {
     if span <= 1 {
