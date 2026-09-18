@@ -2,17 +2,18 @@ import { createRequire } from 'module'
 
 let installed: boolean = false
 
-export function loadWebpackHook() {
+export function loadWebpackHook(webpackProjectDir: string) {
   if (installed) {
     return
   }
   installed = true
 
-  // hook the Node.js require so that webpack requires are
-  // routed to the bundled and now initialized webpack version
-  ;(
+  const requireHook =
     require('../server/require-hook') as typeof import('../server/require-hook')
-  ).addHookAliases(
+
+  // Hook Node.js require so webpack imports use the bundled version by
+  // default, or the project version when NEXT_PRIVATE_LOCAL_WEBPACK is set.
+  requireHook.addHookAliases(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/package', 'next/dist/compiled/webpack/package'],
@@ -143,14 +144,11 @@ export function loadWebpackHook() {
       ([request, replacement]) => [request, require.resolve(replacement)]
     )
   )
-}
 
-export function loadCustomWebpackHook(webpackProjectDir: string) {
-  // Ensure the require hook and its bundled webpack aliases are initialized.
-  loadWebpackHook()
+  if (!process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+    return
+  }
 
-  const requireHook =
-    require('../server/require-hook') as typeof import('../server/require-hook')
   const isWebpackAlias = (request: string) =>
     request === 'webpack' ||
     request.startsWith('webpack/') ||
@@ -189,6 +187,7 @@ export function loadCustomWebpackHook(webpackProjectDir: string) {
     // Leave the process using bundled webpack when custom webpack could not be
     // activated. This matters when callers catch and report the config error.
     requireHook.addHookAliases(previousAliases)
+    installed = false
     throw new Error(
       '`--custom-webpack` requires webpack to be installed in your project. Install it with `npm install --save-dev webpack`.',
       { cause }

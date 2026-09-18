@@ -28,7 +28,7 @@ import type {
   NextConfigRuntime,
 } from './config-shared'
 
-import { loadCustomWebpackHook, loadWebpackHook } from './config-utils'
+import { loadWebpackHook } from './config-utils'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
@@ -1993,11 +1993,7 @@ async function loadConfigImpl(
   // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
-      if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
-        loadCustomWebpackHook(dir)
-      } else {
-        loadWebpackHook()
-      }
+      loadWebpackHook(dir)
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included
