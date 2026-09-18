@@ -1147,7 +1147,7 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::{SpecificTaskDataCategory, Storage, TrackOutcome};
-    use crate::backing_storage::SnapshotItem;
+    use crate::backing_storage::{EncodedTaskData, SnapshotItem};
 
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
@@ -1175,7 +1175,10 @@ mod tests {
     ) -> SnapshotItem {
         SnapshotItem::Put {
             task_id,
-            meta: Some(TurboBincodeBuffer::default()),
+            meta: Some(EncodedTaskData {
+                bytes: TurboBincodeBuffer::default(),
+                interned_strings: Default::default(),
+            }),
             data: None,
             task_type_hash: None,
         }

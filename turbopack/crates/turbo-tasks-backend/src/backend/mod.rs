@@ -33,7 +33,11 @@ use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
-use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
+use turbo_bincode::{
+    InternedStringKey, InternedStringResolver, TurboBincodeBuffer,
+    new_turbo_bincode_decoder_with_interned_strings,
+    new_turbo_bincode_encoder_with_interned_strings,
+};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
     ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
@@ -77,7 +81,7 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, compute_task_type_hash},
+    backing_storage::{EncodedTaskData, InternedStrings, SnapshotItem, compute_task_type_hash},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -1378,7 +1382,7 @@ impl TurboTasksBackend {
                                    data: &TaskStorage,
                                    category: SpecificTaskDataCategory,
                                    buffer: &mut TurboBincodeBuffer|
-             -> Option<TurboBincodeBuffer> {
+             -> Option<EncodedTaskData> {
                 match encode_task_data(task_id, data, category, buffer) {
                     Ok(encoded) => {
                         #[cfg(feature = "print_cache_item_size")]
@@ -1386,8 +1390,8 @@ impl TurboTasksBackend {
                             let mut stats = task_cache_stats.lock();
                             let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
                             match category {
-                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
-                                SpecificTaskDataCategory::Data => entry.add_data(&encoded),
+                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded.bytes),
+                                SpecificTaskDataCategory::Data => entry.add_data(&encoded.bytes),
                             }
                         }
                         Some(encoded)
@@ -4163,16 +4167,38 @@ fn encode_task_data(
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
     scratch_buffer: &mut TurboBincodeBuffer,
-) -> Result<TurboBincodeBuffer> {
+) -> Result<EncodedTaskData> {
     scratch_buffer.clear();
-    let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
+    let mut interned_strings = InternedStrings::default();
+    let mut encoder =
+        new_turbo_bincode_encoder_with_interned_strings(scratch_buffer, &mut interned_strings);
     data.encode(category, &mut encoder)?;
 
     if cfg!(feature = "verify_serialization") {
+        struct CollectedResolver<'a>(&'a InternedStrings);
+        impl InternedStringResolver for CollectedResolver<'_> {
+            fn resolve(
+                &self,
+                key: InternedStringKey,
+                receiver: &mut dyn FnMut(&(dyn std::any::Any + Send + Sync)),
+            ) -> Result<(), bincode::error::DecodeError> {
+                let value = self.0.get(&key).ok_or_else(|| {
+                    bincode::error::DecodeError::OtherString(format!(
+                        "missing collected interned string {key:?}"
+                    ))
+                })?;
+                receiver(value);
+                Ok(())
+            }
+        }
+
         TaskStorage::new()
             .decode(
                 category,
-                &mut new_turbo_bincode_decoder(&scratch_buffer[..]),
+                &mut new_turbo_bincode_decoder_with_interned_strings(
+                    &scratch_buffer[..],
+                    &CollectedResolver(&interned_strings),
+                ),
             )
             .with_context(|| {
                 format!(
@@ -4181,5 +4207,8 @@ fn encode_task_data(
                 )
             })?;
     }
-    Ok(SmallVec::from_slice(scratch_buffer))
+    Ok(EncodedTaskData {
+        bytes: SmallVec::from_slice(scratch_buffer),
+        interned_strings,
+    })
 }

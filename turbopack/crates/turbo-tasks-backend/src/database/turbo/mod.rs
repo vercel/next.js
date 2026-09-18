@@ -26,7 +26,7 @@ mod parallel_scheduler;
 pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
 
 /// Number of key families, see [`KeySpace`] enum for their numbers.
-pub const FAMILIES: usize = 4;
+pub const FAMILIES: usize = 7;
 
 const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 

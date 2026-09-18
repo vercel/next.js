@@ -1,12 +1,60 @@
-use std::cmp::max;
+use std::{any::Any, cmp::max};
 
-use turbo_bincode::TurboBincodeBuffer;
+use bincode::error::EncodeError;
+use smallvec::SmallVec;
+use turbo_bincode::{InternedStringCollector, InternedStringKey, TurboBincodeBuffer};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 pub type TaskTypeHash = [u8; 8];
+
+#[derive(Default)]
+pub struct InternedStrings(SmallVec<[(InternedStringKey, RcStr); 1]>);
+
+impl InternedStrings {
+    pub fn get(&self, key: &InternedStringKey) -> Option<&RcStr> {
+        self.0
+            .iter()
+            .find_map(|(entry_key, value)| (entry_key == key).then_some(value))
+    }
+
+    pub fn into_entries(self) -> impl Iterator<Item = (InternedStringKey, RcStr)> {
+        self.0.into_iter()
+    }
+}
+
+impl InternedStringCollector for InternedStrings {
+    fn insert(
+        &mut self,
+        key: InternedStringKey,
+        value: &(dyn Any + Send + Sync),
+    ) -> Result<(), EncodeError> {
+        let value = value.downcast_ref::<RcStr>().ok_or_else(|| {
+            EncodeError::OtherString(
+                "FileSystemPath collector received the wrong value type".into(),
+            )
+        })?;
+        if let Some(existing) = self.get(&key) {
+            if existing != value {
+                return Err(EncodeError::OtherString(format!(
+                    "interned string identity collision for {key:?}"
+                )));
+            }
+        } else {
+            self.0.push((key, value.clone()));
+        }
+        Ok(())
+    }
+}
+
+/// One independently encoded task-data record and the external strings it references.
+pub struct EncodedTaskData {
+    pub bytes: TurboBincodeBuffer,
+    pub interned_strings: InternedStrings,
+}
 
 /// A single item yielded by the snapshot iterator during persistence: either a put (persist a
 /// modified task's meta/data + optionally register a new task's type) or a delete (tombstone a
@@ -16,9 +64,9 @@ pub enum SnapshotItem {
     Put {
         task_id: TaskId,
         /// Serialized task meta data, if modified
-        meta: Option<TurboBincodeBuffer>,
+        meta: Option<EncodedTaskData>,
         /// Serialized task data, if modified
-        data: Option<TurboBincodeBuffer>,
+        data: Option<EncodedTaskData>,
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
     },

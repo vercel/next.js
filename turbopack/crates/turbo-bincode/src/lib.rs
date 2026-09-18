@@ -2,7 +2,7 @@
 pub mod macro_helpers;
 pub mod serde_self_describing;
 
-use std::{any::Any, ptr::copy_nonoverlapping};
+use std::{any::Any, mem::transmute, ptr::copy_nonoverlapping};
 
 use ::smallvec::SmallVec;
 use bincode::{
@@ -29,12 +29,99 @@ pub type TurboBincodeDecoder<'a> =
 pub type AnyEncodeFn = fn(&dyn Any, &mut TurboBincodeEncoder<'_>) -> Result<(), EncodeError>;
 pub type AnyDecodeFn<T> = fn(&mut TurboBincodeDecoder<'_>) -> Result<T, DecodeError>;
 
+/// A stable reference to a string stored outside of an individual bincode value.
+///
+/// `namespace` identifies the owner of the string table (for example, a filesystem), while `hash`
+/// identifies the string by content within that namespace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct InternedStringKey {
+    pub namespace: [u8; 10],
+    pub hash: [u8; 16],
+}
+
+/// Collects external strings referenced by one independently encoded bincode value.
+///
+/// The value is borrowed and type-erased so a higher-level owner can cheaply clone its concrete
+/// shared-string type without this crate depending on that type or allocating per occurrence.
+pub trait InternedStringCollector {
+    fn insert(
+        &mut self,
+        key: InternedStringKey,
+        value: &(dyn Any + Send + Sync),
+    ) -> Result<(), EncodeError>;
+}
+
+/// Resolves a persistence string reference to its concrete, allocation-sharing value.
+///
+/// The erased return value keeps this low-level crate independent of the concrete shared-string
+/// implementation. Callers must downcast it to the type registered by the resolver.
+pub trait InternedStringResolver: Send + Sync {
+    fn resolve(
+        &self,
+        key: InternedStringKey,
+        receiver: &mut dyn FnMut(&(dyn Any + Send + Sync)),
+    ) -> Result<(), DecodeError>;
+}
+
 pub fn new_turbo_bincode_encoder(buf: &mut TurboBincodeBuffer) -> TurboBincodeEncoder<'_> {
     EncoderImpl::new(TurboBincodeWriter::new(buf), TURBO_BINCODE_CONFIG)
 }
 
+pub fn new_turbo_bincode_encoder_with_interned_strings<'a>(
+    buf: &'a mut TurboBincodeBuffer,
+    interned_strings: &'a mut dyn InternedStringCollector,
+) -> TurboBincodeEncoder<'a> {
+    EncoderImpl::new(
+        TurboBincodeWriter::with_interned_strings(buf, interned_strings),
+        TURBO_BINCODE_CONFIG,
+    )
+}
+
 pub fn new_turbo_bincode_decoder(buffer: &[u8]) -> TurboBincodeDecoder<'_> {
     DecoderImpl::new(TurboBincodeReader::new(buffer), TURBO_BINCODE_CONFIG, ())
+}
+
+pub fn new_turbo_bincode_decoder_with_interned_strings<'a>(
+    buffer: &'a [u8],
+    resolver: &'a dyn InternedStringResolver,
+) -> TurboBincodeDecoder<'a> {
+    DecoderImpl::new(
+        TurboBincodeReader::with_interned_strings(buffer, resolver),
+        TURBO_BINCODE_CONFIG,
+        (),
+    )
+}
+
+/// Runs `f` when `encoder` is the concrete encoder used by turbo persistence.
+///
+/// Hash encoders and other bincode encoders return `None`, allowing callers to preserve a semantic
+/// encoding that is independent of persistence-only string references.
+pub fn with_turbo_bincode_encoder<E: Encoder, T>(
+    encoder: &mut E,
+    f: impl FnOnce(&mut TurboBincodeEncoder<'_>) -> T,
+) -> Option<T> {
+    if unty::type_equal::<E, TurboBincodeEncoder>() {
+        // SAFETY: This is the same type-and-lifetime specialization used by the helper macros in
+        // `macro_helpers`. `type_equal` checks the concrete layout and the reference cannot escape
+        // this function.
+        let encoder = unsafe { transmute::<&mut E, &mut TurboBincodeEncoder<'_>>(encoder) };
+        Some(f(encoder))
+    } else {
+        None
+    }
+}
+
+pub fn with_turbo_bincode_decoder<Context, D: Decoder<Context = Context>, T>(
+    decoder: &mut D,
+    f: impl FnOnce(&mut TurboBincodeDecoder<'_>) -> T,
+) -> Option<T> {
+    if unty::type_equal::<D, TurboBincodeDecoder>() {
+        // SAFETY: See `with_turbo_bincode_encoder`.
+        let decoder = unsafe { transmute::<&mut D, &mut TurboBincodeDecoder<'_>>(decoder) };
+        Some(f(decoder))
+    } else {
+        None
+    }
 }
 
 /// Encode the value into a new [`SmallVec`] using a [`TurboBincodeEncoder`].
@@ -73,11 +160,31 @@ pub fn turbo_bincode_decode<T: Decode<()>>(buf: &[u8]) -> Result<T, DecodeError>
 
 pub struct TurboBincodeWriter<'a> {
     pub buffer: &'a mut TurboBincodeBuffer,
+    interned_strings: Option<&'a mut dyn InternedStringCollector>,
 }
 
 impl<'a> TurboBincodeWriter<'a> {
     pub fn new(buffer: &'a mut TurboBincodeBuffer) -> Self {
-        Self { buffer }
+        Self {
+            buffer,
+            interned_strings: None,
+        }
+    }
+
+    pub fn with_interned_strings(
+        buffer: &'a mut TurboBincodeBuffer,
+        interned_strings: &'a mut dyn InternedStringCollector,
+    ) -> Self {
+        Self {
+            buffer,
+            interned_strings: Some(interned_strings),
+        }
+    }
+
+    pub fn interned_strings_mut(&mut self) -> Option<&mut dyn InternedStringCollector> {
+        self.interned_strings
+            .as_mut()
+            .map(|collector| &mut **collector as &mut dyn InternedStringCollector)
     }
 }
 
@@ -92,11 +199,29 @@ impl Writer for TurboBincodeWriter<'_> {
 /// avoid some redundant bounds checks, and `pub` access to the underlying `buffer`.
 pub struct TurboBincodeReader<'a> {
     pub buffer: &'a [u8],
+    interned_string_resolver: Option<&'a dyn InternedStringResolver>,
 }
 
 impl<'a> TurboBincodeReader<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
-        Self { buffer }
+        Self {
+            buffer,
+            interned_string_resolver: None,
+        }
+    }
+
+    pub fn with_interned_strings(
+        buffer: &'a [u8],
+        resolver: &'a dyn InternedStringResolver,
+    ) -> Self {
+        Self {
+            buffer,
+            interned_string_resolver: Some(resolver),
+        }
+    }
+
+    pub fn interned_string_resolver(&self) -> Option<&dyn InternedStringResolver> {
+        self.interned_string_resolver
     }
 }
 

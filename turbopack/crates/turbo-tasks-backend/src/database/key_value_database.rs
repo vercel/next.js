@@ -6,6 +6,9 @@ pub enum KeySpace {
     TaskMeta = 1,
     TaskData = 2,
     TaskCache = 3,
+    FileSystemPath = 4,
+    TaskMetaPathRefs = 5,
+    TaskDataPathRefs = 6,
 }
 impl KeySpace {
     /// Constructs a [`KeySpace`] from its numeric index (i.e., the `usize` discriminant).
@@ -19,6 +22,9 @@ impl KeySpace {
             1 => KeySpace::TaskMeta,
             2 => KeySpace::TaskData,
             3 => KeySpace::TaskCache,
+            4 => KeySpace::FileSystemPath,
+            5 => KeySpace::TaskMetaPathRefs,
+            6 => KeySpace::TaskDataPathRefs,
             _ => panic!("KeySpace index out of range"),
         }
     }
@@ -29,6 +35,9 @@ impl KeySpace {
             KeySpace::TaskMeta => "TaskMeta",
             KeySpace::TaskData => "TaskData",
             KeySpace::TaskCache => "TaskCache",
+            KeySpace::FileSystemPath => "FileSystemPath",
+            KeySpace::TaskMetaPathRefs => "TaskMetaPathRefs",
+            KeySpace::TaskDataPathRefs => "TaskDataPathRefs",
         }
     }
 
@@ -51,6 +60,13 @@ impl KeySpace {
                 kind: FamilyKind::MultiValue,
                 compression: Compression::Lz4,
             },
+            KeySpace::FileSystemPath | KeySpace::TaskMetaPathRefs | KeySpace::TaskDataPathRefs => {
+                FamilyConfig {
+                    name: self.name(),
+                    kind: FamilyKind::SingleValue,
+                    compression: Compression::Lz4,
+                }
+            }
         }
     }
 }

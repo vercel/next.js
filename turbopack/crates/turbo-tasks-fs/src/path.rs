@@ -4,14 +4,21 @@ use std::{borrow::Cow, error::Error, fmt, path::MAIN_SEPARATOR};
 
 use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
-use bincode::{Decode, Encode};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use indexmap::IndexSet;
+use turbo_bincode::{InternedStringKey, with_turbo_bincode_decoder, with_turbo_bincode_encoder};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
-    turbobail, turbofmt,
+    Completion, NonLocalValue, RawVcUnpacked, ResolvedVc, ValueToString, ValueToStringRef, Vc,
+    trace::TraceRawVcs, turbobail, turbofmt,
 };
-use turbo_tasks_hash::HashAlgorithm;
+use turbo_tasks_hash::{HashAlgorithm, hash_xxh3_hash128};
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, get_relative_request_to, join_path, normalize_path,
 };
@@ -25,11 +32,133 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Hash)]
-#[turbo_tasks::value(shared, task_input)]
+#[turbo_tasks::value(shared, task_input, serialization = "custom")]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
 }
+
+const INLINE_PATH_TAG: u8 = 0;
+const INTERNED_PATH_TAG: u8 = 1;
+const INTERNED_PATH_HASH_BYTES: usize = size_of::<u128>();
+// The backing store tracks each record's external references as an exact 10-byte filesystem cell
+// identity plus the content digest. Include that cost when deciding whether interning saves bytes.
+const INTERNED_PATH_REFERENCE_METADATA_BYTES: usize = 10 + INTERNED_PATH_HASH_BYTES;
+
+fn filesystem_namespace(fs: &ResolvedVc<Box<dyn FileSystem>>) -> Option<[u8; 10]> {
+    match Vc::into_raw(**fs).unpack() {
+        RawVcUnpacked::TaskCell(task, cell) => {
+            let mut identity = [0; 10];
+            identity[..4].copy_from_slice(&(*task).to_le_bytes());
+            identity[4..6].copy_from_slice(&(*cell.type_id()).to_le_bytes());
+            identity[6..].copy_from_slice(&cell.index().to_le_bytes());
+            Some(identity)
+        }
+        RawVcUnpacked::TaskOutput(_) | RawVcUnpacked::LocalOutput(..) => None,
+    }
+}
+
+fn bincode_varint_len(value: usize) -> usize {
+    match value {
+        0..=250 => 1,
+        251..=0xffff => 3,
+        0x1_0000..=0xffff_ffff => 5,
+        _ => 9,
+    }
+}
+
+fn should_intern_path(path: &str) -> bool {
+    bincode_varint_len(path.len()) + path.len()
+        > INTERNED_PATH_HASH_BYTES + INTERNED_PATH_REFERENCE_METADATA_BYTES
+}
+
+impl Encode for FileSystemPath {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.fs.encode(encoder)?;
+
+        if let Some(result) = with_turbo_bincode_encoder(encoder, |encoder| {
+            // Only a persistence encoder that is collecting references can use the reference form,
+            // and only when it is smaller than the path itself. Everything else — including hash
+            // encoders handled below — keeps the self-contained inline form.
+            let interned_key = should_intern_path(&self.path)
+                .then(|| filesystem_namespace(&self.fs))
+                .flatten()
+                .filter(|_| encoder.writer().interned_strings_mut().is_some())
+                .map(|namespace| InternedStringKey {
+                    namespace,
+                    hash: hash_xxh3_hash128(self.path.as_bytes()).to_le_bytes(),
+                });
+            if let Some(key) = interned_key {
+                encoder
+                    .writer()
+                    .interned_strings_mut()
+                    .expect("checked above")
+                    .insert(key, &self.path)?;
+                INTERNED_PATH_TAG.encode(encoder)?;
+                key.hash.encode(encoder)
+            } else {
+                INLINE_PATH_TAG.encode(encoder)?;
+                self.path.encode(encoder)
+            }
+        }) {
+            return result;
+        }
+
+        // Hash encoders deliberately see the semantic path bytes, not persistence dictionary state.
+        self.path.encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for FileSystemPath {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let fs = ResolvedVc::decode(decoder)?;
+
+        if let Some(result) = with_turbo_bincode_decoder(decoder, |decoder| {
+            let tag = u8::decode(decoder)?;
+            let path = match tag {
+                INLINE_PATH_TAG => RcStr::decode(decoder)?,
+                INTERNED_PATH_TAG => {
+                    let hash = <[u8; 16]>::decode(decoder)?;
+                    let namespace = filesystem_namespace(&fs).ok_or_else(|| {
+                        DecodeError::OtherString(
+                            "FileSystemPath filesystem is not a resolved task cell".into(),
+                        )
+                    })?;
+                    let resolver =
+                        decoder.reader().interned_string_resolver().ok_or_else(|| {
+                            DecodeError::OtherString(
+                                "interned FileSystemPath decoded without a string resolver".into(),
+                            )
+                        })?;
+                    let mut path = None;
+                    resolver.resolve(InternedStringKey { namespace, hash }, &mut |value| {
+                        path = value.downcast_ref::<RcStr>().cloned()
+                    })?;
+                    path.ok_or_else(|| {
+                        DecodeError::OtherString(
+                            "FileSystemPath string resolver returned the wrong value type".into(),
+                        )
+                    })?
+                }
+                tag => {
+                    return Err(DecodeError::OtherString(format!(
+                        "invalid FileSystemPath path tag {tag}"
+                    )));
+                }
+            };
+            Ok(Self { fs, path })
+        }) {
+            return result;
+        }
+
+        Ok(Self {
+            fs,
+            path: RcStr::decode(decoder)?,
+        })
+    }
+}
+
+impl_borrow_decode!(FileSystemPath);
 
 impl ValueToStringRef for FileSystemPath {
     async fn to_string_ref(&self) -> Result<RcStr> {
@@ -784,12 +913,242 @@ async fn hash_file(
 
 #[cfg(test)]
 mod tests {
+    use std::{any::Any, collections::HashMap};
+
+    use bincode::error::DecodeError;
+    use smallvec::SmallVec;
+    use turbo_bincode::{
+        InternedStringCollector, InternedStringResolver, TurboBincodeBuffer, new_hash_encoder,
+        new_turbo_bincode_decoder_with_interned_strings,
+        new_turbo_bincode_encoder_with_interned_strings, turbo_bincode_decode,
+        turbo_bincode_encode,
+    };
     use turbo_rcstr::rcstr;
     use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_hash::Xxh3Hash128Hasher;
 
     use super::*;
     use crate::VirtualFileSystem;
+
+    #[derive(Default)]
+    struct TestCollector(SmallVec<[(InternedStringKey, RcStr); 2]>);
+
+    impl InternedStringCollector for TestCollector {
+        fn insert(
+            &mut self,
+            key: InternedStringKey,
+            value: &(dyn Any + Send + Sync),
+        ) -> Result<(), EncodeError> {
+            let value = value.downcast_ref::<RcStr>().ok_or_else(|| {
+                EncodeError::OtherString("unexpected test collector value type".into())
+            })?;
+            if let Some((_, existing)) = self.0.iter().find(|(entry_key, _)| *entry_key == key) {
+                if existing != value {
+                    return Err(EncodeError::OtherString("forced test collision".into()));
+                }
+            } else {
+                self.0.push((key, value.clone()));
+            }
+            Ok(())
+        }
+    }
+
+    struct TestResolver(HashMap<InternedStringKey, RcStr>);
+
+    impl InternedStringResolver for TestResolver {
+        fn resolve(
+            &self,
+            key: InternedStringKey,
+            receiver: &mut dyn FnMut(&(dyn Any + Send + Sync)),
+        ) -> Result<(), DecodeError> {
+            let value = self
+                .0
+                .get(&key)
+                .ok_or_else(|| DecodeError::OtherString(format!("missing test string {key:?}")))?;
+            receiver(value);
+            Ok(())
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn bincode_interns_long_paths_deterministically() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+            let path_text = "src/a/realistically/long/repeated/file-system-path.ts";
+            let path = FileSystemPath::new_normalized_unchecked(fs, path_text.into());
+
+            // Persistence-aware encoding still keeps paths inline when reference metadata would
+            // cost more than the path itself.
+            let short_path = FileSystemPath::new_normalized_unchecked(fs, "src/short.ts".into());
+            let mut short_bytes = TurboBincodeBuffer::new();
+            let mut short_strings = TestCollector::default();
+            short_path.encode(&mut new_turbo_bincode_encoder_with_interned_strings(
+                &mut short_bytes,
+                &mut short_strings,
+            ))?;
+            assert!(short_strings.0.is_empty());
+            assert_eq!(
+                turbo_bincode_decode::<FileSystemPath>(&short_bytes)?.path,
+                short_path.path
+            );
+
+            // A regular turbo-bincode call has no external dictionary and stays self-contained.
+            let inline = turbo_bincode_encode(&path)?;
+            let inline_decoded: FileSystemPath = turbo_bincode_decode(&inline)?;
+            assert_eq!(inline_decoded.fs, path.fs);
+            assert_eq!(inline_decoded.path, path.path);
+
+            let encode_referenced = || -> anyhow::Result<(TurboBincodeBuffer, TestCollector)> {
+                let mut bytes = TurboBincodeBuffer::new();
+                let mut strings = TestCollector::default();
+                path.encode(&mut new_turbo_bincode_encoder_with_interned_strings(
+                    &mut bytes,
+                    &mut strings,
+                ))?;
+                Ok((bytes, strings))
+            };
+            let (referenced, strings) = encode_referenced()?;
+            let (referenced_again, _) = encode_referenced()?;
+            assert_eq!(referenced, referenced_again);
+            assert!(referenced.len() < inline.len());
+
+            // Task-cache hashing stays byte-for-byte equivalent to the semantic struct fields.
+            let mut actual_hash = Xxh3Hash128Hasher::new();
+            path.encode(&mut new_hash_encoder(&mut actual_hash))?;
+            let mut expected_hash = Xxh3Hash128Hasher::new();
+            {
+                let mut encoder = new_hash_encoder(&mut expected_hash);
+                path.fs.encode(&mut encoder)?;
+                path.path.encode(&mut encoder)?;
+            }
+            assert_eq!(actual_hash.finish(), expected_hash.finish());
+
+            // Reference-form data cannot be decoded without its owning persistence resolver.
+            assert!(turbo_bincode_decode::<FileSystemPath>(&referenced).is_err());
+
+            let entries = strings.0;
+            assert_eq!(entries.len(), 1);
+            assert_eq!(entries[0].1, path_text);
+            let (entry_key, entry_value) = entries.into_iter().next().unwrap();
+
+            // Encountering another path first cannot change this path's content-derived identity.
+            let other_path = FileSystemPath::new_normalized_unchecked(
+                fs,
+                "src/another/realistically/long/file-system-path.ts".into(),
+            );
+            let mut ordered_bytes = TurboBincodeBuffer::new();
+            let mut ordered_strings = TestCollector::default();
+            {
+                let mut encoder = new_turbo_bincode_encoder_with_interned_strings(
+                    &mut ordered_bytes,
+                    &mut ordered_strings,
+                );
+                other_path.encode(&mut encoder)?;
+                path.encode(&mut encoder)?;
+                path.encode(&mut encoder)?;
+            }
+            assert_eq!(ordered_strings.0.len(), 2);
+            assert_eq!(
+                ordered_strings
+                    .0
+                    .iter()
+                    .find(|(_, value)| *value == path.path)
+                    .map(|(key, _)| *key),
+                Some(entry_key)
+            );
+
+            let resolver = TestResolver(HashMap::from([(entry_key, entry_value)]));
+            let decode = || -> Result<FileSystemPath, DecodeError> {
+                let mut decoder =
+                    new_turbo_bincode_decoder_with_interned_strings(&referenced, &resolver);
+                FileSystemPath::decode(&mut decoder)
+            };
+            let first = decode()?;
+            let second = decode()?;
+            assert_eq!(first.path, path.path);
+            assert!(std::ptr::eq(
+                first.path.as_str().as_ptr(),
+                second.path.as_str().as_ptr()
+            ));
+
+            // Identity conflicts are errors instead of silently aliasing different strings.
+            let mut collision = TestCollector::default();
+            collision.insert(entry_key, &RcStr::from(path_text))?;
+            assert!(
+                collision
+                    .insert(entry_key, &RcStr::from("a different long path"))
+                    .is_err()
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "manual encode-time and storage measurement"]
+    async fn measure_repeated_file_system_path_encoding() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+            let path_text =
+                "node_modules/a-package/src/a/realistically/long/repeated/file-system-path.ts";
+            let path = FileSystemPath::new_normalized_unchecked(fs, path_text.into());
+            const ITERATIONS: usize = 1_000_000;
+
+            let start = std::time::Instant::now();
+            let mut inline_bytes = 0;
+            for _ in 0..ITERATIONS {
+                inline_bytes += std::hint::black_box(turbo_bincode_encode(&path)?).len();
+            }
+            let inline_time = start.elapsed();
+
+            let start = std::time::Instant::now();
+            let mut reference_bytes = 0;
+            for _ in 0..ITERATIONS {
+                let mut bytes = TurboBincodeBuffer::new();
+                let mut strings = TestCollector::default();
+                path.encode(&mut new_turbo_bincode_encoder_with_interned_strings(
+                    &mut bytes,
+                    &mut strings,
+                ))?;
+                reference_bytes += std::hint::black_box(bytes).len();
+                assert_eq!(strings.0.len(), 1);
+            }
+            let reference_time = start.elapsed();
+            let reference_metadata_bytes = ITERATIONS * INTERNED_STRING_KEY_LEN_FOR_MEASUREMENT;
+            let dictionary_bytes = size_of::<u64>() + path_text.len();
+            let total_dictionary_backed =
+                reference_bytes + reference_metadata_bytes + dictionary_bytes;
+            assert!(total_dictionary_backed < inline_bytes);
+            println!(
+                "{ITERATIONS} repeated FileSystemPath values: inline={inline_bytes} bytes in \
+                 {inline_time:?}; references={reference_bytes} + \
+                 metadata={reference_metadata_bytes} + dictionary={dictionary_bytes} = \
+                 {total_dictionary_backed} bytes in {reference_time:?}"
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// The backing storage metadata uses a 10-byte filesystem identity and a 16-byte digest.
+    const INTERNED_STRING_KEY_LEN_FOR_MEASUREMENT: usize = 26;
 
     /// `turbo-unix-path` covers how the relative path itself is computed, so this only pins what
     /// this layer adds: that each method reaches for the form it names, and that neither crosses

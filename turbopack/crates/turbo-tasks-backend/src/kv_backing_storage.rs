@@ -1,25 +1,36 @@
 use std::{
+    any::Any,
     borrow::Borrow,
+    collections::{BTreeMap, HashMap, HashSet},
     env,
     path::PathBuf,
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
 use anyhow::{Context, Result};
+use bincode::error::DecodeError;
 use smallvec::SmallVec;
-use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
+use turbo_bincode::{
+    InternedStringKey, InternedStringResolver, new_turbo_bincode_decoder_with_interned_strings,
+    turbo_bincode_decode, turbo_bincode_encode,
+};
 use turbo_persistence::CommitStats;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
 };
+use turbo_tasks_hash::hash_xxh3_hash128;
 
 use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
-    backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
+    backing_storage::{
+        EncodedTaskData, InternedStrings, SnapshotItem, SnapshotMeta,
+        compute_task_type_hash_from_components,
+    },
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
@@ -78,6 +89,142 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
     Ok(n)
 }
 
+const INTERNED_STRING_KEY_LEN: usize = 26;
+const INTERNED_STRING_COUNT_LEN: usize = size_of::<u64>();
+
+fn interned_string_key_bytes(key: InternedStringKey) -> [u8; INTERNED_STRING_KEY_LEN] {
+    let mut bytes = [0; INTERNED_STRING_KEY_LEN];
+    bytes[..10].copy_from_slice(&key.namespace);
+    bytes[10..].copy_from_slice(&key.hash);
+    bytes
+}
+
+fn decode_interned_string_key(bytes: &[u8]) -> Result<InternedStringKey> {
+    if bytes.len() != INTERNED_STRING_KEY_LEN {
+        anyhow::bail!(
+            "invalid interned string key length {}, expected {INTERNED_STRING_KEY_LEN}",
+            bytes.len()
+        );
+    }
+    Ok(InternedStringKey {
+        namespace: bytes[..10].try_into().unwrap(),
+        hash: bytes[10..].try_into().unwrap(),
+    })
+}
+
+fn encode_path_references(references: &[InternedStringKey]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(references.len() * INTERNED_STRING_KEY_LEN);
+    for &reference in references {
+        bytes.extend_from_slice(&interned_string_key_bytes(reference));
+    }
+    bytes
+}
+
+fn decode_path_references(bytes: &[u8]) -> Result<Vec<InternedStringKey>> {
+    if !bytes.len().is_multiple_of(INTERNED_STRING_KEY_LEN) {
+        anyhow::bail!("invalid persisted FileSystemPath reference metadata length");
+    }
+    bytes
+        .as_chunks::<INTERNED_STRING_KEY_LEN>()
+        .0
+        .iter()
+        .map(|bytes| decode_interned_string_key(bytes))
+        .collect()
+}
+
+fn encode_dictionary_value(count: u64, value: &str) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(INTERNED_STRING_COUNT_LEN + value.len());
+    bytes.extend_from_slice(&count.to_le_bytes());
+    bytes.extend_from_slice(value.as_bytes());
+    bytes
+}
+
+fn decode_dictionary_value(bytes: &[u8]) -> Result<(u64, &str)> {
+    let (count, value) = bytes
+        .split_at_checked(INTERNED_STRING_COUNT_LEN)
+        .context("persisted FileSystemPath dictionary value is truncated")?;
+    let count = u64::from_le_bytes(count.try_into().unwrap());
+    if count == 0 {
+        anyhow::bail!("persisted FileSystemPath dictionary value has a zero reference count");
+    }
+    Ok((count, std::str::from_utf8(value)?))
+}
+
+fn path_reference_key_space(category: SpecificTaskDataCategory) -> KeySpace {
+    match category {
+        SpecificTaskDataCategory::Meta => KeySpace::TaskMetaPathRefs,
+        SpecificTaskDataCategory::Data => KeySpace::TaskDataPathRefs,
+    }
+}
+
+struct PathReferenceDelta {
+    key: InternedStringKey,
+    delta: i64,
+    value: Option<RcStr>,
+}
+
+fn update_path_references(
+    database: &TurboKeyValueDatabase,
+    batch: &TurboWriteBatch<'_>,
+    task_id: TaskId,
+    category: SpecificTaskDataCategory,
+    new_strings: Option<InternedStrings>,
+) -> Result<Vec<PathReferenceDelta>> {
+    let key = IntKey::new(*task_id);
+    let key_space = path_reference_key_space(category);
+    let mut old_references = match database.get(key_space, key.as_ref())? {
+        Some(bytes) => decode_path_references(bytes.borrow())?,
+        None => Vec::new(),
+    };
+    old_references.sort_unstable();
+    old_references.dedup();
+
+    let mut new_entries = BTreeMap::new();
+    if let Some(new_strings) = new_strings {
+        for (key, value) in new_strings.into_entries() {
+            if let Some(existing) = new_entries.insert(key, value.clone())
+                && existing != value
+            {
+                anyhow::bail!("interned string identity collision for {key:?}");
+            }
+        }
+    }
+    let new_references: Vec<_> = new_entries.keys().copied().collect();
+
+    if new_references.is_empty() {
+        if !old_references.is_empty() {
+            batch.delete(key_space, WriteBuffer::Borrowed(key.as_ref()))?;
+        }
+    } else if new_references != old_references {
+        batch.put(
+            key_space,
+            WriteBuffer::Borrowed(key.as_ref()),
+            WriteBuffer::Vec(encode_path_references(&new_references)),
+        )?;
+    }
+
+    let mut deltas = Vec::new();
+    for &reference in &old_references {
+        if !new_entries.contains_key(&reference) {
+            deltas.push(PathReferenceDelta {
+                key: reference,
+                delta: -1,
+                value: None,
+            });
+        }
+    }
+    for (reference, value) in new_entries {
+        deltas.push(PathReferenceDelta {
+            key: reference,
+            delta: i64::from(old_references.binary_search(&reference).is_err()),
+            // Keep the value even when membership is unchanged so an existing dictionary entry is
+            // checked for a content-hash collision on every rewritten record.
+            value: Some(value),
+        });
+    }
+    Ok(deltas)
+}
+
 // We want to invalidate the cache on panic for most users, but this is a band-aid to underlying
 // problems in turbo-tasks.
 //
@@ -104,6 +251,11 @@ struct TurboBackingStorageInner {
     base_path: Option<PathBuf>,
     /// Used to skip calling [`invalidate_db`] when the database has already been invalidated.
     invalidated: Mutex<bool>,
+    /// Serializes the read/modify/write transaction used for dictionary reference counts.
+    snapshot_lock: Mutex<()>,
+    /// Lazily resolved path strings. Values are removed when their durable reference count reaches
+    /// zero; clones returned to decoded values continue to own the allocation normally.
+    file_system_paths: Mutex<HashMap<InternedStringKey, RcStr>>,
     /// We configure a panic hook to invalidate the cache. This guard cleans up our panic hook upon
     /// drop.
     _panic_hook_guard: Option<PanicHookGuard>,
@@ -128,6 +280,8 @@ impl TurboBackingStorage {
                 database,
                 base_path: None,
                 invalidated: Mutex::new(false),
+                snapshot_lock: Mutex::new(()),
+                file_system_paths: Mutex::new(HashMap::new()),
                 _panic_hook_guard: None,
             }),
         }
@@ -176,6 +330,8 @@ impl TurboBackingStorage {
                     database,
                     base_path: Some(base_path),
                     invalidated: Mutex::new(false),
+                    snapshot_lock: Mutex::new(()),
+                    file_system_paths: Mutex::new(HashMap::new()),
                     _panic_hook_guard: panic_hook_guard,
                 }
             }),
@@ -214,6 +370,126 @@ impl TurboBackingStorageInner {
             .get(KeySpace::Infra, key.key().as_ref())?
             .map(as_u32)
             .transpose()
+    }
+
+    fn apply_path_reference_deltas(
+        &self,
+        batch: &TurboWriteBatch<'_>,
+        deltas: Vec<PathReferenceDelta>,
+    ) -> Result<Vec<InternedStringKey>> {
+        let mut aggregated: BTreeMap<InternedStringKey, (i64, Option<RcStr>)> = BTreeMap::new();
+        for PathReferenceDelta { key, delta, value } in deltas {
+            let entry = aggregated.entry(key).or_default();
+            entry.0 += delta;
+            if let Some(value) = value {
+                if let Some(existing) = &entry.1
+                    && existing != &value
+                {
+                    anyhow::bail!("interned string identity collision for {key:?}");
+                }
+                entry.1 = Some(value);
+            }
+        }
+
+        let mut removed = Vec::new();
+        for (key, (delta, supplied_value)) in aggregated {
+            if delta == 0 && supplied_value.is_none() {
+                continue;
+            }
+            let key_bytes = interned_string_key_bytes(key);
+            let current = self.database.get(KeySpace::FileSystemPath, &key_bytes)?;
+            let (current_count, current_value) = match current.as_ref() {
+                Some(bytes) => {
+                    let (count, value) = decode_dictionary_value(bytes.borrow())?;
+                    (count, Some(value.to_owned()))
+                }
+                None => (0, None),
+            };
+
+            if let Some(current_value) = current_value.as_deref()
+                && hash_xxh3_hash128(current_value.as_bytes()).to_le_bytes() != key.hash
+            {
+                anyhow::bail!("persisted FileSystemPath dictionary digest mismatch for {key:?}");
+            }
+            if let Some(value) = supplied_value.as_ref() {
+                if hash_xxh3_hash128(value.as_bytes()).to_le_bytes() != key.hash {
+                    anyhow::bail!("invalid content digest for interned string {key:?}");
+                }
+                if let Some(current_value) = current_value.as_deref()
+                    && current_value != value.as_str()
+                {
+                    anyhow::bail!("interned string identity collision for {key:?}");
+                }
+            }
+
+            if delta == 0 {
+                if current_value.is_none() {
+                    anyhow::bail!("existing FileSystemPath reference has no dictionary value");
+                }
+                continue;
+            }
+
+            let new_count = i128::from(current_count) + i128::from(delta);
+            if new_count < 0 {
+                anyhow::bail!("FileSystemPath reference count underflow for {key:?}");
+            }
+            if new_count == 0 {
+                batch.delete(KeySpace::FileSystemPath, WriteBuffer::Borrowed(&key_bytes))?;
+                removed.push(key);
+                continue;
+            }
+            let new_count =
+                u64::try_from(new_count).context("FileSystemPath reference count overflow")?;
+            let value = supplied_value
+                .as_ref()
+                .map(RcStr::as_str)
+                .or(current_value.as_deref())
+                .context("new FileSystemPath dictionary reference has no string value")?;
+            batch.put(
+                KeySpace::FileSystemPath,
+                WriteBuffer::Borrowed(&key_bytes),
+                WriteBuffer::Vec(encode_dictionary_value(new_count, value)),
+            )?;
+        }
+        Ok(removed)
+    }
+}
+
+impl InternedStringResolver for TurboBackingStorageInner {
+    fn resolve(
+        &self,
+        key: InternedStringKey,
+        receiver: &mut dyn FnMut(&(dyn Any + Send + Sync)),
+    ) -> Result<(), DecodeError> {
+        // Keep this lock across the database read. Snapshot commits take the same lock while
+        // removing zero-reference cache entries, preventing a concurrent lookup from resurrecting
+        // an entry after its durable value has been deleted.
+        let mut paths = self
+            .file_system_paths
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let std::collections::hash_map::Entry::Vacant(entry) = paths.entry(key) {
+            let key_bytes = interned_string_key_bytes(key);
+            let bytes = self
+                .database
+                .get(KeySpace::FileSystemPath, &key_bytes)
+                .map_err(|err| DecodeError::OtherString(err.to_string()))?
+                .ok_or_else(|| {
+                    DecodeError::OtherString(format!(
+                        "missing persisted FileSystemPath dictionary entry {key:?}"
+                    ))
+                })?;
+            let (_, value) = decode_dictionary_value(bytes.borrow())
+                .map_err(|err| DecodeError::OtherString(err.to_string()))?;
+            if hash_xxh3_hash128(value.as_bytes()).to_le_bytes() != key.hash {
+                return Err(DecodeError::OtherString(format!(
+                    "persisted FileSystemPath dictionary digest mismatch for {key:?}"
+                )));
+            }
+            entry.insert(RcStr::from(value));
+        }
+        receiver(paths.get(&key).unwrap());
+        Ok(())
     }
 }
 
@@ -273,17 +549,24 @@ impl TurboBackingStorage {
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
         let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
+        let _snapshot_guard = self
+            .inner
+            .snapshot_lock
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         let batch = self.inner.database.write_batch()?;
 
         {
             let span = tracing::trace_span!("update task data");
-            let mut snapshot_meta =
+            let seen_path_records = Mutex::new(HashSet::new());
+            let snapshot_results =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let _span = span.clone().entered();
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
                     let mut meta_items = 0;
                     let mut task_cache_items = 0;
+                    let mut path_reference_deltas = Vec::new();
                     for item in shard {
                         match item {
                             SnapshotItem::Put {
@@ -293,20 +576,59 @@ impl TurboBackingStorage {
                                 task_type_hash,
                             } => {
                                 let key = IntKey::new(*task_id);
-                                let key = key.as_ref();
-                                if let Some(meta) = meta {
+                                if let Some(EncodedTaskData {
+                                    bytes,
+                                    interned_strings,
+                                }) = meta
+                                {
+                                    if !seen_path_records
+                                        .lock()
+                                        .unwrap_or_else(PoisonError::into_inner)
+                                        .insert((task_id, SpecificTaskDataCategory::Meta))
+                                    {
+                                        anyhow::bail!(
+                                            "duplicate meta snapshot record for {task_id}"
+                                        );
+                                    }
+                                    path_reference_deltas.extend(update_path_references(
+                                        &self.inner.database,
+                                        &batch,
+                                        task_id,
+                                        SpecificTaskDataCategory::Meta,
+                                        Some(interned_strings),
+                                    )?);
                                     batch.put(
                                         KeySpace::TaskMeta,
-                                        WriteBuffer::Borrowed(key),
-                                        WriteBuffer::SmallVec(meta),
+                                        WriteBuffer::Borrowed(key.as_ref()),
+                                        WriteBuffer::SmallVec(bytes),
                                     )?;
                                     meta_items += 1;
                                 }
-                                if let Some(data) = data {
+                                if let Some(EncodedTaskData {
+                                    bytes,
+                                    interned_strings,
+                                }) = data
+                                {
+                                    if !seen_path_records
+                                        .lock()
+                                        .unwrap_or_else(PoisonError::into_inner)
+                                        .insert((task_id, SpecificTaskDataCategory::Data))
+                                    {
+                                        anyhow::bail!(
+                                            "duplicate data snapshot record for {task_id}"
+                                        );
+                                    }
+                                    path_reference_deltas.extend(update_path_references(
+                                        &self.inner.database,
+                                        &batch,
+                                        task_id,
+                                        SpecificTaskDataCategory::Data,
+                                        Some(interned_strings),
+                                    )?);
                                     batch.put(
                                         KeySpace::TaskData,
-                                        WriteBuffer::Borrowed(key),
-                                        WriteBuffer::SmallVec(data),
+                                        WriteBuffer::Borrowed(key.as_ref()),
+                                        WriteBuffer::SmallVec(bytes),
                                     )?;
                                     data_items += 1;
                                 }
@@ -315,7 +637,7 @@ impl TurboBackingStorage {
                                     batch.put(
                                         KeySpace::TaskCache,
                                         WriteBuffer::Borrowed(&task_type_hash),
-                                        WriteBuffer::Borrowed(key),
+                                        WriteBuffer::Borrowed(key.as_ref()),
                                     )?;
                                     task_cache_items += 1;
                                     max_new_task_id = max_new_task_id.max(*task_id);
@@ -326,36 +648,83 @@ impl TurboBackingStorage {
                                 task_type_hash,
                             } => {
                                 let key = IntKey::new(*task_id);
-                                let key = key.as_ref();
-                                batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
-                                batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
+                                {
+                                    let mut seen = seen_path_records
+                                        .lock()
+                                        .unwrap_or_else(PoisonError::into_inner);
+                                    if !seen.insert((task_id, SpecificTaskDataCategory::Meta))
+                                        || !seen.insert((task_id, SpecificTaskDataCategory::Data))
+                                    {
+                                        anyhow::bail!(
+                                            "duplicate deleted snapshot record for {task_id}"
+                                        );
+                                    }
+                                }
+                                path_reference_deltas.extend(update_path_references(
+                                    &self.inner.database,
+                                    &batch,
+                                    task_id,
+                                    SpecificTaskDataCategory::Meta,
+                                    None,
+                                )?);
+                                path_reference_deltas.extend(update_path_references(
+                                    &self.inner.database,
+                                    &batch,
+                                    task_id,
+                                    SpecificTaskDataCategory::Data,
+                                    None,
+                                )?);
+                                batch.delete(
+                                    KeySpace::TaskMeta,
+                                    WriteBuffer::Borrowed(key.as_ref()),
+                                )?;
+                                batch.delete(
+                                    KeySpace::TaskData,
+                                    WriteBuffer::Borrowed(key.as_ref()),
+                                )?;
                                 // TaskCache is MultiValue, delete just this id from the bucket.
                                 batch.delete_value(
                                     KeySpace::TaskCache,
                                     WriteBuffer::Borrowed(&task_type_hash[..]),
-                                    WriteBuffer::Borrowed(key),
+                                    WriteBuffer::Borrowed(key.as_ref()),
                                 )?;
                             }
                         }
                     }
-                    Ok(SnapshotMeta {
-                        data_items,
-                        meta_items,
-                        task_cache_items,
-                        // The on-disk byte totals aren't known until the batch is committed
-                        // below; they're filled in from `CommitStats` after `batch.commit()`.
-                        bytes_written: 0,
-                        bytes_deleted: 0,
-                        max_next_task_id: max_new_task_id,
-                    })
-                })?
-                .into_iter()
-                .reduce(|t1, t2| t1.merge(t2))
-                .unwrap_or_default();
+                    Ok((
+                        SnapshotMeta {
+                            data_items,
+                            meta_items,
+                            task_cache_items,
+                            // The on-disk byte totals aren't known until the batch is committed
+                            // below; they're filled in from `CommitStats` after `batch.commit()`.
+                            bytes_written: 0,
+                            bytes_deleted: 0,
+                            max_next_task_id: max_new_task_id,
+                        },
+                        path_reference_deltas,
+                    ))
+                })?;
+            let mut snapshot_meta = SnapshotMeta::default();
+            let mut path_reference_deltas = Vec::new();
+            for (meta, deltas) in snapshot_results {
+                snapshot_meta = snapshot_meta.merge(meta);
+                path_reference_deltas.extend(deltas);
+            }
+            let removed_paths = self
+                .inner
+                .apply_path_reference_deltas(&batch, path_reference_deltas)?;
 
             let span = tracing::trace_span!("flush task data");
             parallel::try_for_each(
-                &[KeySpace::TaskMeta, KeySpace::TaskData, KeySpace::TaskCache],
+                &[
+                    KeySpace::TaskMeta,
+                    KeySpace::TaskData,
+                    KeySpace::TaskCache,
+                    KeySpace::FileSystemPath,
+                    KeySpace::TaskMetaPathRefs,
+                    KeySpace::TaskDataPathRefs,
+                ],
                 |&key_space| {
                     let _span = span.clone().entered();
                     // Safety: `map_collect_owned` has returned, so no concurrent `put` or `delete`
@@ -372,7 +741,17 @@ impl TurboBackingStorage {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
                 // .blob / .meta files) produced and removed by the commit.
+                // Hold the cache lock across commit + eviction. Resolvers hold the same lock while
+                // reading the dictionary, so none can resurrect an entry removed by this commit.
+                let mut file_system_paths = self
+                    .inner
+                    .file_system_paths
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner);
                 let stats = batch.commit().context("Unable to commit snapshot")?;
+                for key in removed_paths {
+                    file_system_paths.remove(&key);
+                }
                 snapshot_meta.bytes_written = stats.bytes_written;
                 snapshot_meta.bytes_deleted = stats.bytes_deleted;
             }
@@ -430,7 +809,7 @@ impl TurboBackingStorage {
             return Ok(None);
         };
         let mut storage = TaskStorage::default();
-        let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+        let mut decoder = new_turbo_bincode_decoder_with_interned_strings(bytes.borrow(), inner);
         storage
             .decode(category, &mut decoder)
             .with_context(|| format!("Failed to decode {category:?}"))?;
@@ -459,7 +838,8 @@ impl TurboBackingStorage {
             .map(|opt_bytes| {
                 let mut storage = TaskStorage::new();
                 if let Some(bytes) = opt_bytes {
-                    let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+                    let mut decoder =
+                        new_turbo_bincode_decoder_with_interned_strings(bytes.borrow(), inner);
                     storage
                         .decode(category, &mut decoder)
                         .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
@@ -752,6 +1132,191 @@ mod tests {
         );
 
         db.shutdown()?;
+        Ok(())
+    }
+
+    fn encoded_path_record(
+        namespace: [u8; 10],
+        value: &str,
+    ) -> (InternedStringKey, EncodedTaskData) {
+        let key = InternedStringKey {
+            namespace,
+            hash: hash_xxh3_hash128(value.as_bytes()).to_le_bytes(),
+        };
+        let mut interned_strings = InternedStrings::default();
+        turbo_bincode::InternedStringCollector::insert(
+            &mut interned_strings,
+            key,
+            &RcStr::from(value),
+        )
+        .unwrap();
+        (
+            key,
+            EncodedTaskData {
+                bytes: Default::default(),
+                interned_strings,
+            },
+        )
+    }
+
+    fn resolve_path(
+        storage: &TurboBackingStorage,
+        key: InternedStringKey,
+    ) -> Result<RcStr, DecodeError> {
+        let mut result = None;
+        storage.inner.resolve(key, &mut |value| {
+            result = value.downcast_ref::<RcStr>().cloned()
+        })?;
+        result.ok_or_else(|| DecodeError::OtherString("wrong resolved test value type".into()))
+    }
+
+    fn dictionary_entry(
+        storage: &TurboBackingStorage,
+        key: InternedStringKey,
+    ) -> Result<Option<(u64, String)>> {
+        let key = interned_string_key_bytes(key);
+        storage
+            .inner
+            .database
+            .get(KeySpace::FileSystemPath, &key)?
+            .map(|bytes| {
+                let (count, value) = decode_dictionary_value(bytes.borrow())?;
+                Ok((count, value.to_owned()))
+            })
+            .transpose()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn file_system_path_dictionary_reclaims_final_record_reference() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+        let namespace = [42; 10];
+        let first_id = TaskId::try_from(301u32).unwrap();
+        let second_id = TaskId::try_from(302u32).unwrap();
+        let old_path = "src/a/realistically/long/shared/file-system-path.ts";
+        let new_path = "src/a/different/realistically/long/file-system-path.ts";
+
+        let (old_key, first_record) = encoded_path_record(namespace, old_path);
+        let (_, second_record) = encoded_path_record(namespace, old_path);
+        storage.save_snapshot(
+            Vec::new(),
+            None,
+            vec![vec![
+                SnapshotItem::Put {
+                    task_id: first_id,
+                    meta: Some(first_record),
+                    data: None,
+                    task_type_hash: None,
+                },
+                SnapshotItem::Put {
+                    task_id: second_id,
+                    meta: Some(second_record),
+                    data: None,
+                    task_type_hash: None,
+                },
+            ]],
+        )?;
+        assert_eq!(
+            dictionary_entry(&storage, old_key)?,
+            Some((2, old_path.to_owned()))
+        );
+
+        // A forced content-identity collision aborts the whole snapshot before commit.
+        let mut colliding_strings = InternedStrings::default();
+        turbo_bincode::InternedStringCollector::insert(
+            &mut colliding_strings,
+            old_key,
+            &RcStr::from("a different string with the forced old identity"),
+        )?;
+        assert!(
+            storage
+                .save_snapshot(
+                    Vec::new(),
+                    None,
+                    vec![vec![SnapshotItem::Put {
+                        task_id: first_id,
+                        meta: Some(EncodedTaskData {
+                            bytes: Default::default(),
+                            interned_strings: colliding_strings,
+                        }),
+                        data: None,
+                        task_type_hash: None,
+                    }]],
+                )
+                .is_err()
+        );
+        assert_eq!(
+            dictionary_entry(&storage, old_key)?,
+            Some((2, old_path.to_owned()))
+        );
+
+        // Reopening retains the durable dictionary and reconstructs the sharing cache lazily.
+        storage.inner.database.shutdown()?;
+        drop(storage);
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        // Lazy resolution clones the same RcStr allocation.
+        let first = resolve_path(&storage, old_key)?;
+        let second = resolve_path(&storage, old_key)?;
+        assert!(std::ptr::eq(
+            first.as_str().as_ptr(),
+            second.as_str().as_ptr()
+        ));
+
+        // Rewriting one record moves only its membership to the new path.
+        let (new_key, replacement) = encoded_path_record(namespace, new_path);
+        storage.save_snapshot(
+            Vec::new(),
+            None,
+            vec![vec![SnapshotItem::Put {
+                task_id: first_id,
+                meta: Some(replacement),
+                data: None,
+                task_type_hash: None,
+            }]],
+        )?;
+        assert_eq!(
+            dictionary_entry(&storage, old_key)?,
+            Some((1, old_path.to_owned()))
+        );
+        assert_eq!(
+            dictionary_entry(&storage, new_key)?,
+            Some((1, new_path.to_owned()))
+        );
+
+        // Deleting the final records removes both dictionary values and their metadata.
+        for task_id in [second_id, first_id] {
+            storage.save_snapshot(
+                Vec::new(),
+                None,
+                vec![vec![SnapshotItem::Delete {
+                    task_id,
+                    task_type_hash: [0; 8],
+                }]],
+            )?;
+        }
+        assert_eq!(dictionary_entry(&storage, old_key)?, None);
+        assert_eq!(dictionary_entry(&storage, new_key)?, None);
+        assert!(resolve_path(&storage, old_key).is_err());
+        assert!(resolve_path(&storage, new_key).is_err());
+        assert!(
+            storage
+                .inner
+                .database
+                .get(KeySpace::TaskMetaPathRefs, &(*first_id).to_le_bytes())?
+                .is_none()
+        );
+        assert!(
+            storage
+                .inner
+                .database
+                .get(KeySpace::TaskMetaPathRefs, &(*second_id).to_le_bytes())?
+                .is_none()
+        );
+
+        storage.inner.database.shutdown()?;
         Ok(())
     }
 }
