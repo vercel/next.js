@@ -99,14 +99,6 @@ describe('security upgrade nudge', () => {
     expect(warn).not.toHaveBeenCalled()
   })
 
-  it('stays silent when prerelease security assessment is deferred', async () => {
-    jest.mocked(getSecurityAdvisory).mockResolvedValue(null)
-
-    await run()
-
-    expect(warn).not.toHaveBeenCalled()
-  })
-
   it('does not look up advisories or warn outside an agent', async () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
 

@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import {
   getLatestUpgradeVersion,
+  getSecurityAdvisory,
   prepareUpgrade,
 } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -83,6 +84,53 @@ describe('prepare latest upgrade', () => {
     })
   }
 
+  function mockSecurityMetadata({
+    ranges = ['>=17.2.0-canary.0 <17.2.0-canary.5'],
+    target = '17.2.0-canary.5' as string | null,
+    published = ['17.2.0-canary.4', '17.2.0-canary.5', '17.3.0-canary.0'],
+    tag = 'canary',
+    fallback = false,
+  } = {}) {
+    global.fetch = jest.fn(async (input) => {
+      const url = String(input)
+
+      if (url.startsWith('https://api.github.com/advisories?')) {
+        return fallback
+          ? new Response(null, { status: 500 })
+          : Response.json(
+              ranges.map((range) => ({
+                withdrawn_at: null,
+                vulnerabilities: [
+                  {
+                    package: { ecosystem: 'npm', name: 'next' },
+                    vulnerable_version_range: range,
+                  },
+                ],
+              }))
+            )
+      }
+
+      if (url === 'https://registry.npmjs.org/next') {
+        return Response.json({
+          'dist-tags': target === null ? {} : { [tag]: target },
+          versions: Object.fromEntries(
+            published.map((version) => [version, { version }])
+          ),
+        })
+      }
+
+      if (
+        url === 'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk'
+      ) {
+        return Response.json({
+          next: ranges.map((range) => ({ vulnerable_versions: range })),
+        })
+      }
+
+      throw new Error(`Unexpected request: ${url}`)
+    })
+  }
+
   beforeEach(() => {
     jest.mocked(loadConfig).mockResolvedValue({
       cacheComponents: false,
@@ -95,6 +143,145 @@ describe('prepare latest upgrade', () => {
       directories
         .splice(0)
         .map((directory) => rm(directory, { recursive: true, force: true }))
+    )
+  })
+
+  describe.each([false, true])('security with npm fallback=%s', (fallback) => {
+    it('detects advisories explicitly covering prereleases', async () => {
+      mockSecurityMetadata({ fallback })
+
+      await expect(getSecurityAdvisory('17.2.0-canary.4')).resolves.toEqual({
+        reference: expect.stringContaining(
+          fallback ? 'registry.npmjs.org' : 'api.github.com'
+        ),
+      })
+      if (fallback) {
+        expect(global.fetch).toHaveBeenLastCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            body: JSON.stringify({ next: ['17.2.0-canary.4'] }),
+          })
+        )
+      }
+    })
+
+    it.each(['17.2.0-canary.5', '17.2.1-canary.0'])(
+      'allows a same-line security fix at %s',
+      async (target) => {
+        const directory = await createApp('17.2.0-canary.4')
+        mockSecurityMetadata({
+          fallback,
+          target,
+          // The tag, not the highest published prerelease, selects the fix.
+          published: [target, '17.3.0-canary.0'],
+        })
+
+        await expect(prepareUpgrade(directory, 'security')).resolves.toEqual(
+          expect.objectContaining({ status: 'ready', targetVersion: target })
+        )
+        if (fallback) {
+          expect(global.fetch).toHaveBeenLastCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+              body: JSON.stringify({
+                next: [target, '17.3.0-canary.0', '17.2.0-canary.4'],
+              }),
+            })
+          )
+        }
+      }
+    )
+
+    it('rejects a target affected by another advisory', async () => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({
+        fallback,
+        ranges: [
+          '>=17.2.0-canary.0 <17.2.0-canary.5',
+          '>=17.2.0-canary.5 <17.2.0-canary.6',
+        ],
+      })
+
+      await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
+        'No safe Next.js update is currently available.'
+      )
+    })
+
+    it('does not extend stable-only advisory ranges to prereleases', async () => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({
+        fallback,
+        ranges: ['>=17.0.0 <17.2.1'],
+        target: null,
+      })
+
+      await expect(getSecurityAdvisory('17.2.0-canary.4')).resolves.toBeNull()
+      await expect(prepareUpgrade(directory, 'security')).resolves.toEqual(
+        expect.objectContaining({ status: 'unaffected' })
+      )
+    })
+  })
+
+  it.each(['17.2.0-canary.4', '17.2.0-canary.3'])(
+    'rejects a security target that is not newer: %s',
+    async (target) => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({
+        ranges: ['17.2.0-canary.4'],
+        target,
+        published: [target],
+      })
+
+      await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
+        'No safe Next.js update is currently available.'
+      )
+    }
+  )
+
+  it.each([null, 'invalid', '17.2.0', '17.2.0-rc.1'])(
+    'rejects a missing or mismatched prerelease security tag: %s',
+    async (target) => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({ target, published: target ? [target] : [] })
+
+      await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
+        'Could not determine the latest Next.js version on the canary dist-tag.'
+      )
+    }
+  )
+
+  it('rejects an unpublished dist-tag target', async () => {
+    const directory = await createApp('17.2.0-canary.4')
+    mockSecurityMetadata({ published: ['17.2.0-canary.4'] })
+
+    await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
+      'Could not determine the latest Next.js version on the canary dist-tag.'
+    )
+  })
+
+  it('keeps security fixes on non-canary prerelease channels', async () => {
+    const directory = await createApp('17.2.0-rc.1')
+    mockSecurityMetadata({
+      ranges: ['>=17.2.0-rc.0 <17.2.0-rc.2'],
+      tag: 'rc',
+      target: '17.2.0-rc.2',
+      published: ['17.2.0-rc.1', '17.2.0-rc.2'],
+    })
+
+    await expect(prepareUpgrade(directory, 'security')).resolves.toEqual(
+      expect.objectContaining({ status: 'ready', targetVersion: '17.2.0-rc.2' })
+    )
+  })
+
+  it('preserves stable security target selection', async () => {
+    const directory = await createApp('17.2.0')
+    mockSecurityMetadata({
+      ranges: ['>=17.0.0 <17.2.1'],
+      published: ['17.2.0', '17.2.1', '17.3.0-canary.0', '18.0.0'],
+    })
+
+    await expect(prepareUpgrade(directory, 'security')).resolves.toEqual(
+      expect.objectContaining({ status: 'ready', targetVersion: '17.2.1' })
     )
   })
 

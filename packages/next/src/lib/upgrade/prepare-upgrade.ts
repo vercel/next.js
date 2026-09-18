@@ -46,14 +46,6 @@ export async function prepareUpgrade(
 
   const prereleaseTag = getPrereleaseTag(installedVersion)
 
-  // TODO: Handle prereleases for security assessments. Resolving the latest
-  // release on a prerelease channel does not establish that it is safe.
-  if (targetRequest === 'security' && prereleaseTag) {
-    throw new Error(
-      'Security AI upgrades are not available for prerelease versions of Next.js yet.'
-    )
-  }
-
   if (targetRequest === 'latest' || targetRequest === 'future') {
     const distTag = prereleaseTag ?? 'latest'
     const url = `${NPM_REGISTRY}next/${encodeURIComponent(distTag)}`
@@ -250,8 +242,12 @@ async function fetchJSON(
   }
 }
 
-function parseReleases(value: unknown): SecuritySnapshot['releases'] {
+function parseReleases(
+  value: unknown,
+  prereleaseTag: string | null
+): SecuritySnapshot['releases'] {
   const data = value as {
+    'dist-tags': Record<string, string> | undefined
     versions:
       | Record<
           string,
@@ -264,6 +260,25 @@ function parseReleases(value: unknown): SecuritySnapshot['releases'] {
 
   if (!data?.versions) {
     throw new Error('Could not determine a safe Next.js version.')
+  }
+
+  if (prereleaseTag !== null) {
+    const version = data['dist-tags']?.[prereleaseTag]
+
+    if (
+      !version ||
+      !semver.valid(version) ||
+      getPrereleaseTag(version) !== prereleaseTag ||
+      data.versions[version]?.version !== version
+    ) {
+      throw new Error(
+        `Could not determine the latest Next.js version on the ${prereleaseTag} dist-tag.`
+      )
+    }
+
+    // Only the channel's current target is eligible, not arbitrary published
+    // prereleases. Advisory matching still determines whether it is a fix.
+    return [{ version }]
   }
 
   return Object.entries(data.versions).flatMap(([version, metadata]) => {
@@ -368,10 +383,6 @@ export async function getLatestUpgradeVersion(version: string) {
 export async function getSecurityAdvisory(version: string) {
   if (!semver.valid(version)) {
     throw new Error('The running Next.js version is not valid semver.')
-  }
-
-  if (semver.prerelease(version)) {
-    return null
   }
 
   let advisories: Advisory[]
@@ -519,8 +530,6 @@ async function readSecuritySnapshot(
 
   try {
     const { value } = await fetchJSON(registryURL)
-    releases = parseReleases(value)
-
     if (githubRanges) {
       ranges = githubRanges
       advisoryReference = ADVISORIES
@@ -530,9 +539,18 @@ async function readSecuritySnapshot(
       const versions = Object.keys(
         (value as { versions: Record<string, unknown> }).versions
       ).filter((version) => semver.valid(version))
+      if (!versions.includes(installedVersion)) {
+        versions.push(installedVersion)
+      }
       ranges = affectedRanges(await readNpmAdvisories(versions))
       advisoryReference = NPM_ADVISORIES
     }
+
+    if (!ranges.some((range) => semver.satisfies(installedVersion, range))) {
+      return
+    }
+
+    releases = parseReleases(value, getPrereleaseTag(installedVersion))
   } catch (error) {
     if (!githubRanges) {
       throw new Error(
@@ -562,8 +580,8 @@ function selectSecurityTarget(
   }
 
   const releases = snapshot.releases
-  // Consider only the latest stable release of each major, not an older patch
-  // that happens to be safe while that major's latest release is affected.
+  // For stable installs, consider only the latest release of each major, not
+  // an older safe patch. Prerelease installs have only their dist-tag target.
   const latest = new Map<number, PackageRelease>()
 
   for (const release of releases) {
