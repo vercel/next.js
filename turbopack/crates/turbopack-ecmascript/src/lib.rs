@@ -161,44 +161,49 @@ pub enum SpecifiedModuleType {
     Debug,
     Clone,
     Copy,
-    Default,
     Deserialize,
     TraceRawVcs,
     Encode,
     Decode,
 )]
 pub struct AnalyzeMode {
-    /// Whether code generation should be skipped.
-    pub skip_codegen: bool,
+    /// Whether code generation will be performed after analyzing.
+    pub is_codegen: bool,
     /// Whether references to external files should be traced.
     pub trace_file_references: bool,
+}
+
+impl Default for AnalyzeMode {
+    fn default() -> Self {
+        Self::code_generation()
+    }
 }
 
 impl AnalyzeMode {
     pub const fn code_generation() -> Self {
         Self {
-            skip_codegen: false,
+            is_codegen: true,
             trace_file_references: false,
         }
     }
 
     pub const fn code_generation_and_tracing() -> Self {
         Self {
-            skip_codegen: false,
+            is_codegen: true,
             trace_file_references: true,
         }
     }
 
     pub const fn tracing_import_only() -> Self {
         Self {
-            skip_codegen: true,
+            is_codegen: false,
             trace_file_references: false,
         }
     }
 
     pub const fn tracing() -> Self {
         Self {
-            skip_codegen: true,
+            is_codegen: false,
             trace_file_references: true,
         }
     }
@@ -861,7 +866,7 @@ impl EcmascriptModuleAsset {
             self.ty,
             *self.transforms,
             node_env,
-            options.analyze_mode.skip_codegen && options.analyze_mode.trace_file_references,
+            !options.analyze_mode.is_codegen && options.analyze_mode.trace_file_references,
             options.inline_helpers,
         ))
     }

@@ -144,14 +144,11 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
     NormalizedOutput::from(value)
         .compare_to_file(input.with_file_name(format!(
             "env-vars{}.snapshot",
-            match (
-                analyze_mode.skip_codegen,
-                analyze_mode.trace_file_references,
-            ) {
-                (false, true) => "",
-                (false, false) => ".codegen",
-                (true, true) => ".tracing",
-                (true, false) => ".tracing-import-only",
+            match (analyze_mode.is_codegen, analyze_mode.trace_file_references,) {
+                (true, true) => "",
+                (true, false) => ".codegen",
+                (false, true) => ".tracing",
+                (false, false) => ".tracing-import-only",
             }
         )))
         .unwrap();
