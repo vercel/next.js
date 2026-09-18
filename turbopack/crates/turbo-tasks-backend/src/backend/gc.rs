@@ -106,9 +106,10 @@ impl GcBudget<'_> {
     }
 }
 
-/// What one [`TurboTasksBackend::gc_collect`] pass did.
+/// Counters describing what one [`TurboTasksBackend::gc_collect`] pass did. Reported only; GC
+/// never reads them back.
 #[derive(Default)]
-pub struct GcPassOutcome {
+pub struct GcStats {
     /// Number of roots detected by the pass
     pub gc_roots: usize,
     /// Tasks collected (marked soft-deleted).
@@ -117,35 +118,47 @@ pub struct GcPassOutcome {
     pub edges_deleted: usize,
     /// Cross-session roots that aged out past the TTL.
     pub aged_out_roots: usize,
+}
+
+/// What one [`TurboTasksBackend::gc_collect`] pass produced, as opposed to the [`GcStats`] it
+/// reports. The two collections are consumed before `gc_collect` returns; `interrupted` outlives
+/// it, since the caller uses it to decide whether to abandon the persistence loop.
+#[derive(Default)]
+pub struct GcPassResult {
     /// Persisted roots that this pass collected, to be dropped from the roots map.
-    pub deleted_roots: Vec<TaskId>,
+    deleted_roots: Vec<TaskId>,
     /// Aggregation rebalance requests that were deferred from the main GC loop.
-    pub deferred_balance_edges: FxHashSet<(TaskId, TaskId)>,
+    deferred_balance_edges: FxHashSet<(TaskId, TaskId)>,
     /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
 
-impl Display for GcPassOutcome {
+impl Display for GcStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "gc_roots = {gc_roots}, collected: {collected}, edges_deleted: {edges_deleted}, \
-             aged_out_roots = {aged_out_roots}, interrupted = {interrupted}",
+             aged_out_roots = {aged_out_roots}",
             gc_roots = self.gc_roots,
             collected = self.collected,
             edges_deleted = self.edges_deleted,
             aged_out_roots = self.aged_out_roots,
-            interrupted = self.interrupted
         )
     }
 }
 
-impl GcPassOutcome {
-    fn merge(mut self, mut other: Self) -> Self {
+impl GcStats {
+    fn merge(mut self, other: Self) -> Self {
         self.collected += other.collected;
         self.edges_deleted += other.edges_deleted;
         self.gc_roots += other.gc_roots;
         self.aged_out_roots += other.aged_out_roots;
+        self
+    }
+}
+
+impl GcPassResult {
+    fn merge(mut self, mut other: Self) -> Self {
         // Order doesn't matter, so keep the larger allocation and append the smaller one into it.
         // One or both sides are usually empty.
         if other.deleted_roots.len() > self.deleted_roots.len() {
@@ -163,6 +176,7 @@ impl GcPassOutcome {
         }
         self.deferred_balance_edges
             .extend(other.deferred_balance_edges);
+        self.interrupted |= other.interrupted;
         self
     }
 }
@@ -177,13 +191,14 @@ impl TurboTasksBackend {
     /// Abandonment is controlled by [`GcBudget`] which ensures we can make a minimum amount of
     /// progress even under load.
     ///
-    /// Returns [`GcPassOutcome`] for the pass and the new roots to persist if any
+    /// Returns the [`GcStats`] and [`GcPassResult`] for the pass, and the new roots to persist if
+    /// any
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
         phase: &SnapshotPhase<'_, AnyOperation>,
         interruptible: bool,
-    ) -> (GcPassOutcome, Option<Vec<(TaskId, TtlCounter)>>) {
+    ) -> (GcStats, GcPassResult, Option<Vec<(TaskId, TtlCounter)>>) {
         // Record the time at the beginning of the loop to have a consistent timestamp for the roots
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -213,13 +228,13 @@ impl TurboTasksBackend {
             None
         };
 
-        let mut outcome: GcPassOutcome = scope_unbounded_with(
+        let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
             // Start by scanning all shards and collecting the aged out roots from prior sessions.
             (0..self.storage.shard_count())
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
-            GcPassOutcome::default,
-            |spawner, job, outcome| {
+            Default::default,
+            |spawner, job, (stats, result): &mut (GcStats, GcPassResult)| {
                 // Abort the gc loop if we are interrupted
                 if let Some(budget) = &budget
                     && budget.should_stop()
@@ -262,32 +277,34 @@ impl TurboTasksBackend {
                     let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 }
                 drop(task); // drop the lock so CleanupOldEdgesOperation can run
-                outcome.collected += 1;
-                outcome.edges_deleted += old_edges.len();
+                stats.collected += 1;
+                stats.edges_deleted += old_edges.len();
                 // If we happened to delete a known root at this point record it so we can reconcile
                 // later.
                 if roots.contains_key(&task_id) {
-                    outcome.deleted_roots.push(task_id);
+                    result.deleted_roots.push(task_id);
                 }
                 // Delete outgoing edges but don't update the aggregation graph yet.
                 // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
                 // we defer all rebalancing to the end
-                outcome.deferred_balance_edges.extend(
+                result.deferred_balance_edges.extend(
                     CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx),
                 );
                 ControlFlow::Continue(())
             },
-            GcPassOutcome::merge,
+            |(stats, result), (other_stats, other_result)| {
+                (stats.merge(other_stats), result.merge(other_result))
+            },
         );
 
         // Drop the entries for the roots this pass collected, recorded as they were deleted.
-        for id in &outcome.deleted_roots {
+        for id in &result.deleted_roots {
             roots.remove(id);
         }
 
         // Process the rebalance requests now that deletion work is done
         // Do this before computing roots so all uppers are settled
-        let deferred = std::mem::take(&mut outcome.deferred_balance_edges);
+        let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
             let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
@@ -304,16 +321,16 @@ impl TurboTasksBackend {
             roots.insert(id, TtlCounter::MostRecent);
         }
 
-        outcome.gc_roots = roots.len();
-        outcome.aged_out_roots = aged_out_count;
-        outcome.interrupted = budget
+        stats.gc_roots = roots.len();
+        stats.aged_out_roots = aged_out_count;
+        result.interrupted = budget
             .as_ref()
             .is_some_and(|budget| budget.was_interrupted());
 
         // Only persist the roots map if it actually changed
         let roots_to_persist: Option<Vec<_>> =
             (roots != roots_before).then(|| roots.into_iter().collect());
-        (outcome, roots_to_persist)
+        (stats, result, roots_to_persist)
     }
 
     /// Compute which persisted roots have expired their TTL
@@ -405,7 +422,8 @@ impl TurboTasksBackend {
         );
         let _serialize = self.snapshot_in_progress.lock();
         let phase = self.snapshot_coord.begin_snapshot();
-        let (stats, roots) = self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
+        let (stats, _result, roots) =
+            self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
 
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.

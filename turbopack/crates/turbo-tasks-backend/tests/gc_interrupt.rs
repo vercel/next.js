@@ -76,7 +76,7 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 
     let stats = outcome.gc_outcome();
     assert!(
-        !stats.interrupted,
+        !outcome.gc_interrupted(),
         "the min-progress floor must suppress the interrupt (collected={})",
         stats.collected
     );
@@ -116,7 +116,7 @@ async fn gc_interrupt_is_self_healing() {
         // first thing worth seeing.
         println!("round {gen_value}: {stats}");
         collected_in_phase_1 += stats.collected;
-        interrupted_rounds += usize::from(stats.interrupted);
+        interrupted_rounds += usize::from(outcome.gc_interrupted());
     }
 
     // Phase 2: a completing pass must recover exactly what phase 1 left behind.
