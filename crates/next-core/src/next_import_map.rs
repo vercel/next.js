@@ -65,6 +65,11 @@ pub async fn get_next_client_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image.js")),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -282,6 +287,11 @@ pub async fn get_next_server_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image.js")),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -416,7 +426,7 @@ pub async fn get_next_edge_import_map(
         rcstr!("next/form") => rcstr!("next/dist/api/form"),
         rcstr!("next/head") => rcstr!("next/dist/api/head"),
         rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
-        rcstr!("next/image") => rcstr!("next/dist/api/image"),
+        rcstr!("next/image") => rcstr!("next/dist/api/image.js"),
         rcstr!("next/link") => rcstr!("next/dist/api/link"),
         rcstr!("next/navigation") => rcstr!("next/dist/api/navigation"),
         rcstr!("next/router") => rcstr!("next/dist/api/router"),
