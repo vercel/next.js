@@ -1,7 +1,5 @@
 # Next.js Development Guide
 
-> **Note:** `CLAUDE.md` is a symlink to `AGENTS.md`. They are the same file.
-
 ## Codebase structure
 
 ### Monorepo Overview
