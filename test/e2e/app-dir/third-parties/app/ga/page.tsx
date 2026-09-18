@@ -10,12 +10,12 @@ const Page = () => {
 
   return (
     <div className="container">
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="GA-XYZ" data-ga-script="app-dir" />
       <h1>GA</h1>
       <button id="ga-send" onClick={onClick}>
         Click
       </button>
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="GA-XYZ" data-ga-script="app-dir" />
     </div>
   )
 }
