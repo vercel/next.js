@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('unhandled-rejection-logging', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    captureRuntimeLogs: true,
   })
 
   it('logs an unhandled rejection', async () => {

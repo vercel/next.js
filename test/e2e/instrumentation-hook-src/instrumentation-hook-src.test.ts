@@ -1,12 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 describe('instrumentation-hook-rsc', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
-  // @force-gate !deploy
   describe('instrumentation', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
+      captureRuntimeLogs: true,
     })
 
     it('should run the instrumentation hook', async () => {
