@@ -30,6 +30,7 @@ import type {
 import type { RequestInsightsIdentity } from './request-insights-identity'
 import { reparentLocalSpans } from './local-span-recorder'
 import { AppRenderSpan } from './constants'
+import type { BrowserReactTimingState } from './browser-react-timings'
 export { isRequestInsightsEnabled }
 
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
@@ -50,6 +51,7 @@ export type RequestInsightDebugContext = {
   debugRequestId: string
   identity: DebugRequestIdentity & { requestId: string }
   parent: LocalSpanParent | undefined
+  browserTimings: BrowserReactTimingState
 }
 
 type RequestInsightsListener = (insight: RequestInsight) => void
@@ -148,10 +150,9 @@ class InMemoryRequestInsightsStore {
   private readonly completedRequestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
   private readonly debugRequestKeys = new Map<string, string>()
-  private readonly debugRequestParents = new Map<string, LocalSpanParent>()
   private readonly debugRequests = new Map<
     string,
-    { requests: Map<string, DebugRequestIdentity>; ambiguous: boolean }
+    { requests: Map<string, RequestInsightDebugContext>; ambiguous: boolean }
   >()
 
   startRequest(identity: DebugRequestIdentity): void {
@@ -181,7 +182,23 @@ class InMemoryRequestInsightsStore {
       if (entry.requests.size > 0 && !entry.requests.has(insightKey)) {
         entry.ambiguous = true
       }
-      entry.requests.set(insightKey, identity)
+      const context = entry.requests.get(insightKey)
+      if (context) {
+        context.identity = { ...identity, requestId: identity.requestId }
+      } else {
+        entry.requests.set(insightKey, {
+          debugRequestId,
+          identity: { ...identity, requestId: identity.requestId },
+          parent: undefined,
+          browserTimings: {
+            decoders: new Map(),
+            recordCount: 0,
+            byteLength: 0,
+            exhausted: false,
+            partialReported: false,
+          },
+        })
+      }
       this.debugRequestKeys.set(insightKey, debugKey)
     }
     if (this.requests.get(insightKey)?.completedAt === undefined) {
@@ -381,14 +398,13 @@ class InMemoryRequestInsightsStore {
     if (archived === null) return undefined
     if (!entry) return archived && { ...archived, insight: undefined }
     if (entry.requests.size !== 1) return undefined
-    const [insightKey, identity] = entry.requests.entries().next().value!
+    const [insightKey, context] = entry.requests.entries().next().value!
     if (archived && getRequestInsightKey(archived.identity) !== insightKey) {
       return undefined
     }
     return {
-      identity,
+      ...context,
       insight: this.requests.get(insightKey),
-      parent: this.debugRequestParents.get(insightKey),
     }
   }
 
@@ -407,11 +423,14 @@ class InMemoryRequestInsightsStore {
       requestId: identity.requestId,
       kind: identity.kind,
     })
-    if (this.debugRequestKeys.has(key) && !this.debugRequestParents.has(key)) {
-      this.debugRequestParents.set(key, {
+    const debugKey = this.debugRequestKeys.get(key)
+    const context =
+      debugKey && this.debugRequests.get(debugKey)?.requests.get(key)
+    if (context && !context.parent) {
+      context.parent = {
         traceId: parent.traceId,
         spanId: parent.spanId,
-      })
+      }
     }
   }
 
@@ -429,7 +448,6 @@ class InMemoryRequestInsightsStore {
     this.requestOrder.length = 0
     this.completedRequestOrder.length = 0
     this.debugRequestKeys.clear()
-    this.debugRequestParents.clear()
     this.debugRequests.clear()
   }
 
@@ -560,24 +578,17 @@ class InMemoryRequestInsightsStore {
     insight.completedAt = completedAt
     this.completedRequestOrder.push(insightKey)
     const completedDebugKey = this.debugRequestKeys.get(insightKey)
-    const identity =
+    const debugContext =
       completedDebugKey &&
       this.debugRequests.get(completedDebugKey)?.requests.get(insightKey)
-    appendCompletedRequestInsight(
-      insight,
-      identity
-        ? {
-            debugRequestId: identity.debugRequestId ?? identity.requestId!,
-            identity: {
-              ...identity,
-              requestId: insight.requestId,
-              route: insight.route,
-              url: insight.url,
-            },
-            parent: this.debugRequestParents.get(insightKey),
-          }
-        : undefined
-    )
+    if (debugContext) {
+      debugContext.identity = {
+        ...debugContext.identity,
+        route: insight.route,
+        url: insight.url,
+      }
+    }
+    appendCompletedRequestInsight(insight, debugContext || undefined)
 
     const requestIndex = this.requestOrder.indexOf(insightKey)
     if (requestIndex !== -1) {
@@ -596,7 +607,6 @@ class InMemoryRequestInsightsStore {
           entry?.requests.delete(completedInsightKey)
           if (entry?.requests.size === 0) this.debugRequests.delete(debugKey)
           this.debugRequestKeys.delete(completedInsightKey)
-          this.debugRequestParents.delete(completedInsightKey)
         }
         this.requests.delete(completedInsightKey)
         this.requestTimings.delete(completedInsightKey)
