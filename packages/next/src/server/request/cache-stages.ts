@@ -135,7 +135,7 @@ export function unstable_prefetch(): Promise<void> {
         `Route ${workStore.route} used \`unstable_prefetch()\` inside a function cached with \`unstable_cache()\`. The \`unstable_prefetch()\` function is used to indicate the subsequent code must not run in the app shell, but \`unstable_cache()\` caches must be able to be produced before a prefetch, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
     }
-    case 'generate-static-params': {
+    case 'build-time-generator': {
       throw new Error(
         `Route ${workStore.route} used \`unstable_prefetch()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a prefetch. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
@@ -288,7 +288,7 @@ export function unstable_navigation(): Promise<void> {
         `Route ${workStore.route} used \`unstable_navigation()\` inside a function cached with \`unstable_cache()\`. The \`unstable_navigation()\` function is used to indicate the subsequent code must only run during an actual navigation, but \`unstable_cache()\` caches must be able to be produced before a navigation, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
     }
-    case 'generate-static-params': {
+    case 'build-time-generator': {
       throw new Error(
         `Route ${workStore.route} used \`unstable_navigation()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
