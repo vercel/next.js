@@ -97,6 +97,8 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  /** Legacy deployment builders require a resume for unresolved router params. */
+  isLegacyPrerender?: boolean
   partialPrefetching?: NextConfigComplete['partialPrefetching']
   validationLevel: ValidationLevel
   trailingSlash: boolean

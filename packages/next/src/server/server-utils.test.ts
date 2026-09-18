@@ -73,6 +73,139 @@ describe('getParamsFromRouteMatches', () => {
 })
 
 describe('normalizeDynamicRouteParams', () => {
+  it('should omit an encoded default placeholder for a missing optional catch-all param', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+    const query = {
+      locale: 'en',
+      filterSlugs: ['%5B%5B...filterSlugs%5D%5D'],
+    }
+
+    expect(
+      normalizeDynamicRouteParams(query, true, new Set(['filterSlugs']))
+    ).toEqual({
+      params: { locale: 'en' },
+      hasValidParams: true,
+    })
+    expect(query).toEqual({ locale: 'en' })
+  })
+
+  it('should omit a doubly encoded default placeholder for a missing optional catch-all param', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    expect(
+      normalizeDynamicRouteParams(
+        {
+          locale: 'en',
+          filterSlugs: '%255B%255B...filterSlugs%255D%255D',
+        },
+        true,
+        new Set(['filterSlugs'])
+      )
+    ).toEqual({
+      params: { locale: 'en' },
+      hasValidParams: true,
+    })
+  })
+
+  it.each([
+    '[[...filterSlugs]]',
+    '%5B%5B...filterSlugs%5D%5D',
+    '%255B%255B...filterSlugs%255D%255D',
+  ])('should preserve the literal optional catch-all value %s', (value) => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+    const query = {
+      locale: 'en',
+      filterSlugs: [value],
+    }
+
+    expect(normalizeDynamicRouteParams(query, true)).toEqual({
+      params: {
+        locale: 'en',
+        filterSlugs: [value],
+      },
+      hasValidParams: true,
+    })
+    expect(query).toEqual({
+      locale: 'en',
+      filterSlugs: [value],
+    })
+  })
+
+  it('should omit a decoded default placeholder supplied by an upstream route matcher', () => {
+    const { normalizeDynamicRouteParams, normalizeQueryParams } =
+      getServerUtils({
+        page: '/[locale]/[[...filterSlugs]]',
+        basePath: '',
+        rewrites: {},
+        i18n: undefined,
+        pageIsDynamic: true,
+        caseSensitive: false,
+      })
+    const query = {
+      locale: 'en',
+      nxtPfilterSlugs: '%5B%5B...filterSlugs%5D%5D',
+    }
+    const routeParamKeys = new Set<string>()
+
+    normalizeQueryParams(query, routeParamKeys)
+
+    expect(normalizeDynamicRouteParams(query, true, routeParamKeys)).toEqual({
+      params: { locale: 'en' },
+      hasValidParams: true,
+    })
+    expect(query).toEqual({ locale: 'en' })
+  })
+
+  it.each([
+    ['literal', ['foo', '[[...filterSlugs]]']],
+    ['encoded', ['foo', '%5B%5B...filterSlugs%5D%5D']],
+  ])(
+    'should preserve a mixed optional catch-all containing the %s placeholder value',
+    (_description, filterSlugs) => {
+      const { normalizeDynamicRouteParams } = getServerUtils({
+        page: '/[locale]/[[...filterSlugs]]',
+        basePath: '',
+        rewrites: {},
+        i18n: undefined,
+        pageIsDynamic: true,
+        caseSensitive: false,
+      })
+      const query = {
+        locale: 'en',
+        filterSlugs,
+      }
+
+      expect(
+        normalizeDynamicRouteParams(query, true, new Set(['filterSlugs']))
+      ).toEqual({
+        params: { locale: 'en', filterSlugs },
+        hasValidParams: true,
+      })
+      expect(query).toEqual({ locale: 'en', filterSlugs })
+    }
+  )
+
   it('should reject encoded default placeholders for dynamic params', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
       page: '/[teamSlug]/[project]',
@@ -200,5 +333,29 @@ describe('normalizeDynamicRouteParams', () => {
       },
       hasValidParams: true,
     })
+  })
+})
+
+describe('normalizeQueryParams', () => {
+  it('preserves percent escapes in captures already decoded by the platform', () => {
+    const { normalizeQueryParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+    const query = {
+      nxtPlocale: 'en',
+      nxtPfilterSlugs: '%5B%5B...filterSlugs%5D%5D',
+    }
+    const keys = new Set<string>()
+    normalizeQueryParams(query, keys, new Set(['locale', 'filterSlugs']))
+    expect(query).toEqual({
+      locale: 'en',
+      filterSlugs: '%5B%5B...filterSlugs%5D%5D',
+    })
+    expect(keys).toEqual(new Set(['locale', 'filterSlugs']))
   })
 })

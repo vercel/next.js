@@ -489,6 +489,7 @@ async function exportAppImpl(
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    isLegacyPrerender: hasNextSupport && !nextConfig.adapterPath,
     partialPrefetching: nextConfig.partialPrefetching,
     validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
