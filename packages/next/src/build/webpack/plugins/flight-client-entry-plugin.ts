@@ -29,6 +29,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../../../shared/lib/entry-constants'
+import { getConventionFileBaseName } from '../../get-convention-file-base-name'
 import {
   isClientComponentEntryModule,
   isCSSMod,
@@ -139,6 +140,18 @@ const pluginState = getProxiedPluginState({
 const POSSIBLE_SHARED_CONVENTIONS = ['template', 'layout']
 const STANDALONE_BUNDLE_CONVENTION = 'global-not-found'
 
+/**
+ * The App Router convention a CSS-importing entry belongs to, e.g. `layout` for
+ * `app/layout.tsx`.
+ *
+ * `path.parse().name` only strips the last extension, so with a compound
+ * `pageExtensions` entry like `"page.tsx"` it returns `"layout.page"` for
+ * `app/layout.page.tsx` and no convention is recognized at all.
+ */
+function getEntryConventionName(entryFilePath: string): string {
+  return getConventionFileBaseName(path.basename(entryFilePath))
+}
+
 function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   // If multiple entry module connections are having the same CSS import,
   // we only need to have one module to keep track of that CSS import.
@@ -166,8 +179,8 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
       return aDepth - bDepth
     }
 
-    const aName = path.parse(aPath).name
-    const bName = path.parse(bPath).name
+    const aName = getEntryConventionName(aPath)
+    const bName = getEntryConventionName(bPath)
 
     const indexA = POSSIBLE_SHARED_CONVENTIONS.indexOf(aName)
     const indexB = POSSIBLE_SHARED_CONVENTIONS.indexOf(bName)
@@ -181,7 +194,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   const trackedCSSImports = new Set<string>()
 
   for (const [entryFilePath, cssImports] of sortedCSSImports) {
-    const entryConventionName = path.parse(entryFilePath).name
+    const entryConventionName = getEntryConventionName(entryFilePath)
 
     for (const cssImport of cssImports) {
       // If the CSS import is already tracked, we can skip it.
