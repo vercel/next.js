@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-import { getFutureUpgrade, nudgeForUpgrade } from 'next/dist/lib/upgrade/nudge'
+import { assessUpgrade, nudgeForUpgrade } from 'next/dist/lib/upgrade/nudge'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import {
   getLatestUpgradeVersion,
@@ -298,8 +298,10 @@ describe('composed future nudge', () => {
 
   it('does not offer Future Defaults from a prerelease', async () => {
     await expect(
-      getFutureUpgrade(
-        config('future', { cacheComponents: false }),
+      assessUpgrade(
+        directory,
+        { policy: 'future', cacheComponents: false },
+        'agent',
         '16.4.0-canary.1'
       )
     ).resolves.toBeNull()
@@ -307,17 +309,62 @@ describe('composed future nudge', () => {
 
   it('names available Future Defaults using the adapter', async () => {
     await expect(
-      getFutureUpgrade(config('future', { cacheComponents: false }), '16.4.0')
+      assessUpgrade(
+        directory,
+        { policy: 'future', cacheComponents: false },
+        'agent',
+        '16.4.0'
+      )
     ).resolves.toEqual({
+      kind: 'future',
+      policy: 'future',
       installedVersion: '16.4.0',
+      preferenceKey: null,
       names: ['Cache Components'],
     })
   })
 
   it('stays silent when all available Future Defaults are adopted', async () => {
     await expect(
-      getFutureUpgrade(config('future', { cacheComponents: true }), '16.4.0')
+      assessUpgrade(
+        directory,
+        { policy: 'future', cacheComponents: true },
+        'agent',
+        '16.4.0'
+      )
     ).resolves.toBeNull()
+  })
+
+  it('still assesses latest for agents when advisory lookup fails', async () => {
+    jest.mocked(getSecurityAdvisory).mockRejectedValue(new Error('Unavailable'))
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue('17.0.0')
+
+    await expect(
+      assessUpgrade(
+        directory,
+        { policy: 'future', cacheComponents: false },
+        'agent',
+        '16.4.0'
+      )
+    ).resolves.toMatchObject({ kind: 'latest', latestVersion: '17.0.0' })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(getAgentName).toHaveBeenCalledTimes(1)
+  })
+
+  it('still assesses Future Defaults for agents when latest lookup fails', async () => {
+    jest
+      .mocked(getLatestUpgradeVersion)
+      .mockRejectedValue(new Error('Unavailable'))
+
+    await expect(
+      assessUpgrade(
+        directory,
+        { policy: 'future', cacheComponents: false },
+        'agent',
+        '16.4.0'
+      )
+    ).resolves.toMatchObject({ kind: 'future', names: ['Cache Components'] })
+    expect(warn).not.toHaveBeenCalled()
   })
 
   it('stops for a required latest upgrade before Future Defaults', async () => {

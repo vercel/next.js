@@ -29,7 +29,7 @@ export async function getUpgradePreferenceKey(
 }
 
 export function upgradePreferences() {
-  // Product preferences share Next.js' global config location, not telemetry consent.
+  // Upgrade preferences share Next.js' global config location, not telemetry consent.
   const conf = new Conf({ projectName: 'nextjs' })
   return {
     isDismissed(key: string, kind: string, version: string, policy: string) {

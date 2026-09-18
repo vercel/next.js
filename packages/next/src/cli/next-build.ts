@@ -12,7 +12,7 @@ import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 import { parseBuildPathsInput } from '../lib/resolve-build-paths'
-import type { HumanUpgradeNudge } from '../lib/upgrade/human-nudge'
+import type { UpgradeNudge } from '../lib/upgrade/nudge'
 
 export type NextBuildOptions = {
   experimentalAnalyze?: boolean
@@ -123,7 +123,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     }).filter(([_, value]) => value !== undefined && value !== false)
   )
 
-  let humanNudge: Promise<HumanUpgradeNudge | null> = Promise.resolve(null)
+  let upgradeNudge: Promise<UpgradeNudge | null> = Promise.resolve(null)
   return build(
     dir,
     experimentalAnalyze,
@@ -139,11 +139,16 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     enabledFeatures,
     (config) => {
       if (!config.experimental.agenticAutoUpgrade) return
-      humanNudge = import('../lib/upgrade/human-nudge.js')
-        .then(({ assessHumanUpgrade }) =>
-          assessHumanUpgrade(dir, {
-            policy: config.experimental.agenticAutoUpgrade,
-          })
+      upgradeNudge = import('../lib/upgrade/nudge.js')
+        .then(({ assessUpgrade }) =>
+          assessUpgrade(
+            dir,
+            {
+              policy: config.experimental.agenticAutoUpgrade,
+              cacheComponents: config.cacheComponents,
+            },
+            'interactive'
+          )
         )
         .catch(() => null)
     }
@@ -174,17 +179,17 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
       }
     })
     .then(async () => {
-      const nudge = await humanNudge
+      const nudge = await upgradeNudge
       if (!nudge) return
-      const { promptHumanUpgrade, runHumanUpgrade } = await import(
-        '../lib/upgrade/human-nudge.js'
+      const { promptUpgrade, runUpgrade } = await import(
+        '../lib/upgrade/nudge.js'
       )
-      if (await promptHumanUpgrade(nudge, new AbortController().signal)) {
+      if (await promptUpgrade(nudge, new AbortController().signal)) {
         // The upgrade runner now owns signal forwarding to its child.
         process.removeListener('SIGTERM', onTerminate)
         process.removeListener('SIGINT', onInterrupt)
         try {
-          process.exitCode = await runHumanUpgrade(dir, nudge.policy)
+          process.exitCode = await runUpgrade(dir, nudge.policy)
         } catch {
           warn(
             'Could not start the upgrade. Run next upgrade --ai to try again.'

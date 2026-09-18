@@ -1103,8 +1103,9 @@ export async function initialize(opts: {
 
   return {
     requestHandler,
-    humanUpgradeContext: {
+    upgradeContext: {
       policy: development?.config.experimental.agenticAutoUpgrade,
+      cacheComponents: development?.config.cacheComponents ?? false,
     },
     upgradeHandler,
     server: handlers.server,

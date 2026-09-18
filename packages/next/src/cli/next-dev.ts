@@ -72,8 +72,8 @@ let distDir: string | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
-let humanNudgeShown = false
-let humanNudgeController: AbortController | null = null
+let upgradeNudgeShown = false
+let upgradeNudgeController: AbortController | null = null
 let upgrading = false
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
@@ -112,7 +112,7 @@ const handleSessionStop = async (
   signal: NodeJS.Signals | number | null,
   exit = true
 ) => {
-  humanNudgeController?.abort()
+  upgradeNudgeController?.abort()
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
@@ -464,19 +464,17 @@ const nextDev = async (
 
             resolved = true
             resolve()
-            if (!humanNudgeShown && msg.humanUpgradeContext?.policy) {
+            if (!upgradeNudgeShown && msg.upgradeContext?.policy) {
               const worker = child
               const controller = new AbortController()
-              humanNudgeController = controller
+              upgradeNudgeController = controller
               void (async () => {
-                const {
-                  assessHumanUpgrade,
-                  promptHumanUpgrade,
-                  runHumanUpgrade,
-                } = await import('../lib/upgrade/human-nudge.js')
-                const nudge = await assessHumanUpgrade(
+                const { assessUpgrade, promptUpgrade, runUpgrade } =
+                  await import('../lib/upgrade/nudge.js')
+                const nudge = await assessUpgrade(
                   dir,
-                  msg.humanUpgradeContext
+                  msg.upgradeContext,
+                  'interactive'
                 )
                 if (
                   !nudge ||
@@ -485,16 +483,15 @@ const nextDev = async (
                   sessionStopHandled
                 )
                   return
-                humanNudgeShown = true
-                if (!(await promptHumanUpgrade(nudge, controller.signal)))
-                  return
+                upgradeNudgeShown = true
+                if (!(await promptUpgrade(nudge, controller.signal))) return
                 upgrading = true
                 await handleSessionStop('SIGTERM', false)
                 process.removeListener('SIGINT', onInterrupt)
                 process.removeListener('SIGTERM', onTerminate)
                 let code = 1
                 try {
-                  code = await runHumanUpgrade(dir, nudge.policy)
+                  code = await runUpgrade(dir, nudge.policy)
                 } catch {
                   Log.error(
                     'Could not start the upgrade. Run next upgrade --ai to try again.'
@@ -514,7 +511,7 @@ const nextDev = async (
       })
 
       child.on('exit', async (code, signal) => {
-        humanNudgeController?.abort()
+        upgradeNudgeController?.abort()
         if (upgrading || sessionStopHandled || signal) {
           return
         }
