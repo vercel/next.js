@@ -58,7 +58,9 @@ describe('file paths', () => {
     '/project/app/@modal/default.tsx',
     'C:\\project\\src\\app\\blog\\page.tsx',
   ])('transforms route segment %s', (path) => {
-    expect(transformer({ path, source }, {}).trim()).toBe(expected.trim())
+    expect(
+      transformer({ path, source }, {}).replace(/\r\n/g, '\n').trim()
+    ).toBe(expected.replace(/\r\n/g, '\n').trim())
   })
 
   it.each([
