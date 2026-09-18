@@ -404,7 +404,7 @@ impl ModuleOptions {
         // which produces virtual paths that don't exist on disk. This breaks NFT file tracing
         // and standalone build file copying. Use Raw module type instead so the original
         // filesystem path is preserved in the trace.
-        let is_tracing = analyze_mode.skip_codegen;
+        let is_only_tracing = !analyze_mode.is_codegen;
 
         // Import attribute rules (bytes/text) must come BEFORE config rules.
         // Import attributes have a stronger API contract - they're explicit in the source code
@@ -414,7 +414,7 @@ impl ModuleOptions {
                 RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
                 ))),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -428,7 +428,7 @@ impl ModuleOptions {
             RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                 EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
             ))),
-            if is_tracing {
+            if is_only_tracing {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
             } else {
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -610,7 +610,7 @@ impl ModuleOptions {
                 RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
                 ))),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -628,7 +628,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".json".to_string()),
                     RuleCondition::ContentTypeStartsWith("application/json".to_string()),
                 ]),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -704,7 +704,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".wasm".to_string()),
                     RuleCondition::ContentTypeStartsWith("application/wasm".to_string()),
                 ]),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
@@ -716,7 +716,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".wat".to_string(),
                 )]),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
