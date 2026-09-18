@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/input/index.js:12:0  Module not found: Can't resolve './reexport_bindings.js'
+  
+       8 |   live as reexportedLive,
+       9 |   setLive as reexportedSetLive,
+      10 | } from './import_bindings_reexport.js'
+      11 | import { result as reexportedCircularResult } from './cycle_reexport.js'
+         + v--------------------------------------------------------v
+      12 + import * as reexportBindings from './reexport_bindings.js'
+         + ^--------------------------------------------------------^
+      13 | import { cycleResult as reexportCycleResult } from './cycle_reexport_barrel.js'
+      14 | 
+      15 | it('hoisted declarations are live', () => {
+      16 |   expect(liveExports.bar()).toBe('bar')
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './reexport_bindings.js'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/input/index.js
+  | Type of request: EcmaScript Modules (part) request
+  |

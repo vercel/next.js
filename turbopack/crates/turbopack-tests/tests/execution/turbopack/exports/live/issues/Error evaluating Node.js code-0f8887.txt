@@ -1,0 +1,13 @@
+error - [transform] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/input/index.js  Error evaluating Node.js code
+  
+  Error: Cannot find module './reexport_bindings.js'
+      at ./../../../../../../../../../turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/input/index.js:11:1 [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/0_9x_turbopack-tests_tests_execution_turbopack_exports_live_input_0h143is405wse._.js:83:15]
+      at module evaluation (./../../../../../../../../../turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/input/index.js:11:1) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/0_9x_turbopack-tests_tests_execution_turbopack_exports_live_input_0h143is405wse._.js:86:3]
+      at call (turbopack:///[turbopack]/shared/runtime/hmr-runtime.ts:652:21) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/[turbopack]_runtime.js:1314:27]
+      at exec (turbopack:///[turbopack]/nodejs/runtime/dev-base.ts:93:5) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/[turbopack]_runtime.js:1590:9]
+      at runModuleExecutionHooksFn (turbopack:///[turbopack]/shared/runtime/hmr-runtime.ts:650:5) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/[turbopack]_runtime.js:1312:9]
+      at instantiateModuleShared (turbopack:///[turbopack]/nodejs/runtime/dev-base.ts:97:21) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/[turbopack]_runtime.js:1593:23]
+      at instantiateModule (turbopack:///[turbopack]/nodejs/runtime/dev-base.ts:166:21) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/[turbopack]_runtime.js:1629:23]
+      at getOrInstantiateModuleFromParent (turbopack:///[turbopack]/shared/runtime/runtime-utils.ts:616:18) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/[turbopack]_runtime.js:451:20]
+      [at WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/live/output/1jsg_tests_execution_turbopack_exports_live_input_index_13rkiq5qco1iv.js:8:16]
+      [at process.processTicksAndRejections (node:internal/process/task_queues:95:5)]
