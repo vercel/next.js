@@ -311,10 +311,10 @@ export async function spawnNextUpgrade(
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
-      const prereleaseTag = semver.prerelease(result.targetVersion)?.[0]
-      const releaseDescription = prereleaseTag
-        ? `Next.js release on the ${prereleaseTag} dist-tag`
-        : 'stable Next.js release'
+      const releaseDescription =
+        semver.prerelease(result.targetVersion)?.[0] === 'canary'
+          ? 'Next.js release on the canary dist-tag'
+          : 'stable Next.js release'
       const reason =
         upgradeType === 'security'
           ? 'the installed version is affected by a published security advisory'
@@ -337,11 +337,15 @@ Complete each adoption. Temporary opt-outs and TODO markers are intermediate wor
       const taskSummary = needsVersionMigration
         ? `We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.`
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
+      const policyInstruction =
+        upgradeType === 'security'
+          ? 'Preserve `experimental.agenticAutoUpgrade` if it is "latest" or "future"; otherwise set it to "security" in the app\'s Next.js config as part of this upgrade.'
+          : `Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade.`
       const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
 
 ${taskSummary}
 
-Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+${policyInstruction} Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
 ${futureDefaultsPrompt ? `${futureDefaultsPrompt.trimStart()}\n\n` : ''}References:
 ${references}`

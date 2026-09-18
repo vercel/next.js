@@ -13,13 +13,6 @@ as instructed so the original task can continue with a warning. Tell the user
 about the finding and ask whether they want to run the upgrade. Continue
 independent work while waiting. If approved, complete the upgrade.
 
-For `latest`, stable installs target npm's latest stable Next.js release.
-Prerelease installs stay on their matching npm dist-tag (such as `canary`, `rc`,
-or `beta`) and upgrade only across a major or minor version boundary. `future`
-uses the same channel policy and can retain the installed version while adopting
-available Future Defaults. Use the exact target supplied by the CLI; do not
-switch release channels or resolve a different target.
-
 ## 1. Check for duplicates
 
 Before reading another guide or changing files, complete every item:
@@ -72,8 +65,8 @@ references in the prompt instead of the codemod steps below.
 - [ ] Complete the codemod's manual steps, resolve its review markers, and
       complete every applicable migration item. Keep only changes required by
       the final target.
-- [ ] Set `experimental.agenticAutoUpgrade` to the policy specified in the
-      prompt, preserving unrelated configuration. If the target Next.js version
+- [ ] Follow the prompt's instructions for `experimental.agenticAutoUpgrade`,
+      preserving unrelated configuration. If the target Next.js version
       does not support this option, skip the setting and report why.
 
 ## 4. Verify

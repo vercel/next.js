@@ -288,7 +288,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
-     Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Preserve \`experimental.agenticAutoUpgrade\` if it is "latest" or "future"; otherwise set it to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
      - https://api.github.com/advisories?affects=next
@@ -343,7 +343,44 @@ describe('agentic upgrade prompts', () => {
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       expect(Log.bootstrap).toHaveBeenCalledWith(
         expect.stringContaining(
-          `Set \`experimental.agenticAutoUpgrade\` to "${policy}"`
+          policy === 'security'
+            ? 'Preserve `experimental.agenticAutoUpgrade` if it is "latest" or "future"'
+            : `Set \`experimental.agenticAutoUpgrade\` to "${policy}"`
+        )
+      )
+    }
+  )
+
+  it.each(['latest', 'future'] as const)(
+    'routes an explicit security fix separately from the %s policy',
+    async (policy) => {
+      jest.mocked(loadConfig).mockResolvedValue({
+        default: { experimental: { agenticAutoUpgrade: policy } },
+      } as never)
+      jest.mocked(prepareUpgrade).mockResolvedValue({
+        status: 'ready',
+        installedVersion: '17.2.0-canary.4',
+        targetVersion: '17.2.0-canary.5',
+        references: ['https://registry.npmjs.org/next'],
+        futureDefaults: [],
+      })
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      })
+
+      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+      expect(loadConfig).not.toHaveBeenCalled()
+      expect(Log.bootstrap).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'from Next.js 17.2.0-canary.4 to 17.2.0-canary.5'
+        )
+      )
+      expect(Log.bootstrap).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Preserve `experimental.agenticAutoUpgrade` if it is "latest" or "future"'
         )
       )
     }
@@ -389,8 +426,9 @@ describe('agentic upgrade prompts', () => {
         'describes the selected %s channel in the handoff',
         async (distTag) => {
           const installedVersion = `17.1.0-${distTag}.1`
-          const targetVersion = `17.2.0-${distTag}.1`
-          const reference = `https://registry.npmjs.org/next/${distTag}`
+          const targetVersion =
+            distTag === 'canary' ? '17.2.0-canary.1' : '17.2.0'
+          const reference = `https://registry.npmjs.org/next/${distTag === 'canary' ? 'canary' : 'latest'}`
           jest.mocked(prepareUpgrade).mockResolvedValue({
             status: 'ready',
             installedVersion,
@@ -410,9 +448,13 @@ describe('agentic upgrade prompts', () => {
           expect(prompt).toContain(
             `from Next.js ${installedVersion} to ${targetVersion}`
           )
-          expect(prompt).toContain(`Next.js release on the ${distTag} dist-tag`)
+          expect(prompt).toContain(
+            distTag === 'canary'
+              ? 'Next.js release on the canary dist-tag'
+              : 'stable Next.js release'
+          )
           expect(prompt).toContain(reference)
-          expect(prompt).not.toContain('stable')
+          if (distTag === 'canary') expect(prompt).not.toContain('stable')
           expect(normalizedFileWriteCalls()).toContainEqual([
             '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
             expect.stringContaining(

@@ -192,7 +192,7 @@ This command stopped so the reminder you configured is not missed. Retry the sam
 At the end of the task, ask the user whether they want you to run the security upgrade in the background from this app's directory:
 
 \`\`\`
-next upgrade --ai
+next upgrade --ai=security
 \`\`\`
 
 Reference: ${reference}
@@ -213,7 +213,8 @@ async function nudgeForLatest(
   if (!latest) return false
 
   const { installedVersion, latestVersion } = latest
-  const distTag = semver.prerelease(latestVersion)?.[0] ?? 'latest'
+  const distTag =
+    semver.prerelease(latestVersion)?.[0] === 'canary' ? 'canary' : 'latest'
   const reference = `https://registry.npmjs.org/next/${encodeURIComponent(distTag)}`
   await showNudge(
     options,
@@ -245,11 +246,7 @@ export async function getFutureUpgrade(
   installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
 ): Promise<{ installedVersion: string; names: string[] } | null> {
   try {
-    if (
-      !(await getAgentName()) ||
-      !semver.valid(installedVersion) ||
-      semver.prerelease(installedVersion)
-    ) {
+    if (!(await getAgentName()) || !semver.valid(installedVersion)) {
       return null
     }
 
