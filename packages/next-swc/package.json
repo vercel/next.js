@@ -20,7 +20,7 @@
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-napi": "cargo check -p next-napi-bindings",
     "test-cargo-unit": "cargo nextest run --workspace --exclude next-napi-bindings --exclude turbo-tasks-macros --cargo-profile release-with-assertions --no-fail-fast && cargo test --workspace --doc --profile=release-with-assertions --no-fail-fast",
-    "test-cargo-unit-miri": "cargo miri test --workspace --exclude next-napi-bindings --exclude next-custom-transforms --exclude next-api --exclude next-code-frame --exclude next-build-test --exclude next-core --exclude turbo-tasks-macros --exclude turbopack-tracing --no-fail-fast"
+    "test-cargo-unit-miri": "cargo miri test --workspace --exclude 'next-*' --exclude turbo-tasks-macros --exclude turbopack-tracing --no-fail-fast"
   },
   "napi": {
     "binaryName": "next-swc",
