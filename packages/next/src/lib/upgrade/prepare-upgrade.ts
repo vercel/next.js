@@ -44,28 +44,45 @@ export async function prepareUpgrade(
     throw new Error('Could not determine the installed Next.js version.')
   }
 
-  // TODO: Handle prereleases
-  if (semver.prerelease(installedVersion)) {
+  const prereleaseTag = getPrereleaseTag(installedVersion)
+
+  // TODO: Handle prereleases for security assessments. Resolving the latest
+  // release on a prerelease channel does not establish that it is safe.
+  if (targetRequest === 'security' && prereleaseTag) {
     throw new Error(
-      'AI upgrades are not available for prerelease versions of Next.js yet.'
+      'Security AI upgrades are not available for prerelease versions of Next.js yet.'
     )
   }
 
   if (targetRequest === 'latest' || targetRequest === 'future') {
-    const url = `${NPM_REGISTRY}next/latest`
+    const distTag = prereleaseTag ?? 'latest'
+    const url = `${NPM_REGISTRY}next/${encodeURIComponent(distTag)}`
     const { value } = await fetchJSON(url)
     const release = value as { version: string } | null
 
     if (
       !release ||
       !semver.valid(release.version) ||
-      semver.prerelease(release.version)
+      getPrereleaseTag(release.version) !== prereleaseTag
     ) {
-      throw new Error('Could not determine the latest stable Next.js version.')
+      throw new Error(
+        prereleaseTag
+          ? `Could not determine the latest Next.js version on the ${prereleaseTag} dist-tag.`
+          : 'Could not determine the latest stable Next.js version.'
+      )
     }
 
+    const releaseKind = prereleaseTag
+      ? `release on the ${prereleaseTag} dist-tag`
+      : 'stable release'
+    const samePrereleaseLine =
+      prereleaseTag !== null &&
+      semver.major(release.version) === semver.major(installedVersion) &&
+      semver.minor(release.version) === semver.minor(installedVersion)
     const targetVersion =
-      targetRequest === 'future' && semver.gt(installedVersion, release.version)
+      samePrereleaseLine ||
+      (targetRequest === 'future' &&
+        semver.gt(installedVersion, release.version))
         ? installedVersion
         : release.version
 
@@ -75,7 +92,7 @@ export async function prepareUpgrade(
     ) {
       return {
         status: 'unaffected',
-        reason: `Next.js ${installedVersion} is already the latest stable release.`,
+        reason: `Next.js ${installedVersion} is already the latest ${releaseKind}.`,
       }
     }
 
@@ -85,7 +102,14 @@ export async function prepareUpgrade(
     ) {
       return {
         status: 'unaffected',
-        reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
+        reason: `Next.js ${installedVersion} is newer than the latest ${releaseKind} ${release.version}.`,
+      }
+    }
+
+    if (targetRequest === 'latest' && samePrereleaseLine) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} is already on the latest ${prereleaseTag} major/minor line ${semver.major(installedVersion)}.${semver.minor(installedVersion)}.`,
       }
     }
 
@@ -159,6 +183,24 @@ export async function prepareUpgrade(
     references: snapshot.references,
     futureDefaults: [],
   }
+}
+
+function getPrereleaseTag(version: string): string | null {
+  const prerelease = semver.prerelease(version)
+
+  if (!prerelease) {
+    return null
+  }
+
+  const tag = prerelease[0]
+
+  if (typeof tag !== 'string' || !tag) {
+    throw new Error(
+      'Could not determine the npm dist-tag for the installed Next.js prerelease.'
+    )
+  }
+
+  return tag
 }
 
 type Advisory = {
@@ -290,19 +332,21 @@ function affectedRanges(advisories: Advisory[]): string[] {
 }
 
 export async function getLatestUpgradeVersion(version: string) {
-  // TODO: Support prerelease upgrade policies once their target selection is
-  // defined for explicit upgrades and background reminders.
-  if (!semver.valid(version) || semver.prerelease(version)) {
+  if (!semver.valid(version)) {
     return null
   }
 
-  const { value } = await fetchJSON(`${NPM_REGISTRY}next/latest`)
+  const prereleaseTag = getPrereleaseTag(version)
+  const distTag = prereleaseTag ?? 'latest'
+  const { value } = await fetchJSON(
+    `${NPM_REGISTRY}next/${encodeURIComponent(distTag)}`
+  )
   const release = value as { version: string } | null
 
   if (
     !release ||
     !semver.valid(release.version) ||
-    semver.prerelease(release.version) !== null ||
+    getPrereleaseTag(release.version) !== prereleaseTag ||
     !semver.gt(release.version, version)
   ) {
     return null

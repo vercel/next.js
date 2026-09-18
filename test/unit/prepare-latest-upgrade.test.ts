@@ -1,7 +1,10 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import {
+  getLatestUpgradeVersion,
+  prepareUpgrade,
+} from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
 
 jest.mock('next/dist/server/config', () => ({
@@ -113,6 +116,61 @@ describe('prepare latest upgrade', () => {
     )
   })
 
+  it('selects the latest release from the installed prerelease dist-tag', async () => {
+    const directory = await createApp('17.1.0-canary.4')
+    mockLatestVersion('17.2.0-canary.9')
+
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'ready',
+        installedVersion: '17.1.0-canary.4',
+        targetVersion: '17.2.0-canary.9',
+        references: ['https://registry.npmjs.org/next/canary'],
+      })
+    )
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(jest.mocked(global.fetch).mock.calls[0][0]).toBe(
+      'https://registry.npmjs.org/next/canary'
+    )
+  })
+
+  it('nudges prereleases only across a major or minor boundary', async () => {
+    mockLatestVersion('17.2.0-canary.9')
+
+    await expect(getLatestUpgradeVersion('17.1.0-canary.4')).resolves.toBe(
+      '17.2.0-canary.9'
+    )
+    expect(jest.mocked(global.fetch).mock.calls[0][0]).toBe(
+      'https://registry.npmjs.org/next/canary'
+    )
+  })
+
+  it('does not nudge within the same prerelease major/minor line', async () => {
+    mockLatestVersion('17.2.1-canary.0')
+
+    await expect(getLatestUpgradeVersion('17.2.0-canary.4')).resolves.toBeNull()
+  })
+
+  it('does not upgrade within the same prerelease major/minor line', async () => {
+    const directory = await createApp('17.2.0-canary.4')
+    mockLatestVersion('17.2.0-canary.9')
+
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
+      status: 'unaffected',
+      reason:
+        'Next.js 17.2.0-canary.4 is already on the latest canary major/minor line 17.2.',
+    })
+  })
+
+  it('rejects a prerelease dist-tag that resolves to another channel', async () => {
+    const directory = await createApp('17.2.0-rc.1')
+    mockLatestVersion('17.2.0')
+
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'Could not determine the latest Next.js version on the rc dist-tag.'
+    )
+  })
+
   it('does nothing when the app already uses latest', async () => {
     const directory = await createApp('17.1.0')
     mockLatestVersion('17.1.0')
@@ -120,6 +178,17 @@ describe('prepare latest upgrade', () => {
     await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
       status: 'unaffected',
       reason: 'Next.js 17.1.0 is already the latest stable release.',
+    })
+  })
+
+  it('does nothing when the app already uses the latest prerelease', async () => {
+    const directory = await createApp('17.2.0-beta.3')
+    mockLatestVersion('17.2.0-beta.3')
+
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
+      status: 'unaffected',
+      reason:
+        'Next.js 17.2.0-beta.3 is already the latest release on the beta dist-tag.',
     })
   })
 
