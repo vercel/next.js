@@ -75,16 +75,6 @@ importers:
         specifier: 0.38.4
         version: 0.38.4
 
-  actions/upload-turboyet-data:
-    dependencies:
-      '@vercel/kv':
-        specifier: ^0.2.3
-        version: 0.2.4
-    devDependencies:
-      '@vercel/ncc':
-        specifier: 0.38.4
-        version: 0.38.4
-
   actions/validate-docs-links:
     dependencies:
       '@actions/core':
@@ -237,14 +227,6 @@ packages:
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
 
-  '@upstash/redis@1.24.3':
-    resolution: {integrity: sha512-gw6d4IA1biB4eye5ESaXc0zOlVQI94aptsBvVcTghYWu1kRmOrJFoMFEDCa8p5uzluyYAOFCuY2GWLR6O4ZoIw==}
-
-  '@vercel/kv@0.2.4':
-    resolution: {integrity: sha512-wbIOOXhg6MzmNMzKFSWbbLAS65hCZcJN33z1coENzI1M0fOX55yE9v9LwVGqkzdItp3eZsv6pYvwcmGtllyLTw==}
-    engines: {node: '>=14.6'}
-    deprecated: 'Vercel KV is deprecated. If you had an existing KV store, it should have moved to Upstash Redis which you will see under Vercel Integrations. For new projects, install a Redis integration from Vercel Marketplace: https://vercel.com/marketplace?category=storage&search=redis'
-
   '@vercel/ncc@0.38.4':
     resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
@@ -285,10 +267,6 @@ packages:
 
   comma-separated-tokens@1.0.8:
     resolution: {integrity: sha512-GHuDRO12Sypu2cV70d1dkA2EUmXHgntrzbpvOB+Qy+49ypNfGgFQIC2fhhXbnyrJRynDCAARsT7Ou0M6hirpfw==}
-
-  crypto-js@4.2.0:
-    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
-    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   deprecation@2.3.1:
     resolution: {integrity: sha512-xmHIy4F3scKVwMsQ4WnVaS8bHOx0DmVwRywosKhaILI0ywMDWPtBSku2HNxRvF7jtwDRsoEwYQSfbxj8b7RlJQ==}
@@ -751,14 +729,6 @@ snapshots:
 
   '@types/unist@2.0.11': {}
 
-  '@upstash/redis@1.24.3':
-    dependencies:
-      crypto-js: 4.2.0
-
-  '@vercel/kv@0.2.4':
-    dependencies:
-      '@upstash/redis': 1.24.3
-
   '@vercel/ncc@0.38.4': {}
 
   ansi-regex@6.0.1: {}
@@ -788,8 +758,6 @@ snapshots:
   collapse-white-space@1.0.6: {}
 
   comma-separated-tokens@1.0.8: {}
-
-  crypto-js@4.2.0: {}
 
   deprecation@2.3.1: {}
 

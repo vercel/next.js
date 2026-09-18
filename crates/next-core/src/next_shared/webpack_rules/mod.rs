@@ -157,6 +157,11 @@ pub async fn webpack_loader_options(
             rcstr!("web")
         },
     );
+    let mode = if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
+        rcstr!("development")
+    } else {
+        rcstr!("production")
+    };
 
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
@@ -166,6 +171,7 @@ pub async fn webpack_loader_options(
                 .to_resolved()
                 .await?,
             target,
+            mode,
         }
         .resolved_cell(),
     )))

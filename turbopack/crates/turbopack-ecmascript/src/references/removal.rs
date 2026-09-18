@@ -29,6 +29,7 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{AstModifier, CodeGen, CodeGeneration},
     utils::AstPathRange,
 };
@@ -151,6 +152,7 @@ impl RemovalCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();
@@ -159,63 +161,43 @@ impl RemovalCodeGen {
 
         let visitors = match &self.range {
             AstPathRange::Exact(path) => vec![(
-                path.clone(),
+                *path,
                 Box::new(UnreachableModifier {
                     comment_replacement: comment_replacement.clone(),
                     comments: comments.clone(),
                 }) as Box<dyn AstModifier>,
             )],
             AstPathRange::StartAfter(path) => {
-                let mut parent = &path[..];
-                while !parent.is_empty()
-                    && !matches!(parent.last().unwrap(), AstParentKind::Stmt(_))
-                {
-                    parent = &parent[0..parent.len() - 1];
-                }
-                if !parent.is_empty() {
-                    parent = &parent[0..parent.len() - 1];
-
-                    let (parent, [last]) = parent.split_at(parent.len() - 1) else {
-                        unreachable!();
-                    };
-                    if let &AstParentKind::BlockStmt(BlockStmtField::Stmts(start_index)) = last {
-                        vec![(
-                            parent.to_vec(),
-                            Box::new(UnreachableRangeModifier {
-                                comment_replacement: comment_replacement.clone(),
-                                comments: comments.clone(),
-                                start_index,
-                            }) as Box<dyn AstModifier>,
-                        )]
-                    } else if let &AstParentKind::FunctionBody(FunctionBodyField::Stmts(
-                        start_index,
-                    )) = last
-                    {
-                        vec![(
-                            parent.to_vec(),
-                            Box::new(UnreachableRangeModifier {
-                                comment_replacement: comment_replacement.clone(),
-                                comments: comments.clone(),
-                                start_index,
-                            }) as Box<dyn AstModifier>,
-                        )]
-                    } else if let &AstParentKind::SwitchCase(SwitchCaseField::Cons(start_index)) =
-                        last
-                    {
-                        vec![(
-                            parent.to_vec(),
-                            Box::new(UnreachableRangeModifier {
-                                comment_replacement: comment_replacement.clone(),
-                                comments: comments.clone(),
-                                start_index,
-                            }) as Box<dyn AstModifier>,
-                        )]
-                    } else {
-                        Vec::new()
+                // Walk up to the enclosing statement, then past the element naming the slot
+                // it occupies, leaving the node that owns the statement list plus the index
+                // to start removing from. Every ancestor of an interned path is itself a
+                // node, so this only walks the trie.
+                let Some(stmt) = trie.find_last(*path, |k| matches!(k, AstParentKind::Stmt(_)))
+                else {
+                    return Ok(CodeGeneration::visitors_with_comments(vec![], comments));
+                };
+                // `slot` names which statement of its parent this is, e.g. `Stmts(3)`.
+                let Some(slot) = trie.get_parent(stmt) else {
+                    return Ok(CodeGeneration::visitors_with_comments(vec![], comments));
+                };
+                let start_index = match trie.get(slot) {
+                    Some(AstParentKind::BlockStmt(BlockStmtField::Stmts(i)))
+                    | Some(AstParentKind::FunctionBody(FunctionBodyField::Stmts(i)))
+                    | Some(AstParentKind::SwitchCase(SwitchCaseField::Cons(i))) => i,
+                    // Not a statement list we know how to truncate.
+                    _ => {
+                        return Ok(CodeGeneration::visitors_with_comments(vec![], comments));
                     }
-                } else {
-                    Vec::new()
-                }
+                };
+                let owner = trie.get_parent(slot).unwrap_or(AstPathId::ROOT);
+                vec![(
+                    owner,
+                    Box::new(UnreachableRangeModifier {
+                        comment_replacement: comment_replacement.clone(),
+                        comments: comments.clone(),
+                        start_index,
+                    }) as Box<dyn AstModifier>,
+                )]
             }
         };
 

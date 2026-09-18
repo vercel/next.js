@@ -118,6 +118,7 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
+import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -336,6 +337,11 @@ export interface DynamicPrerenderManifestRoute
    * `generateStaticParams`.
    */
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * Whether this candidate must produce a nonempty static shell.
+   */
+  throwOnEmptyStaticShell?: boolean
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -1068,6 +1074,7 @@ export default async function build(
   let appType: RoutesManifest['appType']
 
   let loadedConfig: NextConfigComplete | undefined
+  let pendingUpgradeNudge: Promise<void> | undefined
   let staticWorker: StaticWorker
 
   // Turbopack compile warnings are deferred until after static generation.
@@ -1136,6 +1143,20 @@ export default async function build(
           )
         )
       loadedConfig = config
+
+      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      if (
+        config.experimental.agenticAutoUpgrade === 'security' ||
+        config.experimental.agenticAutoUpgrade === 'latest' ||
+        config.experimental.agenticAutoUpgrade === 'future'
+      ) {
+        const { nudgeForUpgrade } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        pendingUpgradeNudge = nudgeForUpgrade(dir, config, 'build')
+        // Build work proceeds in parallel, but a fatal security result must be
+        // observed before the command reports successful completion.
+        void pendingUpgradeNudge.catch(() => {})
+      }
 
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
@@ -1399,7 +1420,8 @@ export default async function build(
       let middlewareFilePath: string | undefined
 
       for (const rootPath of rootPaths) {
-        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const { base: fileBase, dir: fileDir } = path.parse(rootPath)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const normalizedFileDir = normalizePathSep(fileDir)
         const isAtConventionLevel =
@@ -3888,6 +3910,8 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
+                  throwOnEmptyStaticShell:
+                    prerenderCandidate?.throwOnEmptyStaticShell,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4681,8 +4705,27 @@ export default async function build(
           noMangling: NextBuildContext.noMangling ?? false,
         })
       }
+
+      await pendingUpgradeNudge
     })
   } catch (e) {
+    // A build can fail before the success path awaits this check. Surface an
+    // independent nudge failure so its retry receipt never hides the full
+    // reminder on the next build.
+    if (pendingUpgradeNudge) {
+      try {
+        await pendingUpgradeNudge
+      } catch (nudgeError) {
+        if (nudgeError !== e) {
+          Log.error(
+            nudgeError instanceof Error
+              ? nudgeError.message
+              : String(nudgeError)
+          )
+        }
+      }
+    }
+
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
       telemetry.record(

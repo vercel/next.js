@@ -375,7 +375,8 @@ function createServerModuleMap(): ServerModuleMap {
             async: boolean
             durability?: {
               codeHash: string
-              runtimeEnvVars: readonly string[]
+              runtimeEnvVarsRead: readonly string[]
+              runtimeEnvVarsExistence: readonly string[]
             }
           }
         | undefined

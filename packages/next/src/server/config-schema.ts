@@ -192,6 +192,10 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  agenticAutoUpgrade: z
+    .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
+    .optional(),
+  agentFeedback: z.boolean().optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -273,6 +277,7 @@ export const experimentalSchema = {
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
+  imgOptMozjpeg: z.boolean().optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -313,6 +318,7 @@ export const experimentalSchema = {
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
+  exposeRuntimeErrorsToHMR: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),
@@ -375,6 +381,15 @@ export const experimentalSchema = {
   turbopackMemoryEviction: z
     .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
+  turbopackGc: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        minProgressMs: z.number().min(0).finite().optional(),
+        rootTtlMs: z.number().min(0).finite().optional(),
+      }),
+    ])
+    .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
     .optional(),
@@ -416,6 +431,7 @@ export const experimentalSchema = {
   turbopackWorkerAssetPrefix: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
+  turbopackLazyDynamicImports: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),

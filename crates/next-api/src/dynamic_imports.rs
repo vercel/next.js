@@ -35,6 +35,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, ModuleGraphLayer},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
+use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
 
 use crate::module_graph::DynamicImportEntriesWithImporter;
 
@@ -52,6 +53,8 @@ pub(crate) async fn collect_next_dynamic_chunks(
     chunking_availability: NextDynamicChunkAvailability<'_>,
 ) -> Result<ResolvedVc<DynamicImportedChunks>> {
     let chunking_availability = &chunking_availability;
+    let module_graph = module_graph.to_resolved().await?;
+    let chunking_context = chunking_context.to_resolved().await?;
     let dynamic_import_chunks = dynamic_import_entries
         .iter()
         .map(async |(dynamic_entry, parent_client_reference)| {
@@ -77,8 +80,13 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 }
             };
 
+            // The react-loadable manifest needs the final CSS and JavaScript files so
+            // next/dynamic can preload them during SSR. Do not use a lazy manifest loader here.
             let async_loader =
-                chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
+                AsyncLoaderModule::new(*module, *chunking_context, availability_info)
+                    .to_resolved()
+                    .await?
+                    .as_chunk_item(*module_graph, *chunking_context);
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
