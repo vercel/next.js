@@ -85,6 +85,99 @@ function getScrollPaddingTopInPixels(
   return 0
 }
 
+// Fixed/sticky elements stay in-viewport and must not claim scroll ownership
+// (e.g. a parallel slot that only renders a fixed header).
+function isFixedOrStickyElement(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false
+  }
+  const position = getComputedStyle(element).position
+  return position === 'fixed' || position === 'sticky'
+}
+
+function isFragmentHostDescendant(
+  instance: FragmentInstance,
+  node: Node
+): boolean {
+  // Runtime API; not yet on the FragmentInstance type definitions.
+  const position = (
+    instance as FragmentInstance & {
+      compareDocumentPosition(other: Node): number
+    }
+  ).compareDocumentPosition(node)
+  return (position & Node.DOCUMENT_POSITION_CONTAINED_BY) !== 0
+}
+
+// elementFromPoint hits the innermost node; walk to a fixed/sticky ancestor
+// still inside the Fragment.
+function isFixedOrStickyWithinFragment(
+  instance: FragmentInstance,
+  element: Element
+): boolean {
+  let current: Element | null = element
+  while (current != null && isFragmentHostDescendant(instance, current)) {
+    if (isFixedOrStickyElement(current)) {
+      return true
+    }
+    current = current.parentElement
+  }
+  return false
+}
+
+function getScrollRelevantClientRects(
+  instance: HTMLElement | FragmentInstance
+): ArrayLike<DOMRect> {
+  if (instance instanceof HTMLElement) {
+    return instance.getClientRects()
+  }
+
+  const rects = instance.getClientRects()
+  if (rects.length === 0) {
+    return rects
+  }
+
+  let sawFixedOrStickyHost = false
+  let sawScrollRelevantHost = false
+
+  for (let i = 0; i < rects.length; i++) {
+    const rect = rects[i]
+    if (rect.width <= 0 && rect.height <= 0) {
+      continue
+    }
+
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      sawScrollRelevantHost = true
+      break
+    }
+
+    const x = Math.min(
+      Math.max(rect.left + rect.width / 2, 0),
+      Math.max(window.innerWidth - 1, 0)
+    )
+    const y = Math.min(
+      Math.max(rect.top + rect.height / 2, 0),
+      Math.max(window.innerHeight - 1, 0)
+    )
+    const el = document.elementFromPoint(x, y)
+    if (el == null || !isFragmentHostDescendant(instance, el)) {
+      continue
+    }
+
+    if (isFixedOrStickyWithinFragment(instance, el)) {
+      sawFixedOrStickyHost = true
+    } else {
+      sawScrollRelevantHost = true
+      break
+    }
+  }
+
+  if (sawFixedOrStickyHost && !sawScrollRelevantHost) {
+    return []
+  }
+
+  return rects
+}
+
 /**
  * Check where the top corner of the HTMLElement is relative to the usable
  * viewport.
@@ -97,7 +190,7 @@ function getScrollTargetState(
   viewportHeight: number,
   getScrollPaddingTop: () => number
 ): ScrollTargetState {
-  const rects = instance.getClientRects()
+  const rects = getScrollRelevantClientRects(instance)
   if (rects.length === 0) {
     return ScrollTargetState.NoClientRects
   }
