@@ -46,7 +46,10 @@ if (args[0] === 'build' && existsSync(assessment)) {
 if (existsSync(assessment)) await import(pathToFileURL(assessment).href)
 
 if (args[0] === 'upgrade') {
-  process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
+  const { version } = JSON.parse(
+    readFileSync(join(tools, 'next/node_modules/next/package.json'), 'utf8')
+  )
+  process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = version
 }
 
 process.argv = [process.execPath, executable, ...args]

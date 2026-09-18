@@ -14,6 +14,7 @@ import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
+import { getNpxCommand } from 'next/dist/lib/helpers/get-npx-command'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -52,7 +53,7 @@ jest.mock('next/dist/lib/get-project-dir', () => ({
   getProjectDir: jest.fn(),
 }))
 jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
-  getNpxCommand: () => 'npx',
+  getNpxCommand: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
   bold: (text: string) => text,
@@ -115,14 +116,19 @@ function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
 
 describe('agentic upgrade prompts', () => {
   const originalPath = process.env.PATH
-  const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+  const originalExpectedCliVersion =
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  const originalFetch = global.fetch
   const originalExitCode = process.exitCode
+  const currentCliVersion = require('../../packages/next/package.json').version
 
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = currentCliVersion
+    global.fetch = jest.fn()
     process.exitCode = undefined
 
+    jest.mocked(getNpxCommand).mockReturnValue('npx')
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
     jest.mocked(createSpinner).mockReturnValue({
@@ -160,20 +166,159 @@ describe('agentic upgrade prompts', () => {
       process.env.PATH = originalPath
     }
 
-    if (originalUseCurrentCli === undefined) {
-      delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
-    } else {
-      process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = originalUseCurrentCli
-    }
-
     process.exitCode = originalExitCode
+    global.fetch = originalFetch
+    if (originalExpectedCliVersion === undefined) {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    } else {
+      process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
+        originalExpectedCliVersion
+    }
     while (restoreDescriptors.length > 0) {
       restoreDescriptors.pop()?.()
     }
   })
 
+  it('revalidates canary and reuses the matching CLI', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest
+      .mocked(global.fetch)
+      .mockResolvedValue(Response.json({ version: currentCliVersion }))
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://registry.npmjs.org/next/canary',
+      expect.objectContaining({
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+        redirect: 'error',
+      })
+    )
+    expect(crossSpawn).not.toHaveBeenCalled()
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+  })
+
+  it.each(['npx --yes', 'pnpm --silent dlx', 'yarn --quiet dlx'])(
+    'delegates to an exact version with %s and preserves its exit code',
+    async (runner) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      jest.mocked(getNpxCommand).mockReturnValue(runner)
+      jest
+        .mocked(global.fetch)
+        .mockResolvedValue(Response.json({ version: '99.0.0-canary.1' }))
+      crossSpawn.mockImplementationOnce(() => {
+        const child = new EventEmitter()
+        queueMicrotask(() => child.emit('close', 7))
+        return child
+      })
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: true,
+        ai: 'future',
+      })
+
+      const [command, ...args] = runner.split(' ')
+      expect(crossSpawn).toHaveBeenCalledWith(
+        command,
+        [
+          ...args,
+          'next@99.0.0-canary.1',
+          'upgrade',
+          '/workspace/app',
+          '--ai=future',
+          '--verbose',
+        ],
+        expect.objectContaining({
+          cwd: '/workspace/app',
+          stdio: 'inherit',
+          env: expect.objectContaining({
+            __NEXT_UPGRADE_EXPECTED_CLI_VERSION: '99.0.0-canary.1',
+          }),
+        })
+      )
+      expect(prepareUpgrade).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(7)
+    }
+  )
+
+  it('consumes the delegated version without another lookup or launch', async () => {
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = currentCliVersion
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
+
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(crossSpawn).not.toHaveBeenCalled()
+    expect(prepareUpgrade).toHaveBeenCalled()
+    expect(process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION).toBeUndefined()
+  })
+
+  it('rejects a delegated CLI version mismatch', async () => {
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = '99.0.0-canary.1'
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
+
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(crossSpawn).not.toHaveBeenCalled()
+    expect(prepareUpgrade).not.toHaveBeenCalled()
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      `Expected Next.js 99.0.0-canary.1 for the upgrade, but launched ${currentCliVersion}.`
+    )
+    expect(process.exitCode).toBe(1)
+  })
+
+  it.each(['network', 'timeout', 'http', 'invalid JSON', 'invalid version'])(
+    'stops when the canary lookup fails: %s',
+    async (failure) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      if (failure === 'network' || failure === 'timeout') {
+        jest.mocked(global.fetch).mockRejectedValue(new Error(failure))
+      } else {
+        jest
+          .mocked(global.fetch)
+          .mockResolvedValue(
+            failure === 'http'
+              ? new Response(null, { status: 503 })
+              : failure === 'invalid JSON'
+                ? new Response('not JSON')
+                : Response.json({ version: '--invalid' })
+          )
+      }
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      })
+
+      expect(crossSpawn).not.toHaveBeenCalled()
+      expect(prepareUpgrade).not.toHaveBeenCalled()
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare the upgrade:',
+        'Could not determine the current Next.js canary version. Please try again.'
+      )
+      expect(process.exitCode).toBe(1)
+    }
+  )
+
   it('uses the planned multiple-agent question and choices', async () => {
-    delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     process.env.PATH = '/agents'
     overrideTTY(process.stdin)
     overrideTTY(process.stdout)
@@ -247,7 +392,7 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('uses the planned single-agent question', async () => {
-    delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     process.env.PATH = '/agents'
     overrideTTY(process.stdin)
     overrideTTY(process.stdout)

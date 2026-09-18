@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
@@ -143,6 +144,34 @@ async function resolveAIUpgradeType(
     : 'security'
 }
 
+async function resolveCanaryVersion(): Promise<string> {
+  try {
+    const response = await fetch('https://registry.npmjs.org/next/canary', {
+      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+      redirect: 'error',
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const release = (await response.json()) as { version: unknown } | null
+    if (
+      typeof release?.version !== 'string' ||
+      !semver.valid(release.version)
+    ) {
+      throw new Error('Invalid Next.js version')
+    }
+    return release.version
+  } catch (error) {
+    throw new Error(
+      'Could not determine the current Next.js canary version. Please try again.',
+      { cause: error }
+    )
+  }
+}
+
 export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions
@@ -151,33 +180,45 @@ export async function spawnNextUpgrade(
 
   if (options.ai) {
     try {
-      // A delegated canary uses itself. Local runs and evals use their invoked build.
-      const useCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI === '1'
-      delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+      const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
 
-      if (!useCurrentCli) {
-        Log.info(dim('Preparing upgrade...'))
-        const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
-        const aiArgument =
-          typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
-        const args = [
-          ...runnerArgs,
-          'next@canary',
-          'upgrade',
-          baseDir,
-          aiArgument,
-        ]
-
-        if (options.verbose) {
-          args.push('--verbose')
+      if (expectedVersion !== undefined) {
+        // Delegated upgrades and evals pin the CLI without another registry lookup.
+        if (process.env.__NEXT_VERSION !== expectedVersion) {
+          throw new Error(
+            `Expected Next.js ${expectedVersion} for the upgrade, but launched ${process.env.__NEXT_VERSION}.`
+          )
         }
+      } else {
+        Log.info(dim('Preparing upgrade...'))
+        const canaryVersion = await resolveCanaryVersion()
+        if (process.env.__NEXT_VERSION !== canaryVersion) {
+          const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
+          const aiArgument =
+            typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
+          const args = [
+            ...runnerArgs,
+            `next@${canaryVersion}`,
+            'upgrade',
+            baseDir,
+            aiArgument,
+          ]
 
-        process.exitCode = await runChildProcess(command, args, {
-          cwd: baseDir,
-          stdio: 'inherit',
-          env: { ...process.env, __NEXT_UPGRADE_USE_CURRENT_CLI: '1' },
-        })
-        return
+          if (options.verbose) {
+            args.push('--verbose')
+          }
+
+          process.exitCode = await runChildProcess(command, args, {
+            cwd: baseDir,
+            stdio: 'inherit',
+            env: {
+              ...process.env,
+              __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
+            },
+          })
+          return
+        }
       }
 
       // A workspace root must not launch an upgrade for an unspecified app.
