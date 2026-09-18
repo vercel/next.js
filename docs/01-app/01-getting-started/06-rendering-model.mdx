@@ -349,6 +349,6 @@ Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for exa
 
 ## Bots and crawlers
 
-With [Partial Prerendering](#prerendering), metadata can be dynamic while the rest of the page is prerendered into a static shell. The shell is served immediately and the metadata streams in after. Some bots and crawlers cannot handle this, and need to see the metadata included in the `<head>` tag of the document. Next.js detects them by their user agent, skips the static shell, and renders the page dynamically at request time.
+With [Partial Prerendering](#the-static-shell), metadata can be dynamic while the rest of the page is prerendered into a static shell. The shell is served immediately and the metadata streams in after. Some bots and crawlers cannot handle this, and need to see the metadata included in the `<head>` tag of the document. Next.js detects them by their user agent, skips the static shell, and renders the page dynamically at request time.
 
 Data sources available during the build-time prerender have to be available at request time too. Otherwise the render may throw, and these bots receive a 500 error. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers) in the Streaming guide for which user agents this covers and how to change the list.
