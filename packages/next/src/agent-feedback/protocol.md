@@ -10,7 +10,7 @@ Do not report routine first-pass debugging, vague task scope, problems caused by
 
 ## Defer review until a stopping point
 
-Do not interrupt an active workflow when friction first qualifies. Retain each distinct set of bounded, de-identified candidate facts in the current task context, then continue the work.
+Do not interrupt an active workflow when friction first qualifies. Retain each distinct set of bounded, anonymized candidate facts in the current task context, then continue the work.
 
 If a candidate originated in a Skill inside a larger task, keep it in the current task context and continue the larger task. Prepare the review only at the final stopping point of the overall user task. For example, verification performed while preparing a pull request should wait until the pull request work is complete.
 
@@ -63,10 +63,12 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
 
 ## Open the review form
 
-For each report, open the following URL in a separate browser tab. Replace `<encoded-json>` with the encoded payload.
+For each report, attempt to open the following URL once in a separate tab in the user's default browser. Use the browser-opening capability already available in the agent environment. Replace `<encoded-json>` with the encoded payload.
 
 ```text
 https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>
 ```
 
-Do not ask for permission before opening the review forms. Opening a form does not send feedback. Once every form is open, clear the retained friction candidates from the task context. Continue the current task, mention the prepared reports in the next progress update, and never submit or close a report for the user.
+Do not ask for permission before opening the review forms. Opening a form does not send feedback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.
+
+After attempting to open every form, clear the retained friction candidates from the task context. Continue the current task, mention any forms that opened in the next progress update, and never submit or close a report for the user.

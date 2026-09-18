@@ -493,7 +493,7 @@ export interface ExperimentalConfig {
   agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
   /**
    * Adds managed instructions to AGENTS.md or CLAUDE.md that let AI coding
-   * agents prepare de-identified Next.js feedback for user review.
+   * agents prepare anonymized Next.js feedback for user review.
    */
   agentFeedback?: boolean
   /**

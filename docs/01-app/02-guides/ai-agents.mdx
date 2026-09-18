@@ -65,7 +65,7 @@ Next.js keeps AI coding agents aligned with your installed framework version by 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -84,16 +84,18 @@ Next.js updates only the content between the agent rules markers and preserves t
 
 ### Automatic agent feedback
 
-Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents retain de-identified Next.js issues without interrupting an active task. At a natural stopping point, the agent prepares each qualifying issue as a separate report and opens it for your review. You can edit or remove details, close the form, or choose to send the report. Nothing is sent when the form opens, and agent feedback is separate from [Next.js Telemetry](/telemetry).
+Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents retain potential Next.js issues without interrupting an active task. At a natural stopping point, the agent prepares each qualifying issue as a separate report and attempts to open it once in your default browser using the browser-opening capability available in the agent environment. If the browser does not open, the agent continues the task without investigating the failure or changing your system.
+
+The instructions tell the agent to attempt to anonymize each report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. You can also close the form without sending it. Nothing is sent when the form opens, and agent feedback is separate from [Next.js Telemetry](/telemetry).
 
 With the option enabled, `next dev` adds the following managed feedback instructions to the agent file when it detects an AI coding agent:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-feedback -->
 
-# Report Next.js feedback
+## Report Next.js feedback
 
-During the task, queue de-identified Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics

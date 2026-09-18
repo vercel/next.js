@@ -63,6 +63,7 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
       'utf-8'
     )
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
+    expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
 
     const claudeContent = fs.readFileSync(
@@ -228,6 +229,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).toContain('\n## Report Next.js feedback\n')
     expect(content).toContain('meaningful detour or are likely to recur')
     expect(content).toContain('Crashes, hangs, OOMs, or unexpected slowness')
     expect(content).toContain('CLI, codemod, Skill, or upgrade behavior')

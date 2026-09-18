@@ -42,9 +42,9 @@ When `experimental.agentFeedback` is enabled and `next dev` detects an AI coding
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-feedback -->
 
-# Report Next.js feedback
+## Report Next.js feedback
 
-During the task, queue de-identified Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics
@@ -74,7 +74,9 @@ The generated instructions let the agent retain potential Next.js friction witho
 
 Each draft contains a generic setup, reproduction steps, observed facts, an expected result, and an optional control or workaround.
 
-The agent opens each draft in a separate review form. You can edit a report, remove details, close the form without sending, or select **Send feedback**. Nothing is sent when a form opens.
+The agent attempts to open each draft once in a separate tab in your default browser using the browser-opening capability available in the agent environment. If the browser does not open, the agent continues the task without retrying, investigating the failure, or changing your system. You can edit a report, remove details, close the form without sending, or select **Send feedback**. Nothing is sent when a form opens.
+
+The generated instructions tell the agent to attempt to anonymize each report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include before sending it.
 
 Submitting the form sends the content you reviewed, the agent name, and the Next.js version. The form does not automatically attach project files or machine metadata.
 

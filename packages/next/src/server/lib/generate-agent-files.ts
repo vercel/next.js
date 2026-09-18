@@ -27,7 +27,7 @@ const LEGACY_AGENT_RULES_END_MARKER = '<!-- NEXT-AGENTS-MD-END -->'
 function buildAgentRulesBlock(): string {
   return `${AGENT_RULES_START_MARKER}
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -45,9 +45,9 @@ ${AGENT_RULES_END_MARKER}`
 function buildAgentFeedbackBlock(): string {
   return `${AGENT_FEEDBACK_START_MARKER}
 
-# Report Next.js feedback
+## Report Next.js feedback
 
-During the task, queue de-identified Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics
