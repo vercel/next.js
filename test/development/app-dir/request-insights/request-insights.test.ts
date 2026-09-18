@@ -2,7 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
 import { retry, waitForNoRedbox } from 'next-test-utils'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
+import {
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+} from 'next/dist/shared/lib/request-insights'
 
 type RequestInsight = {
   requestId: string
@@ -28,6 +31,7 @@ type RequestInsight = {
     traceId?: string
     spanId?: string
     parentSpanId?: string
+    startTime?: number
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
@@ -148,39 +152,44 @@ describe('request insights', () => {
   })
 
   it('keeps cached React intervals without counting them as new executions', async () => {
-    const first = await next.render$('/cached-timings')
-    const generation = first('#cached-generation').text()
+    const browser = await next.browser('/cached-timings')
+    const generation = await browser.elementByCss('#cached-generation').text()
     expect(generation).not.toBe('')
-    const before = await next
-      .fetch('/_next/development/request-insights')
-      .then((response) => response.json())
-    const coldRequest = before.requests.find(
-      (request: RequestInsight) =>
-        request.kind !== 'instant-insights' &&
-        request.route === '/cached-timings'
-    ) as RequestInsight | undefined
-    expect(coldRequest).toBeDefined()
-    expect(coldRequest!.spans).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          attributes: expect.objectContaining({
-            'next.span_type': 'ReactServerComponents.component',
-            'next.span_name': 'render CachedTree',
-            'next.rsc.environment': 'Server',
+    let before: { requests: RequestInsight[] }
+    await retry(async () => {
+      before = await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+      const coldRequest = before.requests.find(
+        (request: RequestInsight) =>
+          request.kind !== 'instant-insights' &&
+          request.route === '/cached-timings'
+      ) as RequestInsight | undefined
+      expect(coldRequest).toBeDefined()
+      expect(coldRequest!.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'ReactServerComponents.component',
+              'next.span_name': 'render CachedTree',
+              'next.rsc.environment': 'Server',
+            }),
           }),
-        }),
-      ])
-    )
-    expect(
-      coldRequest!.spans.filter(
-        (span) => span.name === 'ReactServerComponents.incomplete'
+        ])
       )
-    ).toEqual([])
+      expect(
+        coldRequest!.spans.filter(
+          (span) => span.name === 'ReactServerComponents.incomplete'
+        )
+      ).toEqual([])
+    })
     const existing = new Set(
-      before.requests.map((request: RequestInsight) => request.requestId)
+      before!.requests.map((request: RequestInsight) => request.requestId)
     )
-    const second = await next.render$('/cached-timings')
-    expect(second('#cached-generation').text()).toBe(generation)
+    await browser.refresh()
+    expect(await browser.elementByCss('#cached-generation').text()).toBe(
+      generation
+    )
 
     await retry(async () => {
       const snapshot = await next
@@ -210,6 +219,175 @@ describe('request insights', () => {
         )
       ).toBe(false)
     })
+  })
+
+  it('records browser-decoded React timings for initial loads, navigation and action responses', async () => {
+    type BrowserRequest = {
+      requestId: string
+      htmlRequestId: string
+      method: string
+    }
+    let navigation: BrowserRequest | undefined
+    let action: BrowserRequest | undefined
+    const browser = await next.browser('/decoder-observations', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          if (
+            new URL(request.url()).pathname !==
+            '/decoder-observations/destination'
+          ) {
+            return
+          }
+          const headers = request.headers()
+          const identity = {
+            requestId: headers['x-nextjs-request-id'],
+            htmlRequestId: headers['x-nextjs-html-request-id'],
+            method: request.method(),
+          }
+          if (request.method() === 'POST' && headers['next-action']) {
+            action = identity
+          } else if (
+            request.method() === 'GET' &&
+            headers.rsc === '1' &&
+            headers['next-router-prefetch'] !== '1'
+          ) {
+            navigation = identity
+          }
+        })
+      },
+    })
+
+    async function readSnapshot() {
+      return (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+    }
+
+    async function existingRequestIds() {
+      return new Set(
+        (await readSnapshot()).requests.map((request) => request.requestId)
+      )
+    }
+
+    async function expectDecodedTimings(
+      identity: BrowserRequest,
+      existing: Set<string>
+    ) {
+      expect(identity.requestId).toBeTruthy()
+      expect(identity.htmlRequestId).toBeTruthy()
+      await retry(async () => {
+        const snapshot = await readSnapshot()
+        const matches = snapshot.requests.filter(
+          (entry) =>
+            !existing.has(entry.requestId) &&
+            entry.kind !== 'instant-insights' &&
+            entry.route === '/decoder-observations/destination' &&
+            entry.htmlRequestId === identity.htmlRequestId &&
+            entry.spans.some(
+              (span) =>
+                span.attributes?.['next.span_type'] ===
+                  REQUEST_INSIGHT_REQUEST_SPAN_TYPE &&
+                span.attributes?.['http.method'] === identity.method
+            ) &&
+            entry.spans.some(
+              (span) =>
+                span.attributes?.['next.span_name'] ===
+                'render DecoderObservedContent'
+            )
+        )
+        expect(matches).toHaveLength(1)
+        const request = matches[0]
+        expect(request.requestId).not.toBe(identity.requestId)
+        expect(request).toMatchObject({
+          htmlRequestId: identity.htmlRequestId,
+          route: '/decoder-observations/destination',
+          source: 'page',
+        })
+        const parent = request.spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+            REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+        )
+        expect(parent?.traceId).toBeTruthy()
+        expect(parent?.spanId).toBeTruthy()
+        const intervals = request.spans.filter(
+          (span) => span.attributes?.['next.rsc.kind'] === 'component'
+        )
+        expect(intervals).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              attributes: expect.objectContaining({
+                'next.span_name': 'render DecoderObservedContent',
+                'next.rsc.observation': 'decoded',
+              }),
+            }),
+          ])
+        )
+        for (const interval of intervals) {
+          expect(interval.traceId).toBe(parent!.traceId)
+          expect(interval.parentSpanId).toBe(parent!.spanId)
+          expect(interval.spanId).toBeTruthy()
+        }
+        expect(new Set(intervals.map((span) => span.spanId)).size).toBe(
+          intervals.length
+        )
+        const observedContent = intervals.filter(
+          (span) =>
+            span.attributes?.['next.span_name'] ===
+            'render DecoderObservedContent'
+        )
+        const intervalKeys = observedContent.map((span) =>
+          JSON.stringify([
+            span.attributes?.['next.rsc.render_id'],
+            span.startTime,
+            span.durationMs,
+          ])
+        )
+        expect(new Set(intervalKeys).size).toBe(intervalKeys.length)
+      })
+    }
+
+    const initialRequestId = await browser.eval('self.__next_r')
+    await retry(async () => {
+      const snapshot = await readSnapshot()
+      expect(snapshot.requests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            htmlRequestId: initialRequestId,
+            route: '/decoder-observations',
+            spans: expect.arrayContaining([
+              expect.objectContaining({
+                attributes: expect.objectContaining({
+                  'next.rsc.kind': 'component',
+                }),
+              }),
+            ]),
+          }),
+        ])
+      )
+    })
+
+    const beforeNavigation = await existingRequestIds()
+    await browser.elementById('decoder-navigation').click()
+    const generation = await browser.elementById('decoder-generation').text()
+    expect(generation).not.toBe('')
+    expect(navigation).toBeDefined()
+    await expectDecodedTimings(navigation!, beforeNavigation)
+
+    const beforeAction = await existingRequestIds()
+    await browser.elementById('decoder-rerender').click()
+    await retry(async () => {
+      expect(await browser.elementById('decoder-generation').text()).not.toBe(
+        generation
+      )
+    })
+    expect(action).toBeDefined()
+    expect(action!.requestId).not.toBe(navigation!.requestId)
+    expect(action!.htmlRequestId).toBe(navigation!.htmlRequestId)
+    await expectDecodedTimings(action!, beforeAction)
+    await waitForNoRedbox(browser)
   })
 
   function createRequest(index: number, fetchCount = 0): RequestInsight {
@@ -637,8 +815,8 @@ describe('request insights', () => {
     })
   })
 
-  it('records Instant Insights separately from its originating request', async () => {
-    await next.render('/instant-insights')
+  it('records Instant Insights phases without replaying the request React timings', async () => {
+    await next.browser('/instant-insights')
 
     await retry(async () => {
       const snapshot = (await next
@@ -704,6 +882,43 @@ describe('request insights', () => {
           span.attributes?.['next.span_type'] ===
           'AppRender.instantInsights.runValidation'
       )
+      const spansById = new Map(
+        instantInsights?.spans.flatMap((span) =>
+          span.spanId ? [[span.spanId, span] as const] : []
+        )
+      )
+      const isDescendantOfRunValidation = (
+        span: RequestInsight['spans'][number] | undefined
+      ) => {
+        const visited = new Set<string>()
+        let ancestor = span
+        while (
+          ancestor?.parentSpanId &&
+          ancestor.parentSpanId !== runValidationSpan?.spanId
+        ) {
+          expect(visited.has(ancestor.parentSpanId)).toBe(false)
+          visited.add(ancestor.parentSpanId)
+          ancestor = spansById.get(ancestor.parentSpanId)
+        }
+        return ancestor?.parentSpanId === runValidationSpan?.spanId
+      }
+      expect(
+        instantInsights?.spans.filter(
+          (span) =>
+            isDescendantOfRunValidation(span) &&
+            String(span.attributes?.['next.span_type']).startsWith(
+              'ReactServerComponents.'
+            )
+        )
+      ).toEqual([])
+      expect(
+        request?.spans.some(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'ReactServerComponents.component' &&
+            span.attributes?.['next.rsc.observation'] === 'decoded'
+        )
+      ).toBe(true)
       const workerLoadSpan = instantInsights?.spans.find(
         (span) =>
           span.attributes?.['next.span_type'] ===
@@ -726,27 +941,6 @@ describe('request insights', () => {
         )
       }
       if (isTurbopack) {
-        const spansById = new Map(
-          instantInsights?.spans.flatMap((span) =>
-            span.spanId ? [[span.spanId, span] as const] : []
-          )
-        )
-        const expectDescendantOfRunValidation = (
-          span: RequestInsight['spans'][number] | undefined
-        ) => {
-          const visited = new Set<string>()
-          let ancestor = span
-          while (
-            ancestor?.parentSpanId &&
-            ancestor.parentSpanId !== runValidationSpan?.spanId
-          ) {
-            expect(visited.has(ancestor.parentSpanId)).toBe(false)
-            visited.add(ancestor.parentSpanId)
-            ancestor = spansById.get(ancestor.parentSpanId)
-          }
-          expect(ancestor?.parentSpanId).toBe(runValidationSpan?.spanId)
-        }
-
         expect(workerLoadSpan).toEqual(
           expect.objectContaining({
             name: 'load route module',
@@ -754,7 +948,7 @@ describe('request insights', () => {
             status: 'ok',
           })
         )
-        expectDescendantOfRunValidation(workerLoadSpan)
+        expect(isDescendantOfRunValidation(workerLoadSpan)).toBe(true)
       } else {
         // The dev validation worker only runs with Turbopack. Do not invent a
         // worker span for the in-process Webpack validation path.

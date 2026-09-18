@@ -37,7 +37,19 @@ export function createWebSocket(
   const sendMessage = (data: string) => {
     if (webSocket && webSocket.readyState === webSocket.OPEN) {
       webSocket.send(data)
+      return true
     }
+    return false
+  }
+  let setReactTimingSender:
+    | typeof import('../../react-render-timing').setReactTimingSender
+    | undefined
+  if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+    setReactTimingSender = (
+      require('../../react-render-timing') as typeof import('../../react-render-timing')
+    ).setReactTimingSender
+  } else {
+    setReactTimingSender = undefined
   }
   let runtimeErrorStateReporter: ReturnType<
     typeof import('../runtime-error-state').createRuntimeErrorStateReporter
@@ -65,6 +77,7 @@ export function createWebSocket(
 
     function handleOnline() {
       logQueue.onSocketReady(newWebSocket)
+      setReactTimingSender?.(sendMessage)
       runtimeErrorStateReporter?.reportCurrent()
 
       reconnections = 0
@@ -127,6 +140,7 @@ export function createWebSocket(
     }
 
     function handleDisconnect() {
+      setReactTimingSender?.(undefined)
       newWebSocket.onerror = null
       newWebSocket.onclose = null
       newWebSocket.close()

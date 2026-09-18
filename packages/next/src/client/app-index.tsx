@@ -1,4 +1,5 @@
 import './app-globals'
+import { NEXT_REQUEST_ID_HEADER } from './components/app-router-headers'
 import ReactDOMClient from 'react-dom/client'
 import React from 'react'
 // TODO: Explicitly import from client.browser
@@ -32,9 +33,9 @@ import { initializeRouterTransitionModules } from './components/router-transitio
 
 /// <reference types="react-dom/experimental" />
 
-const createFromReadableStream =
+let createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
-const createFromFetch =
+let createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 const appElement: HTMLElement | Document = document
@@ -222,6 +223,25 @@ if (
     require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 
   debugChannel = createDebugChannel(undefined)
+}
+
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+  const { createBrowserReactTiming } =
+    require('./dev/react-render-timing') as typeof import('./dev/react-render-timing')
+  if (self.__next_r) {
+    const timing = createBrowserReactTiming({
+      [NEXT_REQUEST_ID_HEADER]: self.__next_r,
+    })
+    const decodeStream = createFromReadableStream
+    const decodeFetch = createFromFetch
+    if (debugChannel?.readable) {
+      debugChannel.readable = timing.wrapStream(debugChannel.readable)
+    }
+    createFromReadableStream = (stream, options) =>
+      timing.run(() => decodeStream(timing.wrapStream(stream), options))
+    createFromFetch = (response, options) =>
+      timing.run(() => decodeFetch(timing.wrapResponse(response), options))
+  }
 }
 
 let initialServerResponse: Promise<InitialRSCPayload>

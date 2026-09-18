@@ -4,6 +4,8 @@ import {
   completeRequestInsight,
   configureRequestInsightsHistoryProvider,
   getRequestInsightsSnapshot,
+  getRequestInsightForDebugRequest,
+  setRequestInsightRootParent,
   importRequestInsightSpans,
   recordRequestInsightFetch,
   registerRequestInsightsExporter,
@@ -17,15 +19,21 @@ import {
   appendRequestInsightUpdateToJournal,
   closeRequestInsightsJournal,
   configureRequestInsightsJournal,
+  getArchivedRequestInsightDebugContext,
   getRequestInsightsHistory,
   initializeRequestInsightsJournal,
   readRequestInsightsJournal,
   resetRequestInsightsJournalForTest,
   StaleRequestInsightsHistoryCursorError,
 } from './request-insights-journal'
-import { recordSpan } from './span-store'
-import { createLocalRenderTiming } from './react-render-timing'
-import { registerLocalSpanRecorder } from './local-span-recorder'
+import { recordSpan, recordSpans } from './span-store'
+import { createReactTimingSpanRecords } from './react-render-timing'
+import { createBrowserReactTimingReceiver } from './browser-react-timings'
+import { HMR_MESSAGE_SENT_TO_SERVER } from '../../dev/hot-reloader-types'
+import {
+  captureLocalSpanContext,
+  registerLocalSpanRecorder,
+} from './local-span-recorder'
 import { AppRenderSpan } from './constants'
 import { getTracer } from './tracer'
 import {
@@ -723,6 +731,10 @@ describe('request insights', () => {
           createRequestId: () => requestId,
         })
         recordSpan({ name: 'original', requestId })
+        setRequestInsightRootParent(identity, {
+          traceId: 'trace',
+          spanId: 'parent',
+        })
         completeRequestInsight(identity)
       }
 
@@ -739,6 +751,9 @@ describe('request insights', () => {
             requestId: 'discarded',
           })
         ).toHaveLength(1)
+        expect(
+          getRequestInsightForDebugRequest('discarded', 'discarded')
+        ).toBeDefined()
 
         const fs = require('fs/promises') as typeof import('fs/promises')
         const currentStat = await fs.stat(
@@ -757,6 +772,9 @@ describe('request insights', () => {
             requestId: 'discarded',
           })
         ).toHaveLength(0)
+        expect(
+          getRequestInsightForDebugRequest('discarded', 'discarded')
+        ).toBeUndefined()
 
         if (update === 'span') {
           recordSpan({ name: 'late work', requestId: 'discarded' })
@@ -912,13 +930,13 @@ describe('request insights', () => {
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
       startRequestInsight(identity)
-      let render!: NonNullable<ReturnType<typeof createLocalRenderTiming>>
+      let context!: ReturnType<typeof captureLocalSpanContext>
       let parentSpanId!: string
       runWithRequestInsightsIdentity(identity, () =>
         getTracer().trace(AppRenderSpan.renderToReadableStream, (span) => {
           parentSpanId = span!.spanContext().spanId
-          render = createLocalRenderTiming()!
-          render.start()
+          context = captureLocalSpanContext(span!.spanContext())
+          setRequestInsightRootParent(identity, span!.spanContext())
         })
       )
       completeRequestInsight(identity)
@@ -928,11 +946,22 @@ describe('request insights', () => {
         durationMs: completed.durationMs,
       }
 
-      render.readFlightChunk('0:D"$1"\n0:D"$2"\n0:D"$3"\n')
-      render.readDebugChunk(
-        ':N1000\n1:{"time":2}\n2:{"name":"Page","env":"Server","owner":"$5","stack":[["Layout","file:///app/layout.tsx",12,7]]}\n3:{"time":5}\n5:{"name":"Layout"}\n'
-      )
-      await Promise.resolve()
+      const component = {
+        id: 'decoded:0',
+        kind: 'component' as const,
+        name: 'Page',
+        environment: 'Server',
+        componentPath: 'Layout › Page',
+        source: {
+          methodName: 'Layout',
+          file: 'file:///app/layout.tsx',
+          line: 12,
+          column: 7,
+        },
+        startTime: 2,
+        durationMs: 3,
+      }
+      recordSpans(createReactTimingSpanRecords([component], context, 'render'))
       expect(getRequestInsightsSnapshot().requests[0]).toMatchObject({
         ...responseTiming,
         spans: expect.arrayContaining([
@@ -946,10 +975,22 @@ describe('request insights', () => {
         recordSpan({ name: 'GET /', ...other })
         completeRequestInsight(other)
       }
-      render.readFlightChunk('f:D"$1"\nf:D"$2"\nf:D"$3"\n')
-      render.readDebugChunk('4:{"name":"' + 'x'.repeat(1024 * 1024))
-      render.finishFlight()
-      render.finishDebug()
+      expect(
+        getRequestInsightForDebugRequest('react-stream', 'react-stream')
+      ).toMatchObject({ parent: { spanId: parentSpanId } })
+      await readRequestInsightsJournal(distDir, identity)
+      expect(
+        getRequestInsightForDebugRequest('react-stream', 'react-stream')
+      ).toMatchObject({ parent: { spanId: parentSpanId } })
+      const receiver = createBrowserReactTimingReceiver('react-stream', true)
+      const message = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS,
+        requestId: 'react-stream',
+        decoderId: '0',
+        records: [{ ...component, id: 'decoded:1', startTime: 6 }],
+      }
+      receiver.receive(message, JSON.stringify(message).length)
+      receiver.dispose()
 
       const [stored] = await readRequestInsightsJournal(distDir, identity)
       expect(stored).toMatchObject(responseTiming)
@@ -957,19 +998,6 @@ describe('request insights', () => {
         (span) => span.name === 'ReactServerComponents.component'
       )
       expect(intervals).toHaveLength(2)
-      expect(stored.spans).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            name: 'ReactServerComponents.incomplete',
-            parentSpanId,
-            attributes: expect.objectContaining({
-              'next.rsc.render_id':
-                intervals[0].attributes!['next.rsc.render_id'],
-              'next.rsc.incomplete_reason': 'budget',
-            }),
-          }),
-        ])
-      )
       for (const interval of intervals) {
         expect(interval).toMatchObject({
           parentSpanId,
@@ -1669,6 +1697,7 @@ describe('request insights', () => {
 function configureJournalProvider(distDir: string): void {
   configureRequestInsightsHistoryProvider({
     append: appendRequestInsightToJournal,
+    getDebugRequest: getArchivedRequestInsightDebugContext,
     appendUpdate: appendRequestInsightUpdateToJournal,
     appendArchivedUpdate: appendArchivedRequestInsightUpdateToJournal,
     getHistory: (query) => getRequestInsightsHistory(distDir, query),
