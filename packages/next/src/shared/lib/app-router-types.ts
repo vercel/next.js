@@ -278,13 +278,11 @@ export const enum PrefetchHint {
   // fallbacks — simply never carry it.) Set on every node of the tree, but
   // does not propagate.
   ShouldAttemptStaticPrefetch = 0b100000000000000,
-  // Route-level restriction: at least one parameter only accepts build-time
-  // values. A successful URL cannot establish that another URL with the same
-  // shape exists, so this route must not be used for optimistic prediction.
-  // Consumers read this from the root. RSC rendering sets it on the root;
-  // prefetch-hint collection also repeats it on every node. Both forms
-  // describe the same route-level restriction.
-  HasNotFoundParams = 0b1000000000000000,
+  // This dynamic segment only accepts build-time parameter values. Kept on
+  // the affected node, without propagating or copying it to other segments.
+  // Until the client knows the allowed values, any such node prevents route
+  // prediction, even when the route's components never read the parameter.
+  IsClosedParam = 0b1000000000000000,
 }
 
 /**

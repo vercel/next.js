@@ -785,10 +785,6 @@ async function generateDynamicRSCPayload(
         })
 
     if (responseTree !== null) {
-      if (ctx.renderOpts.hasNotFoundParams) {
-        responseTree.tree.h =
-          (responseTree.tree.h ?? 0) | PrefetchHint.HasNotFoundParams
-      }
       transportData = {
         t: responseTree.tree,
         h: {
@@ -2217,10 +2213,6 @@ async function getRSCPayload(
     hintTree: hints,
   })
 
-  if (ctx.renderOpts.hasNotFoundParams) {
-    initialTree.h = (initialTree.h ?? 0) | PrefetchHint.HasNotFoundParams
-  }
-
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
   // it could respond differently if there's an interception route. We provide this information
   // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
@@ -2406,14 +2398,12 @@ async function getErrorRSCPayload(
     ctx.missingPrefetchHintPolicy,
     Boolean(ctx.renderOpts.partialPrefetching),
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.notFoundParams
   )
   // Attach the error shell as the root's render output. Vary params are not
   // tracked for error pages.
   initialTree.d = { r: errorShell, p: false, v: null }
-  if (ctx.renderOpts.hasNotFoundParams) {
-    initialTree.h = (initialTree.h ?? 0) | PrefetchHint.HasNotFoundParams
-  }
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
