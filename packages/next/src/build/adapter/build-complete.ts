@@ -1750,7 +1750,9 @@ export async function handleBuildComplete({
         // present and able to be served.
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
-            htmlAllowQuery = fallbackRootParams as string[]
+            htmlAllowQuery = fallbackRootParams.map(
+              (paramName) => `${NEXT_QUERY_PARAM_PREFIX}${paramName}`
+            )
           }
 
           // We additionally vary based on if there's a postponed prerender
