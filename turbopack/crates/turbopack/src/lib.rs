@@ -872,6 +872,7 @@ pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
     resolve_typescript: bool,
     prune: Option<(FileSystemPath, ResolvedVc<Glob>)>,
+    trace_file_references: bool,
 ) -> Result<Vc<ModuleAssetContext>> {
     let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
     if resolve_typescript {
@@ -925,7 +926,10 @@ pub async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::tracing(),
+            analyze_mode: AnalyzeMode {
+                is_codegen: false,
+                trace_file_references,
+            },
             module_rules: prune_rules,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
@@ -1081,8 +1085,9 @@ impl AssetContext for ModuleAssetContext {
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
-                                            false,
-                                            None,
+                                            /* resolve_typescript */ false,
+                                            /* prune */ None,
+                                            /* trace_file_references */ true,
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder
