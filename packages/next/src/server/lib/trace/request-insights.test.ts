@@ -402,6 +402,41 @@ describe('request insights', () => {
     )
   })
 
+  it('retains cache trace metadata without cache keys or values', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const attributes = {
+      'next.span_type': 'UseCache.execute',
+      'next.cache.name': 'readMetric',
+      'next.cache.file': 'app/data.ts',
+      'next.cache.kind': 'public',
+      'next.cache.handler': 'default',
+      'next.cache.outcome': 'stale',
+      'next.cache.source': 'handler',
+      'next.cache.reason': 'stale',
+      'next.cache.background_refresh': true,
+      'next.cache.joined': 'cross-request',
+    }
+
+    recordSpan({
+      name: 'use cache readMetric',
+      requestId: 'cache-request',
+      startTime: 100,
+      durationMs: 10,
+      status: 'ok',
+      attributes: {
+        ...attributes,
+        'next.cache.key': 'private-key',
+        'next.cache.arguments': 'private-input',
+        'next.cache.value': 'private-result',
+        'next.cache.tags': ['private-tag'],
+      },
+    })
+
+    expect(
+      getRequestInsightsSnapshot().requests[0].spans[0].attributes
+    ).toEqual(attributes)
+  })
+
   it('retains Server Action trace metadata without action inputs', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 

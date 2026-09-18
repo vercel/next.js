@@ -134,6 +134,10 @@ enum MiddlewareSpan {
   execute = 'Middleware.execute',
 }
 
+enum UseCacheSpan {
+  execute = 'UseCache.execute',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -151,6 +155,7 @@ type SpanTypes =
   | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
+  | `${UseCacheSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = new Set([
@@ -161,6 +166,7 @@ export const NextVanillaSpanAllowlist = new Set([
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
   AppRenderSpan.executeServerAction,
+  UseCacheSpan.execute,
   LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
@@ -203,6 +209,7 @@ export {
   RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
+  UseCacheSpan,
 }
 
 export type { SpanTypes }

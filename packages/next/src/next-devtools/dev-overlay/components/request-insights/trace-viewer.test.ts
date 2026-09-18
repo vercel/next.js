@@ -22,6 +22,31 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('shows cache spans by default without rewriting function names', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'use cache cache.readMetric',
+          startTime: 100,
+          durationMs: 10,
+          attributes: {
+            'next.span_type': 'UseCache.execute',
+            'next.span_category': 'application',
+          },
+        },
+      ],
+    })
+
+    for (const verbose of [false, true]) {
+      expect(getTraceItems(request, verbose)).toEqual([
+        expect.objectContaining({
+          label: 'use cache cache.readMetric',
+          category: 'application',
+        }),
+      ])
+    }
+  })
+
   it('shows Server Action spans by default without rewriting their names', () => {
     const request = createRequest({
       spans: [
