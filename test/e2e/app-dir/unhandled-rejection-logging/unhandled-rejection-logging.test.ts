@@ -3,14 +3,10 @@ import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('unhandled-rejection-logging', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    captureRuntimeLogs: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('logs an unhandled rejection', async () => {
     const outputIndex = next.cliOutput.length
