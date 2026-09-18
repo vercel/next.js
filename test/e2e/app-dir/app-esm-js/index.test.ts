@@ -23,15 +23,19 @@ describe('app-dir - esm js extension', () => {
     expect($('head link[href="/test.js"]').length).toBe(1)
   })
 
-  it('should preserve top-level API exports for ESM and CommonJS imports', async () => {
-    const $ = await next.render$('/api-exports')
+  async function getApiExportResults(pathname: string) {
+    const $ = await next.render$(pathname)
 
-    const results = $('[data-api]')
+    return $('[data-api]')
       .map((_index, element) => ({
         api: $(element).attr('data-api'),
         passed: $(element).attr('data-passed'),
       }))
       .get()
+  }
+
+  it('should preserve Pages Router API exports for ESM and CommonJS imports', async () => {
+    const results = await getApiExportResults('/api-exports')
 
     expect(results).toEqual([
       { api: 'app', passed: 'true' },
@@ -44,7 +48,6 @@ describe('app-dir - esm js extension', () => {
       { api: 'error', passed: 'true' },
       { api: 'form', passed: 'true' },
       { api: 'head', passed: 'true' },
-      { api: 'headers', passed: 'true' },
       { api: 'image', passed: 'true' },
       { api: 'legacy/image', passed: 'true' },
       { api: 'link', passed: 'true' },
@@ -56,6 +59,29 @@ describe('app-dir - esm js extension', () => {
       { api: 'server', passed: 'true' },
       { api: 'server.js', passed: 'true' },
       { api: 'web-vitals', passed: 'true' },
+    ])
+  })
+
+  it('should preserve App Router API exports for ESM and CommonJS imports', async () => {
+    const results = await getApiExportResults('/app/api-exports')
+
+    expect(results).toEqual([
+      { api: 'cache', passed: 'true' },
+      { api: 'cache.js', passed: 'true' },
+      { api: 'constants', passed: 'true' },
+      { api: 'dynamic', passed: 'true' },
+      { api: 'form', passed: 'true' },
+      { api: 'head', passed: 'true' },
+      { api: 'headers', passed: 'true' },
+      { api: 'image', passed: 'true' },
+      { api: 'legacy/image', passed: 'true' },
+      { api: 'link', passed: 'true' },
+      { api: 'navigation', passed: 'true' },
+      { api: 'offline', passed: 'true' },
+      { api: 'og', passed: 'true' },
+      { api: 'script', passed: 'true' },
+      { api: 'server', passed: 'true' },
+      { api: 'server.js', passed: 'true' },
     ])
   })
 
