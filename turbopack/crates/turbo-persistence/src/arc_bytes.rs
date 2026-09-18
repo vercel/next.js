@@ -24,6 +24,7 @@ enum Repr {
         data: *const [u8],
         _backing: Arc<[u8]>,
     },
+    #[cfg_attr(target_family = "wasm", allow(dead_code))]
     Mmap {
         data: *const [u8],
         _backing: Arc<Mmap>,
