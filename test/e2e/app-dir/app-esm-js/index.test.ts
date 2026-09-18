@@ -21,11 +21,42 @@ describe('app-dir - esm js extension', () => {
 
     expect($('head link[href="/test-ext.js"]').length).toBe(1)
     expect($('head link[href="/test.js"]').length).toBe(1)
-    expect($('#namespace-defaults').text().replace(/\s/g, '')).toBe(
-      'function,function,function,function'
-    )
-    expect($('.client-cache').text()).toBe('function')
-    expect($('.client-cache-ext').text()).toBe('function')
+  })
+
+  it('should preserve top-level API exports for ESM and CommonJS imports', async () => {
+    const $ = await next.render$('/api-exports')
+
+    const results = $('[data-api]')
+      .map((_index, element) => ({
+        api: $(element).attr('data-api'),
+        passed: $(element).attr('data-passed'),
+      }))
+      .get()
+
+    expect(results).toEqual([
+      { api: 'app', passed: 'true' },
+      { api: 'cache', passed: 'true' },
+      { api: 'cache.js', passed: 'true' },
+      { api: 'compat/router', passed: 'true' },
+      { api: 'constants', passed: 'true' },
+      { api: 'document', passed: 'true' },
+      { api: 'dynamic', passed: 'true' },
+      { api: 'error', passed: 'true' },
+      { api: 'form', passed: 'true' },
+      { api: 'head', passed: 'true' },
+      { api: 'headers', passed: 'true' },
+      { api: 'image', passed: 'true' },
+      { api: 'legacy/image', passed: 'true' },
+      { api: 'link', passed: 'true' },
+      { api: 'navigation', passed: 'true' },
+      { api: 'offline', passed: 'true' },
+      { api: 'og', passed: 'true' },
+      { api: 'router', passed: 'true' },
+      { api: 'script', passed: 'true' },
+      { api: 'server', passed: 'true' },
+      { api: 'server.js', passed: 'true' },
+      { api: 'web-vitals', passed: 'true' },
+    ])
   })
 
   it('should be able to use nextjs api in pages router', async () => {
