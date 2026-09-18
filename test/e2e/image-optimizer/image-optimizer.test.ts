@@ -513,7 +513,6 @@ describe('Image Optimizer', () => {
             imageSizes: [],
           },
         },
-        skipDeployment: true,
       })
       if (skipped) return
 
