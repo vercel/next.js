@@ -7,6 +7,8 @@ describe('transpile-packages-typescript-foreign', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      // Use the fixture's packageManager version rather than Vercel's default pnpm.
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },
@@ -42,6 +44,7 @@ Module parse failed: Unexpected token`)
   describe('with transpilePackages', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },
