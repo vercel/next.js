@@ -10,7 +10,7 @@ use crate::{
 /// This lists all the modules that are side effect free
 /// This means they are either declared side effect free by some configuration or they have been
 /// determined to be side effect free via static analysis of the module evaluation and dependencies.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct SideEffectFreeModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
 /// Computes the set of side effect free modules in the module graph.
