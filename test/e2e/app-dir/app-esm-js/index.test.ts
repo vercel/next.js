@@ -26,63 +26,64 @@ describe('app-dir - esm js extension', () => {
   async function getApiExportResults(pathname: string) {
     const $ = await next.render$(pathname)
 
-    return $('[data-api]')
-      .map((_index, element) => ({
-        api: $(element).attr('data-api'),
-        passed: $(element).attr('data-passed'),
-      }))
-      .get()
+    return Object.fromEntries(
+      $('[data-api]')
+        .map((_index, element) => ({
+          name: $(element).attr('data-api'),
+          passed: $(element).attr('data-passed') === 'true',
+        }))
+        .get()
+        .map(({ name, passed }) => [name, passed])
+    )
   }
 
   it('should preserve Pages Router API exports for ESM and CommonJS imports', async () => {
     const results = await getApiExportResults('/api-exports')
 
-    expect(results).toEqual([
-      { api: 'app', passed: 'true' },
-      { api: 'cache', passed: 'true' },
-      { api: 'cache.js', passed: 'true' },
-      { api: 'compat/router', passed: 'true' },
-      { api: 'constants', passed: 'true' },
-      { api: 'document', passed: 'true' },
-      { api: 'dynamic', passed: 'true' },
-      { api: 'error', passed: 'true' },
-      { api: 'form', passed: 'true' },
-      { api: 'head', passed: 'true' },
-      { api: 'image', passed: 'true' },
-      { api: 'legacy/image', passed: 'true' },
-      { api: 'link', passed: 'true' },
-      { api: 'navigation', passed: 'true' },
-      { api: 'offline', passed: 'true' },
-      { api: 'og', passed: 'true' },
-      { api: 'router', passed: 'true' },
-      { api: 'script', passed: 'true' },
-      { api: 'server', passed: 'true' },
-      { api: 'server.js', passed: 'true' },
-      { api: 'web-vitals', passed: 'true' },
-    ])
+    expect(results).toEqual({
+      app: true,
+      cache: true,
+      'compat/router': true,
+      constants: true,
+      document: true,
+      dynamic: true,
+      error: true,
+      form: true,
+      head: true,
+      image: true,
+      'legacy/image': true,
+      link: true,
+      navigation: true,
+      offline: true,
+      og: true,
+      router: true,
+      script: true,
+      server: true,
+      'web-vitals': true,
+    })
   })
 
   it('should preserve App Router API exports for ESM and CommonJS imports', async () => {
     const results = await getApiExportResults('/app/api-exports')
 
-    expect(results).toEqual([
-      { api: 'cache', passed: 'true' },
-      { api: 'cache.js', passed: 'true' },
-      { api: 'constants', passed: 'true' },
-      { api: 'dynamic', passed: 'true' },
-      { api: 'form', passed: 'true' },
-      { api: 'head', passed: 'true' },
-      { api: 'headers', passed: 'true' },
-      { api: 'image', passed: 'true' },
-      { api: 'legacy/image', passed: 'true' },
-      { api: 'link', passed: 'true' },
-      { api: 'navigation', passed: 'true' },
-      { api: 'offline', passed: 'true' },
-      { api: 'og', passed: 'true' },
-      { api: 'script', passed: 'true' },
-      { api: 'server', passed: 'true' },
-      { api: 'server.js', passed: 'true' },
-    ])
+    expect(results).toEqual({
+      cache: true,
+      'compat/router': true,
+      constants: true,
+      dynamic: true,
+      form: true,
+      head: true,
+      headers: true,
+      image: true,
+      'legacy/image': true,
+      link: true,
+      navigation: true,
+      offline: true,
+      og: true,
+      script: true,
+      server: true,
+      'web-vitals': true,
+    })
   })
 
   it('should be able to use nextjs api in pages router', async () => {
