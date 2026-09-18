@@ -1949,12 +1949,14 @@ impl Project {
         // `ends_with` is the correct matcher here.
         static FEATURE_MODULE_PATH_SUFFIXES: &[(&str, &str)] = &[
             ("next/image", "/next/image.js"),
-            ("next/image", "/next/dist/esm/api/image.js"),
-            // `next/image` re-exports this module. When Turbopack can prove that
+            // next/dist/api/image.js re-exports this module. When Turbopack can prove that
             // the re-export has no side effects, it may flatten the re-export
             // chain and leave this as the feature module in the graph.
-            ("next/image", "/next/dist/esm/shared/lib/image-external.js"),
-            ("next/image", "/next/dist/shared/lib/image-external.js"),
+            ("next/image", "/next/dist/client/image-component.js"),
+            (
+                "next/image",
+                "/next/dist/shared/lib/image-external-get-image-props.js",
+            ),
             ("next/future/image", "/next/future/image.js"),
             ("next/legacy/image", "/next/legacy/image.js"),
             ("next/script", "/next/script.js"),
