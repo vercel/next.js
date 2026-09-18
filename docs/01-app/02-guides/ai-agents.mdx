@@ -257,3 +257,21 @@ Then give the agent a prompt like:
 ```prompt
 Make the product title instant when navigating from /products to /products/[id]. Use the next-partial-prefetching-optimizer Skill.
 ```
+
+### `next-browser-initial-load-optimizer`
+
+The [`next-browser-initial-load-optimizer`](https://www.skills.sh/vercel/next.js/next-browser-initial-load-optimizer) Skill uses the [bundle analyzer](/docs/app/guides/optimizing-browser-initial-load) to reduce JavaScript, CSS, fonts, and assets loaded before a route needs them:
+
+1. Ranks client sources and packages that are synchronously reachable for the route.
+2. Inspects application importers for safe lazy-loading, server-rendering, narrower-import, and package-deduplication opportunities.
+3. Applies one change at a time and verifies either lower client attribution or an `initial` to `async` scope transition.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-browser-initial-load-optimizer
+```
+
+Then give the agent a prompt like:
+
+```prompt
+Optimize browser initial-load performance for /dashboard using the next-browser-initial-load-optimizer Skill. Preserve the existing UI and interactions.
+```

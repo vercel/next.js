@@ -1,0 +1,96 @@
+---
+title: Optimizing browser initial load
+description: Find JavaScript, CSS, fonts, and assets a route loads before users need them, then verify smaller or deferred browser work.
+version: draft
+related:
+  title: Related guides
+  description: Use analyzer evidence in an agent-driven workflow.
+  links:
+    - app/guides/ai-agents
+    - app/guides/lazy-loading
+    - app/getting-started/server-and-client-components
+---
+
+Browser initial-load performance depends on both how much code a route ships and
+_when_ the browser needs it. A large editor loaded after a click has a different
+cost than the same editor in the route's initial JavaScript.
+
+Use the experimental bundle analyzer to inspect client contributions and module
+reachability:
+
+```bash filename="Terminal"
+next experimental-analyze --output --baseline-name initial-load-before
+next experimental-analyze --list-queries
+```
+
+Start with sources that are reachable synchronously in the client graph:
+
+```bash filename="Terminal"
+next experimental-analyze \
+  --query query_bundle_sources \
+  --input '{
+    "route":"/dashboard",
+    "environment":"client",
+    "loadScopes":["initial"],
+    "groupBy":"package",
+    "metric":"compressed",
+    "limit":100
+  }'
+```
+
+`loadScopes` are module-graph heuristics, not network measurements. An `initial`
+source is reachable from the route through synchronous edges. An `async` source
+is behind at least one asynchronous edge. Use source inspection to determine
+whether the feature is actually needed before interaction.
+
+Common opportunities include:
+
+- editors, maps, charts, dialogs, and viewers rendered only after interaction;
+- multiple browser copies of the same package, especially React or versions in
+  the same semver major;
+- display-only Markdown/MDX parsing, highlighting, sanitization, or other pure
+  rendering inside a Client Component;
+- broad icon, locale, language, chart, or editor registries;
+- route-level Client Component boundaries that can move to an interactive leaf;
+- large initial CSS, fonts, images, static data, polyfills, and shims.
+
+Inspect the application importer before changing an entry:
+
+```bash filename="Terminal"
+next experimental-analyze \
+  --query explain_bundle_source \
+  --input '{
+    "route":"/dashboard",
+    "environment":"client",
+    "sourcePath":"<sourcePath from query_bundle_sources>",
+    "maxDepth":25
+  }'
+```
+
+After each change, regenerate analyzer data. Removal, narrower imports, server
+migration, and package deduplication should reduce client attribution. Lazy
+loading can leave eventual route bytes unchanged; verify that the affected
+source moved from `initial` to `async`, then test the interaction itself.
+
+## Use the optimizer Skill
+
+The [`next-browser-initial-load-optimizer`](https://www.skills.sh/vercel/next.js/next-browser-initial-load-optimizer)
+Skill runs this workflow one measured candidate at a time, including source
+inspection, behavior safeguards, before/after verification, and reverting
+changes that do not improve the intended signal.
+
+Install it from the Next.js repository:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-browser-initial-load-optimizer
+```
+
+Then ask your coding agent:
+
+```prompt
+Optimize browser initial-load performance for /dashboard using the next-browser-initial-load-optimizer Skill. Preserve the existing UI and interactions.
+```
+
+The analyzer's compressed source values are attribution estimates because each
+source part is compressed independently. Use a cold-browser network trace when
+you need observed transfer bytes or exact request timing.
