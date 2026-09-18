@@ -2,6 +2,8 @@ import { useContext } from 'react'
 import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
 import type { NextRouter } from '../router'
 
+export * as default from './router'
+
 /**
  * useRouter from `next/compat/router` is designed to assist developers
  * migrating from `pages/` to `app/`. Unlike `next/router`, this hook does not

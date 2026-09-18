@@ -2762,8 +2762,7 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
-  await task.watch('src/api', 'api_esm', opts)
-  await task.watch('src/api/cache*', 'api_cjs', opts)
+  await task.watch('src/api', ['api_esm', 'api_cjs'], opts)
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
