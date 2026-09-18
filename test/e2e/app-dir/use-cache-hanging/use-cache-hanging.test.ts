@@ -10,7 +10,7 @@ function expectedTimeoutErrorMessage(route: string) {
 }
 
 describe('use-cache-hanging', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
@@ -164,9 +164,12 @@ describe('use-cache-hanging', () => {
         await expect(next.start()).rejects.toThrow()
 
         if (isTurbopack) {
-          expect(next.cliOutput)
-            .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
-    at <unknown> (app/static/page.tsx:1:1)`)
+          const expected = `Error: ${expectedTimeoutErrorMessage('/static')}
+    at <unknown> (app/static/page.tsx:1:1)`
+          // Vercel removes indentation from build log lines.
+          const normalize = (output: string) =>
+            isNextDeploy ? output.replace(/^[ \t]+/gm, '') : output
+          expect(normalize(next.cliOutput)).toContain(normalize(expected))
         } else {
           // Webpack production builds don't have source maps by default.
           expect(next.cliOutput).toContain(
