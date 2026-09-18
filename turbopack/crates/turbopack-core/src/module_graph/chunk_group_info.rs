@@ -138,7 +138,7 @@ impl ChunkGroupInfo {
 
     #[turbo_tasks::function]
     pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
-        if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
+        if let Some(idx) = self.chunk_group_keys.get_index_of(&chunk_group.key()) {
             Ok(Vc::cell(idx))
         } else {
             if cfg!(debug_assertions) {
@@ -276,6 +276,35 @@ impl ChunkGroup {
             | ChunkGroup::IsolatedMerged { entries, .. }
             | ChunkGroup::SharedMultiple(entries)
             | ChunkGroup::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
+        }
+    }
+
+    /// Returns the canonical identity used to index this chunk group.
+    ///
+    /// A merged group is identified by its parent and merge tag alone. Those two determine the
+    /// group; its `entries` are the *result* of merging everything reachable through the tagged
+    /// references, not part of its identity, and their order is unspecified. Including them would
+    /// make two values describing the same group compare unequal.
+    pub fn key(&self) -> ChunkGroupKey {
+        match self {
+            ChunkGroup::Entry(entries) => ChunkGroupKey::Entry(entries.clone()),
+            ChunkGroup::Async(module) => ChunkGroupKey::Async(*module),
+            ChunkGroup::Isolated(module) => ChunkGroupKey::Isolated(*module),
+            ChunkGroup::IsolatedMerged {
+                parent, merge_tag, ..
+            } => ChunkGroupKey::IsolatedMerged {
+                parent: ChunkGroupId::from(*parent),
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroup::Shared(module) => ChunkGroupKey::Shared(*module),
+            ChunkGroup::SharedMultiple(entries) => ChunkGroupKey::SharedMultiple(entries.clone()),
+            ChunkGroup::SharedMerged {
+                parent, merge_tag, ..
+            } => ChunkGroupKey::SharedMerged {
+                parent: ChunkGroupId::from(*parent),
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroup::Collected(module) => ChunkGroupKey::Collected(*module),
         }
     }
 
