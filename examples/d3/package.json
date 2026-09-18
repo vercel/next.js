@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@types/node": "20.10.8",
+    "@types/react": "18.2.47",
+    "@types/react-dom": "18.2.18",
+    "d3": "^7.8.5",
+    "next": "latest",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.3.3"
+  }
+}
