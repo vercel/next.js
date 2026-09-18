@@ -182,7 +182,7 @@ export function markCurrentScopeAsDynamic(
         return
       case 'prerender-legacy':
       case 'request':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -219,7 +219,7 @@ export function markCurrentScopeAsDynamic(
           workUnitStore.usedDynamic = true
         }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -275,7 +275,7 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender-legacy':
     case 'prerender-client':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     case 'request':
       if (process.env.NODE_ENV !== 'production') {
@@ -515,7 +515,7 @@ export function createHangingInputAbortSignal(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return undefined
     default:
       workUnitStore satisfies never

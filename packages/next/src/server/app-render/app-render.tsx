@@ -2599,7 +2599,7 @@ function installGlobalModuleLoadingHandlers(
       case 'prerender-legacy':
       case 'request':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         return false
       default:
         workUnitStore satisfies never

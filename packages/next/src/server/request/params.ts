@@ -78,7 +78,7 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called in a runtime prerender.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
           'createParamsFromClient should not be called inside generateStaticParams.'
         )
@@ -167,7 +167,7 @@ export function createServerParamsForRoute(
         throw new InvariantError(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
           'createServerParamsForRoute should not be called inside generateStaticParams.'
         )
@@ -229,7 +229,7 @@ export function createServerParamsForServerSegment(
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called inside generateStaticParams.'
         )
@@ -301,7 +301,7 @@ export function createPrerenderParamsForClientSegment(
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
