@@ -3,12 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
 import { createRouterAct } from 'router-act'
 
-// @force-gate prefetching
 describe('segment cache closed params (dynamicParams = false)', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
+  // @force-gate prefetching
   it('rejects unlisted params at the routing level', async () => {
     const allowedResponse = await next.fetch('/products/allowed', {
       redirect: 'manual',
@@ -57,6 +57,47 @@ describe('segment cache closed params (dynamicParams = false)', () => {
     }
   })
 
+  it.each(['document', 'navigation'])(
+    'advertises closed parameters for a successful %s, including in dev',
+    async (requestKind) => {
+      const browser = await next.browser(
+        requestKind === 'document' ? '/products/allowed' : '/open/allowed'
+      )
+      if (requestKind === 'navigation') {
+        // This link disables prefetching, so the navigation exercises the live
+        // RSC response in both dev and production.
+        await browser.elementById('navigate-allowed').click()
+      }
+      expect(await browser.elementById('product-page').text()).toBe(
+        'Allowed product page'
+      )
+
+      // A successful response must retain the restriction on other values.
+      // An eventual 404 alone also passed before the hint existed. If this
+      // private tree representation changes, reconstruct that regression
+      // rather than preserving or exposing router internals just for this test.
+      const rootHints = await browser.eval(
+        'window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree[4]'
+      )
+      // PrefetchHint.HasNotFoundParams is a const enum bit.
+      expect((rootHints ?? 0) & 0b1000000000000000).not.toBe(0)
+      await browser.close()
+    }
+  )
+
+  it('does not mark an open dynamic route as closed', async () => {
+    const browser = await next.browser('/open/allowed')
+    expect(await browser.elementById('open-product-page').text()).toBe(
+      'Open product page'
+    )
+    const rootHints = await browser.eval(
+      'window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree[4]'
+    )
+    expect((rootHints ?? 0) & 0b1000000000000000).toBe(0)
+    await browser.close()
+  })
+
+  // @force-gate prefetching
   it('does not reuse a prefetched 404 for an allowed parameter value', async () => {
     const response = await next.fetch('/products/allowed')
     expect(response.status).toBe(200)
@@ -115,6 +156,7 @@ describe('segment cache closed params (dynamicParams = false)', () => {
     expect((rootHints ?? 0) & 0b1000000000000000).not.toBe(0)
   })
 
+  // @force-gate prefetching
   it('does not reuse an allowed route for a parameter value that must 404', async () => {
     const allowedResponse = await next.fetch('/products/allowed')
     expect(allowedResponse.status).toBe(200)
