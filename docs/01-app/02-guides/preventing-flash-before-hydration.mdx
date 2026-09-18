@@ -1,10 +1,10 @@
 ---
 title: How to prevent flash before hydration
 nav_title: Preventing Flash
-description: Learn how to correct server-rendered content before the browser paints, avoiding visible flash when the page hydrates.
+description: Learn how to prevent a flash of unstyled content (FOUC) by correcting server-rendered HTML, such as a dark mode theme, before the browser paints.
 ---
 
-User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it.
+User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it. Correcting it after the browser has painted produces a flash of unstyled content (FOUC).
 
 Some common approaches to this problem:
 
@@ -243,7 +243,7 @@ export default async function Page() {
 
 ## Themes
 
-Your page may be server-rendered with a default theme (e.g. light), but the user has a saved preference in `localStorage`. The same inline script technique works: read the value and set a `data-theme` attribute on `<html>` before the browser paints.
+Your page may be server-rendered with a default theme (e.g. light), but the user has saved a dark mode preference in `localStorage`. The same inline script technique works: read the value and set a `data-theme` attribute on `<html>` before the browser paints.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({ children }: LayoutProps<'/'>) {
