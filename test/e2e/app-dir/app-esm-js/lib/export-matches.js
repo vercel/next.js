@@ -6,11 +6,21 @@
 // entry so each layer can assert its own expected shape instead of assuming one
 // shared contract.
 
-// Returns the public named exports exposed by an ESM namespace. `default` and
-// the CommonJS interop marker are checked separately or ignored, respectively.
+// `default` is checked separately, `__esModule` is the CommonJS interop marker,
+// and `then`/`catch`/`finally` are thenable members that client-reference
+// proxies expose in the react-server layer. None of them are public API.
+const NON_API_EXPORTS = new Set([
+  'default',
+  '__esModule',
+  'then',
+  'catch',
+  'finally',
+])
+
+// Returns the public named exports exposed by an ESM namespace.
 function getNamedExports(esmNamespace) {
   return Object.keys(esmNamespace).filter(
-    (exportName) => exportName !== 'default' && exportName !== '__esModule'
+    (exportName) => !NON_API_EXPORTS.has(exportName)
   )
 }
 
@@ -37,15 +47,38 @@ function hasExport(object, exportName) {
 export function describeEntry(defaultBinding, esmNamespace, commonJs, markers) {
   const named = getNamedExports(esmNamespace)
 
+  const absentMarkers = markers
+    .filter((marker) => !hasExport(esmNamespace, marker))
+    .join(',')
+  const missingFromCjs = named
+    .filter((exportName) => !hasExport(commonJs, exportName))
+    .join(',')
+
   return [
-    `default:${defaultBinding !== undefined ? 'yes' : 'no'}`,
+    defaultBinding !== undefined ? `default` : undefined,
     // Both ESM import forms must agree on whether a default export exists.
-    `namespace-default:${esmNamespace.default !== undefined ? 'yes' : 'no'}`,
+    esmNamespace.default !== undefined ? `namespace-default` : undefined,
+    // Whether the value itself is callable. Entries whose primary export is a
+    // function -- `next/dynamic`, `next/head`, `next/script` -- are callable
+    // directly off `require()`, so `const dynamic = require('next/dynamic')`
+    // followed by `dynamic(...)` works. Collapsing one of those to a plain
+    // `{ default }` object would break that call without removing any export,
+    // so presence checks alone cannot catch it.
+    typeof defaultBinding === 'function' ? `default-callable` : undefined,
+    typeof commonJs === 'function' ? `cjs-callable` : undefined,
+    // For those entries `module.exports` is the function *and* carries a
+    // self-referencing `.default`, which is what lets the same module serve
+    // `require()` and `import` callers.
+    commonJs !== undefined && commonJs === commonJs.default
+      ? `cjs-is-own-default`
+      : undefined,
     // Markers the entry is missing. Expected to be empty for every entry.
-    `absent-markers:${markers.filter((marker) => !hasExport(esmNamespace, marker)).join(',')}`,
+    absentMarkers ? `absent-markers:${absentMarkers}` : undefined,
     // Named exports ESM exposes but CommonJS does not. Expected to be empty:
     // the two forms must agree on the surface even where the bundler hands out
     // distinct wrapper objects.
-    `missing-from-cjs:${named.filter((exportName) => !hasExport(commonJs, exportName)).join(',')}`,
-  ].join(' ')
+    missingFromCjs ? `missing-from-cjs:${missingFromCjs}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ')
 }

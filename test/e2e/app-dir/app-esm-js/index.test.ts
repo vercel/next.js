@@ -60,50 +60,50 @@ describe('app-dir - esm js extension', () => {
 
     if (isTurbopack) {
       expect(shapes).toMatchInlineSnapshot(`
-            {
-              "app": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "client": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "compat/router": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "constants": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "document": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "dynamic": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "navigation": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "offline": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "og": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "script": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "server": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "web-vitals": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-            }
-            `)
+       {
+         "app": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "cache": "default namespace-default",
+         "client": "default namespace-default",
+         "compat/router": "default namespace-default",
+         "constants": "default namespace-default",
+         "document": "default namespace-default default-callable",
+         "dynamic": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "error": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "form": "default namespace-default cjs-is-own-default",
+         "head": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "image": "default namespace-default",
+         "legacy/image": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "link": "default namespace-default cjs-is-own-default",
+         "navigation": "default namespace-default",
+         "offline": "default namespace-default",
+         "og": "default namespace-default",
+         "script": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "server": "default namespace-default",
+         "web-vitals": "default namespace-default",
+       }
+      `)
     } else {
       expect(shapes).toMatchInlineSnapshot(`
        {
-         "app": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
-         "client": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "compat/router": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "constants": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "document": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "dynamic": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "offline": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "og": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "script": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "server": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
-         "web-vitals": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "app": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "cache": "default",
+         "client": "",
+         "compat/router": "",
+         "constants": "",
+         "document": "default namespace-default default-callable",
+         "dynamic": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "error": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "form": "default namespace-default cjs-is-own-default",
+         "head": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "image": "default namespace-default",
+         "legacy/image": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "link": "default namespace-default cjs-is-own-default",
+         "navigation": "",
+         "offline": "",
+         "og": "",
+         "script": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "server": "default",
+         "web-vitals": "",
        }
       `)
     }
@@ -114,40 +114,40 @@ describe('app-dir - esm js extension', () => {
 
     if (isTurbopack) {
       expect(shapes).toMatchInlineSnapshot(`
-            {
-              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "constants": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "dynamic": "default:yes namespace-default:yes absent-markers:noSSR missing-from-cjs:",
-              "error": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-              "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "headers": "default:no namespace-default:yes absent-markers: missing-from-cjs:",
-              "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:then,catch,finally",
-              "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-              "og": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "script": "default:yes namespace-default:yes absent-markers:handleClientScriptLoad,initScriptLoader missing-from-cjs:then,catch,finally",
-              "server": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-            }
-            `)
+       {
+         "cache": "default namespace-default",
+         "constants": "default namespace-default",
+         "dynamic": "default namespace-default default-callable cjs-callable cjs-is-own-default absent-markers:noSSR",
+         "error": "",
+         "form": "default namespace-default default-callable",
+         "head": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "headers": "namespace-default",
+         "image": "default namespace-default default-callable",
+         "legacy/image": "default namespace-default default-callable",
+         "link": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "navigation": "",
+         "og": "default namespace-default",
+         "script": "default namespace-default default-callable absent-markers:handleClientScriptLoad,initScriptLoader",
+         "server": "default namespace-default",
+       }
+      `)
     } else {
       expect(shapes).toMatchInlineSnapshot(`
        {
-         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
-         "constants": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "dynamic": "default:yes namespace-default:yes absent-markers:noSSR missing-from-cjs:",
-         "error": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "form": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "head": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "headers": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "legacy/image": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "link": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "og": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "script": "default:yes namespace-default:yes absent-markers:handleClientScriptLoad,initScriptLoader missing-from-cjs:",
-         "server": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "cache": "default",
+         "constants": "",
+         "dynamic": "default namespace-default default-callable absent-markers:noSSR",
+         "error": "",
+         "form": "default namespace-default default-callable",
+         "head": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "headers": "",
+         "image": "default namespace-default default-callable",
+         "legacy/image": "default namespace-default default-callable",
+         "link": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "navigation": "",
+         "og": "",
+         "script": "default namespace-default default-callable absent-markers:handleClientScriptLoad,initScriptLoader",
+         "server": "",
        }
       `)
     }
@@ -158,26 +158,26 @@ describe('app-dir - esm js extension', () => {
 
     if (isTurbopack) {
       expect(shapes).toMatchInlineSnapshot(`
-            {
-              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "client": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "compat/router": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "navigation": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "offline": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "web-vitals": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-            }
-            `)
+       {
+         "cache": "default namespace-default",
+         "client": "default namespace-default",
+         "compat/router": "default namespace-default",
+         "error": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "navigation": "default namespace-default",
+         "offline": "default namespace-default",
+         "web-vitals": "default namespace-default",
+       }
+      `)
     } else {
       expect(shapes).toMatchInlineSnapshot(`
        {
-         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
-         "client": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "compat/router": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "offline": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "web-vitals": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "cache": "default",
+         "client": "",
+         "compat/router": "",
+         "error": "default namespace-default default-callable",
+         "navigation": "",
+         "offline": "",
+         "web-vitals": "",
        }
       `)
     }
@@ -199,26 +199,26 @@ describe('app-dir - esm js extension', () => {
 
     if (isTurbopack) {
       expect(shapes).toMatchInlineSnapshot(`
-            {
-              "cache": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "client": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "compat/router": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "navigation": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "offline": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-              "web-vitals": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-            }
-            `)
+       {
+         "cache": "default namespace-default",
+         "client": "default namespace-default",
+         "compat/router": "default namespace-default",
+         "error": "default namespace-default default-callable cjs-callable cjs-is-own-default",
+         "navigation": "default namespace-default",
+         "offline": "default namespace-default",
+         "web-vitals": "default namespace-default",
+       }
+      `)
     } else {
       expect(shapes).toMatchInlineSnapshot(`
        {
-         "cache": "default:yes namespace-default:no absent-markers: missing-from-cjs:",
-         "client": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "compat/router": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "error": "default:yes namespace-default:yes absent-markers: missing-from-cjs:",
-         "navigation": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "offline": "default:no namespace-default:no absent-markers: missing-from-cjs:",
-         "web-vitals": "default:no namespace-default:no absent-markers: missing-from-cjs:",
+         "cache": "default",
+         "client": "",
+         "compat/router": "",
+         "error": "default namespace-default default-callable",
+         "navigation": "",
+         "offline": "",
+         "web-vitals": "",
        }
       `)
     }
