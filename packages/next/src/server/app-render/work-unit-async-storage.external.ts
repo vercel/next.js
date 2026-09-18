@@ -375,6 +375,11 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
 export interface PublicUseCacheStore extends CommonUseCacheStore {
   readonly type: 'cache'
 
+  /** Unknown parameters remain unavailable inside caches during a fallback prerender. */
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
+  /** Nested cache fills share cancellation when they depend on fallback data. */
+  readonly dynamicAccessAbortController: AbortController
+
   /**
    * The root params for the current route. `undefined` when nested inside
    * `unstable_cache`, which doesn't carry root params. Currently, `"use cache"`

@@ -45,6 +45,13 @@ describe('param-matching-root-params', () => {
     expect(await browser.elementById('cached-lang').text()).toBe('locale:DE')
   })
 
+  it('propagates unresolved root reads through nested cache fills', async () => {
+    for (const language of ['en', 'fr', 'de', 'fr']) {
+      const $ = await next.render$(`/${language}/nested`)
+      expect($('#nested-lang').text()).toBe(`nested:${language.toUpperCase()}`)
+    }
+  })
+
   // @force-gate start
   it('only varies deployed root fallbacks on query keys that routing forwards', async () => {
     const contract = await next.readJSON('query-contract.json')

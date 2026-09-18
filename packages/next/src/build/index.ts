@@ -335,6 +335,12 @@ export interface DynamicPrerenderManifestRoute
   fallback: Fallback
 
   /**
+   * A configured blocking policy must not be replaced by on-demand fallback
+   * shell generation when Partial Prefetching is enabled.
+   */
+  isExplicitlyBlocking?: true
+
+  /**
    * The unresolved fallback route params that can still be specialized into a
    * more specific prerendered shell because their segments export
    * `generateStaticParams`.
@@ -3952,6 +3958,16 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
+                  isExplicitlyBlocking:
+                    fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
+                    route.fallbackRouteParams.some(
+                      ({ paramName }) =>
+                        paramMatchingByRoute.get(originalAppPath)?.[
+                          paramName
+                        ] === 'blocking'
+                    )
+                      ? true
+                      : undefined,
                   fallbackRevalidate: fallbackCacheControl?.revalidate,
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,

@@ -1248,6 +1248,79 @@ export async function handleBuildComplete({
         return parentOutput
       }
 
+      const sourcesWithOpenFallbacks = new Set<string>()
+      for (const [pathname, route] of Object.entries(
+        prerenderManifest.dynamicRoutes
+      )) {
+        if (route.fallback !== false) {
+          sourcesWithOpenFallbacks.add(route.fallbackSourceRoute ?? pathname)
+        }
+      }
+
+      // Specialized matchers still execute the original page module. Supply
+      // conventional app entrypoints so an adapter launcher can resolve either
+      // the source pathname or a specialized pathname, including when its
+      // routes manifest has been filtered down to one function group.
+      const appPathRoutesPath = path.join(
+        distDir,
+        'app-path-routes-manifest.json'
+      )
+      const appPathAliases: Record<string, string> = {}
+      for (const route of routesManifest.dynamicRoutes) {
+        if (!route.sourcePage || route.sourcePage === route.page) continue
+        const output = appOutputMap[route.sourcePage]
+        if (output?.type !== AdapterOutputType.APP_PAGE) continue
+
+        const appPath = `${route.page}/page`
+        const aliasPath = path.join(appDistDir, `${appPath}.js`)
+        const relativeSource = normalizePathSep(
+          path.relative(path.dirname(aliasPath), output.filePath)
+        )
+        const content = `module.exports = require(${JSON.stringify(`./${relativeSource}`)})\n`
+        // Keep deployment-only entrypoints separate from self-hosted output.
+        const aliasSourcePath = path.join(
+          distDir,
+          'adapter',
+          'app',
+          `${appPath}.js`
+        )
+        await fs.mkdir(path.dirname(aliasSourcePath), { recursive: true })
+        await fs.writeFile(aliasSourcePath, content)
+        await pushAsset(
+          output.assets,
+          output.assetsHashes,
+          path.relative(repoRoot, aliasPath),
+          aliasSourcePath,
+          bundler,
+          config.outputHashSalt || ''
+        )
+        appPathAliases[appPath] = route.page
+      }
+
+      if (Object.keys(appPathAliases).length > 0) {
+        const appPathRoutes = JSON.parse(
+          await fs.readFile(appPathRoutesPath, 'utf8')
+        )
+        const deploymentManifest = path.join(
+          distDir,
+          'adapter',
+          'app-path-routes-manifest.json'
+        )
+        await fs.writeFile(
+          deploymentManifest,
+          JSON.stringify({ ...appPathRoutes, ...appPathAliases })
+        )
+        const manifestAsset = path.relative(repoRoot, appPathRoutesPath)
+        const manifestHash = await hashFile(
+          config.outputHashSalt || '',
+          deploymentManifest
+        )
+        for (const output of [...outputs.appPages, ...outputs.appRoutes]) {
+          output.assets[manifestAsset] = deploymentManifest
+          output.assetsHashes[manifestAsset] = manifestHash
+        }
+      }
+
       const {
         prefetchSegmentDirSuffix,
         prefetchSegmentSuffix,
@@ -1563,7 +1636,14 @@ export async function handleBuildComplete({
                 }
               : undefined,
 
-          parentFallbackMode: srcRouteInfo?.fallback,
+          // This describes the whole source page, not just its least-specific
+          // matcher. A closed prefix with an open suffix must remain callable
+          // for paths that weren't rendered at build time.
+          parentFallbackMode:
+            srcRouteInfo?.fallback === false &&
+            sourcesWithOpenFallbacks.has(srcRoute)
+              ? undefined
+              : srcRouteInfo?.fallback,
 
           fallback:
             !isNotFoundTrue || (isNotFoundTrue && hasStatic404)
@@ -1749,7 +1829,9 @@ export async function handleBuildComplete({
         // present and able to be served.
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
-            htmlAllowQuery = fallbackRootParams as string[]
+            htmlAllowQuery = fallbackRootParams.map(
+              (paramName) => `${NEXT_QUERY_PARAM_PREFIX}${paramName}`
+            )
           }
 
           // We additionally vary based on if there's a postponed prerender

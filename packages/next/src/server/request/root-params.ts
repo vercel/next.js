@@ -8,7 +8,11 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
-import { makeFallbackParamsHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeFallbackParamsHangingPromise,
+  makeUntrackedHangingPromise,
+  trackPromiseUsed,
+} from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { accumulateRootVaryParam } from '../app-render/vary-params'
@@ -64,6 +68,23 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         )
       }
       workUnitStore.readRootParamNames.add(paramName)
+      if (workUnitStore.fallbackRouteParams?.has(paramName)) {
+        const controller = workUnitStore.dynamicAccessAbortController
+        return trackPromiseUsed(
+          makeUntrackedHangingPromise<ParamValue>(
+            controller.signal,
+            workStore.route,
+            apiName
+          ),
+          () => {
+            controller.abort(
+              new Error(
+                `Accessed fallback root parameter "${paramName}" during prerendering.`
+              )
+            )
+          }
+        )
+      }
       return Promise.resolve(workUnitStore.rootParams[paramName])
     }
     case 'prerender':
