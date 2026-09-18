@@ -155,11 +155,6 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "transient", inline, default)]
     transient_ref_count: u32,
 
-    /// Number of restore consumers between observing/completing restoration and acquiring the task
-    /// for use. Eviction and GC back off while this short-lived handoff count is nonzero.
-    #[field(storage = "direct", category = "transient")]
-    restore_handoff_count: u32,
-
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
     // Persisted flags come first, then transient flags.
@@ -576,10 +571,9 @@ impl TaskStorage {
             Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
             Some(_) => KeyEvictability::Evictable,
         };
-        // All these states imply that the task is currently being used in some way
-        // either literally executing, being handed from restoration to a consumer, or about to.
-        if self.restore_handoff_count() > 0
-            || self.get_in_progress().is_some()
+        // All these flags imply that the task is currently being used in some way
+        // either literally executing, or about to
+        if self.get_in_progress().is_some()
             || self.get_activeness().is_some()
             // Without these checks we could corrupt racing reads.
             // Basically if a task restores ALL but data is already restored, then it will set meta_restoring, so it would break semantics to clear data_restored while that is happening.  We could fix it by adding a loop to the restoring threads but it is just much simpler to back off in this case.
@@ -861,35 +855,20 @@ impl TaskStorage {
         self.set_transient_ref_count(1);
     }
 
-    /// Number of consumers currently protected across the restore-to-use handoff.
-    pub fn restore_handoff_count(&self) -> u32 {
-        self.get_restore_handoff_count().copied().unwrap_or(0)
-    }
-
-    /// Prevent eviction and GC until one restore consumer acquires the task for use.
-    pub fn pin_restore_handoff(&mut self) {
-        self.set_restore_handoff_count(
-            self.restore_handoff_count()
-                .checked_add(1)
-                .expect("restore handoff count overflow"),
-        );
-    }
-
-    /// Release one restore-to-use handoff pin.
-    pub fn unpin_restore_handoff(&mut self) {
-        let count = self
-            .restore_handoff_count()
-            .checked_sub(1)
-            .expect("restore handoff count underflow");
-        if count == 0 {
-            self.take_restore_handoff_count();
-        } else {
-            self.set_restore_handoff_count(count);
-        }
+    /// Adjust the transient in-session reference count and return the new value.
+    ///
+    /// Panics on underflow or overflow.
+    pub fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
+        let current = self.gc_transient_ref_count();
+        let new_value = current
+            .checked_add_signed(delta)
+            .expect("transient_ref_count underflow");
+        self.set_transient_ref_count(new_value);
+        new_value
     }
 
     /// Whether a GC pass may collect this task: nothing references it, via parents, transient
-    /// pins, restore handoffs, aggregation edges, or dependency edges.
+    /// pins, aggregation edges, or dependency edges.
     ///
     /// Precision depends on what the caller restored. Meta alone cannot see the three Data-category
     /// dependent sets, so the answer is a sound *pre-filter*: a `false` is definitive, a `true` may
@@ -906,7 +885,6 @@ impl TaskStorage {
             && !self.flags.deleted()
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
-            && self.restore_handoff_count() == 0
             && self.get_activeness().is_none()
             && self.get_in_progress().is_none()
             // It is rare for upper/followers to be present when the ref counts are 0 but it can happen transiently during a concurrent GC pass as uppers are moved around during the cascade.
@@ -1213,53 +1191,6 @@ mod tests {
         assert!(!storage2.flags.invalidator());
         assert!(!storage2.flags.optimization_pending());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
-    }
-
-    #[test]
-    fn restore_handoff_pin_blocks_eviction_without_changing_transient_ref_behavior() {
-        let mut storage = TaskStorage::new();
-        storage.flags.set_restored(TaskDataCategory::All);
-
-        let (_, value_evictability) = storage.evictability();
-        assert_eq!(
-            value_evictability,
-            ValueEvictability::Evictable {
-                meta: true,
-                data: true
-            }
-        );
-
-        // Ordinary transient references pin GC, but remain value-evictable.
-        storage.set_transient_ref_count(1);
-        assert!(!storage.gc_maybe_collectible());
-        assert!(matches!(
-            storage.evictability().1,
-            ValueEvictability::Evictable { .. }
-        ));
-
-        storage.pin_restore_handoff();
-        storage.pin_restore_handoff();
-        assert_eq!(storage.restore_handoff_count(), 2);
-        assert!(!storage.gc_maybe_collectible());
-        assert_eq!(
-            storage.evictability().1,
-            ValueEvictability::Unevictable(UnevictableReason::InProgress)
-        );
-
-        // Releasing one consumer must not steal the other consumer's pin.
-        storage.unpin_restore_handoff();
-        assert_eq!(storage.restore_handoff_count(), 1);
-        assert_eq!(
-            storage.evictability().1,
-            ValueEvictability::Unevictable(UnevictableReason::InProgress)
-        );
-
-        storage.unpin_restore_handoff();
-        assert_eq!(storage.restore_handoff_count(), 0);
-        assert!(matches!(
-            storage.evictability().1,
-            ValueEvictability::Evictable { .. }
-        ));
     }
 
     #[test]

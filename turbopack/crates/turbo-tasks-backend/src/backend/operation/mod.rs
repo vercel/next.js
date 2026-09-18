@@ -346,9 +346,10 @@ impl<'e> ExecuteContextImpl<'e> {
                 if do_data || do_meta || data_restoring || meta_restoring {
                     let waiting_for_restore = data_restoring || meta_restoring;
                     if waiting_for_restore {
-                        // Protect the category after the other restorer clears its bit but before
-                        // this caller acquires the task for use.
-                        task.pin_restore_handoff();
+                        // The caller holds the task id outside the graph while waiting, so pin it
+                        // against GC until the restored guard reaches the use boundary. Eviction is
+                        // still allowed; the wait loop restores the category again if needed.
+                        task.update_and_get_transient_ref_count(1);
                     }
                     // Drop lock while doing I/O (our I/O can overlap with the other thread).
                     drop(task);
@@ -378,7 +379,7 @@ impl<'e> ExecuteContextImpl<'e> {
                     if waiting_for_restore {
                         // This caller owns the pin and releases it only after acquiring the task
                         // guard it is about to use.
-                        task.unpin_restore_handoff();
+                        task.update_and_get_transient_ref_count(-1);
                     }
 
                     // Apply results and clear restoring bits.
@@ -485,10 +486,10 @@ impl<'e> ExecuteContextImpl<'e> {
     /// Waits for another thread's in-progress restore of a task to complete.
     ///
     /// Precondition: the caller must have observed `is_restoring()` == true, taken one restore
-    /// handoff pin for `task_id`, and dropped the task lock before calling this.
+    /// transient ref for `task_id`, and dropped the task lock before calling this.
     ///
-    /// Returns the `StorageWriteGuard` acquired at the end of the wait with the caller's handoff
-    /// pin still held. The caller releases that pin at its actual use boundary; this keeps pin
+    /// Returns the `StorageWriteGuard` acquired at the end of the wait with the caller's transient
+    /// ref still held. The caller releases that ref at its actual use boundary; this keeps pin
     /// ownership consistent for single, paired, and batched task access.
     fn wait_for_restoring_task(
         &self,
@@ -515,9 +516,9 @@ impl<'e> ExecuteContextImpl<'e> {
             }
 
             // No thread owns a missing category after a prior restore attempt failed and cleared
-            // its restoring bit. GC can expose the same state when replaying a suspended operation
-            // after collected task data was discarded. Keep our handoff pin while claiming the
-            // category and retrying the restore.
+            // its bit, or after eviction cleared the completed restore before this waiter acquired
+            // the guard. GC cannot collect it while our transient ref is held. Keep that ref while
+            // claiming the category and retrying the restore.
             let restore_data = category.includes_data()
                 && !task.flags.data_restored()
                 && !task.flags.data_restoring();
@@ -555,11 +556,11 @@ impl<'e> ExecuteContextImpl<'e> {
                     restore_error = Some(error);
                 }
 
-                // Keep the restored guard through notification. The caller's handoff pin remains
+                // Keep the restored guard through notification. The caller's transient ref remains
                 // held until the guard reaches its actual use boundary.
                 self.backend.storage.restored.notify(usize::MAX);
                 if let Some(error) = restore_error {
-                    task.unpin_restore_handoff();
+                    task.update_and_get_transient_ref_count(-1);
                     return Err(error);
                 }
                 if task.flags.is_restored(category) {
@@ -664,7 +665,7 @@ impl<'e> ExecuteContextImpl<'e> {
                 wait_meta: false,
                 task_type: None,
                 self_restored: false,
-                handoff_pinned: false,
+                transient_ref_pinned: false,
             })
             .collect::<Vec<_>>();
         data_count += all_count;
@@ -714,10 +715,11 @@ impl<'e> ExecuteContextImpl<'e> {
             }
 
             if !ready {
-                // Cover both self-restoration and waiting until the prepared callback acquires the
-                // task. The pin is released immediately before handing that guard to the callback.
-                task.pin_restore_handoff();
-                entry.handoff_pinned = true;
+                // The callback's task id is held outside the graph until it acquires a guard, so
+                // keep it alive with a transient ref. Eviction may still clear the category; the
+                // callback path restores it again before use.
+                task.update_and_get_transient_ref_count(1);
+                entry.transient_ref_pinned = true;
             }
 
             self.task_lock_counter.release();
@@ -850,14 +852,14 @@ impl<'e> ExecuteContextImpl<'e> {
         }
 
         if !restore_errors.is_empty() {
-            // No callback will consume these entries, so release every handoff pin before the
+            // No callback will consume these entries, so release every transient ref before the
             // aggregated restore error tears the operation down.
             for entry in &tasks {
-                if entry.handoff_pinned {
+                if entry.transient_ref_pinned {
                     self.backend
                         .storage
                         .access_mut(entry.task_id)
-                        .unpin_restore_handoff();
+                        .update_and_get_transient_ref_count(-1);
                 }
             }
             let msgs: Vec<String> = restore_errors
@@ -884,10 +886,10 @@ impl<'e> ExecuteContextImpl<'e> {
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
             if !entry.wait_data && !entry.wait_meta {
-                // The classification-time pin prevents eviction between Phase 1c clearing the
-                // restoring bit and this callback acquiring the task.
+                // The classification-time transient ref prevents GC until this callback acquires
+                // the task. The helper re-restores the category if eviction won the handoff.
                 let mut task = self.wait_for_restore_or_panic(entry.task_id, entry.category);
-                task.unpin_restore_handoff();
+                task.update_and_get_transient_ref_count(-1);
                 prepared_task_callback(self, entry.task_id, entry.category, task);
             }
         }
@@ -902,7 +904,7 @@ impl<'e> ExecuteContextImpl<'e> {
                     // Returns the write guard so we call the callback without re-acquiring.
                     self.task_lock_counter.acquire();
                     let mut task = self.wait_for_restore_or_panic(entry.task_id, cat);
-                    task.unpin_restore_handoff();
+                    task.update_and_get_transient_ref_count(-1);
                     self.task_lock_counter.release();
                     prepared_task_callback(self, entry.task_id, entry.category, task);
                 }
@@ -929,8 +931,8 @@ struct TaskRestoreEntry {
     task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
-    /// A restore-to-callback handoff pin was taken during classification.
-    handoff_pinned: bool,
+    /// A transient GC ref for the restore-to-callback interval was taken during classification.
+    transient_ref_pinned: bool,
 }
 
 /// Whether a restore we performed proves the task exists on disk: we ran the I/O (outer `Some`), it
@@ -1133,10 +1135,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             let waiting1 = data1_restoring || meta1_restoring;
             let waiting2 = data2_restoring || meta2_restoring;
             if waiting1 {
-                task1.pin_restore_handoff();
+                task1.update_and_get_transient_ref_count(1);
             }
             if waiting2 {
-                task2.pin_restore_handoff();
+                task2.update_and_get_transient_ref_count(1);
             }
             // Drop both locks while doing I/O or waiting.
             drop(task1);
@@ -1176,10 +1178,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             task1 = t1;
             task2 = t2;
             if waiting1 {
-                task1.unpin_restore_handoff();
+                task1.update_and_get_transient_ref_count(-1);
             }
             if waiting2 {
-                task2.unpin_restore_handoff();
+                task2.update_and_get_transient_ref_count(-1);
             }
 
             // Apply results and clear restoring bits.
