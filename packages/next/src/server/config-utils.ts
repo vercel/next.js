@@ -190,7 +190,7 @@ export function loadCustomWebpackHook(webpackProjectDir: string) {
     // activated. This matters when callers catch and report the config error.
     requireHook.addHookAliases(previousAliases)
     throw new Error(
-      '`experimental.customWebpack` requires webpack to be installed in your project. Install it with `npm install --save-dev webpack`.',
+      '`--custom-webpack` requires webpack to be installed in your project. Install it with `npm install --save-dev webpack`.',
       { cause }
     )
   }

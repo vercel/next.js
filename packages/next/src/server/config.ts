@@ -57,7 +57,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
-import { Bundler, getBundlerFromEnv } from '../lib/bundler'
+import { Bundler } from '../lib/bundler'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
@@ -1927,15 +1927,6 @@ export default async function loadConfig(
   const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
 
-  if (
-    config.experimental.customWebpack &&
-    (phase === PHASE_DEVELOPMENT_SERVER || phase === PHASE_PRODUCTION_BUILD) &&
-    (opts.bundler ?? getBundlerFromEnv()) === Bundler.Webpack
-  ) {
-    loadCustomWebpackHook(dir)
-    process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
-  }
-
   warnIfReact18IsInstalled(phase, dir, opts.silent)
 
   if (!meta.cacheHit && logTiming) {
@@ -2002,7 +1993,11 @@ async function loadConfigImpl(
   // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
-      loadWebpackHook()
+      if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+        loadCustomWebpackHook(dir)
+      } else {
+        loadWebpackHook()
+      }
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included

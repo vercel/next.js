@@ -1,37 +1,46 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 const webpackVersions = ['5.98.0', '5.111.0']
 
 for (const webpackVersion of webpackVersions) {
   // @force-gate webpack
-  describe(`experimental.customWebpack with webpack ${webpackVersion}`, () => {
+  describe(`--custom-webpack with webpack ${webpackVersion}`, () => {
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
         webpack: webpackVersion,
       },
       env: {
-        CUSTOM_WEBPACK: 'true',
         EXPECTED_WEBPACK_VERSION: webpackVersion,
       },
+      buildCommand: 'pnpm next build --custom-webpack',
+      startCommand: isNextDev
+        ? 'pnpm next dev --custom-webpack'
+        : 'pnpm next start',
     })
 
-    it('uses the project webpack and renders successfully', async () => {
+    it('uses project webpack during config evaluation and compilation', async () => {
       const $ = await next.render$('/')
-      expect($('p').text()).toBe(`webpack ${webpackVersion}`)
+      expect($('#webpack-version').text()).toBe(
+        `custom plugin with webpack ${webpackVersion}`
+      )
+      expect($('#replacement-message').text()).toBe(
+        'replaced by NormalModuleReplacementPlugin'
+      )
     })
   })
 }
 
 // @force-gate webpack
-describe('experimental.customWebpack without a webpack dependency', () => {
+describe('--custom-webpack without a webpack dependency', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {},
-    env: {
-      CUSTOM_WEBPACK: 'true',
-    },
+    buildCommand: 'pnpm next build --custom-webpack',
+    startCommand: isNextDev
+      ? 'pnpm next dev --custom-webpack'
+      : 'pnpm next start',
     skipStart: true,
   })
 
@@ -39,21 +48,46 @@ describe('experimental.customWebpack without a webpack dependency', () => {
     await next.start().catch(() => {})
     await retry(() => {
       expect(next.cliOutput).toContain(
-        '`experimental.customWebpack` requires webpack to be installed in your project'
+        '`--custom-webpack` requires webpack to be installed in your project'
       )
     })
   })
 })
 
 // @force-gate webpack
-describe('without experimental.customWebpack', () => {
+describe('--webpack without a webpack dependency', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {},
+    buildCommand: 'pnpm next build --webpack',
+    startCommand: isNextDev ? 'pnpm next dev --webpack' : 'pnpm next start',
   })
 
   it('uses bundled webpack without requiring the peer dependency', async () => {
-    const $ = await next.render$('/')
-    expect($('p').text()).toBe('webpack bundled')
+    const html = await next.render('/')
+    expect(html).toContain('original module')
   })
 })
+
+for (const conflictingFlag of ['--webpack', '--turbopack']) {
+  // @force-gate webpack
+  describe(`--custom-webpack with ${conflictingFlag}`, () => {
+    const command = `pnpm next ${isNextDev ? 'dev' : 'build'} --custom-webpack ${conflictingFlag}`
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: {},
+      buildCommand: command,
+      startCommand: command,
+      skipStart: true,
+    })
+
+    it('reports conflicting bundler flags', async () => {
+      await next.start().catch(() => {})
+      await retry(() => {
+        expect(next.cliOutput).toContain('Multiple bundler flags set:')
+        expect(next.cliOutput).toContain('--custom-webpack')
+        expect(next.cliOutput).toContain(conflictingFlag)
+      })
+    })
+  })
+}

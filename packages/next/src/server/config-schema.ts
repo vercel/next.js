@@ -376,7 +376,6 @@ export const experimentalSchema = {
   gestureTransition: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
-  customWebpack: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryEviction: z
     .union([z.literal(false), z.literal('full'), z.literal('auto')])

@@ -1,3 +1,10 @@
+import { message } from './message'
+
 export default function Page() {
-  return <p>webpack {process.env.ACTIVE_WEBPACK_VERSION ?? 'bundled'}</p>
+  return (
+    <main>
+      <p id="webpack-version">{process.env.CUSTOM_WEBPACK_PLUGIN_VALUE}</p>
+      <p id="replacement-message">{message}</p>
+    </main>
+  )
 }
