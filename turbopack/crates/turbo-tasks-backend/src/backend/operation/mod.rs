@@ -555,11 +555,9 @@ impl<'e> ExecuteContextImpl<'e> {
                     restore_error = Some(error);
                 }
 
-                // The caller's handoff pin keeps eviction and GC out while notification happens
-                // outside the shard lock and we re-acquire the task for use.
-                drop(task);
+                // Keep the restored guard through notification. The caller's handoff pin remains
+                // held until the guard reaches its actual use boundary.
                 self.backend.storage.restored.notify(usize::MAX);
-                let mut task = self.backend.storage.access_mut(task_id);
                 if let Some(error) = restore_error {
                     task.unpin_restore_handoff();
                     return Err(error);
