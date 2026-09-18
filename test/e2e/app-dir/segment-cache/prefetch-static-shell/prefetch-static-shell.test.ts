@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { retry } from '../../../../lib/next-test-utils'
 
 const REPRODUCE_UNNECESSARY_RUNTIME_SHELL =
   !!process.env.REPRODUCE_UNNECESSARY_RUNTIME_SHELL || false
@@ -58,16 +59,12 @@ const REPRODUCE_UNNECESSARY_RUNTIME_PREFETCH =
 // piece of content arrived: 'static' matches per-segment static prefetch
 // requests (including the route tree prefetch), 'runtime' matches dynamic
 // prefetch requests (e.g. the runtime shell request).
+
+// @force-gate prefetching
 describe('static App Shell prefetch attempt', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-  if (isNextDev) {
-    // The feature depends on build-time prerenders and ISR regeneration
-    // semantics that don't exist in dev.
-    it('is skipped', () => {})
-    return
-  }
 
   it('prefetches a fully static route with static requests only, then navigates instantly from cache', async () => {
     let page: Playwright.Page
@@ -1744,9 +1741,12 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
 
+    // The legacy Vercel builder does not implement the Cache Components shell
+    // eligibility and upgrade behavior asserted here.
+    // @force-gate !deploy || adapter
     describe('when a link to a non-prerendered param is revealed first', () => {
       beforeAll(async () => {
-        // Trigger an ISR prerender for the new param value
+        // Trigger an ISR prerender for the new param value.
         await next.fetch(
           '/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered'
         )
@@ -1759,22 +1759,40 @@ describe('static App Shell prefetch attempt', () => {
         })
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
-        // The client router should get the result of the ISR prerender, not the fallback.
-        await act(async () => {
-          await browser
-            .elementByCss(
-              linkAccordionSelector({
-                href: '/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered',
-                prefetch: 'auto',
-              })
-            )
-            .click()
-        }, [
-          {
-            includes: 'Slug: yes-cookies-in-prefetch-not-prerendered',
-            kind: 'static',
+        // Wait until the client router gets the result of the ISR prerender instead of the fallback.
+        let attemptCount = 0
+        await retry(
+          async () => {
+            // Force a new prefetch by refreshing --
+            // the client's ISR retry loop is hard to assert on with `act()`.
+            if (attemptCount > 0) {
+              await browser.refresh()
+            }
+
+            try {
+              await act(async () => {
+                await browser
+                  .elementByCss(
+                    linkAccordionSelector({
+                      href: '/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered',
+                      prefetch: 'auto',
+                    })
+                  )
+                  .click()
+              }, [
+                {
+                  includes: 'Slug: yes-cookies-in-prefetch-not-prerendered',
+                  kind: 'static',
+                },
+              ])
+            } finally {
+              attemptCount++
+            }
           },
-        ])
+          10_000,
+          1_000,
+          'wait for ISR prerender to finish'
+        )
       })
 
       it('attempts a static prefetch before falling back to a runtime prefetch', async () => {
