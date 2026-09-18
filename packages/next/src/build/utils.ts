@@ -1304,11 +1304,17 @@ export async function copyTracedFiles(
               // type symlink. To avoid this, we first detect the type of the original target via
               // tracedFilePath, then explicitly pass the correct type.
               if (process.platform === 'win32') {
-                const tracedFileStat = await fs.stat(tracedFilePath)
+                // fs.stat follows the link, so a dangling one - an uninstalled
+                // optional dependency, or a target outside the traced set -
+                // throws ENOENT. Fall back to 'file', which is what Node.js
+                // infers for a missing target anyway.
+                const tracedFileStat = await fs
+                  .stat(tracedFilePath)
+                  .catch(() => null)
                 await fs.symlink(
                   symlink,
                   fileOutputPath,
-                  tracedFileStat.isDirectory() ? 'dir' : 'file'
+                  tracedFileStat?.isDirectory() ? 'dir' : 'file'
                 )
               } else {
                 await fs.symlink(symlink, fileOutputPath)

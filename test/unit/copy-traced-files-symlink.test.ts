@@ -44,8 +44,9 @@ describe('copyTracedFiles symlinks', () => {
     //   real-dir/           (real directory)
     //     inner.ts
     //   real-file.ts        (real file)
-    //   symlink-dir   -> ./real-dir     (directory symlink)
-    //   symlink-file  -> ./real-file.ts (file symlink)
+    //   symlink-dir      -> ./real-dir     (directory symlink)
+    //   symlink-file     -> ./real-file.ts (file symlink)
+    //   symlink-dangling -> ./missing      (broken symlink)
     await fs.mkdir(path.join(srcDir, 'real-dir'), { recursive: true })
     await fs.writeFile(
       path.join(srcDir, 'real-dir', 'inner.ts'),
@@ -61,6 +62,10 @@ describe('copyTracedFiles symlinks', () => {
       path.join(srcDir, 'symlink-file'),
       'file'
     )
+    // Traced sets legitimately contain broken links - an uninstalled optional
+    // dependency, or a target excluded from the trace. Detecting the type has
+    // to tolerate that rather than fail the whole standalone build.
+    await fs.symlink('./missing', path.join(srcDir, 'symlink-dangling'), 'file')
 
     // Create dist directory
     await fs.mkdir(distDir, { recursive: true })
@@ -75,7 +80,11 @@ describe('copyTracedFiles symlinks', () => {
     // absent from the output directory when the links are recreated.
     // Paths in the trace are relative to the trace file location (distDir).
     const traceData = {
-      files: ['../src/symlink-dir', '../src/symlink-file'],
+      files: [
+        '../src/symlink-dir',
+        '../src/symlink-file',
+        '../src/symlink-dangling',
+      ],
     }
     await fs.writeFile(
       path.join(distDir, 'next-server.js.nft.json'),
@@ -130,5 +139,13 @@ describe('copyTracedFiles symlinks', () => {
     expect(await fs.readFile(symlinkFile, 'utf8')).toBe(
       'export const value = 2'
     )
+  })
+
+  it('should recreate a dangling symlink instead of failing the build', async () => {
+    const dangling = path.join(distDir, 'standalone', 'symlink-dangling')
+
+    expect((await fs.lstat(dangling)).isSymbolicLink()).toBe(true)
+    // Windows stores the target with its own separator, so compare normalized.
+    expect((await fs.readlink(dangling)).replace(/\\/g, '/')).toBe('./missing')
   })
 })
