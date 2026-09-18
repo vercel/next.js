@@ -308,7 +308,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             }
             ValueLinkContext::InAlternative => {
                 debug_assert!(
-                    self.analyze_mode.is_tracing_assets(),
+                    self.analyze_mode.trace_file_references,
                     "unexpected add_reference_code_gen InAlternative in non-tracing mode"
                 );
                 self.references.insert(reference.into_reference());
@@ -341,7 +341,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         C: Into<CodeGen>,
     {
-        if self.analyze_mode.is_code_gen() {
+        if !self.analyze_mode.skip_codegen {
             #[cfg(debug_assertions)]
             {
                 let (index, added) = self.code_gens.insert_full(code_gen.into());
@@ -468,7 +468,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
         let references: Vec<_> = self.references.into_iter().collect();
 
-        if !self.analyze_mode.is_code_gen() {
+        if self.analyze_mode.skip_codegen {
             debug_assert!(self.code_gens.is_empty());
         }
 
@@ -731,7 +731,7 @@ async fn analyze_ecmascript_module_internal(
         // This reads the ParseResult, so it has to happen before the final_read_hint.
     } = &*compute_ecmascript_module_exports(*module, part).await?;
 
-    let parsed = if !analyze_mode.is_code_gen() {
+    let parsed = if analyze_mode.skip_codegen {
         // We are never code-gening the module, so we can drop the AST after the analysis.
         parsed.final_read_hint().await?
     } else {
@@ -932,8 +932,8 @@ async fn analyze_ecmascript_module_internal(
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
-            collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
-            tracing_only: !options.analyze_mode.is_code_gen(),
+            collect_affecting_sources: options.analyze_mode.trace_file_references,
+            tracing_only: options.analyze_mode.skip_codegen,
             is_esm,
             import_references,
             imports: &eval_context.imports,
@@ -963,7 +963,7 @@ async fn analyze_ecmascript_module_internal(
             match effect {
                 Effect::Unreachable { start_ast_path } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        !analyze_mode.skip_codegen,
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
@@ -988,7 +988,7 @@ async fn analyze_ecmascript_module_internal(
 
                     macro_rules! inactive {
                         ($block:ident) => {
-                            if analyze_mode.is_code_gen() {
+                            if !analyze_mode.skip_codegen {
                                 analysis.add_code_gen(RemovalCodeGen::new(
                                     unreachable_comment(),
                                     $block.range.clone(),
@@ -998,7 +998,7 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! condition {
                         ($expr:expr) => {
-                            if analyze_mode.is_code_gen() && !condition_has_side_effects {
+                            if !analyze_mode.skip_codegen && !condition_has_side_effects {
                                 analysis.add_code_gen(ConstantConditionCodeGen::new(
                                     $expr,
                                     analysis.intern_path(&condition_ast_path),
@@ -1270,7 +1270,7 @@ async fn analyze_ecmascript_module_internal(
                     span,
                 } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        !analyze_mode.skip_codegen,
                         "unexpected Effect::FreeVar in tracing mode"
                     );
 
@@ -1503,7 +1503,7 @@ async fn analyze_ecmascript_module_internal(
                     span,
                 } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        !analyze_mode.skip_codegen,
                         "unexpected Effect::TypeOf in tracing mode"
                     );
                     let arg = analysis_state
@@ -1513,7 +1513,7 @@ async fn analyze_ecmascript_module_internal(
                 }
                 Effect::ImportMeta { ast_path, span: _ } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        !analyze_mode.skip_codegen,
                         "unexpected Effect::ImportMeta in tracing mode"
                     );
                     if analysis_state.first_import_meta {
@@ -2015,10 +2015,9 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
-    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.is_tracing_assets()
-    {
-        // We are in an alternative (can't do any replacement anyway) and are not tracing assets, so
-        // we can skip further processing.
+    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.skip_codegen {
+        // We are in an alternative (can't do any replacement anyway) and are running codegen, so
+        // assume that we only care about the bundled output. Not the emitted references.
         return Ok(());
     }
 
@@ -2545,7 +2544,9 @@ where
             );
         }
 
-        WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::FsReadMethod(name)
+            if analysis.analyze_mode.trace_file_references =>
+        {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
@@ -2582,7 +2583,7 @@ where
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
-        WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
@@ -2618,7 +2619,7 @@ where
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
-        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.trace_file_references => {
             let parent_path = origin.into_trait_ref().await?.origin_path().parent();
             let args = linked_args().await?;
 
@@ -2668,7 +2669,7 @@ where
             );
             return Ok(());
         }
-        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.trace_file_references => {
             // ignore path.join in `node-gyp`, it will includes too many files
             if source
                 .ident()
@@ -2721,7 +2722,7 @@ where
             return Ok(());
         }
         WellKnownFunctionKind::ChildProcessSpawnMethod(name)
-            if analysis.analyze_mode.is_tracing_assets() =>
+            if analysis.analyze_mode.trace_file_references =>
         {
             let args = linked_args().await?;
 
@@ -2807,7 +2808,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
@@ -2851,7 +2852,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.trace_file_references => {
             use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
 
             let args = linked_args().await?;
@@ -2894,7 +2895,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.trace_file_references => {
             use turbopack_resolve::node_native_binding::NodeGypBuildReference;
 
             let args = linked_args().await?;
@@ -2937,7 +2938,7 @@ where
                     ),
                 )
         }
-        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.trace_file_references => {
             use turbopack_resolve::node_native_binding::NodeBindingsReference;
 
             let args = linked_args().await?;
@@ -2970,7 +2971,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if args.len() == 2
                 && let Some(s) = args.first().and_then(|arg| arg.as_str())
@@ -3061,7 +3062,7 @@ where
             )
         }
         WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir
-            if analysis.analyze_mode.is_tracing_assets() =>
+            if analysis.analyze_mode.trace_file_references =>
         {
             let args = linked_args().await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
@@ -3108,7 +3109,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 let error_mode = if in_try {
@@ -3137,7 +3138,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)

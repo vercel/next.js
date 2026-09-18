@@ -89,7 +89,7 @@ async fn setup(
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
-            follow_reexports: !analyze_mode.skip_codegen || !analyze_mode.trace_file_references,
+            follow_reexports: !analyze_mode.skip_codegen,
             module_fragments_enabled: false,
             analyze_mode,
             ..Default::default()
