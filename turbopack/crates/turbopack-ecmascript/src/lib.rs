@@ -202,15 +202,6 @@ impl AnalyzeMode {
             trace_file_references: true,
         }
     }
-
-    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
-    pub fn is_tracing_assets(self) -> bool {
-        self.trace_file_references
-    }
-
-    pub fn is_code_gen(self) -> bool {
-        !self.skip_codegen
-    }
 }
 
 /// The constant to replace `typeof window` with.

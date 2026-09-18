@@ -404,7 +404,7 @@ impl ModuleOptions {
         // which produces virtual paths that don't exist on disk. This breaks NFT file tracing
         // and standalone build file copying. Use Raw module type instead so the original
         // filesystem path is preserved in the trace.
-        let is_tracing = analyze_mode.skip_codegen && analyze_mode.trace_file_references;
+        let is_tracing = analyze_mode.skip_codegen;
 
         // Import attribute rules (bytes/text) must come BEFORE config rules.
         // Import attributes have a stronger API contract - they're explicit in the source code
