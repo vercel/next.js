@@ -355,7 +355,10 @@ pub fn write_static_stored_file<E: Entry>(
     );
     let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
     for entry in entries {
-        writer.add(entry)?;
+        if let Err(err) = writer.add(entry) {
+            writer.cancel();
+            return Err(err);
+        }
     }
     writer.close()
 }
@@ -617,13 +620,10 @@ pub struct StreamingSstWriter<E: Entry> {
     /// State of the current incomplete key block at the tail of the resolved prefix.
     current_key_block: KeyBlockAccumulator,
 
-    /// Set to `true` by `close()` so the Drop guard can detect writers dropped without closing.
+    /// Set to `true` by `close()` or `cancel()` so the Drop guard can detect writers dropped
+    /// without completing their lifecycle.
     #[cfg(debug_assertions)]
     finished: bool,
-    /// Set when `add()` returns an error. Such writers cannot be closed reliably and should not
-    /// trigger the lifecycle assertion when the error is propagated.
-    #[cfg(debug_assertions)]
-    failed: bool,
 }
 
 impl<E: Entry> StreamingSstWriter<E> {
@@ -681,8 +681,6 @@ impl<E: Entry> StreamingSstWriter<E> {
             current_key_block: KeyBlockAccumulator::new(),
             #[cfg(debug_assertions)]
             finished: false,
-            #[cfg(debug_assertions)]
-            failed: false,
         })
     }
 
@@ -719,15 +717,6 @@ impl<E: Entry> StreamingSstWriter<E> {
 
     /// Adds an entry to the SST file. Entries must be added in (key-hash, key) order.
     pub fn add(&mut self, entry: E) -> Result<()> {
-        let result = self.add_inner(entry);
-        #[cfg(debug_assertions)]
-        if result.is_err() {
-            self.failed = true;
-        }
-        result
-    }
-
-    fn add_inner(&mut self, entry: E) -> Result<()> {
         let key_hash = entry.key_hash();
         let key_len = entry.key_len();
 
@@ -835,9 +824,16 @@ impl<E: Entry> StreamingSstWriter<E> {
         self.try_flush_key_blocks()
     }
 
-    #[cfg(debug_assertions)]
-    pub(crate) fn has_failed(&self) -> bool {
-        self.failed
+    /// Abandons this writer without flushing buffered data or finalizing the SST file.
+    pub fn cancel(mut self) {
+        if let Some(file) = self.file.take() {
+            // Unlike dropping BufWriter, into_parts() does not attempt to flush its buffer.
+            let _ = file.into_parts();
+        }
+        #[cfg(debug_assertions)]
+        {
+            self.finished = true;
+        }
     }
 
     /// Appends a new entry to the pending-keys queue.
@@ -1200,13 +1196,11 @@ impl<E: Entry> StreamingSstWriter<E> {
 #[cfg(debug_assertions)]
 impl<E: Entry> Drop for StreamingSstWriter<E> {
     fn drop(&mut self) {
-        // Skip assertion during panic unwinding to avoid a double-panic (which would abort). A
-        // writer whose add operation failed is also exempt so this assertion does not replace the
-        // original I/O error as it propagates through Result.
+        // Skip assertion during panic unwinding to avoid a double-panic (which would abort).
         if !std::thread::panicking() {
             assert!(
-                self.finished || self.failed || self.entry_count == 0,
-                "StreamingSstWriter dropped without calling close()"
+                self.finished || self.entry_count == 0,
+                "StreamingSstWriter dropped without calling close() or cancel()"
             );
         }
     }
@@ -1605,7 +1599,10 @@ mod tests {
         let mut writer =
             StreamingSstWriter::new(&sst_path, flags, entries.len() as u64, Compression::Lz4)?;
         for entry in entries {
-            writer.add(entry)?;
+            if let Err(err) = writer.add(entry) {
+                writer.cancel();
+                return Err(err);
+            }
         }
         let (meta, _file) = writer.close()?;
         Ok(meta)
@@ -1836,7 +1833,7 @@ mod tests {
 
     #[test]
     #[cfg(debug_assertions)]
-    fn failed_add_does_not_trigger_drop_assertion() {
+    fn cancel_after_failed_add_does_not_trigger_drop_assertion() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
@@ -1847,14 +1844,16 @@ mod tests {
         // error without relying on the filesystem being full.
         drop(writer.file.take());
         writer.file = Some(BufWriter::with_capacity(0, File::open(&sst_path).unwrap()));
-        let drop_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            assert!(writer.add(TestEntry::medium(b"key", &[0; 8192])).is_err());
-            drop(writer);
-        }));
+        let error = writer
+            .add(TestEntry::medium(b"key", &[0; 8192]))
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("Failed to write value block"));
 
+        let cancel_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| writer.cancel()));
         assert!(
-            drop_result.is_ok(),
-            "dropping a writer after an add error must not trigger the lifecycle assertion"
+            cancel_result.is_ok(),
+            "cancelling a writer after an add error must not trigger the lifecycle assertion"
         );
     }
 
@@ -1943,7 +1942,10 @@ mod tests {
             Compression::Lz4,
         )?;
         for entry in &entries {
-            writer.add(entry)?;
+            if let Err(err) = writer.add(entry) {
+                writer.cancel();
+                return Err(err);
+            }
         }
         let (meta2, _) = writer.close()?;
 
