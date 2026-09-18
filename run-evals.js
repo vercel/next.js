@@ -34,7 +34,7 @@ const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
-/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean }} EvalConfig */
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
