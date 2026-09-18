@@ -341,11 +341,9 @@ serde_qs = "1.1.1"
 serde_with = "3.18.0"
 sha2 = "0.10.2"
 smallvec = { version = "1.15.1", features = [
-  "serde",
   "const_generics",
   "union",
   "const_new",
-  "impl_bincode",
 ] }
 shrink-to-fit = "0.2.10"
 strsim = "0.11.1"
