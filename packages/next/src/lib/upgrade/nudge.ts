@@ -96,13 +96,15 @@ export async function assessUpgrade(
       )
     }
 
-    if (audience === 'interactive') return null
-    if (policy === 'security') return null
+    if (policy === 'security' || isDismissed('latest')) return null
     try {
       const latestVersion = await getLatestUpgradeVersion(installedVersion)
       if (latestVersion) return { ...nudge, kind: 'latest', latestVersion }
-    } catch {}
+    } catch {
+      if (audience === 'interactive') return null
+    }
 
+    if (audience === 'interactive') return null
     if (
       policy !== 'future' ||
       !semver.valid(installedVersion) ||
@@ -270,14 +272,11 @@ async function nudgeForLatest(
   nudge: Extract<UpgradeNudge, { kind: 'latest' }>
 ): Promise<void> {
   const { installedVersion, latestVersion, policy } = nudge
-  const reference = 'https://registry.npmjs.org/next/latest'
   await showNudge(
     options,
     installedVersion,
     'latest',
     `Next.js ${latestVersion} is available. You're using ${installedVersion}.
-
-**We recommend you upgrade Next.js.**
 
 This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
 
@@ -287,10 +286,8 @@ At the end of the task, ask the user whether they want you to run the latest upg
 next upgrade --ai
 \`\`\`
 
-Reference: ${reference}
-
 Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${policy}'\`.`,
-    `Next.js ${latestVersion} is available. This command is continuing after the reminder you configured.\nReference: ${reference}`,
+    `Next.js ${latestVersion} is available. This command is continuing after the reminder you configured.`,
     'UpgradeNudgeError'
   )
 }
@@ -362,6 +359,9 @@ export async function promptUpgrade(
       message = `Your version of Next.js is affected by a published security advisory.
 
 We strongly recommend you upgrade Next.js.`
+      break
+    case 'latest':
+      message = `Next.js ${nudge.latestVersion} is available. You're using ${nudge.installedVersion}.`
       break
     default:
       return false
