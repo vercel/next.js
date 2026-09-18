@@ -471,7 +471,6 @@ impl<'e> ExecuteContextImpl<'e> {
                         // Keep the guard through return. Once the restoring bit is clear, eviction
                         // may otherwise drop the category before this caller can use it.
                         self.backend.storage.restored.notify(usize::MAX);
-                        task = OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id));
                     }
 
                     // It looked like a fresh blank and restore found nothing on disk (and no one
