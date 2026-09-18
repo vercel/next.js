@@ -40,6 +40,7 @@ pub use db::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccessMode {
     /// Memory-map the file and access blocks via the mapped region.
+    #[cfg(not(target_family = "wasm"))]
     Mmap,
     /// Read blocks directly from the file via pread (no mmap).
     File,
@@ -78,8 +79,32 @@ pub struct DbConfig<const FAMILIES: usize> {
     pub access_mode: AccessMode,
 }
 
-/// Reads the `TURBO_PERSISTENCE_MMAP` env var (cached). Returns `AccessMode::File` when the var
-/// is set to `"0"`, `AccessMode::Mmap` otherwise.
+/// Returns the default access mode for this target.
+///
+/// WASI does not support memory mapping, so wasm always uses file I/O. Native targets honor
+/// `TURBO_PERSISTENCE_MMAP=0`; mmap remains the default otherwise.
+fn default_access_mode() -> AccessMode {
+    #[cfg(target_family = "wasm")]
+    return AccessMode::File;
+
+    #[cfg(not(target_family = "wasm"))]
+    access_mode_env_var()
+}
+
+/// The access mode tests should use when they specifically want to exercise the mmap path.
+///
+/// `AccessMode::Mmap` does not exist on wasm, so those tests fall back to file I/O there and still
+/// exercise the surrounding logic.
+#[cfg(test)]
+pub(crate) fn mmap_access_mode_for_tests() -> AccessMode {
+    #[cfg(target_family = "wasm")]
+    return AccessMode::File;
+
+    #[cfg(not(target_family = "wasm"))]
+    AccessMode::Mmap
+}
+
+#[cfg(not(target_family = "wasm"))]
 fn access_mode_env_var() -> AccessMode {
     static ACCESS_MODE_ENV: std::sync::LazyLock<AccessMode> = std::sync::LazyLock::new(|| {
         if std::env::var("TURBO_PERSISTENCE_MMAP")
@@ -95,8 +120,7 @@ fn access_mode_env_var() -> AccessMode {
 }
 
 impl<const FAMILIES: usize> DbConfig<FAMILIES> {
-    /// Returns a config with all defaults, reading the `TURBO_PERSISTENCE_MMAP` env var
-    /// to determine the access mode.
+    /// Returns a config with all defaults, using the target's default access mode.
     pub fn new() -> Self {
         Self {
             family_configs: [FamilyConfig {
@@ -104,7 +128,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             }; FAMILIES],
-            access_mode: access_mode_env_var(),
+            access_mode: default_access_mode(),
         }
     }
 }

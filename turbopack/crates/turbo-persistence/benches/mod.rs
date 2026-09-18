@@ -1,3 +1,5 @@
+#![cfg(not(target_family = "wasm"))]
+
 use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::Result;
