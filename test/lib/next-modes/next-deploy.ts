@@ -20,6 +20,7 @@ export class NextDeployInstance extends NextInstance {
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
+  private deploymentSkipped = false
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -252,9 +253,19 @@ export class NextDeployInstance extends NextInstance {
     return output
   }
 
-  public async setup(parentSpan: Span) {
+  public async setup(
+    parentSpan: Span,
+    shouldSkipDeployment?: () => Promise<boolean>
+  ) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
+
+    // The fixture now includes nextConfig, overrideFiles, and PatchedFileRef
+    // changes. A lazy suite gate can be decided before any deployment work.
+    if (shouldSkipDeployment && (await shouldSkipDeployment())) {
+      this.deploymentSkipped = true
+      return
+    }
 
     await this.writeMirrorNpmrcIfNecessary()
 
@@ -929,7 +940,7 @@ export class NextDeployInstance extends NextInstance {
     // Run custom cleanup script if provided
     const customCleanupScriptPath =
       process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
-    if (customCleanupScriptPath) {
+    if (customCleanupScriptPath && !this.deploymentSkipped) {
       await this.cleanupUsingCustomScript().catch((err) => {
         require('console').error(
           'Error running custom cleanup script, continuing with destroy:',

@@ -86,6 +86,10 @@ const gatedBodies = new WeakSet<Function>()
  */
 const ungatedHooks = new WeakSet<Function>()
 
+// User afterAll hooks may run after nextTestSetup has destroyed the fixture.
+// Retain a skipped describe's decision so those hooks stay skipped as well.
+const forceSkippedGates = new WeakSet<Gate>()
+
 /**
  * Marks a hook callback as harness-internal so `wrapHookGlobals` leaves it
  * alone. Suite code never needs this.
@@ -321,6 +325,7 @@ function wrapGatedHook(
 ): () => Promise<unknown> {
   return async function gatedHook(this: unknown): Promise<unknown> {
     if (!hasFixture()) {
+      if (gates.some((gate) => forceSkippedGates.has(gate))) return
       // The condition cannot be resolved here: either this hook runs before
       // `nextTestSetup`'s own `beforeAll` registered the fixture, or it is an
       // `afterAll` running after the fixture was cleared. Run as if ungated.
@@ -486,7 +491,9 @@ function createGatedTest(
       // a lazy `@force-gate`) visible while its body is collected so nested
       // tests inherit them and `nextTestSetup` can gate the build.
       return testFn(name, function (this: unknown, ...args: unknown[]) {
-        describeGateStack.push(...runtimeGates)
+        // Each concrete describe (including each row of describe.each) owns
+        // its skip decision; it must not leak to another fixture's hooks.
+        describeGateStack.push(...runtimeGates.map((gate) => ({ ...gate })))
         try {
           return callback.apply(this, args)
         } finally {
@@ -536,12 +543,12 @@ export function findLazyForceSkip(
   config: ResolvedNextConfig
 ): GatePragma | null {
   for (const gate of gates) {
-    if (
-      gate.force &&
-      gate.needsResolvedConfig &&
-      !evaluate(gate.node, (name) => readCondition(name, config))
-    ) {
-      return gate
+    if (gate.force && gate.needsResolvedConfig) {
+      if (!evaluate(gate.node, (name) => readCondition(name, config))) {
+        forceSkippedGates.add(gate)
+        return gate
+      }
+      forceSkippedGates.delete(gate)
     }
   }
   return null

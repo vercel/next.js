@@ -18,6 +18,7 @@ import {
   hasLazyForceGate,
   findLazyForceSkip,
   ungatedHook,
+  type Gate,
 } from '../gate/runtime'
 
 export type { NextInstance }
@@ -268,7 +269,8 @@ const setupTracing = () => {
  * `nextTestSetup` directly instead of `createNext`.
  */
 async function createNext(
-  opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
+  opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number },
+  describeGates: Gate[] = []
 ): Promise<NextInstance> {
   try {
     if (nextInstance) {
@@ -312,7 +314,25 @@ async function createNext(
         clearFixture()
       })
 
-      await nextInstance.setup(rootSpan)
+      if (
+        nextInstance instanceof NextDeployInstance &&
+        hasLazyForceGate(describeGates)
+      ) {
+        const instance = nextInstance
+        await instance.setup(rootSpan, async () => {
+          // Deploy builds during setup, even with skipStart. Resolve the
+          // prepared fixture's config before attempting that remote build.
+          const config = await instance.getResolvedConfig()
+          const forceSkip = findLazyForceSkip(describeGates, config)
+          if (!forceSkip) return false
+          require('console').warn(
+            `  ⚠ suite deployment skipped by \`@force-gate ${forceSkip.source}\``
+          )
+          return true
+        })
+      } else {
+        await nextInstance.setup(rootSpan)
+      }
 
       // Lazy `// @gate` conditions read this fixture's resolved next.config.
       // Registering the instance (not a snapshot) before `start()` keeps
@@ -374,10 +394,10 @@ export function nextTestSetup(
   // gates the *build*, not just the test bodies: some fixtures can't build
   // under the condition at all. Snapshot the describe's gates now, while the
   // describe body is still being collected — the stack is empty by `beforeAll`.
-  // Suites that manage their own build (`skipStart`) are left untouched.
+  // Local suites that manage their own build (`skipStart`) are left untouched.
   const describeGates = getActiveDescribeGates()
-  // Deploy's "build" is a remote deployment we can't gate this way, and suites
-  // that pass `skipStart` build manually — leave both to their own handling.
+  // Deploy checks its gates inside setup, before the remote build. Local
+  // suites that pass `skipStart` still manage their own build.
   const buildForceGated =
     !options.skipStart && !isNextDeploy && hasLazyForceGate(describeGates)
 
@@ -388,7 +408,7 @@ export function nextTestSetup(
     beforeAll(
       ungatedHook(async () => {
         if (!buildForceGated) {
-          next = await createNext(options)
+          next = await createNext(options, describeGates)
           return
         }
         // Try to decide the force-gate against the *source* fixture first,
