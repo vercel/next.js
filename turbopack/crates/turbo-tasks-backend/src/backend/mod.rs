@@ -25,7 +25,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
-pub use gc::{GcPassOutcome, TtlCounter};
+pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -273,24 +273,28 @@ pub struct TestSnapshotOutcome {
     pub had_new_data: bool,
     /// Tasks evicted from memory at each level.
     pub eviction_counts: EvictionCounts,
-    /// The [`GcPassOutcome`] of the GC pass this snapshot ran, or `None` when GC is disabled for
-    /// the backend.
-    pub gc: Option<GcPassOutcome>,
+    /// The [`GcStats`] and [`GcPassResult`] of the GC pass this snapshot ran, or `None` when GC
+    /// is disabled for the backend.
+    pub gc: Option<(GcStats, GcPassResult)>,
 }
 
 impl TestSnapshotOutcome {
-    /// The [`GcPassOutcome`] for the GC pass, panicking if GC is disabled. For tests whose whole
+    /// The [`GcStats`] for the GC pass, panicking if GC is disabled. For tests whose whole
     /// point is the pass, so a misconfigured backend fails loudly rather than silently
     /// asserting nothing.
-    pub fn gc_outcome(&self) -> &GcPassOutcome {
-        self.gc
+    pub fn gc_outcome(&self) -> &GcStats {
+        &self
+            .gc
             .as_ref()
             .expect("no GC pass ran: the backend needs `BackendOptions::gc = Some(true)`")
+            .0
     }
 
     /// Whether the GC pass wound down early. `false` when GC is disabled.
     pub fn gc_interrupted(&self) -> bool {
-        self.gc.as_ref().is_some_and(|stats| stats.interrupted)
+        self.gc
+            .as_ref()
+            .is_some_and(|(_, result)| result.interrupted)
     }
 }
 
@@ -1142,7 +1146,7 @@ impl TurboTasksBackend {
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<(Instant, bool, Option<GcPassOutcome>), anyhow::Error> {
+    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>), anyhow::Error> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
@@ -1165,19 +1169,21 @@ impl TurboTasksBackend {
                 parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
+                interrupted = tracing::field::Empty
             )
             .entered();
-            let (stats, roots) =
+            let (stats, result, roots) =
                 self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
             gc_span.record("stats", display(&stats));
-            if stats.interrupted {
+            gc_span.record("interrupted", result.interrupted);
+            if result.interrupted {
                 // If we were interrupted also abandon the persistence loop.
                 // This ensures that we don't persist roots that were not completely validated.
                 drop(snapshot_phase);
                 drop(gc_span);
-                return Ok((start, false, Some(stats)));
+                return Ok((start, false, Some((stats, result))));
             }
-            (Some(start.elapsed()), roots, Some(stats))
+            (Some(start.elapsed()), roots, Some((stats, result)))
         } else {
             (None, None, None)
         };
