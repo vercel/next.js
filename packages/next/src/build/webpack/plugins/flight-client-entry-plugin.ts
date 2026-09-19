@@ -139,6 +139,14 @@ const pluginState = getProxiedPluginState({
 const POSSIBLE_SHARED_CONVENTIONS = ['template', 'layout']
 const STANDALONE_BUNDLE_CONVENTION = 'global-not-found'
 
+function isAppConventionBundlePath(bundlePath: string, convention: string) {
+  const appConventionPath = `app/${convention}`
+  return (
+    bundlePath === appConventionPath ||
+    bundlePath.startsWith(`${appConventionPath}.`)
+  )
+}
+
 function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   // If multiple entry module connections are having the same CSS import,
   // we only need to have one module to keep track of that CSS import.
@@ -436,7 +444,7 @@ export class FlightClientEntryPlugin {
         // TODO-APP: This could be better handled, however Turbopack does not have the same problem as we resolve client components in a single graph.
         if (
           name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
-          bundlePath === 'app/not-found'
+          isAppConventionBundlePath(bundlePath, 'not-found')
         ) {
           clientEntriesToInject.push({
             compiler,
@@ -450,7 +458,7 @@ export class FlightClientEntryPlugin {
 
         if (
           name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
-          bundlePath === 'app/global-not-found'
+          isAppConventionBundlePath(bundlePath, 'global-not-found')
         ) {
           clientEntriesToInject.push({
             compiler,
