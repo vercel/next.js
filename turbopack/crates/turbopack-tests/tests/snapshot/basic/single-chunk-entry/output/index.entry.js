@@ -6,6 +6,7 @@
 // `dep2` — exercising a nested dynamic-import boundary that must also inline.
 __turbopack_context__.s([
     "dep1",
+    0,
     ()=>dep1
 ]);
 function dep1() {
@@ -21,6 +22,7 @@ function dep1() {
 // Leaf module reached via the nested `import('./dep2')`.
 __turbopack_context__.s([
     "dep2",
+    0,
     ()=>dep2
 ]);
 function dep2() {

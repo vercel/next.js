@@ -18,7 +18,6 @@ function used() {
 }
 __turbopack_context__.s([
     "used",
-    0,
     used
 ]);
 }),
@@ -38,7 +37,6 @@ function leafX() {}
 function leafY() {}
 __turbopack_context__.s([
     "leafY",
-    0,
     leafY
 ]);
 }),
@@ -56,7 +54,6 @@ function sharedY() {
 }
 __turbopack_context__.s([
     "sharedY",
-    0,
     sharedY
 ]);
 }),
@@ -72,7 +69,6 @@ function y() {
 }
 __turbopack_context__.s([
     "y",
-    0,
     y
 ]);
 }),

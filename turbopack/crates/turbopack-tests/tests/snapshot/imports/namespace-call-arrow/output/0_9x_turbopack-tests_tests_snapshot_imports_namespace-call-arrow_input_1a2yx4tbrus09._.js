@@ -38,22 +38,16 @@ function classFn() {
 const __TURBOPACK__default__export__ = ()=>'default-arrow';
 __turbopack_context__.s([
     "arrowFn",
-    0,
     arrowFn,
     "classFn",
-    0,
     classFn,
     "default",
-    0,
     __TURBOPACK__default__export__,
     "evalFn",
-    0,
     evalFn,
     "methodLike",
-    0,
     methodLike,
     "plainFn",
-    0,
     plainFn
 ]);
 }),

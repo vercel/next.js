@@ -4,8 +4,10 @@
 
 __turbopack_context__.s([
     "b",
+    0,
     ()=>b,
     "has,comma",
+    0,
     ()=>comma
 ]);
 const comma = 'comma-value';
@@ -17,10 +19,13 @@ const b = 'b-value';
 
 __turbopack_context__.s([
     "b",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$first$2e$js__$5b$test$5d$__$28$ecmascript$29$__["b"],
     "c",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$second$2e$js__$5b$test$5d$__$28$ecmascript$29$__["c"],
     "has,comma",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$first$2e$js__$5b$test$5d$__$28$ecmascript$29$__["has,comma"]
 ]);
 // The first group contains a comma and needs pair encoding. The second is
@@ -35,6 +40,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "c",
+    0,
     ()=>c
 ]);
 const c = 'c-value';

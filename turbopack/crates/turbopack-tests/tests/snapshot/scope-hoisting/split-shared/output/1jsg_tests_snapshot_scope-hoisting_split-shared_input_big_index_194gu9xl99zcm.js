@@ -4,6 +4,7 @@
 
 __turbopack_context__.s([
     "default",
+    0,
     ()=>__TURBOPACK__default__export__1
 ], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)

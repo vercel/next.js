@@ -13,6 +13,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "order",
+    0,
     ()=>order
 ]);
 const order = [];
@@ -22,8 +23,10 @@ const order = [];
 
 __turbopack_context__.s([
     "x",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$all$2d$reexports$2f$input$2f$x$2e$js__$5b$test$5d$__$28$ecmascript$29$__["x"],
     "y",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$all$2d$reexports$2f$input$2f$y$2e$js__$5b$test$5d$__$28$ecmascript$29$__["y"]
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$all$2d$reexports$2f$input$2f$reexports$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-all-reexports/input/reexports.js [test] (ecmascript) <locals>");
@@ -47,6 +50,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack
 
 __turbopack_context__.s([
     "x",
+    0,
     ()=>x
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$all$2d$reexports$2f$input$2f$order$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-all-reexports/input/order.js [test] (ecmascript)");
@@ -59,6 +63,7 @@ const x = 'x';
 
 __turbopack_context__.s([
     "y",
+    0,
     ()=>y
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$all$2d$reexports$2f$input$2f$order$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-all-reexports/input/order.js [test] (ecmascript)");
