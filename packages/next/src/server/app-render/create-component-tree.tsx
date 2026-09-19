@@ -1,3 +1,5 @@
+import { getLedgerValue, emptySetLedger } from './ledgers'
+import type { SetLedger } from './ledgers'
 import type { ComponentType } from 'react'
 import {
   propagateSubtreeBits,
@@ -8,6 +10,7 @@ import type {
   FullTransportNode,
   PartialTransportNode,
   TransportSegment,
+  TransportSegmentData,
 } from '../../shared/lib/rsc-transport'
 import { segmentToTransportSegment } from '../../shared/lib/rsc-transport'
 import {
@@ -38,11 +41,7 @@ import {
   type WorkUnitStore,
 } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import {
-  createVaryParamsAccumulator,
-  emptyVaryParamsAccumulator,
-  type VaryParamsAccumulator,
-} from './vary-params'
+import { createVaryParamsAccumulator } from './vary-params'
 import type {
   UseCacheLayoutProps,
   UseCachePageProps,
@@ -797,19 +796,29 @@ async function createComponentTreeInternal(
 
       // No user-provided component, so no params will be accessed. Use the
       // pre-resolved empty tracker.
-      emptyVaryParamsAccumulator
+      emptySetLedger,
+      null
     )
   }
 
   const Component = MaybeComponent
   const isClientComponent = isClientReference(layoutOrPageMod)
 
-  const varyParamsAccumulator =
-    isClientComponent && cacheComponents
-      ? // Client components with Cache Components enabled don't receive params
-        // from the server, so they have an empty vary params set.
-        emptyVaryParamsAccumulator
-      : createVaryParamsAccumulator()
+  let varyParamsAccumulator: SetLedger<string> | null
+  if (isClientComponent) {
+    if (cacheComponents) {
+      // Client components with Cache Components enabled don't receive params
+      // from the server, so they have an empty vary params set.
+      varyParamsAccumulator = emptySetLedger
+    } else {
+      // Without Cache Components, the params and search params are serialized
+      // into the segment's output for the client to read, with no access to
+      // record. Report no dependency information rather than an empty set.
+      varyParamsAccumulator = null
+    }
+  } else {
+    varyParamsAccumulator = createVaryParamsAccumulator()
+  }
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -917,14 +926,14 @@ async function createComponentTreeInternal(
           key: cacheNodeKey,
         },
         wrappedPageElement,
-        layerAssets,
-        MetadataOutlet ? createElement(MetadataOutlet, { tree }) : null
+        layerAssets
       ),
       parallelRouteNodes,
       loadingData,
       isPossiblyPartialResponse,
 
-      varyParamsAccumulator
+      varyParamsAccumulator,
+      MetadataOutlet ? createElement(MetadataOutlet, { tree }) : null
     )
   } else {
     const SegmentComponent = Component
@@ -1140,7 +1149,8 @@ async function createComponentTreeInternal(
       parallelRouteNodes,
       loadingData,
       isPossiblyPartialResponse,
-      varyParamsAccumulator
+      varyParamsAccumulator,
+      null
     )
   }
 }
@@ -1293,7 +1303,8 @@ function createTransportNode(
   children: Map<string, PartialTransportNode> | undefined,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null,
+  metadataOutlet: React.ReactNode
 ): PartialTransportNode {
   const createElement = ctx.componentMod.createElement
   if (loading !== null) {
@@ -1314,12 +1325,23 @@ function createTransportNode(
   if (prefetchHints !== 0) {
     node.h = prefetchHints
   }
+  let varyParams: TransportSegmentData['v'] =
+    getLedgerValue(varyParamsAccumulator) ?? null
+  if (process.env.__NEXT_LEDGERS) {
+    const captured = ctx.componentMod.captureLedgers(rsc, [
+      ctx.componentMod.VaryParamsLedger,
+    ])
+    rsc = captured.data
+    varyParams = varyParamsAccumulator !== null ? captured.ledgers[0] : null
+  }
+  // Metadata validation must not contribute to the body's totals.
+  if (metadataOutlet !== null) {
+    rsc = [rsc, metadataOutlet]
+  }
   node.d = {
     r: rsc,
     p: isPossiblyPartialResponse,
-    // The accumulator is itself the AsyncIterable<string> that Flight
-    // serializes into the segment's render output.
-    v: varyParamsAccumulator,
+    v: varyParams,
   }
   if (children !== undefined) {
     node.c = children

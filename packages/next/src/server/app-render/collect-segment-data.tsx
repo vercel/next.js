@@ -8,7 +8,7 @@ import {
   PrefetchHint,
   StaticPrefetchDisabled,
 } from '../../shared/lib/app-router-types'
-import type { VaryParamsIterable } from '../../shared/lib/segment-cache/vary-params-decoding'
+import type { SetLedgerValue } from '../../shared/lib/ledger-decoding'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -55,7 +55,7 @@ import {
  */
 type SegmentSource = {
   rsc: React.ReactNode
-  varyParams: VaryParamsIterable | null
+  varyParams: SetLedgerValue<string> | null
 }
 
 /**
@@ -558,7 +558,7 @@ async function collectPrefetchHintsImpl(
   maxBundleSize: number,
   headGzipSize: number,
   headInlineState: { inlined: boolean },
-  rootVaryParamsIterable: VaryParamsIterable | null,
+  rootVaryParamsIterable: SetLedgerValue<string> | null,
   needsRuntimeRequest: Promise<boolean>,
   shellStageRelease: Promise<boolean>
 ): Promise<{
@@ -998,7 +998,7 @@ function collectSegmentDataImpl(
   hintTree: PrefetchHints | null,
   parentBundle: SegmentBundleNode | null,
   headData: SegmentSource | null,
-  rootVaryParamsIterable: VaryParamsIterable | null,
+  rootVaryParamsIterable: SetLedgerValue<string> | null,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
   shellStageRelease: Promise<boolean>
@@ -1199,7 +1199,7 @@ async function renderSegmentPrefetch(
   // The head's data, when it's bundled into this response (or when this IS
   // the standalone head response).
   head: SegmentSource | null,
-  rootVaryParams: VaryParamsIterable | null,
+  rootVaryParams: SetLedgerValue<string> | null,
   clientModules: ManifestNode,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,

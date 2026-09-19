@@ -183,8 +183,8 @@ export type RSCSegmentData = {
   isPartial: boolean
   /**
    * The source of the params this segment's output depends on (root params
-   * included). Null means unknown — tracking wasn't enabled, or the decode
-   * had no root params to union in — so consumers key on all params.
+   * included). Null means unknown — tracking wasn't enabled, or a userspace
+   * decode had no root params to union in — so consumers key on all params.
    */
   varyParams: VaryParams | null
   /**
@@ -3604,8 +3604,8 @@ function writeSegmentDataIntoCache(
     segmentVaryParams !== null
   ) {
     // Read the reported set now, when the key is chosen. The payload is fully
-    // buffered by the time it's written, so the source has settled; a read of
-    // null means the report is unavailable and every param varies.
+    // buffered by the time it's written, so a built-in total has settled; a
+    // read of null means the report is unavailable and every param varies.
     let varyParams = readVaryParams(segmentVaryParams)
     if (varyParams !== null) {
       if (

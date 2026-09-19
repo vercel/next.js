@@ -5,6 +5,7 @@
  * downstream operates on RouteTree / NavigationSeed / CacheNode.
  */
 
+import type { SetLedgerValue } from '../../../shared/lib/ledger-decoding'
 import type {
   FlightRouterState,
   Segment as FlightRouterStateSegment,
@@ -20,7 +21,6 @@ import type {
   TransportSegment,
 } from '../../../shared/lib/rsc-transport'
 import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
-import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { decodeVaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   type SegmentRequestKey,
@@ -106,15 +106,18 @@ export function createNavigationSeed(
   // to convert otherwise).
   currentTree: FlightRouterState | null,
   transportData: PartialTransportData | null,
-  // The response's root vary params (its `r` field): the root params
-  // accessed anywhere in the response, emitted once at the response level
-  // and unioned into the head's and every segment's own drained set here at
-  // the decode boundary. Pass null when the response streams in
-  // incrementally (navigation and reducer flows): the wire iterables can
-  // only be drained completely from a fully-buffered response, so their sets
-  // decode as null ("unknown; key on all params") without touching the wire
-  // iterables.
-  rootVaryParams: VaryParamsIterable | null,
+  // The response's root vary params (its `r` field), which userspace
+  // tracking emits once at the response level: the root params accessed
+  // anywhere in the response, unioned into the head's and every segment's
+  // own drained set here at the decode boundary. Pass null when the response
+  // streams in incrementally (navigation and reducer flows): userspace
+  // iterables can only be drained completely from a fully-buffered response,
+  // so their sets decode as null ("unknown; key on all params") without
+  // touching the wire iterables. Built-in totals are unaffected — they are
+  // kept as the promises the server sent (see decodeVaryParams) — so a
+  // streaming response still carries dependency information under
+  // built-in tracking.
+  rootVaryParams: SetLedgerValue<string> | null,
   // Whether anything in the response is not fully resolved: dynamic holes, runtime holes, anything suspended.
   // Boolean-form nodes resolve their partiality to this value (their wire
   // boolean is a render-wide constant that carries no per-node information —
@@ -343,7 +346,7 @@ export function decodeTransportTreeIntoRouteTree(
   // The response's root vary params, unioned into every segment's drained
   // set. Pass null when vary params are unavailable or unwanted; see
   // createNavigationSeed.
-  rootVaryParams: VaryParamsIterable | null,
+  rootVaryParams: SetLedgerValue<string> | null,
   // The response-level partiality, which boolean-form nodes resolve their
   // own partiality to; see createNavigationSeed.
   isResponsePartial: boolean,
@@ -431,7 +434,7 @@ function decodeTransportNode(
   // comparison must continue, and keeps it through inactive parallel routes,
   // where the comparison must stop.
   compareBase: FlightRouterState | undefined,
-  rootVaryParams: VaryParamsIterable | null,
+  rootVaryParams: SetLedgerValue<string> | null,
   isResponsePartial: boolean,
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
@@ -650,10 +653,11 @@ function decodeTransportNode(
         typeof nodeData.p === 'boolean'
           ? isResponsePartial
           : readFulfilledIsPartial(nodeData.p),
-      // The source of the params this segment's output depends on: the
-      // segment's wire iterable, drained here, unioning in the response-level
-      // root params (same buffered-read reasoning as `p` above), or decoded
-      // as null ("unknown") when the caller passed no root params — see
+      // The source of the params this segment's output depends on. A
+      // built-in total is kept as the promise it arrived as; a userspace
+      // iterable is drained here, unioning in the response-level root params
+      // (same buffered-read reasoning as `p` above), or decoded as null
+      // ("unknown") when the caller passed no root params — see
       // createNavigationSeed.
       varyParams: decodeVaryParams(nodeData.v, rootVaryParams),
       // Per-node staleTime, only present in per-segment prefetch responses

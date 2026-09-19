@@ -2,7 +2,7 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
-import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import type { SetLedger } from '../app-render/ledgers'
 import {
   createVaryingSearchParams,
   getMetadataVaryParamsAccumulator,
@@ -85,10 +85,14 @@ export function createSearchParamsFromClient(
         return makeUntrackedSearchParams(underlyingSearchParams)
       }
       case 'request':
+        // A client page's search params are serialized into its output, so
+        // there's no access to record; its segment reports no dependency
+        // information (see createComponentTree).
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore
+          workUnitStore,
+          null
         )
       default:
         workUnitStore satisfies never
@@ -110,7 +114,7 @@ export function createServerSearchParamsForMetadata(
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null
 ): Promise<SearchParams> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -148,7 +152,8 @@ export function createServerSearchParamsForServerPage(
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
         )
       default:
         workUnitStore satisfies never
@@ -237,7 +242,7 @@ function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null
 ): Promise<SearchParams> {
   const userspaceSearchParams =
     varyParamsAccumulator !== null
@@ -275,17 +280,27 @@ function createRuntimePrerenderSearchParams(
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  varyParamsAccumulator: SetLedger<string> | null
 ): Promise<SearchParams> {
   const { asyncApiPromises, validationSamples } = requestStore
 
   if (asyncApiPromises) {
+    // Distinguish the search params exposed to userspace (potentially wrapped
+    // in proxies) from the underlying object containing the values, the same
+    // way createRenderParamsForPage does.
     let userspaceSearchParams = underlyingSearchParams
     if (validationSamples) {
       userspaceSearchParams = createSearchParamsProxyForInstantValidation(
         workStore,
         validationSamples,
         underlyingSearchParams
+      )
+    }
+    if (varyParamsAccumulator !== null) {
+      userspaceSearchParams = createVaryingSearchParams(
+        varyParamsAccumulator,
+        userspaceSearchParams
       )
     }
 
@@ -305,17 +320,23 @@ function createRenderSearchParams(
     return Promise.resolve({})
   }
 
+  const userspaceSearchParams =
+    varyParamsAccumulator !== null
+      ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
+      : underlyingSearchParams
+
   if (process.env.NODE_ENV === 'development') {
     // Semantically we only need the dev tracking when running in `next dev`
     // but since you would never use next dev with production NODE_ENV we use this
     // as a proxy so we can statically exclude this code from production builds.
     return makeUntrackedSearchParamsWithDevWarnings(
       underlyingSearchParams,
+      userspaceSearchParams,
       workStore,
       requestStore
     )
   } else {
-    return makeUntrackedSearchParams(underlyingSearchParams)
+    return makeUntrackedSearchParams(userspaceSearchParams)
   }
 }
 
@@ -566,15 +587,17 @@ function makeUntrackedSearchParams(
 
 function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
+  userspaceSearchParams: SearchParams,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  const cachedSearchParams = CachedSearchParams.get(userspaceSearchParams)
   if (cachedSearchParams) {
     return cachedSearchParams
   }
   const promise = makeUntrackedSearchParamsWithDevWarningsImpl(
     underlyingSearchParams,
+    userspaceSearchParams,
     workStore,
     requestStore
   )
@@ -583,13 +606,16 @@ function makeUntrackedSearchParamsWithDevWarnings(
 }
 
 function makeUntrackedSearchParamsWithDevWarningsImpl(
+  /** The actual search param values, without any instrumentation */
   underlyingSearchParams: SearchParams,
+  /** The object to return to userspace, possibly wrapped in a proxy */
+  userspaceSearchParams: SearchParams,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<SearchParams> {
   const promiseInitialized = { current: false }
   const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
-    underlyingSearchParams,
+    userspaceSearchParams,
     workStore,
     promiseInitialized
   )

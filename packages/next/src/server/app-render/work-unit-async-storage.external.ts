@@ -1,10 +1,10 @@
+import type { ResponseVaryParamsTarget } from './vary-params'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
-import type { ResponseVaryParamsAccumulator } from './vary-params'
 import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
@@ -103,7 +103,7 @@ export interface RequestStore extends CommonWorkUnitStore {
    * concrete values.
    */
   stagedFallbackParams?: OpaqueFallbackRouteParams | null
-  varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
+  varyParamsAccumulator?: ResponseVaryParamsTarget | null
 
   // Only in build-time instant-validation or when rendering
   // a secondary stream for static shell validation
@@ -315,7 +315,7 @@ interface PrerenderStoreModernCommon
    * which route params each segment actually accesses, allowing the client
    * cache to re-key entries for better sharing across different param values.
    */
-  readonly varyParamsAccumulator: ResponseVaryParamsAccumulator | null
+  readonly varyParamsAccumulator: ResponseVaryParamsTarget | null
 }
 
 interface StaticPrerenderStoreCommon {
@@ -665,7 +665,7 @@ export function getCacheSignal(
 
 export function getVaryParamsAccumulator(
   workUnitStore: WorkUnitStore
-): ResponseVaryParamsAccumulator | null {
+): ResponseVaryParamsTarget | null {
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-runtime':

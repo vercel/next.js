@@ -15,13 +15,13 @@ import { PAGE_SEGMENT_KEY } from './segment'
  * carries no information about that slot.
  */
 
+import type { SetLedgerValue } from './ledger-decoding'
 import type React from 'react'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
   Segment,
 } from './app-router-types'
-import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
 
 /**
  * Segment identity on the wire. A string for static segments; an object for
@@ -84,13 +84,14 @@ export type TransportSegmentData = {
    */
   p: boolean | Promise<void>
   /**
-   * varyParams — an iterable of the route params this segment's output
-   * depends on (one name per yield, deduped). Used by the client router to
+   * varyParams — the route params this segment's output depends on, sent as
+   * an iterable or a captured built-in Ledger total. Used by the client router to
    * determine cache key specificity: segments that only access certain
    * params can be reused across navigations where unaccessed params change.
    *
-   * Does NOT include root params; those are emitted once at the response
-   * level (`r` on the response wrapper) and unioned in by the consumer.
+   * The userspace iterable excludes root params; those are emitted once at
+   * the response level (`r`) and unioned in by the consumer. Built-in captures
+   * include root param accesses from the segment's own scope.
    *
    * - null: tracking was not enabled for this render (e.g., not a
    *   prerender). Treat conservatively — assume all params vary.
@@ -100,7 +101,7 @@ export type TransportSegmentData = {
    * - Drains to non-empty: segment depends on those params. Can only be
    *   reused when those specific params match.
    */
-  v: VaryParamsIterable | null
+  v: SetLedgerValue<string> | null
   /**
    * staleTime in seconds — present only in per-segment prefetch responses,
    * where staleness is tracked per node. Navigation responses carry
