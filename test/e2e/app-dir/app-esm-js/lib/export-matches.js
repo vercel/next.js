@@ -82,3 +82,11 @@ export function describeEntry(defaultBinding, esmNamespace, commonJs, markers) {
     .filter(Boolean)
     .join(' ')
 }
+
+// Use this for entrypoints that do not statically declare a default export.
+// Accessing `namespace.default` at the import site makes webpack request that
+// export and emit a warning. Looking it up through an ordinary function
+// parameter still records a synthesized runtime default when one exists.
+export function describeNamespaceEntry(esmNamespace, commonJs, markers) {
+  return describeEntry(esmNamespace.default, esmNamespace, commonJs, markers)
+}

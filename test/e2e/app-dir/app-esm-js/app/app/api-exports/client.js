@@ -4,10 +4,13 @@ import compatRouter, * as compatRouterEsm from 'next/compat/router'
 import cache, * as cacheEsm from 'next/cache'
 import client, * as clientEsm from 'next/client'
 import ErrorComponent, * as errorEsm from 'next/error'
-import navigation, * as navigationEsm from 'next/navigation'
+import * as navigationEsm from 'next/navigation'
 import offline, * as offlineEsm from 'next/offline'
 import webVitals, * as webVitalsEsm from 'next/web-vitals'
-import { describeEntry } from '../../../lib/export-matches'
+import {
+  describeEntry,
+  describeNamespaceEntry,
+} from '../../../lib/export-matches'
 
 const compatRouterCjs = require('next/compat/router')
 const cacheCjs = require('next/cache')
@@ -33,7 +36,7 @@ const checks = {
   error: describeEntry(ErrorComponent, errorEsm, errorCjs, []),
   // The client layer gets the full navigation surface, including the hooks that
   // the react-server variant deliberately omits.
-  navigation: describeEntry(navigation, navigationEsm, navigationCjs, [
+  navigation: describeNamespaceEntry(navigationEsm, navigationCjs, [
     'useRouter',
     'usePathname',
     'useSearchParams',

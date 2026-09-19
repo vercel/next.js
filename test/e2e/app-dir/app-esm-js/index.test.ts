@@ -102,7 +102,7 @@ describe('app-dir - esm js extension', () => {
          "offline": "",
          "og": "",
          "script": "default namespace-default default-callable cjs-callable cjs-is-own-default",
-         "server": "default",
+         "server": "",
          "web-vitals": "",
        }
       `)
