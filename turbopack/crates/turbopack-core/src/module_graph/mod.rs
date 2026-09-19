@@ -548,7 +548,7 @@ impl SingleModuleGraph {
     fn traverse_cycles<'l>(
         &'l self,
         edge_filter: impl Fn(&'l RefData) -> bool,
-        mut visit_cycle: impl FnMut(&[&'l ResolvedVc<Box<dyn Module>>]) -> Result<()>,
+        mut visit_cycle: impl FnMut(Cycle<'_, 'l>) -> Result<()>,
         graph_idx: u32,
         binding_usage: &'l Option<ReadRef<BindingUsageInfo>>,
     ) -> Result<()> {
@@ -574,7 +574,17 @@ impl SingleModuleGraph {
         let mut stack = Vec::new();
         let mut visit_stack = Vec::new();
         let mut index = 0;
+        // The nodes of the component currently being popped off the stack. Only mapped back to
+        // modules if the component turns out to be a cycle worth reporting.
+        let mut scc_nodes = Vec::new();
+        // Every node reached by an edge from a node that was still being evaluated, i.e. the
+        // target of a back edge. Tarjan already finds these while computing `lowlink`; collecting
+        // them costs one insert per back edge and no extra traversal.
+        let mut back_edge_targets = FxHashSet::default();
+        // `scc_nodes` as a set, only populated for the components that are reported.
+        let mut scc_node_set = FxHashSet::default();
         let mut scc = Vec::new();
+        let mut partially_observable = Vec::new();
         for initial_index in self.graph.node_indices() {
             // Skip over already visited nodes
             if node_states[initial_index.index()].is_some() {
@@ -609,6 +619,9 @@ impl SingleModuleGraph {
                             let node_state = &node_states[succ.index()];
                             if let Some(node_state) = node_state {
                                 if node_state.on_stack {
+                                    // `succ` is still being evaluated, so this edge reads it
+                                    // before it has finished: a back edge.
+                                    back_edge_targets.insert(succ);
                                     let index = node_state.index;
                                     let parent_state = node_states[node.index()].as_mut().unwrap();
                                     parent_state.lowlink = parent_state.lowlink.min(index);
@@ -640,19 +653,80 @@ impl SingleModuleGraph {
                                 let poppped = stack.pop().unwrap();
                                 let popped_state = node_states[poppped.index()].as_mut().unwrap();
                                 popped_state.on_stack = false;
-                                if let SingleModuleGraphNode::Module(module) =
-                                    self.graph.node_weight(poppped).unwrap()
-                                {
-                                    scc.push(module);
+                                if matches!(
+                                    self.graph.node_weight(poppped).unwrap(),
+                                    SingleModuleGraphNode::Module(_)
+                                ) {
+                                    scc_nodes.push(poppped);
                                 }
                                 if poppped == node {
                                     break;
                                 }
                             }
-                            if scc.len() > 1 || node_has_self_loop {
-                                visit_cycle(&scc)?;
+                            if scc_nodes.len() > 1 || node_has_self_loop {
+                                // A module of the component has to be reported when something can
+                                // read it before it has finished evaluating. Two things cause
+                                // that, and both are needed:
+                                //
+                                // - It is the target of a back edge, i.e. an edge that was followed
+                                //   while it was still on the stack. This includes a module that
+                                //   imports itself. These are already classified while computing
+                                //   `lowlink`, so it is just a lookup here.
+                                //
+                                // - Something outside the component reaches it, or it is an entry
+                                //   of the graph. Evaluation can start there, and this DFS only
+                                //   explored one order: a component entered at a different module
+                                //   turns different edges into back edges. Those modules are not in
+                                //   `back_edge_targets` for this traversal, so they have to be
+                                //   added from the graph's own structure.
+                                scc_node_set.clear();
+                                scc_node_set.extend(scc_nodes.iter().copied());
+                                let graph_entries = self.entry_nodes();
+                                scc.clear();
+                                partially_observable.clear();
+                                for &scc_node in scc_nodes.iter() {
+                                    let SingleModuleGraphNode::Module(module) =
+                                        self.graph.node_weight(scc_node).unwrap()
+                                    else {
+                                        unreachable!("only module nodes are pushed to scc_nodes")
+                                    };
+                                    scc.push(module);
+                                    let reachable_from_outside = || {
+                                        graph_entries.contains(&scc_node)
+                                            || self
+                                                .graph
+                                                .edges_directed(scc_node, Direction::Incoming)
+                                                .any(|edge| {
+                                                    if scc_node_set.contains(&edge.source()) {
+                                                        return false;
+                                                    }
+                                                    if binding_usage.as_ref().is_some_and(
+                                                        |binding_usage| {
+                                                            binding_usage.is_reference_unused_edge(
+                                                                &GraphEdgeIndex::new(
+                                                                    graph_idx,
+                                                                    edge.id(),
+                                                                ),
+                                                            )
+                                                        },
+                                                    ) {
+                                                        return false;
+                                                    }
+                                                    edge_filter(edge.weight())
+                                                })
+                                    };
+                                    if back_edge_targets.contains(&scc_node)
+                                        || reachable_from_outside()
+                                    {
+                                        partially_observable.push(module);
+                                    }
+                                }
+                                visit_cycle(Cycle {
+                                    modules: &scc,
+                                    partially_observable: &partially_observable,
+                                })?;
                             }
-                            scc.clear();
+                            scc_nodes.clear();
                         }
                     }
                 }
@@ -660,6 +734,25 @@ impl SingleModuleGraph {
         }
         Ok(())
     }
+}
+
+/// A strongly connected component of the module graph, as reported by `traverse_cycles`.
+pub struct Cycle<'a, 'l> {
+    /// Every module in the cycle.
+    pub modules: &'a [&'l ResolvedVc<Box<dyn Module>>],
+    /// The modules of the cycle that something can read before they have finished evaluating.
+    /// The remaining modules are always fully evaluated by the time anything reads them.
+    ///
+    /// A module is included when either holds:
+    ///
+    /// - It is the target of a back edge, i.e. an edge followed while it was still being
+    ///   evaluated. A module that imports itself qualifies through its own self-edge.
+    /// - Something outside the cycle reaches it, or it is an entry of the graph. Evaluation can
+    ///   start there, and entering the cycle at a different module turns different edges into back
+    ///   edges than the single order this traversal explored.
+    ///
+    /// This is never empty for a cycle, because a cycle always contains at least one back edge.
+    pub partially_observable: &'a [&'l ResolvedVc<Box<dyn Module>>],
 }
 
 #[turbo_tasks::value]
@@ -1469,7 +1562,7 @@ impl ModuleGraphSnapshot {
     pub fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&RefData) -> bool,
-        mut visit_cycle: impl FnMut(&[&ResolvedVc<Box<dyn Module>>]) -> Result<()>,
+        mut visit_cycle: impl FnMut(Cycle<'_, '_>) -> Result<()>,
     ) -> Result<()> {
         for (graph_idx, graph) in self.graphs.iter().enumerate() {
             graph.traverse_cycles(
@@ -2429,12 +2522,21 @@ pub mod tests {
             },
             |graph, _, module_to_name| {
                 let mut cycles = vec![];
+                let mut observable = vec![];
 
                 graph.traverse_cycles(
                     |_| true,
                     |cycle| {
                         cycles.push(
                             cycle
+                                .modules
+                                .iter()
+                                .map(|n| module_to_name.get(*n).unwrap().clone())
+                                .collect::<Vec<_>>(),
+                        );
+                        observable.push(
+                            cycle
+                                .partially_observable
                                 .iter()
                                 .map(|n| module_to_name.get(*n).unwrap().clone())
                                 .collect::<Vec<_>>(),
@@ -2448,6 +2550,209 @@ pub mod tests {
                     vec![
                         vec![rcstr!("k.js"), rcstr!("j.js"), rcstr!("i.js")],
                         vec![rcstr!("s.js")]
+                    ],
+                );
+
+                // Only `i.js` is reachable from outside the (i, j, k) cycle, so it is the only
+                // module of it that can be evaluated first. `s.js` self-imports, and is reached
+                // from `a.js`.
+                assert_eq!(observable, vec![vec![rcstr!("i.js")], vec![rcstr!("s.js")]]);
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_cycles_entries() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // `a.js` is the graph entry and is itself in a cycle with `b.js`, so it is an
+                // entry of that cycle even though nothing outside the cycle points at it.
+                //
+                // The (m, n, o) cycle is entered from two different modules, `m.js` via `a.js`
+                // and `o.js` via `p.js`, so both are entries and only `n.js` is dropped.
+                //
+                //     a <-> b
+                //     |  \
+                //     m    p
+                //     |    |
+                //     n    |
+                //     |    |
+                //     o <--/
+                //     \-> m
+                deps.insert(
+                    rcstr!("a.js"),
+                    vec![rcstr!("b.js"), rcstr!("m.js"), rcstr!("p.js")],
+                );
+                deps.insert(rcstr!("b.js"), vec![rcstr!("a.js")]);
+                deps.insert(rcstr!("m.js"), vec![rcstr!("n.js")]);
+                deps.insert(rcstr!("n.js"), vec![rcstr!("o.js")]);
+                deps.insert(rcstr!("o.js"), vec![rcstr!("m.js")]);
+                deps.insert(rcstr!("p.js"), vec![rcstr!("o.js")]);
+                deps
+            },
+            |graph, _, module_to_name| {
+                let mut found = vec![];
+
+                graph.traverse_cycles(
+                    |_| true,
+                    |cycle| {
+                        let mut modules = cycle
+                            .modules
+                            .iter()
+                            .map(|n| module_to_name.get(*n).unwrap().clone())
+                            .collect::<Vec<_>>();
+                        let mut observable = cycle
+                            .partially_observable
+                            .iter()
+                            .map(|n| module_to_name.get(*n).unwrap().clone())
+                            .collect::<Vec<_>>();
+                        modules.sort();
+                        observable.sort();
+                        found.push((modules, observable));
+                        Ok(())
+                    },
+                )?;
+                found.sort();
+
+                assert_eq!(
+                    found,
+                    vec![
+                        // The graph entry is always an entry of its own cycle.
+                        (vec![rcstr!("a.js"), rcstr!("b.js")], vec![rcstr!("a.js")]),
+                        // Two ways in, so two entries; `n.js` is only reachable from inside.
+                        (
+                            vec![rcstr!("m.js"), rcstr!("n.js"), rcstr!("o.js")],
+                            vec![rcstr!("m.js"), rcstr!("o.js")]
+                        ),
+                    ],
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_cycles_inner_back_edge() {
+        run_graph_test(
+            vec![rcstr!("entry.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // entry -> a, and the cycle a -> b -> c -> a with an extra edge c -> b.
+                //
+                // Only `a.js` is reachable from outside the cycle, but `c.js` points back at
+                // `b.js` too, so when `c.js` runs both `a.js` and `b.js` are still evaluating and
+                // both can be observed partially populated.
+                deps.insert(rcstr!("entry.js"), vec![rcstr!("a.js")]);
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("a.js"), rcstr!("b.js")]);
+                deps
+            },
+            |graph, _, module_to_name| {
+                let mut found = vec![];
+
+                graph.traverse_cycles(
+                    |_| true,
+                    |cycle| {
+                        let mut modules = cycle
+                            .modules
+                            .iter()
+                            .map(|n| module_to_name.get(*n).unwrap().clone())
+                            .collect::<Vec<_>>();
+                        let mut observable = cycle
+                            .partially_observable
+                            .iter()
+                            .map(|n| module_to_name.get(*n).unwrap().clone())
+                            .collect::<Vec<_>>();
+                        modules.sort();
+                        observable.sort();
+                        found.push((modules, observable));
+                        Ok(())
+                    },
+                )?;
+
+                assert_eq!(
+                    found,
+                    vec![(
+                        vec![rcstr!("a.js"), rcstr!("b.js"), rcstr!("c.js")],
+                        // `b.js` is only reachable from inside the cycle, but it is the target of
+                        // the `c.js -> b.js` back edge, so it must be reported too.
+                        vec![rcstr!("a.js"), rcstr!("b.js")]
+                    )],
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_cycles_entry_module_cycles() {
+        run_graph_test(
+            // Two entries: one that self-imports, and one that is in a longer cycle.
+            vec![rcstr!("selfentry.js"), rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // `selfentry.js` is a graph entry that imports itself, and nothing else points at
+                // it. Its only in-edge comes from inside its own cycle.
+                deps.insert(rcstr!("selfentry.js"), vec![rcstr!("selfentry.js")]);
+                // `a.js` is a graph entry in a longer cycle, reached only from within that cycle.
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("a.js"), rcstr!("d.js")]);
+                // `d.js` self-imports and is reached only from inside the (a, b, c) cycle, so it
+                // is not an entry of the graph and has no in-edge from outside its own cycle.
+                deps.insert(rcstr!("d.js"), vec![rcstr!("d.js")]);
+                deps
+            },
+            |graph, _, module_to_name| {
+                let mut found = vec![];
+
+                graph.traverse_cycles(
+                    |_| true,
+                    |cycle| {
+                        let mut modules = cycle
+                            .modules
+                            .iter()
+                            .map(|n| module_to_name.get(*n).unwrap().clone())
+                            .collect::<Vec<_>>();
+                        let mut observable = cycle
+                            .partially_observable
+                            .iter()
+                            .map(|n| module_to_name.get(*n).unwrap().clone())
+                            .collect::<Vec<_>>();
+                        modules.sort();
+                        observable.sort();
+                        found.push((modules, observable));
+                        Ok(())
+                    },
+                )?;
+                found.sort();
+
+                assert_eq!(
+                    found,
+                    vec![
+                        // A graph entry in a longer cycle is an entry of that cycle, even though
+                        // its only in-edge (from `c.js`) is inside the cycle.
+                        (
+                            vec![rcstr!("a.js"), rcstr!("b.js"), rcstr!("c.js")],
+                            vec![rcstr!("a.js")]
+                        ),
+                        // A self-importing module must always break its own cycle: with scope
+                        // hoisting its `__turbopack_esm__` is what creates the exports object, so
+                        // the self-import has to observe it already installed. Its only in-edge is
+                        // its own self-edge, so this must not fall out of the entry set.
+                        (vec![rcstr!("d.js")], vec![rcstr!("d.js")]),
+                        // A self-importing graph entry, for the same reason.
+                        (vec![rcstr!("selfentry.js")], vec![rcstr!("selfentry.js")]),
                     ],
                 );
 

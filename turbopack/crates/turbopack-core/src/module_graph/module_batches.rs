@@ -431,14 +431,15 @@ pub async fn compute_module_batches(
         module_graph.traverse_cycles(
             |ref_data| ref_data.chunking_type.is_parallel(),
             |cycle| {
-                if cycle.len() > 1
+                if cycle.modules.len() > 1
                     && cycle
+                        .modules
                         .iter()
                         .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules
-                        .extend(cycle.iter().map(|node| **node));
+                        .extend(cycle.modules.iter().map(|node| **node));
                 }
                 Ok(())
             },
