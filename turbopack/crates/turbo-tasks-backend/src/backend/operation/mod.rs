@@ -1585,7 +1585,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Whether a GC pass may collect this task: nothing references it.
     fn is_gc_collectible(&self) -> bool {
         self.check_access(SpecificTaskDataCategory::Meta);
-        self.typed().gc_maybe_collectible()
+        self.typed().gc_collectible()
     }
 
     fn invalidate_serialization(&mut self);
