@@ -45,7 +45,7 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called inside generateStaticParams.'
         )
