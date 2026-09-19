@@ -1,3 +1,4 @@
+import { wait } from '../lib/wait'
 import type {
   ExportPagesInput,
   ExportPageInput,
@@ -511,7 +512,7 @@ export async function exportPages(
           const maxDelay = 2000 // 2 seconds
           const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
           const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
-          await new Promise((r) => setTimeout(r, delay + jitter))
+          await wait(delay + jitter)
         }
       }
 
