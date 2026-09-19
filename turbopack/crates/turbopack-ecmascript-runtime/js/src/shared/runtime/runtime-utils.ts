@@ -155,12 +155,16 @@ function createModuleWithDirection(id: ModuleId): ModuleWithDirection {
 }
 
 type BindingTag = 0
-const BindingTag_Value = 0 as BindingTag
+const BindingTag_Accessor = 0 as BindingTag
 
-// an arbitrary sequence of bindings as
-// - a prop name
-// - BindingTag_Value, a value to be bound directly, or
-// - 1 or 2 functions to bind as getters and sdetters
+// An arbitrary sequence of bindings, each a prop name followed by either
+// - a value to be bound directly, or
+// - BindingTag_Accessor and 1 or 2 functions to bind as a getter and setter.
+//
+// Values are the common case by a wide margin, so they are the ones left untagged. Tagging the
+// accessors instead stays unambiguous even for a value that is itself a function, or the number
+// `0`: a tag is always followed by a function, while a bare `0` in the value position is followed
+// by the next binding's prop name, or by the end of the array.
 type EsmBindings = Array<
   string | BindingTag | (() => unknown) | ((v: unknown) => void) | unknown
 >
@@ -174,19 +178,12 @@ function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
   let i = 0
   while (i < bindings.length) {
     const propName = bindings[i++] as string
-    const tagOrFunction = bindings[i++]
-    if (typeof tagOrFunction === 'number') {
-      if (tagOrFunction === BindingTag_Value) {
-        defineProp(exports, propName, {
-          value: bindings[i++],
-          enumerable: true,
-          writable: false,
-        })
-      } else {
-        throw new Error(`unexpected tag: ${tagOrFunction}`)
-      }
-    } else {
-      const getterFn = tagOrFunction as () => unknown
+    if (
+      bindings[i] === BindingTag_Accessor &&
+      typeof bindings[i + 1] === 'function'
+    ) {
+      i++
+      const getterFn = bindings[i++] as () => unknown
       if (typeof bindings[i] === 'function') {
         const setterFn = bindings[i++] as (v: unknown) => void
         defineProp(exports, propName, {
@@ -200,6 +197,12 @@ function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
           enumerable: true,
         })
       }
+    } else {
+      defineProp(exports, propName, {
+        value: bindings[i++],
+        enumerable: true,
+        writable: false,
+      })
     }
   }
   // The properties defined above are already non-configurable and
@@ -428,9 +431,10 @@ function interopEsm(
     current = getProto(current)
   ) {
     for (const key of Object.getOwnPropertyNames(current)) {
-      bindings.push(key, createGetter(raw, key))
+      bindings.push(key, BindingTag_Accessor, createGetter(raw, key))
       if (defaultLocation === -1 && key === 'default') {
-        defaultLocation = bindings.length - 1
+        // The index of the tag, so that the tag and the getter can be replaced together below.
+        defaultLocation = bindings.length - 2
       }
     }
   }
@@ -439,11 +443,12 @@ function interopEsm(
   // we should set the `default` getter if the imported module is a `.cjs file`
   if (!(allowExportDefault && defaultLocation >= 0)) {
     // Replace the binding with one for the namespace itself in order to preserve iteration order.
+    // Values are untagged, so `raw` is bound directly even when it is itself a function.
     if (defaultLocation >= 0) {
-      // Replace the getter with the value
-      bindings.splice(defaultLocation, 1, BindingTag_Value, raw)
+      // Replace the tag and getter with the value
+      bindings.splice(defaultLocation, 2, raw)
     } else {
-      bindings.push('default', BindingTag_Value, raw)
+      bindings.push('default', raw)
     }
   }
 

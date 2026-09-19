@@ -180,7 +180,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
                     EsmExport::LocalBinding(LocalBinding {
                         name: COLLECT_LIST_EXPORT,
                         liveness: Liveness::Constant,
-                        // A generated array, not a function, so nothing can observe `this`.
+                        // A generated function declaration that only closes over a local, so it
+                        // never reads the `this` a caller passes.
                         maybe_uses_this: false,
                     }),
                 )]
@@ -295,9 +296,11 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
         )
         .await?;
 
+        // `getList` is a function declaration that is never reassigned, and it is emitted above
+        // this call, so the binding can be exported by value. Values need no accessor tag.
         writeln!(
             code,
-            "{TURBOPACK_ESM}([\n    {}, ()=>getList\n]);",
+            "{TURBOPACK_ESM}([\n    {}, getList\n]);",
             StringifyJs(&export),
         )?;
 

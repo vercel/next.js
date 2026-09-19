@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="77867742-97a1-7739-5b4e-e0fc46a40a42")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="8ac4796a-f24b-2246-1124-392f2d0c5750")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -110,7 +110,7 @@ function createModuleWithDirection(id) {
         children: []
     };
 }
-const BindingTag_Value = 0;
+const BindingTag_Accessor = 0;
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, bindings, dynamic) {
@@ -123,19 +123,9 @@ const BindingTag_Value = 0;
     let i = 0;
     while(i < bindings.length){
         const propName = bindings[i++];
-        const tagOrFunction = bindings[i++];
-        if (typeof tagOrFunction === 'number') {
-            if (tagOrFunction === BindingTag_Value) {
-                defineProp(exports, propName, {
-                    value: bindings[i++],
-                    enumerable: true,
-                    writable: false
-                });
-            } else {
-                throw new Error(`unexpected tag: ${tagOrFunction}`);
-            }
-        } else {
-            const getterFn = tagOrFunction;
+        if (bindings[i] === BindingTag_Accessor && typeof bindings[i + 1] === 'function') {
+            i++;
+            const getterFn = bindings[i++];
             if (typeof bindings[i] === 'function') {
                 const setterFn = bindings[i++];
                 defineProp(exports, propName, {
@@ -149,6 +139,12 @@ const BindingTag_Value = 0;
                     enumerable: true
                 });
             }
+        } else {
+            defineProp(exports, propName, {
+                value: bindings[i++],
+                enumerable: true,
+                writable: false
+            });
         }
     }
     // The properties defined above are already non-configurable and
@@ -329,9 +325,10 @@ function createGetter(obj, key) {
     let defaultLocation = -1;
     for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            bindings.push(key, createGetter(raw, key));
+            bindings.push(key, BindingTag_Accessor, createGetter(raw, key));
             if (defaultLocation === -1 && key === 'default') {
-                defaultLocation = bindings.length - 1;
+                // The index of the tag, so that the tag and the getter can be replaced together below.
+                defaultLocation = bindings.length - 2;
             }
         }
     }
@@ -339,11 +336,12 @@ function createGetter(obj, key) {
     // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
+        // Values are untagged, so `raw` is bound directly even when it is itself a function.
         if (defaultLocation >= 0) {
-            // Replace the getter with the value
-            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
+            // Replace the tag and getter with the value
+            bindings.splice(defaultLocation, 2, raw);
         } else {
-            bindings.push('default', BindingTag_Value, raw);
+            bindings.push('default', raw);
         }
     }
     esm(ns, bindings);
@@ -2497,5 +2495,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=77867742-97a1-7739-5b4e-e0fc46a40a42
+//# debugId=8ac4796a-f24b-2246-1124-392f2d0c5750
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

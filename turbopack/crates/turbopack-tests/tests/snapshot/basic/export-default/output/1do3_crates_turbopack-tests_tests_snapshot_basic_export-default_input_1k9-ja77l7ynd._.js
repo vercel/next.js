@@ -16,7 +16,6 @@ const b = 2;
 const __TURBOPACK__default__export__ = a + b;
 __turbopack_context__.s([
     "default",
-    0,
     __TURBOPACK__default__export__
 ]);
 }),

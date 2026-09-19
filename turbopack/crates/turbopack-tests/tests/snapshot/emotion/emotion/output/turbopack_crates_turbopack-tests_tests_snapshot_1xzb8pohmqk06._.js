@@ -32,6 +32,7 @@ console.log(StyledButton, ClassNameButton);
 
 __turbopack_context__.s([
     "jsx",
+    0,
     ()=>jsx
 ]);
 function jsx() {
@@ -43,6 +44,7 @@ function jsx() {
 
 __turbopack_context__.s([
     "jsxDEV",
+    0,
     ()=>jsxDEV
 ]);
 function jsxDEV() {

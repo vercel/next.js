@@ -22,13 +22,10 @@ function methodLike() {
 }
 __turbopack_context__.s([
     "arrowFn",
-    0,
     arrowFn,
     "methodLike",
-    0,
     methodLike,
     "plainFn",
-    0,
     plainFn
 ]);
 }),
