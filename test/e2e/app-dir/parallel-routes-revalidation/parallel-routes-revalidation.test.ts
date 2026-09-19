@@ -43,6 +43,38 @@ describe('parallel-routes-revalidation', () => {
     })
   }
 
+  it('refreshes a retained slot using its original URL after multiple navigations', async () => {
+    const browser = await next.browser('/retained-search/one?value=first')
+    const originalRender = await browser.elementById('retained-render').text()
+    expect(await browser.elementById('retained-value').text()).toBe('first')
+
+    for (const [page, value] of [
+      ['two', 'second'],
+      ['three', 'third'],
+    ]) {
+      await browser
+        .elementByCss(`a[href="/retained-search/${page}?value=${value}"]`)
+        .click()
+      await retry(async () => {
+        expect(await browser.elementById('active-page').text()).toBe(page)
+      })
+      expect(await browser.elementById('retained-value').text()).toBe('first')
+      expect(await browser.elementById('retained-render').text()).toBe(
+        originalRender
+      )
+    }
+
+    await browser.elementById('refresh-button').click()
+    await retry(async () => {
+      expect(await browser.elementById('retained-render').text()).not.toBe(
+        originalRender
+      )
+    })
+    expect(await browser.elementById('retained-value').text()).toBe('first')
+    expect(await browser.elementById('active-page').text()).toBe('three')
+    expect(new URL(await browser.url()).search).toBe('?value=third')
+  })
+
   it('should handle router.refresh() when called in a slot', async () => {
     const browser = await next.browser('/')
     await check(() => browser.hasElementByCssSelector('#refresh-router'), false)

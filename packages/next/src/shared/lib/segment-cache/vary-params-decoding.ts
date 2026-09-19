@@ -6,7 +6,16 @@
 
 import { readFulfilledValue } from '../rsc-transport'
 
-export type VaryParams = Set<string>
+/**
+ * The params a piece of rendered output depends on — the ids of the vary path
+ * nodes it read: path param names, and '?' for the search params — as the
+ * source that reports them rather than a snapshot of it.
+ *
+ * The wire iterables can only be drained from a fully-buffered response; they
+ * are drained once at decode into an already-settled thenable, and read at the
+ * point a decision needs the set (readVaryParams).
+ */
+export type VaryParams = PromiseLike<Set<string>>
 
 /**
  * Vary params are serialized into the Flight stream as an
@@ -19,9 +28,9 @@ export type VaryParams = Set<string>
  *
  * Root params are NOT included in a segment's own iterable. They're emitted
  * once at the top level of the response (as a separate iterable) and unioned in
- * by `readVaryParams`, because root params can be accessed at any point during
- * the render — folding them into every segment would otherwise require a merge
- * once the whole render is complete.
+ * by `decodeVaryParams`, because root params can be accessed at any point
+ * during the render — folding them into every segment would otherwise require
+ * a merge once the whole render is complete.
  */
 export type VaryParamsIterable = AsyncIterable<string>
 
@@ -45,7 +54,7 @@ export type VaryParamsIterable = AsyncIterable<string>
  */
 function drainVaryParams(
   iterable: VaryParamsIterable,
-  target: VaryParams
+  target: Set<string>
 ): void {
   const iterator = iterable[Symbol.asyncIterator]()
   while (true) {
@@ -60,13 +69,13 @@ function drainVaryParams(
 }
 
 /**
- * Reads a segment's (or the head's) vary params, unioning in the response-level
- * root params.
+ * Converts a segment's (or the head's) vary params off the wire, at the
+ * decode boundary, unioning in the response-level root params.
  *
  * Root params are emitted once at the top level rather than folded into every
- * segment by the server, so every read recombines them here — building the
- * merge into the read means a caller can't forget it, and it's done in a single
- * pass with no intermediate set.
+ * segment by the server, so every decode recombines them here — building the
+ * merge into the decode means a caller can't forget it, and it's done in a
+ * single pass with no intermediate set.
  *
  * Returns null ("unknown", key on all params) unless BOTH iterables are
  * present. A null/absent `iterable` means the segment's own tracking wasn't
@@ -80,7 +89,7 @@ function drainVaryParams(
  * set — a tracked segment that read no params, with no root params accessed,
  * can be shared across all param values.
  */
-export function readVaryParams(
+export function decodeVaryParams(
   iterable: VaryParamsIterable | null | undefined,
   rootIterable: VaryParamsIterable | null | undefined
 ): VaryParams | null {
@@ -92,8 +101,24 @@ export function readVaryParams(
   ) {
     return null
   }
-  const varyParams: VaryParams = new Set()
-  drainVaryParams(iterable, varyParams)
-  drainVaryParams(rootIterable, varyParams)
-  return varyParams
+  const total: Set<string> = new Set()
+  drainVaryParams(iterable, total)
+  drainVaryParams(rootIterable, total)
+  // Shaped like a settled Flight promise so readVaryParams can read it off
+  // the thenable's status.
+  const settled = Promise.resolve(total) as Promise<Set<string>> & {
+    status: 'fulfilled'
+    value: Set<string>
+  }
+  settled.status = 'fulfilled'
+  settled.value = total
+  return settled
+}
+
+/**
+ * Reads the set from a vary params source. Null when it is not available;
+ * the reader assumes every param varies.
+ */
+export function readVaryParams(varyParams: VaryParams): Set<string> | null {
+  return readFulfilledValue(varyParams, null)
 }

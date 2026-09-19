@@ -11,16 +11,19 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type {
+  VaryParams,
+  VaryParamsIterable,
+} from './segment-cache/vary-params-decoding'
 import type { FullTransportData, PartialTransportData } from './rsc-transport'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
 
 /**
- * Cache node used in app-router / layout-router.
+ * Render state for a segment. Reuse this object while its data is unchanged;
+ * create a new one when a navigation replaces the segment's data.
  */
-
 export type CacheNode = {
   /**
    * When rsc is not null, it represents the RSC data for the
@@ -45,11 +48,18 @@ export type CacheNode = {
    */
   prefetchRsc: React.ReactNode
 
+  /**
+   * The source of the params `rsc` depends on, from the response that
+   * produced it. Null when unknown: the data came from the segment cache, or
+   * from a render that didn't track params, or `rsc` is still pending — it
+   * is set alongside `rsc` when the response arrives. A navigation that only
+   * changes params this output did not depend on can keep rendering it.
+   */
+  varyParams: VaryParams | null
+
   prefetchHead: HeadData | null
 
   head: HeadData
-
-  slots: Record<string, CacheNode> | null
 
   /**
    * A shared mutable ref that tracks whether this segment should be scrolled
@@ -350,7 +360,7 @@ export function propagateSubtreeBits(
 /**
  * A path through the segment tree: a repeating sequence of segment and
  * parallel route key. Used by the client to address positions in the
- * CacheNode tree (see layout-router).
+ * render tree (see layout-router).
  */
 export type FlightSegmentPath =
   // Uses `any` as repeating pattern can't be typed.
