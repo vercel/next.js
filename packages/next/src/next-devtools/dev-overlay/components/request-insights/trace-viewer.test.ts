@@ -22,6 +22,30 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('shows after callbacks in verbose traces', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'after callback',
+          startTime: 210,
+          durationMs: 10,
+          attributes: {
+            'next.span_type': 'After.executeCallback',
+            'next.span_category': 'application',
+          },
+        },
+      ],
+    })
+
+    expect(getTraceItems(request, false)).toEqual([])
+    expect(getTraceItems(request, true)).toEqual([
+      expect.objectContaining({
+        label: 'after callback',
+        category: 'application',
+      }),
+    ])
+  })
+
   it('preserves background cache names in verbose traces', () => {
     const request = createRequest({
       spans: [
