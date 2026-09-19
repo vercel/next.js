@@ -362,6 +362,14 @@ export default class FileSystemCache implements CacheHandler {
 
     if (!this.flushToDisk || !data) return
 
+    if (
+      (data.kind === CachedRouteKind.APP_PAGE ||
+        data.kind === CachedRouteKind.APP_ROUTE) &&
+      data.status === 404
+    ) {
+      return
+    }
+
     // Create a new writer that will prepare to write all the files to disk
     // after their containing directory is created.
     const writer = new MultiFileWriter(this.fs)
