@@ -8862,8 +8862,32 @@ async function prerenderToStream(
       // when prerendering an optional fallback shell after having prerendered
       // pages with defined params, we use this instead of a mutable prerender
       // resume data cache.
-      const resumeDataCache: ResumeDataCache =
+      let resumeDataCache: ResumeDataCache =
         renderOpts.renderResumeDataCache ?? createPrerenderResumeDataCache()
+
+      if (
+        renderOpts.renderResumeDataCache &&
+        fallbackRouteParams &&
+        Object.keys(rootParams).some((name) => fallbackRouteParams.has(name))
+      ) {
+        // This seed came from a more specific prerender. Its cache keys don't
+        // include root params, so remove entries that read roots this shell
+        // doesn't know. A miss in the read-only seed becomes a dynamic hole.
+        // Keep the original seed intact for shells where those roots are known.
+        const cache = new Map(resumeDataCache.cache)
+        for (const [key, pendingEntry] of cache) {
+          const { readRootParamNames } = await pendingEntry
+          if (readRootParamNames) {
+            for (const name of readRootParamNames) {
+              if (fallbackRouteParams.has(name)) {
+                cache.delete(key)
+                break
+              }
+            }
+          }
+        }
+        resumeDataCache = { ...resumeDataCache, cache }
+      }
       reactServerPrerenderResultIsDynamic = null
       reactServerResumeDataCache = resumeDataCache
       reactServerPrerenderStore = null
