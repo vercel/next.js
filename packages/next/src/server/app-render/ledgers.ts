@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { getServerReact } from '../runtime-reacts.external'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 
 declare const builtInLedger: unique symbol
 
@@ -9,16 +10,25 @@ export type Ledger<Entry, Value> =
   | { readonly [builtInLedger]: { entry: Entry; value: Value } }
   | { add(entry: Entry): void; close(): void; readonly value: Value }
 
+export type BitLedger = Ledger<void, Promise<boolean>>
 export type MinLedger = Ledger<number, AsyncIterable<number>>
 export type SetLedger<T> = Ledger<T, AsyncIterable<T>>
 
 const reactWithLedgers = React as unknown as {
   createSetLedger<T>(): SetLedger<T>
   createMinLedger(): MinLedger
+  createBitLedger(): BitLedger
   captureLedgers<T>(
     data: T,
-    ledgers: readonly [SetLedger<string>, MinLedger]
-  ): { data: T; ledgers: [Promise<Set<string>>, Promise<number | undefined>] }
+    ledgers: readonly [SetLedger<string>, MinLedger, BitLedger]
+  ): {
+    data: T
+    ledgers: [
+      Promise<Set<string>>,
+      Promise<number | undefined>,
+      Promise<boolean>,
+    ]
+  }
 }
 
 // Only the RSC copy of this module creates built-in identities. Outside RSC,
@@ -35,11 +45,20 @@ export const StaleTimeLedger =
   typeof reactWithLedgers.createMinLedger === 'function'
     ? reactWithLedgers.createMinLedger()
     : (null as unknown as MinLedger)
+export const RuntimeDataLedger =
+  process.env.__NEXT_LEDGERS &&
+  typeof reactWithLedgers.createBitLedger === 'function'
+    ? reactWithLedgers.createBitLedger()
+    : (null as unknown as BitLedger)
 
 export const captureLedgers = reactWithLedgers.captureLedgers
 
 // Each render uses the shared built-in identity, or creates its own userspace
 // accumulator when the flag is off.
+export function createBitLedger(builtIn: BitLedger): BitLedger {
+  return process.env.__NEXT_LEDGERS ? builtIn : new BitLedgerAccumulator()
+}
+
 export function createMinLedger(builtIn: MinLedger): MinLedger {
   return process.env.__NEXT_LEDGERS ? builtIn : new MinLedgerAccumulator()
 }
@@ -51,6 +70,7 @@ export function createSetLedger<T>(builtIn: SetLedger<T>): SetLedger<T> {
 export const addToLedger = (
   process.env.__NEXT_LEDGERS ? addToBuiltInLedger : addToUserspaceLedger
 ) as {
+  (ledger: BitLedger): void
   <Entry, Value>(ledger: Ledger<Entry, Value>, entry: Entry): void
 }
 
@@ -86,6 +106,25 @@ export function getLedgerValue<Entry, Value>(
   return process.env.__NEXT_LEDGERS || ledger == null
     ? undefined
     : (ledger as { readonly value: Value }).value
+}
+
+class BitLedgerAccumulator {
+  private resolve: (value: boolean) => void
+  readonly value: Promise<boolean>
+
+  constructor() {
+    const { promise, resolve } = createPromiseWithResolvers<boolean>()
+    this.value = promise
+    this.resolve = resolve
+  }
+
+  add(): void {
+    this.resolve(true)
+  }
+
+  close(): void {
+    this.resolve(false)
+  }
 }
 
 // Flight consumes each userspace stream once. Values are queued immediately so

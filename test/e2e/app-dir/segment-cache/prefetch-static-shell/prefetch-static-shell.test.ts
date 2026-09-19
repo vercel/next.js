@@ -1930,4 +1930,53 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
   })
+
+  // @gate ledgers
+  it('does not runtime-prefetch a sibling that only waits for navigation', async () => {
+    // Build-time hints come from the public item. Populate the server cache
+    // for an item that reads cookies, so its streamed totals must tell the
+    // client which segments need a runtime request despite those hints.
+    await next.render$('/per-segment-runtime/one')
+
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/per-segment-runtime-test', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page, { includeAppShellRequests: true })
+      },
+    })
+
+    // The account can resolve during a runtime prefetch. The sidebar's
+    // connection() cannot, so fetching its static fallback is sufficient.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/per-segment-runtime/one"]'
+      )
+      await toggle.click()
+    }, [
+      { includes: 'Account for one: guest', kind: 'runtime' },
+      {
+        includes: 'Waiting for navigation...',
+        kind: 'runtime',
+        block: 'reject',
+      },
+    ])
+
+    // Navigation fills the sidebar's dynamic hole; the account is cached.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/per-segment-runtime/one"]'
+      )
+      await link.click()
+    }, [
+      { includes: 'Navigation content' },
+      { includes: 'Account for one: guest', block: 'reject' },
+    ])
+
+    expect(await browser.elementByCss('main').text()).toBe(
+      'Account for one: guest'
+    )
+    expect(await browser.elementByCss('aside').text()).toBe(
+      'Navigation content'
+    )
+  })
 })

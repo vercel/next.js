@@ -1,3 +1,4 @@
+import { addToLedger } from './app-render/ledgers'
 import {
   RenderStage,
   type AdvanceableRenderStage,
@@ -255,14 +256,11 @@ function trackRuntimeDataAccessedImpl(
         // in those, and we shouldn't count it.
         return
       }
-      // Response-level flag (the payload's `u`, forwarded to segment
-      // responses as `needsRuntimeRequest`): resolved for every kind of
-      // access — a pre-upgrade fallback response must keep reporting that
-      // a runtime request would return more. The fulfillment row lands at
-      // the current position in the Flight stream, which is what makes the
-      // value rewindable per stage. Promise resolution is idempotent, so
-      // repeated accesses are free.
-      workUnitStore.runtimeDataAccessed?.resolve(true)
+      // Record the access where it happens so it follows the corresponding
+      // data when the stream is truncated or split into segment responses.
+      if (workUnitStore.runtimeDataAccessed !== null) {
+        addToLedger(workUnitStore.runtimeDataAccessed)
+      }
 
       // Hint cell (holds the build-constant
       // PrefetchHint.ShouldAttemptStaticPrefetch value directly): a

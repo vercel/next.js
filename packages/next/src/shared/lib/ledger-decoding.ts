@@ -3,9 +3,15 @@ import { readFulfilledValue } from './rsc-transport'
 export type LedgerValue<Entry, Total> = AsyncIterable<Entry> | Promise<Total>
 export type SetLedgerValue<T> = LedgerValue<T, Set<T>>
 export type MinLedgerValue = LedgerValue<number, number | undefined>
+export type BitLedgerValue = Promise<boolean>
 
 // Buffered responses may be truncated at a stage boundary. Read only the
 // entries in that response; pending/rejected values are handled by the caller.
+export const readBitLedger: <Fallback>(
+  value: BitLedgerValue,
+  unresolved: Fallback,
+  rejected?: boolean | Fallback
+) => boolean | Fallback = readFulfilledValue
 
 export function readSetLedger<T>(value: SetLedgerValue<T>): Set<T> | null {
   if (process.env.__NEXT_LEDGERS) {

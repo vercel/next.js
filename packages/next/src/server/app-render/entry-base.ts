@@ -1,4 +1,9 @@
-export { captureLedgers, VaryParamsLedger, StaleTimeLedger } from './ledgers'
+export {
+  captureLedgers,
+  VaryParamsLedger,
+  StaleTimeLedger,
+  RuntimeDataLedger,
+} from './ledgers'
 export { SegmentWithStaleTime } from './create-component-tree'
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {

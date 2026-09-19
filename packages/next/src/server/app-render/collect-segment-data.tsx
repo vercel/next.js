@@ -1,8 +1,9 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Bundled in entry-base so it gets the right JSX runtime. */
 
-import type {
-  MinLedgerValue,
-  SetLedgerValue,
+import {
+  type MinLedgerValue,
+  type SetLedgerValue,
+  readBitLedger,
 } from '../../shared/lib/ledger-decoding'
 import type {
   InitialRSCPayload,
@@ -48,7 +49,6 @@ import {
   type PartialTransportNode,
   type TransportSegment,
   type TransportSegmentData,
-  readFulfilledValue,
   transportSegmentToSegment,
 } from '../../shared/lib/rsc-transport'
 
@@ -203,7 +203,7 @@ export async function collectSegmentData(
       // recorded before the abort. A rejected row reads as `true`,
       // conservatively — an abort errors rows that were still pending when
       // it happened.
-      runtimeDataAccessed = readFulfilledValue(pagePayload.u, false, true)
+      runtimeDataAccessed = readBitLedger(pagePayload.u, false, true)
     }
   } catch {}
 
@@ -1214,7 +1214,8 @@ async function renderSegmentPrefetch(
       terminal,
       staleTime,
       clientModules,
-      streamInfoStage.promise
+      streamInfoStage.promise,
+      needsRuntimeRequest
     )
   }
   let edgeParallelRouteKey = spine.parallelRouteKey
@@ -1233,7 +1234,8 @@ async function renderSegmentPrefetch(
           bundleNode.data,
           staleTime,
           clientModules,
-          streamInfoStage.promise
+          streamInfoStage.promise,
+          needsRuntimeRequest
         )
       }
       bundleNode = bundleNode.next
@@ -1249,7 +1251,8 @@ async function renderSegmentPrefetch(
       head,
       staleTime,
       clientModules,
-      streamInfoStage.promise
+      streamInfoStage.promise,
+      needsRuntimeRequest
     )
   }
 
@@ -1268,7 +1271,7 @@ async function renderSegmentPrefetch(
   const payload: PrefetchFlightResponse = {
     t: transportData,
     a: shellByteOffset.promise,
-    u: needsRuntimeRequest,
+    u: process.env.__NEXT_LEDGERS ? undefined : needsRuntimeRequest,
   }
   if (buildId) {
     payload.b = buildId
@@ -1387,7 +1390,8 @@ function createStagedSegmentData(
   clientModules: ManifestNode,
   // The response's streamInfoStage gate; the completeness probe must not
   // start until it resolves, i.e. until the input stream is fully unblocked.
-  streamInfoStage: Promise<void>
+  streamInfoStage: Promise<void>,
+  needsRuntimeRequest: Promise<boolean>
 ): TransportSegmentData {
   const contentIsComplete = new Promise<void>(async (resolve) => {
     // Wait for the input stream to be fully unblocked before checking if
@@ -1408,6 +1412,7 @@ function createStagedSegmentData(
     p: contentIsComplete,
     v: data.v,
     s: data.s ?? staleTime,
+    u: process.env.__NEXT_LEDGERS ? (data.u ?? needsRuntimeRequest) : undefined,
   }
 }
 

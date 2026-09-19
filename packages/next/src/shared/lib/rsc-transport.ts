@@ -109,6 +109,8 @@ export type TransportSegmentData = {
    * default, independently of the other segments' stale times.
    */
   s?: MinLedgerValue
+  /** Whether this segment could gain content from a runtime prefetch. */
+  u?: Promise<boolean>
 }
 
 /**
