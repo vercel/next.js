@@ -1,0 +1,280 @@
+[
+    (
+        "*anonymous function 455*",
+        Function {
+            total_nodes: 4,
+            func_ident: 455,
+            maybe_uses_this: true,
+            return_value: Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        },
+    ),
+    (
+        "*arrow function 333*",
+        Function {
+            total_nodes: 4,
+            func_ident: 333,
+            maybe_uses_this: false,
+            return_value: Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        },
+    ),
+    (
+        "*arrow function 597*",
+        Function {
+            total_nodes: 2,
+            func_ident: 597,
+            maybe_uses_this: false,
+            return_value: Variable(
+                (
+                    "*arrow function 603*",
+                    #0,
+                ),
+            ),
+        },
+    ),
+    (
+        "*arrow function 603*",
+        Function {
+            total_nodes: 4,
+            func_ident: 603,
+            maybe_uses_this: false,
+            return_value: Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        },
+    ),
+    (
+        "*arrow function 643*",
+        Function {
+            total_nodes: 2,
+            func_ident: 643,
+            maybe_uses_this: false,
+            return_value: Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+                has_side_effects: true,
+            },
+        },
+    ),
+    (
+        "Klass",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "arrowAtTopLevel",
+        Variable(
+            (
+                "*arrow function 643*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "doesNotUseThis",
+        Function {
+            total_nodes: 2,
+            func_ident: 180,
+            maybe_uses_this: false,
+            return_value: Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        },
+    ),
+    (
+        "o",
+        Argument(
+            1112,
+            0,
+        ),
+    ),
+    (
+        "obj",
+        Object {
+            total_nodes: 5,
+            parts: [
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+            ],
+            mutability: Mutable,
+        },
+    ),
+    (
+        "usesThis",
+        Function {
+            total_nodes: 4,
+            func_ident: 139,
+            maybe_uses_this: true,
+            return_value: Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        },
+    ),
+    (
+        "v",
+        Argument(
+            781,
+            0,
+        ),
+    ),
+    (
+        "viaArrow",
+        Function {
+            total_nodes: 2,
+            func_ident: 302,
+            maybe_uses_this: true,
+            return_value: Variable(
+                (
+                    "*arrow function 333*",
+                    #0,
+                ),
+            ),
+        },
+    ),
+    (
+        "viaEval",
+        Function {
+            total_nodes: 4,
+            func_ident: 992,
+            maybe_uses_this: true,
+            return_value: Call(
+                3,
+                FreeVar(
+                    "eval",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "this",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    (
+        "viaNestedArrows",
+        Function {
+            total_nodes: 2,
+            func_ident: 559,
+            maybe_uses_this: true,
+            return_value: Variable(
+                (
+                    "*arrow function 597*",
+                    #0,
+                ),
+            ),
+        },
+    ),
+    (
+        "viaNestedFunction",
+        Function {
+            total_nodes: 2,
+            func_ident: 415,
+            maybe_uses_this: false,
+            return_value: Variable(
+                (
+                    "*anonymous function 455*",
+                    #0,
+                ),
+            ),
+        },
+    ),
+    (
+        "viaWith",
+        Function {
+            total_nodes: 2,
+            func_ident: 1112,
+            maybe_uses_this: true,
+            return_value: FreeVar(
+                "x",
+            ),
+        },
+    ),
+]

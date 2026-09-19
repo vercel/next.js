@@ -1226,7 +1226,7 @@ async fn analyze_ecmascript_module_internal(
                         *value = analysis_state
                             .link_value(take(value), ImportAttributes::empty_ref())
                             .await?;
-                        if let JsValue::Function(_, func_ident, _) = value {
+                        if let JsValue::Function { func_ident, .. } = value {
                             let mut closure_arg = JsValue::alternatives(take(values));
                             if mutable {
                                 closure_arg.add_unknown_mutations(arena.get_or_default(), true);
@@ -1480,10 +1480,11 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_keep_this(
+                                analysis.add_code_gen(EsmBinding::new_maybe_keep_this(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
+                                    &ast_path,
                                 ));
                                 continue;
                             }
@@ -3893,7 +3894,7 @@ async fn analyze_amd_define(
             )
             .await?;
         }
-        [JsValue::Constant(id), JsValue::Function(..)] if id.as_str().is_some() => {
+        [JsValue::Constant(id), JsValue::Function { .. }] if id.as_str().is_some() => {
             analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
                 vec![
                     AmdDefineDependencyElement::Require,
@@ -3921,7 +3922,7 @@ async fn analyze_amd_define(
                 error_mode,
             ));
         }
-        [JsValue::Function(..)] => {
+        [JsValue::Function { .. }] => {
             analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
                 vec![
                     AmdDefineDependencyElement::Require,

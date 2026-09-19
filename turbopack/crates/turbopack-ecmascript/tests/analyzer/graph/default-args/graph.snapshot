@@ -1,29 +1,31 @@
 [
     (
         "*arrow function 105*",
-        Function(
-            2,
-            105,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 105,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "value2",
                     #4,
                 ),
             ),
-        ),
+        },
     ),
     (
         "Fun",
-        Function(
-            2,
-            39,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 39,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "value",
                     #3,
                 ),
             ),
-        ),
+        },
     ),
     (
         "Fun2",

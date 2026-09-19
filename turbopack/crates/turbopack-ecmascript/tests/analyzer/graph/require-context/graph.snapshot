@@ -65,10 +65,11 @@
     ),
     (
         "importAll",
-        Function(
-            7,
-            1,
-            MemberCall(
+        Function {
+            total_nodes: 7,
+            func_ident: 1,
+            maybe_uses_this: false,
+            return_value: MemberCall(
                 6,
                 MemberCall(
                     3,
@@ -103,7 +104,7 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "items",

@@ -124,9 +124,18 @@ impl<'a> JsValue<'a> {
                     has_side_effects: rs,
                 },
             ) => l == r && ls == rs,
-            (JsValue::Function(lc, _, l), JsValue::Function(rc, _, r)) => {
-                lc == rc && l.similar(r, depth - 1)
-            }
+            (
+                JsValue::Function {
+                    total_nodes: lc,
+                    return_value: l,
+                    ..
+                },
+                JsValue::Function {
+                    total_nodes: rc,
+                    return_value: r,
+                    ..
+                },
+            ) => lc == rc && l.similar(r, depth - 1),
             (JsValue::Argument(li, l), JsValue::Argument(ri, r)) => li == ri && l == r,
             _ => false,
         }
@@ -245,7 +254,9 @@ impl<'a> JsValue<'a> {
                 Hash::hash(v, state);
                 Hash::hash(has_side_effects, state);
             }
-            JsValue::Function(_, _, v) => v.similar_hash(state, depth - 1),
+            JsValue::Function {
+                return_value: v, ..
+            } => v.similar_hash(state, depth - 1),
             JsValue::Argument(i, v) => {
                 Hash::hash(i, state);
                 Hash::hash(v, state);

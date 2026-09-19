@@ -140,8 +140,13 @@ pub enum JsValue<'a> {
     },
     /// A function reference. The return value might contain [JsValue::Argument]
     /// placeholders that need to be replaced when calling this function.
-    /// `(total_node_count, func_ident, return_value)`
-    Function(u32, u32, BumpBox<'a, JsValue<'a>>),
+    Function {
+        total_nodes: u32,
+        func_ident: u32,
+        /// Whether calling this function could maybe observe `this`.
+        maybe_uses_this: bool,
+        return_value: BumpBox<'a, JsValue<'a>>,
+    },
 
     // OPERATIONS
     // ----------------------------
@@ -712,7 +717,7 @@ impl JsValue<'_> {
             JsValue::Array { .. }
             | JsValue::Object { .. }
             | JsValue::Alternatives { .. }
-            | JsValue::Function(..)
+            | JsValue::Function { .. }
             | JsValue::Promise(..)
             | JsValue::Member(..) => JsValueMetaKind::Nested,
             JsValue::Concat(..)
@@ -868,6 +873,7 @@ impl<'a> JsValue<'a> {
         func_ident: u32,
         is_async: bool,
         is_generator: bool,
+        maybe_uses_this: bool,
         return_value: JsValue<'a>,
     ) -> Self {
         // Check generator first to handle async generators
@@ -878,11 +884,12 @@ impl<'a> JsValue<'a> {
         } else {
             return_value
         };
-        Self::Function(
-            1 + return_value.total_nodes(),
+        Self::Function {
+            total_nodes: 1 + return_value.total_nodes(),
             func_ident,
-            BumpBox::new_in(return_value, arena),
-        )
+            maybe_uses_this,
+            return_value: BumpBox::new_in(return_value, arena),
+        }
     }
 
     pub fn object(list: BumpVec<'a, ObjectPart<'a>>) -> Self {
@@ -1098,7 +1105,7 @@ impl JsValue<'_> {
             | JsValue::SuperCall(c, _)
             | JsValue::MemberCall(c, _)
             | JsValue::Member(c, _, _)
-            | JsValue::Function(c, _, _)
+            | JsValue::Function { total_nodes: c, .. }
             | JsValue::Iterated(c, ..)
             | JsValue::Promise(c, ..)
             | JsValue::Awaited(c, ..)
@@ -1179,7 +1186,11 @@ impl JsValue<'_> {
             JsValue::Member(c, o, p) => {
                 *c = 1 + o.total_nodes() + p.total_nodes();
             }
-            JsValue::Function(c, _, r) => {
+            JsValue::Function {
+                total_nodes: c,
+                return_value: r,
+                ..
+            } => {
                 *c = 1 + r.total_nodes();
             }
 
@@ -1386,9 +1397,17 @@ impl<'a> JsValue<'a> {
                 values: BumpVec::from_iter_in(arena, values.iter().map(|v| v.clone_in(arena))),
                 logical_property: *logical_property,
             },
-            JsValue::Function(c, id, r) => {
-                JsValue::Function(*c, *id, BumpBox::new_in(r.clone_in(arena), arena))
-            }
+            JsValue::Function {
+                total_nodes,
+                func_ident,
+                maybe_uses_this,
+                return_value,
+            } => JsValue::Function {
+                total_nodes: *total_nodes,
+                func_ident: *func_ident,
+                maybe_uses_this: *maybe_uses_this,
+                return_value: BumpBox::new_in(return_value.clone_in(arena), arena),
+            },
             JsValue::Concat(c, list) => JsValue::Concat(
                 *c,
                 BumpVec::from_iter_in(arena, list.iter().map(|v| v.clone_in(arena))),

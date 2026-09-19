@@ -207,7 +207,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         for (name, export) in &esm_exports.exports {
             let name = name.clone();
             match export {
-                EsmExport::LocalBinding(_, liveness) => {
+                EsmExport::LocalBinding(binding) => {
                     exports.push((
                         name.clone(),
                         EsmExport::ImportedBinding(
@@ -221,7 +221,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                                 .await?,
                             ),
                             name,
-                            *liveness == Liveness::Mutable,
+                            binding.liveness == Liveness::Mutable,
                         ),
                     ));
                 }

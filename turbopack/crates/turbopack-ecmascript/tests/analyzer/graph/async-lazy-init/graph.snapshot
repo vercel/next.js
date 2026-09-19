@@ -1,10 +1,11 @@
 [
     (
         "computeAsyncValue",
-        Function(
-            3,
-            222,
-            Promise(
+        Function {
+            total_nodes: 3,
+            func_ident: 222,
+            maybe_uses_this: false,
+            return_value: Promise(
                 2,
                 Constant(
                     Str(
@@ -14,46 +15,49 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "ensureAsyncProcessStarted",
-        Function(
-            2,
-            606,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 606,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "lasyInitAsyncProcess",
                     #2,
                 ),
             ),
-        ),
+        },
     ),
     (
         "getLasyInitAsyncValue",
-        Function(
-            2,
-            294,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 294,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "lasyInitAsyncValue",
                     #2,
                 ),
             ),
-        ),
+        },
     ),
     (
         "initLasyInitAsyncProcess",
-        Function(
-            3,
-            509,
-            Promise(
+        Function {
+            total_nodes: 3,
+            func_ident: 509,
+            maybe_uses_this: false,
+            return_value: Promise(
                 2,
                 Constant(
                     Undefined,
                 ),
             ),
-        ),
+        },
     ),
     (
         "lasyInitAsyncProcess",

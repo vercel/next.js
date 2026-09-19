@@ -1,6 +1,8 @@
 import * as liveDefaultClass from './live_default_class.js'
 import * as liveExports from './live_exports.js'
 import * as constDefaultExportFunction from './const_default_export_function.js'
+import constantDefault, { constant, live, setLive } from './import_bindings.js'
+import { result as circularResult } from './cycle_a.js'
 
 it('hoisted declarations are live', () => {
   expect(liveExports.bar()).toBe('bar')
@@ -55,6 +57,22 @@ it('exported bindings that are not mutated are not live', () => {
     value: constDefaultExportFunction.default,
     writable: false,
   })
+})
+
+it('direct constant imports retain value and call semantics', () => {
+  expect(constant).toBe('constant')
+  expect({ constant }).toEqual({ constant: 'constant' })
+  expect(constantDefault()).toBe('constant-default')
+})
+
+it('direct live imports observe updates', () => {
+  expect(live).toBe('initial')
+  setLive('updated')
+  expect(live).toBe('updated')
+})
+
+it('constant imports in a cycle are not captured before evaluation', () => {
+  expect(circularResult).toBe('a')
 })
 
 it('exported bindings that are free vars are live', () => {
