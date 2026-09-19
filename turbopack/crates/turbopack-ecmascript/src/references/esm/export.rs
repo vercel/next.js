@@ -821,7 +821,14 @@ impl EsmExports {
                                         }
                                     }
                                 },
-                                ReferencedAssetIdent::Module { .. } => {
+                                ReferencedAssetIdent::Module { can_value_bind, .. } => {
+                                    // See if we can capture the module export as a 'value' to re-export it
+                                    if !*mutable
+                                        && *can_value_bind
+                                        && !export_usage_info.is_circuit_breaker
+                                    {
+                                        return ExportBinding::Value(read_expr);
+                                    }
                                     // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
                                     // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
                                     // since that would reduce allocations and optimize access. We could do this by passing the module-id up.

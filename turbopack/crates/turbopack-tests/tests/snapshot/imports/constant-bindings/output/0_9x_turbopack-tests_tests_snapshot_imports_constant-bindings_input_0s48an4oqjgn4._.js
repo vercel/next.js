@@ -44,13 +44,16 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 __turbopack_context__.s([
     "v",
-    ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["v"],
+    0,
+    __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["v"],
     "U",
-    ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["U"],
+    0,
+    __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["U"],
     "X",
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["X"],
     "W",
-    ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["W"]
+    0,
+    __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__["W"]
 ]);
 }),
 ]);})()
