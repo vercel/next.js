@@ -321,15 +321,10 @@ pub async fn compute_binding_usage_info(
             // No need to traverse edges that are unused.
             |e| e.chunking_type.is_parallel() && !unused_references.contains_key(&e.reference),
             |cycle| {
-                // We could compute this based on the module graph via a DFS from each entry point
-                // to the cycle.  Whatever node is hit first is an entry point to the cycle.
-                // (scope hoisting does something similar) and then we would only need to
-                // mark 'entry' modules (basically the targets of back edges in the export graph) as
-                // circuit breakers.  For now we just mark everything on the theory that cycles are
-                // rare.  For vercel-site on 8/22/2025 there were 106 cycles covering 800 modules
-                // (or 1.2% of all modules).  So with this analysis we could potentially drop 80% of
-                // the cycle breaker modules.
-                export_circuit_breakers.extend(cycle.iter().map(|n| **n));
+                // Only the modules that can be read before they finish evaluating need to break
+                // the cycle. The rest are fully evaluated by the time anything reads them, so they
+                // can keep exporting values instead of getters.
+                export_circuit_breakers.extend(cycle.partially_observable.iter().map(|n| **n));
                 Ok(())
             },
         )?;
