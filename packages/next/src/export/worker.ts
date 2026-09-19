@@ -91,6 +91,10 @@ async function exportPageImpl(
     renderResumeDataCache,
   } = input
 
+  process.env.__NEXT_LEDGERS = commonRenderOpts.experimental?.ledgers
+    ? 'true'
+    : ''
+
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
   }

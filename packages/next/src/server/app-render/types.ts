@@ -153,6 +153,7 @@ export interface RenderOptsPartial {
      */
     isRoutePPREnabled?: boolean
     expireTime: number | undefined
+    ledgers?: boolean
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
 

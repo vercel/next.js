@@ -602,6 +602,7 @@ export default abstract class Server<
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
+        ledgers: this.nextConfig.experimental.ledgers,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,

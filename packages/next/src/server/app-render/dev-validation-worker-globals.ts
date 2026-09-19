@@ -86,6 +86,7 @@ export interface DevValidationSnapshot {
   // simulated prefetch is treated as dynamic. This set may include params that
   // `requestFallbackRouteParams` does not.
   fallbackRouteParams: OpaqueFallbackRouteParams | null
+  ledgers?: boolean
   optimisticRouting: boolean
   forceStatic: boolean | undefined
   validationLevel: ValidationLevel

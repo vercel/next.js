@@ -349,6 +349,8 @@ export function getDefineEnv({
         }
       : undefined),
 
+    'process.env.__NEXT_LEDGERS': Boolean(config.experimental.ledgers),
+
     'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE':
       config.experimental.multiZoneDraftMode ?? false,
     'process.env.__NEXT_TRUST_HOST_HEADER':

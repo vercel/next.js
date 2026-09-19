@@ -513,6 +513,7 @@ async function exportAppImpl(
     ),
     images: nextConfig.images,
     experimental: {
+      ledgers: nextConfig.experimental.ledgers,
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,

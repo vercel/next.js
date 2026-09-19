@@ -1229,6 +1229,9 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
+  /** Use React Ledgers for render metadata. Requires experimental React. */
+  ledgers?: boolean
+
   /**
    * Enables blocking server-side rendering for the `app` directory: React emits
    * a `<link rel="expect">` tag that holds the browser's first paint until the
@@ -2514,6 +2517,7 @@ export interface NextConfigRuntime {
     NextConfigComplete['experimental'],
     | 'taint'
     | 'agentFeedback'
+    | 'ledgers'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
@@ -2586,6 +2590,7 @@ export function getNextConfigRuntime(
   const experimental = {
     taint: ex.taint,
     agentFeedback: ex.agentFeedback,
+    ledgers: ex.ledgers,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,
