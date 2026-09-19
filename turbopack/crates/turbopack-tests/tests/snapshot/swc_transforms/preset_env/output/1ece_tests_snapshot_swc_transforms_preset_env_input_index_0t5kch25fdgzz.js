@@ -202,15 +202,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    var module = moduleCache[id];
-    if (!module) {
+    var module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -1538,14 +1538,14 @@ function isCss(chunkUrl) {
 }
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
-var moduleCache = {};
+var moduleCache = new Map();
 contextPrototype.c = moduleCache;
 /**
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var module = moduleCache[moduleId];
+    var module = moduleCache.get(moduleId);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1560,7 +1560,7 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var module = moduleCache[id];
+    var module = moduleCache.get(id);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1579,7 +1579,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     var module = createModuleObject(id);
     var exports = module.exports;
-    moduleCache[id] = module;
+    moduleCache.set(id, module);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     var context = new Context(module, exports);
     try {

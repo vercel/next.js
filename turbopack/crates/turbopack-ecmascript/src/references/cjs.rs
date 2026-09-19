@@ -35,7 +35,6 @@ use crate::{
         pattern_mapping::{PatternMapping, ResolveType},
         util::SpecifiedChunkingType,
     },
-    runtime_functions::TURBOPACK_CACHE,
 };
 
 /// Generic CommonJS reference that doesn't perform any codegen. Used for tracing
@@ -398,45 +397,6 @@ impl CjsRequireResolveAssetReferenceCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
-    }
-}
-
-#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
-pub struct CjsRequireCacheAccess {
-    pub path: AstPathId,
-}
-impl CjsRequireCacheAccess {
-    pub fn new(path: AstPathId) -> Self {
-        CjsRequireCacheAccess { path }
-    }
-
-    pub async fn code_generation(
-        &self,
-        trie: &AstPathTrie,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
-        let mut visitors = Vec::new();
-
-        visitors.push(create_visitor!(
-            trie,
-            self.path,
-            visit_mut_expr,
-            |expr: &mut Expr| {
-                if let Expr::Member(_) = expr {
-                    *expr = TURBOPACK_CACHE.into();
-                } else {
-                    unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
-                }
-            }
-        ));
-
-        Ok(CodeGeneration::visitors(visitors))
-    }
-}
-
-impl From<CjsRequireCacheAccess> for CodeGen {
-    fn from(val: CjsRequireCacheAccess) -> Self {
-        CodeGen::CjsRequireCacheAccess(val)
     }
 }
 
