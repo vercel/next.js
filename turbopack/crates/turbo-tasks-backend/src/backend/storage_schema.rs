@@ -867,7 +867,7 @@ impl TaskStorage {
         new_value
     }
 
-    /// Whether a GC pass may collect this task: nothing references it, via parents, transient
+    /// Whether a GC pass can collect this task: nothing references it, via parents, transient
     /// pins, or aggregation edges.
     ///
     /// Only reads `Meta`, so the shard scan and the under-guard recheck get the same answer -- it
@@ -888,95 +888,67 @@ impl TaskStorage {
     /// Removing the cell sets exposed a race in the GC cascade -- rebalancing running while other
     /// workers were still collecting -- which `gc_collect` now avoids by deferring all rebalance
     /// work until the parallel phase is quiescent.
-    pub fn gc_maybe_collectible(&self) -> bool {
+    pub fn gc_collectible(&self) -> bool {
+        self.gc_unreferenced(ReferenceScope::All)
+    }
+
+    /// Whether nothing in `scope` refers to this task.
+    fn gc_unreferenced(&self, scope: ReferenceScope) -> bool {
         // None of the predicates below are correct without this.
-        self.flags.is_restored(TaskDataCategory::Meta)
+        if !self.flags.is_restored(TaskDataCategory::Meta)
             // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
             // don't re-select it, or a second pass would collect it again while it is still
             // resident.
-            && !self.flags.deleted()
-            && self.gc_parent_count() == 0
-            && self.gc_transient_ref_count() == 0
-            && self.get_activeness().is_none()
-            && self.get_in_progress().is_none()
-            // It is rare for an upper to be present when the ref counts are 0, but it
-            // happens transiently during a concurrent GC pass as uppers move around in the cascade.
-            && self.upper().is_empty()
-            // It would be rare for a collectibles dependent to be the only thing holding a task,
-            // but the invalidation that disconnected the task may not have bubbled all the way up
-            // yet.
-            && self
-                .collectibles_dependents()
-                .is_none_or(|d| d.is_empty())
+            || self.flags.deleted()
+            || self.gc_parent_count() != 0
+        {
+            return false;
+        }
+        match scope {
+            ReferenceScope::All => {
+                // It is rare for an upper to be present when the ref counts are 0, but it happens
+                // transiently during a concurrent GC pass as uppers move around in the cascade.
+                self.upper().is_empty()
+                    // It would be rare for a collectibles dependent to be the only thing holding a
+                    // task, but the invalidation that disconnected the task may not have bubbled
+                    // all the way up yet.
+                    && self.collectibles_dependents().is_none_or(|d| d.is_empty())
+                    && self.gc_transient_ref_count() == 0
+                    && self.get_in_progress().is_none()
+                    && self.get_activeness().is_none()
+            }
+            // Same two edge sets, minus the entries that die with the session. The pins above are
+            // skipped entirely: they are `category = "transient"` and never reach disk.
+            ReferenceScope::Persistent => {
+                self.upper().iter().all(|(u, _)| u.is_transient())
+                    && self
+                        .collectibles_dependents()
+                        .is_none_or(|d| d.iter().all(|(_, t)| t.is_transient()))
+            }
+        }
     }
 
-    /// Whether this task is a GC **root**: parent-less, but pinned for some reason
-    ///
-    /// NOTE: this is a conservative classification.  The typical reason is that there is a
-    /// [`TaskStorage::transient_ref`] live, but this will return true if there is merely an
-    /// `upper`.
+    /// Whether this task is a GC **root**: nothing *persistent* refers to it, so only this session
+    /// is keeping it alive -- a `transient_ref` pin, an in-progress execution, activeness, or an
+    /// `upper` / collectibles edge from a transient task.
     pub fn gc_is_root(&self) -> bool {
-        self.flags.is_restored(TaskDataCategory::Meta)
-            && !self.flags.deleted()
-            && self.gc_parent_count() == 0
-            && !self.gc_maybe_collectible()
-    }
-
-    /// Whether this task is held by a pin that eviction cannot drop, which is what a task
-    /// classified by [`TaskStorage::gc_is_root`] is expected to be held by.
-    #[cfg(debug_assertions)]
-    pub fn gc_is_held_by_transient_pin(&self) -> bool {
-        self.gc_transient_ref_count() > 0
-            || self.get_in_progress().is_some()
-            || self.get_activeness().is_some()
-    }
-
-    /// The concrete references keeping this task un-collectible, as `(edge kind, holder task)`
-    /// pairs.
-    #[cfg(debug_assertions)]
-    pub fn gc_root_holders(&self) -> GcRootHolders {
-        let mut holders = GcRootHolders::default();
-        for (&upper, _) in self.upper().iter() {
-            holders.push("upper", upper);
-        }
-        if let Some(deps) = self.collectibles_dependents() {
-            for &(_, task) in deps.iter() {
-                holders.push("collectibles_dependent", task);
-            }
-        }
-        for &task in self.output_dependent().iter() {
-            holders.push("output_dependent", task);
-        }
-        if let Some(deps) = self.cell_dependents() {
-            // In a `cell_dependents` entry `CellRef.task` is the DEPENDENT's id, not this task's.
-            for cell_ref in deps.iter() {
-                holders.push("cell_dependent", cell_ref.task);
-            }
-        }
-        if let Some(deps) = self.cell_dependents_hashed() {
-            for (cell_ref, _) in deps.iter() {
-                holders.push("cell_dependent_hashed", cell_ref.task);
-            }
-        }
-        holders
+        self.gc_unreferenced(ReferenceScope::Persistent) && !self.gc_collectible()
     }
 }
 
-/// `(edge kind, holder task)` pairs explaining why a task is not collectible.
-/// See [`TaskStorage::gc_root_holders`].
-#[cfg(debug_assertions)]
-#[derive(Default, Debug)]
-pub struct GcRootHolders(Vec<(&'static str, TaskId)>);
-
-#[cfg(debug_assertions)]
-impl GcRootHolders {
-    fn push(&mut self, kind: &'static str, task: TaskId) {
-        self.0.push((kind, task));
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &(&'static str, TaskId)> {
-        self.0.iter()
-    }
+/// Which references [`TaskStorage::gc_unreferenced`] counts.
+///
+/// A task can be held by references that outlive the session and by references that do not -- the
+/// transient entries of `upper` / `collectibles_dependents`, and the `transient_ref_count`,
+/// `in_progress` and `activeness` pins. The two GC predicates care about different subsets:
+/// collectibility about everything currently holding the task, rootness about only what would
+/// survive a restart.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ReferenceScope {
+    /// Every referrer, transient ones included.
+    All,
+    /// Only referrers that outlive the session.
+    Persistent,
 }
 
 /// Counts for aggregation tree and collectibles fields.
