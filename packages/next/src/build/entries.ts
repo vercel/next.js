@@ -288,12 +288,23 @@ export function getAppLoader() {
     : 'next-app-loader'
 }
 
+// `querystring.stringify` escapes values with `encodeURIComponent`, which
+// leaves `!` untouched. webpack parses `!` as its inline-loader separator, so a
+// loader option containing `!` (e.g. an `assetPrefix` like `https://cdn/!x`)
+// truncates the request and breaks module resolution (#71426). Escape it.
+function stringifyLoaderOptions(opts: Record<string, any>) {
+  return stringify(opts, undefined, undefined, {
+    encodeURIComponent: (str: string) =>
+      encodeURIComponent(str).replace(/!/g, '%21'),
+  })
+}
+
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   if (process.env.NEXT_RSPACK && process.env.BUILTIN_APP_LOADER) {
     ;(opts as any).projectRoot = normalize(join(__dirname, '../../..'))
   }
   return {
-    import: `${getAppLoader()}?${stringify(opts)}!`,
+    import: `${getAppLoader()}?${stringifyLoaderOptions(opts)}!`,
     layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
