@@ -83,6 +83,7 @@ export function refreshDynamicData(
     true,
     null,
     currentRenderedSearch,
+    null,
     UnknownDynamicStaleTime
   )
 
