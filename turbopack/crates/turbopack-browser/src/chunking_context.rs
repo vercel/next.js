@@ -1236,15 +1236,24 @@ impl ChunkingContext for BrowserChunkingContext {
             .is_some();
         Ok(if use_manifest {
             let manifest_asset = ManifestAsyncModule::new(
-                module,
-                module_graph,
-                *chunking_context,
+                module.to_resolved().await?,
+                module_graph.to_resolved().await?,
+                chunking_context,
                 availability_info,
-            );
-            let loader_module = ManifestLoaderModule::new(manifest_asset);
+            )
+            .await?
+            .to_resolved()
+            .await?;
+            let loader_module = ManifestLoaderModule::new(*manifest_asset);
             loader_module.as_chunk_item(module_graph, *chunking_context)
         } else {
-            let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
+            let module = AsyncLoaderModule::new(
+                module.to_resolved().await?,
+                chunking_context,
+                module_graph.to_resolved().await?,
+                availability_info,
+            )
+            .await?;
             module.as_chunk_item(module_graph, *chunking_context)
         })
     }
