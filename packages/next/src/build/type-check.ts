@@ -20,6 +20,7 @@ import { hrtimeDurationToString } from './duration-to-string'
 function verifyAndRunTypeScript(
   dir: string,
   distDir: string,
+  distDirRoot: string,
   strictRouteTypes: boolean,
   shouldRunTypeCheck: boolean,
   tsconfigPath: string | undefined,
@@ -65,6 +66,7 @@ function verifyAndRunTypeScript(
   return impl({
     dir,
     distDir,
+    distDirRoot,
     strictRouteTypes,
     shouldRunTypeCheck,
     tsconfigPath,
@@ -138,6 +140,7 @@ export async function startTypeChecking({
         verifyAndRunTypeScript(
           dir,
           config.distDir,
+          config.distDirRoot,
           Boolean(config.experimental.strictRouteTypes),
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,

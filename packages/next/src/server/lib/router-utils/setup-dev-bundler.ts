@@ -177,6 +177,7 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
+    distDirRoot: opts.nextConfig.distDirRoot,
     strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
     shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,

@@ -47,6 +47,7 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
   await verifyAndRunTypeScript({
     dir: baseDir,
     distDir: nextConfig.distDir,
+    distDirRoot: nextConfig.distDirRoot,
     strictRouteTypes,
     shouldRunTypeCheck: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
