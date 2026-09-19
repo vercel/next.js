@@ -1043,9 +1043,15 @@ impl PageEndpoint {
                     name = display(layout.ident().to_string().await?)
                 );
                 async {
+                    let chunk_group = ssr_module_graph
+                        .chunk_group_info()
+                        .chunk_group_for_entry_module(*layout)
+                        .await?
+                        .chunk_group
+                        .clone();
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        ChunkGroup::Shared(layout),
+                        chunk_group,
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );

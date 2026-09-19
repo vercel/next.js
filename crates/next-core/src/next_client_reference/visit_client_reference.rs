@@ -38,6 +38,9 @@ use crate::{
     Decode,
 )]
 pub struct ClientReference {
+    /// The module whose reference creates the client/SSR chunk group.
+    pub parent_module: ResolvedVc<Box<dyn Module>>,
+    /// The server component used to order this reference in the output.
     pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
     pub ty: ClientReferenceType,
 }
