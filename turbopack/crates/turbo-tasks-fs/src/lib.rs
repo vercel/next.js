@@ -19,6 +19,7 @@ mod content;
 mod disk;
 pub mod embed;
 mod error;
+mod fs_map;
 pub mod glob;
 mod globset;
 pub mod invalidation;
@@ -56,10 +57,10 @@ pub(crate) use crate::{
 pub use crate::{
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
-        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTarget,
-        WriteLinkTargetType,
+        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
+    fs_map::DiskFileSystemMap,
     null_fs::NullFileSystem,
     path::{
         FileSystemPath, FileSystemPathOption, RealPathError, RealPathErrorType,

@@ -1,9 +1,11 @@
+#[cfg(feature = "mmap")]
+use std::ops::Range;
 use std::{
     borrow::Cow,
     cmp::Ordering,
     hash::BuildHasherDefault,
     io,
-    ops::Range,
+    marker::PhantomData,
     path::Path,
     rc::Rc,
     sync::{
@@ -14,11 +16,14 @@ use std::{
 
 use anyhow::{Context, Result, bail, ensure};
 use fs_err::File;
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 use quick_cache::{Lifecycle, sync::GuardResult};
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
+#[cfg(feature = "mmap")]
+use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, QueryKey,
     arc_bytes::ArcBytes,
@@ -26,7 +31,6 @@ use crate::{
     compression::checksum_block,
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{IterValue, LookupEntry, LookupValue},
-    mmap_helper::advise_mmap_for_persistence,
     rc_bytes::RcBytes,
     shared_bytes::SharedBytes,
     static_sorted_file_builder::{
@@ -315,6 +319,7 @@ impl StaticSortedFileMetaData {
 }
 
 enum StaticSortedFileBacking {
+    #[cfg(feature = "mmap")]
     Mmap(Arc<Mmap>),
     File {
         file: Arc<File>,
@@ -360,6 +365,7 @@ enum IndexEntries {
     /// borrow from its own `backing` field, and an `ArcBytes` would bump and drop the `mmap`
     /// refcount on every lookup. All readers of a file share that one counter, so the contention
     /// scales with reader threads — measured ~3 ns single-threaded but ~70 ns at 8 threads.
+    #[cfg(feature = "mmap")]
     Mmap(Range<usize>),
     /// Read into memory at open time, for the non-mmap backing, which has nothing to borrow from.
     Owned(Box<[u8]>),
@@ -419,6 +425,7 @@ impl IndexBlock {
 
         let entries = match backing {
             // Store a range, not the slice: `StaticSortedFile` owns the mmap these bytes live in.
+            #[cfg(feature = "mmap")]
             StaticSortedFileBacking::Mmap(mmap) => {
                 let start = entry_bytes.as_ptr() as usize - mmap.as_ptr() as usize;
                 IndexEntries::Mmap(start..start + entry_bytes.len())
@@ -447,6 +454,7 @@ impl StaticSortedFile {
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
         let backing = match access_mode {
+            #[cfg(feature = "mmap")]
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
                     format!(
@@ -504,12 +512,14 @@ impl StaticSortedFile {
     #[inline]
     fn index_entries(&self) -> &[[u8; INDEX_BLOCK_ENTRY_SIZE]] {
         let bytes = match (&self.index.entries, &self.backing) {
+            #[cfg(feature = "mmap")]
             (IndexEntries::Mmap(range), StaticSortedFileBacking::Mmap(mmap)) => {
                 &mmap[range.clone()]
             }
             (IndexEntries::Owned(bytes), _) => &bytes[..],
             // `IndexBlock::parse` only produces `Mmap` entries for an mmap backing, and the
             // backing never changes after open.
+            #[cfg(feature = "mmap")]
             (IndexEntries::Mmap(_), StaticSortedFileBacking::File { .. }) => unreachable!(
                 "mmap-ranged index entries with a file backing in {:08}.sst",
                 self.meta.sequence_number
@@ -749,17 +759,20 @@ impl StaticSortedFile {
 /// its refcount belongs to one cache entry rather than the whole file.
 enum BlockRef<'l> {
     /// Borrowed from the memory-mapped file.
+    #[cfg(feature = "mmap")]
     Mmap(&'l [u8]),
-    /// Owned, and shared with the block cache.
-    Cached(ArcBytes),
+    /// Owned, and shared with the block cache. The zero-sized marker keeps the backing borrow
+    /// lifetime represented in builds where the mmap variant is disabled.
+    Cached(ArcBytes, PhantomData<&'l ()>),
 }
 
 impl BlockRef<'_> {
     #[inline]
     fn as_slice(&self) -> &[u8] {
         match self {
+            #[cfg(feature = "mmap")]
             BlockRef::Mmap(data) => data,
-            BlockRef::Cached(block) => block,
+            BlockRef::Cached(block, _) => block,
         }
     }
 
@@ -767,8 +780,10 @@ impl BlockRef<'_> {
     ///
     /// Only needed by callers that hand the bytes to something outliving the lookup.
     #[inline]
+    #[cfg_attr(not(feature = "mmap"), allow(unused_variables))]
     fn into_owned(self, backing: &StaticSortedFileBacking) -> ArcBytes {
         match self {
+            #[cfg(feature = "mmap")]
             BlockRef::Mmap(data) => {
                 let StaticSortedFileBacking::Mmap(mmap) = backing else {
                     // `get_or_read_block` only borrows from an mmap backing.
@@ -777,7 +792,7 @@ impl BlockRef<'_> {
                 // SAFETY: the borrow came from this mmap, via `get_or_read_block`.
                 unsafe { ArcBytes::from_mmap(mmap, data) }
             }
-            BlockRef::Cached(block) => block,
+            BlockRef::Cached(block, _) => block,
         }
     }
 }
@@ -799,6 +814,11 @@ fn get_or_read_block<'l>(
     verified_blocks: &[AtomicU64],
     compression: Compression,
 ) -> Result<BlockRef<'l>> {
+    // `verified_blocks` tracks which mmap-backed blocks already passed their checksum. There is
+    // no mmap backing without the feature, so the bitmap is unused there.
+    #[cfg(not(feature = "mmap"))]
+    let _ = verified_blocks;
+    #[cfg(feature = "mmap")]
     let mmap_block = if let StaticSortedFileBacking::Mmap(mmap) = backing {
         let (uncompressed_length, checksum, block_data) =
             get_raw_block_slice(mmap, meta, block_index).with_context(|| {
@@ -818,6 +838,10 @@ fn get_or_read_block<'l>(
     } else {
         None
     };
+    // Without an mmap backing there is never a zero-copy block to borrow, so every block goes
+    // through the decompress/cache path below.
+    #[cfg(not(feature = "mmap"))]
+    let mmap_block: Option<(u32, u32, &[u8])> = None;
 
     // Compressed: check cache; decompress and insert on miss.
     // File-backed blocks use the same cache, including uncompressed ones.
@@ -834,6 +858,7 @@ fn get_or_read_block<'l>(
                 // A cached block may have been evicted, so re-reading still
                 // benefits from the bitmap to skip redundant CRC verification.
                 match backing {
+                    #[cfg(feature = "mmap")]
                     StaticSortedFileBacking::Mmap(_) => verify_checksum_once(
                         meta,
                         &block_data,
@@ -862,11 +887,13 @@ fn get_or_read_block<'l>(
             }
             GuardResult::Timeout => unreachable!(),
         },
+        PhantomData,
     ))
 }
 
 /// Gets the raw block slice directly from a memory-mapped file.
 /// Returns `(uncompressed_length, checksum, block_data)`.
+#[cfg(feature = "mmap")]
 fn get_raw_block_slice<'a>(
     mmap: &'a Mmap,
     meta: &StaticSortedFileMetaData,
@@ -932,6 +959,7 @@ fn get_raw_block<'a>(
     block_index: u16,
 ) -> Result<(u32, u32, Cow<'a, [u8]>)> {
     match backing {
+        #[cfg(feature = "mmap")]
         StaticSortedFileBacking::Mmap(mmap) => {
             let (uncompressed_length, checksum, block) =
                 get_raw_block_slice(mmap, meta, block_index)?;
@@ -1026,6 +1054,7 @@ fn verify_checksum(
 /// since the check is deterministic and idempotent. Verification failures are
 /// *not* recorded in the bitmap, so a corrupted block will be re-checked (and
 /// fail again) on every access.
+#[cfg_attr(not(feature = "mmap"), allow(dead_code))]
 fn verify_checksum_once(
     meta: &StaticSortedFileMetaData,
     data: &[u8],
@@ -1054,6 +1083,7 @@ fn read_block_lookup(
     verify_checksum(meta, &block, checksum, block_index)?;
     if uncompressed_length == 0 {
         return match (backing, block) {
+            #[cfg(feature = "mmap")]
             (StaticSortedFileBacking::Mmap(mmap), Cow::Borrowed(block)) => {
                 // SAFETY: block points into mmap.
                 Ok(unsafe { ArcBytes::from_mmap(mmap, block) })
@@ -1077,6 +1107,7 @@ fn get_raw_block_iter(
     block_index: u16,
 ) -> Result<(u32, u32, RcBytes)> {
     match backing {
+        #[cfg(feature = "mmap")]
         StaticSortedFileIterBacking::Mmap(mmap) => {
             let (uncompressed_length, checksum, block) =
                 get_raw_block_slice(mmap, meta, block_index)?;
@@ -1184,6 +1215,7 @@ fn handle_key_match_generic<B: SharedBytes>(
 }
 
 enum StaticSortedFileIterBacking {
+    #[cfg(feature = "mmap")]
     Mmap(Rc<Mmap>),
     File {
         file: Rc<File>,
@@ -1290,6 +1322,7 @@ impl StaticSortedFileIter {
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
         let backing = match access_mode {
+            #[cfg(feature = "mmap")]
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
                     format!(

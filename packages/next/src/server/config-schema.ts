@@ -39,6 +39,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
 
     // private optional properties
     _fallbackRouteParams: z.array(z.any()).optional(),
+    _notFoundParams: z.array(z.string()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
@@ -192,6 +193,19 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  agenticAutoUpgrade: z
+    .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
+    .optional(),
+  agentFeedback: z.boolean().optional(),
+  turbopackAdditionalRoots: z
+    .record(
+      z.string(),
+      z.strictObject({
+        path: z.string(),
+        ignoreIfMissing: z.boolean().optional(),
+      })
+    )
+    .optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),

@@ -1406,7 +1406,7 @@ pub async fn try_get_next_package(
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(root.clone()),
+        node_cjs_resolve_options(),
     );
     if let Some(source) = result.await?.first_source() {
         Ok(Vc::cell(Some(source.ident().await?.path.parent())))

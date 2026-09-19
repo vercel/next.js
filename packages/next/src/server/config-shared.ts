@@ -489,6 +489,27 @@ export function resolveCssChunkingMode(
 }
 
 export interface ExperimentalConfig {
+  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  /**
+   * Adds managed instructions to AGENTS.md or CLAUDE.md that let AI coding
+   * agents prepare anonymized Next.js feedback for user review.
+   */
+  agentFeedback?: boolean
+  /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   *
+   * Root names must contain 1-40 characters, using only ASCII letters, digits,
+   * underscores, or hyphens. They must not be Windows device names and must be
+   * unique under ASCII case-insensitive comparison. Invalid roots produce a
+   * warning and are ignored.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
@@ -1624,6 +1645,9 @@ export type ExportPathMap = {
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
+    /** Parameters whose novel values are rejected by routing. @internal */
+    _notFoundParams?: readonly string[]
+
     /**
      * @internal
      */
@@ -2315,6 +2339,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
+    agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
@@ -2491,6 +2516,7 @@ export interface NextConfigRuntime {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'taint'
+    | 'agentFeedback'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
@@ -2562,6 +2588,7 @@ export function getNextConfigRuntime(
 
   const experimental = {
     taint: ex.taint,
+    agentFeedback: ex.agentFeedback,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,

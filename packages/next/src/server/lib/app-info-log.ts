@@ -7,7 +7,11 @@ import { experimentalSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
+  hasCurrentAgentFeedback,
   hasCurrentAgentRules,
+  removeAgentFeedbackFiles,
+  removeAgentRulesFiles,
+  writeAgentFeedbackFiles,
   writeAgentFiles,
   type AgentFilesResult,
 } from './generate-agent-files'
@@ -114,23 +118,35 @@ export function logExperimentalInfo({
 }
 
 /**
- * When `next dev` detects an AI coding agent but the managed
- * agent-rules block is missing from AGENTS.md / CLAUDE.md — or an
- * outdated version of it is installed — auto-generate or refresh the
- * files so the agent has access to version-matched docs. Returns the
- * write result when files were touched, or `null` when no action was
- * needed.
- *
- * Callers gate this on `config.agentRules !== false` — opt-out is
- * declarative in next.config, not inside this function.
+ * Keep the agent-rules block in sync with next.config. Enabling it still
+ * requires a detected agent; disabling it removes only that managed block,
+ * even when no agent is currently detected.
  */
-export async function ensureAgentRulesForDev(
-  dir: string
+export async function syncAgentRulesForDev(
+  dir: string,
+  enabled: boolean
 ): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentRulesFiles(dir)
   if ((await getAgentName()) === null) return null
   if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
+}
+
+/**
+ * Keep the opt-in agent-feedback block in sync with next.config. Enabling it
+ * still requires a detected agent; disabling it removes only that managed
+ * block, even when no agent is currently detected.
+ */
+export async function syncAgentFeedbackForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentFeedbackFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentFeedback(dir)) return null
+
+  return writeAgentFeedbackFiles(dir)
 }
 
 /**

@@ -1,4 +1,8 @@
-use std::{path::Path, time::Duration};
+use std::{
+    iter,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -39,14 +43,14 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
+    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
-    canonicalize_to_rcstr, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
+    VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -66,7 +70,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
+        StyledString,
     },
     module::{Module, Modules},
     module_graph::{
@@ -97,7 +102,9 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
+pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
+    additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
     aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
@@ -301,6 +308,9 @@ pub struct ProjectOptions {
     /// - It gives us a root to configure the file system watcher with.
     /// - It ensures the cache is portable when the root path is moved, since every other path is
     ///   relative to it.
+    ///
+    /// Symlinks outside of the `root_path` can still be resolved if the targets exist in
+    /// [`ProjectOptions::additional_roots`].
     pub root_path: RcStr,
 
     /// A path which contains the app/pages directories, relative to [`Project::project_path`].
@@ -309,6 +319,9 @@ pub struct ProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
+
+    /// Additional filesystem roots. Canonicalized during initialization.
+    pub additional_roots: Vec<AdditionalRootConfig>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
@@ -367,17 +380,11 @@ pub struct ProjectOptions {
 /// Refer to [`ProjectOptions`] for documentation on this struct's fields.
 #[derive(Default)]
 pub struct PartialProjectOptions {
-    pub root_path: Option<RcStr>,
-
-    pub project_path: Option<RcStr>,
-
     pub next_config: Option<RcStr>,
 
     pub env: Option<Vec<(RcStr, RcStr)>>,
 
     pub define_env: Option<DefineEnv>,
-
-    pub watch: Option<WatchOptions>,
 
     pub dev: Option<bool>,
 
@@ -429,10 +436,23 @@ pub struct Instrumentation {
     pub edge: ResolvedVc<Box<dyn Endpoint>>,
 }
 
-#[turbo_tasks::value]
+#[derive(
+    Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, TraceRawVcs, Encode, Decode,
+)]
+struct ProjectFileSystemState {
+    project_file_system: OperationVc<DiskFileSystem>,
+    output_file_system: OperationVc<DiskFileSystem>,
+}
+
+#[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
+    file_systems_state: State<Option<ProjectFileSystemState>>,
+    additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip)]
+    fs_map_init_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
@@ -450,14 +470,152 @@ impl ProjectContainer {
                 None
             },
             options_state: State::new(None),
+            file_systems_state: State::new(None),
+            additional_roots_state: State::new(Vec::new()),
+            fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
     }
 }
 
-#[turbo_tasks::function(operation, root)]
-fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
-    project.project()
+/// Constructs and activates the initial project container state, including its filesystem
+/// watchers. Called by [`ProjectContainer::initialize`].
+async fn prepare_project_container_state(
+    container_vc: ResolvedVc<ProjectContainer>,
+    options: ProjectOptions,
+) -> Result<Vec<ReadRef<PlainIssue>>> {
+    let container = container_vc.await?;
+    // Operations created during initialization may begin running immediately. Keep operations that
+    // require the complete filesystem map blocked until both filesystem states are populated.
+    let fs_map_init_guard = container.fs_map_init_lock.lock().await;
+
+    let map = disk_file_system_map_operation(container_vc);
+    let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
+
+    let dist_dir_root = config_json
+        .get("distDirRoot")
+        .and_then(|value| value.as_str())
+        .unwrap_or(".next");
+
+    let watcher_config = DiskWatcherConfig {
+        poll_interval: options.watch.poll_interval,
+        report_invalidation_reason: true,
+        ..Default::default()
+    };
+
+    let denied_paths = vec![
+        RcStr::from(
+            join_path(&options.project_path, dist_dir_root)
+                .context("distDirRoot must stay inside the project root")?,
+        ),
+        // CPU profiles are written to `.next-profiles/` at the project root (see `--cpu-prof`).
+        // Deny access to it so the bundler doesn't traverse into the profiling output directory.
+        RcStr::from(join_path(&options.project_path, DIST_PROFILES_DIR_NAME).unwrap()),
+    ];
+
+    let enable_watch = options.watch.enable;
+    let configured_additional_roots = options.additional_roots.clone();
+    let project_root = options.root_path.clone();
+    let project_path = options.project_path.clone();
+
+    // `project_root_path_operation` reads `options_state`, so publish it first. This operation
+    // cannot depend on `fs_map_init_lock` because we must eagerly resolve `project_fs_op` to
+    // create `config_path`.
+    container.options_state.set(Some(options));
+
+    // Wrap `options.root_path` in an `OperationVc`
+    // Note: It's important that the identity of this operation is stable, so that we don't end up
+    // changing the identity of every `FileSystemPath` that depends on its output cell.
+    let root_path_op = project_root_path_operation(container_vc);
+
+    let project_fs_op = disk_file_system_operation(
+        PROJECT_FILESYSTEM_NAME,
+        root_path_op,
+        denied_paths,
+        watcher_config,
+        map,
+    );
+
+    let output_fs_op = disk_file_system_operation(
+        rcstr!("output"),
+        root_path_op,
+        Vec::new(),
+        DiskWatcherConfig::default(),
+        DiskFileSystemMap::empty(),
+    );
+
+    // The filesystem only stores (and does not resolve) the filesystem map.
+    container
+        .file_systems_state
+        .set(Some(ProjectFileSystemState {
+            project_file_system: project_fs_op,
+            output_file_system: output_fs_op,
+        }));
+    let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
+    let project_fs = project_fs_op.read_strongly_consistent().await?;
+
+    let config_file_name = config_json
+        .get("configFileName")
+        .and_then(|value| value.as_str())
+        .unwrap_or("next.config.js");
+    let config_path = FileSystemPath::new_normalized_unchecked(
+        ResolvedVc::upcast(project_fs_vc),
+        RcStr::default(),
+    )
+    .join(&project_path)?
+    .join(config_file_name)?;
+    let additional_roots = create_additional_root_file_systems(
+        container_vc,
+        configured_additional_roots,
+        &project_root,
+        watcher_config,
+        map,
+        config_path,
+    )
+    .await?;
+
+    let additional_file_systems = additional_roots
+        .roots_by_name
+        .values()
+        .map(|root| root.file_system)
+        .collect::<Vec<_>>();
+
+    // This state must be populated before the lazy additional filesystem operations or the
+    // filesystem map are first resolved.
+    container
+        .additional_roots_state
+        .set(additional_roots.roots_by_name.into_iter().collect());
+    drop(fs_map_init_guard);
+
+    // perform complete invalidations of all paths and watcher setup after finalizing the `map`
+    fn invalidation_reason(path: &Path) -> impl InvalidationReason + Clone + use<> {
+        invalidation::Initialize {
+            path: RcStr::from(path.to_string_lossy()),
+        }
+    }
+    if enable_watch {
+        project_fs.start_watching().await?;
+        for op in &additional_file_systems {
+            let fs = op.read_strongly_consistent().await?;
+            fs.start_watching().await?;
+        }
+    } else {
+        project_fs.invalidate_with_reason(invalidation_reason);
+        for op in &additional_file_systems {
+            op.read_strongly_consistent()
+                .await?
+                .invalidate_with_reason(invalidation_reason);
+        }
+    }
+
+    // we never watch `output_file_system`, but we do invalidate it across restarts, in case some
+    // other process modified or deleted files.
+    output_fs_op
+        .read_strongly_consistent()
+        .await?
+        .invalidate_with_reason(invalidation_reason);
+
+    Ok(additional_roots.issues)
 }
 
 /// Activates the lazy dynamic import that `chunk_path` names, returning whether it named one. The
@@ -472,13 +630,85 @@ pub async fn activate_lazy_chunk_operation(chunk_path: RcStr) -> Result<Vc<bool>
 }
 
 #[turbo_tasks::function(operation, root)]
-fn project_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
-    project.project_fs()
+pub(crate) fn disk_file_system_operation(
+    name: RcStr,
+    canonical_root: OperationVc<RcStr>,
+    denied_paths: Vec<RcStr>,
+    mut watcher_config: DiskWatcherConfig,
+    map: OperationVc<DiskFileSystemMap>,
+) -> Vc<DiskFileSystem> {
+    watcher_config.extended_batch_delay_matcher =
+        Some(ResolvedVc::upcast(NodeModulesPathMatcher.resolved_cell()));
+    DiskFileSystem::new_with_options(
+        name,
+        canonical_root.connect(),
+        denied_paths,
+        watcher_config,
+        map,
+    )
 }
 
 #[turbo_tasks::function(operation, root)]
-fn output_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
-    project.project_fs()
+async fn project_root_path_operation(container: ResolvedVc<ProjectContainer>) -> Result<Vc<RcStr>> {
+    let container = container.await?;
+    let root_path = container
+        .options_state
+        .get()
+        .as_ref()
+        .context("Unexpected: ProjectContainer is uninitialized")?
+        .root_path
+        .clone();
+    Ok(Vc::cell(root_path))
+}
+
+#[turbo_tasks::function(operation, root)]
+pub(crate) async fn additional_root_path_operation(
+    container: ResolvedVc<ProjectContainer>,
+    key: RcStr,
+) -> Result<Vc<RcStr>> {
+    let container = container.await?;
+    let _guard = container.fs_map_init_lock.lock().await;
+    let roots = container.additional_roots_state.get();
+    let root = roots
+        .iter()
+        .find_map(|(name, root)| (name == &key).then_some(root))
+        .with_context(|| format!("Unexpected: additional root {key} is missing"))?;
+    Ok(Vc::cell(root.canonical_path.clone()))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn disk_file_system_map_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<DiskFileSystemMap>> {
+    let (project_file_system, additional_file_systems) = {
+        let container = container.await?;
+        let _guard = container.fs_map_init_lock.lock().await;
+        let file_systems = container.file_systems_state.get();
+        let file_systems = file_systems
+            .as_ref()
+            .context("Unexpected: ProjectContainer is uninitialized")?;
+        (
+            file_systems.project_file_system,
+            container
+                .additional_roots_state
+                .get()
+                .iter()
+                .map(|(_, root)| root.file_system)
+                .collect::<Vec<_>>(),
+        )
+    };
+    let filesystems = iter::once(project_file_system)
+        .chain(additional_file_systems)
+        .map(async |operation| {
+            let fs = operation.connect().to_resolved().await?;
+            Ok((PathBuf::from(fs.await?.root()), fs))
+        })
+        .try_join()
+        .await?;
+    Ok(filesystems
+        .into_iter()
+        .collect::<DiskFileSystemMap>()
+        .cell())
 }
 
 enum EnvDiffType {
@@ -564,7 +794,10 @@ impl ProjectContainer {
     ///
     /// This is an associated function instead of a method because we don't currently implement
     /// [`std::ops::Receiver`] on [`OperationVc`].
-    pub async fn initialize(this_op: OperationVc<Self>, options: ProjectOptions) -> Result<()> {
+    pub async fn initialize(
+        this_op: OperationVc<Self>,
+        options: ProjectOptions,
+    ) -> Result<Vec<ReadRef<PlainIssue>>> {
         let this = this_op.read_strongly_consistent().await?;
         let span = tracing::info_span!(
             "initialize project",
@@ -582,44 +815,8 @@ impl ProjectContainer {
         );
         let span_clone = span.clone();
         async move {
-            let watch = options.watch;
-
-            if let Some(old_options) = &*this.options_state.get_untracked() {
-                span.record(
-                    "env_diff",
-                    define_env_diff_report(&old_options.define_env, &options.define_env).as_str(),
-                );
-            }
-            this.options_state.set(Some(options));
-
-            #[turbo_tasks::function(operation, root)]
-            fn project_from_container_operation(
-                container: OperationVc<ProjectContainer>,
-            ) -> Vc<Project> {
-                container.connect().project()
-            }
-            let project = project_from_container_operation(this_op)
-                .resolve()
-                .strongly_consistent()
-                .await?;
-            let project_fs = project_fs_operation(project)
-                .read_strongly_consistent()
-                .await?;
-            if watch.enable {
-                project_fs.start_watching().await?;
-            } else {
-                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    // this path is just used for display purposes
-                    path: RcStr::from(path.to_string_lossy()),
-                });
-            }
-            let output_fs = output_fs_operation(project)
-                .read_strongly_consistent()
-                .await?;
-            output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path.to_string_lossy()),
-            });
-            Ok(())
+            let container = this_op.resolve().strongly_consistent().await?;
+            prepare_project_container_state(container, options).await
         }
         .instrument(span_clone)
         .await
@@ -648,12 +845,9 @@ impl ProjectContainer {
                 .read_strongly_consistent()
                 .await?;
             let PartialProjectOptions {
-                root_path,
-                project_path,
                 next_config,
                 env,
                 define_env,
-                watch,
                 dev,
                 encryption_key,
                 build_id,
@@ -664,18 +858,15 @@ impl ProjectContainer {
                 debug_build_paths,
             } = options;
 
+            // Filesystem roots and watcher options are initialization-only. Changing them requires
+            // restarting the process so their process-local watchers can be recreated safely.
             let mut new_options = this
                 .options_state
-                .get()
+                .get_untracked()
                 .clone()
                 .context("ProjectContainer need to be initialized with initialize()")?;
+            let old_define_env = new_options.define_env.clone();
 
-            if let Some(root_path) = root_path {
-                new_options.root_path = canonicalize_to_rcstr(Path::new(&*root_path))?;
-            }
-            if let Some(project_path) = project_path {
-                new_options.project_path = project_path;
-            }
             if let Some(next_config) = next_config {
                 new_options.next_config = next_config;
             }
@@ -684,9 +875,6 @@ impl ProjectContainer {
             }
             if let Some(define_env) = define_env {
                 new_options.define_env = define_env;
-            }
-            if let Some(watch) = watch {
-                new_options.watch = watch;
             }
             if let Some(dev) = dev {
                 new_options.dev = dev;
@@ -713,55 +901,11 @@ impl ProjectContainer {
                 new_options.debug_build_paths = Some(debug_build_paths);
             }
 
-            // TODO: Handle mode switch, should prevent mode being switched.
-            let watch = new_options.watch;
-
-            let project = project_operation(self)
-                .resolve()
-                .strongly_consistent()
-                .await?;
-            let prev_project_fs = project_fs_operation(project)
-                .read_strongly_consistent()
-                .await?;
-            let prev_output_fs = output_fs_operation(project)
-                .read_strongly_consistent()
-                .await?;
-
-            if let Some(old_options) = &*this.options_state.get_untracked() {
-                span.record(
-                    "env_diff",
-                    define_env_diff_report(&old_options.define_env, &new_options.define_env)
-                        .as_str(),
-                );
-            }
+            span.record(
+                "env_diff",
+                define_env_diff_report(&old_define_env, &new_options.define_env).as_str(),
+            );
             this.options_state.set(Some(new_options));
-            let project = project_operation(self)
-                .resolve()
-                .strongly_consistent()
-                .await?;
-            let project_fs = project_fs_operation(project)
-                .read_strongly_consistent()
-                .await?;
-            let output_fs = output_fs_operation(project)
-                .read_strongly_consistent()
-                .await?;
-
-            if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-                if watch.enable {
-                    // TODO stop watching: prev_project_fs.stop_watching()?;
-                    project_fs.start_watching().await?;
-                } else {
-                    project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                        // this path is just used for display purposes
-                        path: RcStr::from(path.to_string_lossy()),
-                    });
-                }
-            }
-            if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-                prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    path: RcStr::from(path.to_string_lossy()),
-                });
-            }
 
             Ok(())
         }
@@ -792,9 +936,16 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
+        let project_file_system;
+        let output_file_system;
+        let additional_roots;
         {
             let options = self.options_state.get();
             let options = options
+                .as_ref()
+                .context("ProjectContainer need to be initialized with initialize()")?;
+            let file_systems = self.file_systems_state.get();
+            let file_systems = file_systems
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
@@ -820,6 +971,9 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
+            project_file_system = file_systems.project_file_system;
+            output_file_system = file_systems.output_file_system;
+            additional_roots = self.additional_roots_state.get().iter().cloned().collect();
         }
 
         let root_path = ResolvedVc::cell(root_path_str);
@@ -851,6 +1005,9 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
+            project_file_system,
+            output_file_system,
+            additional_roots,
         }
         .cell())
     }
@@ -954,6 +1111,11 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
+
+    project_file_system: OperationVc<DiskFileSystem>,
+    output_file_system: OperationVc<DiskFileSystem>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 #[turbo_tasks::value]
@@ -1041,37 +1203,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
-            Some(dist_dir_root) => dist_dir_root.into(),
-            None => {
-                bail!(
-                    "Invalid distDirRoot: {:?}. distDirRoot should not navigate out of the \
-                     projectPath.",
-                    self.dist_dir_root
-                );
-            }
-        };
-
-        // CPU profiles are written to `.next-profiles/` at the project root (see `--cpu-prof`).
-        // Deny access to it so the bundler doesn't traverse into the profiling output directory.
-        let denied_profiles_path = join_path(&self.project_path, DIST_PROFILES_DIR_NAME)
-            .unwrap()
-            .into();
-
-        Ok(DiskFileSystem::new_with_options(
-            PROJECT_FILESYSTEM_NAME,
-            *self.root_path,
-            vec![denied_path, denied_profiles_path],
-            DiskWatcherConfig {
-                poll_interval: self.watch.poll_interval,
-                // the dev server reports these to the user
-                report_invalidation_reason: true,
-                extended_batch_delay_matcher: Some(ResolvedVc::upcast(
-                    NodeModulesPathMatcher.resolved_cell(),
-                )),
-                ..Default::default()
-            },
-        ))
+        Ok(self.project_file_system.connect())
     }
 
     #[turbo_tasks::function]
@@ -1082,7 +1214,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), *self.root_path)
+        self.output_file_system.connect()
     }
 
     #[turbo_tasks::function]
@@ -1431,8 +1563,8 @@ impl Project {
         let result = GraphEntries::concatenate(
             endpoint_entries
                 .into_iter()
-                .chain(std::iter::once(self.client_main_modules().owned().await?))
-                .chain(std::iter::once(GraphEntries::new(
+                .chain(iter::once(self.client_main_modules().owned().await?))
+                .chain(iter::once(GraphEntries::new(
                     vec![],
                     // The superset of what any endpoint traces, so that these modules and their
                     // references are part of the graph. Which endpoint actually traces them is

@@ -18,6 +18,7 @@ export function registerHeadAndReportingTests(
     warmCachesAndNavigateTo,
     restartDevServerToEnsureColdCaches,
     expectNoDevValidationErrors,
+    getInstantInsight,
     getCliOutputSinceMark,
     prerender,
   } = ctx
@@ -62,7 +63,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/head/invalid-runtime-viewport-in-static'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -120,7 +121,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -216,7 +217,7 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static'
         )
         // TODO(instant-validation): why aren't we pointing to `await connection()` here?
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -287,7 +288,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/static/multi-depth-deferred-fallback/inner'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -344,7 +345,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/static/test-firstmod/inter/inner'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -399,7 +400,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/static/test-multi-unrendered'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -530,7 +531,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/disable-validation/disable-build'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -617,7 +618,7 @@ export function registerHeadAndReportingTests(
       it('invalid - unguarded params in a runtime-prefetchable shell', async () => {
         if (isNextDev) {
           const browser = await navigateTo('/shells/invalid-runtime-params/123')
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -724,7 +725,7 @@ export function registerHeadAndReportingTests(
                }"
               `)
           } else {
-            await expect(browser).toDisplayCollapsedRedbox(`
+            expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
              {
                "cause": [
                  {
@@ -785,7 +786,7 @@ export function registerHeadAndReportingTests(
             '/shells/invalid-static-with-gsp-metadata/123'
           )
 
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -833,7 +834,7 @@ export function registerHeadAndReportingTests(
           const browser = await navigateTo(
             '/shells/invalid-static-with-gsp/123'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -908,7 +909,7 @@ export function registerHeadAndReportingTests(
           it('with cold caches', async () => {
             if (isNextDev) {
               const browser = await navigateTo(routeInBrowser)
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -963,7 +964,7 @@ export function registerHeadAndReportingTests(
             it('with warm caches', async () => {
               const browser = await warmCachesAndNavigateTo(routeInBrowser)
 
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -1052,7 +1053,7 @@ export function registerHeadAndReportingTests(
           const browser = await navigateTo(
             '/shells/invalid-navigation-without-suspense'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1125,7 +1126,7 @@ export function registerHeadAndReportingTests(
           const browser = await navigateTo(
             '/shells/invalid-prefetch-without-suspense'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1309,7 +1310,7 @@ export function registerHeadAndReportingTests(
           it('with cold caches', async () => {
             if (isNextDev) {
               const browser = await navigateTo(route)
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -1365,7 +1366,7 @@ export function registerHeadAndReportingTests(
             it('with warm caches', async () => {
               const browser = await warmCachesAndNavigateTo(route)
 
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -1404,7 +1405,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/blocking-attribution/dynamic-then-dynamic'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -1465,7 +1466,7 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/blocking-attribution/runtime-then-runtime'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1492,7 +1493,7 @@ export function registerHeadAndReportingTests(
            }
           `)
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1580,7 +1581,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/blocking-attribution/session-then-dynamic'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {

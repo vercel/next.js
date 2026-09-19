@@ -2398,7 +2398,8 @@ async function getErrorRSCPayload(
     ctx.missingPrefetchHintPolicy,
     Boolean(ctx.renderOpts.partialPrefetching),
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.notFoundParams
   )
   // Attach the error shell as the root's render output. Vary params are not
   // tracked for error pages.
@@ -5280,7 +5281,13 @@ async function resolveLazyDevValidationInputs(
   }
 
   if ('syncInterruptReason' in inputs) {
-    await logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    await logMessagesAndSendErrorsToBrowser(
+      [inputs.syncInterruptReason],
+      ctx,
+      // We're not going to run validation, so mark this as the validation result for tests.
+      { logAsValidationResult: true }
+    )
+
     return VALIDATION_BAILOUT
   }
   return inputs
@@ -5291,7 +5298,12 @@ function forwardErrorsFromWarmRender(
   ctx: AppRenderContext
 ) {
   if ('syncInterruptReason' in inputs) {
-    void logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    void logMessagesAndSendErrorsToBrowser(
+      [inputs.syncInterruptReason],
+      ctx,
+      // We're not going to run validation, so mark this as the validation result for tests.
+      { logAsValidationResult: true }
+    )
     return true
   }
 
@@ -6397,10 +6409,23 @@ function createAsyncApiPromises(
  */
 async function logMessagesAndSendErrorsToBrowser(
   messages: unknown[],
-  ctx: AppRenderContext
+  ctx: AppRenderContext,
+  options: { logAsValidationResult?: boolean } = {}
 ): Promise<void> {
-  const { htmlRequestId, renderOpts } = ctx
+  const logAsValidationResult =
+    process.env.__NEXT_TEST_MODE &&
+    process.env.NEXT_TEST_LOG_VALIDATION &&
+    options.logAsValidationResult
+
+  const { htmlRequestId, requestId, renderOpts } = ctx
+  const url = ctx.url.href
   const { sendErrorsToBrowser } = renderOpts
+
+  if (logAsValidationResult) {
+    console.log(
+      formatValidationEvent({ type: 'validation_start', requestId, url })
+    )
+  }
 
   const errors: Error[] = []
   for (const message of messages) {
@@ -6419,6 +6444,12 @@ async function logMessagesAndSendErrorsToBrowser(
     if (message instanceof Error) {
       errors.push(message)
     }
+  }
+
+  if (logAsValidationResult) {
+    console.log(
+      formatValidationEvent({ type: 'validation_end', requestId, url })
+    )
   }
 
   if (errors.length > 0) {
