@@ -1,34 +1,16 @@
 import { resolveRouteParamsFromTree } from '../../build/static-paths/utils'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
-import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
-import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-export type OpaqueFallbackRouteParamValue = [
-  /**
-   * An opaque placeholder for a route param whose value is not yet known.
-   * Reads of this param suspend; the placeholder must not become rendered UI.
-   */
-  placeholder: string,
-
-  /**
-   * The dynamic param type, including whether it is a catch-all.
-   */
-  dynamicParamType: DynamicParamTypesShort,
-]
-
 /**
- * An opaque fallback route params object. This is used to store the fallback
- * route params in a way that is not easily accessible to the client.
+ * Maps unknown param names to internal placeholders. The parameter wrappers
+ * control when reads suspend; these placeholders must not become rendered UI.
  */
-export type OpaqueFallbackRouteParams = ReadonlyMap<
-  string,
-  OpaqueFallbackRouteParamValue
->
+export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
 
 /**
  * Creates an opaque fallback route params object from the fallback route params.
@@ -47,15 +29,12 @@ export function createOpaqueFallbackRouteParams(
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  const keys = new Map<string, OpaqueFallbackRouteParamValue>()
+  const keys = new Map<string, string>()
 
   // Generate a unique key for the fallback route param, if this key is found
   // in the static output, it represents a bug in cache components.
-  for (const { paramName, paramType } of fallbackRouteParams) {
-    keys.set(paramName, [
-      `%%drp:${paramName}:${uniqueID}%%`,
-      dynamicParamTypes[paramType],
-    ])
+  for (const { paramName } of fallbackRouteParams) {
+    keys.set(paramName, `%%drp:${paramName}:${uniqueID}%%`)
   }
 
   return keys

@@ -16,14 +16,11 @@ import {
   DynamicHTMLPreludeState,
   isEmptyHTMLPrelude,
 } from './postponed-state'
-import type {
-  OpaqueFallbackRouteParams,
-  OpaqueFallbackRouteParamValue,
-} from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { CachedRouteKind } from '../response-cache/types'
 
 export function createMockOpaqueFallbackRouteParams(
-  params: Record<string, OpaqueFallbackRouteParamValue>
+  params: Record<string, string>
 ): OpaqueFallbackRouteParams {
   return new Map(Object.entries(params))
 }
@@ -34,7 +31,7 @@ describe('getDynamicHTMLPostponedState', () => {
   it('serializes a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-      slug: [key, 'd'],
+      slug: key,
     })
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
@@ -118,7 +115,7 @@ describe('getDynamicHTMLPostponedState', () => {
     async (paramType) => {
       const key = '%%drp:slug:e9615126684e5%%'
       const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-        slug: [key, paramType],
+        slug: key,
       })
       const postponed = {
         replayNodes: [['Context.Provider', `slug|${paramType}`, [], null]],
@@ -182,7 +179,7 @@ describe('getDynamicDataPostponedState', () => {
     'serializes and parses fallback params and a cache (disableResumeDataCacheCompression: %s)',
     async (disableResumeDataCacheCompression) => {
       const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-        slug: ['%%drp:slug:e9615126684e5%%', 'd'],
+        slug: '%%drp:slug:e9615126684e5%%',
       })
       const resumeDataCache = createPrerenderResumeDataCache()
       resumeDataCache.fetch.set('cache-key', {
@@ -287,8 +284,8 @@ describe('isEmptyHTMLPrelude', () => {
         null,
         new Map(),
         createMockOpaqueFallbackRouteParams({
-          category: ['%%drp:category:1%%', 'd'],
-          parts: ['%%drp:parts:1%%', 'c'],
+          category: '%%drp:category:1%%',
+          parts: '%%drp:parts:1%%',
         }),
       ]) {
         const state = await getDynamicHTMLPostponedState(
@@ -316,7 +313,7 @@ describe('parseResumeDataCacheFromPostponedState', () => {
   it('extracts the resume data cache without parsing the React state', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-      slug: [key, 'd'],
+      slug: key,
     })
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
