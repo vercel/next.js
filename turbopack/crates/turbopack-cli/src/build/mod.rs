@@ -19,7 +19,7 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
-use turbopack::global_module_ids::get_global_module_id_strategy;
+use turbopack::global_module_ids::{ModuleIdStringReplacements, get_global_module_id_strategy};
 use turbopack_browser::{BrowserChunkingContext, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -328,9 +328,10 @@ async fn build_internal(
         .await?;
     module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     let module_graph = module_graph.connect();
-    let module_id_strategy = get_global_module_id_strategy(module_graph)
-        .to_resolved()
-        .await?;
+    let module_id_strategy =
+        get_global_module_id_strategy(module_graph, ModuleIdStringReplacements::empty())
+            .to_resolved()
+            .await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
