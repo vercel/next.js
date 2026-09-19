@@ -288,6 +288,8 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
+     Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+
      References:
      - https://api.github.com/advisories?affects=next
      - https://registry.npmjs.org/next",
@@ -325,7 +327,7 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['security', 'latest', 'future'] as const)(
     'uses the configured %s policy for a bare AI upgrade',
     async (policy) => {
       jest.mocked(loadConfig).mockResolvedValue({
@@ -339,6 +341,11 @@ describe('agentic upgrade prompts', () => {
       })
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+      expect(Log.bootstrap).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Set \`experimental.agenticAutoUpgrade\` to "${policy}"`
+        )
+      )
     }
   )
 
@@ -365,6 +372,8 @@ describe('agentic upgrade prompts', () => {
          "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
+
+     Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
      - https://registry.npmjs.org/next/latest",
@@ -435,6 +444,8 @@ describe('agentic upgrade prompts', () => {
            "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
+
+     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      After completing and verifying the version migration, adopt these Future Defaults in order:
      - Cache Components
@@ -528,6 +539,8 @@ describe('agentic upgrade prompts', () => {
          "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
+
+     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      Adopt these Future Defaults in order:
      - Cache Components

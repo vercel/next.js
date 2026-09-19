@@ -145,6 +145,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/build/get-supported-browsers.js",
            "/node_modules/next/dist/build/next-config-ts/require-hook.js",
            "/node_modules/next/dist/build/next-config-ts/transpile-config.js",
+           "/node_modules/next/dist/build/nft.js",
            "/node_modules/next/dist/build/output/format.js",
            "/node_modules/next/dist/build/output/log.js",
            "/node_modules/next/dist/build/segment-config/app/app-segment-config.js",

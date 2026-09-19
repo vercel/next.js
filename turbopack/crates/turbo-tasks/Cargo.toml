@@ -53,7 +53,7 @@ scattered-collect = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
-smallvec = { workspace = true }
+smallvec = { workspace = true, features = ["serde", "impl_bincode"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
