@@ -205,11 +205,9 @@ async function collectRoutesForAnalyze(
 }
 
 function startServer(dir: string, port: number): Promise<void> {
-  const server = http.createServer((req, res) => {
-    return serveHandler(req, res, {
-      public: dir,
-    })
-  })
+  const server = http.createServer((req, res) =>
+    serveHandler(req, res, { public: dir })
+  )
 
   return new Promise((resolve, reject) => {
     function onError(err: Error) {
@@ -245,6 +243,9 @@ function startServer(dir: string, port: number): Promise<void> {
       }
 
       Log.info(`Bundle analyzer available at http://${addressString}`)
+      Log.info(
+        'For agent-readable bundle queries, run: next experimental-analyze --list-queries'
+      )
       resolve()
     })
   })

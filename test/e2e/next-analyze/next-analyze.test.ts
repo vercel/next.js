@@ -23,7 +23,7 @@ describe('next experimental-analyze', () => {
     return
   }
 
-  it('runs successfully without errors', async () => {
+  it('serves the UI and points agents to CLI discovery', async () => {
     let serveProcess: ChildProcess | undefined
     let stdoutBuffer = ''
     let resolveUrl!: (url: string) => void
@@ -42,7 +42,10 @@ describe('next experimental-analyze', () => {
         onStdout(msg) {
           stdoutBuffer += msg
           const urlMatch = stdoutBuffer.match(/http:\/\/[^\s]+/)
-          if (urlMatch) {
+          if (
+            urlMatch &&
+            stdoutBuffer.includes('next experimental-analyze --list-queries')
+          ) {
             resolveUrl(urlMatch[0])
           }
         },
@@ -61,10 +64,45 @@ describe('next experimental-analyze', () => {
       expect(await response.text()).toContain(
         '<title>Next.js Bundle Analyzer</title>'
       )
+      expect(stdoutBuffer).toContain(
+        'For agent-readable bundle queries, run: next experimental-analyze --list-queries'
+      )
+      expect(stdoutBuffer).not.toContain('MCP')
+      expect((await fetch(`${url}/mcp`)).status).toBe(404)
     } finally {
       serveProcess?.kill()
       await exit.catch(() => {})
     }
+  })
+  it('lists agent-readable queries without analyzer data', async () => {
+    const result = await next.runCommand([
+      'experimental-analyze',
+      '--list-queries',
+      '--analyze-dir',
+      path.join(next.testDir, 'missing-analyzer-data'),
+    ])
+    expect(result.exitCode).toBe(0)
+    expect(result.stderr).toBe('')
+    const listed = JSON.parse(result.stdout)
+    expect(listed.queries.map((query: { name: string }) => query.name)).toEqual(
+      [
+        'get_bundle_overview',
+        'query_bundle_sources',
+        'explain_bundle_source',
+        'compare_bundles',
+      ]
+    )
+    expect(
+      listed.queries.find(
+        (query: { name: string }) => query.name === 'query_bundle_sources'
+      )
+    ).toMatchObject({
+      inputSchema: {
+        required: ['route'],
+        additionalProperties: false,
+      },
+      example: { route: '/', environment: 'client' },
+    })
   })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
