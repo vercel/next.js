@@ -790,7 +790,7 @@ function createUseCacheStore(
         outerWorkUnitStore
       ),
       rootParams: outerWorkUnitStore.rootParams,
-      readRootParamNames: process.env.__NEXT_DEV_SERVER ? new Set() : undefined,
+      readRootParamNames: new Set<string>(),
       // Every private cache scope is its own work unit. Any cache keyed on
       // headers() or cookies() needs to be invalidated. Otherwise some
       // Next.js API semantics leak across render passes.
@@ -979,8 +979,14 @@ function propagateCacheEntryMetadata(
 ): void {
   if (cacheContext.kind === 'private') {
     switch (cacheContext.outerWorkUnitStore.type) {
-      case 'prerender-runtime':
       case 'private-cache':
+        if (metadata.readRootParamNames) {
+          for (const paramName of metadata.readRootParamNames) {
+            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
+          }
+        }
+      // fallthrough
+      case 'prerender-runtime':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
           metadata
@@ -1000,11 +1006,6 @@ function propagateCacheEntryMetadata(
   } else {
     switch (cacheContext.outerWorkUnitStore.type) {
       case 'cache':
-        if (metadata.readRootParamNames) {
-          for (const paramName of metadata.readRootParamNames) {
-            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
-          }
-        }
         // If this entry's cache life is dynamic, record this invocation as the
         // origin to use as `cause` when the outer cache surfaces the
         // nested-dynamic cache error. `??=` keeps the first occurrence so the
@@ -1019,6 +1020,12 @@ function propagateCacheEntryMetadata(
         }
       // fallthrough
       case 'private-cache':
+        if (metadata.readRootParamNames) {
+          for (const paramName of metadata.readRootParamNames) {
+            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
+          }
+        }
+      // fallthrough
       case 'prerender':
       case 'prerender-runtime':
       case 'prerender-legacy':
@@ -1063,12 +1070,11 @@ function propagateCacheEntryMetadata(
  * `propagateCacheEntryMetadata` is called unconditionally (after the omission
  * checks have already filtered out short-lived entries).
  *
- * Note: Root param names are only propagated to `readRootParamNames` when the
- * outer context is a `cache` store (i.e. an enclosing `"use cache"` function),
- * which is never deferred. For prerender contexts, root param names are
- * tracked separately via `addKnownRootParamNames` in the resume data cache
- * read path. They're also recorded as root vary params (if tracked), so that
- * the client doesn't reuse the segment across different values.
+ * Nested caches propagate root param names into the enclosing cache's
+ * `readRootParamNames` set. This propagation is never deferred. Prerender
+ * contexts also register known root param names when they read the resume
+ * data cache. A response accumulator records the consumed entry's root vary
+ * params to prevent segment reuse across different values.
  */
 function maybePropagateCacheEntryMetadata(
   cacheContext: CacheContext,
@@ -1251,10 +1257,7 @@ async function collectResult(
     entry,
     hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
     hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
-    readRootParamNames:
-      innerCacheStore.type === 'cache' || isPrivateCacheInDev
-        ? innerCacheStore.readRootParamNames
-        : undefined,
+    readRootParamNames: innerCacheStore.readRootParamNames,
     // The store accumulates this from nested public caches that propagated a
     // dynamic life into us.
     dynamicNestedCacheError:
