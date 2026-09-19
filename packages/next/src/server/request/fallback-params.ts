@@ -31,19 +31,6 @@ export type OpaqueFallbackRouteParams = ReadonlyMap<
 >
 
 /**
- * The entries of the opaque fallback route params object.
- *
- * @param key the key of the fallback route param
- * @param value the value of the fallback route param
- */
-export type OpaqueFallbackRouteParamEntries =
-  ReturnType<OpaqueFallbackRouteParams['entries']> extends MapIterator<
-    [infer K, infer V]
-  >
-    ? ReadonlyArray<[K, V]>
-    : never
-
-/**
  * Creates an opaque fallback route params object from the fallback route params.
  *
  * @param fallbackRouteParams the fallback route params
