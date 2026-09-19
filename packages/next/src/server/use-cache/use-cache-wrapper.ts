@@ -1925,7 +1925,10 @@ export async function cache(
         break
       case 'build-time-generator':
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateOutsideRequestContextError(workStore.route)
+          createUseCachePrivateOutsideRequestContextError(
+            workStore.route,
+            workUnitStore.functionName
+          )
         )
       default:
         workUnitStore satisfies never

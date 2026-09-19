@@ -145,6 +145,28 @@ function revalidate(
 
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
+    // Keep the generator's name before applying the general render-phase check.
+    switch (workUnitStore.type) {
+      case 'build-time-generator':
+        throw createRevalidateDuringRenderError(
+          store.route,
+          expression,
+          workUnitStore.functionName
+        )
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'prerender-legacy':
+      case 'request':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+
     if (workUnitStore.phase === 'render') {
       throw createRevalidateDuringRenderError(store.route, expression)
     }
@@ -153,7 +175,6 @@ function revalidate(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-      case 'build-time-generator':
         throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':

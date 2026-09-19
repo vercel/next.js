@@ -65,7 +65,7 @@ export function useDynamicRouteParams(expression: string) {
         )
       case 'build-time-generator':
         throw new InvariantError(
-          `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
+          `\`${expression}\` was called in \`${workUnitStore.functionName}\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
         )
       case 'prerender-legacy':
       case 'request':
@@ -129,7 +129,7 @@ export function useDynamicSearchParams(expression: string) {
       )
     case 'build-time-generator':
       throw new InvariantError(
-        `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
+        `\`${expression}\` was called in \`${workUnitStore.functionName}\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
       )
     case 'request':
       return

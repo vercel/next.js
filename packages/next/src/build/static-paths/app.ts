@@ -627,6 +627,7 @@ async function callGenerateStaticParams(
 
   const workUnitStore: BuildTimeGeneratorStore = {
     type: 'build-time-generator',
+    functionName: 'generateStaticParams',
     phase: 'render',
     implicitTags,
     rootParams,
