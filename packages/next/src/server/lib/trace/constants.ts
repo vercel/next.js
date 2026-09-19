@@ -136,6 +136,7 @@ enum MiddlewareSpan {
 
 enum UseCacheSpan {
   execute = 'UseCache.execute',
+  revalidate = 'UseCache.revalidate',
 }
 
 type SpanTypes =
@@ -167,6 +168,7 @@ export const NextVanillaSpanAllowlist = new Set([
   AppRenderSpan.getBodyResult,
   AppRenderSpan.executeServerAction,
   UseCacheSpan.execute,
+  UseCacheSpan.revalidate,
   LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
