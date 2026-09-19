@@ -189,7 +189,7 @@ export type RSCSegmentData = {
   varyParams: VaryParams | null
   /**
    * The segment's own staleTime in seconds, when the response carries one
-   * (per-segment prefetch responses only — see TransportSegmentData['s']).
+   * (see TransportSegmentData['s']).
    * Null means the response-level staleness governs this segment.
    */
   staleTimeSeconds: number | null
@@ -3411,8 +3411,8 @@ function writeTreeDataIntoCache(
   // prefetch cache.
   const data = tree.data
   if (data !== null && data.rsc !== null) {
-    // A segment carries its own staleTime only in per-segment prefetch
-    // responses; everywhere else the response-level staleness governs.
+    // Built-in captures have their own stale times; the fallback uses the
+    // page-wide value carried by the response.
     const entryStaleAt =
       data.staleTimeSeconds !== null
         ? now + getStaleTimeMs(data.staleTimeSeconds)
