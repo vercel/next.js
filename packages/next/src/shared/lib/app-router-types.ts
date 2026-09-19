@@ -278,6 +278,14 @@ export const enum PrefetchHint {
   // fallbacks — simply never carry it.) Set on every node of the tree, but
   // does not propagate.
   ShouldAttemptStaticPrefetch = 0b100000000000000,
+  // This dynamic segment only accepts build-time parameter values. Kept on
+  // the affected node, without propagating or copying it to other segments.
+  // Until the client knows the allowed values, any such node prevents route
+  // prediction, even when the route's components never read the parameter.
+  IsClosedParam = 0b1000000000000000,
+  // A descendant segment (but not this one) has a closed parameter. Propagates
+  // upward so route prediction can check the root instead of walking the tree.
+  SubtreeHasClosedParams = 0b10000000000000000,
 }
 
 /**
@@ -309,7 +317,8 @@ export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
 export const SubtreePrefetchHints =
   PrefetchHint.SubtreeHasPartialPrefetching |
   PrefetchHint.SubtreeHasLoadingBoundary |
-  PrefetchHint.SubtreeHasInstantFalse
+  PrefetchHint.SubtreeHasInstantFalse |
+  PrefetchHint.SubtreeHasClosedParams
 
 /**
  * Folds a child segment's prefetch hints into its parent's, propagating the
@@ -343,6 +352,12 @@ export function propagateSubtreeBits(
   // segment, so there's no separate segment-local flag — propagate it as-is.
   if (childHints & PrefetchHint.SubtreeHasInstantFalse) {
     parentHints |= PrefetchHint.SubtreeHasInstantFalse
+  }
+  if (
+    childHints &
+    (PrefetchHint.IsClosedParam | PrefetchHint.SubtreeHasClosedParams)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasClosedParams
   }
   return parentHints
 }
