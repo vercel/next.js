@@ -895,8 +895,16 @@ export default abstract class Server<
               'http.target': req.url,
             },
           },
-          async (span) =>
-            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          async (span) => {
+            if (process.env.__NEXT_DEV_SERVER) {
+              const { setRequestInsightRootParent } =
+                require('./lib/trace/request-insights') as typeof import('./lib/trace/request-insights')
+              setRequestInsightRootParent(
+                getRequestMeta(req, 'requestInsightsIdentity'),
+                span?.spanContext()
+              )
+            }
+            return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
               if (!span) return
 
               const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -955,6 +963,7 @@ export default abstract class Server<
                 span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
             })
+          }
         )
       })
 

@@ -30,6 +30,7 @@ import type {
 import type { RequestInsightsIdentity } from './request-insights-identity'
 import { reparentLocalSpans } from './local-span-recorder'
 import { AppRenderSpan } from './constants'
+import type { BrowserReactTimingState } from './browser-react-timings'
 export { isRequestInsightsEnabled }
 
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
@@ -40,6 +41,18 @@ const REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY = Symbol.for(
 )
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
+
+type DebugRequestIdentity = RequestInsightIdentity & {
+  debugRequestId?: string
+  htmlRequestId?: string
+}
+
+export type RequestInsightDebugContext = {
+  debugRequestId: string
+  identity: DebugRequestIdentity & { requestId: string }
+  parent: LocalSpanParent | undefined
+  browserTimings: BrowserReactTimingState
+}
 
 type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = Readonly<{
@@ -68,7 +81,14 @@ export type RequestInsightsJournalQuery = {
 }
 
 export type RequestInsightsHistoryProvider = {
-  append(request: RequestInsight): void
+  append(
+    request: RequestInsight,
+    debugContext?: RequestInsightDebugContext
+  ): void
+  getDebugRequest?(
+    debugRequestId: string,
+    htmlRequestId: string
+  ): RequestInsightDebugContext | null | undefined
   appendUpdate?(request: RequestInsight, update: RequestInsightUpdate): void
   appendArchivedUpdate?(
     identity: Pick<RequestInsight, 'requestId' | 'kind'>,
@@ -100,6 +120,20 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.request_insights.omitted_spans',
   'next.request_source',
   'next.rsc',
+  'next.rsc.kind',
+  'next.rsc.render_id',
+  'next.rsc.incomplete_reason',
+  'next.rsc.owner',
+  'next.rsc.component_path',
+  'next.rsc.environment',
+  'next.rsc.observation',
+  'next.rsc.outcome',
+  'next.rsc.observation_partial',
+  'next.rsc.timing',
+  'next.rsc.source.file',
+  'next.rsc.source.line',
+  'next.rsc.source.column',
+  'next.rsc.source.name',
   'next.segment',
   'next.span_category',
   'next.span_name',
@@ -115,8 +149,13 @@ class InMemoryRequestInsightsStore {
   private readonly requestOrder: string[] = []
   private readonly completedRequestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
+  private readonly debugRequestKeys = new Map<string, string>()
+  private readonly debugRequests = new Map<
+    string,
+    { requests: Map<string, RequestInsightDebugContext>; ambiguous: boolean }
+  >()
 
-  startRequest(identity: RequestInsightIdentity): void {
+  startRequest(identity: DebugRequestIdentity): void {
     if (!identity.requestId) {
       return
     }
@@ -124,6 +163,44 @@ class InMemoryRequestInsightsStore {
       requestId: identity.requestId,
       kind: identity.kind,
     })
+    const debugRequestId =
+      identity.debugRequestId ??
+      (identity.requestId === identity.htmlRequestId
+        ? identity.requestId
+        : undefined)
+    if (
+      debugRequestId &&
+      identity.htmlRequestId &&
+      getRequestInsightKind(identity) === 'request'
+    ) {
+      const debugKey = `${identity.htmlRequestId}:${debugRequestId}`
+      let entry = this.debugRequests.get(debugKey)
+      if (!entry) {
+        entry = { requests: new Map(), ambiguous: false }
+        this.debugRequests.set(debugKey, entry)
+      }
+      if (entry.requests.size > 0 && !entry.requests.has(insightKey)) {
+        entry.ambiguous = true
+      }
+      const context = entry.requests.get(insightKey)
+      if (context) {
+        context.identity = { ...identity, requestId: identity.requestId }
+      } else {
+        entry.requests.set(insightKey, {
+          debugRequestId,
+          identity: { ...identity, requestId: identity.requestId },
+          parent: undefined,
+          browserTimings: {
+            decoders: new Map(),
+            recordCount: 0,
+            byteLength: 0,
+            exhausted: false,
+            partialReported: false,
+          },
+        })
+      }
+      this.debugRequestKeys.set(insightKey, debugKey)
+    }
     if (this.requests.get(insightKey)?.completedAt === undefined) {
       this.activeRequests.add(insightKey)
     }
@@ -311,6 +388,52 @@ class InMemoryRequestInsightsStore {
     }
   }
 
+  getForDebugRequest(debugRequestId: string, htmlRequestId: string) {
+    const entry = this.debugRequests.get(`${htmlRequestId}:${debugRequestId}`)
+    if (entry?.ambiguous) return undefined
+    const archived = getRequestInsightsHistoryProvider()?.getDebugRequest?.(
+      debugRequestId,
+      htmlRequestId
+    )
+    if (archived === null) return undefined
+    if (!entry) return archived && { ...archived, insight: undefined }
+    if (entry.requests.size !== 1) return undefined
+    const [insightKey, context] = entry.requests.entries().next().value!
+    if (archived && getRequestInsightKey(archived.identity) !== insightKey) {
+      return undefined
+    }
+    return {
+      ...context,
+      insight: this.requests.get(insightKey),
+    }
+  }
+
+  setDebugRequestParent(
+    identity: RequestInsightIdentity,
+    parent: LocalSpanParent
+  ) {
+    if (
+      !identity.requestId ||
+      identity.source === 'proxy' ||
+      !parent.traceId ||
+      !parent.spanId
+    )
+      return
+    const key = getRequestInsightKey({
+      requestId: identity.requestId,
+      kind: identity.kind,
+    })
+    const debugKey = this.debugRequestKeys.get(key)
+    const context =
+      debugKey && this.debugRequests.get(debugKey)?.requests.get(key)
+    if (context && !context.parent) {
+      context.parent = {
+        traceId: parent.traceId,
+        spanId: parent.spanId,
+      }
+    }
+  }
+
   subscribe(listener: RequestInsightsListener): () => void {
     this.listeners.add(listener)
     return () => {
@@ -324,6 +447,8 @@ class InMemoryRequestInsightsStore {
     this.requestTimings.clear()
     this.requestOrder.length = 0
     this.completedRequestOrder.length = 0
+    this.debugRequestKeys.clear()
+    this.debugRequests.clear()
   }
 
   private updateTiming(
@@ -452,7 +577,18 @@ class InMemoryRequestInsightsStore {
     this.activeRequests.delete(insightKey)
     insight.completedAt = completedAt
     this.completedRequestOrder.push(insightKey)
-    appendCompletedRequestInsight(insight)
+    const completedDebugKey = this.debugRequestKeys.get(insightKey)
+    const debugContext =
+      completedDebugKey &&
+      this.debugRequests.get(completedDebugKey)?.requests.get(insightKey)
+    if (debugContext) {
+      debugContext.identity = {
+        ...debugContext.identity,
+        route: insight.route,
+        url: insight.url,
+      }
+    }
+    appendCompletedRequestInsight(insight, debugContext || undefined)
 
     const requestIndex = this.requestOrder.indexOf(insightKey)
     if (requestIndex !== -1) {
@@ -465,6 +601,13 @@ class InMemoryRequestInsightsStore {
     ) {
       const completedInsightKey = this.completedRequestOrder.shift()
       if (completedInsightKey) {
+        const debugKey = this.debugRequestKeys.get(completedInsightKey)
+        if (debugKey) {
+          const entry = this.debugRequests.get(debugKey)
+          entry?.requests.delete(completedInsightKey)
+          if (entry?.requests.size === 0) this.debugRequests.delete(debugKey)
+          this.debugRequestKeys.delete(completedInsightKey)
+        }
         this.requests.delete(completedInsightKey)
         this.requestTimings.delete(completedInsightKey)
         const completedIndex = this.requestOrder.indexOf(completedInsightKey)
@@ -507,10 +650,13 @@ function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
   }
 }
 
-function appendCompletedRequestInsight(insight: RequestInsight): void {
+function appendCompletedRequestInsight(
+  insight: RequestInsight,
+  debugContext: RequestInsightDebugContext | undefined
+): void {
   if (process.env.__NEXT_DEV_SERVER) {
     if (process.env.__NEXT_REQUEST_INSIGHTS) {
-      getRequestInsightsHistoryProvider()?.append(insight)
+      getRequestInsightsHistoryProvider()?.append(insight, debugContext)
     }
   } else {
     return
@@ -629,9 +775,29 @@ export function completeRequestInsight(identity: RequestInsightIdentity): void {
   getRequestInsightsStore().completeRequest(identity)
 }
 
-export function startRequestInsight(identity: RequestInsightIdentity): void {
+export function startRequestInsight(identity: DebugRequestIdentity): void {
   if (isRequestInsightsEnabled()) {
     getRequestInsightsStore().startRequest(identity)
+  }
+}
+
+export function getRequestInsightForDebugRequest(
+  debugRequestId: string,
+  htmlRequestId: string
+) {
+  if (!isRequestInsightsEnabled()) return undefined
+  return getRequestInsightsStore().getForDebugRequest(
+    debugRequestId,
+    htmlRequestId
+  )
+}
+
+export function setRequestInsightRootParent(
+  identity: RequestInsightIdentity | undefined,
+  parent: LocalSpanParent | undefined
+): void {
+  if (isRequestInsightsEnabled() && identity && parent) {
+    getRequestInsightsStore().setDebugRequestParent(identity, parent)
   }
 }
 

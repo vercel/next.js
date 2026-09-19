@@ -78,8 +78,10 @@ import {
 import { RouteKind } from '../route-kind'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
+import { createBrowserReactTimingReceiver } from '../lib/trace/browser-react-timings'
 import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
@@ -460,6 +462,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       const htmlRequestId = req.url
         ? new URL(req.url, 'http://n').searchParams.get('id')
         : null
+      const reactTimings = createBrowserReactTimingReceiver(
+        htmlRequestId,
+        this.config.experimental.requestInsights === true
+      )
 
       if (!this.webpackHotMiddleware) {
         throw new InvariantError('Did not start HotReloaderWebpack.')
@@ -498,6 +504,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             | undefined
 
           switch (payload.event) {
+            case HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS: {
+              reactTimings.receive(payload, data.length)
+              break
+            }
             case 'span-end': {
               traceChild = {
                 name: payload.spanName,
@@ -676,6 +686,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       client.on('close', () => {
+        reactTimings.dispose()
         this.webpackHotMiddleware?.deleteClient(client, htmlRequestId)
 
         if (htmlRequestId) {

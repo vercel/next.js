@@ -67,7 +67,7 @@ import {
   renderToNodeFizzStream,
   createNodeInlinedDataStream,
 } from './stream-ops'
-import type { AnyStream } from './stream-ops'
+import type { AnyStream, FlightRenderOptions } from './stream-ops'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { stripInternalQueries } from '../internal-utils'
@@ -1269,17 +1269,11 @@ async function spawnRuntimePrefetchWithFilledCaches(
   }
 }
 
-type RenderToReadableStreamServerOptions = NonNullable<
-  Parameters<
-    (typeof import('react-server-dom-webpack/server.node'))['renderToReadableStream']
-  >[2]
->
-
 async function stagedRenderWithoutCachesInDevNode(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
-  options: Omit<RenderToReadableStreamServerOptions, 'environmentName'>
+  options: Omit<FlightRenderOptions, 'environmentName'>
 ) {
   // We're rendering while bypassing caches,
   // so we have no hope of showing a useful runtime stage.
@@ -1653,7 +1647,7 @@ async function generateRuntimePrefetchResult(
     requestStore.draftMode,
     onError,
     staleTimeIterable,
-    debugChannel?.serverSide
+    debugChannel
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1850,7 +1844,7 @@ async function finalRuntimeServerPrerender(
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
   staleTimeIterable: StaleTimeIterable,
-  debugChannel: RenderToReadableStreamServerOptions['debugChannel']
+  debugChannel: DebugChannelPair | undefined
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -1965,14 +1959,15 @@ async function finalRuntimeServerPrerender(
 
       let stream = workUnitAsyncStorage.run(
         finalServerPrerenderStore,
-        ComponentMod.renderToReadableStream,
+        renderToWebFlightStream,
+        ComponentMod,
         finalRSCPayload,
         clientModules,
         {
           filterStackFrame,
           onError,
           signal: finalServerController.signal,
-          debugChannel,
+          debugChannel: debugChannel?.serverSide,
         }
       )
 
