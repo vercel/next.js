@@ -1431,7 +1431,7 @@ impl TurboTasksBackend {
                     };
                 } else {
                     debug_assert!(
-                        !inner.gc_maybe_collectible(),
+                        !inner.gc_collectible(),
                         "tasks scheduled for persistent must not be collectible, this implies a \
                          missed task during GC"
                     );
