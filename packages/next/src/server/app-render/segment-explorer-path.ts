@@ -3,7 +3,7 @@ import type { LoaderTree } from '../lib/app-dir-module'
 export const BUILTIN_PREFIX = '__next_builtin__'
 
 const nextInternalPrefixRegex =
-  /^(.*[\\/])?next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/]/
+  /^(.*[\\/])?next[\\/]dist[\\/](?:esm[\\/])?client[\\/]components[\\/]builtin[\\/]/
 
 /**
  * Normalize a file path to be relative to the project directory.

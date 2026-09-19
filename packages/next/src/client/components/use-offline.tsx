@@ -1,5 +1,7 @@
 'use client'
 
+export * as default from './use-offline'
+
 import React, {
   createContext,
   useContext,

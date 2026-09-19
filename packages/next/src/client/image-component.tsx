@@ -28,9 +28,13 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
-// This is replaced by webpack alias
-import defaultLoader from 'next/dist/shared/lib/image-loader'
+// This is replaced by a bundler alias. Use a namespace import so a custom
+// loader without a default export can reach the framework's runtime validation
+// instead of failing static ESM export validation first.
+import * as defaultLoaderModule from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
+
+const defaultLoader = Reflect.get(defaultLoaderModule, 'default')
 
 // This is replaced by webpack define plugin
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
