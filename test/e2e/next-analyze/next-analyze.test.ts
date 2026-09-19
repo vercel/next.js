@@ -121,9 +121,28 @@ describe('next experimental-analyze', () => {
           '{"route":"/","limit":1}',
         ])
         expect(sources.exitCode).toBe(0)
-        expect(JSON.parse(sources.stdout)).toMatchObject({
+        const sourceResult = JSON.parse(sources.stdout)
+        expect(sourceResult).toMatchObject({
           route: '/',
           sources: [{ sourcePath: expect.any(String) }],
+        })
+
+        const explanation = await next.runCommand([
+          'experimental-analyze',
+          '--query',
+          'explain_bundle_source',
+          '--input',
+          JSON.stringify({
+            route: '/',
+            sourcePath: sourceResult.sources[0].sourcePath,
+            maxDepth: 2,
+          }),
+        ])
+        expect(explanation.exitCode).toBe(0)
+        expect(JSON.parse(explanation.stdout)).toMatchObject({
+          route: '/',
+          sourcePath: sourceResult.sources[0].sourcePath,
+          routeEntryDetection: { heuristic: true },
         })
       })
     })
