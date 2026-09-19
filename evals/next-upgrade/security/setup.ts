@@ -3,8 +3,11 @@ import { join } from 'node:path'
 import type { Sandbox } from '@vercel/agent-eval'
 import { toolsDirectory } from '../lib/fixture'
 
-export async function setupSecurity(sandbox: Sandbox) {
-  const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
+export async function setupSecurity(
+  sandbox: Sandbox,
+  selectedFixture: string | undefined = undefined
+) {
+  const fixture = selectedFixture ?? process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture?.startsWith('security-'))
     throw new Error('Select a security upgrade eval case')
   const sameMajorTarget = '15.5.24'
@@ -56,12 +59,16 @@ export async function setupSecurity(sandbox: Sandbox) {
   const scenario = scenarios[fixture]
   if (!scenario) throw new Error('Unknown security upgrade eval case')
 
-  await setupUpgradeScenario(sandbox, {
-    fixturePrefix: 'security-',
-    assessmentPath: join(__dirname, 'assessment.mjs'),
-    assessment: scenario,
-    installedVersion: scenario.installedVersion,
-  })
+  await setupUpgradeScenario(
+    sandbox,
+    {
+      fixturePrefix: 'security-',
+      assessmentPath: join(__dirname, 'assessment.mjs'),
+      assessment: scenario,
+      installedVersion: scenario.installedVersion,
+    },
+    fixture
+  )
 }
 
 export async function setupUpgradeScenario(
@@ -73,7 +80,8 @@ export async function setupUpgradeScenario(
     installedVersion: string | undefined
     candidateScripts?: string[]
     skillInstructionsPath?: string
-  }
+  },
+  selectedFixture: string | undefined = undefined
 ) {
   const run = async (command: string, args: string[]) => {
     const result = await sandbox.runCommand(command, args)
@@ -83,7 +91,7 @@ export async function setupUpgradeScenario(
       )
     return result.stdout.trim()
   }
-  const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
+  const fixture = selectedFixture ?? process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture?.startsWith(options.fixturePrefix))
     throw new Error(`Select a ${options.fixturePrefix} upgrade eval case`)
   const security = `${toolsDirectory}/security`

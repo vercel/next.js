@@ -1,0 +1,189 @@
+name: next-upgrade-evals
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - '.github/workflows/next-upgrade-evals.yml'
+      - 'docs/01-app/02-guides/upgrading/**'
+      - 'docs/02-pages/02-guides/upgrading/**'
+      - 'evals/lib/**'
+      - 'evals/next-upgrade/**'
+      - 'packages/next-codemod/**'
+      - 'packages/next/src/bin/next.ts'
+      - 'packages/next/src/cli/next-upgrade.ts'
+      - 'packages/next/src/lib/upgrade/**'
+
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  select-evals:
+    name: Select evals
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      evals: ${{ steps.select.outputs.evals }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select affected evals
+        id: select
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process')
+          const { appendFileSync, readdirSync } = require('node:fs')
+          const { join } = require('node:path')
+
+          const fixturePrefix = 'evals/next-upgrade/evals/'
+          const fixtureDirectory = join(process.cwd(), fixturePrefix)
+          const allFixtures = readdirSync(fixtureDirectory, {
+            withFileTypes: true,
+          })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+            .sort()
+          const knownFixtures = new Set(allFixtures)
+          const changedFixtures = new Set()
+          const changedFiles = execFileSync(
+            'git',
+            [
+              'diff',
+              '--name-only',
+              `${process.env.BASE_SHA}...${process.env.HEAD_SHA}`,
+            ],
+            { encoding: 'utf8' }
+          )
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+
+          let runAll = false
+          for (const file of changedFiles) {
+            if (
+              file === '.github/workflows/next-upgrade-evals.yml' ||
+              file.startsWith('docs/01-app/02-guides/upgrading/') ||
+              file.startsWith('docs/02-pages/02-guides/upgrading/') ||
+              file.startsWith('evals/lib/') ||
+              file.startsWith('packages/next-codemod/') ||
+              file === 'packages/next/src/bin/next.ts' ||
+              file === 'packages/next/src/cli/next-upgrade.ts' ||
+              file.startsWith('packages/next/src/lib/upgrade/') ||
+              (file.startsWith('evals/next-upgrade/') &&
+                !file.startsWith(fixturePrefix))
+            ) {
+              runAll = true
+              break
+            }
+
+            if (file.startsWith(fixturePrefix)) {
+              const fixture = file.slice(fixturePrefix.length).split('/')[0]
+              if (!knownFixtures.has(fixture)) {
+                runAll = true
+                break
+              }
+              changedFixtures.add(fixture)
+            }
+          }
+
+          const selected = runAll ? allFixtures : [...changedFixtures].sort()
+          if (selected.length === 0) {
+            throw new Error('The workflow was triggered without an affected eval')
+          }
+          appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `evals=${JSON.stringify(selected)}\n`
+          )
+          console.log(`Selected evals: ${selected.join(', ')}`)
+          NODE
+
+  eval:
+    name: Run evals
+    needs: select-evals
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: next-upgrade-evals
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Setup pnpm
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build-all
+
+      - name: Pull Vercel OIDC token
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_NEXT_UPGRADE_EVALS_TOKEN }}
+        run: |
+          pnpm dlx vercel@59.11.0 env pull .env.local \
+            --yes \
+            --environment=development \
+            --scope "$VERCEL_TEAM_ID" \
+            --project "$VERCEL_PROJECT_ID" \
+            --token "$VERCEL_TOKEN"
+
+          node <<'NODE'
+          const {
+            appendFileSync,
+            readFileSync,
+            rmSync,
+          } = require('node:fs')
+          const { parse } = require('dotenv')
+
+          const oidc = parse(readFileSync('.env.local')).VERCEL_OIDC_TOKEN
+          if (!oidc) throw new Error('Vercel did not provide an OIDC token')
+          console.log(`::add-mask::${oidc}`)
+          appendFileSync(process.env.GITHUB_ENV, `VERCEL_OIDC_TOKEN=${oidc}\n`)
+          rmSync('.env.local')
+          NODE
+
+      - name: Run eval
+        env:
+          EVALS: ${{ needs.select-evals.outputs.evals }}
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require('node:child_process')
+
+          const evals = JSON.parse(process.env.EVALS)
+          const result = spawnSync('pnpm', ['eval:upgrade', ...evals], {
+            stdio: 'inherit',
+          })
+          if (result.error) throw result.error
+          if (result.status !== 0) process.exitCode = 1
+          NODE
+
+      - name: Retain transcripts and grading evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-upgrade-evals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evals/next-upgrade/results/
+          if-no-files-found: warn
+          retention-days: 14

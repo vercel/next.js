@@ -13,14 +13,15 @@ assertions, judging and result storage belong to `@vercel/agent-eval`.
 
 ```sh
 pnpm build-all
-pnpm eval:upgrade <fixture-name> --dry
-NEXT_UPGRADE_EVAL_EXPERIMENT=codex pnpm eval:upgrade <fixture-name>
+pnpm eval:upgrade <fixture-name> [fixture-name...] --dry
+NEXT_UPGRADE_EVAL_EXPERIMENT=codex pnpm eval:upgrade <fixture-name> [fixture-name...]
 ```
 
 Omit the experiment filter to run Codex and Claude. `--list` lists fixtures without
-packing or making model calls. Run one named fixture at a time. Results use the
-framework's normal `results/` layout. Fixtures are added by the feature PRs stacked
-above this infrastructure.
+packing or making model calls. Named fixtures and their selected harnesses run
+concurrently after packages and the shared toolchain are prepared once. Results use
+the framework's normal `results/` layout. Fixtures are added by the feature PRs
+stacked above this infrastructure.
 
 ## Lifecycle
 
