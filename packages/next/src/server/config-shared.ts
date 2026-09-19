@@ -497,6 +497,20 @@ export interface ExperimentalConfig {
    */
   agentFeedback?: boolean
   /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   *
+   * Root names must contain 1-40 characters, using only ASCII letters, digits,
+   * underscores, or hyphens. They must not be Windows device names and must be
+   * unique under ASCII case-insensitive comparison. Invalid roots produce a
+   * warning and are ignored.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
+  /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
