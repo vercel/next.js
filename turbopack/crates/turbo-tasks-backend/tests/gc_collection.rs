@@ -13,7 +13,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    gc_fixture::{Selector, create_selector},
+    gc_fixture::{Constant, Selector, create_constant, create_selector},
     util::create_tt,
 };
 
@@ -47,6 +47,29 @@ async fn branch_a() -> Result<Vc<u32>> {
 #[turbo_tasks::function]
 async fn branch_b() -> Result<Vc<u32>> {
     Ok(Vc::cell(2 + *leaf(20).await?))
+}
+
+/// Reads `observed` so the task registers an invalidator on it, then goes out of the live graph
+/// when the selector flips. Whether that invalidator outlives the task is the point of
+/// `mutating_a_state_read_by_a_collected_task_does_not_panic`.
+#[turbo_tasks::function]
+async fn state_reader(observed: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*observed.await?.get()))
+}
+
+/// Reads `state_reader` only while the selector is false, so flipping it disconnects the reader.
+#[turbo_tasks::function(operation, root)]
+async fn select_state_reader(
+    selector: ResolvedVc<Selector>,
+    observed: ResolvedVc<Constant>,
+) -> Result<Vc<u32>> {
+    let use_b = *selector.await?.get();
+    let value = if use_b {
+        *branch_b().await?
+    } else {
+        *state_reader(*observed).await?
+    };
+    Ok(Vc::cell(value))
 }
 
 /// A task that pins itself against GC while executing. Once pinned it must survive collection even
@@ -268,4 +291,61 @@ async fn unpin_after_stop_does_not_panic() {
     tt.stop_and_wait().await;
 
     tt.unpin_task_for_gc(leaf_id);
+}
+
+/// A `State` keeps an `Invalidator` for every task that read it, and those entries are plain task
+/// ids with nothing keeping the task alive. Collecting a reader therefore leaves a dangling
+/// invalidator behind, this test ensures that that doesn't cause a panic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mutating_a_state_read_by_a_collected_task_does_not_panic() {
+    let (tt, _persistence_dir) =
+        create_tt("mutating_a_state_read_by_a_collected_task_does_not_panic");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let observed_vc = create_constant().resolve().strongly_consistent().await?;
+
+        // `state_reader` reads `observed`, registering an invalidator on that State.
+        let output = select_state_reader(selector_vc, observed_vc);
+        output.read_strongly_consistent().await?;
+
+        // Flip so `state_reader` leaves the live graph; its invalidator stays on `observed`.
+        selector.set(true);
+        output.read_strongly_consistent().await?;
+
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert!(
+        collected > 0,
+        "the disconnected state reader should have been collected"
+    );
+
+    // Required, and not just for realism: the evict is what selects the code path under test.
+    // GC only soft-deletes, leaving the task resident, and a weak open of a resident-but-deleted
+    // task returns early on the `deleted` flag. Evicting drops it from memory (and tombstones it on
+    // disk), so the open below instead reaches the exists-nowhere case in
+    // `ExecuteContextImpl::open_task` -- nothing restored, nothing found on disk -- which is the
+    // one that would panic under `MustExist`. Drop this line and the test still passes, but it
+    // stops covering that path.
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+
+    // Mutating the State now walks its invalidator list, which still names the collected reader.
+    let tt3 = tt.clone();
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let observed = create_constant().read_strongly_consistent().await?;
+        observed.set(1);
+        let _ = &tt3;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    tt.stop_and_wait().await;
 }

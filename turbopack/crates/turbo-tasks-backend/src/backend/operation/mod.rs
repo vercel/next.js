@@ -30,7 +30,7 @@ use crate::{
         EventDescription, TaskDataCategory, TurboTasksBackend,
         cell_data::CellData,
         snapshot_coordinator::{OperationGuard, SnapshotPhase},
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
@@ -40,9 +40,55 @@ pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error
     fn execute(self, ctx: &mut impl ExecuteContext<'_>);
 }
 
-/// Whether an [`ExecuteContext`] task open may create the task or requires it to already exist.
-/// A private impl detail behind the two public methods ([`ExecuteContext::task`] = `MustExist`,
-/// [`ExecuteContext::open_or_create_task_storage`] = `MaybeCreate`).
+/// The task storage `open_task` is working with, which may or may not still own its map entry.
+enum OpenedTask<'a> {
+    Owned(TaskEntryGuard<'a>),
+    Restored(StorageWriteGuard<'a>),
+}
+
+impl<'a> OpenedTask<'a> {
+    /// Removes the entry if this still owns it. Callers reach this only having established that the
+    /// task exists nowhere, which implies the `Owned` variant.
+    fn discard(self) {
+        match self {
+            OpenedTask::Owned(g) => g.discard(),
+            OpenedTask::Restored(_) => {
+                unreachable!("a task restored by another thread exists and is never discarded")
+            }
+        }
+    }
+
+    fn into_write_guard(self) -> StorageWriteGuard<'a> {
+        match self {
+            OpenedTask::Owned(g) => g.into_write_guard(),
+            OpenedTask::Restored(g) => g,
+        }
+    }
+}
+
+impl std::ops::Deref for OpenedTask<'_> {
+    type Target = TaskStorage;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            OpenedTask::Owned(g) => g,
+            OpenedTask::Restored(g) => g,
+        }
+    }
+}
+
+impl std::ops::DerefMut for OpenedTask<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            OpenedTask::Owned(g) => g,
+            OpenedTask::Restored(g) => g,
+        }
+    }
+}
+
+/// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
+/// tolerates its absence. A private impl detail behind the three public methods
+/// ([`ExecuteContext::task`] = `MustExist`, [`ExecuteContext::open_or_create_task_storage`] =
+/// `MaybeCreate`, [`ExecuteContext::try_get_task`] = `AllowMissing`).
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum TaskAccess {
     /// Open the task, creating it if it does not exist: `access_mut` inserts a blank entry, then
@@ -52,8 +98,10 @@ enum TaskAccess {
     /// task that exists in neither memory nor persistent storage is a bug — a stale reference to an
     /// already-collected or never-created task — and this refuses to fabricate a blank for it.
     ///
-    /// This is very much expression a 'foreign key constraint' on the database.
+    /// This is very much expressing a 'foreign key constraint' on the database.
     MustExist,
+    /// Open a task that may legitimately be gone or `deleted`.
+    AllowMissing,
 }
 
 // TODO: consider removing this trait (and `TaskGuard`) in favor of the concrete types. Each has
@@ -73,6 +121,15 @@ pub trait ExecuteContext<'e>: Sized {
     /// The check applies only to persistent tasks; a `MustExist` open of a transient id falls
     /// through to create. See `ExecuteContextImpl::open_task`.
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
+    /// Opens a task that may legitimately be gone, returning `None` if it is.
+    ///
+    /// Gone covers both a task that exists nowhere and one that is soft-deleted: the caller cannot
+    /// tell those apart, since only the timing of the next eviction separates them.
+    fn try_get_task(
+        &mut self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Option<Self::TaskGuardImpl>;
     /// Opens a task, materializing an in-memory storage entry for it if one is not resident yet
     /// (inserting a blank, then restoring `category` from disk if present). Use only where the
     /// task's storage may not be resident: the first connect of a freshly-minted child (threads can
@@ -299,26 +356,24 @@ impl<'e> ExecuteContextImpl<'e> {
         task_id: TaskId,
         category: TaskDataCategory,
         access: TaskAccess,
-    ) -> TaskGuardImpl<'e> {
+    ) -> Option<TaskGuardImpl<'e>> {
         self.task_lock_counter.acquire();
 
-        // A resident entry always corresponds to a task that exists (only a `MaybeCreate` open ever
-        // inserts a blank, and only for a task being created). A `MustExist` open therefore only
-        // needs to prove existence when the entry looks like a fresh blank: nothing restored, not a
-        // new task. (A fully-evicted resident task also matches this shape, but it is on disk, so
-        // the `found_on_disk` check below clears it — the panic fires only when the task is in
-        // neither memory nor disk.)
-        let mut task = self.backend.storage.access_mut(task_id);
-        // The `MustExist` non-fabrication check applies only to **persistent** tasks: they have
-        // disk backing and are the subject of the stale-reference/GC concern. A transient task has
-        // no disk copy and is materialized lazily in memory (a strongly-consistent read can open a
-        // transient root through the aggregation graph before its storage entry exists), so a
-        // `MustExist` open of a transient id is a no-op that falls through to create.
-        let maybe_fabricated = access == TaskAccess::MustExist
-            && !task_id.is_transient()
-            && !task.flags.is_restored(TaskDataCategory::Meta)
-            && !task.flags.is_restored(TaskDataCategory::Data)
-            && !task.flags.new_task();
+        let mut task = OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id));
+        // Treat deleted tasks under Allowmissing as missing
+        if access == TaskAccess::AllowMissing && task.flags.deleted() {
+            self.task_lock_counter.release();
+            return None;
+        }
+
+        // IF the caller cares about existence (either to panic or return None), check if this is an
+        // effectively blank task
+        let needs_existence_check =
+            matches!(access, TaskAccess::MustExist | TaskAccess::AllowMissing)
+                && !task_id.is_transient()
+                && !task.flags.is_restored(TaskDataCategory::Meta)
+                && !task.flags.is_restored(TaskDataCategory::Data)
+                && !task.flags.new_task();
         if !task.flags.is_restored(category) {
             if task_id.is_transient() {
                 task.flags.set_restored(TaskDataCategory::All);
@@ -371,10 +426,12 @@ impl<'e> ExecuteContextImpl<'e> {
 
                     // Wait for categories claimed by another thread (after our I/O).
                     // Reuse the returned write guard to avoid a second lock acquisition.
+                    // Reuse the guard the waiter already holds; only our own-I/O path can come
+                    // up empty and need to discard the entry.
                     task = if let Some(cat) = wait_category(data_restoring, meta_restoring) {
-                        self.wait_for_restore_or_panic(task_id, cat)
+                        OpenedTask::Restored(self.wait_for_restore_or_panic(task_id, cat))
                     } else {
-                        self.backend.storage.access_mut(task_id)
+                        OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id))
                     };
                     if waiting_for_restore {
                         // This caller owns the pin and releases it only after acquiring the task
@@ -406,40 +463,51 @@ impl<'e> ExecuteContextImpl<'e> {
                         self.backend.storage.restored.notify(usize::MAX);
                     }
 
-                    // The caller asserted this task exists (`MustExist`), but it looked like a
-                    // fresh blank and restore found nothing on disk (and no one
-                    // else was restoring it): it exists nowhere. Fail loudly
-                    // rather than hand back a fabricated task, which
-                    // would silently corrupt the graph. (The leftover blank entry is inert; the
+                    // It looked like a fresh blank and restore found nothing on disk (and no one
+                    // else was restoring it): it exists nowhere. An `AllowMissing` open reports
+                    // that; a `MustExist` open fails loudly rather than hand
+                    // back a fabricated task, which would silently corrupt the
+                    // graph. (The leftover blank entry is inert; the
                     // panic tears the process down.)
                     //
-                    // This also fires if the on-disk cache is corrupt or truncated. That is the
-                    // intended behavior: there is no recovery path for reading a cell on a task
-                    // that is missing from disk, and the panic is self-healing — the cache is
-                    // discarded and rebuilt on the next run.
-                    assert!(
-                        !(maybe_fabricated && !found_on_disk),
-                        "task({task_id}, MustExist): task exists in neither memory nor persistent \
-                         storage — a stale reference to an already-collected or never-created task"
-                    );
-                } else {
+                    // For `MustExist` this also fires if the on-disk cache is corrupt or truncated.
+                    // That is the intended behavior: there is no recovery path for reading a cell
+                    // on a task that is missing from disk, and the panic is self-healing — the
+                    // cache is discarded and rebuilt on the next run.
+                    if needs_existence_check && !found_on_disk {
+                        if access == TaskAccess::AllowMissing {
+                            task.discard();
+                            self.task_lock_counter.release();
+                            return None;
+                        }
+                        panic!(
+                            "task({task_id}, MustExist): task exists in neither memory nor \
+                             persistent storage — a stale reference to an already-collected or \
+                             never-created task"
+                        );
+                    }
+                } else if needs_existence_check {
                     // Nothing to restore (no categories claimed, none in progress) yet the entry
-                    // looked like a fresh blank for a task asserted to exist: it does not exist.
-                    assert!(
-                        !maybe_fabricated,
+                    // looked like a fresh blank for a task expected to exist: it does not exist.
+                    if access == TaskAccess::AllowMissing {
+                        task.discard();
+                        self.task_lock_counter.release();
+                        return None;
+                    }
+                    panic!(
                         "task({task_id}, MustExist): task exists in neither memory nor persistent \
                          storage — a stale reference to an already-collected or never-created task"
                     );
                 }
             }
         }
-        TaskGuardImpl {
-            task,
+        Some(TaskGuardImpl {
+            task: task.into_write_guard(),
             task_id,
             #[cfg(debug_assertions)]
             category,
             task_lock_counter: self.task_lock_counter.clone(),
-        }
+        })
     }
 
     /// Restores one category for a task from persistent storage. `None` means the task was **not
@@ -974,7 +1042,7 @@ fn wait_category(wait_data: bool, wait_meta: bool) -> Option<TaskDataCategory> {
 /// the restored flag. On error, returns the error so the caller can drop the task lock,
 /// notify waiters, and panic.
 fn apply_restore_result(
-    task: &mut StorageWriteGuard<'_>,
+    task: &mut (impl std::ops::DerefMut<Target = TaskStorage> + ?Sized),
     result: Result<Option<TaskStorage>>,
     category: SpecificTaskDataCategory,
 ) -> Result<()> {
@@ -1018,6 +1086,15 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
         self.open_task(task_id, category, TaskAccess::MustExist)
+            .expect("a MustExist open either yields a task or panics")
+    }
+
+    fn try_get_task(
+        &mut self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Option<Self::TaskGuardImpl> {
+        self.open_task(task_id, category, TaskAccess::AllowMissing)
     }
 
     fn open_or_create_task_storage(
@@ -1026,6 +1103,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         category: TaskDataCategory,
     ) -> Self::TaskGuardImpl {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
+            .expect("a MaybeCreate open always yields a task")
     }
 
     fn prepare_tasks(
@@ -1080,11 +1158,11 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         // in memory and has no disk copy): a task that looks like a freshly-inserted blank (nothing
         // restored, not a new task) and that restore does not find on disk exists nowhere — a stale
         // reference. See `TaskAccess::MustExist`.
-        let maybe_fabricated1 = !task_id1.is_transient()
+        let needs_existence_check1 = !task_id1.is_transient()
             && !task1.flags.is_restored(TaskDataCategory::Meta)
             && !task1.flags.is_restored(TaskDataCategory::Data)
             && !task1.flags.new_task();
-        let maybe_fabricated2 = !task_id2.is_transient()
+        let needs_existence_check2 = !task_id2.is_transient()
             && !task2.flags.is_restored(TaskDataCategory::Meta)
             && !task2.flags.is_restored(TaskDataCategory::Data)
             && !task2.flags.new_task();
@@ -1232,15 +1310,15 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             // A `MustExist` pair open must not fabricate: a task that looked like a fresh blank and
             // was not found on disk exists nowhere (a stale reference). See
             // `TaskAccess::MustExist`. Only reachable in the restore branch — a task
-            // already resident/restored (the else path) has `maybe_fabricated ==
+            // already resident/restored (the else path) has `needs_existence_check ==
             // false`.
             assert!(
-                !(maybe_fabricated1 && !found_on_disk1),
+                !(needs_existence_check1 && !found_on_disk1),
                 "task_pair({task_id1}, .., MustExist): task exists in neither memory nor \
                  persistent storage — a stale reference to a never-created task"
             );
             assert!(
-                !(maybe_fabricated2 && !found_on_disk2),
+                !(needs_existence_check2 && !found_on_disk2),
                 "task_pair(.., {task_id2}, MustExist): task exists in neither memory nor \
                  persistent storage — a stale reference to a never-created task"
             );
@@ -1489,12 +1567,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Whether a GC pass may collect this task: it is non-transient and nothing references it.
     ///
-    /// How much this proves depends on the guard's category — with only `Meta` open it is a sound
-    /// pre-filter that cannot see dependency edges, and with `All` open it is authoritative. See
+    /// Only reads `Meta`, so any guard category gives the same answer. See
     /// [`TaskStorage::gc_maybe_collectible`] for the full contract.
     fn is_gc_collectible(&self) -> bool {
         // Transient-ness is a property of the id, not the storage; transient tasks are never
-        // collected.
+        // collected, including via the `note_maybe_collectible` cascade path, which does not go
+        // through the shard scan's filter.
         self.check_access(SpecificTaskDataCategory::Meta);
         !self.id().is_transient() && self.typed().gc_maybe_collectible()
     }
