@@ -37,7 +37,7 @@ use crate::{
 /// [`EcmascriptModuleLocalsModule`]: crate::side_effect_optimization::locals::module::EcmascriptModuleLocalsModule
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub(crate) module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
