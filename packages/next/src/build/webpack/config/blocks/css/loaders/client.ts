@@ -6,13 +6,11 @@ export function getClientStyleLoader({
   isAppDir,
   isDevelopment,
   assetPrefix,
-  experimentalInlineCss,
 }: {
   hasAppDir: boolean
   isAppDir?: boolean
   isDevelopment: boolean
   assetPrefix: string
-  experimentalInlineCss?: boolean
 }): webpack.RuleSetUseItem {
   const isRspack = Boolean(process.env.NEXT_RSPACK)
   const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
@@ -54,7 +52,9 @@ export function getClientStyleLoader({
   return {
     loader: MiniCssExtractPlugin.loader,
     options: {
-      publicPath: experimentalInlineCss ? '/' : `${assetPrefix}/_next/`,
+      // This is already an absolute URL, so it also works for CSS that is
+      // inlined into the document with `experimental.inlineCss`.
+      publicPath: `${assetPrefix}/_next/`,
       esModule: false,
     },
   }
