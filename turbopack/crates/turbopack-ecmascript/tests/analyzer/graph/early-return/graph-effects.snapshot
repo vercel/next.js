@@ -133,6 +133,7 @@
                         span: 34..38,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -291,6 +292,7 @@
                         span: 58..62,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: StartAfter(
@@ -473,6 +475,7 @@
                             span: 100..104,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                         Unreachable {
                             start_ast_path: [
@@ -661,6 +664,7 @@
                             span: 133..137,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: Exact(
@@ -770,6 +774,7 @@
                             span: 145..149,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: StartAfter(
@@ -982,6 +987,7 @@
                         span: 201..205,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: StartAfter(
@@ -1224,6 +1230,7 @@
                             span: 266..270,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: Exact(
@@ -1333,6 +1340,7 @@
                             span: 278..282,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: StartAfter(
@@ -1516,6 +1524,7 @@
                             span: 321..325,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: Exact(
@@ -1625,6 +1634,7 @@
                             span: 356..360,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: StartAfter(
@@ -1839,6 +1849,7 @@
                         span: 424..428,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: StartAfter(
@@ -2079,6 +2090,7 @@
                             span: 467..471,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: Exact(
@@ -2188,6 +2200,7 @@
                             span: 512..516,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: StartAfter(
@@ -2327,6 +2340,7 @@
                             span: 488..492,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                         Unreachable {
                             start_ast_path: [
@@ -2530,6 +2544,7 @@
                         span: 590..594,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: StartAfter(
@@ -2667,6 +2682,7 @@
                         span: 566..570,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -2880,6 +2896,7 @@
         span: 642..646,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -3030,6 +3047,7 @@
         span: 657..661,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -3202,6 +3220,7 @@
         span: 715..719,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -3360,6 +3379,7 @@
         span: 734..738,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

@@ -207,6 +207,7 @@
         span: 17..56,
         in_try: false,
         new: true,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "Worker",
@@ -279,5 +280,6 @@
         span: 58..79,
         in_try: false,
         new: true,
+        evaluation_timing: Evaluation,
     },
 ]

@@ -120,6 +120,7 @@
         span: 191..201,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -291,6 +292,7 @@
         span: 286..301,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     ImportedBinding {
         esm_reference_index: 8,
@@ -441,6 +443,7 @@
         span: 350..365,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -612,6 +615,7 @@
         span: 403..413,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     ImportedBinding {
         esm_reference_index: 3,
@@ -762,6 +766,7 @@
         span: 484..494,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -933,5 +938,6 @@
         span: 532..542,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
 ]

@@ -162,6 +162,7 @@
         span: 70..117,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -210,6 +211,7 @@
         span: 133..151,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -319,6 +321,7 @@
         span: 164..186,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: MemberCall(
@@ -539,6 +542,7 @@
         span: 34..42,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     MemberCall {
         obj: MemberCall(
@@ -614,6 +618,7 @@
         span: 34..49,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

@@ -102,6 +102,7 @@
         span: 25..54,
         in_try: true,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -212,6 +213,7 @@
         span: 78..103,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -295,5 +297,6 @@
         span: 108..116,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

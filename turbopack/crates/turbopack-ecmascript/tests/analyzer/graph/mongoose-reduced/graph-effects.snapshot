@@ -185,6 +185,7 @@
         span: 123..154,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -282,5 +283,6 @@
         span: 199..230,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

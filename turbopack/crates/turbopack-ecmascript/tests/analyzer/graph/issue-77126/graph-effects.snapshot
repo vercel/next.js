@@ -52,6 +52,7 @@
         span: 71..82,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Conditional {
         condition: Variable(

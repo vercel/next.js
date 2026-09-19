@@ -402,6 +402,7 @@ impl ModuleReference for EcmascriptClientReference {
                 // React Flight resolves the target module with the original export name.
                 namespace_object_may_escape: true,
             },
+            evaluation_timing: Default::default(),
         }
     }
 }
