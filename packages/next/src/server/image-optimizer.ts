@@ -561,7 +561,10 @@ export async function fetchExternalImage(
         '"url" parameter is valid but upstream response timed out'
       )
     }
-    throw err
+    throw new ImageError(
+      502,
+      '"url" parameter is valid but upstream request failed'
+    )
   }
 
   const locationHeader = res.headers.get('Location')
