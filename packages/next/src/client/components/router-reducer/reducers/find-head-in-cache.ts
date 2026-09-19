@@ -3,8 +3,7 @@ import type {
   CacheNode,
 } from '../../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
-import { createRouterCacheKey } from '../create-router-cache-key'
-import { createServerSegmentKey } from '../create-server-segment-key'
+import { createSegmentKey } from '../create-segment-key'
 
 export function findHeadInCache(
   cache: CacheNode,
@@ -52,10 +51,7 @@ function findHeadInCacheImpl(
 
       // This key identifies the Head component, not a cache entry. On the
       // server it must match even when resuming with previously unknown params.
-      const segmentKey =
-        typeof window === 'undefined'
-          ? createServerSegmentKey(segment)
-          : createRouterCacheKey(segment)
+      const segmentKey = createSegmentKey(segment)
 
       const item = findHeadInCacheImpl(
         childCacheNode,

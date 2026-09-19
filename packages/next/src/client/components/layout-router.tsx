@@ -36,8 +36,7 @@ import {
   InstantValidationBoundaryContext,
   RenderValidationBoundaryAtThisLevel,
 } from './instant-validation/boundary'
-import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
-import { createServerSegmentKey } from './router-reducer/create-server-segment-key'
+import { createSegmentKey } from './router-reducer/create-segment-key'
 import {
   useRouterBFCache,
   type RouterBFCacheEntry,
@@ -565,11 +564,13 @@ export default function OuterLayoutRouter({
         [parallelRouterKey]
       : parentSegmentPath.concat([parentTreeSegment, parallelRouterKey])
 
-  // The "state" key of a segment is the one passed to React — it represents the
-  // identity of the UI tree. Whenever the state key changes, the tree is
-  // recreated and the state is reset. In the App Router model, search params do
-  // not cause state to be lost, so two segments with the same segment path but
-  // different search params should have the same state key.
+  // The "state" key of a segment is the one passed to React. In the browser it
+  // represents the identity of the UI tree. Whenever the state key changes,
+  // the tree is recreated and the state is reset. In the App Router model,
+  // search params do not cause state to be lost, so two segments with the same
+  // segment path but different search params should have the same state key.
+  // On the server, the key describes the segment's structure instead, so it
+  // stays the same when unknown params become known during HTML resume.
   //
   // The "cache" key of a segment, however, *does* include the search params, if
   // it's possible that the segment accessed the search params on the server.
@@ -592,7 +593,7 @@ export default function OuterLayoutRouter({
 
   const activeSegment = activeTree[0]
   const activeCacheNode = maybeParentSlots![parallelRouterKey] ?? null
-  const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
+  const activeStateKey = createSegmentKey(activeSegment, true) // no search params
 
   // At each level of the route tree, not only do we render the currently
   // active segment — we also render the last N segments that were active at
@@ -611,12 +612,6 @@ export default function OuterLayoutRouter({
     const cacheNode = bfcacheEntry.cacheNode
     const stateKey = bfcacheEntry.stateKey
     const segment = tree[0]
-    // The server only renders the active entry. Its React key must stay the
-    // same when unknown params become known during resume. Cache identity and
-    // browser keys still include the concrete values.
-    const reactKey =
-      typeof window === 'undefined' ? createServerSegmentKey(segment) : stateKey
-
     /*
     - Error boundary
       - Only renders error boundary if error component is provided.
@@ -738,7 +733,7 @@ export default function OuterLayoutRouter({
     }
 
     let child = (
-      <TemplateContext.Provider key={reactKey} value={templateValue}>
+      <TemplateContext.Provider key={stateKey} value={templateValue}>
         {templateStyles}
         {templateScripts}
         {template}
@@ -750,7 +745,7 @@ export default function OuterLayoutRouter({
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
       child = (
-        <SegmentStateProvider key={reactKey}>
+        <SegmentStateProvider key={stateKey}>
           {child}
           {segmentViewBoundaries}
         </SegmentStateProvider>
@@ -761,7 +756,7 @@ export default function OuterLayoutRouter({
       child = (
         <Activity
           name={debugNameToDisplay}
-          key={reactKey}
+          key={stateKey}
           mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
         >
           {child}
