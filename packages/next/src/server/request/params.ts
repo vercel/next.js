@@ -79,7 +79,7 @@ export function createParamsFromClient(
         )
       case 'build-time-generator':
         throw new InvariantError(
-          'createParamsFromClient should not be called inside generateStaticParams.'
+          `createParamsFromClient should not be called inside ${workUnitStore.functionName}.`
         )
       case 'validation-client': {
         if (workUnitStore.validationSamples) {
@@ -168,7 +168,7 @@ export function createServerParamsForRoute(
         )
       case 'build-time-generator':
         throw new InvariantError(
-          'createServerParamsForRoute should not be called inside generateStaticParams.'
+          `createServerParamsForRoute should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime': {
         throw new InvariantError(
@@ -230,7 +230,7 @@ export function createServerParamsForServerSegment(
         )
       case 'build-time-generator':
         throw new InvariantError(
-          'createServerParamsForServerSegment should not be called inside generateStaticParams.'
+          `createServerParamsForServerSegment should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
         return createRuntimePrerenderParams(
@@ -302,7 +302,7 @@ export function createPrerenderParamsForClientSegment(
         )
       case 'build-time-generator':
         throw new InvariantError(
-          'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
+          `createPrerenderParamsForClientSegment should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
       case 'prerender-legacy':

@@ -137,7 +137,7 @@ export function unstable_prefetch(): Promise<void> {
     }
     case 'build-time-generator': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a prefetch. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route ${workStore.route} used \`unstable_prefetch()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without a prefetch. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
     }
     case 'prerender-client':
@@ -290,7 +290,7 @@ export function unstable_navigation(): Promise<void> {
     }
     case 'build-time-generator': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route ${workStore.route} used \`unstable_navigation()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
     }
     case 'prerender-client':

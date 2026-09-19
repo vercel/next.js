@@ -123,10 +123,11 @@ export function createDraftModeMutationInUnstableCacheError(
 
 export function createRevalidateDuringRenderError(
   route: string,
-  expression: string
+  expression: string,
+  generatorName?: string
 ): Error {
   return new Error(
-    `Route "${route}": \`${expression}\` can't be called during render, inside a cached function, or inside \`generateStaticParams\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
+    `Route "${route}": \`${expression}\` can't be called during render, inside a cached function, or inside \`${generatorName ?? 'generateStaticParams'}\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
   )
 }
 
@@ -191,9 +192,10 @@ export function createUseCachePrivateInsideUnstableCacheError(
 }
 
 export function createUseCachePrivateOutsideRequestContextError(
-  route: string
+  route: string,
+  functionName: string
 ): Error {
   return new Error(
-    `Route "${route}": \`"use cache: private"\` needs an active request, so it can't be used during \`generateStaticParams\` or other build-time contexts. Move it to a request-time component or function.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `Route "${route}": \`"use cache: private"\` needs an active request, so it can't be used during \`${functionName}\` or other build-time contexts. Move it to a request-time component or function.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }

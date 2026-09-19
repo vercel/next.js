@@ -84,7 +84,7 @@ export function draftMode(): Promise<DraftMode> {
     }
     case 'build-time-generator':
       throw new Error(
-        `Route ${workStore.route} used \`${callingExpression}()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route ${workStore.route} used \`${callingExpression}()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
 
     default:
@@ -262,7 +262,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           break
         case 'build-time-generator':
           throw new Error(
-            `Route ${workStore.route} used \`${expression}\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+            `Route ${workStore.route} used \`${expression}\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         default:
           workUnitStore satisfies never
