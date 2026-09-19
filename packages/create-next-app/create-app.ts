@@ -283,21 +283,49 @@ export async function createApp({
   console.log(`${green('Success!')} Created ${appName} at ${appPath}`)
 
   if (hasPackageJson) {
+    const commands = {
+      npm: {
+        dev: 'npm run dev',
+        build: 'npm run build',
+        start: 'npm start',
+      },
+      yarn: {
+        dev: 'yarn dev',
+        build: 'yarn build',
+        start: 'yarn start',
+      },
+
+      pnpm: {
+        dev: 'pnpm run dev',
+        build: 'pnpm run build',
+        start: 'pnpm start',
+      },
+      bun: {
+        dev: 'bun dev',
+        build: 'bun run build',
+        start: 'bun start',
+      },
+      deno: {
+        dev: 'deno task dev',
+        build: 'deno task build',
+        start: 'deno task start',
+      },
+    }
     console.log('Inside that directory, you can run several commands:')
     console.log()
-    console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
+    console.log(cyan(`  ${commands[packageManager].dev}`))
     console.log('    Starts the development server.')
     console.log()
-    console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
+    console.log(cyan(`  ${commands[packageManager].build}`))
     console.log('    Builds the app for production.')
     console.log()
-    console.log(cyan(`  ${packageManager} start`))
+    console.log(cyan(`  ${commands[packageManager].start}`))
     console.log('    Runs the built app in production mode.')
     console.log()
     console.log('We suggest that you begin by typing:')
     console.log()
     console.log(cyan('  cd'), cdpath)
-    console.log(`  ${cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`)
+    console.log(`  ${cyan(`${commands[packageManager].dev}`)}`)
   }
   console.log()
 }

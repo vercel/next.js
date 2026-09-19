@@ -14,6 +14,8 @@ yarn create next-app
 pnpm create next-app
 # or
 bunx create-next-app
+# or
+deno -A npm:create-next-app@latest
 ```
 
 You will be asked for the name of your project, and then whether you want to
