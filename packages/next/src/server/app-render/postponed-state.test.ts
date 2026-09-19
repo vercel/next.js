@@ -56,23 +56,23 @@ describe('getDynamicHTMLPostponedState', () => {
     )
 
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key, nested: { [key]: key } } as any,
+      { key: 'slug|d', nested: { key: 'slug|d' } } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       prerenderResumeDataCache,
       isCacheComponentsEnabled
     )
 
-    const parsed = parsePostponedState(state, { slug: '123' }, undefined)
+    const parsed = parsePostponedState(state, undefined)
 
     expect(parsed).toMatchInlineSnapshot(`
      {
        "data": [
          1,
          {
-           "123": "123",
+           "key": "slug|d",
            "nested": {
-             "123": "123",
+             "key": "slug|d",
            },
          },
        ],
@@ -119,21 +119,22 @@ describe('getDynamicHTMLPostponedState', () => {
     const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
       slug: [key, 'd'],
     })
+    const postponed = {
+      replayNodes: [['Context.Provider', 'slug|d', [], null]],
+    }
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key } as any,
+      postponed as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       createPrerenderResumeDataCache(),
       isCacheComponentsEnabled
     )
 
-    const value = 'hello'
-    const params = { slug: value }
-    const parsed = parsePostponedState(state, params, undefined)
+    const parsed = parsePostponedState(state, undefined)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       stagedFallbackParams: fallbackRouteParams,
-      data: [1, { [value]: value }],
+      data: [1, postponed],
       renderResumeDataCache: {
         cache: new Map(),
         fetch: new Map(),
@@ -143,9 +144,6 @@ describe('getDynamicHTMLPostponedState', () => {
         mutable: false,
       },
     })
-
-    // The replacements have been replaced.
-    expect(JSON.stringify(parsed)).not.toMatch(key)
   })
 })
 
@@ -163,7 +161,7 @@ describe('getDynamicDataPostponedState', () => {
       expect(state).toBe(
         fallbackRouteParams === undefined ? '4:nullnull' : '7:2[]nullnull'
       )
-      const parsed = parsePostponedState(state, {}, undefined)
+      const parsed = parsePostponedState(state, undefined)
       expect(parsed.type).toBe(DynamicState.DATA)
       expect(parsed.stagedFallbackParams).toBe(
         fallbackRouteParams === undefined ? undefined : null
@@ -210,7 +208,6 @@ describe('getDynamicDataPostponedState', () => {
 
       const parsed = parsePostponedState(
         state,
-        { slug: '123' },
         undefined,
         disableResumeDataCacheCompression
       )
@@ -321,17 +318,19 @@ describe('parseResumeDataCacheFromPostponedState', () => {
 
 describe('parsePostponedState', () => {
   it('parses a HTML postponed state with fallback params', () => {
-    const state = `2593:39[["slug","%%drp:slug:e9615126684e5%%"]][1,{"t":2,"d":{"nextSegmentId":2,"rootFormatContext":{"insertionMode":0,"selectedValue":null,"tagScope":0},"progressiveChunkSize":12800,"resumableState":{"idPrefix":"","nextFormID":0,"streamingFormat":0,"instructions":0,"hasBody":true,"hasHtml":true,"unknownResources":{},"dnsResources":{},"connectResources":{"default":{},"anonymous":{},"credentials":{}},"imageResources":{},"styleResources":{},"scriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null,"/_next/static/chunks/f5e865f6-5e04edf75402c5e9.js":null,"/_next/static/chunks/9440-26a4cfbb73347735.js":null,"/_next/static/chunks/main-app-315ef55d588dbeeb.js":null,"/_next/static/chunks/8630-8e01a4bea783c651.js":null,"/_next/static/chunks/app/layout-1b900e1a3caf3737.js":null},"moduleUnknownResources":{},"moduleScriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null}},"replayNodes":[["oR",0,[["Context.Provider",0,[["ServerInsertedHTMLProvider",0,[["Context.Provider",0,[["n7",0,[["nU",0,[["nF",0,[["n9",0,[["Fragment",0,[["Context.Provider",2,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["nY",0,[["nX",0,[["Fragment","c",[["Fragment",0,[["html",1,[["body",0,[["main",3,[["j",0,[["Fragment",0,[["Context.Provider","validation",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["c",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","slug|%%drp:slug:e9615126684e5%%|d",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","__PAGE__",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Suspense",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["Fragment",0,[],{"1":1}]],null]],null]],null]],null]],null]],null]],null]],null,["Suspense Fallback",0,[],null],0]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],"replaySlots":null}}]null`
-    const params = {
-      slug: Math.random().toString(16).slice(3),
-    }
-    const parsed = parsePostponedState(state, params, undefined)
+    const state = `106:45[["slug",["%%drp:slug:e9615126684e5%%","d"]]][1,{"replayNodes":[["Context.Provider","slug|d",[],null]]}]null`
+    const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
-      stagedFallbackParams: new Map([['slug', '%%drp:slug:e9615126684e5%%']]),
-      data: expect.any(Object),
+      stagedFallbackParams: new Map([
+        ['slug', ['%%drp:slug:e9615126684e5%%', 'd']],
+      ]),
+      data: [
+        DynamicHTMLPreludeState.Full,
+        { replayNodes: [['Context.Provider', 'slug|d', [], null]] },
+      ],
       renderResumeDataCache: {
         cache: new Map(),
         fetch: new Map(),
@@ -341,15 +340,11 @@ describe('parsePostponedState', () => {
         mutable: false,
       },
     })
-
-    // Ensure that the replacement worked and removed all the placeholders.
-    expect(JSON.stringify(parsed)).not.toMatch(/%%drp:slug:e9615126684e5%%/)
   })
 
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
-    const params = {}
-    const parsed = parsePostponedState(state, params, undefined)
+    const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -369,7 +364,7 @@ describe('parsePostponedState', () => {
 
   it('parses a legacy data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, {}, undefined)
+    const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({

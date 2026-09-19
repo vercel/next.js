@@ -2,8 +2,6 @@ import type {
   OpaqueFallbackRouteParamEntries,
   OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params'
-import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
-import type { Params } from '../request/params'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
@@ -148,13 +146,15 @@ export async function getDynamicHTMLPostponedState(
     )
   }
 
-  const replacements: OpaqueFallbackRouteParamEntries = Array.from(
+  const fallbackParamEntries: OpaqueFallbackRouteParamEntries = Array.from(
     fallbackRouteParams.entries()
   )
-  const replacementsString = JSON.stringify(replacements)
+  const fallbackParamsString = JSON.stringify(fallbackParamEntries)
 
-  // Serialized as `<replacements.length><replacements><data>`
-  const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
+  // Keep the fallback params for render staging, independently of React's
+  // postponed state. React's server keys don't depend on their values.
+  // Serialized as `<fallbackParams.length><fallbackParams><data>`
+  const postponedString = `${fallbackParamsString.length}${fallbackParamsString}${dataString}`
 
   // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
   return serializePostponedState(
@@ -175,14 +175,13 @@ export async function getDynamicDataPostponedState(
 ): Promise<string> {
   let postponedString = 'null'
   if (fallbackRouteParams !== undefined) {
-    const replacements: OpaqueFallbackRouteParamEntries = fallbackRouteParams
-      ? Array.from(fallbackRouteParams.entries())
-      : []
-    const replacementsString = JSON.stringify(replacements)
+    const fallbackParamEntries: OpaqueFallbackRouteParamEntries =
+      fallbackRouteParams ? Array.from(fallbackRouteParams.entries()) : []
+    const fallbackParamsString = JSON.stringify(fallbackParamEntries)
 
-    // An empty replacements table records that this shell has no fallback
+    // An empty entries array records that this shell has no fallback
     // params.
-    postponedString = `${replacementsString.length}${replacementsString}null`
+    postponedString = `${fallbackParamsString.length}${fallbackParamsString}null`
   }
 
   return serializePostponedState(
@@ -248,7 +247,6 @@ export function parseResumeDataCacheFromPostponedState(
 
 export function parsePostponedState(
   state: string,
-  interpolatedParams: Params,
   maxPostponedStateSizeBytes: number | undefined,
   disableResumeDataCacheCompression = false
 ): PostponedState {
@@ -275,9 +273,9 @@ export function parsePostponedState(
           )
         }
 
-        // This is the length of the replacements entries.
+        // This is the length of the serialized fallback params.
         const length = parseInt(match)
-        const replacements = JSON.parse(
+        const fallbackParamEntries = JSON.parse(
           postponedString.slice(
             match.length,
             // We then go to the end of the string.
@@ -285,38 +283,15 @@ export function parsePostponedState(
           )
         ) as OpaqueFallbackRouteParamEntries
         const stagedFallbackParams =
-          replacements.length > 0 ? new Map(replacements) : null
+          fallbackParamEntries.length > 0 ? new Map(fallbackParamEntries) : null
 
-        let postponed = postponedString.slice(match.length + length)
+        const postponed = postponedString.slice(match.length + length)
         if (postponed === 'null') {
           return {
             type: DynamicState.DATA,
             stagedFallbackParams,
             renderResumeDataCache,
           }
-        }
-
-        for (const [
-          segmentKey,
-          [searchValue, dynamicParamType],
-        ] of replacements) {
-          const {
-            treeSegment: [
-              ,
-              // This is the same value that'll be used in the postponed state
-              // as it's part of the tree data. That's why we use it as the
-              // replacement value.
-              value,
-            ],
-          } = getDynamicParam(
-            interpolatedParams,
-            segmentKey,
-            dynamicParamType,
-            null,
-            null // staticSiblings not needed for postponed state
-          )
-
-          postponed = postponed.replaceAll(searchValue, value)
         }
 
         return {
@@ -436,16 +411,16 @@ export function isEmptyHTMLPrelude(state: string): boolean {
       return false
     }
 
-    // An optional `<n><replacements>` prefix carries fallback route param
-    // replacements; skip it to reach the `[preludeState, postponed]` data.
+    // An optional `<n><fallbackParams>` prefix records the unknown params;
+    // skip it to reach the `[preludeState, postponed]` data.
     if (/^[0-9]/.test(postponedString)) {
-      const replacementsLengthMatch = postponedString.match(/^([0-9]*)/)?.[1]
-      if (!replacementsLengthMatch) {
+      const fallbackParamsLengthMatch = postponedString.match(/^([0-9]*)/)?.[1]
+      if (!fallbackParamsLengthMatch) {
         return false
       }
-      const replacementsLength = parseInt(replacementsLengthMatch)
+      const fallbackParamsLength = parseInt(fallbackParamsLengthMatch)
       postponedString = postponedString.slice(
-        replacementsLengthMatch.length + replacementsLength
+        fallbackParamsLengthMatch.length + fallbackParamsLength
       )
     }
 

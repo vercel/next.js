@@ -37,6 +37,7 @@ import {
   RenderValidationBoundaryAtThisLevel,
 } from './instant-validation/boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { createServerSegmentKey } from './router-reducer/create-server-segment-key'
 import {
   useRouterBFCache,
   type RouterBFCacheEntry,
@@ -610,6 +611,11 @@ export default function OuterLayoutRouter({
     const cacheNode = bfcacheEntry.cacheNode
     const stateKey = bfcacheEntry.stateKey
     const segment = tree[0]
+    // The server only renders the active entry. Its React key must stay the
+    // same when unknown params become known during resume. Cache identity and
+    // browser keys still include the concrete values.
+    const reactKey =
+      typeof window === 'undefined' ? createServerSegmentKey(segment) : stateKey
 
     /*
     - Error boundary
@@ -732,7 +738,7 @@ export default function OuterLayoutRouter({
     }
 
     let child = (
-      <TemplateContext.Provider key={stateKey} value={templateValue}>
+      <TemplateContext.Provider key={reactKey} value={templateValue}>
         {templateStyles}
         {templateScripts}
         {template}
@@ -744,7 +750,7 @@ export default function OuterLayoutRouter({
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
       child = (
-        <SegmentStateProvider key={stateKey}>
+        <SegmentStateProvider key={reactKey}>
           {child}
           {segmentViewBoundaries}
         </SegmentStateProvider>
@@ -755,7 +761,7 @@ export default function OuterLayoutRouter({
       child = (
         <Activity
           name={debugNameToDisplay}
-          key={stateKey}
+          key={reactKey}
           mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
         >
           {child}
