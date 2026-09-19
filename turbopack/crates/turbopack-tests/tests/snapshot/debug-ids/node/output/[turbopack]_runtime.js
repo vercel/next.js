@@ -55,15 +55,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+    let module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -738,7 +738,7 @@ Context.prototype.F = resolveFileUrl;
  */ process.env.TURBOPACK = '1';
 const url = require('url');
 const moduleFactories = new Map();
-const moduleCache = Object.create(null);
+const moduleCache = new Map();
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -941,7 +941,7 @@ function formatDependencyChain(dependencyChain) {
                 dependencyChain
             };
         }
-        const module = devModuleCache[moduleId];
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
@@ -969,7 +969,7 @@ function formatDependencyChain(dependencyChain) {
             continue;
         }
         for (const parentId of module.parents){
-            const parent = devModuleCache[parentId];
+            const parent = devModuleCache.get(parentId);
             if (!parent) {
                 continue;
             }
@@ -1168,7 +1168,7 @@ function formatDependencyChain(dependencyChain) {
  */ function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
     for (const moduleId of outdatedModules){
-        const module = devModuleCache[moduleId];
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
             outdatedSelfAcceptedModules.push({
@@ -1186,7 +1186,7 @@ function formatDependencyChain(dependencyChain) {
  * NOTE: mode = "replace" will not remove modules from devModuleCache.
  * This must be done in a separate step afterwards.
  */ function disposeModule(moduleId, mode) {
-    const module = devModuleCache[moduleId];
+    const module = devModuleCache.get(moduleId);
     if (!module) {
         return;
     }
@@ -1210,7 +1210,7 @@ function formatDependencyChain(dependencyChain) {
     // It will be added back once the module re-instantiates and imports its
     // children again.
     for (const childId of module.children){
-        const child = devModuleCache[childId];
+        const child = devModuleCache.get(childId);
         if (!child) {
             continue;
         }
@@ -1221,7 +1221,7 @@ function formatDependencyChain(dependencyChain) {
     }
     switch(mode){
         case 'clear':
-            delete devModuleCache[module.id];
+            devModuleCache.delete(module.id);
             moduleHotData.delete(module.id);
             break;
         case 'replace':
@@ -1245,16 +1245,16 @@ function formatDependencyChain(dependencyChain) {
     // We also want to keep track of previous parents of the outdated modules.
     const outdatedModuleParents = new Map();
     for (const moduleId of outdatedModules){
-        const oldModule = devModuleCache[moduleId];
+        const oldModule = devModuleCache.get(moduleId);
         outdatedModuleParents.set(moduleId, oldModule?.parents);
-        delete devModuleCache[moduleId];
+        devModuleCache.delete(moduleId);
     }
     // Remove outdated dependencies from parent module's children list.
     // When a parent accepts a child's update, the child is re-instantiated
     // but the parent stays alive. We remove the old child reference so it
     // gets re-added when the child re-imports.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache[parentId];
+        const module = devModuleCache.get(parentId);
         if (module) {
             for (const dep of deps){
                 const idx = module.children.indexOf(dep);
@@ -1306,7 +1306,7 @@ function formatDependencyChain(dependencyChain) {
     module.parents = parents;
     module.children = [];
     module.hot = hot;
-    devModuleCache[id] = module;
+    devModuleCache.set(id, module);
     moduleHotState.set(module, hotState);
     // 5. Module execution (React Refresh hooks are platform-specific)
     try {
@@ -1440,7 +1440,7 @@ function formatDependencyChain(dependencyChain) {
     // This runs BEFORE re-instantiating self-accepted modules, matching
     // webpack's behavior.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache[parentId];
+        const module = devModuleCache.get(parentId);
         if (!module) continue;
         const hotState = moduleHotState.get(module);
         if (!hotState) continue;
@@ -1490,7 +1490,7 @@ function formatDependencyChain(dependencyChain) {
                 try {
                     errorHandler(err, {
                         moduleId,
-                        module: devModuleCache[moduleId]
+                        module: devModuleCache.get(moduleId)
                     });
                 } catch (err2) {
                     reportError(err2);
@@ -1604,7 +1604,7 @@ if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = devModuleCache[moduleId];
+    const module1 = devModuleCache.get(moduleId);
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -1619,8 +1619,8 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
     // Track parent-child relationship
-    trackModuleImport(sourceModule, id, devModuleCache[id]);
-    const module1 = devModuleCache[id];
+    const module1 = devModuleCache.get(id);
+    trackModuleImport(sourceModule, id, module1);
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -1722,7 +1722,7 @@ function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCach
     // were moved to a renamed chunk. Treat them as modified so the dependency
     // walk runs and they get re-instantiated with the new factory.
     for (const [moduleId, entry] of added){
-        if (entry != null && devModuleCache[moduleId] != null) {
+        if (entry != null && devModuleCache.has(moduleId)) {
             added.delete(moduleId);
             modified.set(moduleId, entry);
         }
