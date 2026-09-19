@@ -108,7 +108,8 @@ describe('next experimental-analyze', () => {
           '{"limit":1}',
         ])
         expect(query.exitCode).toBe(0)
-        expect(JSON.parse(query.stdout)).toMatchObject({
+        const overview = JSON.parse(query.stdout)
+        expect(overview).toMatchObject({
           pagination: { limit: 1, returned: 1 },
           routes: [{ route: expect.any(String), rawSize: expect.any(Number) }],
         })
@@ -143,6 +144,19 @@ describe('next experimental-analyze', () => {
           route: '/',
           sourcePath: sourceResult.sources[0].sourcePath,
           routeEntryDetection: { heuristic: true },
+        })
+
+        const comparison = await next.runCommand([
+          'experimental-analyze',
+          '--query',
+          'compare_bundles',
+          '--input',
+          JSON.stringify({ baselineSnapshot: overview.snapshot.id, limit: 1 }),
+        ])
+        expect(comparison.exitCode).toBe(0)
+        expect(JSON.parse(comparison.stdout)).toMatchObject({
+          counts: { identical: expect.any(Number) },
+          rows: [{ status: 'identical', delta: 0 }],
         })
       })
     })
