@@ -813,6 +813,15 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn is_pure_import_target(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(if let Some(export_usage) = self.export_usage {
+            export_usage.await?.is_pure_import_target(module).await?
+        } else {
+            false
+        }))
+    }
+
+    #[turbo_tasks::function]
     fn debug_ids_enabled(&self) -> Vc<bool> {
         Vc::cell(self.debug_ids)
     }

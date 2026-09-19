@@ -903,9 +903,13 @@ impl EsmAssetReference {
                                     DUMMY_SP,
                                     ctxt.unwrap_or_default(),
                                 );
+                                let mut is_pure_import_target = false;
                                 let (key, mut call_expr) = match import_source {
                                     ImportSource::Module { asset } => {
                                         let id = asset.chunk_item_id(chunking_context).await?;
+                                        is_pure_import_target = *chunking_context
+                                            .is_pure_import_target(*ResolvedVc::upcast(asset))
+                                            .await?;
                                         // Include ctxt in the key to prevent incorrect
                                         // deduplication when multiple merged modules import the
                                         // same target but have different syntax contexts (which
@@ -982,7 +986,7 @@ impl EsmAssetReference {
                                         )
                                     }
                                 };
-                                if this.is_pure_import {
+                                if this.is_pure_import || is_pure_import_target {
                                     call_expr.set_span(PURE_SP);
                                 }
                                 result.push(CodeGenerationHoistedStmt::new(

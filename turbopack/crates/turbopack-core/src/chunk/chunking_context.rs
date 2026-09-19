@@ -555,6 +555,11 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
 
+    /// Returns whether importing an internal module may be removed when its value is unused.
+    #[turbo_tasks::function]
+    async fn is_pure_import_target(self: Vc<Self>, module: Vc<Box<dyn Module>>)
+    -> Result<Vc<bool>>;
+
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]
     fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;

@@ -12,7 +12,8 @@ use crate::{
     module::Module,
     module_graph::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
-        side_effect_module_info::compute_side_effect_free_module_info,
+        async_module_info::AsyncModulesInfo,
+        side_effect_module_info::{SideEffectFreeModules, compute_side_effect_free_module_info},
     },
     resolve::{ExportUsage, ImportUsage},
 };
@@ -45,6 +46,8 @@ pub struct BindingUsageInfo {
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
     partial_namespace_modules: ResolvedVc<PartialNamespaceModules>,
+    side_effect_free_modules: ResolvedVc<SideEffectFreeModules>,
+    async_module_info: Option<ResolvedVc<AsyncModulesInfo>>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -75,6 +78,17 @@ impl ModuleExportUsage {
 impl BindingUsageInfo {
     pub fn is_reference_unused_edge(&self, edge: &GraphEdgeIndex) -> bool {
         self.unused_references_edges.contains(edge)
+    }
+
+    pub async fn is_pure_import_target(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<bool> {
+        if !self.side_effect_free_modules.contains_key(&module).await? {
+            return Ok(false);
+        }
+        Ok(if let Some(async_module_info) = self.async_module_info {
+            !async_module_info.is_async(module).await?
+        } else {
+            false
+        })
     }
 
     pub async fn used_exports(
@@ -159,9 +173,19 @@ pub async fn compute_binding_usage_info(
             );
         }
         let side_effect_free_modules = if remove_unused_imports {
-            let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
+            compute_side_effect_free_module_info(graph)
+        } else {
+            Vc::cell(Default::default())
+        };
+        let side_effect_free_modules_ref = if remove_unused_imports {
+            let side_effect_free_modules = side_effect_free_modules.await?;
             span.record("side_effect_free_modules", side_effect_free_modules.len());
             Some(side_effect_free_modules)
+        } else {
+            None
+        };
+        let async_module_info = if remove_unused_imports {
+            Some(graph.async_module_info().to_resolved().await?)
         } else {
             None
         };
@@ -183,7 +207,7 @@ pub async fn compute_binding_usage_info(
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
                     // and Named/All references
                     if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
-                        && side_effect_free_modules
+                        && side_effect_free_modules_ref
                             .as_ref()
                             .expect("this must be present if `remove_unused_imports` is true")
                             .contains(&target)
@@ -390,6 +414,8 @@ pub async fn compute_binding_usage_info(
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
+            side_effect_free_modules: side_effect_free_modules.to_resolved().await?,
+            async_module_info,
         }
         .cell())
     }
