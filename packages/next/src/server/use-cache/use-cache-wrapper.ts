@@ -821,6 +821,16 @@ function createUseCacheStore(
     return {
       type: 'cache',
       phase: 'render',
+      fallbackRouteParams:
+        outerWorkUnitStore.type === 'prerender' ||
+        outerWorkUnitStore.type === 'cache'
+          ? outerWorkUnitStore.fallbackRouteParams
+          : null,
+      dynamicAccessAbortController:
+        outerWorkUnitStore.type === 'cache' &&
+        outerWorkUnitStore.fallbackRouteParams
+          ? outerWorkUnitStore.dynamicAccessAbortController
+          : new AbortController(),
       consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore.implicitTags,
       revalidate: defaultCacheLife.revalidate,
@@ -925,7 +935,12 @@ function generateCacheEntryWithCacheContext(
 
   return workUnitAsyncStorage.run(cacheStore, () =>
     dynamicAccessAsyncStorage.run(
-      { abortController: new AbortController() },
+      {
+        abortController:
+          cacheStore.type === 'cache'
+            ? cacheStore.dynamicAccessAbortController
+            : new AbortController(),
+      },
       generateCacheEntryImpl,
       workStore,
       cacheContext,
@@ -1454,6 +1469,23 @@ async function generateCacheEntryImpl(
           },
         })
       } else if (dynamicAccessAbortSignal?.aborted) {
+        if (
+          innerCacheStore.type === 'cache' &&
+          innerCacheStore.fallbackRouteParams &&
+          innerCacheStore.rootParams
+        ) {
+          // An aborted fill has no collected metadata. Conservatively retain
+          // root dependencies so a concurrent fill with resolved roots doesn't
+          // join this fallback-only result under the coarse cache key.
+          addKnownRootParamNames(
+            cacheContext.functionId,
+            new Set(
+              Object.keys(innerCacheStore.rootParams).filter((paramName) =>
+                innerCacheStore.fallbackRouteParams!.has(paramName)
+              )
+            )
+          )
+        }
         // If the prerender is aborted because of dynamic access (e.g. reading
         // fallback params), we return a hanging promise. This essentially makes
         // the "use cache" function dynamic.
@@ -1615,7 +1647,21 @@ async function generateCacheEntryImpl(
           environmentName: 'Cache',
           filterStackFrame,
           temporaryReferences,
-          onError: handleError,
+          signal:
+            outerWorkUnitStore.type === 'cache' &&
+            outerWorkUnitStore.fallbackRouteParams
+              ? outerWorkUnitStore.dynamicAccessAbortController.signal
+              : undefined,
+          onError(error) {
+            if (
+              outerWorkUnitStore.type === 'cache' &&
+              outerWorkUnitStore.fallbackRouteParams &&
+              outerWorkUnitStore.dynamicAccessAbortController.signal.aborted
+            ) {
+              return undefined
+            }
+            return handleError(error)
+          },
         }
       )
       break
