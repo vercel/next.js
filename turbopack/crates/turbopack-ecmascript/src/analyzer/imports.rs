@@ -584,8 +584,9 @@ pub enum ExportRegistrationMode {
     /// but the imports still have to be generated in place to preserve evaluation order, so its
     /// groups reuse the namespace objects those imports already bound.
     Mixed,
-    /// Only re-exports, and no import follows one of them. The compact registration subsumes the
-    /// imports, so the references do not generate them at all -- this is the case that saves bytes.
+    /// Only re-exports, and no import follows one of them. The compact registration may subsume the
+    /// imports when the module owns its factory; scope-hoisted registrations retain them because
+    /// another logical module in the merged factory may still read their namespaces.
     Reexport,
 }
 

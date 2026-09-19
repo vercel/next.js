@@ -1,7 +1,8 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashSet;
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{Ident, Lit},
     quote,
 };
@@ -136,7 +137,17 @@ impl ModuleReference for EcmascriptModulePartReference {
 
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
-            import: ImportUsage::TopLevel,
+            // A synthesized named facade -> locals edge implements the facade export of the same
+            // name. It is only needed when that facade export is used; telling the graph this lets
+            // it propagate the facade's per-name usage into locals instead of keeping every local
+            // export alive. Normal (non-synthesized) references and structural evaluation edges
+            // are top-level dependencies.
+            import: match (&self.mode, &self.export_usage) {
+                (EcmascriptModulePartReferenceMode::Synthesize, ExportUsage::Named(export)) => {
+                    ImportUsage::Exports(std::iter::once(export.clone()).collect())
+                }
+                _ => ImportUsage::TopLevel,
+            },
             export: self.export_usage.clone(),
         }
     }
@@ -147,8 +158,23 @@ impl EcmascriptModulePartReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        // Namespace variables a compact re-export registration already imports for itself. A
+        // facade's exports all come through part references, so this is what lets its registration
+        // subsume them instead of importing the locals module twice.
+        subsumed_namespaces: &FxHashSet<(String, Option<SyntaxContext>)>,
     ) -> Result<CodeGeneration> {
         let this = self.await?;
+
+        // Skip generation for unused references, similar to `EsmAssetReference::code_generation`.
+        // Chunking may completely skip the target so we cannot reference it.
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self.to_resolved().await?))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
 
@@ -197,6 +223,10 @@ impl EcmascriptModulePartReference {
                 }
                 ReferencedAssetIdent::Module { .. } => {
                     let (sym, ctxt) = ident.into_module_namespace_ident().unwrap();
+                    if subsumed_namespaces.contains(&(sym.to_string(), ctxt)) {
+                        // A compact re-export registration performs this import.
+                        return Ok(CodeGeneration::hoisted_stmts(result));
+                    }
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 

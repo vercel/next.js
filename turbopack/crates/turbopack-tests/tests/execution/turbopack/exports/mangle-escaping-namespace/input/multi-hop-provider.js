@@ -7,3 +7,11 @@ export function readMultiHopDiamond() {
   const { veryLongMultiHopExportName } = namespacePath
   return [veryLongMultiHopExportName, namedPath]
 }
+
+export function enumerateMultiHopNamespace() {
+  return Object.keys(namespacePath).sort()
+}
+
+export function readMultiHopByComputedKey(key) {
+  return namespacePath[key]
+}
