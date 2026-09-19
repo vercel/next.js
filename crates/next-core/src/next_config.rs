@@ -1402,6 +1402,7 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_minify_before_chunking: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -2697,6 +2698,19 @@ impl NextConfig {
             // Ignore configuration in development mode to not break HMR
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
+        }))
+    }
+
+    /// Whether to minify each module factory as it is generated rather than minifying each
+    /// finished chunk in one pass. Disabled in development, where nothing is minified anyway.
+    #[turbo_tasks::function]
+    pub async fn turbopack_minify_before_chunking(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match *mode.await? {
+            NextMode::Development => false,
+            NextMode::Build => self
+                .experimental
+                .turbopack_minify_before_chunking
+                .unwrap_or(false),
         }))
     }
 
