@@ -61,11 +61,13 @@ describe('hmr-dynamic-component chunk list subscriptions', () => {
     //   1. The shared client runtime chunk list (covers react/polyfills/etc.)
     //   2. A page-specific chunk list that owns the RSC client reference chunks
     //      (built outside the shared module graph via chunk_group(IsolatedMerged)).
+    //   3. A dynamic chunk list that keeps modules reachable only through the
+    //      dynamic import subscribed to HMR updates.
     await retry(async () => {
       const chunkListPaths = new Set(
         sentSubscribes.filter((m) => m.path.endsWith('.js')).map((m) => m.path)
       )
-      expect(chunkListPaths.size).toBe(2)
+      expect(chunkListPaths.size).toBe(3)
     })
   })
 })
