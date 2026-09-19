@@ -11,6 +11,7 @@ import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
 import {
+  getNpxCommand,
   getPkgManager,
   getPnpmMajorVersion,
   addPackageDependency,
@@ -290,7 +291,7 @@ export async function runUpgrade(
     shouldRunReactTypesCodemods =
       await suggestReactTypesCodemods(nonInteractive)
 
-    execCommand = getNpxCommand(packageManager)
+    execCommand = getNpxCommand(packageManager, cwd)
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
@@ -946,20 +947,4 @@ function warnDependenciesOutOfRange(
       })
     })
   }
-}
-
-function getNpxCommand(pkgManager: PackageManager) {
-  let command = 'npx --yes'
-  if (pkgManager === 'pnpm') {
-    command = 'pnpm --silent dlx'
-  } else if (pkgManager === 'yarn') {
-    try {
-      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
-      command = 'yarn --quiet dlx'
-    } catch {}
-  } else if (pkgManager === 'bun') {
-    command = 'bunx'
-  }
-
-  return command
 }
