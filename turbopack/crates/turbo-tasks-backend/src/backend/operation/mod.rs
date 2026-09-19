@@ -1565,13 +1565,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
-    /// Whether a GC pass may collect this task: nothing references it.
+    /// Whether a GC pass can collect this task: nothing references it.
     ///
     /// Only reads `Meta`, so any guard category gives the same answer. See
-    /// [`TaskStorage::gc_maybe_collectible`] for the full contract.
+    /// [`TaskStorage::gc_collectible`] for the full contract.
     fn is_gc_collectible(&self) -> bool {
         self.check_access(SpecificTaskDataCategory::Meta);
-        self.typed().gc_maybe_collectible()
+        self.typed().gc_collectible()
     }
 
     fn invalidate_serialization(&mut self);
