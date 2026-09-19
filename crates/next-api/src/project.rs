@@ -45,8 +45,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
-    canonicalize_to_rcstr, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
+    VirtualFileSystem, canonicalize_to_rcstr, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -1071,6 +1071,7 @@ impl Project {
                 )),
                 ..Default::default()
             },
+            DiskFileSystemMap::empty(),
         ))
     }
 
