@@ -32,6 +32,17 @@ describe('segment cache closed params (dynamicParams = false)', () => {
     })
   }
 
+  async function hasClosedParamDescendants(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(() => {
+      const tree: FlightRouterState =
+        window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree
+      // PrefetchHint.SubtreeHasClosedParams summarizes descendants at the root.
+      return ((tree[4] ?? 0) & 0b10000000000000000) !== 0
+    })
+  }
+
   // @force-gate prefetching
   it('rejects unlisted params at the routing level', async () => {
     const allowedResponse = await next.fetch('/products/allowed', {
@@ -99,6 +110,7 @@ describe('segment cache closed params (dynamicParams = false)', () => {
       // The restriction belongs to the parameter, not the response root.
       // An eventual 404 alone also passed before the hint existed.
       expect(await getClosedSegments(browser)).toEqual(['[slug]'])
+      expect(await hasClosedParamDescendants(browser)).toBe(true)
       await browser.close()
     }
   )
@@ -109,6 +121,7 @@ describe('segment cache closed params (dynamicParams = false)', () => {
       'Open product page'
     )
     expect(await getClosedSegments(browser)).toEqual([])
+    expect(await hasClosedParamDescendants(browser)).toBe(false)
     await browser.close()
   })
 
@@ -118,6 +131,7 @@ describe('segment cache closed params (dynamicParams = false)', () => {
       'Allowed catalog page'
     )
     expect(await getClosedSegments(browser)).toEqual(['[lang]', '[slug]'])
+    expect(await hasClosedParamDescendants(browser)).toBe(true)
     await browser.close()
   })
 
@@ -127,18 +141,22 @@ describe('segment cache closed params (dynamicParams = false)', () => {
       'Open sibling'
     )
     expect(await getClosedSegments(browser)).toEqual([])
+    expect(await hasClosedParamDescendants(browser)).toBe(false)
 
     await browser.elementById('closed-sibling').click()
     expect(await browser.elementById('shared-closed-page').text()).toBe(
       'Closed sibling'
     )
     expect(await getClosedSegments(browser)).toEqual(['[slug]'])
+    expect(await hasClosedParamDescendants(browser)).toBe(true)
 
     await browser.elementById('open-sibling').click()
     expect(await browser.elementById('shared-open-page').text()).toBe(
       'Open sibling'
     )
     expect(await getClosedSegments(browser)).toEqual([])
+    // Returning to the open sibling must clear the inherited subtree hint.
+    expect(await hasClosedParamDescendants(browser)).toBe(false)
     await browser.close()
   })
 
@@ -195,6 +213,7 @@ describe('segment cache closed params (dynamicParams = false)', () => {
     // not exist. Check the tree used by the navigation, not just the eventual
     // 404, which can also be recovered by a full document navigation.
     expect(await getClosedSegments(browser)).toEqual(['[slug]'])
+    expect(await hasClosedParamDescendants(browser)).toBe(true)
   })
 
   // @force-gate prefetching

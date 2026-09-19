@@ -768,7 +768,10 @@ export function matchKnownRoute(
   // Closed parameters affect whether the route exists, even when none of its
   // components read them. Resolve the target URL on the server instead of
   // combining a predicted tree with UI cached for an allowed parameter value.
-  if (hasClosedParams(pattern.tree)) {
+  if (
+    pattern.tree.prefetchHints &
+    (PrefetchHint.IsClosedParam | PrefetchHint.SubtreeHasClosedParams)
+  ) {
     return null
   }
 
@@ -823,18 +826,6 @@ export function matchKnownRoute(
   matchedPart.pattern = syntheticEntry
 
   return syntheticEntry
-}
-
-function hasClosedParams(tree: RouteTree<RSCSegmentData | null>): boolean {
-  if ((tree.prefetchHints & PrefetchHint.IsClosedParam) !== 0) {
-    return true
-  }
-  if (tree.slots !== null) {
-    for (const child of tree.slots.values()) {
-      if (hasClosedParams(child)) return true
-    }
-  }
-  return false
 }
 
 /**
