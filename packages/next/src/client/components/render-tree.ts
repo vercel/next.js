@@ -1,16 +1,11 @@
-import type {
-  FlightRouterState,
-  Segment,
-} from '../../shared/lib/app-router-types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { ScrollRef } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
 import {
-  PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../shared/lib/segment'
-import { matchSegment } from './match-segments'
 import { HEAD_REQUEST_KEY } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
@@ -35,6 +30,7 @@ import {
   type RefreshState,
   type FulfilledRouteCacheEntry,
   rebaseInactiveRouteTree,
+  doesRouteStructureMatch,
   readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
@@ -45,12 +41,15 @@ import {
   MetadataOnlyRequestTree,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
-import { urlSearchParamsToParsedUrlQuery } from '../route-params'
 import type { NormalizedSearch } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import {
   getRenderedSearchFromVaryPath,
+  didLocalVaryParamsChange,
+  didPathParamsChange,
+  didSearchParamsChange,
   didVaryPathChange,
+  didReadChangedParam,
 } from './segment-cache/vary-path'
 import {
   readFromBFCache,
@@ -281,12 +280,69 @@ export function startPPRNavigation(
   const newHead = newRoot.head
   switch (freshness) {
     case FreshnessPolicy.Default:
+    case FreshnessPolicy.Gesture: {
+      if (isSamePageNavigation) {
+        // During a same-page navigation, we always refetch the page segments
+        break
+      }
+      if (oldHead.varyPath.value !== newHead.varyPath.value) {
+        // The head is keyed under its page's position (see
+        // finalizeMetadataVaryPath); a different page's head is a new head.
+        break
+      }
+      const oldCacheNode = oldHead.data
+      let cacheNode: CacheNode
+      if (!didVaryPathChange(oldHead.varyPath, newHead.varyPath)) {
+        // The rest of the head's vary path is the rendered search and every
+        // path param, so this covers the same changes that recreate a
+        // page node.
+        cacheNode = oldCacheNode
+      } else if (
+        !didReadChangedParam(
+          oldHead.varyPath,
+          newHead.varyPath,
+          oldCacheNode.varyParams
+        )
+      ) {
+        // The current head didn't read any of the params that changed, so its
+        // data stands in for the new head's. The node is new — it's keyed
+        // under the new vary path — but its data and the source that
+        // describes that data are the same. Write it to the BFCache under
+        // its own vary path, like any newly created node (skipped for
+        // optimistic navigations, which are transient).
+        cacheNode = createCacheNode(
+          oldCacheNode.rsc,
+          oldCacheNode.prefetchRsc,
+          oldCacheNode.varyParams,
+          generateBFCacheId(freshness)
+        )
+        if (freshness !== FreshnessPolicy.Gesture) {
+          writeToBFCache(
+            navigatedAt,
+            newHead.varyPath,
+            cacheNode,
+            seedDynamicStaleAt
+          )
+        }
+      } else {
+        break
+      }
+      return {
+        tree,
+        head: {
+          status: NavigationTaskStatus.Fulfilled,
+          route: createRouterStateForSegment(newHead, {}, null),
+          node: createRenderTree(newHead, cacheNode),
+          dynamicRequestTree: null,
+          refreshState: null,
+          children: null,
+        },
+      }
+    }
     case FreshnessPolicy.HistoryTraversal:
-    case FreshnessPolicy.Gesture:
       if (
-        // The head's vary path is the page position it's keyed under, the
-        // rendered search, and every path param, so this covers the same
-        // changes that recreate a page node.
+        // A back/forward navigation restores the target's head from the
+        // BFCache, so only an exactly matching head is shared.
         !didVaryPathChange(oldHead.varyPath, newHead.varyPath) &&
         // During a same-page navigation, we always refetch the page segments
         !isSamePageNavigation
@@ -372,14 +428,11 @@ function updateRenderTreeOnNavigation(
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
 ): NavigationTask | null {
-  // Check if this segment matches the one in the previous route. A
-  // search-param-only difference at a page segment falls through to the
-  // matched branch — the render tree is rebuilt (so data refetches), but the
-  // bfcacheId carries forward as if the segment had matched.
-  const oldSegment = createSegmentFromRouteTree(oldRenderTree)
-  const newSegment = createSegmentFromRouteTree(newRouteTree)
-  const segmentMatchKind = compareSegments(newSegment, oldSegment)
-  if (segmentMatchKind === SegmentMatchKind.Change) {
+  // A different route position starts a new render subtree. Param values are
+  // not part of the route structure; a segment whose param values changed is
+  // handled below, within the same traversal as its unchanged ancestors.
+  const newSegment = newRouteTree.segment
+  if (!doesRouteStructureMatch(oldRenderTree, newRouteTree)) {
     // This segment does not match the previous route. We're now entering the
     // new part of the target route. Switch to the "create" path.
     if (
@@ -452,32 +505,147 @@ function updateRenderTreeOnNavigation(
       break
   }
 
-  // TODO: We're not consistent about how we do this check. Some places
-  // check if the segment starts with PAGE_SEGMENT_KEY, but most seem to
-  // check if there any any children, which is why I'm doing it here. We
-  // should probably encode an empty children set as `null` though. Either
-  // way, we should update all the checks to be consistent.
   const isLeafSegment = newSlots === null
 
   // Get the data for this segment. Since it was part of the previous route,
-  // usually we just reuse the data from the old render tree. During a refresh
-  // or revalidation, consult the prefetch cache or response seed instead.
+  // usually we just reuse the data from the old render tree. If a param value
+  // changed, or during a refresh or revalidation, consult the prefetch cache
+  // or response seed instead.
   let newRenderTree: RouteTree<CacheNode>
   let needsDynamicRequest: boolean
-  if (
-    !shouldRefreshDynamicData &&
-    // During a same-page navigation, we always refetch the page segments
-    !(isLeafSegment && isSamePageNavigation) &&
-    // A search-param-only change is treated as a refresh of the page segment.
-    // The internal cache key of the data is different, but the identity of
-    // the node in the route tree is the same.
-    segmentMatchKind !== SegmentMatchKind.SearchParamOnlyChange
+  if (didPathParamsChange(oldRenderTree, newRouteTree)) {
+    // A path param value is part of LayoutRouter's React key, so React
+    // remounts this segment and everything below it. Mint a fresh bfcacheId
+    // to match. The cache's Fallback entries can still serve data that did
+    // not access the changed param.
+    const bfcacheId = generateBFCacheId(freshness)
+    switch (freshness) {
+      case FreshnessPolicy.Default:
+      case FreshnessPolicy.Gesture: {
+        // The current node's output can stand in when it read none of the
+        // inputs that changed. Only a regular navigation may keep it: a
+        // refresh must fetch, and a back/forward navigation restores the
+        // target entry from the BFCache so that its identity round-trips.
+        const oldCacheNode = oldRenderTree.data
+        if (
+          !didReadChangedParam(
+            oldRenderTree.varyPath,
+            newRouteTree.varyPath,
+            oldCacheNode.varyParams
+          )
+        ) {
+          const cacheNode = createCacheNode(
+            oldCacheNode.rsc,
+            oldCacheNode.prefetchRsc,
+            oldCacheNode.varyParams,
+            bfcacheId
+          )
+          if (freshness !== FreshnessPolicy.Gesture) {
+            writeToBFCache(
+              navigatedAt,
+              newRouteTree.varyPath,
+              cacheNode,
+              seedDynamicStaleAt
+            )
+          }
+          newRenderTree = createRenderTree(newRouteTree, cacheNode)
+          needsDynamicRequest = false
+          break
+        }
+        // Intentional fallthrough
+      }
+      case FreshnessPolicy.Hydration:
+      case FreshnessPolicy.HistoryTraversal:
+      case FreshnessPolicy.RefreshAll:
+      case FreshnessPolicy.HMRRefresh: {
+        const result = createRenderTreeForSegment(
+          navigatedAt,
+          newRouteTree,
+          freshness,
+          seedDynamicStaleAt,
+          bfcacheId,
+          map,
+          restrictToShell
+        )
+        newRenderTree = result.node
+        needsDynamicRequest = result.needsDynamicRequest
+        break
+      }
+    }
+
+    if (isLeafSegment) {
+      accumulateScrollRef(freshness, newRenderTree.data, accumulation)
+    }
+  } else if (
+    newRouteTree.isPage &&
+    oldRenderTree.isPage &&
+    didSearchParamsChange(oldRenderTree.varyPath, newRouteTree.varyPath)
   ) {
-    newRenderTree = reuseSharedRenderTree(oldRenderTree, newRouteTree)
-    needsDynamicRequest = false
-  } else {
-    // If this is part of a refresh, ignore the existing render tree and create a
-    // new one.
+    // The search string is not part of LayoutRouter's key, so the page
+    // re-renders in place and keeps its identity. The cache's Fallback entries
+    // can still serve data that did not access search params.
+    switch (freshness) {
+      case FreshnessPolicy.Default:
+      case FreshnessPolicy.Gesture: {
+        const oldCacheNode = oldRenderTree.data
+        if (
+          !didReadChangedParam(
+            oldRenderTree.varyPath,
+            newRouteTree.varyPath,
+            oldCacheNode.varyParams
+          )
+        ) {
+          const cacheNode = createCacheNode(
+            oldCacheNode.rsc,
+            oldCacheNode.prefetchRsc,
+            oldCacheNode.varyParams,
+            oldCacheNode.bfcacheId
+          )
+          if (freshness !== FreshnessPolicy.Gesture) {
+            writeToBFCache(
+              navigatedAt,
+              newRouteTree.varyPath,
+              cacheNode,
+              seedDynamicStaleAt
+            )
+          }
+          newRenderTree = createRenderTree(newRouteTree, cacheNode)
+          needsDynamicRequest = false
+          break
+        }
+        // Intentional fallthrough
+      }
+      case FreshnessPolicy.Hydration:
+      case FreshnessPolicy.HistoryTraversal:
+      case FreshnessPolicy.RefreshAll:
+      case FreshnessPolicy.HMRRefresh: {
+        const result = createRenderTreeForSegment(
+          navigatedAt,
+          newRouteTree,
+          freshness,
+          seedDynamicStaleAt,
+          oldRenderTree.data.bfcacheId,
+          map,
+          restrictToShell
+        )
+        newRenderTree = result.node
+        needsDynamicRequest = result.needsDynamicRequest
+        break
+      }
+    }
+
+    // A search param change mostly acts the same as a refresh, except it
+    // does trigger a scroll.
+    if (isLeafSegment) {
+      accumulateScrollRef(freshness, newRenderTree.data, accumulation)
+    }
+  } else if (
+    shouldRefreshDynamicData ||
+    // During a same-page navigation, we always refetch the page segments
+    (isLeafSegment && isSamePageNavigation)
+  ) {
+    // This is a refresh of an existing segment. Ignore the existing render
+    // tree and create a new one.
     const result = createRenderTreeForSegment(
       navigatedAt,
       newRouteTree,
@@ -491,22 +659,14 @@ function updateRenderTreeOnNavigation(
     newRenderTree = result.node
     needsDynamicRequest = result.needsDynamicRequest
 
-    // Scroll handling
-    if (
-      isLeafSegment &&
-      segmentMatchKind === SegmentMatchKind.SearchParamOnlyChange
-    ) {
-      // Special case: A search param change mostly acts the same as a
-      // refresh, except it does trigger a scroll.
-      accumulateScrollRef(freshness, newRenderTree.data, accumulation)
-    } else {
-      // Normal case: This is a refresh of an existing segment. Carry forward
-      // the old node's scrollRef. This preserves scroll intent when a prior
-      // navigation's render tree is replaced by a refresh before the scroll
-      // handler has had a chance to fire — e.g. when router.push() and
-      // router.refresh() are called in the same startTransition batch.
-      newRenderTree.data.scrollRef = oldRenderTree.data.scrollRef
-    }
+    // Carry forward the old node's scrollRef. This preserves scroll intent
+    // when a prior navigation's render tree is replaced by a refresh before
+    // the scroll handler has had a chance to fire — e.g. when router.push()
+    // and router.refresh() are called in the same startTransition batch.
+    newRenderTree.data.scrollRef = oldRenderTree.data.scrollRef
+  } else {
+    newRenderTree = reuseSharedRenderTree(oldRenderTree, newRouteTree)
+    needsDynamicRequest = false
   }
 
   // During a refresh navigation, there's a special case that happens when
@@ -577,13 +737,17 @@ function updateRenderTreeOnNavigation(
       }
 
       const oldSegmentChild = oldRenderTreeChild.segment
-      const newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
+      const newSegmentChild = newRouteTreeChild.segment
       if (
         // Skip this branch during a history traversal. We restore the tree that
         // was stashed in the history entry as-is.
         freshness !== FreshnessPolicy.HistoryTraversal &&
         newSegmentChild === DEFAULT_SEGMENT_KEY &&
-        oldSegmentChild !== DEFAULT_SEGMENT_KEY
+        oldSegmentChild !== DEFAULT_SEGMENT_KEY &&
+        // The active segment was rendered under this layout's param values.
+        // If one of them changed, it can't stay active; the server renders
+        // the slot's default segment instead.
+        !didPathParamsChange(oldRenderTree, newRouteTree)
       ) {
         // This is a "default" segment. These are never sent by the server during
         // a soft navigation; instead, the client reuses whatever segment was
@@ -669,13 +833,9 @@ function updateRenderTreeOnNavigation(
  * navigation share the same ScrollRef — the first segment to scroll
  * consumes it, preventing others from also scrolling.
  *
- * This is only called inside `createRenderTreeOnNavigation`, which only
- * runs when segments diverge from the previous route. So for a refresh
- * where the route structure stays the same, segments match, the update
- * path is taken, and this function is never called — no scroll ref is
- * assigned. A scroll ref is only assigned when the route actually
- * changed (e.g. a redirect, or a dynamic condition on the server that
- * produces a different route).
+ * Called for newly entered segments and query-only navigations. A query
+ * change can reuse cached data while still carrying navigation scroll intent.
+ * Refreshes of the same page identity preserve the existing scroll ref.
  *
  * Skipped during hydration (initial render should not scroll) and
  * history traversal (scroll restoration is handled separately).
@@ -819,42 +979,15 @@ function createRenderTreeOnNavigation(
   }
 }
 
-function createSegmentFromRouteTree<TData>(
-  newRouteTree: RouteTree<TData>
-): Segment {
-  if (newRouteTree.isPage) {
-    // In a dynamic server response, the server embeds the search params into
-    // the segment key, but in a static one it's omitted. The client handles
-    // this inconsistency by adding the search params back right at the end.
-    //
-    // As an incremental step, we can grab the search params from the varyPath.
-    //
-    // TODO: Remove the search params from the segment key entirely.
-    const renderedSearch = getRenderedSearchFromVaryPath(newRouteTree.varyPath)
-    if (renderedSearch === null) {
-      return PAGE_SEGMENT_KEY
-    }
-    // This is based on equivalent logic in addSearchParamsIfPageSegment, used
-    // on the server.
-    const stringifiedQuery = JSON.stringify(
-      urlSearchParamsToParsedUrlQuery(new URLSearchParams(renderedSearch))
-    )
-    return stringifiedQuery !== '{}'
-      ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
-      : PAGE_SEGMENT_KEY
-  }
-  return newRouteTree.segment
-}
-
 // Converts a route tree node into the router state the client sends back to
-// the server.
+// the server. Page nodes carry their rendered search in its own slot.
 function createRouterStateForSegment(
   routeTree: RouteTree<RSCSegmentData | null>,
   children: { [parallelRouteKey: string]: FlightRouterState },
   refreshState: RefreshState | null
 ): FlightRouterState {
-  return [
-    createSegmentFromRouteTree(routeTree),
+  const routerState: FlightRouterState = [
+    routeTree.segment,
     children,
     refreshState !== null
       ? [refreshState.canonicalUrl, refreshState.renderedSearch]
@@ -862,6 +995,13 @@ function createRouterStateForSegment(
     null,
     routeTree.prefetchHints,
   ]
+  if (routeTree.isPage) {
+    const renderedSearch = getRenderedSearchFromVaryPath(routeTree.varyPath)
+    if (renderedSearch !== null) {
+      routerState[5] = renderedSearch
+    }
+  }
+  return routerState
 }
 
 function patchRouterStateWithNewChildren(
@@ -880,6 +1020,9 @@ function patchRouterStateWithNewChildren(
   }
   if (4 in baseRouterState) {
     clone[4] = baseRouterState[4]
+  }
+  if (5 in baseRouterState) {
+    clone[5] = baseRouterState[5]
   }
   return clone
 }
@@ -1330,38 +1473,6 @@ function generateBFCacheId(freshness: FreshnessPolicy): number {
   if (typeof window === 'undefined') return 0
   if (freshness === FreshnessPolicy.Hydration) return 0
   return ++nextBFCacheId
-}
-
-const enum SegmentMatchKind {
-  // Two segments are equivalent: the render tree can be reused as-is.
-  Match,
-  // The segments differ in the parts that determine the route (segment kind,
-  // dynamic param value, etc.). The render tree must be created fresh.
-  Change,
-  // Two page segments differ only in their search params. Conceptually this
-  // is a refresh of the current page rather than a navigation to a new
-  // route — search params don't contribute to the LayoutRouter state key,
-  // and they shouldn't change the bfcacheId either. The render tree is rebuilt
-  // (so data refetches) but the bfcacheId carries forward.
-  SearchParamOnlyChange,
-}
-
-function compareSegments(
-  newSegment: Segment,
-  oldSegment: Segment
-): SegmentMatchKind {
-  if (matchSegment(newSegment, oldSegment)) {
-    return SegmentMatchKind.Match
-  }
-  if (
-    typeof newSegment === 'string' &&
-    typeof oldSegment === 'string' &&
-    newSegment.startsWith(PAGE_SEGMENT_KEY) &&
-    oldSegment.startsWith(PAGE_SEGMENT_KEY)
-  ) {
-    return SegmentMatchKind.SearchParamOnlyChange
-  }
-  return SegmentMatchKind.Change
 }
 
 // Represents whether the previuos navigation resulted in a route tree mismatch.
@@ -2005,10 +2116,14 @@ function writeDynamicDataIntoNavigationTask(
           // path. But as an extra precaution, we validate in prod, too.
           didReceiveUnknownParallelRoute = true
         } else {
-          const taskSegment = createSegmentFromRouteTree(taskChild.node)
-          const serverSegment = createSegmentFromRouteTree(serverRouteTreeChild)
+          // Ancestors already matched. Check this child's route position and
+          // local params before resolving its pending data.
           if (
-            matchSegment(serverSegment, taskSegment) &&
+            doesRouteStructureMatch(taskChild.node, serverRouteTreeChild) &&
+            !didLocalVaryParamsChange(
+              taskChild.node.varyPath,
+              serverRouteTreeChild.varyPath
+            ) &&
             serverRouteTreeChild.data !== null
           ) {
             // Found a match for this task. Keep traversing down the task tree.

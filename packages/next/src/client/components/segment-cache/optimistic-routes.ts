@@ -61,6 +61,7 @@ import {
 import { isValueExpired } from './cache-map'
 import {
   canonicalizeURLPart,
+  normalizeRenderedSearch,
   doesStaticSegmentAppearInURL,
 } from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
@@ -768,11 +769,12 @@ export function matchKnownRoute(
   // "Reify" the pattern: clone the template tree with concrete param values.
   // This substitutes resolved params (e.g., slug: "hello") into dynamic
   // segments and recomputes vary paths for correct segment cache keying.
+  const renderedSearch = normalizeRenderedSearch(search)
   const acc: ReifyAccumulator = { metadataVaryPath: null }
   const reifiedTree = reifyRouteTree(
     pattern.tree,
     resolvedParams,
-    search,
+    renderedSearch,
     null, // Start with null partial vary path at the root
     acc
   )
@@ -807,7 +809,7 @@ export function matchKnownRoute(
     couldBeIntercepted: pattern.couldBeIntercepted,
     supportsPerSegmentPrefetching: pattern.supportsPerSegmentPrefetching,
     hasDynamicRewrite: false,
-    renderedSearch: search,
+    renderedSearch,
     ref: null,
     size: pattern.size,
     staleAt: pattern.staleAt,

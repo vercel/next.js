@@ -59,6 +59,7 @@ import {
   getPathnameFromRequestURL,
   getRenderedPathname,
   getRenderedSearch,
+  normalizeRenderedSearch,
 } from '../../route-params'
 import {
   createCacheMap,
@@ -248,6 +249,23 @@ export type RouteTree<TData> = LayoutRouteTree<TData> | PageRouteTree<TData>
 export type RootRouteTree<TData> = {
   tree: RouteTree<TData>
   head: PageRouteTree<TData>
+}
+
+export function doesRouteStructureMatch<TCurrent, TNext>(
+  currentTree: RouteTree<TCurrent>,
+  nextTree: RouteTree<TNext>
+): boolean {
+  // Request keys identify the route position, including dynamic param names
+  // and types, but not param values.
+  if (currentTree.requestKey !== nextTree.requestKey) {
+    return false
+  }
+  // Root request keys are always empty, including for global Not Found, so
+  // the root segment's identity must be checked separately.
+  return (
+    nextTree.requestKey !== ROOT_SEGMENT_REQUEST_KEY ||
+    currentTree.segment === nextTree.segment
+  )
 }
 
 type RouteCacheEntryShared = {
@@ -817,7 +835,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     routeWithNoSearchParams.renderedSearch !== ''
       ? // Base route was rewritten. Reuse the same rewritten search string.
         routeWithNoSearchParams.renderedSearch
-      : requestedSearch
+      : normalizeRenderedSearch(requestedSearch)
 
   const optimisticUrl = new URL(
     routeWithNoSearchParams.canonicalUrl,
@@ -1822,6 +1840,9 @@ export function convertFlightRouterStateToRouteTree(
           renderedSearch: compressedRefreshState[1] as NormalizedSearch,
         }
       : null
+  // The incoming query is authoritative even when a navigation response has
+  // no new segment data. The base tree's page-search slot may still describe
+  // the previous URL. History restores pass their saved query instead.
   const renderedSearch =
     refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 

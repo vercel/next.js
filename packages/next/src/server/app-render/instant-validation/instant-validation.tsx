@@ -50,7 +50,6 @@ import type { FlightComponentMod } from '../stream-ops'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
 import {
-  addSearchParamsIfPageSegment,
   isGroupSegment,
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
@@ -60,7 +59,6 @@ import {
   isFrameworkErrorRoute,
   isImplicitValidationSegment,
 } from './instant-config'
-import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
@@ -130,8 +128,6 @@ function traverseTransportNodeSegments(
     return
   }
   for (const [parallelRouteKey, childNode] of children) {
-    // NOTE: if this is a __PAGE__ segment, it might have search params appended.
-    // Whoever reads from the cache needs to append them as well.
     const childPath = createChildSegmentPath(
       path,
       parallelRouteKey,
@@ -884,7 +880,7 @@ function segmentConsumesURLDepth(segment: Segment): boolean {
   if (typeof segment !== 'string') return true
   // Route groups, pages, defaults, and not-found don't consume a depth.
   if (
-    segment.startsWith(PAGE_SEGMENT_KEY) ||
+    segment === PAGE_SEGMENT_KEY ||
     isGroupSegment(segment) ||
     segment === DEFAULT_SEGMENT_KEY ||
     segment === NOT_FOUND_SEGMENT_KEY
@@ -1012,7 +1008,6 @@ export async function createCombinedPayloadAtDepth(
   cache: SegmentCache,
   initialLoaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  query: NextParsedUrlQuery | null,
   depth: number,
   groupDepth: number,
   releaseSignal: AbortSignal,
@@ -1065,8 +1060,7 @@ export async function createCombinedPayloadAtDepth(
     if (dynamicParam) {
       return dynamicParam.treeSegment
     }
-    const segment = loaderTree[0]
-    return query ? addSearchParamsIfPageSegment(segment, query) : segment
+    return loaderTree[0]
   }
 
   async function buildSharedTransportTree(

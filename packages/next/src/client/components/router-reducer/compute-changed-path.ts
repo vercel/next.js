@@ -9,7 +9,6 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {
   return segment[0] === '/' ? segment.slice(1) : segment
@@ -30,7 +29,7 @@ const segmentToPathname = (segment: Segment): string => {
 export const segmentToSourcePagePathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
     if (segment === 'children') return ''
-    if (segment.startsWith(PAGE_SEGMENT_KEY)) return 'page'
+    if (segment === PAGE_SEGMENT_KEY) return 'page'
     return segment
   }
 
@@ -91,7 +90,7 @@ export function extractPathFromFlightRouterState(
   )
     return undefined
 
-  if (segment.startsWith(PAGE_SEGMENT_KEY)) return ''
+  if (segment === PAGE_SEGMENT_KEY) return ''
 
   const segments = [segmentToPathname(segment)]
   const parallelRoutes = flightRouterState[1] ?? {}
@@ -185,7 +184,22 @@ function computeChangedPathImpl(
     return ''
   }
 
-  if (!matchSegment(segmentA, segmentB)) {
+  // This compares the path through the router state. Dynamic param types and
+  // static sibling hints don't affect the pathname produced below.
+  // TODO: computeChangedPath is only used to compute the Next-Url header.
+  // We should refactor this data structure to be lower cardinality. For example
+  // it doesn't need to include any of the concrete param values, just the
+  // route structure.
+  const didPathChange =
+    typeof segmentA === 'string' || typeof segmentB === 'string'
+      ? segmentA !== segmentB
+      : segmentA[0] !== segmentB[0] || segmentA[1] !== segmentB[1]
+  if (
+    didPathChange ||
+    // Query-only page changes still recompute Next-Url from this branch, as
+    // they did when the query was part of the page segment string.
+    (segmentA === PAGE_SEGMENT_KEY && treeA[5] !== treeB[5])
+  ) {
     // once we find where the tree changed, we compute the rest of the path by traversing the tree
     return extractPathFromFlightRouterState(treeB) ?? ''
   }
@@ -232,7 +246,7 @@ export function getSelectedParams(
     const segment = parallelRoute[0]
     const isDynamicParameter = Array.isArray(segment)
     const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+    if (!segmentValue || segmentValue === PAGE_SEGMENT_KEY) continue
 
     // Ensure catchAll and optional catchall are turned into an array
     const isCatchAll =

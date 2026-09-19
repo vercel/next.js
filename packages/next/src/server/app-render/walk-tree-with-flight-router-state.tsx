@@ -1,3 +1,5 @@
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
 import type {
   FlightRouterState,
   PrefetchHints,
@@ -10,7 +12,6 @@ import {
   segmentToTransportSegment,
 } from '../../shared/lib/rsc-transport'
 import type { PreloadCallbacks } from './types'
-import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
@@ -20,7 +21,6 @@ import {
 } from './create-transport-tree-from-loader-tree'
 import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
 
 /**
@@ -34,6 +34,33 @@ export type NavigationResponseTree = {
   tree: PartialTransportNode
   head: HeadData
   isHeadPartial: boolean
+}
+
+function didRouteOrPathParamChange(
+  actualSegment: Segment,
+  requestedSegment: Segment
+): boolean {
+  // The request still uses FlightRouterState, so compare its segment fields
+  // directly. Page search params and the absence of router state at this
+  // position are handled separately by the caller.
+  if (
+    typeof actualSegment === 'string' ||
+    typeof requestedSegment === 'string'
+  ) {
+    // Static segments must have the same string. A static segment and a
+    // dynamic segment always identify different routes.
+    return actualSegment !== requestedSegment
+  }
+
+  // Both segments are dynamic. The param name and type identify the route
+  // (e.g. [slug] versus [...slug]); the param value identifies the rendered
+  // instance. A change to either means rendering must start at this level.
+  // Static sibling hints at index 3 are not part of either identity.
+  return (
+    actualSegment[0] !== requestedSegment[0] ||
+    actualSegment[2] !== requestedSegment[2] ||
+    actualSegment[1] !== requestedSegment[1]
+  )
 }
 
 /**
@@ -110,10 +137,9 @@ export async function walkTreeWithFlightRouterState({
           [segmentParam.param]: segmentParam.value,
         }
       : parentParams
-  const actualSegment: Segment = addSearchParamsIfPageSegment(
-    segmentParam ? segmentParam.treeSegment : segment,
-    query
-  )
+  const actualSegment: Segment = segmentParam
+    ? segmentParam.treeSegment
+    : segment
 
   /**
    * Decide if the current segment is where rendering has to start.
@@ -121,8 +147,14 @@ export async function walkTreeWithFlightRouterState({
   const renderComponentsOnThisLevel =
     // No further router state available
     !flightRouterState ||
-    // Segment in router state does not match current segment
-    !matchSegment(actualSegment, flightRouterState[0]) ||
+    // Route structure or path param changed
+    didRouteOrPathParamChange(actualSegment, flightRouterState[0]) ||
+    // Normal requests omit search params, as they did with the old PAGE
+    // suffix. Treat the omitted value as empty to preserve that comparison
+    // behavior. HMR requests retain their actual search params.
+    (actualSegment === PAGE_SEGMENT_KEY &&
+      getRenderedSearch(query) !==
+        (flightRouterState[5] === undefined ? '' : flightRouterState[5])) ||
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
@@ -180,7 +212,6 @@ export async function walkTreeWithFlightRouterState({
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
           getDynamicParamFromSegment,
-          query,
           rootLayoutIncluded
         )
 
@@ -210,7 +241,6 @@ export async function walkTreeWithFlightRouterState({
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
           getDynamicParamFromSegment,
-          query,
           rootLayoutIncluded
         )
     return {

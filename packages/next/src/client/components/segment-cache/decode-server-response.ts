@@ -32,7 +32,6 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import {
   doesStaticSegmentAppearInURL,
@@ -273,15 +272,6 @@ export function createRouteTreeNode<TData>(
       // This is a page segment.
       isPage = true
 
-      // The navigation implementation expects the search params to be included
-      // in the segment. However, in the case of a static response, the search
-      // params are omitted. So the client needs to add them back in when reading
-      // from the Segment Cache.
-      //
-      // For consistency, we'll do this for live-render responses, too.
-      //
-      // TODO: We should move search params out of FlightRouterState and handle
-      // them entirely on the client, similar to our plan for dynamic params.
       segment = PAGE_SEGMENT_KEY
       varyPath = finalizePageVaryPath(
         requestKey,
@@ -421,12 +411,9 @@ function resolveTransportSegment(
     pathnameParts,
     pathnamePartsIndex
   )
-  // TODO: We're intentionally not adding the search param to page segments
-  // here; it's tracked separately and added back during a read from the
-  // Segment Cache.
   return [
     transportSegment.n,
-    getCacheKeyForDynamicParam(paramValue, '' as NormalizedSearch),
+    getCacheKeyForDynamicParam(paramValue),
     transportSegment.t,
     transportSegment.s,
   ]
@@ -469,18 +456,23 @@ function decodeTransportNode(
       // are still checked.
     } else {
       const baseSegment = compareBase[0]
-      if (
-        typeof originalSegment === 'string' &&
-        typeof baseSegment === 'string' &&
-        originalSegment.startsWith(PAGE_SEGMENT_KEY) &&
-        baseSegment.startsWith(PAGE_SEGMENT_KEY)
-      ) {
-        // Page segments match modulo embedded search params, which are
-        // validated separately (see getRenderedSearch).
-      } else if (originalSegment === DEFAULT_SEGMENT_KEY) {
+      if (originalSegment === DEFAULT_SEGMENT_KEY) {
         // A default filled in by the server is not a claim about the
         // position's identity.
-      } else if (!matchSegment(baseSegment, originalSegment)) {
+      } else if (
+        typeof baseSegment === 'string' ||
+        typeof originalSegment === 'string'
+      ) {
+        if (baseSegment !== originalSegment) {
+          acc.treeDivergedFromBase = true
+        }
+      } else if (
+        // Param name and type identify the route; the value identifies the
+        // rendered instance. Static sibling hints aren't part of identity.
+        baseSegment[0] !== originalSegment[0] ||
+        baseSegment[2] !== originalSegment[2] ||
+        baseSegment[1] !== originalSegment[1]
+      ) {
         acc.treeDivergedFromBase = true
       }
     }
