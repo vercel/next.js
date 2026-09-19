@@ -42,11 +42,13 @@ import {
   applyOwnerStack,
   makeDevtoolsIOAwarePromise,
   makeDynamicHangingPromise,
+  makeFallbackParamsHangingPromise,
   makeRuntimeHangingPromise,
   makePrefetchHangingPromise,
   makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
   trackIncompatibleShellContent,
+  trackPromiseUsed,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -821,6 +823,15 @@ function createUseCacheStore(
     return {
       type: 'cache',
       phase: 'render',
+      fallbackRootParamsPrerender:
+        outerWorkUnitStore.type === 'cache'
+          ? outerWorkUnitStore.fallbackRootParamsPrerender
+          : outerWorkUnitStore.type === 'prerender' &&
+              Object.keys(outerWorkUnitStore.rootParams).some((name) =>
+                outerWorkUnitStore.fallbackRouteParams?.has(name)
+              )
+            ? outerWorkUnitStore
+            : null,
       consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore.implicitTags,
       revalidate: defaultCacheLife.revalidate,
@@ -1395,15 +1406,35 @@ async function generateCacheEntryImpl(
   let devTimeoutAbortController: AbortController | undefined
 
   switch (outerWorkUnitStore.type) {
+    case 'cache':
     case 'prerender-runtime':
     case 'prerender': {
+      const prerenderStore =
+        outerWorkUnitStore.type === 'cache'
+          ? outerWorkUnitStore.fallbackRootParamsPrerender
+          : outerWorkUnitStore
+
+      if (prerenderStore === null) {
+        stream = renderToReadableStream(
+          resultPromise,
+          clientReferenceManifest.clientModules,
+          {
+            environmentName: 'Cache',
+            filterStackFrame,
+            temporaryReferences,
+            onError: handleError,
+          }
+        )
+        break
+      }
+
       const timeoutAbortController = new AbortController()
       const timer = setTimeout(
         () => {
           workStore.invalidDynamicUsageError = timeoutError
           timeoutAbortController.abort(timeoutError)
         },
-        getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+        getUseCacheFillTimeoutMs(workStore, prerenderStore.type)
       )
 
       const dynamicAccessAbortSignal =
@@ -1454,20 +1485,56 @@ async function generateCacheEntryImpl(
           },
         })
       } else if (dynamicAccessAbortSignal?.aborted) {
+        if (
+          innerCacheStore.type === 'cache' &&
+          innerCacheStore.fallbackRootParamsPrerender
+        ) {
+          // No entry is collected for an aborted fill. Still remember the
+          // roots actually read so a concrete request won't join this result
+          // under the coarse key. Propagate them through aborted parents too.
+          addKnownRootParamNames(
+            cacheContext.functionId,
+            innerCacheStore.readRootParamNames
+          )
+          const hangingPromise = trackPromiseUsed(
+            makeFallbackParamsHangingPromise<never>(
+              prerenderStore.renderSignal,
+              workStore.route,
+              'dynamic "use cache"',
+              prerenderStore
+            ),
+            () => {
+              // The result may also be consumed by a deduped invocation, so
+              // record dependencies against the cache consuming it now.
+              const consumer = workUnitAsyncStorage.getStore()
+              if (consumer?.type === 'cache') {
+                for (const name of innerCacheStore.readRootParamNames) {
+                  consumer.readRootParamNames.add(name)
+                }
+              }
+              // Only a cache consuming this result must suspend. Do not share
+              // cancellation with independent sibling cache fills.
+              dynamicAccessAsyncStorage
+                .getStore()
+                ?.abortController.abort(dynamicAccessAbortSignal.reason)
+            }
+          )
+          getCacheSignal(outerWorkUnitStore)?.endRead()
+          return { type: 'prerender-dynamic', hangingPromise }
+        }
+
         // If the prerender is aborted because of dynamic access (e.g. reading
         // fallback params), we return a hanging promise. This essentially makes
         // the "use cache" function dynamic.
         // The dynamic access is a fallback params read, which is runtime data.
         const hangingPromise = makeRuntimeHangingPromise<never>(
-          outerWorkUnitStore.renderSignal,
+          prerenderStore.renderSignal,
           workStore.route,
           'dynamic "use cache"',
           outerWorkUnitStore
         )
 
-        if (outerWorkUnitStore.cacheSignal) {
-          outerWorkUnitStore.cacheSignal.endRead()
-        }
+        getCacheSignal(outerWorkUnitStore)?.endRead()
 
         return { type: 'prerender-dynamic', hangingPromise }
       } else {
@@ -1604,7 +1671,6 @@ async function generateCacheEntryImpl(
       }
     // fallthrough
     case 'prerender-legacy':
-    case 'cache':
     case 'private-cache':
     case 'unstable-cache':
     case 'build-time-generator':
