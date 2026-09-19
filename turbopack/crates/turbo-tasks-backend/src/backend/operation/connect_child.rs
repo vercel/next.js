@@ -87,6 +87,14 @@ impl ConnectChildOperation {
         release_construction_ref: bool,
         mut ctx: impl ExecuteContext<'_>,
     ) {
+        if parent_task_id.is_none() {
+            // All parentless tasks receive a transient ref when connected: their lifetime cannot be
+            // constrained by turbo-tasks and needs to be managed by the caller. If the caller
+            // doesn't manage it, the GC root TTL handles it in a later session.
+            let mut child_task =
+                ctx.open_or_create_task_storage(child_task_id, TaskDataCategory::Meta);
+            child_task.update_and_get_transient_ref_count(1);
+        }
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =

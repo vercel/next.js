@@ -1565,16 +1565,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
-    /// Whether a GC pass may collect this task: it is non-transient and nothing references it.
+    /// Whether a GC pass may collect this task: nothing references it.
     ///
     /// Only reads `Meta`, so any guard category gives the same answer. See
     /// [`TaskStorage::gc_maybe_collectible`] for the full contract.
     fn is_gc_collectible(&self) -> bool {
-        // Transient-ness is a property of the id, not the storage; transient tasks are never
-        // collected, including via the `note_maybe_collectible` cascade path, which does not go
-        // through the shard scan's filter.
         self.check_access(SpecificTaskDataCategory::Meta);
-        !self.id().is_transient() && self.typed().gc_maybe_collectible()
+        self.typed().gc_maybe_collectible()
     }
 
     fn invalidate_serialization(&mut self);
