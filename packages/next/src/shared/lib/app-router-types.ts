@@ -1,3 +1,4 @@
+import type { SetLedgerValue } from './ledger-decoding'
 /**
  * App Router types - Client-safe types for the Next.js App Router
  *
@@ -11,11 +12,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type {
-  VaryParams,
-  VaryParamsIterable,
-} from './segment-cache/vary-params-decoding'
 import type { FullTransportData, PartialTransportData } from './rsc-transport'
+import type { VaryParams } from './segment-cache/vary-params-decoding'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -418,11 +416,12 @@ export type InitialRSCPayload = {
   /** supportsPerSegmentPrefetching */
   S: boolean
   /**
-   * rootVaryParams - the root params accessed anywhere in the response, emitted
-   * once. The client unions these into the head and every segment's vary
-   * params, rather than the server folding them into each set.
+   * rootVaryParams - userspace tracking only. Root params accessed anywhere
+   * in the response are emitted once. The client unions these into the head
+   * and every segment's vary params, rather than the server folding them into
+   * each set.
    */
-  r?: VaryParamsIterable
+  r?: SetLedgerValue<string>
   /** staleTime in seconds - Only present when Cache Components is enabled. */
   s?: AsyncIterable<number>
   /**
@@ -584,11 +583,11 @@ type NavigationFlightResponseBase = {
    */
   f?: boolean
   /**
-   * rootVaryParams - the root params accessed anywhere in the response, emitted
-   * once. The client unions these into the head and every segment's vary
-   * params.
+   * rootVaryParams - userspace tracking only. Root params accessed anywhere
+   * in the response are emitted once. The client unions these into the head
+   * and every segment's vary params.
    */
-  r?: VaryParamsIterable
+  r?: SetLedgerValue<string>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**

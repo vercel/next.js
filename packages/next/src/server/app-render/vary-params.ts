@@ -1,88 +1,22 @@
+import {
+  addToLedger,
+  closeLedger,
+  createSetLedger,
+  VaryParamsLedger,
+  getLedgerValue,
+  type SetLedger,
+} from './ledgers'
 import type { Params } from '../request/params'
 import type { SearchParams } from '../request/search-params'
 import {
+  type WorkUnitStore,
   getVaryParamsAccumulator,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 
-/**
- * Accumulates vary params for a single segment (or for metadata/rootParams).
- *
- * A VaryParamsAccumulator is an `AsyncIterable<string>` that can be serialized
- * by React Flight. As params are accessed during render, each newly-seen param
- * name is `add`ed, which yields it into the Flight stream immediately. After
- * rendering, call `close()` (via `finishAccumulatingVaryParams`) to end the
- * iteration.
- *
- * Because each access is flushed into the stream as it happens, the set of
- * accessed params is built up incrementally, with no step at the end of the
- * render that has to run for the client to read anything. If the prerender is
- * aborted by sync I/O, the params yielded before the abort are already in the
- * stream — and they're exactly the params the partial response depends on.
- * This mirrors how `StaleTimeIterable` works (see stale-time.ts).
- *
- * Each name is emitted at most once: `add` dedupes against the set of
- * already-yielded names, so the stream never contains a duplicate.
- *
- * NOTE: like `StaleTimeIterable`, this supports a single concurrent iteration
- * (Flight iterates it exactly once). The shared empty singleton below is the
- * only instance referenced by more than one segment, and it only ever yields
- * "done", so concurrent iteration of it is safe.
- */
-export class VaryParamsAccumulator implements AsyncIterable<string> {
-  private _resolve: ((result: IteratorResult<string>) => void) | null = null
-  private _done = false
-  private _buffer: string[] = []
-  // The set of param names already yielded. Doubles as the dedupe guard so the
-  // same name is never emitted twice.
-  private _seen: Set<string> = new Set()
-
-  /**
-   * Records that a param was accessed. Yields the name into the stream the
-   * first time it's seen; subsequent accesses of the same name are no-ops.
-   */
-  add(paramName: string): void {
-    if (this._done || this._seen.has(paramName)) {
-      return
-    }
-    this._seen.add(paramName)
-    if (this._resolve !== null) {
-      this._resolve({ value: paramName, done: false })
-      this._resolve = null
-    } else {
-      this._buffer.push(paramName)
-    }
-  }
-
-  /** Ends the iteration. Best-effort: if skipped (e.g. on a sync-I/O abort),
-   * the consumer simply reads the params yielded so far. */
-  close(): void {
-    if (this._done) {
-      return
-    }
-    this._done = true
-    if (this._resolve !== null) {
-      this._resolve({ value: undefined, done: true })
-      this._resolve = null
-    }
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<string> {
-    return {
-      next: () => {
-        if (this._buffer.length > 0) {
-          return Promise.resolve({ value: this._buffer.shift()!, done: false })
-        }
-        if (this._done) {
-          return Promise.resolve({ value: undefined, done: true })
-        }
-        return new Promise<IteratorResult<string>>((resolve) => {
-          this._resolve = resolve
-        })
-      },
-    }
-  }
-}
+export type ResponseVaryParamsTarget =
+  | ResponseVaryParamsAccumulator
+  | SetLedger<string>
 
 /**
  * A mutable data structure for accumulating per-segment vary params for an
@@ -91,114 +25,100 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
  */
 export type ResponseVaryParamsAccumulator = {
   /** Vary params accumulator for metadata/viewport (the "head" segment) */
-  head: VaryParamsAccumulator
+  head: SetLedger<string>
   /** Vary params accumulator for root params access */
-  rootParams: VaryParamsAccumulator
+  rootParams: SetLedger<string>
   /** Vary params accumulators for each route segment */
-  segments: Set<VaryParamsAccumulator>
+  segments: Set<SetLedger<string>>
 }
 
-/**
- * A singleton accumulator that's already closed with no params. Use this for
- * segments where we know upfront that no params will be accessed, such as
- * client components or segments without user code.
- *
- * Benefits:
- * - No need to accumulate or close later
- * - Resilient: reads as an empty set even if other tracking fails
- * - Memory efficient: reuses the same object
- *
- * It's never added to `ResponseVaryParamsAccumulator.segments` (callers pass it
- * directly), so `finishAccumulatingVaryParams` doesn't touch it.
- */
-export const emptyVaryParamsAccumulator: VaryParamsAccumulator =
-  new VaryParamsAccumulator()
-emptyVaryParamsAccumulator.close()
-
-export function createResponseVaryParamsAccumulator(): ResponseVaryParamsAccumulator {
-  // Create the head and rootParams accumulators as top-level fields.
-  // Segment accumulators are added to the segments set as they are created.
-  const head = new VaryParamsAccumulator()
-  const rootParams = new VaryParamsAccumulator()
-  const segments = new Set<VaryParamsAccumulator>()
-
+export function createResponseVaryParamsTarget(
+  builtInLedger: SetLedger<string>
+): ResponseVaryParamsTarget {
+  if (process.env.__NEXT_LEDGERS) {
+    return createSetLedger(builtInLedger)
+  }
   return {
-    head,
-    rootParams,
-    segments,
+    head: createSetLedger(builtInLedger),
+    rootParams: createSetLedger(builtInLedger),
+    segments: new Set(),
   }
 }
 
-/**
- * Allocates a new VaryParamsAccumulator and adds it to the response accumulator
- * associated with the current WorkUnitStore.
- *
- * Returns an iterable that yields the segment's vary params as they're
- * accessed. The iterable can be passed directly to React Flight for
- * serialization.
- */
-export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
+function getVaryParamsTarget(
+  scope: 'segment' | 'head' | 'rootParams'
+): SetLedger<string> | null {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (!workUnitStore) {
     return null
   }
-  const responseAccumulator = getVaryParamsAccumulator(workUnitStore)
-  if (!responseAccumulator) {
+  return getVaryParamsTargetForWorkUnit(workUnitStore, scope)
+}
+
+function getVaryParamsTargetForWorkUnit(
+  workUnitStore: WorkUnitStore,
+  scope: 'segment' | 'head' | 'rootParams'
+): SetLedger<string> | null {
+  const target = getVaryParamsAccumulator(workUnitStore)
+  if (target === null) {
     return null
   }
-  const accumulator = new VaryParamsAccumulator()
+  if (process.env.__NEXT_LEDGERS) {
+    return target as SetLedger<string>
+  }
+  const responseAccumulator = target as ResponseVaryParamsAccumulator
+  if (scope !== 'segment') {
+    return responseAccumulator[scope]
+  }
+  const accumulator = createSetLedger(VaryParamsLedger)
   responseAccumulator.segments.add(accumulator)
   return accumulator
 }
 
-export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (!workUnitStore) {
-    return null
-  }
-  return getVaryParamsAccumulator(workUnitStore)?.head ?? null
+export function createVaryParamsAccumulator(): SetLedger<string> | null {
+  return getVaryParamsTarget('segment')
 }
 
-// The metadata and viewport are always delivered in a single payload, so they
-// don't need to be tracked separately. This may change in the future, but for
-// now this is just an alias.
-export const getViewportVaryParamsAccumulator = getMetadataVaryParamsAccumulator
+export function getMetadataVaryParamsAccumulator(): SetLedger<string> | null {
+  return getVaryParamsTarget('head')
+}
 
 /**
  * Returns the response-level root params iterable for serialization. Root
  * params are emitted once at the top level (not folded into every segment);
  * the client unions them into each segment's set.
  */
-export function getRootParamsVaryParamsAccumulator(): VaryParamsAccumulator | null {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (!workUnitStore) {
-    return null
-  }
-  return getVaryParamsAccumulator(workUnitStore)?.rootParams ?? null
-}
-
-/**
- * Records that a param was accessed. Adds the param name to the accumulator.
- */
-export function accumulateVaryParam(
-  accumulator: VaryParamsAccumulator,
-  paramName: string
-): void {
-  accumulator.add(paramName)
+export function getRootParamsVaryParamsAccumulator(): AsyncIterable<string> | null {
+  return getLedgerValue(getVaryParamsTarget('rootParams')) ?? null
 }
 
 /**
  * Records a root param access.
  */
 export function accumulateRootVaryParam(paramName: string): void {
-  const rootParamsAccumulator = getRootParamsVaryParamsAccumulator()
-  if (rootParamsAccumulator !== null) {
-    accumulateVaryParam(rootParamsAccumulator, paramName)
+  const target = getVaryParamsTarget('rootParams')
+  if (target !== null) {
+    addToLedger(target, paramName)
+  }
+}
+
+/**
+ * Records a root param access against a specific work unit, for accesses
+ * reported from outside the work unit that owns them: a "use cache" entry
+ * propagating the root params it read to the render that consumed it.
+ */
+export function accumulateRootVaryParamForWorkUnit(
+  workUnitStore: WorkUnitStore,
+  paramName: string
+): void {
+  const target = getVaryParamsTargetForWorkUnit(workUnitStore, 'rootParams')
+  if (target !== null) {
+    addToLedger(target, paramName)
   }
 }
 
 export function createVaryingParams(
-  accumulator: VaryParamsAccumulator,
+  accumulator: SetLedger<string>,
   originalParamsObject: Params,
   optionalCatchAllParamName: string | null
 ): Params {
@@ -215,14 +135,14 @@ export function createVaryingParams(
             prop === optionalCatchAllParamName ||
             Object.prototype.hasOwnProperty.call(target, prop)
           ) {
-            accumulateVaryParam(accumulator, prop)
+            addToLedger(accumulator, prop)
           }
         }
         return Reflect.get(target, prop, receiver)
       },
       has(target, prop) {
         if (prop === optionalCatchAllParamName) {
-          accumulateVaryParam(accumulator, optionalCatchAllParamName)
+          addToLedger(accumulator, optionalCatchAllParamName)
         }
         return Reflect.has(target, prop)
       },
@@ -230,7 +150,7 @@ export function createVaryingParams(
         // Enumerating the params object means the user's code may depend on
         // which params are present, so conservatively track the optional
         // param as accessed.
-        accumulateVaryParam(accumulator, optionalCatchAllParamName)
+        addToLedger(accumulator, optionalCatchAllParamName)
         return Reflect.ownKeys(target)
       },
     })
@@ -244,7 +164,7 @@ export function createVaryingParams(
   for (const paramName in originalParamsObject) {
     Object.defineProperty(underlyingParamsWithVarying, paramName, {
       get() {
-        accumulateVaryParam(accumulator, paramName)
+        addToLedger(accumulator, paramName)
         return originalParamsObject[paramName]
       },
       enumerable: true,
@@ -254,7 +174,7 @@ export function createVaryingParams(
 }
 
 export function createVaryingSearchParams(
-  accumulator: VaryParamsAccumulator,
+  accumulator: SetLedger<string>,
   originalSearchParamsObject: SearchParams
 ): SearchParams {
   // Search params have no fixed schema, so any access — missing-key reads, `in`
@@ -266,18 +186,18 @@ export function createVaryingSearchParams(
   return new Proxy(originalSearchParamsObject, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
-        accumulateVaryParam(accumulator, '?')
+        addToLedger(accumulator, '?')
       }
       return Reflect.get(target, prop, receiver)
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        accumulateVaryParam(accumulator, '?')
+        addToLedger(accumulator, '?')
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      accumulateVaryParam(accumulator, '?')
+      addToLedger(accumulator, '?')
       return Reflect.ownKeys(target)
     },
   })
@@ -298,11 +218,15 @@ export function createVaryingSearchParams(
  * params.
  */
 export function finishAccumulatingVaryParams(
-  responseAccumulator: ResponseVaryParamsAccumulator
+  target: ResponseVaryParamsTarget
 ): void {
-  responseAccumulator.head.close()
-  responseAccumulator.rootParams.close()
+  if (process.env.__NEXT_LEDGERS) {
+    return
+  }
+  const responseAccumulator = target as ResponseVaryParamsAccumulator
+  closeLedger(responseAccumulator.head)
+  closeLedger(responseAccumulator.rootParams)
   for (const segmentAccumulator of responseAccumulator.segments) {
-    segmentAccumulator.close()
+    closeLedger(segmentAccumulator)
   }
 }

@@ -3,7 +3,7 @@ import {
   type WorkStore,
 } from '../app-render/work-async-storage.external'
 import type { OpaqueFallbackRouteParams } from './fallback-params'
-import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import type { SetLedger } from '../app-render/ledgers'
 import {
   createVaryingParams,
   getMetadataVaryParamsAccumulator,
@@ -138,7 +138,7 @@ export function createServerParamsForMetadata(
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  varyParamsAccumulator: VaryParamsAccumulator | null = null
+  varyParamsAccumulator: SetLedger<string> | null = null
 ): Promise<Params> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -200,7 +200,7 @@ export function createServerParamsForRoute(
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null
 ): Promise<Params> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -324,7 +324,7 @@ function createStaticPrerenderParams(
   optionalCatchAllParamName: string | null,
   workStore: WorkStore,
   prerenderStore: StaticPrerenderStore,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null
 ): Promise<Params> {
   switch (prerenderStore.type) {
     case 'prerender': {
@@ -411,7 +411,7 @@ function createRuntimePrerenderParams(
   optionalCatchAllParamName: string | null,
   workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null
 ): Promise<Params> {
   let userspaceParams = underlyingParams
   if (varyParamsAccumulator !== null) {
@@ -464,7 +464,7 @@ function createRenderParamsForPage(
   workUnitStore: RequestStore,
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: SetLedger<string> | null
 ) {
   const { stagedRendering, asyncApiPromises, validationSamples } = workUnitStore
 

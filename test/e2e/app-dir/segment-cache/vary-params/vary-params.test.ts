@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { gate, retry } from 'next-test-utils'
 
 /**
  * Tests for the "vary params" optimization.
@@ -849,6 +850,259 @@ describe('segment cache - vary params', () => {
     )
   })
 
+  // @gate ledgers
+  it('tracks root params separately for sibling segments', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/scoped-root-params/es/contoso', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // The page reads locale; the sidebar reads tenant. Prefetch two routes
+    // so the cache has both values of each, in different combinations.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/scoped-root-params/en/acme"]'
+      )
+      await toggle.click()
+    }, [{ includes: 'Locale: en' }, { includes: 'Tenant: acme' }])
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/scoped-root-params/fr/globex"]'
+      )
+      await toggle.click()
+    }, [{ includes: 'Locale: fr' }, { includes: 'Tenant: globex' }])
+
+    // This combination hasn't been prefetched. Each segment can be reused
+    // because it only depends on its own root param. Page-wide attribution
+    // would make both segments vary on both params and require another fetch.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/scoped-root-params/en/globex"]'
+      )
+      await toggle.click()
+      const link = await browser.elementByCss(
+        'a[href="/scoped-root-params/en/globex"]'
+      )
+      await link.click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('main').text()).toBe('Locale: en')
+    expect(await browser.elementByCss('aside').text()).toBe('Tenant: globex')
+  })
+
+  // @gate ledgers
+  it('tracks root params separately for metadata and the page body', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser(
+      '/scoped-root-params/es/contoso/metadata',
+      {
+        beforePageLoad(page: Playwright.Page) {
+          act = createRouterAct(page)
+        },
+      }
+    )
+
+    // The title reads tenant; the body reads locale. Warm both captures
+    // using different combinations of the two params.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/scoped-root-params/en/acme/metadata"]'
+      )
+      await toggle.click()
+    }, [{ includes: 'Tenant: acme' }, { includes: 'Locale: en' }])
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/scoped-root-params/fr/globex/metadata"]'
+      )
+      await toggle.click()
+    }, [{ includes: 'Tenant: globex' }, { includes: 'Locale: fr' }])
+
+    // Reuse the title from the second route and the body from the first.
+    // Neither capture should inherit the other one's param dependency.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/scoped-root-params/en/globex/metadata"]'
+      )
+      await toggle.click()
+      const link = await browser.elementByCss(
+        'a[href="/scoped-root-params/en/globex/metadata"]'
+      )
+      await link.click()
+    }, 'no-requests')
+
+    expect(await browser.eval('document.title')).toBe('Tenant: globex')
+    expect(await browser.elementByCss('main').text()).toBe('Locale: en')
+  })
+
+  // @gate ledgers
+  it('keeps a dynamic page that did not read searchParams across a query-only navigation', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/navigation-reuse/query?x=1', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+    const initialToken = await browser.elementById('server-token').text()
+    expect(await browser.elementById('client-query').text()).toBe('1')
+
+    // Reveal the links. The page's loading state is already cached from the
+    // initial load, and it doesn't vary on the query.
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/query?x=2"]'
+        )
+        .click()
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/query?x=3"]'
+        )
+        .click()
+    }, 'no-requests')
+
+    // The page's output doesn't depend on the query, so the navigation keeps
+    // it: no request, same server output, but the client sees the new query.
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/navigation-reuse/query?x=2"]')
+        .click()
+    }, 'no-requests')
+    expect(await browser.elementById('server-token').text()).toBe(initialToken)
+    expect(await browser.elementById('client-query').text()).toBe('2')
+
+    // An explicit refresh still fetches new data...
+    await act(
+      async () => {
+        await browser.elementById('refresh').click()
+      },
+      { includes: 'Server token' }
+    )
+    const refreshedToken = await browser.elementById('server-token').text()
+    expect(refreshedToken).not.toBe(initialToken)
+
+    // ...and later query-only navigations keep the refreshed data.
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/navigation-reuse/query?x=3"]')
+        .click()
+    }, 'no-requests')
+    expect(await browser.elementById('server-token').text()).toBe(
+      refreshedToken
+    )
+    expect(await browser.elementById('client-query').text()).toBe('3')
+  })
+
+  // @gate ledgers
+  it('keeps a page restored from the BFCache across a query-only navigation after it was refreshed', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/navigation-reuse/query?x=1', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/query?x=2"]'
+        )
+        .click()
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/query?x=3"]'
+        )
+        .click()
+    }, 'no-requests')
+
+    // Refresh first. The BFCache entries for this page and its head are
+    // written before the refresh response arrives; they must pick up the
+    // response's dependency information when it does.
+    await act(
+      async () => {
+        await browser.elementById('refresh').click()
+      },
+      { includes: 'Server token' }
+    )
+    const refreshedToken = await browser.elementById('server-token').text()
+
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/navigation-reuse/query?x=2"]')
+        .click()
+    }, 'no-requests')
+    expect(await browser.elementById('client-query').text()).toBe('2')
+
+    // Back to ?x=1 restores the refreshed page from the BFCache.
+    await browser.back()
+    await retry(async () => {
+      expect(await browser.elementById('client-query').text()).toBe('1')
+    })
+    expect(await browser.elementById('server-token').text()).toBe(
+      refreshedToken
+    )
+
+    // The restored page still knows it didn't read the query.
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/navigation-reuse/query?x=3"]')
+        .click()
+    }, 'no-requests')
+    expect(await browser.elementById('server-token').text()).toBe(
+      refreshedToken
+    )
+    expect(await browser.elementById('client-query').text()).toBe('3')
+  })
+
+  // @gate ledgers
+  it('keeps a dynamic layout that did not read a path param while fetching the page that did', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/navigation-reuse/layout-param/a', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+    const layoutToken = await browser.elementById('layout-token').text()
+    expect(await browser.elementById('page-id').text()).toBe('Page id: a')
+    const bfcacheIdA = await browser.elementById('bfcache-id').text()
+
+    // The loading state above [id] is already cached and doesn't vary on id.
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/layout-param/b"]'
+        )
+        .click()
+    }, 'no-requests')
+
+    // Only the page read the param, so only the page is fetched. The layout
+    // keeps its data even though it renders under a new param value.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/navigation-reuse/layout-param/b"]')
+          .click()
+      },
+      { includes: 'Page id: b' }
+    )
+    expect(await browser.elementById('layout-token').text()).toBe(layoutToken)
+    expect(await browser.elementById('page-id').text()).toBe('Page id: b')
+    expect(await browser.elementById('client-param').text()).toBe('b')
+    // A path param change is a new instance of the segment, so it gets a new
+    // identity, the same way LayoutRouter remounts it.
+    const bfcacheIdB = await browser.elementById('bfcache-id').text()
+    expect(bfcacheIdB).not.toBe(bfcacheIdA)
+
+    // Back/forward restores the original instance and its identity.
+    await browser.back()
+    await retry(async () => {
+      expect(await browser.elementById('page-id').text()).toBe('Page id: a')
+    })
+    expect(await browser.elementById('bfcache-id').text()).toBe(bfcacheIdA)
+  })
+
   it('still fetches the head on a query-only navigation when the metadata read searchParams', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/navigation-reuse/metadata-query?x=1', {
@@ -877,10 +1131,18 @@ describe('segment cache - vary params', () => {
       { includes: 'Query title: 2' }
     )
     expect(await browser.eval('document.title')).toBe('Query title: 2')
-    // A dynamic render reports no dependency information, so the page is
-    // re-rendered along with the head.
-    expect(await browser.elementById('server-token').text()).not.toBe(
-      initialToken
-    )
+    if (await gate((c) => c.ledgers)) {
+      // The page's own output didn't read the query, so the request was for
+      // the head alone and the page is kept.
+      expect(await browser.elementById('server-token').text()).toBe(
+        initialToken
+      )
+    } else {
+      // Without built-in tracking, a dynamic render reports no dependency
+      // information, so the page is re-rendered along with the head.
+      expect(await browser.elementById('server-token').text()).not.toBe(
+        initialToken
+      )
+    }
   })
 })

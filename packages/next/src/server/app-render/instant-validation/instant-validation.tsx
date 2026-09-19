@@ -1,9 +1,9 @@
+import type { SetLedgerValue } from '../../../shared/lib/ledger-decoding'
 import type {
   HeadData,
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import {
   transportSegmentToSegment,
@@ -726,7 +726,7 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  varyParams: VaryParamsIterable | null
+  varyParams: SetLedgerValue<string> | null
 }
 
 function createSegmentData(data: TransportSegmentData): SegmentData {

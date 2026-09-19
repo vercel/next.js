@@ -1,9 +1,4 @@
-/**
- * Vary Params Decoding
- *
- * This module is shared between server and client.
- */
-
+import { readSetLedger, type SetLedgerValue } from '../ledger-decoding'
 import { readFulfilledValue } from '../rsc-transport'
 
 /**
@@ -11,101 +6,53 @@ import { readFulfilledValue } from '../rsc-transport'
  * nodes it read: path param names, and '?' for the search params — as the
  * source that reports them rather than a snapshot of it.
  *
- * The wire iterables can only be drained from a fully-buffered response; they
- * are drained once at decode into an already-settled thenable, and read at the
- * point a decision needs the set (readVaryParams).
+ * A built-in Ledger total is the promise the server sent, kept as-is: it may
+ * still be pending while the render that produced it is streaming, and it
+ * settles with the final set once that render finishes. Userspace tracking
+ * sends iterables that can only be drained from a fully-buffered response;
+ * they are drained once at decode into an already-settled thenable. Both are
+ * read the same way, at the point a decision needs the set (readVaryParams),
+ * so a value stored while its render was in flight still reads correctly
+ * later.
  */
 export type VaryParams = PromiseLike<Set<string>>
 
 /**
- * Vary params are serialized into the Flight stream as an
- * `AsyncIterable<string>` that yields each accessed param name exactly once
- * (the server dedupes before emitting). Because each access is flushed into the
- * stream as it happens, there's no step at the end of the render that has to
- * run for the client to read anything. If a prerender is aborted by sync I/O,
- * the params yielded before the abort are already in the stream, and they're
- * exactly the params the partial response actually depends on.
- *
- * Root params are NOT included in a segment's own iterable. They're emitted
- * once at the top level of the response (as a separate iterable) and unioned in
- * by `decodeVaryParams`, because root params can be accessed at any point
- * during the render — folding them into every segment would otherwise require
- * a merge once the whole render is complete.
- */
-export type VaryParamsIterable = AsyncIterable<string>
-
-/**
- * Synchronously drains a vary params `AsyncIterable`, adding each yielded name
- * to `target`.
- *
- * By the time this runs (on the client, or in collectSegmentData), the Flight
- * stream has been fully buffered, so every yielded value is already
- * materialized and can be read without awaiting: each iterator result is a
- * Flight chunk whose settled state `readFulfilledValue` reads off the
- * thenable's status.
- *
- * We add "every param yielded up to the point the stream suspends": a
- * normally-closed iterable drains fully, while one left hanging (a sync-I/O
- * abort, or a `close()` whose row hasn't flushed yet) drains to the prefix
- * already in the stream. Both are correct — a segment's param accesses are all
- * flushed as they happen during its render, so the prefix is exactly the set
- * the response depends on. We therefore never need the terminating `done` row
- * to be present; it's only stream hygiene.
- */
-function drainVaryParams(
-  iterable: VaryParamsIterable,
-  target: Set<string>
-): void {
-  const iterator = iterable[Symbol.asyncIterator]()
-  while (true) {
-    const step = readFulfilledValue(iterator.next(), undefined)
-    if (step === undefined || step.done) {
-      // Either the stream suspended here — everything yielded before this
-      // point has already been added — or the iterable finished cleanly.
-      return
-    }
-    target.add(step.value)
-  }
-}
-
-/**
  * Converts a segment's (or the head's) vary params off the wire, at the
- * decode boundary, unioning in the response-level root params.
- *
- * Root params are emitted once at the top level rather than folded into every
- * segment by the server, so every decode recombines them here — building the
- * merge into the decode means a caller can't forget it, and it's done in a
- * single pass with no intermediate set.
- *
- * Returns null ("unknown", key on all params) unless BOTH iterables are
- * present. A null/absent `iterable` means the segment's own tracking wasn't
- * enabled (e.g. not a prerender). A null/absent `rootIterable` means root
- * params weren't tracked — and since a segment's own iterable never includes
- * root params (those are accessed in layouts above it), narrowing on the
- * segment set alone would wrongly assume no root params were accessed. In
- * either case we stay conservative.
- *
- * When both are present each is authoritative even when it drains to the empty
- * set — a tracked segment that read no params, with no root params accessed,
- * can be shared across all param values.
+ * decode boundary. Returns null when the dependency information is
+ * unavailable: tracking was not enabled for the render, or, for userspace
+ * tracking, the response has no root params to union in (a streaming
+ * response). Readers treat null as "assume every param varies".
  */
 export function decodeVaryParams(
-  iterable: VaryParamsIterable | null | undefined,
-  rootIterable: VaryParamsIterable | null | undefined
+  value: SetLedgerValue<string> | null | undefined,
+  rootValue: SetLedgerValue<string> | null | undefined
 ): VaryParams | null {
-  if (
-    iterable === null ||
-    iterable === undefined ||
-    rootIterable === null ||
-    rootIterable === undefined
-  ) {
+  if (value == null) {
     return null
   }
-  const total: Set<string> = new Set()
-  drainVaryParams(iterable, total)
-  drainVaryParams(rootIterable, total)
-  // Shaped like a settled Flight promise so readVaryParams can read it off
-  // the thenable's status.
+  if (process.env.__NEXT_LEDGERS) {
+    // A built-in total already includes the root-param reads that belong to
+    // its scope, and it settles on its own when the render finishes.
+    return value as Promise<Set<string>>
+  }
+  // Userspace tracking sends root params once for the entire response.
+  if (rootValue == null) {
+    return null
+  }
+  const total = readSetLedger(value)
+  if (total === null) {
+    return null
+  }
+  const rootTotal = readSetLedger(rootValue)
+  if (rootTotal === null) {
+    return null
+  }
+  for (const name of rootTotal) {
+    total.add(name)
+  }
+  // Shaped like a settled Flight promise so readVaryParams reads both
+  // implementations the same way.
   const settled = Promise.resolve(total) as Promise<Set<string>> & {
     status: 'fulfilled'
     value: Set<string>
@@ -116,8 +63,9 @@ export function decodeVaryParams(
 }
 
 /**
- * Reads the set from a vary params source. Null when it is not available;
- * the reader assumes every param varies.
+ * Reads the set from a vary params source. Null when it is not available
+ * yet (the render is still in flight) or never will be (the render aborted);
+ * either way the reader assumes every param varies.
  */
 export function readVaryParams(varyParams: VaryParams): Set<string> | null {
   return readFulfilledValue(varyParams, null)

@@ -1921,8 +1921,9 @@ async function fetchMissingDynamicData(
       now,
       navigation.tree.route,
       result.transportData,
-      // Navigation responses stream in incrementally, so their vary params
-      // can't be drained here; they decode as null.
+      // Navigation responses stream in incrementally, so userspace vary
+      // params can't be drained here; built-in totals pass through as the
+      // promises they are and settle when the render finishes.
       null,
       result.isResponsePartial,
       // Navigation responses always include the param values in the tree, so

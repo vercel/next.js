@@ -80,10 +80,11 @@ export function createInitialRouterState({
     // render from the root.
     null,
     initialTransportData,
-    // The initial payload may still be streaming in while we hydrate, so its
-    // vary params can't be drained here; they decode as null. The
-    // segment-cache write below re-decodes the transport data with the
-    // payload's root params once the stale time has resolved.
+    // The initial payload may still be streaming in while we hydrate, so
+    // userspace vary params can't be drained here; built-in totals pass
+    // through as promises. The segment-cache write below re-decodes the
+    // transport data with the payload's root params once the stale time has
+    // resolved.
     null,
     // Same for partiality: only segment-cache writes consume it, and the
     // write below re-decodes with the payload's actual response-level value.
