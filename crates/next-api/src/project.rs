@@ -1957,6 +1957,9 @@ impl Project {
                 "next/image",
                 "/next/dist/shared/lib/image-external-get-image-props.js",
             ),
+            // The edge import map remaps `next/dist/client/` to `next/dist/esm/client/*`, so
+            // the flattened feature module resolves to the ESM variant for edge importers.
+            ("next/image", "/next/dist/esm/client/image-component.js"),
             ("next/future/image", "/next/future/image.js"),
             ("next/legacy/image", "/next/legacy/image.js"),
             ("next/script", "/next/script.js"),
