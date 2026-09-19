@@ -1064,7 +1064,8 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {}
+  enabledFeatures: Record<string, unknown> = {},
+  onConfigLoaded: ((config: NextConfigComplete) => void) | undefined = undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -1143,6 +1144,7 @@ export default async function build(
           )
         )
       loadedConfig = config
+      onConfigLoaded?.(config)
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (

@@ -12,6 +12,7 @@ import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 import { parseBuildPathsInput } from '../lib/resolve-build-paths'
+import type { UpgradeNudge } from '../lib/upgrade/nudge'
 
 export type NextBuildOptions = {
   experimentalAnalyze?: boolean
@@ -35,14 +36,16 @@ export type NextBuildOptions = {
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.title = `next-build (v${process.env.__NEXT_VERSION})`
-  process.on('SIGTERM', () => {
+  const onTerminate = () => {
     saveCpuProfile()
     process.exit(143)
-  })
-  process.on('SIGINT', () => {
+  }
+  const onInterrupt = () => {
     saveCpuProfile()
     process.exit(130)
-  })
+  }
+  process.on('SIGTERM', onTerminate)
+  process.on('SIGINT', onInterrupt)
 
   const {
     experimentalAnalyze,
@@ -120,6 +123,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     }).filter(([_, value]) => value !== undefined && value !== false)
   )
 
+  let upgradeNudge: Promise<UpgradeNudge | null> = Promise.resolve(null)
   return build(
     dir,
     experimentalAnalyze,
@@ -132,7 +136,22 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl,
     debugBuildPathsPatterns,
-    enabledFeatures
+    enabledFeatures,
+    (config) => {
+      if (!config.experimental.agenticAutoUpgrade) return
+      upgradeNudge = import('../lib/upgrade/nudge.js')
+        .then(({ assessUpgrade }) =>
+          assessUpgrade(
+            dir,
+            {
+              policy: config.experimental.agenticAutoUpgrade,
+              cacheComponents: config.cacheComponents,
+            },
+            'interactive'
+          )
+        )
+        .catch(() => null)
+    }
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
@@ -157,6 +176,26 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     .finally(() => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
+      }
+    })
+    .then(async () => {
+      const nudge = await upgradeNudge
+      if (!nudge) return
+      const { promptUpgrade, runUpgrade } = await import(
+        '../lib/upgrade/nudge.js'
+      )
+      if (await promptUpgrade(nudge, new AbortController().signal)) {
+        // The upgrade runner now owns signal forwarding to its child.
+        process.removeListener('SIGTERM', onTerminate)
+        process.removeListener('SIGINT', onInterrupt)
+        try {
+          process.exitCode = await runUpgrade(dir, nudge.policy)
+        } catch {
+          warn(
+            'Could not start the upgrade. Run next upgrade --ai to try again.'
+          )
+          process.exitCode = 1
+        }
       }
     })
 }

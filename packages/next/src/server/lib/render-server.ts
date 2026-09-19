@@ -11,6 +11,7 @@ import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import type { ConfiguredExperimentalFeature } from '../config'
 
 export type ServerInitResult = {
+  upgradeContext: import('../../lib/upgrade/nudge').UpgradeContext
   requestHandler: RequestHandler
   upgradeHandler: UpgradeHandler
   server: NextServer
@@ -181,6 +182,7 @@ async function initializeImpl(opts: {
 
   return {
     requestHandler,
+    upgradeContext: { policy: false, cacheComponents: false },
     upgradeHandler,
     server,
     closeUpgraded() {

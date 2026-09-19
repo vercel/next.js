@@ -2,10 +2,12 @@ import type { NextConfigComplete } from '../../server/config-shared'
 
 export type UpgradeDocument = `docs/${string}.md` | `skills/${string}/SKILL.md`
 
+export type FutureDefaultsConfig = Pick<NextConfigComplete, 'cacheComponents'>
+
 type FutureDefault = {
   name: string
   availableSince: string
-  isAdopted(config: NextConfigComplete): boolean
+  isAdopted(config: FutureDefaultsConfig): boolean
   adoptionDoc: readonly UpgradeDocument[]
   optimizationDoc: readonly UpgradeDocument[]
 }
