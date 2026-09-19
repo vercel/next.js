@@ -16,7 +16,7 @@ use crate::{
         TaskDataCategory,
         operation::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
-            invalidate::make_task_dirty_internal,
+            invalidate::{MakeTaskDirtyOptions, make_task_dirty_internal},
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -328,11 +328,16 @@ impl Operation for UpdateCellOperation {
                         }
                         make_task_dirty_internal(
                             &mut dependent,
-                            make_stale,
-                            #[cfg(feature = "task_dirty_cause")]
-                            TaskDirtyCause::CellChange {
-                                value_type: cell_ref.cell.type_id(),
-                                keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),
+                            MakeTaskDirtyOptions {
+                                make_stale,
+                                schedule_when_active: true,
+                                #[cfg(feature = "task_dirty_cause")]
+                                cause: TaskDirtyCause::CellChange {
+                                    value_type: cell_ref.cell.type_id(),
+                                    keys: has_updated_key_hashes
+                                        .then_some(keys)
+                                        .unwrap_or_default(),
+                                },
                             },
                             queue,
                             ctx,

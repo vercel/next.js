@@ -2,7 +2,10 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
-use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
+use turbo_tasks::{
+    TaskExecutionReason, TaskId, TaskPriority, backend::TaskExecutionAbortReason,
+    event::EventDescription,
+};
 
 use crate::{
     backend::{
@@ -15,7 +18,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{Dirtyness, InProgressState, InProgressStateInner},
+    data::{Dirtyness, InProgressState},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -88,6 +91,20 @@ impl Operation for InvalidateOperation {
     }
 }
 
+/// Options for [`make_task_dirty_internal`].
+pub struct MakeTaskDirtyOptions {
+    /// Also mark an in-progress execution stale (and abort it, when it is cancelable), so the
+    /// currently running execution is discarded in favor of a fresh one.
+    pub make_stale: bool,
+    /// Schedule the task when it is (or is treated as) active. Pass `false` to record the dirty
+    /// state without scheduling, e.g. for a task whose execution was aborted because nothing needs
+    /// it anymore.
+    pub schedule_when_active: bool,
+    /// Diagnostic reason recorded with the dirty state.
+    #[cfg(feature = "task_dirty_cause")]
+    pub cause: TaskDirtyCause,
+}
+
 pub fn make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
@@ -97,22 +114,32 @@ pub fn make_task_dirty(
     let mut task = ctx.task(task_id, TaskDataCategory::All);
     make_task_dirty_internal(
         &mut task,
-        true,
-        #[cfg(feature = "task_dirty_cause")]
-        cause,
+        MakeTaskDirtyOptions {
+            make_stale: true,
+            schedule_when_active: true,
+            #[cfg(feature = "task_dirty_cause")]
+            cause,
+        },
         queue,
         ctx,
     );
 }
 
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [TaskDataCategory::All].
+///
+/// See [`MakeTaskDirtyOptions`] for how staleness and scheduling are controlled.
 pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
     task: &mut E::TaskGuardImpl,
-    make_stale: bool,
-    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    options: MakeTaskDirtyOptions,
     queue: &mut AggregationUpdateQueue,
     ctx: &mut E,
 ) {
+    let MakeTaskDirtyOptions {
+        make_stale,
+        schedule_when_active,
+        #[cfg(feature = "task_dirty_cause")]
+        cause,
+    } = options;
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
@@ -131,20 +158,27 @@ pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
 
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
-    if make_stale
-        && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
-            task.get_in_progress_mut()
-        && !*stale
+    if make_stale && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress_mut()
     {
-        #[cfg(feature = "trace_task_dirty")]
-        let _span = tracing::trace_span!(
-            "make task stale",
-            task_id = display(task_id),
-            name = task_name,
-            cause = %cause
-        )
-        .entered();
-        *stale = true;
+        if !in_progress.stale {
+            #[cfg(feature = "trace_task_dirty")]
+            let _span = tracing::trace_span!(
+                "make task stale",
+                task_id = display(task_id),
+                name = task_name,
+                cause = %cause
+            )
+            .entered();
+            in_progress.stale = true;
+        }
+        let native_fn = in_progress.native_fn;
+        let outcome = in_progress.request_abort(TaskExecutionAbortReason::Invalidation);
+        ctx.track_abort_request(
+            task.id(),
+            native_fn,
+            TaskExecutionAbortReason::Invalidation,
+            outcome,
+        );
     }
     let current = task.get_dirty();
     let parent_priority = ctx.get_current_task_priority();
@@ -256,7 +290,8 @@ pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
         queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
-    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
+    let should_schedule =
+        schedule_when_active && (!ctx.should_track_activeness() || task.has_activeness());
 
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
