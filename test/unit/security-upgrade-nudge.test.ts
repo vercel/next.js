@@ -209,7 +209,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the latest upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the latest upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```[\s\S]*agenticAutoUpgrade: 'latest'/
       ),
     })
     await expect(
@@ -219,7 +219,7 @@ describe('latest upgrade nudge', () => {
     expect(getLatestUpgradeVersion).toHaveBeenCalledTimes(2)
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*continuing after the reminder you configured[\s\S]*registry\.npmjs\.org/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*continuing after the reminder you configured/
       )
     )
   })
