@@ -5,7 +5,10 @@ import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import loadConfig from '../../server/config'
 import { PHASE_INFO } from '../../shared/lib/constants'
-import { futureDefaults, type FutureDefaultEntry } from './future-defaults'
+import {
+  getPendingFutureDefaults,
+  type FutureDefaultEntry,
+} from './future-defaults'
 
 type UpgradePreparation =
   | { status: 'unaffected'; reason: string }
@@ -108,11 +111,7 @@ export async function prepareUpgrade(
         silent: true,
       }).finally(resetEnv)
 
-      pendingFutureDefaults = futureDefaults.filter(
-        (futureDefault) =>
-          semver.gte(targetVersion, futureDefault.availableSince) &&
-          !futureDefault.isAdopted(config)
-      )
+      pendingFutureDefaults = getPendingFutureDefaults(config, targetVersion)
 
       if (
         targetVersion === installedVersion &&
