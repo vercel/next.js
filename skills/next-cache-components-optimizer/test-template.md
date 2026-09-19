@@ -6,6 +6,10 @@ Ship one test per navigation type you are guarding: under `instant()`, assert th
 destination's static shell appears. `instant()` gates dynamic data, so a correctly instant route
 commits its shell under the lock and a blocking route does not. `instant()` is a ruler, not a
 stopwatch: do not add custom timeouts or timing races (see `reference/red-test-robustness.md`).
+Keep each route and navigation type in its own focused test. Do not loop over several routes or
+aggregate their readiness results in one test; focused tests can still run serially in one browser
+worker.
+
 Whether the marker is the right one (rendering for the test user, not flag-gated, not redirected
 away, not guessed) is established at authoring time with the unlocked baseline scaffold below
 (phase B, the C-gate), not by additional assertions in the shipped test.
@@ -118,9 +122,9 @@ cached. So the initial-load `toHaveCount(0)` gated half is as valid as the soft-
 no fresh browser context and no cache-busting query param.
 
 The **post-release** assertion (`getByTestId('<b>-content').toBeVisible()` after the `instant()`
-block) is soft-nav only. On an initial load the document was already emitted under the lock, so
-nothing streams in after release; drop that assertion from the initial-load test, or
-`page.reload()` first to fetch an unlocked document. The mechanism is in
+block) applies to both forms. When the lock is released, Next.js refreshes the route so deferred
+content can render. For an initial load, this is a soft refresh after hydration, with a hard reload
+fallback if the router is not ready yet. The mechanism is in
 `reference/red-test-robustness.md`.
 
 ## Baseline scaffold: do not ship
@@ -133,9 +137,10 @@ scaffold before the PR.
 
 **The baseline must mirror the navigation type of the test you are shipping.** Drive a `<Link>`
 click when guarding the soft-nav shell; drive `page.goto()` when guarding the initial-load shell.
-The two shells can differ (`reference/real-app-patterns.md`): a click-driven baseline run against a
-shipped `goto` test would confirm a marker that the `goto` path never shows, which produces exactly
-the false RED the C-gate exists to prevent.
+The two shells can differ, as described in the
+[initial-load and client-navigation section](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests). A click-driven
+baseline run against a shipped `goto` test would confirm a marker that the `goto` path never shows,
+which produces exactly the false RED the C-gate exists to prevent.
 
 ```ts
 // soft-nav baseline: mirror the soft-nav instant() test

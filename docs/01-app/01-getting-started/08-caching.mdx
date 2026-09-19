@@ -525,6 +525,8 @@ Now `<Sidebar />`, `{children}`, and the Suspense fallback are all part of the s
 
 The same principle applies to `cookies()`, `headers()`, `searchParams`, and data fetches. See [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache) for a related pattern.
 
+For a complete workflow, see [Optimizing the static shell](/docs/app/guides/optimizing-the-static-shell).
+
 ### Instant navigation
 
 Cache Components shipped in 16.0.0 with verification that direct visits to a route produce a static shell. Client navigations are different: a `<Suspense>` boundary that covers a direct visit may not be part of the render during a transition. Getting that structure right is easier when the framework steps in. Cache Components now validates these navigations too, giving you insights and errors that guide you to make navigations to your route instant. For example, wrap data in `<Suspense>`, cache it with `use cache`, or move where the access happens.
