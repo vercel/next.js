@@ -73,7 +73,7 @@
     "generate-browser-variant-aliases": "node scripts/generate-browser-variant-aliases.mjs",
     "lint": "run-p test-types lint-typescript prettier-check \"lint-eslint .\" lint-ast-grep lint-language check-unused-turbo-tasks",
     "lint-fix": "pnpm prettier-fix && pnpm lint-eslint --fix .",
-    "lint-language": "alex . --quiet",
+    "lint-language": "alex . --quiet && alex docs --mdx --quiet",
     "prettier-check": "prettier --check .",
     "check-examples": "./scripts/check-examples.sh",
     "get-test-timings": "node run-tests.js --timings --write-timings -g 1/1",
