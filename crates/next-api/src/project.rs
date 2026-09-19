@@ -1850,7 +1850,11 @@ impl Project {
             per_page_module_graph: self.per_page_module_graph(),
         };
         Ok(if client_assets {
-            get_server_chunking_context_with_client_assets(options)
+            get_server_chunking_context_with_client_assets(
+                options,
+                self.next_config()
+                    .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?),
+            )
         } else {
             get_server_chunking_context(options)
         })
