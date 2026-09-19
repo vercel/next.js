@@ -1,19 +1,38 @@
 let installed: boolean = false
 
-export function loadWebpackHook() {
+export function loadWebpackHook(webpackProjectDir: string) {
   if (installed) {
     return
   }
   installed = true
 
-  // hook the Node.js require so that webpack requires are
-  // routed to the bundled and now initialized webpack version
-  ;(
+  const requireHook =
     require('../server/require-hook') as typeof import('../server/require-hook')
-  ).addHookAliases(
+  const customWebpack = Boolean(process.env.NEXT_PRIVATE_LOCAL_WEBPACK)
+  const isWebpackAlias = (request: string) =>
+    request === 'webpack' ||
+    request.startsWith('webpack/') ||
+    request === 'webpack-sources' ||
+    request.startsWith('webpack-sources/')
+
+  if (customWebpack) {
+    try {
+      require.resolve('webpack/package.json', { paths: [webpackProjectDir] })
+    } catch (cause) {
+      installed = false
+      throw new Error(
+        '`--custom-webpack` requires webpack to be installed in your project. Install it with `npm install --save-dev webpack`.',
+        { cause }
+      )
+    }
+  }
+
+  // Hook Node.js require so webpack imports resolve to the bundled webpack.
+  // With `--custom-webpack` these aliases are skipped so webpack resolves
+  // normally from the project.
+  requireHook.addHookAliases(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
-      ['webpack/package', 'next/dist/compiled/webpack/package'],
       ['webpack/package.json', 'next/dist/compiled/webpack/package'],
       ['webpack/lib/webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/lib/webpack.js', 'next/dist/compiled/webpack/webpack-lib'],
@@ -136,9 +155,12 @@ export function loadWebpackHook() {
         '@babel/runtime/package.json',
         'next/dist/compiled/@babel/runtime/package.json',
       ],
-    ].map(
-      // Use dynamic require.resolve to avoid statically analyzable since they're only for build time
-      ([request, replacement]) => [request, require.resolve(replacement)]
-    )
+    ]
+      .filter(([request]) => !customWebpack || !isWebpackAlias(request))
+      .map(
+        // Use dynamic require.resolve to avoid statically analyzable since
+        // these replacements are only needed at build time.
+        ([request, replacement]) => [request, require.resolve(replacement)]
+      )
   )
 }

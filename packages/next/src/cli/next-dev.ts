@@ -50,6 +50,7 @@ export type NextDevOptions = {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
+  customWebpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
