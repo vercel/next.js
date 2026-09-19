@@ -28,6 +28,14 @@ const linters = {
     cwd: withCustomPagesDir,
     configType: 'eslintrc',
   }),
+  withPageExtensionsPages: new Linter({
+    cwd: path.join(__dirname, 'with-page-extensions-pages-dir'),
+    configType: 'eslintrc',
+  }),
+  withPageExtensionsApp: new Linter({
+    cwd: path.join(__dirname, 'with-page-extensions-app-dir'),
+    configType: 'eslintrc',
+  }),
 }
 
 const linterConfig: any = {
@@ -69,6 +77,14 @@ const linterConfigWithNestedContentRootDirDirectory = {
   settings: {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
+    },
+  },
+}
+const linterConfigWithPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['page.tsx', 'page.ts'],
     },
   },
 }
@@ -493,6 +509,46 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid static route with pageExtensions in pages dir', function () {
+    const [report] = linters.withPageExtensionsPages.verify(invalidStaticCode, linterConfigWithPageExtensions, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid dynamic route with pageExtensions in pages dir', function () {
+    const [report] = linters.withPageExtensionsPages.verify(invalidDynamicCode, linterConfigWithPageExtensions, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid static route with pageExtensions in app dir', function () {
+    const [report] = linters.withPageExtensionsApp.verify(invalidStaticCode, linterConfigWithPageExtensions, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid dynamic route with pageExtensions in app dir', function () {
+    const [report] = linters.withPageExtensionsApp.verify(invalidDynamicCode, linterConfigWithPageExtensions, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
