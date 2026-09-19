@@ -2331,6 +2331,9 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
+      // Rspack defaults missing imported exports to errors, unlike webpack.
+      // Preserve compatibility for imports removed by tree shaking.
+      ...(isRspack ? { importExportsPresence: 'warn' } : undefined),
     },
   }
   webpack5Config.module!.generator = {
