@@ -17,6 +17,14 @@ type Environment = 'total' | 'client' | 'server'
 type Metric = 'raw' | 'compressed'
 type FileType = 'js' | 'css' | 'json' | 'asset'
 
+interface Pagination {
+  offset: number
+  limit: number
+  total: number
+  returned: number
+  truncated: boolean
+}
+
 interface SourceRow {
   key: string
   sourcePath?: string
@@ -88,6 +96,39 @@ interface CompareArgs {
   limit?: number
 }
 
+class DetailedToolError extends Error {
+  constructor(
+    message: string,
+    readonly details: Record<string, unknown>
+  ) {
+    super(message)
+  }
+}
+
+function publicError(error: unknown): Record<string, unknown> {
+  if (error instanceof DetailedToolError) {
+    return { error: error.message, ...error.details }
+  }
+  if (!(error instanceof Error))
+    return { error: 'Unable to query analyzer data' }
+  if (error.message.startsWith('Unknown snapshot')) {
+    return { error: 'Unknown snapshot' }
+  }
+  if (error.message.startsWith('Unknown route'))
+    return { error: 'Unknown route' }
+  if (error.message.startsWith('Unknown source')) {
+    return { error: 'Unknown source' }
+  }
+  if (
+    /^(?:Invalid |moduleIdent |route is required|Route comparisons)/.test(
+      error.message
+    )
+  ) {
+    return { error: error.message }
+  }
+  return { error: 'Unable to query analyzer data' }
+}
+
 export class AnalyzeQueryError extends Error {
   constructor(readonly output: Record<string, unknown>) {
     super(
@@ -96,81 +137,31 @@ export class AnalyzeQueryError extends Error {
   }
 }
 
-function publicError(error: unknown): Record<string, unknown> {
-  if (!(error instanceof Error))
-    return { error: 'Unable to query analyzer data' }
-  if (error.message.startsWith('Unknown snapshot')) {
-    return { error: 'Unknown snapshot' }
-  }
-  if (error.message.startsWith('Unknown route'))
-    return { error: 'Unknown route' }
-  if (error.message.startsWith('Unknown source'))
-    return { error: 'Unknown source' }
-  if (/^(?:Invalid |moduleIdent )/.test(error.message)) {
-    return { error: error.message }
-  }
-  return { error: 'Unable to query analyzer data' }
-}
-
-function safeQuery<T, R>(fn: (args: T) => Promise<R>) {
+function safeTool<T, R>(fn: (args: T) => Promise<R>) {
   return async (args: T) => {
     try {
       return await fn(args)
     } catch (error) {
+      if (error instanceof AnalyzeQueryError) throw error
       throw new AnalyzeQueryError(publicError(error))
     }
   }
 }
 
-export type AnalyzeQueryListing = {
-  name: string
-  description: string
-  inputSchema: Record<string, unknown>
-  example: Record<string, unknown>
-}
-
-type StoredQuery = AnalyzeQueryListing & {
-  execute: (input: unknown) => Promise<unknown>
-}
-
-export class AnalyzeQueryRegistry {
-  constructor(private readonly queries: StoredQuery[]) {}
-
-  list(): AnalyzeQueryListing[] {
-    return this.queries.map(({ execute: _execute, ...query }) => query)
-  }
-
-  async execute(name: string, input: unknown): Promise<unknown> {
-    const query = this.queries.find((item) => item.name === name)
-    if (!query) {
-      throw new AnalyzeQueryError({ error: `Unknown analyzer query: ${name}` })
-    }
-    try {
-      return await query.execute(input)
-    } catch (error) {
-      if (error instanceof AnalyzeQueryError) throw error
-      if (error instanceof z.ZodError) {
-        throw new AnalyzeQueryError({
-          error: `Invalid arguments for query ${name}: ${error.message}`,
-          example: query.example,
-        })
-      }
-      throw error
-    }
+function pagination(offset: number, limit: number, total: number): Pagination {
+  return {
+    offset,
+    limit,
+    total,
+    returned: Math.max(0, Math.min(limit, total - offset)),
+    truncated: offset + limit < total,
   }
 }
 
 function page<T>(values: T[], offset: number, limit: number) {
-  const result = values.slice(offset, offset + limit)
   return {
-    values: result,
-    pagination: {
-      offset,
-      limit,
-      total: values.length,
-      returned: result.length,
-      truncated: offset + limit < values.length,
-    },
+    values: values.slice(offset, offset + limit),
+    pagination: pagination(offset, limit, values.length),
   }
 }
 
@@ -183,6 +174,10 @@ function metricValue(
   metric: Metric
 ): number {
   return metric === 'compressed' ? value.compressedSize : value.rawSize
+}
+
+function outputEnvironment(filename: string): 'client' | 'server' {
+  return filename.startsWith('[client-fs]/') ? 'client' : 'server'
 }
 
 function sourceSizes(
@@ -198,8 +193,7 @@ function sourceSizes(
     if (!part || !output) continue
     if (
       environment !== 'total' &&
-      (output.filename.startsWith('[client-fs]/') ? 'client' : 'server') !==
-        environment
+      outputEnvironment(output.filename) !== environment
     ) {
       continue
     }
@@ -478,6 +472,19 @@ function findImporterChain(
   return { chain: [], truncated }
 }
 
+function provenance(metadata: SnapshotMetadata) {
+  return {
+    id: metadata.id,
+    createdAt: metadata.createdAt,
+    baselineName: metadata.baselineName,
+    nextVersion: metadata.nextVersion,
+    gitBranch: metadata.gitBranch,
+    gitSha: metadata.gitSha,
+    gitDirty: metadata.gitDirty,
+    routeCount: metadata.routeCount,
+  }
+}
+
 function diffStatus(
   inBaseline: boolean,
   inComparison: boolean,
@@ -543,18 +550,36 @@ function summarizeDiff(
   }
 }
 
-function provenance(metadata: SnapshotMetadata) {
-  return {
-    id: metadata.id,
-    createdAt: metadata.createdAt,
-    baselineName: metadata.baselineName,
-    nextVersion: metadata.nextVersion,
-    gitBranch: metadata.gitBranch,
-    gitSha: metadata.gitSha,
-    gitDirty: metadata.gitDirty,
-    routeCount: metadata.routeCount,
-  }
+const pagingSchema = {
+  offset: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Zero-based result offset.'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_LIMIT)
+    .optional()
+    .describe(
+      `Maximum results to return (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).`
+    ),
 }
+const snapshotSchema = z
+  .string()
+  .max(100)
+  .optional()
+  .describe('`current` (default) or an exact historical snapshot ID.')
+const metricSchema = z
+  .enum(['raw', 'compressed'])
+  .optional()
+  .describe('Size metric. Default: `raw`.')
+const environmentSchema = z
+  .enum(['total', 'client', 'server'])
+  .optional()
+  .describe('Attribution environment. Default: `total`.')
 
 function jsonField(input: z.ZodTypeAny): {
   schema: Record<string, unknown>
@@ -613,34 +638,43 @@ function jsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
   }
 }
 
-const pagingSchema = {
-  offset: z
-    .number()
-    .int()
-    .nonnegative()
-    .optional()
-    .describe('Zero-based result offset. Default: 0.'),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_LIMIT)
-    .optional()
-    .describe(`Maximum results. Default: ${DEFAULT_LIMIT}; max: ${MAX_LIMIT}.`),
+export type AnalyzeQueryListing = {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  example: Record<string, unknown>
 }
-const snapshotSchema = z
-  .string()
-  .max(100)
-  .optional()
-  .describe('Snapshot ID. Default: `current`.')
-const metricSchema = z
-  .enum(['raw', 'compressed'])
-  .optional()
-  .describe('Size metric. Default: `raw`.')
-const environmentSchema = z
-  .enum(['total', 'client', 'server'])
-  .optional()
-  .describe('Attribution environment. Default: `total`.')
+
+type StoredQuery = AnalyzeQueryListing & {
+  execute: (input: unknown) => Promise<unknown>
+}
+
+export class AnalyzeQueryRegistry {
+  constructor(private readonly queries: StoredQuery[]) {}
+
+  list(): AnalyzeQueryListing[] {
+    return this.queries.map(({ execute: _execute, ...query }) => query)
+  }
+
+  async execute(name: string, input: unknown): Promise<unknown> {
+    const query = this.queries.find((item) => item.name === name)
+    if (!query) {
+      throw new AnalyzeQueryError({ error: `Unknown analyzer query: ${name}` })
+    }
+    try {
+      return await query.execute(input)
+    } catch (error) {
+      if (error instanceof AnalyzeQueryError) throw error
+      if (error instanceof z.ZodError) {
+        throw new AnalyzeQueryError({
+          error: `Invalid arguments for query ${name}: ${error.message}`,
+          example: query.example,
+        })
+      }
+      throw error
+    }
+  }
+}
 
 export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   const queries: StoredQuery[] = []
@@ -680,7 +714,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       },
       example: { environment: 'client', limit: 10 },
     },
-    safeQuery(async (args: OverviewArgs) => {
+    safeTool(async (args: OverviewArgs) => {
       const snapshot = await repository.getSnapshot(args.snapshot)
       const snapshots = await repository.listSnapshots()
       const environment = args.environment ?? 'total'
@@ -748,7 +782,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         limit: 20,
       },
     },
-    safeQuery(async (args: SourcesArgs) => {
+    safeTool(async (args: SourcesArgs) => {
       const environment = args.environment ?? 'total'
       const metric = args.metric ?? 'raw'
       const rows = sortBySize(
@@ -797,7 +831,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       },
       example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
     },
-    safeQuery(async (args: ExplainArgs) => {
+    safeTool(async (args: ExplainArgs) => {
       const environment = args.environment ?? 'total'
       const data = await repository.loadRoute(args.snapshot, args.route)
       const sourceIndex = data.getSourceIndexFromPath(args.sourcePath)
@@ -834,7 +868,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       const chunks = data.sourceChunks(sourceIndex)
       const entries = activeEntries(modules, data)
       const routeGraph = routeModules(modules, entries)
-      return {
+      const response = {
         route: args.route,
         snapshot: provenance(
           (await repository.getSnapshot(args.snapshot)).metadata
@@ -867,6 +901,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         routeEntryDetection: { heuristic: true },
         caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT],
       }
+      return response
     })
   )
 
@@ -880,7 +915,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
           .string()
           .max(100)
           .describe(
-            'Required historical snapshot ID from get_bundle_overview.'
+            'Required historical snapshot ID from get_bundle_overview. Example: `20260917-201045-7afb1d3`.'
           ),
         comparisonSnapshot: snapshotSchema,
         granularity: z
@@ -899,12 +934,53 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         limit: 20,
       },
     },
-    safeQuery(async (args: CompareArgs) => {
+    safeTool(async (args: CompareArgs) => {
       const granularity = args.granularity ?? 'route'
       const environment = args.environment ?? 'total'
       const metric = args.metric ?? 'raw'
+      const offset = args.offset ?? 0
+      const limit = args.limit ?? DEFAULT_LIMIT
+      if (granularity === 'route' && args.route) {
+        throw new Error(
+          'Invalid route: route is only supported for source/package comparisons'
+        )
+      }
+
+      const listed = await repository.listSnapshots()
+      const seen = new Set<string>()
+      const availableSnapshots = [listed.current, ...listed.history]
+        .filter((snapshot) => {
+          if (seen.has(snapshot.id)) return false
+          seen.add(snapshot.id)
+          return true
+        })
+        .map(({ id, createdAt }) => ({ id, createdAt }))
+      const validIds = new Set(availableSnapshots.map(({ id }) => id))
+      const assertSnapshot = (value: string | undefined, field: string) => {
+        if (
+          value !== undefined &&
+          value !== 'current' &&
+          !validIds.has(value)
+        ) {
+          throw new DetailedToolError(`Invalid ${field}: unknown snapshot`, {
+            availableSnapshots,
+          })
+        }
+      }
+      assertSnapshot(args.baselineSnapshot, 'baselineSnapshot')
+      assertSnapshot(args.comparisonSnapshot, 'comparisonSnapshot')
+
       const baseline = await repository.getSnapshot(args.baselineSnapshot)
       const comparison = await repository.getSnapshot(args.comparisonSnapshot)
+      if (baseline.metadata.id === comparison.metadata.id) {
+        throw new DetailedToolError(
+          availableSnapshots.length === 1
+            ? 'No distinct baseline snapshot is available'
+            : 'Baseline and comparison must be different snapshots',
+          { availableSnapshots }
+        )
+      }
+
       const search = args.search?.toLocaleLowerCase()
       let rows: DiffInput[]
       if (granularity === 'route') {
@@ -992,12 +1068,18 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         metric,
         baseline: provenance(baseline.metadata),
         comparison: provenance(comparison.metadata),
-        ...summarizeDiff(
-          rows,
+        effectiveInputs: {
+          baselineSnapshot: baseline.metadata.id,
+          comparisonSnapshot: comparison.metadata.id,
+          granularity,
+          ...(args.route ? { route: args.route } : {}),
+          environment,
           metric,
-          args.offset ?? 0,
-          args.limit ?? DEFAULT_LIMIT
-        ),
+          ...(args.search ? { search: args.search } : {}),
+          offset,
+          limit,
+        },
+        ...summarizeDiff(rows, metric, offset, limit),
         caveats: [COMPRESSED_CAVEAT],
       }
     })
