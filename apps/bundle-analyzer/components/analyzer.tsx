@@ -41,7 +41,11 @@ import {
 import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
-import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
+import {
+  computeActiveEntries,
+  computeModuleDepthMap,
+  computeSourceLoadScopes,
+} from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
 import { jsonFetcher } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
@@ -234,6 +238,7 @@ function useAnalyzerModel(compare: boolean) {
   const [compareSelectedKey, setCompareSelectedKey] = useState<string | null>(
     null
   )
+  const [initialOnly, setInitialOnly] = useState(false)
 
   // Reset compare selection when the route or either side changes — the
   // previous selection is unlikely to exist in the new diff.
@@ -264,12 +269,20 @@ function useAnalyzerModel(compare: boolean) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [analyzeData])
 
-  // Compute module depth map from active entries
-  const moduleDepthMap = useMemo(() => {
-    if (!analyzeData) return new Map()
+  const { moduleDepthMap, sourceLoadScopes } = useMemo(() => {
+    if (!analyzeData) {
+      return { moduleDepthMap: new Map(), sourceLoadScopes: new Map() }
+    }
 
     const activeEntries = computeActiveEntries(modulesData, analyzeData)
-    return computeModuleDepthMap(modulesData, activeEntries)
+    return {
+      moduleDepthMap: computeModuleDepthMap(modulesData, activeEntries),
+      sourceLoadScopes: computeSourceLoadScopes(
+        modulesData,
+        analyzeData,
+        activeEntries
+      ),
+    }
   }, [modulesData, analyzeData])
 
   const filterSource = useMemo(() => {
@@ -290,9 +303,20 @@ function useAnalyzerModel(compare: boolean) {
         (typeFilter.includes('json') && flags.json) ||
         (typeFilter.includes('asset') && flags.asset)
 
-      return hasEnvironment && hasType
+      const hasLoadScope =
+        !initialOnly ||
+        sourceLoadScopes.get(sourceIndex) === 'initial' ||
+        sourceLoadScopes.get(sourceIndex) === 'mixed'
+
+      return hasEnvironment && hasType && hasLoadScope
     }
-  }, [analyzeData, environmentFilter, typeFilter])
+  }, [
+    analyzeData,
+    environmentFilter,
+    initialOnly,
+    sourceLoadScopes,
+    typeFilter,
+  ])
 
   // In single-build (non-compare) mode the table view still wants a list
   // of every source for the current route. We synthesize this by diffing
@@ -358,10 +382,12 @@ function useAnalyzerModel(compare: boolean) {
     filterSource,
     focusedSourceIndex,
     hoveredNodeInfo,
+    initialOnly,
     isHistoryLoading,
     isMouseInTreemap,
     isViewPending,
     moduleDepthMap,
+    sourceLoadScopes,
     modulesData,
     currentRouteTotals,
     clientRouteTotals,
@@ -377,6 +403,7 @@ function useAnalyzerModel(compare: boolean) {
     setEnvironmentFilter: routeState.setEnvironmentFilter,
     setFocusedSourceIndex,
     setHoveredNodeInfo,
+    setInitialOnly,
     setIsMouseInTreemap,
     setSearchQuery: setSearchInput,
     setSelectedSourceIndex,
@@ -449,6 +476,8 @@ function AnalyzerTopBar({
           : model.serverRouteTotals
       }
       showComparison={showComparison}
+      initialOnly={model.initialOnly}
+      onInitialOnlyChange={model.setInitialOnly}
     />
   )
 }
@@ -835,6 +864,11 @@ function SingleAnalyzerContent({
             useCompressed
             nameHeading="Source"
             mode="single"
+            getLoadScope={(row) =>
+              row.sourceIndexB == null
+                ? 'unknown'
+                : (model.sourceLoadScopes.get(row.sourceIndexB) ?? 'unknown')
+            }
             searchQuery={model.searchQuery}
             emptyState={alternateEnvironmentEmptyState}
             onRowSelect={(row) => {
@@ -863,6 +897,10 @@ function SingleAnalyzerContent({
             searchQuery={model.searchQuery}
             filterSource={model.filterSource}
             sizeMode={SizeMode.Compressed}
+            getFileLoadScope={(sourceIndex) =>
+              model.sourceLoadScopes.get(sourceIndex) ?? 'unknown'
+            }
+            overlay={<AsyncScopeLegend />}
           />
         )}
       </div>
@@ -882,6 +920,21 @@ function SingleAnalyzerContent({
         filterSource={model.filterSource}
       />
     </>
+  )
+}
+
+function AsyncScopeLegend() {
+  return (
+    <div className="absolute bottom-3 left-3 flex items-center gap-3 rounded border border-border bg-background/95 px-2.5 py-1.5 text-xs shadow-sm">
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 border border-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,currentColor_3px,currentColor_4px)] text-foreground/45" />
+        Behind async boundary
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="relative h-3 w-3 border border-foreground/40 after:absolute after:right-0 after:top-0 after:h-0 after:w-0 after:border-l-[5px] after:border-t-[5px] after:border-l-transparent after:border-t-foreground/60" />
+        Initial + async paths
+      </span>
+    </div>
   )
 }
 

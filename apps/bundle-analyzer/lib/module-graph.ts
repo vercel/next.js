@@ -1,5 +1,18 @@
 import type { AnalyzeData, ModuleIndex, ModulesData } from './analyze-data'
 
+export const enum ModuleLoadScope {
+  Initial = 1,
+  Async = 2,
+  Traced = 4,
+}
+
+export type SourceLoadScope =
+  | 'initial'
+  | 'async'
+  | 'mixed'
+  | 'traced'
+  | 'unknown'
+
 /**
  * Compute active entries from the current route's sources.
  *
@@ -151,4 +164,81 @@ export function computeModuleDepthMap(
   }
 
   return depthMap
+}
+
+/**
+ * Classify route sources by how they are reachable from the route entries.
+ * This describes graph boundaries, not when a browser requests a chunk.
+ */
+export function computeSourceLoadScopes(
+  modulesData: ModulesData,
+  analyzeData: AnalyzeData,
+  activeEntries: ModuleIndex[]
+): Map<number, SourceLoadScope> {
+  const moduleScopes = new Map<ModuleIndex, number>()
+  const queue: Array<{ moduleIndex: ModuleIndex; scope: ModuleLoadScope }> = []
+
+  const enqueue = (moduleIndex: ModuleIndex, scope: ModuleLoadScope) => {
+    const previousScope = moduleScopes.get(moduleIndex) ?? 0
+    if ((previousScope & scope) === scope) return
+
+    moduleScopes.set(moduleIndex, previousScope | scope)
+    queue.push({ moduleIndex, scope })
+  }
+
+  for (const moduleIndex of activeEntries) {
+    enqueue(moduleIndex, ModuleLoadScope.Initial)
+  }
+
+  for (let index = 0; index < queue.length; index++) {
+    const current = queue[index]
+
+    for (const dependency of modulesData.moduleDependencies(
+      current.moduleIndex
+    )) {
+      enqueue(dependency, current.scope)
+    }
+    for (const dependency of modulesData.asyncModuleDependencies(
+      current.moduleIndex
+    )) {
+      enqueue(dependency, ModuleLoadScope.Async)
+    }
+    for (const dependency of modulesData.tracedModuleDependencies(
+      current.moduleIndex
+    )) {
+      enqueue(dependency, ModuleLoadScope.Traced)
+    }
+  }
+
+  const sourceScopes = new Map<number, SourceLoadScope>()
+  for (
+    let sourceIndex = 0;
+    sourceIndex < analyzeData.sourceCount();
+    sourceIndex++
+  ) {
+    const sourcePath = analyzeData.getFullSourcePath(sourceIndex)
+    let scope = 0
+    for (const moduleIndex of modulesData.getModuleIndiciesFromPath(
+      sourcePath
+    )) {
+      scope |= moduleScopes.get(moduleIndex) ?? 0
+    }
+
+    const hasInitial = (scope & ModuleLoadScope.Initial) !== 0
+    const hasAsync = (scope & ModuleLoadScope.Async) !== 0
+    sourceScopes.set(
+      sourceIndex,
+      hasInitial && hasAsync
+        ? 'mixed'
+        : hasAsync
+          ? 'async'
+          : hasInitial
+            ? 'initial'
+            : (scope & ModuleLoadScope.Traced) !== 0
+              ? 'traced'
+              : 'unknown'
+    )
+  }
+
+  return sourceScopes
 }

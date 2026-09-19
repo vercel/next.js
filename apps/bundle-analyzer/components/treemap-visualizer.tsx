@@ -13,6 +13,7 @@ import {
 } from '@/lib/treemap-layout'
 import { SpecialModule } from '@/lib/types'
 import { formatBytes } from '@/lib/utils'
+import type { SourceLoadScope } from '@/lib/module-graph'
 
 const UI_FONT = 'system-ui, sans-serif'
 
@@ -44,6 +45,7 @@ interface TreemapVisualizerProps {
    * size deltas (e.g. "+1.2 KB") instead of absolute sizes.
    */
   getFileSizeLabel?: (node: LayoutNode) => string | undefined
+  getFileLoadScope?: (sourceIndex: number) => SourceLoadScope
   /**
    * Optional overlay rendered on top of the treemap canvas. Used by the
    * compare view to render a red/green legend.
@@ -298,6 +300,7 @@ function drawTreemap(
   immediateHoveredSourceIndex: number | undefined,
   getFileColorOverride: ((node: LayoutNode) => string | undefined) | undefined,
   getFileSizeLabel: ((node: LayoutNode) => string | undefined) | undefined,
+  getFileLoadScope: ((sourceIndex: number) => SourceLoadScope) | undefined,
   currentPath: string[] = [],
   parentFadedOut = false,
   insideActiveSubtree = false
@@ -357,6 +360,7 @@ function drawTreemap(
             immediateHoveredSourceIndex,
             getFileColorOverride,
             getFileSizeLabel,
+            getFileLoadScope,
             path,
             parentFadedOut,
             insideActiveSubtree
@@ -434,6 +438,37 @@ function drawTreemap(
     ctx.strokeStyle = colors.border
     ctx.lineWidth = 1
     ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+
+    const loadScope =
+      sourceIndex === undefined ? 'unknown' : getFileLoadScope?.(sourceIndex)
+    if (loadScope === 'async') {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(rect.x, rect.y, rect.width, rect.height)
+      ctx.clip()
+      ctx.strokeStyle = readableColor(color)
+      ctx.globalAlpha = opacity * 0.28
+      ctx.lineWidth = 1
+      for (let offset = -rect.height; offset < rect.width; offset += 7) {
+        ctx.beginPath()
+        ctx.moveTo(rect.x + offset, rect.y + rect.height)
+        ctx.lineTo(rect.x + offset + rect.height, rect.y)
+        ctx.stroke()
+      }
+      ctx.restore()
+      ctx.globalAlpha = opacity
+    } else if (loadScope === 'mixed') {
+      const markerSize = Math.min(8, rect.width, rect.height)
+      ctx.fillStyle = readableColor(color)
+      ctx.globalAlpha = opacity * 0.65
+      ctx.beginPath()
+      ctx.moveTo(rect.x + rect.width - markerSize, rect.y)
+      ctx.lineTo(rect.x + rect.width, rect.y)
+      ctx.lineTo(rect.x + rect.width, rect.y + markerSize)
+      ctx.closePath()
+      ctx.fill()
+      ctx.globalAlpha = opacity
+    }
 
     if (rect.width > 60 && rect.height > 30) {
       const textColor = readableColor(color)
@@ -644,6 +679,7 @@ function drawTreemap(
           immediateHoveredSourceIndex,
           getFileColorOverride,
           getFileSizeLabel,
+          getFileLoadScope,
           path,
           childFadeOut,
           childInsideActiveSubtree
@@ -733,6 +769,7 @@ export function TreemapVisualizer({
   sizeMode = SizeMode.Compressed,
   getFileColorOverride,
   getFileSizeLabel,
+  getFileLoadScope,
   overlay,
   computeLayout,
   getParentSourceIndex,
@@ -918,7 +955,8 @@ export function TreemapVisualizer({
       layout,
       hoveredNode?.sourceIndex,
       getFileColorOverride,
-      getFileSizeLabel
+      getFileSizeLabel,
+      getFileLoadScope
     )
   }, [
     layout,
@@ -932,6 +970,7 @@ export function TreemapVisualizer({
     hoveredNode,
     getFileColorOverride,
     getFileSizeLabel,
+    getFileLoadScope,
   ])
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

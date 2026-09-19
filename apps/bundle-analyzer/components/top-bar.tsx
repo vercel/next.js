@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { diffRoutesWithSizes, type RouteSizeTotals } from '@/lib/diff'
 import { type SnapshotMetadata } from '@/lib/snapshot'
@@ -80,6 +81,8 @@ export function TopBar({
   hasSourceData,
   showViewToggle,
   showComparison = true,
+  initialOnly,
+  onInitialOnlyChange,
 }: {
   hasSourceData: boolean
   showViewToggle: boolean
@@ -102,6 +105,8 @@ export function TopBar({
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
   showComparison?: boolean
+  initialOnly?: boolean
+  onInitialOnlyChange?: (value: boolean) => void
 }) {
   const isCompareMode = baselineSnapshot != null
   return (
@@ -210,6 +215,20 @@ export function TopBar({
               triggerClassName="w-36"
               aria-label="Filter by file type"
             />
+
+            {!isCompareMode && onInitialOnlyChange ? (
+              <label
+                className="flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap px-1"
+                title="Show only modules with an initial synchronous path"
+              >
+                <span className="text-xs">Initial only</span>
+                <Switch
+                  checked={initialOnly}
+                  onCheckedChange={onInitialOnlyChange}
+                  aria-label="Show only modules with an initial synchronous path"
+                />
+              </label>
+            ) : null}
 
             <ControlDivider />
             <FileSearch value={searchQuery} onChange={setSearchQuery} />
