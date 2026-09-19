@@ -1,4 +1,4 @@
-import type { AnalyzeData, ModuleIndex, ModulesData } from './analyze-data'
+import type { AnalyzeData, ModuleIndex, ModulesData } from '@/lib/analyze-data'
 
 /**
  * Compute active entries from the current route's sources.
