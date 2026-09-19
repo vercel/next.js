@@ -324,9 +324,13 @@ async fn mutating_a_state_read_by_a_collected_task_does_not_panic() {
         "the disconnected state reader should have been collected"
     );
 
-    // Soft-deletion alone leaves the task resident, where a `MustExist` open still finds it.
-    // Snapshot + evict is what actually removes it, so the invalidator below refers to a task that
-    // is in neither memory nor storage.
+    // Required, and not just for realism: the evict is what selects the code path under test.
+    // GC only soft-deletes, leaving the task resident, and a weak open of a resident-but-deleted
+    // task returns early on the `deleted` flag. Evicting drops it from memory (and tombstones it on
+    // disk), so the open below instead reaches the exists-nowhere case in
+    // `ExecuteContextImpl::open_task` -- nothing restored, nothing found on disk -- which is the
+    // one that would panic under `MustExist`. Drop this line and the test still passes, but it
+    // stops covering that path.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
 
     // Mutating the State now walks its invalidator list, which still names the collected reader.
