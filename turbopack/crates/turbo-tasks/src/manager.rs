@@ -1419,6 +1419,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 }
             }
             self.backend.stop(self);
+            // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
+            // to subscribers before returning, then close the queue so subscriptions end after
+            // draining.
+            self.compilation_events.flush_and_close().await;
         })
         .await;
     }
