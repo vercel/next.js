@@ -254,6 +254,13 @@ export interface SetIncrementalResponseCacheContext {
    * True if this is a fallback request.
    */
   isFallback?: boolean
+
+  /**
+   * The cache tags associated with the entry, including implicit path tags.
+   * Provided so that cache handlers can maintain a tag → key index for
+   * `revalidateTag`/`revalidatePath`.
+   */
+  tags?: string[]
 }
 
 export interface IncrementalResponseCache {
