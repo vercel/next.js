@@ -1,7 +1,8 @@
 use std::{
     iter,
     path::{Path, PathBuf},
-    time::Duration,
+    sync::Arc,
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::{Context, Result, bail};
@@ -45,7 +46,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
     OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, trace::TraceRawVcs,
+    turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -2887,9 +2889,11 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
     let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
     let span_clone = span.clone();
-    async move {
+    let result = async move {
         let next_mode = project.next_mode();
         let should_trace = *project.should_write_nft_manifests().await?;
         let should_read_binding_usage = next_mode.await?.is_production();
@@ -2974,7 +2978,14 @@ async fn whole_app_module_graph_operation(
         .cell())
     }
     .instrument(span_clone)
-    .await
+    .await;
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "turbopack-module-graph",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
+    result
 }
 
 #[turbo_tasks::value(shared)]
