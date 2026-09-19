@@ -3354,7 +3354,6 @@ function prepareAppPage(
     } else {
       postponedState = parsePostponedState(
         renderOpts.postponed,
-        interpolatedParams,
         renderOpts.experimental.maxPostponedStateSizeBytes,
         renderOpts.experimental.disableResumeDataCacheCompression
       )

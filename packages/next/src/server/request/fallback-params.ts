@@ -10,15 +10,13 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type OpaqueFallbackRouteParamValue = [
   /**
-   * The search value of the fallback route param. This is the opaque key
-   * that will be used to replace the dynamic param in the postponed state.
+   * An opaque placeholder for a route param whose value is not yet known.
+   * Reads of this param suspend; the placeholder must not become rendered UI.
    */
-  searchValue: string,
+  placeholder: string,
 
   /**
-   * The dynamic param type of the fallback route param. This is the type of
-   * the dynamic param that will be used to replace the dynamic param in the
-   * postponed state.
+   * The dynamic param type, including whether it is a catch-all.
    */
   dynamicParamType: DynamicParamTypesShort,
 ]
@@ -196,7 +194,6 @@ export function getFallbackRouteParams(
     fallbackRouteParams // Will be mutated to add route params
   )
 
-  // Convert the fallback route params to an opaque format that can be safely
-  // used in the postponed state without exposing implementation details.
+  // Track the unknown params using the same opaque placeholders as prerenders.
   return createOpaqueFallbackRouteParams(fallbackRouteParams)
 }
