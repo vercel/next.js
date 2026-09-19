@@ -793,18 +793,20 @@ impl EsmExports {
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
                             use crate::references::esm::base::ReferencedAssetIdent;
                             match &ident {
-                                ReferencedAssetIdent::LocalBinding {ctxt, liveness,.. } => {
+                                ReferencedAssetIdent::LocalBinding {ctxt, liveness, declared_before, .. } => {
                                     debug_assert!(*mutable == (*liveness == Liveness::Mutable), "If the re-export is mutable, the merged local must be too");
-                                    // If we are re-exporting something but got merged with it we can treat it like a local export
-                                     match (liveness, export_usage_info.is_circuit_breaker) {
+                                    // If we are re-exporting something but got merged with it we can treat it like a local export.
+                                    // Capturing the value also requires the declaring module to be emitted before this one:
+                                    // merged modules are laid out in execution order, but a cycle can place the module we
+                                    // re-export from *after* us, leaving its bindings in the temporal dead zone.
+                                     match (liveness, export_usage_info.is_circuit_breaker || !*declared_before) {
                                         (Liveness::Constant, false) => {
                                             ExportBinding::Value(read_expr)
                                         }
-                                        // If the value might change or we are a circuit breaker we must bind a
-                                        // getter to avoid capturing the value at the wrong time.
+                                        // If the value might change, we are a circuit breaker, or the declaration comes
+                                        // later in the merged output, we must bind a getter to avoid capturing the value
+                                        // at the wrong time.
                                         (Liveness::Live, _) | (Liveness::Constant, true) => {
-                                            // In the constant case, we could still export as a value if we knew that the module
-                                            // came _before_ us, but we don't at this point.
                                             ExportBinding::Getter(quote!("() => $local" as Expr, local: Expr = read_expr))
                                         }
                                         (Liveness::Mutable, _) => {

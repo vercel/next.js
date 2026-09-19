@@ -80,6 +80,13 @@ pub enum ReferencedAssetIdent {
         ident: RcStr,
         ctxt: SyntaxContext,
         liveness: Liveness,
+        /// Whether the module declaring this binding is emitted before the module reading it.
+        ///
+        /// Merged modules are laid out in execution order, so a binding from an earlier module has
+        /// already been initialized. A module in a cycle can be ordered *after* the one that
+        /// re-exports from it, leaving its bindings in the temporal dead zone, so reading the
+        /// value eagerly is only safe when this is true.
+        declared_before: bool,
     },
     /// The given export (or namespace) should be imported and will be assigned to a new variable.
     Module {
@@ -153,6 +160,7 @@ impl ReferencedAssetIdent {
                 ident,
                 ctxt,
                 liveness: _,
+                declared_before: _,
             } => Either::Left(Ident::new(ident.as_str().into(), span, *ctxt)),
             ReferencedAssetIdent::Module {
                 namespace_ident,
@@ -244,10 +252,23 @@ impl ReferencedAsset {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
+                            // `asset` declares the binding; whoever reads it does so from the
+                            // module this resolution started in. Both are in this group, so their
+                            // emission order is known.
+                            let declared_before = match (
+                                scope_hoisting_context.get_module_index(*asset),
+                                scope_hoisting_context
+                                    .module()
+                                    .and_then(|m| scope_hoisting_context.get_module_index(m)),
+                            ) {
+                                (Some(declarer), Some(reader)) => declarer < reader,
+                                _ => false,
+                            };
                             return Ok(Some(ReferencedAssetIdent::LocalBinding {
                                 ident: export.clone(),
                                 ctxt,
                                 liveness: binding.liveness,
+                                declared_before,
                             }));
                         }
                         Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
@@ -303,6 +324,11 @@ impl ReferencedAsset {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
+                                        // The chain left this scope hoisting group, so the value
+                                        // is read through a namespace object rather than a lexical
+                                        // binding. `can_capture_export_value` already decided
+                                        // whether that is safe; there is no emission order to
+                                        // compare against here.
                                         can_value_bind,
                                         maybe_uses_this,
                                         import_source,
