@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
@@ -101,16 +101,43 @@ pub enum NextRevalidate {
     },
 }
 
+#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum NextSegmentRegion {
+    Single(RcStr),
+    Multiple(Vec<RcStr>),
+}
+
+#[derive(
+    PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode, Serialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum NextSegmentRsc {
+    Server,
+    Client,
+}
+
+impl NextSegmentRegion {
+    pub fn to_vec(&self) -> Vec<RcStr> {
+        match self {
+            Self::Single(region) => vec![region.clone()],
+            Self::Multiple(regions) => regions.clone(),
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
+    pub rsc: Option<NextSegmentRsc>,
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
+    pub max_duration: Option<u32>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<Vec<RcStr>>,
+    pub preferred_region: Option<NextSegmentRegion>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
+    pub unstable_allow_dynamic: Option<Vec<RcStr>>,
 
     /// Whether these exports are defined in the source file.
     pub generate_image_metadata: bool,
@@ -139,17 +166,29 @@ impl NextSegmentConfig {
     /// the parent's values.
     pub fn apply_parent_config(&mut self, parent: &Self) {
         let NextSegmentConfig {
+            // A layout's RSC classification does not apply to its child page.
+            rsc: _,
             dynamic,
             dynamic_params,
             revalidate,
+            max_duration,
             fetch_cache,
             runtime,
             preferred_region,
-            ..
+            // TODO what about these?
+            instant: _,
+            prefetch: _,
+            // Don't need merging
+            middleware_matcher: _,
+            unstable_allow_dynamic: _,
+            generate_image_metadata: _,
+            generate_sitemaps: _,
+            generate_static_params: _,
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
         *revalidate = revalidate.or(parent.revalidate);
+        *max_duration = max_duration.or(parent.max_duration);
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
@@ -178,14 +217,27 @@ impl NextSegmentConfig {
             Ok(())
         }
         let Self {
+            rsc,
             dynamic,
             dynamic_params,
             revalidate,
+            max_duration,
             fetch_cache,
             runtime,
             preferred_region,
-            ..
+            // TODO what about these?
+            instant: _,
+            prefetch: _,
+            // Don't need merging
+            middleware_matcher: _,
+            unstable_allow_dynamic: _,
+            generate_image_metadata: _,
+            generate_sitemaps: _,
+            generate_static_params: _,
         } = self;
+        // Carry the leaf page's RSC classification up through its loader-tree branch. Unlike route
+        // segment config, classifications in different parallel branches are not conflicts.
+        *rsc = (*rsc).or(parallel_config.rsc);
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
             dynamic_params,
@@ -193,6 +245,7 @@ impl NextSegmentConfig {
             "dynamicParams",
         )?;
         merge_parallel(revalidate, &parallel_config.revalidate, "revalidate")?;
+        merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
         merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
         merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
         merge_parallel(
@@ -201,6 +254,70 @@ impl NextSegmentConfig {
             "preferredRegion",
         )?;
         Ok(())
+    }
+
+    pub fn get_proxy_matchers(
+        &self,
+        has_i18n: bool,
+        has_i18n_locales: bool,
+        base_path: Option<&str>,
+    ) -> Option<Vec<ProxyMatcher>> {
+        self.middleware_matcher.as_ref().map(|matchers| {
+            matchers
+                .iter()
+                .map(|matcher| {
+                    let mut matcher = match matcher {
+                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
+                            original_source: matcher.as_str().into(),
+                            ..Default::default()
+                        },
+                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                    };
+
+                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
+                    let mut source = matcher.original_source.to_string();
+                    let is_root = source == "/";
+                    let has_locale = matcher.locale;
+
+                    if has_i18n_locales && has_locale {
+                        if is_root {
+                            source.clear();
+                        }
+                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
+                    }
+
+                    // Match transport-specific route forms that resolve to the
+                    // same page:
+                    // - Pages Router data routes: /_next/data/<build-id>/...
+                    // - App Router transport routes: .rsc, ...segments/...segment.rsc
+                    if is_root {
+                        source.push('(');
+                        if has_i18n {
+                            source.push_str("|\\.json|");
+                        }
+                        source.push_str("/?index|/?index\\.json|");
+                        source.push_str("/?index(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)");
+                        source.push_str(")?");
+                    } else {
+                        source.push_str("{(\\.json|\\.rsc|\\.segments/.+\\.segment\\.rsc)}?");
+                    };
+
+                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
+
+                    if let Some(base_path) = base_path.as_ref() {
+                        source.insert_str(0, base_path);
+                    }
+
+                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
+                    // using path-to-regexp. Currently there is no
+                    // equivalent of that so it post-processes
+                    // this value to the relevant regex in manifest-loader.ts
+                    matcher.regexp = Some(RcStr::from(source));
+
+                    matcher
+                })
+                .collect()
+        })
     }
 }
 
@@ -417,7 +534,7 @@ pub async fn parse_segment_config_from_source(
     // Arena for the `JsValue`s produced while evaluating config expressions;
     // freed when this function returns.
     let arena = ThreadLocal::new();
-    let config = WrapFuture::new(
+    let mut config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
 
@@ -531,6 +648,12 @@ pub async fn parse_segment_config_from_source(
             },
             _ => false,
         });
+
+    config.rsc = Some(if is_client_entry {
+        NextSegmentRsc::Client
+    } else {
+        NextSegmentRsc::Server
+    });
 
     if mode == ParseSegmentMode::App && is_client_entry {
         if let Some(span) = config.generate_static_params {
@@ -765,11 +888,36 @@ async fn parse_config_value(
                         config.middleware_matcher =
                             parse_route_matcher_from_js_value(source, span, value).await?;
                     }
+                    "unstable_allowDynamic" => {
+                        config.unstable_allow_dynamic = parse_static_string_or_array_from_js_value(
+                            source,
+                            span,
+                            "config",
+                            "unstable_allowDynamic",
+                            value,
+                        )
+                        .await?;
+                    }
                     "regions" => {
-                        config.preferred_region = parse_static_string_or_array_from_js_value(
+                        config.preferred_region = parse_preferred_region_from_js_value(
                             source, span, "config", "regions", value,
                         )
                         .await?;
+                    }
+                    "maxDuration" => {
+                        let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value
+                        else {
+                            return invalid_config(
+                                source,
+                                "config",
+                                span,
+                                rcstr!("`maxDuration` needs to be a static number."),
+                                Some(value),
+                                IssueSeverity::Error,
+                            )
+                            .await;
+                        };
+                        config.max_duration = Some(*val as u32);
                     }
                     _ => {
                         // Ignore,
@@ -879,6 +1027,32 @@ async fn parse_config_value(
                 }
             }
         }
+        "maxDuration" => {
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "maxDuration",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+
+            let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
+                return invalid_config(
+                    source,
+                    "maxDuration",
+                    span,
+                    rcstr!("It needs to be a static number."),
+                    Some(&value),
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            config.max_duration = Some(val as u32);
+        }
         "fetchCache" => {
             let Some(value) = get_value() else {
                 return invalid_config(
@@ -979,17 +1153,14 @@ async fn parse_config_value(
                 return Ok(());
             }
 
-            if let Some(preferred_region) = parse_static_string_or_array_from_js_value(
+            config.preferred_region = parse_preferred_region_from_js_value(
                 source,
                 span,
                 "preferredRegion",
                 "preferredRegion",
                 &value,
             )
-            .await?
-            {
-                config.preferred_region = Some(preferred_region);
-            }
+            .await?;
         }
         "generateImageMetadata" => {
             config.generate_image_metadata = true;
@@ -1010,6 +1181,27 @@ async fn parse_config_value(
     }
 
     Ok(())
+}
+
+async fn parse_preferred_region_from_js_value(
+    source: ResolvedVc<Box<dyn Source>>,
+    span: Span,
+    key: &str,
+    sub_key: &str,
+    value: &JsValue<'_>,
+) -> Result<Option<NextSegmentRegion>> {
+    let is_array = matches!(value, JsValue::Array { .. });
+    Ok(
+        parse_static_string_or_array_from_js_value(source, span, key, sub_key, value)
+            .await?
+            .and_then(|regions| {
+                if is_array {
+                    Some(NextSegmentRegion::Multiple(regions))
+                } else {
+                    regions.into_iter().next().map(NextSegmentRegion::Single)
+                }
+            }),
+    )
 }
 
 async fn parse_static_string_or_array_from_js_value(
