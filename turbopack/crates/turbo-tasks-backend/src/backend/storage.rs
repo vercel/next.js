@@ -729,25 +729,22 @@ impl Storage {
                     }
                 };
             shard.retain(|(task_id, task)| {
-                // A collected transient task can be dropped outright: there is nothing to
-                // tombstone, since it was never persisted. Checked before the retain below, which
-                // would otherwise keep it resident for the rest of the session and waste the
-                // memory GC just reclaimed. Root/once tasks never reach here -- they hold
-                // `activeness`/`in_progress`, so `gc_maybe_collectible` rejects them.
+                // Transient tasks can not be evicted at all, unless they are fully
+                // delete by the GC.
                 if task_id.is_transient() && !task.flags.deleted() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
                 }
-                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
+                // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
+                // can drop them fully now.
                 if task.flags.deleted() {
-                    let task_type = task
-                        .get_persistent_task_type()
-                        .expect("GC deleted tasks must have a task type");
-                    remove_from_task_cache(
-                        &mut evicted,
-                        &mut deferred_task_cache_removals,
-                        task_type,
-                    );
+                    if let Some(task_type) = task.get_persistent_task_type() {
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
+                    }
                     evicted.full += 1;
                     return false;
                 }

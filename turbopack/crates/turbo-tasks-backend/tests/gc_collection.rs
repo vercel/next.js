@@ -261,7 +261,13 @@ async fn dispose_root_task_releases_anchored_subgraph() {
         .unwrap();
     // Two: the leaf, and the disposed root itself. The root is a transient task, and transient
     // tasks are collectible, so releasing the last reference to the subgraph reclaims both.
-    assert_eq!(tt.backend().gc_for_testing(&tt), 2);
+    assert_eq!(
+        tt.backend()
+            .snapshot_and_evict_for_testing(&tt)
+            .gc_stats()
+            .collected,
+        2
+    );
 
     // Disposal after the backend has stopped (the whole task map is dropped by `stop`), as a
     // `RootTask` finalized during Node worker teardown would be.
