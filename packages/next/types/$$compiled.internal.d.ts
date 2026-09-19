@@ -367,6 +367,7 @@ declare module 'react-server-dom-webpack/static' {
 }
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
+    unstable_allowPartialStream?: boolean
     callServer?: CallServerCallback
     serverConsumerManifest: ServerConsumerManifest
     nonce?: string
