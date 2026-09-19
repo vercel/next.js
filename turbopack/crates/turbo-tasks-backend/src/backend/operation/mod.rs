@@ -359,30 +359,15 @@ impl<'e> ExecuteContextImpl<'e> {
     ) -> Option<TaskGuardImpl<'e>> {
         self.task_lock_counter.acquire();
 
-        // A resident entry always corresponds to a task that exists (only a `MaybeCreate` open ever
-        // inserts a blank, and only for a task being created). A `MustExist` open therefore only
-        // needs to prove existence when the entry looks like a fresh blank: nothing restored, not a
-        // new task.
-        //
-        // Note that this shape does *not* mean the entry was just inserted, so it cannot be
-        // replaced by a flag from `access_entry_mut`: `drop_partial` clears the restored flags, so
-        // a partially-evicted resident entry looks identical to a fresh blank. Those are on disk,
-        // so the `found_on_disk` check below clears them — the panic fires only when the task is in
-        // neither memory nor disk.
         let mut task = OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id));
-        // The `MustExist` non-fabrication check applies only to **persistent** tasks: they have
-        // disk backing and are the subject of the stale-reference/GC concern. A transient task has
-        // no disk copy and is materialized lazily in memory (a strongly-consistent read can open a
-        // transient root through the aggregation graph before its storage entry exists), so a
-        // `MustExist` open of a transient id is a no-op that falls through to create.
-        // A soft-deleted task is gone as far as this caller is concerned: GC has unlinked it and
-        // eviction will drop it outright, so only snapshot timing separates this from the
-        // exists-nowhere case below. Bail before the restore attempt --- there is no point paying
-        // disk I/O to rehydrate a tombstone --- and before any caller can revive it by writing.
+        // Treat deleted tasks under Allowmissing as missing
         if access == TaskAccess::AllowMissing && task.flags.deleted() {
             self.task_lock_counter.release();
             return None;
         }
+
+        // IF the caller cares about existence (either to panic or return None), check if this is an
+        // effectively blank task
         let needs_existence_check =
             matches!(access, TaskAccess::MustExist | TaskAccess::AllowMissing)
                 && !task_id.is_transient()
