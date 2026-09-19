@@ -362,9 +362,13 @@ impl<'e> ExecuteContextImpl<'e> {
         // A resident entry always corresponds to a task that exists (only a `MaybeCreate` open ever
         // inserts a blank, and only for a task being created). A `MustExist` open therefore only
         // needs to prove existence when the entry looks like a fresh blank: nothing restored, not a
-        // new task. (A fully-evicted resident task also matches this shape, but it is on disk, so
-        // the `found_on_disk` check below clears it — the panic fires only when the task is in
-        // neither memory nor disk.)
+        // new task.
+        //
+        // Note that this shape does *not* mean the entry was just inserted, so it cannot be
+        // replaced by a flag from `access_entry_mut`: `drop_partial` clears the restored flags, so
+        // a partially-evicted resident entry looks identical to a fresh blank. Those are on disk,
+        // so the `found_on_disk` check below clears them — the panic fires only when the task is in
+        // neither memory nor disk.
         let mut task = OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id));
         // The `MustExist` non-fabrication check applies only to **persistent** tasks: they have
         // disk backing and are the subject of the stale-reference/GC concern. A transient task has
@@ -379,11 +383,12 @@ impl<'e> ExecuteContextImpl<'e> {
             self.task_lock_counter.release();
             return None;
         }
-        let maybe_fabricated = matches!(access, TaskAccess::MustExist | TaskAccess::AllowMissing)
-            && !task_id.is_transient()
-            && !task.flags.is_restored(TaskDataCategory::Meta)
-            && !task.flags.is_restored(TaskDataCategory::Data)
-            && !task.flags.new_task();
+        let needs_existence_check =
+            matches!(access, TaskAccess::MustExist | TaskAccess::AllowMissing)
+                && !task_id.is_transient()
+                && !task.flags.is_restored(TaskDataCategory::Meta)
+                && !task.flags.is_restored(TaskDataCategory::Data)
+                && !task.flags.new_task();
         if !task.flags.is_restored(category) {
             if task_id.is_transient() {
                 task.flags.set_restored(TaskDataCategory::All);
@@ -484,7 +489,7 @@ impl<'e> ExecuteContextImpl<'e> {
                     // That is the intended behavior: there is no recovery path for reading a cell
                     // on a task that is missing from disk, and the panic is self-healing — the
                     // cache is discarded and rebuilt on the next run.
-                    if maybe_fabricated && !found_on_disk {
+                    if needs_existence_check && !found_on_disk {
                         if access == TaskAccess::AllowMissing {
                             task.discard();
                             self.task_lock_counter.release();
@@ -496,7 +501,7 @@ impl<'e> ExecuteContextImpl<'e> {
                              never-created task"
                         );
                     }
-                } else if maybe_fabricated {
+                } else if needs_existence_check {
                     // Nothing to restore (no categories claimed, none in progress) yet the entry
                     // looked like a fresh blank for a task expected to exist: it does not exist.
                     if access == TaskAccess::AllowMissing {
@@ -1168,11 +1173,11 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         // in memory and has no disk copy): a task that looks like a freshly-inserted blank (nothing
         // restored, not a new task) and that restore does not find on disk exists nowhere — a stale
         // reference. See `TaskAccess::MustExist`.
-        let maybe_fabricated1 = !task_id1.is_transient()
+        let needs_existence_check1 = !task_id1.is_transient()
             && !task1.flags.is_restored(TaskDataCategory::Meta)
             && !task1.flags.is_restored(TaskDataCategory::Data)
             && !task1.flags.new_task();
-        let maybe_fabricated2 = !task_id2.is_transient()
+        let needs_existence_check2 = !task_id2.is_transient()
             && !task2.flags.is_restored(TaskDataCategory::Meta)
             && !task2.flags.is_restored(TaskDataCategory::Data)
             && !task2.flags.new_task();
@@ -1320,15 +1325,15 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             // A `MustExist` pair open must not fabricate: a task that looked like a fresh blank and
             // was not found on disk exists nowhere (a stale reference). See
             // `TaskAccess::MustExist`. Only reachable in the restore branch — a task
-            // already resident/restored (the else path) has `maybe_fabricated ==
+            // already resident/restored (the else path) has `needs_existence_check ==
             // false`.
             assert!(
-                !(maybe_fabricated1 && !found_on_disk1),
+                !(needs_existence_check1 && !found_on_disk1),
                 "task_pair({task_id1}, .., MustExist): task exists in neither memory nor \
                  persistent storage — a stale reference to a never-created task"
             );
             assert!(
-                !(maybe_fabricated2 && !found_on_disk2),
+                !(needs_existence_check2 && !found_on_disk2),
                 "task_pair(.., {task_id2}, MustExist): task exists in neither memory nor \
                  persistent storage — a stale reference to a never-created task"
             );
