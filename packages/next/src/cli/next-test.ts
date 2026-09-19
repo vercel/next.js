@@ -140,6 +140,7 @@ async function runPlaywright(
     const { version: typeScriptVersion } = await verifyAndRunTypeScript({
       dir: baseDir,
       distDir: nextConfig.distDir,
+      distDirRoot: nextConfig.distDirRoot,
       strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
       shouldRunTypeCheck: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,

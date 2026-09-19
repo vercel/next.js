@@ -54,6 +54,7 @@ const requiredTypePackages: MissingDependency[] = [
 export async function verifyAndRunTypeScript({
   dir,
   distDir,
+  distDirRoot,
   cacheDir,
   strictRouteTypes,
   tsconfigPath,
@@ -70,6 +71,11 @@ export async function verifyAndRunTypeScript({
 }: {
   dir: string
   distDir: string
+  /**
+   * `distDir` as configured, before the development phase appends "/dev".
+   * Equal to `distDir` outside that phase.
+   */
+  distDirRoot: string
   cacheDir?: string
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
@@ -234,7 +240,7 @@ export async function verifyAndRunTypeScript({
       resolvedTsConfigPath,
       intent.firstTimeSetup,
       hasAppDir,
-      distDir,
+      distDirRoot,
       hasPagesDir,
       strictRouteTypes
     )
