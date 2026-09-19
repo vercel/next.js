@@ -2505,7 +2505,6 @@ function makePrefixMap(styleProp, eventName) {
   return prefixes;
 }
 var vendorPrefixes = {
-    animationcancel: makePrefixMap("Animation", "AnimationCancel"),
     animationend: makePrefixMap("Animation", "AnimationEnd"),
     animationiteration: makePrefixMap("Animation", "AnimationIteration"),
     animationstart: makePrefixMap("Animation", "AnimationStart"),
@@ -2519,8 +2518,7 @@ var vendorPrefixes = {
 canUseDOM &&
   ((style = document.createElement("div").style),
   "AnimationEvent" in window ||
-    (delete vendorPrefixes.animationcancel.animation,
-    delete vendorPrefixes.animationend.animation,
+    (delete vendorPrefixes.animationend.animation,
     delete vendorPrefixes.animationiteration.animation,
     delete vendorPrefixes.animationstart.animation),
   "TransitionEvent" in window ||
@@ -2535,8 +2533,7 @@ function getVendorPrefixedEventName(eventName) {
       return (prefixedEventNames[eventName] = prefixMap[styleProp]);
   return eventName;
 }
-var ANIMATION_CANCEL = getVendorPrefixedEventName("animationcancel"),
-  ANIMATION_END = getVendorPrefixedEventName("animationend"),
+var ANIMATION_END = getVendorPrefixedEventName("animationend"),
   ANIMATION_ITERATION = getVendorPrefixedEventName("animationiteration"),
   ANIMATION_START = getVendorPrefixedEventName("animationstart"),
   TRANSITION_RUN = getVendorPrefixedEventName("transitionrun"),
@@ -14351,7 +14348,8 @@ var DefaultAsyncDispatcher = {
     },
     cacheSignal: function () {
       return readContext(CacheContext).controller.signal;
-    }
+    },
+    units: null
   },
   PossiblyWeakMap = "function" === typeof WeakMap ? WeakMap : Map,
   executionContext = 0,
@@ -17215,23 +17213,22 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_2096 = 0;
-  i$jscomp$inline_2096 < simpleEventPluginEvents.length;
-  i$jscomp$inline_2096++
+  var i$jscomp$inline_2095 = 0;
+  i$jscomp$inline_2095 < simpleEventPluginEvents.length;
+  i$jscomp$inline_2095++
 ) {
-  var eventName$jscomp$inline_2097 =
-      simpleEventPluginEvents[i$jscomp$inline_2096],
-    domEventName$jscomp$inline_2098 =
-      eventName$jscomp$inline_2097.toLowerCase(),
-    capitalizedEvent$jscomp$inline_2099 =
-      eventName$jscomp$inline_2097[0].toUpperCase() +
-      eventName$jscomp$inline_2097.slice(1);
+  var eventName$jscomp$inline_2096 =
+      simpleEventPluginEvents[i$jscomp$inline_2095],
+    domEventName$jscomp$inline_2097 =
+      eventName$jscomp$inline_2096.toLowerCase(),
+    capitalizedEvent$jscomp$inline_2098 =
+      eventName$jscomp$inline_2096[0].toUpperCase() +
+      eventName$jscomp$inline_2096.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_2098,
-    "on" + capitalizedEvent$jscomp$inline_2099
+    domEventName$jscomp$inline_2097,
+    "on" + capitalizedEvent$jscomp$inline_2098
   );
 }
-registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
 registerSimpleEvent(ANIMATION_ITERATION, "onAnimationIteration");
 registerSimpleEvent(ANIMATION_START, "onAnimationStart");
@@ -17528,7 +17525,6 @@ function dispatchEventForPluginEventSystem(
           case "touchstart":
             SyntheticEventCtor = SyntheticTouchEvent;
             break;
-          case ANIMATION_CANCEL:
           case ANIMATION_END:
           case ANIMATION_ITERATION:
           case ANIMATION_START:
@@ -17573,10 +17569,7 @@ function dispatchEventForPluginEventSystem(
           nativeEvent.type,
           inCapturePhase,
           !inCapturePhase &&
-            ("scroll" === domEventName ||
-              "scrollend" === domEventName ||
-              "toggle" === domEventName ||
-              "beforetoggle" === domEventName)
+            ("scroll" === domEventName || "scrollend" === domEventName)
         );
         0 < inCapturePhase.length &&
           ((reactName = new SyntheticEventCtor(
@@ -20441,19 +20434,13 @@ function validateDocumentPositionWithFiberTree(
     return precedingBoundaryFiber;
   }
   if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
-    if (null === otherFiber) {
-      a: {
-        for (otherFiber = fragmentFiber.return; null !== otherFiber; ) {
-          if (3 === otherFiber.tag) {
-            otherFiber = otherFiber.stateNode.containerInfo;
-            break a;
-          }
-          otherFiber = otherFiber.return;
-        }
-        otherFiber = null;
-      }
-      return null !== otherFiber && otherNode.contains(otherFiber);
-    }
+    if (null === otherFiber)
+      return (
+        (otherFiber = getOwnerDocumentFromRootContainer(otherNode)),
+        otherNode === otherFiber ||
+          otherNode === otherFiber.documentElement ||
+          otherNode === otherFiber.body
+      );
     a: {
       otherFiber = fragmentFiber;
       for (
@@ -22557,16 +22544,13 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2544 = React.version;
-if (
-  "19.3.0-experimental-ff8f88fc-20260915" !==
-  isomorphicReactPackageVersion$jscomp$inline_2544
-)
+var isomorphicReactPackageVersion$jscomp$inline_2540 = React.version;
+if ("19.3.0" !== isomorphicReactPackageVersion$jscomp$inline_2540)
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2544,
-      "19.3.0-experimental-ff8f88fc-20260915"
+      isomorphicReactPackageVersion$jscomp$inline_2540,
+      "19.3.0"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -22586,24 +22570,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_3217 = {
+var internals$jscomp$inline_3213 = {
   bundleType: 0,
-  version: "19.3.0-experimental-ff8f88fc-20260915",
+  version: "19.3.0",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-ff8f88fc-20260915"
+  reconcilerVersion: "19.3.0"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_3218 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_3214 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_3218.isDisabled &&
-    hook$jscomp$inline_3218.supportsFiber
+    !hook$jscomp$inline_3214.isDisabled &&
+    hook$jscomp$inline_3214.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_3218.inject(
-        internals$jscomp$inline_3217
+      (rendererID = hook$jscomp$inline_3214.inject(
+        internals$jscomp$inline_3213
       )),
-        (injectedHook = hook$jscomp$inline_3218);
+        (injectedHook = hook$jscomp$inline_3214);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -22871,7 +22855,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-ff8f88fc-20260915";
+exports.version = "19.3.0";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

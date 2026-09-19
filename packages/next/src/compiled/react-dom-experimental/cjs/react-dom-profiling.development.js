@@ -22829,7 +22829,6 @@
               case "touchstart":
                 SyntheticEventCtor = SyntheticTouchEvent;
                 break;
-              case ANIMATION_CANCEL:
               case ANIMATION_END:
               case ANIMATION_ITERATION:
               case ANIMATION_START:
@@ -22874,10 +22873,7 @@
               nativeEvent.type,
               inCapturePhase,
               !inCapturePhase &&
-                ("scroll" === domEventName ||
-                  "scrollend" === domEventName ||
-                  "toggle" === domEventName ||
-                  "beforetoggle" === domEventName)
+                ("scroll" === domEventName || "scrollend" === domEventName)
             );
             0 < inCapturePhase.length &&
               ((reactName = new SyntheticEventCtor(
@@ -26991,19 +26987,13 @@
         return precedingBoundaryFiber;
       }
       if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
-        if (null === otherFiber) {
-          a: {
-            for (otherFiber = fragmentFiber.return; null !== otherFiber; ) {
-              if (3 === otherFiber.tag) {
-                otherFiber = otherFiber.stateNode.containerInfo;
-                break a;
-              }
-              otherFiber = otherFiber.return;
-            }
-            otherFiber = null;
-          }
-          return null !== otherFiber && otherNode.contains(otherFiber);
-        }
+        if (null === otherFiber)
+          return (
+            (otherFiber = getOwnerDocumentFromRootContainer(otherNode)),
+            otherNode === otherFiber ||
+              otherNode === otherFiber.documentElement ||
+              otherNode === otherFiber.body
+          );
         a: {
           otherFiber = fragmentFiber;
           for (
@@ -30477,7 +30467,6 @@
       lastSelection = null,
       mouseDown = !1,
       vendorPrefixes = {
-        animationcancel: makePrefixMap("Animation", "AnimationCancel"),
         animationend: makePrefixMap("Animation", "AnimationEnd"),
         animationiteration: makePrefixMap("Animation", "AnimationIteration"),
         animationstart: makePrefixMap("Animation", "AnimationStart"),
@@ -30491,14 +30480,12 @@
     canUseDOM &&
       ((style = document.createElement("div").style),
       "AnimationEvent" in window ||
-        (delete vendorPrefixes.animationcancel.animation,
-        delete vendorPrefixes.animationend.animation,
+        (delete vendorPrefixes.animationend.animation,
         delete vendorPrefixes.animationiteration.animation,
         delete vendorPrefixes.animationstart.animation),
       "TransitionEvent" in window ||
         delete vendorPrefixes.transitionend.transition);
-    var ANIMATION_CANCEL = getVendorPrefixedEventName("animationcancel"),
-      ANIMATION_END = getVendorPrefixedEventName("animationend"),
+    var ANIMATION_END = getVendorPrefixedEventName("animationend"),
       ANIMATION_ITERATION = getVendorPrefixedEventName("animationiteration"),
       ANIMATION_START = getVendorPrefixedEventName("animationstart"),
       TRANSITION_RUN = getVendorPrefixedEventName("transitionrun"),
@@ -32417,6 +32404,7 @@
         cacheSignal: function () {
           return readContext(CacheContext).controller.signal;
         },
+        units: null,
         getOwner: function () {
           return current;
         }
@@ -32537,7 +32525,6 @@
         eventName = eventName[0].toUpperCase() + eventName.slice(1);
         registerSimpleEvent(domEventName, "on" + eventName);
       }
-      registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
       registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
       registerSimpleEvent(ANIMATION_ITERATION, "onAnimationIteration");
       registerSimpleEvent(ANIMATION_START, "onAnimationStart");
@@ -33534,11 +33521,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-ff8f88fc-20260915" !== isomorphicReactPackageVersion)
+      if ("19.3.0" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-ff8f88fc-20260915\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33575,10 +33562,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-ff8f88fc-20260915",
+          version: "19.3.0",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-ff8f88fc-20260915"
+          reconcilerVersion: "19.3.0"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -34068,7 +34055,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-ff8f88fc-20260915";
+    exports.version = "19.3.0";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
