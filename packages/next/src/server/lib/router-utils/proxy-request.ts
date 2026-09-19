@@ -53,6 +53,15 @@ export async function proxyRequest(
     res.on('close', () => proxyReq.destroy())
   })
 
+  // Prevent double compression when running behind reverse proxies.
+  // If Accept-Encoding is forwarded, the upstream may return a compressed
+  // response which can then be re-encoded or misinterpreted by downstream
+  // proxies or clients, resulting in 500 errors.
+  // Removing this header ensures the upstream responds with identity encoding.
+  proxy.on('proxyReq', (proxyReq) => {
+    proxyReq.removeHeader('accept-encoding')
+  })
+
   proxy.on('proxyRes', (proxyRes) => {
     if (res.destroyed) {
       proxyRes.destroy()
