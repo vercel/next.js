@@ -223,6 +223,7 @@
                         span: 132..150,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(

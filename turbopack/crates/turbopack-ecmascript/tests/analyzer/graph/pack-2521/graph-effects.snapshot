@@ -109,6 +109,7 @@
         span: 33..53,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -148,6 +149,7 @@
         span: 79..100,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: FreeVar(
@@ -281,6 +283,7 @@
         span: 102..150,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -412,6 +415,7 @@
         span: 429..442,
         in_try: true,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -560,5 +564,6 @@
         span: 508..524,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

@@ -657,6 +657,7 @@ impl ModuleReference for ImportMetaGlobModuleReference {
         BindingUsage {
             import: Default::default(),
             export: self.export.clone(),
+            evaluation_timing: Default::default(),
         }
     }
 }

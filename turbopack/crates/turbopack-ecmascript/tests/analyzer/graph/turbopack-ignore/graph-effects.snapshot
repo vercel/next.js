@@ -49,6 +49,7 @@
         ],
         span: 19..58,
         in_try: false,
+        evaluation_timing: Evaluation,
         export_usage: All,
     },
     FreeVar {
@@ -142,6 +143,7 @@
         span: 71..114,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     DynamicImport {
         args: [
@@ -193,6 +195,7 @@
         ],
         span: 133..174,
         in_try: false,
+        evaluation_timing: Evaluation,
         export_usage: All,
     },
     FreeVar {
@@ -286,6 +289,7 @@
         span: 187..232,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -384,6 +388,7 @@
         span: 245..287,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -476,6 +481,7 @@
         span: 300..343,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -574,6 +580,7 @@
         span: 356..400,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -666,6 +673,7 @@
         span: 413..458,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -770,5 +778,6 @@
         span: 488..539,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

@@ -37,6 +37,7 @@
         span: 598..615,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -123,6 +124,7 @@
         span: 12..27,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -209,6 +211,7 @@
         span: 41..56,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -450,6 +453,7 @@
         span: 443..476,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Member {
         obj: FreeVar(
@@ -694,6 +698,7 @@
         span: 515..551,
         in_try: true,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

@@ -197,6 +197,7 @@
         span: 53..123,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Array {
@@ -396,6 +397,7 @@
         span: 135..207,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Array {
@@ -742,6 +744,7 @@
                             span: 281..302,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Evaluation,
                         },
                         Unreachable {
                             start_ast_path: [
@@ -836,6 +839,7 @@
         span: 219..306,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: FreeVar(
@@ -1011,6 +1015,7 @@
         span: 339..360,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

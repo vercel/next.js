@@ -90,6 +90,7 @@
         span: 11..25,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -182,6 +183,7 @@
         span: 79..94,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -306,6 +308,7 @@
         span: 115..138,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -430,6 +433,7 @@
         span: 158..182,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -554,6 +558,7 @@
         span: 202..226,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -678,6 +683,7 @@
         span: 246..271,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -888,6 +894,7 @@
         span: 291..348,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -980,6 +987,7 @@
         span: 362..377,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -1249,6 +1257,7 @@
         ],
         span: 556..570,
         in_try: false,
+        evaluation_timing: Evaluation,
         export_usage: PartialNamespaceObject(
             [
                 "join",

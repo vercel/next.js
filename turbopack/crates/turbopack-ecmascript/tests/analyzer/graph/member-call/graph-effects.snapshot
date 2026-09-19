@@ -218,6 +218,7 @@
         span: 70..119,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Member(
@@ -563,6 +564,7 @@
         span: 139..180,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Member(
@@ -897,6 +899,7 @@
         span: 200..239,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -1070,5 +1073,6 @@
         span: 348..371,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

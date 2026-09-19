@@ -260,6 +260,7 @@
         span: 80..102,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -835,6 +836,7 @@
         span: 155..203,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -1424,6 +1426,7 @@
         span: 222..289,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [
@@ -1575,5 +1578,6 @@
         span: 16..379,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

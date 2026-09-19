@@ -138,6 +138,7 @@ impl ModuleResolveResultItem {
 pub struct BindingUsage {
     pub import: ImportUsage,
     pub export: ExportUsage,
+    pub evaluation_timing: ModuleEvaluationTiming,
 }
 
 #[turbo_tasks::value_impl]
@@ -146,6 +147,18 @@ impl BindingUsage {
     pub fn all() -> Vc<Self> {
         Self::default().cell()
     }
+}
+
+/// Defines whether following a module reference can execute its target during evaluation of the
+/// referencing module.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Copy, Default, Hash, Serialize, Deserialize)]
+pub enum ModuleEvaluationTiming {
+    /// The target may execute during evaluation of the referencing module.
+    #[default]
+    Evaluation,
+    /// The target can only execute after evaluation of the referencing module has completed.
+    Deferred,
 }
 
 /// Defines where an import is used in a module

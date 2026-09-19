@@ -49,6 +49,7 @@
         span: 704..720,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -100,6 +101,7 @@
         span: 756..777,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -157,6 +159,7 @@
         span: 819..843,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "unknownFlag",
@@ -282,6 +285,7 @@
                         span: 1066..1075,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(
@@ -354,6 +358,7 @@
                         span: 1078..1094,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(
@@ -513,6 +518,7 @@
                         span: 1209..1218,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(
@@ -573,6 +579,7 @@
                         span: 1221..1237,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(
@@ -664,6 +671,7 @@
         span: 1315..1331,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [
@@ -750,6 +758,7 @@
         span: 427..436,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -836,6 +845,7 @@
         span: 489..505,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -938,6 +948,7 @@
                         span: 642..651,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: Exact(
@@ -1004,6 +1015,7 @@
                         span: 654..670,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: Exact(

@@ -486,6 +486,7 @@
         span: 259..301,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -757,6 +758,7 @@
         span: 327..426,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     FreeVar {
         var: "require",
@@ -999,6 +1001,7 @@
         span: 515..537,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -1333,6 +1336,7 @@
         span: 824..916,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Member {
         obj: MemberCall(
@@ -1805,6 +1809,7 @@
         span: 965..980,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     MemberCall {
         obj: MemberCall(
@@ -1996,6 +2001,7 @@
         span: 965..1032,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "require",
@@ -2152,6 +2158,7 @@
         span: 1113..1152,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -2314,6 +2321,7 @@
         span: 1156..1186,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -2519,6 +2527,7 @@
         span: 1231..1286,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Call {
         func: Variable(
@@ -2603,6 +2612,7 @@
         span: 1316..1338,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: FreeVar(

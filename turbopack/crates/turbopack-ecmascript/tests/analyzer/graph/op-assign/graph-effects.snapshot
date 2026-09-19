@@ -317,6 +317,7 @@
         span: 212..229,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Member {
         obj: Member(
@@ -686,6 +687,7 @@
         span: 257..301,
         in_try: true,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -1136,6 +1138,7 @@
         span: 356..373,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

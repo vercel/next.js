@@ -16,7 +16,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, ModuleEvaluationTiming};
 
 use crate::{
     AnalyzeMode,
@@ -799,6 +799,92 @@ pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstPa
     ast_path.kinds().to_vec()
 }
 
+/// Whether a function body might execute immediately where the function is defined.
+fn function_may_execute_at_definition(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    function_boundary: usize,
+) -> bool {
+    for parent in ast_path.iter().take(function_boundary).rev() {
+        match parent {
+            // Transparent wrappers between a function value and its consumer.
+            AstParentNodeRef::FnExpr(_, FnExprField::Function)
+            | AstParentNodeRef::DefaultDecl(_, DefaultDeclField::Fn)
+            | AstParentNodeRef::Expr(_, ExprField::Fn | ExprField::Arrow | ExprField::Paren)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+            | AstParentNodeRef::Callee(_, CalleeField::Expr)
+            | AstParentNodeRef::ExprOrSpread(_, ExprOrSpreadField::Expr) => {}
+            // These contexts store or declare the function without invoking it.
+            AstParentNodeRef::FnDecl(..)
+            | AstParentNodeRef::ClassMethod(..)
+            | AstParentNodeRef::PrivateMethod(..)
+            | AstParentNodeRef::MethodProp(..)
+            | AstParentNodeRef::GetterProp(..)
+            | AstParentNodeRef::SetterProp(..)
+            | AstParentNodeRef::VarDeclarator(_, VarDeclaratorField::Init)
+            | AstParentNodeRef::ReturnStmt(_, ReturnStmtField::Arg)
+            | AstParentNodeRef::ClassProp(_, ClassPropField::Value)
+            | AstParentNodeRef::PrivateProp(_, PrivatePropField::Value)
+            | AstParentNodeRef::AutoAccessor(_, AutoAccessorField::Value)
+            | AstParentNodeRef::ExportDefaultDecl(..)
+            | AstParentNodeRef::ExportDefaultExpr(..) => return false,
+            // Direct calls and callback arguments may execute the function synchronously.
+            AstParentNodeRef::CallExpr(_, CallExprField::Callee | CallExprField::Args(_))
+            | AstParentNodeRef::NewExpr(_, NewExprField::Callee | NewExprField::Args(_))
+            | AstParentNodeRef::TaggedTpl(_, TaggedTplField::Tag | TaggedTplField::Tpl) => {
+                return true;
+            }
+            // Unknown consumers are conservatively treated as potentially eager.
+            _ => return true,
+        }
+    }
+    true
+}
+
+/// Classifies when a call-based module load can execute relative to module evaluation.
+fn module_evaluation_timing(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> ModuleEvaluationTiming {
+    for (index, parent) in ast_path.iter().enumerate().rev() {
+        match parent {
+            AstParentNodeRef::Function(_, FunctionField::Body)
+            | AstParentNodeRef::ArrowExpr(_, ArrowExprField::Body) => {
+                if !function_may_execute_at_definition(ast_path, index) {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::Constructor(_, ConstructorField::Body) => {
+                return ModuleEvaluationTiming::Deferred;
+            }
+            AstParentNodeRef::ClassProp(prop, ClassPropField::Value) => {
+                return if prop.is_static {
+                    ModuleEvaluationTiming::Evaluation
+                } else {
+                    ModuleEvaluationTiming::Deferred
+                };
+            }
+            AstParentNodeRef::PrivateProp(prop, PrivatePropField::Value) => {
+                return if prop.is_static {
+                    ModuleEvaluationTiming::Evaluation
+                } else {
+                    ModuleEvaluationTiming::Deferred
+                };
+            }
+            AstParentNodeRef::AutoAccessor(accessor, AutoAccessorField::Value) => {
+                return if accessor.is_static {
+                    ModuleEvaluationTiming::Evaluation
+                } else {
+                    ModuleEvaluationTiming::Deferred
+                };
+            }
+            AstParentNodeRef::StaticBlock(_, StaticBlockField::Body) => {
+                return ModuleEvaluationTiming::Evaluation;
+            }
+            _ => {}
+        }
+    }
+    ModuleEvaluationTiming::Evaluation
+}
+
 /// Like [`as_parent_path`], but freezes the path into an arena-allocated boxed slice.
 pub fn as_parent_path_in<'a>(
     arena: &'a Bump,
@@ -1278,6 +1364,7 @@ impl<'a> Analyzer<'a, '_> {
         cjs_export_target_arg: Option<usize>,
     ) {
         let new = n.as_new().is_some();
+        let evaluation_timing = module_evaluation_timing(ast_path);
         let args = BumpVec::from_iter_in(
             self.arena,
             args.enumerate().map(|(i, arg)| {
@@ -1384,6 +1471,7 @@ impl<'a> Analyzer<'a, '_> {
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span,
                     in_try: self.is_in_try(),
+                    evaluation_timing,
                     export_usage,
                 });
             }
@@ -1413,6 +1501,7 @@ impl<'a> Analyzer<'a, '_> {
                         span,
                         in_try: self.is_in_try(),
                         new,
+                        evaluation_timing,
                     });
                 } else {
                     let fn_value =
@@ -1424,6 +1513,7 @@ impl<'a> Analyzer<'a, '_> {
                         span,
                         in_try: self.is_in_try(),
                         new,
+                        evaluation_timing,
                     });
                 }
             }
@@ -1439,6 +1529,7 @@ impl<'a> Analyzer<'a, '_> {
                 span,
                 in_try: self.is_in_try(),
                 new,
+                evaluation_timing,
             }),
         }
     }
@@ -3247,4 +3338,111 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
     }
 
     None
+}
+
+#[cfg(test)]
+mod module_evaluation_timing_tests {
+    use swc_core::{
+        common::{FileName, SourceMap},
+        ecma::{
+            ast::{CallExpr, Callee, EsVersion, Expr},
+            parser::{Parser, StringInput, Syntax, lexer::Lexer},
+            visit::{AstNodePath, VisitAstPath, VisitWithAstPath},
+        },
+    };
+
+    use super::{ModuleEvaluationTiming, module_evaluation_timing};
+
+    #[derive(Default)]
+    struct TimingCollector(Vec<ModuleEvaluationTiming>);
+
+    impl VisitAstPath for TimingCollector {
+        fn visit_call_expr<'ast: 'r, 'r>(
+            &mut self,
+            node: &'ast CallExpr,
+            ast_path: &mut AstNodePath<'r>,
+        ) {
+            if matches!(&node.callee, Callee::Import(_))
+                || matches!(
+                    &node.callee,
+                    Callee::Expr(callee)
+                        if matches!(&**callee, Expr::Ident(ident) if ident.sym == "require")
+                )
+            {
+                self.0.push(module_evaluation_timing(ast_path));
+            }
+            node.visit_children_with_ast_path(self, ast_path);
+        }
+    }
+
+    fn collect(code: &str) -> Vec<ModuleEvaluationTiming> {
+        let cm = SourceMap::default();
+        let file = cm.new_source_file(FileName::Anon.into(), code.to_owned());
+        let lexer = Lexer::new(
+            Syntax::default(),
+            EsVersion::latest(),
+            StringInput::from(&*file),
+            None,
+        );
+        let mut parser = Parser::new_from(lexer);
+        let program = parser.parse_program().expect("test input should parse");
+        let mut collector = TimingCollector::default();
+        program.visit_with_ast_path(&mut collector, &mut Default::default());
+        collector.0
+    }
+
+    #[test]
+    fn deferred_function_and_instance_contexts() {
+        let timings = collect(
+            r#"
+            function declaration() { import('a') }
+            export default function () { import('default') }
+            const arrow = () => import('b')
+            const expression = function () { require('c') }
+            class Contexts {
+                field = import('d')
+                constructor() { require('e') }
+                method() { import('f') }
+                get loaded() { return require('g') }
+                set loaded(value) { if (value) import('h') }
+            }
+            "#,
+        );
+        assert_eq!(timings, vec![ModuleEvaluationTiming::Deferred; 9]);
+    }
+
+    #[test]
+    fn evaluation_and_immediate_contexts() {
+        let timings = collect(
+            r#"
+            import('a');
+            require('b');
+            (() => import('c'))();
+            (function () { require('d') })();
+            consume(() => import('e'));
+            new Consumer(() => require('f'));
+            ((value) => import('g'))`value`;
+            consume({ callback: () => import('object') });
+            consume([() => require('array')]);
+            class Contexts {
+                static field = import('h')
+                static { require('i') }
+            }
+            "#,
+        );
+        assert_eq!(timings, vec![ModuleEvaluationTiming::Evaluation; 11]);
+    }
+
+    #[test]
+    fn an_outer_deferred_function_keeps_immediate_inner_calls_deferred() {
+        let timings = collect(
+            r#"
+            export function later() {
+                (() => import('a'))()
+                consume(() => require('b'))
+            }
+            "#,
+        );
+        assert_eq!(timings, vec![ModuleEvaluationTiming::Deferred; 2]);
+    }
 }

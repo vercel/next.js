@@ -179,6 +179,7 @@
                             span: 280..296,
                             in_try: false,
                             new: true,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: Exact(
@@ -249,6 +250,7 @@
         span: 268..301,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -510,6 +512,7 @@
         span: 366..381,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Call {
         func: Member(
@@ -629,6 +632,7 @@
         span: 328..418,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -1010,6 +1014,7 @@
                             span: 495..503,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                         Call {
                             func: FreeVar(
@@ -1129,6 +1134,7 @@
                             span: 489..504,
                             in_try: false,
                             new: false,
+                            evaluation_timing: Deferred,
                         },
                     ],
                     range: Exact(
@@ -1192,6 +1198,7 @@
         span: 460..516,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Call {
         func: Variable(
@@ -1254,6 +1261,7 @@
         span: 555..559,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

@@ -229,6 +229,7 @@
         span: 50..63,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Member {
         obj: FreeVar(
@@ -622,6 +623,7 @@
         span: 273..398,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -729,5 +731,6 @@
         span: 416..453,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]
