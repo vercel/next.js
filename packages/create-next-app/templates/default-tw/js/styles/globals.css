@@ -24,3 +24,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+#__next {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
