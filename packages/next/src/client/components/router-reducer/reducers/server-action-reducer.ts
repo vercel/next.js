@@ -494,26 +494,24 @@ export function serverActionReducer(
           // tree, so there's no pathname to parse them from (nor a need to).
           null,
           flightDataRenderedSearch,
+          null,
           UnknownDynamicStaleTime
         )
 
         // Learn the route pattern so we can predict it for future navigations.
-        const metadataVaryPath = redirectSeed.metadataVaryPath
-        if (metadataVaryPath !== null) {
-          discoverKnownRoute(
-            now,
-            redirectUrl.pathname,
-            redirectUrl.search as NormalizedSearch,
-            nextUrl,
-            null, // No pending entry
-            redirectSeed.routeTree,
-            metadataVaryPath,
-            couldBeIntercepted,
-            redirectCanonicalUrl,
-            isPrerender,
-            false // hasDynamicRewrite
-          )
-        }
+        discoverKnownRoute(
+          now,
+          redirectUrl.pathname,
+          redirectUrl.search as NormalizedSearch,
+          nextUrl,
+          null, // No pending entry
+          redirectSeed.root.tree,
+          redirectSeed.root.head.varyPath,
+          couldBeIntercepted,
+          redirectCanonicalUrl,
+          isPrerender,
+          false // hasDynamicRewrite
+        )
         const navigationLock = getCurrentNavigationLock()
 
         return navigateToKnownRoute(

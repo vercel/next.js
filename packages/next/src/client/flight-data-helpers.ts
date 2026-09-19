@@ -8,8 +8,6 @@ import type {
   FullTransportNode,
   TransportSegment,
 } from '../shared/lib/rsc-transport'
-import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
-import type { NormalizedSearch } from './components/segment-cache/cache-key'
 import {
   getCacheKeyForDynamicParam,
   parseDynamicParamFromURLPart,
@@ -57,8 +55,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
       t: fillInFallbackTransportTree(
         fallbackTransportData.t,
         renderedPathname.split('/').filter((part) => part !== ''),
-        0,
-        renderedSearch as NormalizedSearch
+        0
       ),
       h: fallbackTransportData.h,
     },
@@ -80,8 +77,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
 function fillInFallbackTransportTree(
   node: FullTransportNode,
   pathnameParts: Array<string>,
-  pathnamePartsIndex: number,
-  renderedSearch: NormalizedSearch
+  pathnamePartsIndex: number
 ): FullTransportNode {
   const originalSegment = node.s
   let newSegment: TransportSegment
@@ -98,7 +94,7 @@ function fillInFallbackTransportTree(
     newSegment = {
       n: originalSegment.n,
       t: originalSegment.t,
-      k: getCacheKeyForDynamicParam(paramValue, renderedSearch),
+      k: getCacheKeyForDynamicParam(paramValue),
       s: originalSegment.s,
     }
     doesAppearInURL = true
@@ -120,8 +116,7 @@ function fillInFallbackTransportTree(
         fillInFallbackTransportTree(
           childNode,
           pathnameParts,
-          childPathnamePartsIndex,
-          renderedSearch
+          childPathnamePartsIndex
         )
       )
     }
@@ -206,22 +201,19 @@ function stripClientOnlyDataFromFlightRouterState(
     result[4] = prefetchHints
   }
 
-  // Everything else is used only by the client and is not needed for requests.
+  // Page search params are client-only. As with the old PAGE suffix, omit
+  // them from request headers, which may be forwarded through HTTP redirects.
+  // Everything else is also used only by the client.
   return result
 }
 
 /**
  * Strips client-only data from segments:
- * - Search parameters from __PAGE__ segments
  * - staticSiblings from dynamic segment tuples (only needed for client-side
  *   prefetch reuse decisions)
  */
 function stripClientOnlyDataFromSegment(segment: Segment): Segment {
   if (typeof segment === 'string') {
-    // Strip search params from __PAGE__ segments
-    if (segment.startsWith(PAGE_SEGMENT_KEY + '?')) {
-      return PAGE_SEGMENT_KEY
-    }
     return segment
   }
   // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]

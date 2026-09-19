@@ -23,18 +23,6 @@ describe('prepareFlightRouterStateForRequest', () => {
   })
 
   describe('__PAGE__ segment handling', () => {
-    it('should strip search params from __PAGE__ segments', () => {
-      const flightRouterState: FlightRouterState = [
-        '__PAGE__?{"param":"value","foo":"bar"}',
-        {},
-      ]
-
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
-      const decoded = JSON.parse(decodeURIComponent(result))
-
-      expect(decoded[0]).toBe('__PAGE__')
-    })
-
     it('should preserve non-page segments', () => {
       const flightRouterState: FlightRouterState = ['regular-segment', {}]
 
@@ -174,7 +162,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'parent',
         {
-          children: ['__PAGE__?{"nested":"param"}', {}, ['/nested/url', '']],
+          children: ['__PAGE__', {}, ['/nested/url', '']],
           modal: ['modal-segment', {}, ['/modal/url', ''], 'refetch'],
         },
         ['/parent/url', ''],
@@ -188,7 +176,7 @@ describe('prepareFlightRouterStateForRequest', () => {
         'parent',
         {
           children: [
-            '__PAGE__', // search params stripped
+            '__PAGE__',
             {},
             // URL stripped
             // 'refresh' marker stripped
@@ -212,12 +200,7 @@ describe('prepareFlightRouterStateForRequest', () => {
           children: [
             'level1',
             {
-              children: [
-                '__PAGE__?{"deep":"nesting"}',
-                {},
-                ['/deep/url', ''],
-                'refetch',
-              ],
+              children: ['__PAGE__', {}, ['/deep/url', ''], 'refetch'],
             },
           ],
         },
@@ -235,13 +218,13 @@ describe('prepareFlightRouterStateForRequest', () => {
   describe('real-world scenarios', () => {
     it('should handle complex FlightRouterState with all features', () => {
       const complexState: FlightRouterState = [
-        '__PAGE__?{"userId":"123"}',
+        '__PAGE__',
         {
           children: [
             'dashboard',
             {
               modal: [
-                '__PAGE__?{"modalParam":"data"}',
+                '__PAGE__',
                 {},
                 ['/modal/path', ''],
                 null,
@@ -270,7 +253,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const decoded = JSON.parse(decodeURIComponent(result))
 
       // Root level checks
-      expect(decoded[0]).toBe('__PAGE__') // search params stripped
+      expect(decoded[0]).toBe('__PAGE__')
       expect(decoded[2]).toBeNull() // URL stripped
       expect(decoded[3]).toBe('inside-shared-layout') // server marker preserved
       expect(decoded[4]).toBe(
@@ -289,7 +272,7 @@ describe('prepareFlightRouterStateForRequest', () => {
 
       // Modal route checks
       const modalRoute = childrenRoute[1].modal
-      expect(modalRoute[0]).toBe('__PAGE__') // search params stripped
+      expect(modalRoute[0]).toBe('__PAGE__')
       expect(modalRoute[2]).toBeNull() // URL stripped
       expect(modalRoute[3]).toBeNull() // 'refresh' marker stripped
       expect(modalRoute[4]).toBe(PrefetchHint.SegmentHasLoadingBoundary) // prefetchHints preserved

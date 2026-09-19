@@ -1,9 +1,5 @@
 import type { DynamicParamTypesShort } from '../shared/lib/app-router-types'
-import {
-  addSearchParamsIfPageSegment,
-  DEFAULT_SEGMENT_KEY,
-  PAGE_SEGMENT_KEY,
-} from '../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 import { ROOT_SEGMENT_REQUEST_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
@@ -19,8 +15,20 @@ import type {
 } from './components/segment-cache/cache-key'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 import type { ParsedUrlQuery } from 'querystring'
+import { getRenderedSearch as getRenderedSearchFromQuery } from '../shared/lib/router/utils/querystring'
 
 export type RouteParamValue = string | Array<string> | null
+
+export function normalizeRenderedSearch(search: string): NormalizedSearch {
+  // A rendered query must use the same encoding and key grouping whether it
+  // comes from a URL, a rewrite header, or the server's response body. For
+  // example, '+', '%20', and interleaved repeated keys must not cause a valid
+  // navigation response to mismatch its pending page task.
+  // Only normalize rendered inputs. Request URLs and route-cache keys retain
+  // their original spelling, which can affect middleware and rewrites.
+  const query = urlSearchParamsToParsedUrlQuery(new URLSearchParams(search))
+  return getRenderedSearchFromQuery(query) as NormalizedSearch
+}
 
 export function getRenderedSearch(
   response: RSCResponse<unknown> | Response
@@ -30,14 +38,13 @@ export function getRenderedSearch(
   // the response will include a header that gives the rewritten search query.
   const rewrittenQuery = response.headers.get(NEXT_REWRITTEN_QUERY_HEADER)
   if (rewrittenQuery !== null) {
-    return (
-      rewrittenQuery === '' ? '' : '?' + rewrittenQuery
-    ) as NormalizedSearch
+    return normalizeRenderedSearch(rewrittenQuery)
   }
   // If the header is not present, there was no rewrite, so we use the search
   // query of the response URL.
-  return urlToUrlWithoutFlightMarker(new URL(response.url))
-    .search as NormalizedSearch
+  return normalizeRenderedSearch(
+    urlToUrlWithoutFlightMarker(new URL(response.url)).search
+  )
 }
 
 export function getRenderedPathname(
@@ -181,7 +188,7 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
     // Otherwise, we wouldn't need this special case because pages are
     // always leaf nodes.
     // TODO: Investigate why the loader produces these fake page segments.
-    segment.startsWith(PAGE_SEGMENT_KEY) ||
+    segment === PAGE_SEGMENT_KEY ||
     // Route groups.
     (segment[0] === '(' && segment.endsWith(')')) ||
     segment === DEFAULT_SEGMENT_KEY ||
@@ -195,21 +202,13 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
 }
 
 export function getCacheKeyForDynamicParam(
-  paramValue: RouteParamValue,
-  renderedSearch: NormalizedSearch
+  paramValue: RouteParamValue
 ): string {
   // This needs to match the logic in get-dynamic-param.ts, until we're able to
   // unify the various implementations so that these are always computed on
   // the client.
   if (typeof paramValue === 'string') {
-    // TODO: Refactor or remove this helper function to accept a string rather
-    // than the whole segment type. Also we can probably just append the
-    // search string instead of turning it into JSON.
-    const pageSegmentWithSearchParams = addSearchParamsIfPageSegment(
-      paramValue,
-      urlSearchParamsToParsedUrlQuery(new URLSearchParams(renderedSearch))
-    ) as string
-    return pageSegmentWithSearchParams
+    return paramValue
   } else if (paramValue === null) {
     return ''
   } else {
@@ -265,10 +264,19 @@ export function urlSearchParamsToParsedUrlQuery(
   // Converts a URLSearchParams object to the same type used by the server when
   // creating search params props, i.e. the type returned by Node's
   // "querystring" module.
-  const result: ParsedUrlQuery = {}
+  // This object is also passed to client page components, so preserve its
+  // ordinary object prototype while treating all query keys as own properties.
+  const result: Record<string, string | string[]> = {}
   for (const [key, value] of searchParams.entries()) {
-    if (result[key] === undefined) {
-      result[key] = value
+    if (!Object.prototype.hasOwnProperty.call(result, key)) {
+      // Define a data property so names like __proto__ cannot invoke an
+      // inherited setter, and constructor isn't mistaken for a repeated key.
+      Object.defineProperty(result, key, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
     } else if (Array.isArray(result[key])) {
       result[key].push(value)
     } else {

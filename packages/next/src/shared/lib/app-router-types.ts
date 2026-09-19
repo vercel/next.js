@@ -57,10 +57,6 @@ export type CacheNode = {
    */
   varyParams: VaryParams | null
 
-  prefetchHead: HeadData | null
-
-  head: HeadData
-
   /**
    * A shared mutable ref that tracks whether this segment should be scrolled
    * to. All new segments created during a single navigation share the same
@@ -174,9 +170,19 @@ export type FlightRouterState = [
   /**
    * Bitmask of PrefetchHint flags. Encodes route structure metadata:
    * root layout, loading boundaries, instant configs, and prefetch strategy
-   * hints. Only set when non-zero.
+   * hints. Only set when non-zero. JSON encodes an omitted slot as null when
+   * a later slot is present.
    */
-  prefetchHints?: number,
+  prefetchHints?: number | null,
+  /**
+   * Rendered search for a page segment. Always present on page nodes used for
+   * rendering and history; empty string means no search params. Omitted on
+   * non-page nodes and stripped from normal request headers. Client history
+   * restoration assumes page nodes were produced by this client version.
+   * TODO: Revisit this slot as part of the larger FlightRouterState refactor
+   * once more consumers have migrated to the newer tree types.
+   */
+  renderedSearch?: string,
 ]
 
 /**

@@ -59,6 +59,7 @@ import {
   getPathnameFromRequestURL,
   getRenderedPathname,
   getRenderedSearch,
+  normalizeRenderedSearch,
 } from '../../route-params'
 import {
   createCacheMap,
@@ -233,12 +234,39 @@ type LayoutRouteTree<TData> = RouteTreeShared<TData> & {
   varyPath: LayoutVaryPath
 }
 
-type PageRouteTree<TData> = RouteTreeShared<TData> & {
+export type PageRouteTree<TData> = RouteTreeShared<TData> & {
   isPage: true
   varyPath: PageVaryPath
 }
 
 export type RouteTree<TData> = LayoutRouteTree<TData> | PageRouteTree<TData>
+
+// A route's complete render structure. The head is fetched, cached, and
+// rendered like a page segment, but it has no position in the route tree, so
+// it sits beside the tree as its own one-node tree (see
+// createMetadataRouteTree). This is the shape a server response decodes to,
+// the router state holds, and a navigation produces.
+export type RootRouteTree<TData> = {
+  tree: RouteTree<TData>
+  head: PageRouteTree<TData>
+}
+
+export function doesRouteStructureMatch<TCurrent, TNext>(
+  currentTree: RouteTree<TCurrent>,
+  nextTree: RouteTree<TNext>
+): boolean {
+  // Request keys identify the route position, including dynamic param names
+  // and types, but not param values.
+  if (currentTree.requestKey !== nextTree.requestKey) {
+    return false
+  }
+  // Root request keys are always empty, including for global Not Found, so
+  // the root segment's identity must be checked separately.
+  return (
+    nextTree.requestKey !== ROOT_SEGMENT_REQUEST_KEY ||
+    currentTree.segment === nextTree.segment
+  )
+}
 
 type RouteCacheEntryShared = {
   // This is false only if we're certain the route cannot be intercepted. It's
@@ -291,7 +319,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   canonicalUrl: string
   renderedSearch: NormalizedSearch
   tree: RouteTree<null>
-  metadata: RouteTree<null>
+  metadata: PageRouteTree<null>
   supportsPerSegmentPrefetching: boolean
 }
 
@@ -807,7 +835,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     routeWithNoSearchParams.renderedSearch !== ''
       ? // Base route was rewritten. Reuse the same rewritten search string.
         routeWithNoSearchParams.renderedSearch
-      : requestedSearch
+      : normalizeRenderedSearch(requestedSearch)
 
   const optimisticUrl = new URL(
     routeWithNoSearchParams.canonicalUrl,
@@ -820,9 +848,14 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     routeWithNoSearchParams.tree,
     optimisticRenderedSearch
   )
-  const optimisticMetadataTree = deprecated_createOptimisticRouteTree(
-    routeWithNoSearchParams.metadata,
-    optimisticRenderedSearch
+  const baseMetadataTree = routeWithNoSearchParams.metadata
+  const optimisticMetadataTree = createMetadataRouteTree(
+    clonePageVaryPathWithNewSearchParams(
+      baseMetadataTree.varyPath,
+      optimisticRenderedSearch
+    ),
+    baseMetadataTree.prefetchHints,
+    null
   )
 
   // Clone the base route tree, and override the relevant fields with our
@@ -1419,23 +1452,27 @@ function pingBlockedTasks(entry: {
   }
 }
 
-export function createMetadataRouteTree(
+export function createMetadataRouteTree<TData>(
   metadataVaryPath: PageVaryPath,
   // The route root's prefetch hints. The head has no node of its own on the
   // wire, so route-level hints are read from the root on its behalf — the
   // same convention as pingStaticHead in scheduler.ts.
-  rootPrefetchHints: number
-): RouteTree<null> {
+  rootPrefetchHints: number,
+  // The head's payload, with the same lifetimes as a segment node's `data`
+  // (see RouteTreeShared): null in the route cache, the response's decoded
+  // head on a navigation seed, a CacheNode on the router state.
+  data: TData
+): PageRouteTree<TData> {
   // The Head is not actually part of the route tree, but other than that, it's
   // fetched and cached like a segment. Some functions expect a RouteTree
   // object, so rather than fork the logic in all those places, we use this
   // "fake" one.
-  const metadata: RouteTree<null> = {
+  const metadata: PageRouteTree<TData> = {
     requestKey: HEAD_REQUEST_KEY,
     segment: HEAD_REQUEST_KEY,
     shellVaryPath: getShellSegmentVaryPath(metadataVaryPath),
     refreshState: null,
-    data: null,
+    data,
     varyPath: metadataVaryPath,
     // The metadata isn't really a "page" (though it isn't really a "segment"
     // either) but for the purposes of how this field is used, it behaves like
@@ -1534,7 +1571,8 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.tree = stripDataFromRouteTree(tree)
   fulfilledEntry.metadata = createMetadataRouteTree(
     metadataVaryPath,
-    tree.prefetchHints
+    tree.prefetchHints,
+    null
   )
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
@@ -1802,6 +1840,9 @@ export function convertFlightRouterStateToRouteTree(
           renderedSearch: compressedRefreshState[1] as NormalizedSearch,
         }
       : null
+  // The incoming query is authoritative even when a navigation response has
+  // no new segment data. The base tree's page-search slot may still describe
+  // the previous URL. History restores pass their saved query instead.
   const renderedSearch =
     refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 
@@ -2426,10 +2467,8 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   //   no tree position, so the decode could only derive a vary path for it
   //   from a page node in the payload's own tree, which a standalone head
   //   response (a bare root identity) doesn't have.
-  //   (createMetadataRouteTree stores a PageVaryPath in `varyPath`, so the
-  //   cast is sound.)
   const now = Date.now()
-  const metadataVaryPath = route.metadata.varyPath as PageVaryPath
+  const metadataVaryPath = route.metadata.varyPath
   writeResponsePayloadsIntoCache(
     now,
     fetchStrategy,
@@ -3170,9 +3209,7 @@ function writeServerResponseIntoCache(
   // partiality per node, so their writes pass the conservative value
   // (true), which is never read.
   isResponsePartial: boolean,
-  // Where to key the head. Null derives it from the decoded tree's first
-  // page node; per-segment payloads pass the route's own metadata vary path
-  // instead, since a standalone head response's tree has no page node.
+  // Where to key the head; see createNavigationSeed.
   metadataVaryPath: PageVaryPath | null,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
   // The strategy tier describing the CONTENT of the payload being written,
@@ -3236,12 +3273,13 @@ function writeServerResponseIntoCache(
     isResponsePartial,
     renderedPathname,
     renderedSearch,
+    metadataVaryPath,
     // Only navigations consume the seed's dynamicStaleAt; cache writes pass
     // unknown to use the default.
     UnknownDynamicStaleTime
   )
   const requiresRuntimeCompleteness =
-    (navigationSeed.routeTree.prefetchHints &
+    (navigationSeed.root.tree.prefetchHints &
       PrefetchHint.SubtreeHasPartialPrefetching) !==
     0
 
@@ -3275,17 +3313,7 @@ function writeServerResponseIntoCache(
       ? readFulfilledValue(response.u, false, /* rejectedValue */ true)
       : null
 
-  const routeTree = navigationSeed.routeTree
-  if (metadataVaryPath === null) {
-    metadataVaryPath = navigationSeed.metadataVaryPath
-  }
-  const metadataTree =
-    metadataVaryPath !== null
-      ? createMetadataRouteTree(
-          metadataVaryPath,
-          navigationSeed.routeTree.prefetchHints
-        )
-      : null
+  const routeTree = navigationSeed.root.tree
 
   // The route tree carries the render output of every segment the response
   // included, so a single traversal from the root writes all of it into
@@ -3305,13 +3333,13 @@ function writeServerResponseIntoCache(
     writtenEntries
   )
 
-  const head = navigationSeed.head
-  if (head !== null && metadataTree !== null) {
-    // The head carries its own staleTime in per-segment prefetch responses;
-    // everywhere else the response-level staleness governs it.
+  const metadataTree = navigationSeed.root.head
+  const headData = metadataTree.data
+  if (headData !== null && headData.rsc !== null) {
+    // The head follows the same stale-time rules as a segment.
     const headStaleAt =
-      navigationSeed.headStaleTimeSeconds !== null
-        ? now + getStaleTimeMs(navigationSeed.headStaleTimeSeconds)
+      headData.staleTimeSeconds !== null
+        ? now + getStaleTimeMs(headData.staleTimeSeconds)
         : staleAt
 
     // A head has no loading boundary. Match pingRuntimeHead, which spawns
@@ -3324,13 +3352,13 @@ function writeServerResponseIntoCache(
       now,
       map,
       headFetchStrategy,
-      head,
+      headData.rsc,
       // The decode already resolved the head's partiality from the wire
       // form and the response-level value — see the head read in
       // createNavigationSeed.
-      navigationSeed.isHeadPartial,
+      headData.isPartial,
       headStaleAt,
-      navigationSeed.headVaryParams,
+      headData.varyParams,
       metadataTree,
       spawnedEntries,
       contentFetchStrategy,

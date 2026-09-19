@@ -216,6 +216,12 @@ export type AppRouterState = {
    */
   cache: RouteTree<CacheNode>
   /**
+   * The document head (metadata) for the current route, as a one-node render
+   * tree keyed at the metadata vary path. The head is not part of the route
+   * tree, so it lives beside it rather than on a page's CacheNode.
+   */
+  head: RouteTree<CacheNode>
+  /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
   pushRef: PushRef

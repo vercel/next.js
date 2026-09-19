@@ -7,7 +7,6 @@
 
 import type {
   FlightRouterState,
-  HeadData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import {
@@ -21,10 +20,7 @@ import type {
   TransportSegment,
 } from '../../../shared/lib/rsc-transport'
 import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
-import type {
-  VaryParams,
-  VaryParamsIterable,
-} from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { decodeVaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   type SegmentRequestKey,
@@ -36,7 +32,6 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import {
   doesStaticSegmentAppearInURL,
@@ -61,32 +56,23 @@ import {
 } from './vary-path'
 import {
   type RouteTree,
+  type RootRouteTree,
   type RSCSegmentData,
   type RefreshState,
   type RouteTreeAccumulator,
   convertFlightRouterStateToRouteTree,
   convertRootFlightRouterStateToRouteTree,
+  createMetadataRouteTree,
 } from './cache'
 import { computeDynamicStaleAt } from './bfcache'
 
 export type NavigationSeed = {
   renderedSearch: string
-  routeTree: RouteTree<RSCSegmentData | null>
-  metadataVaryPath: PageVaryPath | null
-  head: HeadData | null
-  isHeadPartial: boolean
   /**
-   * The source of the params the head's output depends on (root params
-   * included). Null means unknown — tracking wasn't enabled, or the decode
-   * had no root params to union in — so consumers key on all params.
+   * The decoded response. The head's `data` is decoded exactly like a segment
+   * node's: null when the response carries no head.
    */
-  headVaryParams: VaryParams | null
-  /**
-   * The head's own staleTime in seconds, when the response carries one
-   * (per-segment prefetch responses only — see TransportSegmentData['s']).
-   * Null means the response-level staleness governs the head.
-   */
-  headStaleTimeSeconds: number | null
+  root: RootRouteTree<RSCSegmentData | null>
   dynamicStaleAt: number
   // Whether the response rendered a segment whose identity differs from the
   // base tree's at the same position (inactive parallel route branches are
@@ -144,6 +130,11 @@ export function createNavigationSeed(
   // concrete values (navigation responses) may pass null.
   renderedPathname: string | null,
   renderedSearch: string,
+  // Where to key the head. Null derives it from the tree's first page node
+  // (see createRouteTreeNode). Per-segment prefetch payloads pass the route's
+  // own metadata vary path instead: a standalone head response's tree is a
+  // bare root identity with no page node.
+  metadataVaryPath: PageVaryPath | null,
   dynamicStaleTimeSeconds: number
 ): NavigationSeed {
   const acc: RouteTreeAccumulator = {
@@ -151,10 +142,7 @@ export function createNavigationSeed(
     treeDivergedFromBase: false,
   }
   let routeTree: RouteTree<RSCSegmentData | null>
-  let head: HeadData | null = null
-  let isHeadPartial = true
-  let headVaryParams: VaryParams | null = null
-  let headStaleTimeSeconds: number | null = null
+  let headData: RSCSegmentData | null = null
   if (transportData !== null) {
     routeTree = decodeTransportTreeIntoRouteTree(
       transportData.t,
@@ -167,7 +155,6 @@ export function createNavigationSeed(
     )
     const transportHead = transportData.h
     if (transportHead !== undefined) {
-      head = transportHead.r
       // The wire form of `p` determines which signal is authoritative for
       // the head's partiality, mirroring the per-node rule in
       // decodeTransportNode:
@@ -189,17 +176,20 @@ export function createNavigationSeed(
       //   carries a complete head; a partial (postponed) one does not.
       //   Without Cache Components, the server sends the correct
       //   isHeadPartial, so the wire boolean is used as-is.
-      isHeadPartial =
-        typeof transportHead.p === 'boolean'
-          ? process.env.__NEXT_CACHE_COMPONENTS
-            ? isResponsePartial
-            : transportHead.p
-          : readFulfilledIsPartial(transportHead.p)
-      headVaryParams = decodeVaryParams(transportHead.v, rootVaryParams)
-      headStaleTimeSeconds =
-        transportHead.s !== undefined
-          ? readFulfilledStaleTimeSeconds(transportHead.s)
-          : null
+      headData = {
+        rsc: transportHead.r,
+        isPartial:
+          typeof transportHead.p === 'boolean'
+            ? process.env.__NEXT_CACHE_COMPONENTS
+              ? isResponsePartial
+              : transportHead.p
+            : readFulfilledIsPartial(transportHead.p),
+        varyParams: decodeVaryParams(transportHead.v, rootVaryParams),
+        staleTimeSeconds:
+          transportHead.s !== undefined
+            ? readFulfilledStaleTimeSeconds(transportHead.s)
+            : null,
+      }
     }
   } else {
     if (currentTree === null) {
@@ -215,14 +205,28 @@ export function createNavigationSeed(
     )
   }
 
+  if (metadataVaryPath === null) {
+    metadataVaryPath = acc.metadataVaryPath
+    if (metadataVaryPath === null) {
+      // Every route renders a page, so a rendered tree always has a node to
+      // key the head under.
+      throw new InvariantError(
+        'Cannot key the head of a server response: its tree has no page ' +
+          'segment.'
+      )
+    }
+  }
+
   return {
-    routeTree,
-    metadataVaryPath: acc.metadataVaryPath,
+    root: {
+      tree: routeTree,
+      head: createMetadataRouteTree(
+        metadataVaryPath,
+        routeTree.prefetchHints,
+        headData
+      ),
+    },
     renderedSearch,
-    head,
-    isHeadPartial,
-    headVaryParams,
-    headStaleTimeSeconds,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
     treeDivergedFromBase: acc.treeDivergedFromBase,
   }
@@ -268,15 +272,6 @@ export function createRouteTreeNode<TData>(
       // This is a page segment.
       isPage = true
 
-      // The navigation implementation expects the search params to be included
-      // in the segment. However, in the case of a static response, the search
-      // params are omitted. So the client needs to add them back in when reading
-      // from the Segment Cache.
-      //
-      // For consistency, we'll do this for live-render responses, too.
-      //
-      // TODO: We should move search params out of FlightRouterState and handle
-      // them entirely on the client, similar to our plan for dynamic params.
       segment = PAGE_SEGMENT_KEY
       varyPath = finalizePageVaryPath(
         requestKey,
@@ -416,12 +411,9 @@ function resolveTransportSegment(
     pathnameParts,
     pathnamePartsIndex
   )
-  // TODO: We're intentionally not adding the search param to page segments
-  // here; it's tracked separately and added back during a read from the
-  // Segment Cache.
   return [
     transportSegment.n,
-    getCacheKeyForDynamicParam(paramValue, '' as NormalizedSearch),
+    getCacheKeyForDynamicParam(paramValue),
     transportSegment.t,
     transportSegment.s,
   ]
@@ -464,18 +456,23 @@ function decodeTransportNode(
       // are still checked.
     } else {
       const baseSegment = compareBase[0]
-      if (
-        typeof originalSegment === 'string' &&
-        typeof baseSegment === 'string' &&
-        originalSegment.startsWith(PAGE_SEGMENT_KEY) &&
-        baseSegment.startsWith(PAGE_SEGMENT_KEY)
-      ) {
-        // Page segments match modulo embedded search params, which are
-        // validated separately (see getRenderedSearch).
-      } else if (originalSegment === DEFAULT_SEGMENT_KEY) {
+      if (originalSegment === DEFAULT_SEGMENT_KEY) {
         // A default filled in by the server is not a claim about the
         // position's identity.
-      } else if (!matchSegment(baseSegment, originalSegment)) {
+      } else if (
+        typeof baseSegment === 'string' ||
+        typeof originalSegment === 'string'
+      ) {
+        if (baseSegment !== originalSegment) {
+          acc.treeDivergedFromBase = true
+        }
+      } else if (
+        // Param name and type identify the route; the value identifies the
+        // rendered instance. Static sibling hints aren't part of identity.
+        baseSegment[0] !== originalSegment[0] ||
+        baseSegment[2] !== originalSegment[2] ||
+        baseSegment[1] !== originalSegment[1]
+      ) {
         acc.treeDivergedFromBase = true
       }
     }

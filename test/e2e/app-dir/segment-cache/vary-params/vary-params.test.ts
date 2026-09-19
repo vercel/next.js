@@ -848,4 +848,39 @@ describe('segment cache - vary params', () => {
       'Locale: de'
     )
   })
+
+  it('still fetches the head on a query-only navigation when the metadata read searchParams', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/navigation-reuse/metadata-query?x=1', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+    expect(await browser.eval('document.title')).toBe('Query title: 1')
+    const initialToken = await browser.elementById('server-token').text()
+
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/metadata-query?x=2"]'
+        )
+        .click()
+    }, 'no-requests')
+
+    // The head read the query, so it's fetched again.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/navigation-reuse/metadata-query?x=2"]')
+          .click()
+      },
+      { includes: 'Query title: 2' }
+    )
+    expect(await browser.eval('document.title')).toBe('Query title: 2')
+    // A dynamic render reports no dependency information, so the page is
+    // re-rendered along with the head.
+    expect(await browser.elementById('server-token').text()).not.toBe(
+      initialToken
+    )
+  })
 })

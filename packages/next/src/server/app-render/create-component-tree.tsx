@@ -47,10 +47,7 @@ import type {
   UseCacheLayoutProps,
   UseCachePageProps,
 } from '../use-cache/use-cache-wrapper'
-import {
-  addSearchParamsIfPageSegment,
-  DEFAULT_SEGMENT_KEY,
-} from '../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
   BOUNDARY_SUFFIX,
@@ -470,10 +467,7 @@ async function createComponentTreeInternal(
 
   // The segment's identity on the wire.
   const transportSegment = segmentToTransportSegment(
-    addSearchParamsIfPageSegment(
-      segmentParam ? segmentParam.treeSegment : segment,
-      query
-    )
+    segmentParam ? segmentParam.treeSegment : segment
   )
 
   // Create object holding the parent params and current params
@@ -600,7 +594,6 @@ async function createComponentTreeInternal(
             ctx.missingPrefetchHintPolicy,
             partialPrefetching,
             getDynamicParamFromSegment,
-            query,
             rootLayoutIncludedAtThisLevelOrAbove
           )
         } else {

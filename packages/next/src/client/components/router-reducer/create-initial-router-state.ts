@@ -11,11 +11,8 @@ import {
   spawnStaticStageCacheWrite,
   segmentCacheMap,
 } from '../segment-cache/cache'
-import { decodeTransportTreeIntoRouteTree } from '../segment-cache/decode-server-response'
-import {
-  UnknownDynamicStaleTime,
-  computeDynamicStaleAt,
-} from '../segment-cache/bfcache'
+import { createNavigationSeed } from '../segment-cache/decode-server-response'
+import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 import { decodeStageUntilBoundary } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -51,12 +48,12 @@ export function createInitialRouterState({
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
-  const initialHead = initialTransportData.h.r
-
   // The initial router state tree, derived from the transport tree. Page
-  // segments keep their search params, which travel inside the segment
-  // string.
-  const initialTree = transportNodeToFlightRouterState(initialTransportData.t)
+  // segments store the response's rendered query in their own tuple slot.
+  const initialTree = transportNodeToFlightRouterState(
+    initialTransportData.t,
+    initialRenderedSearch
+  )
 
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser
@@ -66,13 +63,10 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  // Decode the initial transport tree into the RouteTree type, with the
-  // payload's render output embedded on each node. (discoverKnownRoute below
-  // stores this tree in the route cache, which strips the data on write —
-  // see stripDataFromRouteTree.)
-  // NOTE: The metadataVaryPath isn't used for anything currently because the
-  // head is embedded into the render tree, but eventually we'll lift it out
-  // and store it on the top-level state object.
+  // Decode the initial transport data into the RouteTree type, with the
+  // payload's render output embedded on each node and the head as its own
+  // one-node tree. (discoverKnownRoute below stores the route tree in the
+  // route cache, which strips the data on write — see stripDataFromRouteTree.)
   //
   // For statically-generated-at-build-time HTML pages, the tree baked into
   // the initial RSC payload won't have the correct segment inlining hints
@@ -80,12 +74,12 @@ export function createInitialRouterState({
   // trees with InliningHintsStale, which causes the route cache entry to be
   // immediately expired. The next prefetch will re-fetch the tree with
   // correct hints from the /_tree response.
-  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
-  const initialRouteTree = decodeTransportTreeIntoRouteTree(
-    initialTransportData.t,
+  const initialSeed = createNavigationSeed(
+    navigatedAt,
     // There's no base tree to overlay onto; the initial payload is a full
     // render from the root.
     null,
+    initialTransportData,
     // The initial payload may still be streaming in while we hydrate, so its
     // vary params can't be drained here; they decode as null. The
     // segment-cache write below re-decodes the transport data with the
@@ -100,23 +94,20 @@ export function createInitialRouterState({
     // see createInitialRSCPayloadFromFallbackPrerender), so there's no
     // pathname to parse them from.
     null,
-    initialRenderedSearch as NormalizedSearch,
-    acc
+    initialRenderedSearch,
+    null,
+    initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
   )
-  const metadataVaryPath = acc.metadataVaryPath
-  const initialTask = createInitialRenderTreeForHydration(
+  const initialRoot = initialSeed.root
+  const initialNavigation = createInitialRenderTreeForHydration(
     navigatedAt,
-    initialRouteTree,
-    initialHead,
-    computeDynamicStaleAt(
-      navigatedAt,
-      initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
-    )
+    initialRoot,
+    initialSeed.dynamicStaleAt
   )
 
   // The following only applies in the browser (location !== null) since neither
   // route learning nor segment cache state persists from SSR to client.
-  if (location !== null && metadataVaryPath !== null) {
+  if (location !== null) {
     // Learn the route pattern so we can predict it for future navigations.
     discoverKnownRoute(
       Date.now(),
@@ -124,8 +115,8 @@ export function createInitialRouterState({
       location.search as NormalizedSearch,
       null, // nextUrl — initial render is never an interception
       null, // No pending entry
-      initialRouteTree,
-      metadataVaryPath,
+      initialRoot.tree,
+      initialRoot.head.varyPath,
       initialCouldBeIntercepted,
       canonicalUrl,
       initialSupportsPerSegmentPrefetching,
@@ -245,8 +236,9 @@ export function createInitialRouterState({
   // complete tree.)
 
   const initialState = {
-    tree: initialTask.route,
-    cache: initialTask.node,
+    tree: initialNavigation.tree.route,
+    cache: initialNavigation.tree.node,
+    head: initialNavigation.head.node,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
