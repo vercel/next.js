@@ -27,6 +27,7 @@ __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapsh
 
 __turbopack_context__.s([
     "bar",
+    0,
     ()=>bar
 ]);
 function bar(value) {

@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/same-binding-multiple-paths/input/index.js"],"sourcesContent":["// One binding, reached directly and through a re-exporting module under several names. Every\n// name reads the same value, so the output declares a single captured binding for all of them.\nimport { binding } from './module.js'\nimport { binding as binding3, binding2 } from './reexport.js'\nimport * as reexports from './reexport.js'\n\nconsole.log(binding, binding2, binding3, reexports.binding, reexports.binding2)\n"],"names":["console","log"],"mappings":"AAAA,6FAA6F;AAC7F,+FAA+F;AAC/F;AACA;;;;;AAGAA,QAAQC,GAAG"}},
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/same-binding-multiple-paths/input/module.js"],"sourcesContent":["export const binding = 123\n"],"names":["binding"],"mappings":"AAAO,MAAMA,UAAU"}},
+    {"offset": {"line": 27, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}}]
+}
