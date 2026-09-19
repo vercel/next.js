@@ -11,7 +11,10 @@ import {
   routeTemplateMatchesPath,
   updateRequestInsights,
 } from './shared'
-import type { RequestInsight } from '../shared/request-insights'
+import {
+  createRequestInsightDelta,
+  type RequestInsight,
+} from '../shared/request-insights'
 import type { RuntimeErrorEvent } from './container/runtime-error/render-error'
 
 const STATIC_ROUTE = '/example'
@@ -126,6 +129,136 @@ describe('mergeErrorEvent', () => {
 })
 
 describe('updateRequestInsights', () => {
+  it('serializes new spans once instead of resending the growing request', () => {
+    const request = createRequestInsight('request', 25)
+    const updates = []
+    let firstHalfBytes = 0
+    let totalBytes = 0
+    for (let index = 0; index < 200; index++) {
+      request.spans.push({
+        name: 'render component',
+        startTime: 100,
+        spanId: String(index),
+      })
+      const update = createRequestInsightDelta(request, index, 0)
+      updates.push(update)
+      totalBytes += Buffer.byteLength(JSON.stringify(update), 'utf8')
+      if (index === 99) firstHalfBytes = totalBytes
+    }
+
+    expect(updates.every((update) => update.spans.length === 1)).toBe(true)
+    expect(totalBytes).toBeLessThan(firstHalfBytes * 2.1)
+    expect(updates[0].spans).toEqual([
+      { name: 'render component', startTime: 100, spanId: '0' },
+    ])
+  })
+
+  it('splits large batches into bounded deltas without losing records', () => {
+    const request = createRequestInsight('request', 25)
+    request.spans = Array.from({ length: 300 }, (_, index) => ({
+      name: `span ${index}`,
+      startTime: index,
+    }))
+    request.fetches = Array.from({ length: 150 }, (_, index) => ({
+      url: `/data/${index}`,
+      startTime: index,
+    }))
+    let requests: RequestInsight[] = []
+    let spanOffset = 0
+    let fetchOffset = 0
+    while (
+      spanOffset < request.spans.length ||
+      fetchOffset < request.fetches.length
+    ) {
+      const delta = createRequestInsightDelta(request, spanOffset, fetchOffset)
+      expect(delta.spans.length + delta.fetches.length).toBeGreaterThan(0)
+      expect(delta.spans.length + delta.fetches.length).toBeLessThanOrEqual(128)
+      requests = updateRequestInsights(requests, delta)
+      spanOffset += delta.spans.length
+      fetchOffset += delta.fetches.length
+    }
+    expect(requests).toEqual([request])
+  })
+
+  it('appends only the unseen portion of a delta after a snapshot', () => {
+    const firstSpan = { name: 'first', startTime: 100 }
+    const secondSpan = { name: 'second', startTime: 110 }
+    const thirdSpan = { name: 'third', startTime: 120 }
+    const firstFetch = { url: '/first', startTime: 100 }
+    const secondFetch = { url: '/second', startTime: 120 }
+    const snapshot = {
+      ...createRequestInsight('request', 25),
+      spans: [firstSpan, secondSpan],
+      fetches: [firstFetch],
+    }
+    const delta = {
+      ...snapshot,
+      spanOffset: 1,
+      fetchOffset: 0,
+      spans: [secondSpan, thirdSpan],
+      fetches: [firstFetch, secondFetch],
+    }
+    const updated = updateRequestInsights([snapshot], delta)
+
+    expect(updated[0].spans).toEqual([firstSpan, secondSpan, thirdSpan])
+    expect(updated[0].fetches).toEqual([firstFetch, secondFetch])
+    expect(updateRequestInsights(updated, delta)).toEqual(updated)
+    expect(snapshot.spans).toEqual([firstSpan, secondSpan])
+    expect(snapshot.fetches).toEqual([firstFetch])
+  })
+
+  it('preserves span and fetch arrays when only metadata changes', () => {
+    const previous = {
+      ...createRequestInsight('request', 25),
+      spans: [{ name: 'render', startTime: 100 }],
+      fetches: [{ url: '/data', startTime: 100 }],
+    }
+    const update = {
+      ...previous,
+      completedAt: 150,
+      spanOffset: 1,
+      fetchOffset: 1,
+      spans: [],
+      fetches: [],
+    }
+    const [completed] = updateRequestInsights([previous], update)
+
+    expect(completed.completedAt).toBe(150)
+    expect(completed.spans).toBe(previous.spans)
+    expect(completed.fetches).toBe(previous.fetches)
+  })
+
+  it('keeps completed requests in completion order after late updates', () => {
+    const first = {
+      ...createRequestInsight('request', 25),
+      requestId: 'first',
+      completedAt: 100,
+    }
+    const second = { ...first, requestId: 'second', completedAt: 110 }
+    const lateUpdate = {
+      ...first,
+      spanOffset: 0,
+      fetchOffset: 0,
+      spans: [{ name: 'late work', startTime: 120 }],
+    }
+
+    expect(
+      updateRequestInsights([first, second], lateUpdate).map(
+        (request) => request.requestId
+      )
+    ).toEqual(['first', 'second'])
+  })
+
+  it('waits for the initial snapshot when a delta starts after missing records', () => {
+    const delta = {
+      ...createRequestInsight('request', 25),
+      spanOffset: 5,
+      fetchOffset: 0,
+      spans: [{ name: 'late work', startTime: 120 }],
+    }
+    expect(updateRequestInsights([], delta)).toEqual([])
+  })
+
   it('updates request kinds independently when request IDs match', () => {
     const request = createRequestInsight('request', 25)
     const instantInsights = createRequestInsight('instant-insights', 50)
@@ -137,6 +270,30 @@ describe('updateRequestInsights', () => {
         updatedInstantInsights
       )
     ).toEqual([request, updatedInstantInsights])
+  })
+
+  it('keeps active requests outside the completed request limit', () => {
+    const active = {
+      ...createRequestInsight('request', 25),
+      requestId: 'active',
+      completedAt: undefined,
+    }
+    const completed = Array.from({ length: 101 }, (_, index) => ({
+      ...createRequestInsight('request', 25),
+      requestId: `completed-${index}`,
+      completedAt: index + 1,
+    }))
+
+    const requests = completed.reduce<RequestInsight[]>(
+      (current, request) => updateRequestInsights(current, request),
+      [active]
+    )
+
+    expect(requests).toHaveLength(101)
+    expect(requests[0]).toBe(active)
+    expect(
+      requests.some((request) => request.requestId === 'completed-0')
+    ).toBe(false)
   })
 })
 
