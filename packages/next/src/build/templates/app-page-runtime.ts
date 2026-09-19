@@ -42,7 +42,7 @@ import {
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
-import { getRouteRegex } from '../../shared/lib/router/utils/route-regex' with { 'turbopack-transition': 'next-server-utility' }
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
@@ -194,6 +194,13 @@ export function createAppPageEntrypoint({
   }
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
+
+  // The legacy prerender manifest says whether unmatched values return 404,
+  // but does not list all of the route's parameter names. Read them from the
+  // route pattern once, since the names do not depend on the request.
+  const routeParamNames = parseNormalizedAppRoute(
+    normalizedSrcPage
+  ).dynamicSegments.map((segment) => segment.param.paramName)
 
   async function handler(
     req: IncomingMessage,
@@ -909,6 +916,10 @@ export function createAppPageEntrypoint({
 
             multiZoneDraftMode,
             prefetchHints: prefetchHintsManifest,
+            // With dynamicParams = false, every parameter is restricted to the
+            // paths generated at build time. Advertise this even for allowed
+            // URLs. Read the current manifest here because dev updates it as
+            // routes compile.
             notFoundParams:
               (routeModule.isDev
                 ? getRequestMeta(req, 'devNotFoundParams')
@@ -917,7 +928,7 @@ export function createAppPageEntrypoint({
                 ?.notFoundParams ??
               (prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
               false
-                ? Object.keys(getRouteRegex(normalizedSrcPage).groups)
+                ? routeParamNames
                 : undefined),
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
