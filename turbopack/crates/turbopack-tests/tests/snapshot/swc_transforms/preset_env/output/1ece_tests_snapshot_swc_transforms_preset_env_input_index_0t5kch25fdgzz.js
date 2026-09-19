@@ -234,7 +234,7 @@ function createModuleWithDirection(id) {
         children: []
     };
 }
-var BindingTag_Value = 0;
+var BindingTag_Accessor = 0;
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, bindings, dynamic) {
@@ -247,19 +247,9 @@ var BindingTag_Value = 0;
     var i = 0;
     while(i < bindings.length){
         var propName = bindings[i++];
-        var tagOrFunction = bindings[i++];
-        if (typeof tagOrFunction === 'number') {
-            if (tagOrFunction === BindingTag_Value) {
-                defineProp(exports, propName, {
-                    value: bindings[i++],
-                    enumerable: true,
-                    writable: false
-                });
-            } else {
-                throw new Error(`unexpected tag: ${tagOrFunction}`);
-            }
-        } else {
-            var getterFn = tagOrFunction;
+        if (bindings[i] === BindingTag_Accessor && typeof bindings[i + 1] === 'function') {
+            i++;
+            var getterFn = bindings[i++];
             if (typeof bindings[i] === 'function') {
                 var setterFn = bindings[i++];
                 defineProp(exports, propName, {
@@ -273,6 +263,12 @@ var BindingTag_Value = 0;
                     enumerable: true
                 });
             }
+        } else {
+            defineProp(exports, propName, {
+                value: bindings[i++],
+                enumerable: true,
+                writable: false
+            });
         }
     }
     // The properties defined above are already non-configurable and
@@ -515,9 +511,10 @@ function createGetter(obj, key) {
         try {
             for(var _iterator = Object.getOwnPropertyNames(current)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
                 var key = _step.value;
-                bindings.push(key, createGetter(raw, key));
+                bindings.push(key, BindingTag_Accessor, createGetter(raw, key));
                 if (defaultLocation === -1 && key === 'default') {
-                    defaultLocation = bindings.length - 1;
+                    // The index of the tag, so that the tag and the getter can be replaced together below.
+                    defaultLocation = bindings.length - 2;
                 }
             }
         } catch (err) {
@@ -539,11 +536,12 @@ function createGetter(obj, key) {
     // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
+        // Values are untagged, so `raw` is bound directly even when it is itself a function.
         if (defaultLocation >= 0) {
-            // Replace the getter with the value
-            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
+            // Replace the tag and getter with the value
+            bindings.splice(defaultLocation, 2, raw);
         } else {
-            bindings.push('default', BindingTag_Value, raw);
+            bindings.push('default', raw);
         }
     }
     esm(ns, bindings);

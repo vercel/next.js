@@ -14,6 +14,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "FOO",
+    0,
     ()=>foo1
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2d$cycle$2d$dynamic$2f$input$2f$multiple$2d$2$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-cycle-dynamic/input/multiple-2.js [test] (ecmascript)");
@@ -29,6 +30,7 @@ function foo1(left, right) {
 
 __turbopack_context__.s([
     "FOO",
+    0,
     ()=>foo2
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2d$cycle$2d$dynamic$2f$input$2f$multiple$2d$1$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-cycle-dynamic/input/multiple-1.js [test] (ecmascript)");
@@ -44,6 +46,7 @@ function foo2(left, right) {
 
 __turbopack_context__.s([
     "FOO",
+    0,
     ()=>foo1
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2d$cycle$2d$dynamic$2f$input$2f$single$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-cycle-dynamic/input/single.js [test] (ecmascript)");
