@@ -373,6 +373,22 @@ export function clonePageVaryPathWithNewSearchParams(
   return clonedVaryPath as PageVaryPath
 }
 
+export function getPathParamsKey(varyPath: SegmentVaryPath): string {
+  // Concatenates the values of the path params a segment varies by, in vary
+  // path order, for use in a React key. The search params entry of a page's
+  // vary path (id '?') is skipped; it's keyed separately.
+  let key = ''
+  let params: VaryPath | null = varyPath.parent
+  while (params !== null) {
+    const value = params.value
+    if (params.id !== '?' && typeof value === 'string') {
+      key += '/' + value
+    }
+    params = params.parent
+  }
+  return key
+}
+
 export function getRenderedSearchFromVaryPath(
   varyPath: PageVaryPath
 ): NormalizedSearch | null {
@@ -380,6 +396,26 @@ export function getRenderedSearchFromVaryPath(
   return typeof searchParams === 'string'
     ? (searchParams as NormalizedSearch)
     : null
+}
+
+export function didVaryPathChange(
+  currentVaryPath: SegmentVaryPath,
+  nextVaryPath: SegmentVaryPath
+): boolean {
+  // Compares two vary paths entry by entry: the request key, then (for a page)
+  // the search params, then every path param. The paths are the same kind of
+  // segment, so they have the same layout; a request key mismatch is caught at
+  // the first entry.
+  let current: VaryPath | null = currentVaryPath
+  let next: VaryPath | null = nextVaryPath
+  while (current !== null && next !== null) {
+    if (current.value !== next.value) {
+      return true
+    }
+    current = current.parent
+    next = next.parent
+  }
+  return current !== next
 }
 
 export function getFulfilledSegmentVaryPath(
