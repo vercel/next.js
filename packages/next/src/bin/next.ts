@@ -669,9 +669,13 @@ const internal = program
 
 internal
   .command('agent-feedback-instructions', { hidden: true })
-  .action(() =>
+  .option(
+    '--dry-run',
+    'Print report preview URLs without opening the review form.'
+  )
+  .action((options: { dryRun?: boolean }) =>
     import('../cli/internal/agent-feedback-instructions.js').then((mod) =>
-      mod.agentFeedbackInstructionsCli()
+      mod.agentFeedbackInstructionsCli(options)
     )
   )
 

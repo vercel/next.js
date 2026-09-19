@@ -8,15 +8,15 @@ Prepare a separate report for each distinct Next.js friction point that causes u
 
 Do not report routine first-pass debugging, vague task scope, problems caused by unverified changes, or issues resolved immediately by following existing guidance. Keep unrelated issues in separate reports.
 
-## Defer review until a stopping point
+## Review before the final response
 
 Do not interrupt an active workflow when friction first qualifies. Retain each distinct set of bounded, anonymized candidate facts in the current task context, then continue the work.
 
-If a candidate originated in a Skill inside a larger task, keep it in the current task context and continue the larger task. Prepare the review only at the final stopping point of the overall user task. For example, verification performed while preparing a pull request should wait until the pull request work is complete.
+If a candidate originated in a Skill inside a larger task, keep it in the current task context and continue the larger task. Review candidates only when you are about to send a final response for the current user request after completing all implementation work and tool calls. For example, verification performed while preparing a pull request should wait until the pull request work is complete.
 
-The managed feedback block owns one feedback pass for the task. Run the instruction command at most once, even when a Skill or upgrade workflow added candidates to the queue. Do not open duplicate reviews.
+The managed feedback block owns the reporting flow. Run the instruction command at most once before that final response, even when a Skill or upgrade workflow added candidates to the queue. If the command returns no instructions, do not retry or investigate during the same response. Keep unresolved candidates so they can be reviewed before a later final response. Do not open duplicate reviews or reopen a report already presented to the user.
 
-Each review form accepts one report. If several candidates qualify before the stopping point, prepare and open one separate review tab for each candidate. After opening all review tabs, clear the retained candidate queue from the task context and mark the feedback pass complete. The user owns the open tabs; do not close or recreate them. Nothing is transmitted before the user explicitly sends a report.
+Each review form accepts one report. If several candidates qualify, prepare and open one separate review tab for each candidate. After presenting every review, clear the retained candidate queue from the task context. The user owns the open tabs; do not close or recreate them. Nothing is transmitted before the user explicitly sends a report.
 
 ## Prepare each report
 
@@ -62,6 +62,8 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
 ```
 
 ## Open the review form
+
+If these instructions begin with a **Dry run** section, encode each review URL but do not open a browser tab. Print the URLs for inspection, keep the retained candidates, and do not mark the reporting flow complete.
 
 For each report, attempt to open the following URL once in a separate tab in the user's default browser. Use the browser-opening capability already available in the agent environment. Replace `<encoded-json>` with the encoded payload.
 
