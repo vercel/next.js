@@ -30,6 +30,17 @@ describe('param-matching-generators', () => {
     })
   }
 
+  async function hasClosedParamDescendants(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(() => {
+      const tree: FlightRouterState =
+        window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree
+      // PrefetchHint.SubtreeHasClosedParams summarizes descendants at the root.
+      return ((tree[4] ?? 0) & 0b10000000000000000) !== 0
+    })
+  }
+
   it('allows public cached configuration in a matching generator', async () => {
     for (const slug of ['first', 'novel']) {
       const $ = await next.render$(`/cached/${slug}`)
@@ -50,6 +61,7 @@ describe('param-matching-generators', () => {
         'Allowed page'
       )
       expect(await getClosedSegments(browser)).toEqual(['[slug]'])
+      expect(await hasClosedParamDescendants(browser)).toBe(true)
       await browser.close()
     }
   )
@@ -57,6 +69,7 @@ describe('param-matching-generators', () => {
   it('does not mark open routes as closed', async () => {
     const browser = await next.browser('/')
     expect(await getClosedSegments(browser)).toEqual([])
+    expect(await hasClosedParamDescendants(browser)).toBe(false)
     await browser.close()
   })
 
@@ -73,6 +86,7 @@ describe('param-matching-generators', () => {
         'en/allowed'
       )
       expect(await getClosedSegments(browser)).toEqual(['[lang]'])
+      expect(await hasClosedParamDescendants(browser)).toBe(true)
       await browser.close()
     }
   )
@@ -100,6 +114,7 @@ describe('param-matching-generators', () => {
 
     expect(await browser.elementById('mixed-params').text()).toBe('en/allowed')
     expect(await getClosedSegments(browser)).toEqual(['[lang]'])
+    expect(await hasClosedParamDescendants(browser)).toBe(true)
     await browser.close()
   })
 
@@ -107,6 +122,7 @@ describe('param-matching-generators', () => {
     const browser = await next.browser('/mixed/en/novel')
     expect(await browser.elementById('mixed-params').text()).toBe('en/novel')
     expect(await getClosedSegments(browser)).toEqual(['[lang]'])
+    expect(await hasClosedParamDescendants(browser)).toBe(true)
     await browser.close()
     expect((await next.fetch('/mixed/es/allowed')).status).toBe(404)
 
