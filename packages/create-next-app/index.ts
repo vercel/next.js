@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
+import { existsSync } from 'node:fs'
+import { isFolderEmpty } from './helpers/is-folder-empty'
 import ciInfo from 'ci-info'
 import { Command } from 'commander'
 import Conf from 'conf'
-import { existsSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { blue, bold, cyan, green, red, yellow } from 'picocolors'
 import type { InitialReturnValue } from 'prompts'
@@ -12,7 +13,6 @@ import updateCheck from 'update-check'
 import { createApp, DownloadError } from './create-app'
 import type { PackageManager } from './helpers/get-pkg-manager'
 import { getPkgManager } from './helpers/get-pkg-manager'
-import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { Bundler } from './templates'
@@ -112,6 +112,7 @@ const program = new Command(packageJson.name)
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
+  .option('--mongodb', 'Initialize with MongoDB connection logic.')
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -191,9 +192,11 @@ async function run(): Promise<void> {
     )
     process.exit(1)
   }
-
   const appPath = resolve(projectPath)
   const appName = basename(appPath)
+  if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
+    process.exit(1)
+  }
 
   const validation = validateNpmName(appName)
   if (!validation.valid) {
@@ -215,10 +218,7 @@ async function run(): Promise<void> {
     )
     process.exit(1)
   }
-
-  if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
-    process.exit(1)
-  }
+  // Inside the !example block where displayConfig is defined
 
   const example = typeof opts.example === 'string' && opts.example.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
@@ -237,6 +237,7 @@ async function run(): Promise<void> {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: false,
+      mongodb: false,
       linter: 'eslint',
       tailwind: true,
       app: true,
@@ -297,6 +298,12 @@ async function run(): Promise<void> {
         values: { true: 'AGENTS.md', false: 'No AGENTS.md' },
         flags: { true: '--agents-md', false: '--no-agents-md' },
       },
+      { key: 'linter', values: { eslint: 'ESLint', biome: 'Biome' } },
+      { key: 'reactCompiler', values: { true: 'React Compiler' } },
+      { key: 'tailwind', values: { true: 'Tailwind CSS' } },
+      { key: 'srcDir', values: { true: 'src/ dir' } },
+      { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
+      { key: 'mongodb', values: { true: 'MongoDB', false: '' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -486,9 +493,28 @@ async function run(): Promise<void> {
               getPrefOrDefault('linter') as keyof typeof linterIndexMap
             ],
         })
-
+        // MongoDB Prompt
+        if (!opts.mongodb && !args.includes('--no-mongodb') && !opts.api) {
+          if (skipPrompt) {
+            opts.mongodb = getPrefOrDefault('mongodb')
+          } else {
+            const mongoLabel = blue('MongoDB')
+            const { mongodb } = await prompts({
+              onState: onPromptState,
+              type: 'toggle',
+              name: 'mongodb',
+              message: `Would you like to use ${mongoLabel} connection?`,
+              initial: getPrefOrDefault('mongodb'),
+              active: 'Yes',
+              inactive: 'No',
+            })
+            opts.mongodb = Boolean(mongodb)
+            preferences.mongodb = Boolean(mongodb)
+          }
+        }
         opts.eslint = linter === 'eslint'
         opts.biome = linter === 'biome'
+
         preferences.linter = linter
 
         // Keep backwards compatibility with old eslint preference
@@ -747,6 +773,7 @@ async function run(): Promise<void> {
       examplePath: opts.examplePath,
       typescript: opts.typescript,
       tailwind: opts.tailwind,
+      mongodb: opts.mongodb,
       eslint: opts.eslint,
       biome: opts.biome,
       app: opts.app,
@@ -785,6 +812,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       eslint: opts.eslint,
       biome: opts.biome,
+      mongodb: opts.mongodb,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,
