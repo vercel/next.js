@@ -19,7 +19,7 @@ import {
   type AppRouterActionQueue,
   createMutableActionQueue,
 } from './components/app-router-instance'
-import AppRouter from './components/app-router'
+import AppRouter, { setInitialUrl } from './components/app-router'
 import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
@@ -343,6 +343,24 @@ const reactRootOptions: ReactDOMClient.RootOptions = {
   onUncaughtError,
 }
 
+declare global {
+  interface Window {
+    __next_h?: string
+  }
+}
+
+function getInitialRouterUrl(): URL {
+  let initialUrl: URL
+  try {
+    initialUrl = new URL(window.__next_h ?? window.location.href)
+  } catch {
+    initialUrl = new URL(window.location.href)
+  }
+  // The hash doesn't change what's rendered.
+  initialUrl.hash = window.location.hash
+  return initialUrl
+}
+
 export async function hydrate(
   instrumentationModules: ClientInstrumentationModules,
   assetPrefix: string
@@ -375,13 +393,16 @@ export async function hydrate(
 
   initializeRouterTransitionModules(instrumentationModules)
 
+  const initialUrl = getInitialRouterUrl()
+  setInitialUrl(initialUrl)
+
   const initialTimestamp = Date.now()
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({
       navigatedAt: initialTimestamp,
       initialRSCPayload,
       initialFlightStreamForCache,
-      location: window.location,
+      location: initialUrl,
     })
   )
 
