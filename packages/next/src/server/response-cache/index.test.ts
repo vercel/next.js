@@ -102,4 +102,76 @@ describe('ResponseCache', () => {
       expect(followUp).not.toBeNull()
     })
   })
+
+  it('should not collapse concurrent prefetch and normal requests for the same key', async () => {
+    const cache = new ResponseCache(false)
+    const incrementalCache = mockIncrementalCache()
+
+    let releasePrefetch = () => {}
+    let markPrefetchStarted = () => {}
+
+    const prefetchStarted = new Promise<void>((resolve) => {
+      markPrefetchStarted = resolve
+    })
+
+    const continuePrefetch = new Promise<void>((resolve) => {
+      releasePrefetch = resolve
+    })
+
+    const prefetchGenerator = jest.fn(async () => {
+      markPrefetchStarted()
+      await continuePrefetch
+      return makeCacheEntry('prefetch-response')
+    })
+
+    const normalGenerator = jest.fn(async () =>
+      makeCacheEntry('normal-response')
+    )
+
+    const prefetchPromise = cache.get('/mixed-prefetch', prefetchGenerator, {
+      routeKind: RouteKind.APP_PAGE,
+      incrementalCache,
+      isPrefetch: true,
+    })
+
+    await prefetchStarted
+
+    const normalPromise = cache.get('/mixed-prefetch', normalGenerator, {
+      routeKind: RouteKind.APP_PAGE,
+      incrementalCache,
+      isPrefetch: false,
+    })
+
+    releasePrefetch()
+
+    const [prefetchResult, normalResult] = await Promise.all([
+      prefetchPromise,
+      normalPromise,
+    ])
+
+    expect(prefetchResult).not.toBeNull()
+    expect(normalResult).not.toBeNull()
+
+    expect(normalResult).not.toBe(prefetchResult)
+
+    expect(prefetchResult?.value?.kind).toBe(CachedRouteKind.APP_PAGE)
+    expect(normalResult?.value?.kind).toBe(CachedRouteKind.APP_PAGE)
+
+    if (
+      !prefetchResult?.value ||
+      prefetchResult.value.kind !== CachedRouteKind.APP_PAGE ||
+      !normalResult?.value ||
+      normalResult.value.kind !== CachedRouteKind.APP_PAGE
+    ) {
+      throw new Error('expected APP_PAGE cache entries')
+    }
+
+    expect(prefetchResult.value.html.toUnchunkedString()).toBe(
+      'prefetch-response'
+    )
+    expect(normalResult.value.html.toUnchunkedString()).toBe('normal-response')
+
+    expect(prefetchGenerator).toHaveBeenCalledTimes(1)
+    expect(normalGenerator).toHaveBeenCalledTimes(1)
+  })
 })
