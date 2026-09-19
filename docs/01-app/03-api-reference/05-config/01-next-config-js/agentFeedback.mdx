@@ -53,7 +53,7 @@ During the task, queue anonymized Next.js issues that cause a meaningful detour 
 
 Continue the task without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
-At the final stopping point, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once per task and follow any instructions returned. If it returns nothing, continue without reporting.
+Before sending the user a final response, after all requested work and tool calls are complete, review the queue. If it contains candidates, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once and follow any instructions returned. If it returns nothing, finish the response without retrying or investigating. Keep unresolved candidates for a later response, and never reopen a report already presented to the user.
 
 <!-- END:nextjs-agent-feedback -->
 ```
@@ -70,7 +70,7 @@ If either file already exists, Next.js adds the managed block to that file witho
 
 ## Review and send agent feedback
 
-The generated instructions let the agent retain potential Next.js friction without interrupting the task. When the task ends, the agent prepares each distinct qualifying issue as a separate report.
+The generated instructions let the agent retain potential Next.js friction without interrupting the task. Before sending a final response, after the requested work is complete, the agent prepares each distinct qualifying issue as a separate report.
 
 Each draft contains a generic setup, reproduction steps, observed facts, an expected result, and an optional control or workaround.
 

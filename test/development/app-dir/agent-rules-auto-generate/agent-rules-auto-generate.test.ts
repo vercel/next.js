@@ -236,7 +236,8 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
-    expect(content).toContain('once per task')
+    expect(content).toContain('Before sending the user a final response')
+    expect(content).toContain('Keep unresolved candidates for a later response')
     expect(content).not.toContain('"schemaVersion":3')
   })
 
