@@ -1,6 +1,9 @@
 import { promisify } from 'node:util'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { bindSnapshot } from '../app-render/async-local-storage'
+import {
+  bindSnapshot,
+  getOrCreateGlobalAsyncLocalStorage,
+} from '../app-render/async-local-storage'
 
 type Execution = {
   state: ExecutionState
@@ -188,6 +191,99 @@ export function expectNoPendingImmediates() {
 }
 
 export { originalSetImmediate as unpatchedSetImmediate }
+
+const immediateAsyncStorage =
+  getOrCreateGlobalAsyncLocalStorage<ImmediateTracker>(
+    'immediate-async-storage'
+  )
+
+export function trackPendingImmediates<TArgs extends any[], TResult>(
+  callback: (...args: TArgs) => TResult
+): (...args: TArgs) => TResult {
+  return (...args) =>
+    immediateAsyncStorage.run(new ImmediateTracker(), callback, ...args)
+}
+
+export function getImmediateTracker(): ImmediateTracker {
+  const tracker = immediateAsyncStorage.getStore()
+  if (tracker === undefined) {
+    throw new InvariantError('Expected a pending-immediate tracking scope')
+  }
+  return tracker
+}
+
+/**
+ * Tracks native immediates for one render's async scope without changing their
+ * scheduling.
+ *
+ * A sentinel notifies idle subscribers after the last tracked immediate and its
+ * microtasks and nextTicks finish. New native immediates postpone notification.
+ *
+ * Subscribers can cancel their wait without stopping tracking. Tracking
+ * continues between subscriptions, including when asynchronous cache reads
+ * resume the render.
+ */
+export class ImmediateTracker {
+  private sentinel: NodeJS.Immediate | null = null
+  private sentinelVersion = 0
+  private listeners = new Set<() => void>()
+
+  hasPendingImmediates(): boolean {
+    return this.sentinel !== null
+  }
+
+  /**
+   * Calls `callback` asynchronously in a native immediate, even when no
+   * immediates are pending. The returned function cancels the subscription
+   * without stopping tracking.
+   */
+  onIdle(callback: () => void): () => void {
+    const listeners = this.listeners
+    listeners.add(callback)
+    if (this.sentinel === null) {
+      this.scheduleIdleCheck()
+    } else {
+      this.sentinel.ref()
+    }
+    return () => {
+      listeners.delete(callback)
+      if (this.listeners.size === 0) {
+        this.sentinel?.unref()
+      }
+    }
+  }
+
+  scheduleIdleCheck(): void {
+    // Do not clear the previous sentinel here. Node 20.19.6 can reenter this
+    // patch during exception recovery with the sentinel still at its
+    // outstanding queue head. Clearing it breaks Node's queue traversal. We
+    // unref it and ignore its outdated version instead.
+    this.sentinel?.unref()
+    // The sentinel runs after the last native immediate and its microtasks and
+    // nextTicks. New immediates replace it, so outlined elements can schedule
+    // further rendering before we notify listeners.
+    this.sentinel = originalSetImmediate(
+      this.notifyListeners,
+      ++this.sentinelVersion
+    )
+    if (this.listeners.size === 0) {
+      this.sentinel.unref()
+    }
+  }
+
+  private notifyListeners = (version: number) => {
+    if (version !== this.sentinelVersion) {
+      return
+    }
+    this.sentinel = null
+    const listeners = this.listeners
+    this.listeners = new Set()
+    for (const callback of listeners) {
+      listeners.delete(callback)
+      callback()
+    }
+  }
+}
 
 /**
  * Wait until all nextTicks and microtasks spawned from the current task are done,
@@ -595,11 +691,13 @@ function patchedSetImmediate<TArgs extends any[]>(
 function patchedSetImmediate(callback: (args: void) => void): NodeJS.Immediate
 function patchedSetImmediate(): NodeJS.Immediate {
   if (currentExecution === null) {
-    return originalSetImmediate.apply(
+    const immediate = originalSetImmediate.apply(
       null,
       // @ts-expect-error: this is valid, but typescript doesn't get it
       arguments
     )
+    immediateAsyncStorage.getStore()?.scheduleIdleCheck()
+    return immediate
   }
 
   if (arguments.length === 0 || typeof arguments[0] !== 'function') {
@@ -646,7 +744,9 @@ function patchedSetImmediatePromise<T = void>(
   options?: import('node:timers').TimerOptions
 ): Promise<T> {
   if (currentExecution === null) {
-    return originalSetImmediatePromisify(value, options)
+    const promise = originalSetImmediatePromisify(value, options)
+    immediateAsyncStorage.getStore()?.scheduleIdleCheck()
+    return promise
   }
 
   return new Promise<T>((resolve, reject) => {
