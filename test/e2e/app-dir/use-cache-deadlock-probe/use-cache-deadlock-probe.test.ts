@@ -2,11 +2,19 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+const timeoutErrorMessage =
+  'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
 
-const expectedDeadlockMessage =
-  'Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.'
+const deadlockMessage =
+  'A `"use cache"` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level `Map` used to dedupe fetches) is most likely blocking it. `"use cache"` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
+
+function expectedDeadlockMessage(route: string) {
+  return `Route "${route}": ${deadlockMessage}`
+}
 
 // TODO: The `'use cache'` deadlock probe is disabled in dev for now. The
 // streaming dev render now advances to the dynamic stage without waiting for
@@ -16,18 +24,17 @@ const expectedDeadlockMessage =
 // than detected as a deadlock. Revisit by surfacing these deadlocks at build
 // time via `next build --debug-prerender`, then re-enable (and retarget) this
 // suite.
-describe.skip('use-cache-deadlock-probe', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate TODO
+describe('use-cache-deadlock-probe', () => {
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     // Probe behavior is dev-only; skip the production server start, but
     // let dev mode auto-start.
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (!isNextDev) {
     it('is a dev-only suite', () => {})
@@ -41,7 +48,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
+         "description": "Route "/static": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/static/page.tsx (6:1) @ getCachedData
@@ -57,7 +65,9 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/static')}`
+      )
     })
   })
 
@@ -68,7 +78,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
+         "description": "Route "/runtime": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/runtime/page.tsx (8:1) @ getCachedData
@@ -84,7 +95,9 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/runtime')}`
+      )
     })
   })
 
@@ -98,12 +111,15 @@ describe.skip('use-cache-deadlock-probe', () => {
       await retry(() => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+        expect(cliOutput).toContain(
+          `Error: ${expectedDeadlockMessage('/static')}`
+        )
       }, 30_000)
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
+         "description": "Route "/static": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/static/page.tsx (6:1) @ getCachedData
@@ -129,12 +145,15 @@ describe.skip('use-cache-deadlock-probe', () => {
       await retry(() => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+        expect(cliOutput).toContain(
+          `Error: ${expectedDeadlockMessage('/runtime')}`
+        )
       }, 30_000)
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
+         "description": "Route "/runtime": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/runtime/page.tsx (8:1) @ getCachedData
@@ -161,8 +180,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
-      expect(cliOutput).not.toContain(expectedDeadlockMessage)
+      expect(cliOutput).not.toContain(timeoutErrorMessage)
+      expect(cliOutput).not.toContain(deadlockMessage)
     })
   })
 
@@ -176,7 +195,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
+         "description": "Route "/also-hangs": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+       Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/also-hangs/page.tsx (5:1) @ getCachedData
@@ -192,8 +212,10 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}`)
-      expect(cliOutput).not.toContain(expectedDeadlockMessage)
+      expect(cliOutput).toContain(
+        `Error: ${expectedTimeoutErrorMessage('/also-hangs')}`
+      )
+      expect(cliOutput).not.toContain(deadlockMessage)
     })
   })
 
@@ -214,8 +236,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).not.toContain(expectedDeadlockMessage)
-      expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+      expect(cliOutput).not.toContain(deadlockMessage)
+      expect(cliOutput).not.toContain(timeoutErrorMessage)
     })
   })
 
@@ -233,7 +255,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
+         "description": "Route "/recovery-stuck": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
          "source": "app/recovery-stuck/page.tsx (24:1) @ getCachedData
@@ -249,8 +272,10 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
-      expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/recovery-stuck')}`
+      )
+      expect(cliOutput).not.toContain(timeoutErrorMessage)
     })
   })
 
@@ -261,7 +286,8 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
+         "description": "Route "/private-cookies": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/private-cookies/page.tsx (20:1) @ getCachedData
@@ -277,7 +303,9 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/private-cookies')}`
+      )
     })
   })
 })

@@ -37,6 +37,7 @@ const MB: u64 = 1024 * 1024;
 pub fn db_config() -> DbConfig<FAMILIES> {
     DbConfig {
         family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+        ..DbConfig::new()
     }
 }
 
@@ -272,8 +273,8 @@ impl KeyBase for WriteBuffer<'_> {
 }
 
 impl StoreKey for WriteBuffer<'_> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 

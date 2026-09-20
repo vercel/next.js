@@ -37,7 +37,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -144,7 +144,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -202,7 +202,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -228,42 +228,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Labeled,
-                        ),
-                        LabeledStmt(
-                            Body,
-                        ),
-                    ],
+                    AstPathId(
+                        13,
+                    ),
                 ),
             },
         },
@@ -291,7 +258,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -331,7 +298,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -432,7 +399,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -488,7 +455,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -581,7 +548,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -625,7 +592,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),

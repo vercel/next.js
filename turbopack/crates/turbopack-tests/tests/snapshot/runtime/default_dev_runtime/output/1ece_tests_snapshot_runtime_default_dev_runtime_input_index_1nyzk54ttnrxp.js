@@ -436,14 +436,16 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
-// The CompressedModuleFactories format is
-// - 1 or more module ids
-// - a module factory function
-// So walking this is a little complex but the flat structure is also fast to
-// traverse, we can use `typeof` operators to distinguish the two cases.
+// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be prepended as a nested array.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
+    const strictFactories = chunkModules[i];
+    if (Array.isArray(strictFactories)) {
+        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        i++;
+    }
     while(i < chunkModules.length){
         let end = i + 1;
         // Find our factory function
@@ -482,7 +484,7 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
                 newModuleId?.(id);
             }
         }
-        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+        i = end + 1;
     }
 }
 /**
@@ -1732,6 +1734,7 @@ function formatDependencyChain(dependencyChain) {
 }
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/hmr-runtime.ts" />
 const devContextPrototype = Context.prototype;
 /**
  * This file contains runtime types and functions that are shared between all
@@ -2419,10 +2422,6 @@ let DEV_BACKEND;
                 const baseChunkUrl = chunkUrl.split('?')[0];
                 const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
                 const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
-                if (previousLinks.length === 0) {
-                    reject(new Error(`No link element found for chunk ${chunkUrl}`));
-                    return;
-                }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.crossOrigin = CROSS_ORIGIN;
@@ -2457,9 +2456,20 @@ let DEV_BACKEND;
                     // loaded instantly.
                     resolve();
                 };
-                // Make sure to insert the new CSS right after the previous one, so that
-                // its precedence is higher.
-                previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
+                if (previousLinks.length === 0) {
+                    // The chunk's <link> was already removed from the DOM (the importing
+                    // component unmounted via navigation or a `dynamic(ssr: false)`
+                    // boundary, so `unloadChunk` removed it), but its chunk list stays
+                    // subscribed and can still receive a 'total' update. Mirror the
+                    // 'added' branch of `applyChunkListUpdate` and load the fresh
+                    // stylesheet instead of rejecting with "No link element found for
+                    // chunk" (an unhandledRejection that forced a full page reload).
+                    document.head.appendChild(link);
+                } else {
+                    // Make sure to insert the new CSS right after the previous one, so that
+                    // its precedence is higher.
+                    previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
+                }
             });
         },
         restart: ()=>self.location.reload()

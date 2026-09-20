@@ -3,7 +3,7 @@
 /**
  * Pack the locally-built `next` package and run agent evals against it.
  *
- *   pnpm eval <eval-name>             run one eval, both variants (baseline + AGENTS.md)
+ *   pnpm eval <eval-name>             run one eval and its configured variants
  *   pnpm eval <eval-name> --dry       preview without executing
  *   pnpm eval --all                   run every eval (slow — normally only CI does this)
  *   NEXT_SKIP_PACK=1 pnpm eval ...    reuse tarball from last run
@@ -16,58 +16,58 @@
  *   - @next/env etc: resolved from npm at the pinned canary version.
  *
  * The experiments/ dir is generated fresh on every run and gitignored. This
- * keeps the two variants (baseline vs. AGENTS.md) in one place instead of
- * maintaining N committed experiment files that only differ by one line.
+ * keeps the variants in one place instead of maintaining N committed
+ * experiment files that only differ by setup.
  */
 const path = require('path')
 const fs = require('fs')
-const { execFileSync, spawnSync } = require('child_process')
+const { spawnSync } = require('child_process')
+const { packPackage } = require('./evals/lib/pack')
+const { linkEnvironment } = require('./evals/lib/environment')
 
 const ROOT = __dirname
 
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
+const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean }} EvalConfig */
+/** @type {Record<string, EvalConfig>} */
+const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
+
 // The two variants we always compare. Order matters for output readability:
 // baseline first so a contributor sees "does the agent fail without docs?"
 // before "does it pass with docs?".
-const VARIANTS = [
+const BASE_VARIANTS = [
   {
     suffix: 'baseline',
-    imports: `import { installNextJs } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)`,
+    imports: `import { installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)`,
   },
   {
     suffix: 'agents-md',
-    imports: `import { installNextJs, writeAgentsMd } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await writeAgentsMd(sandbox)`,
+    imports: `import { installNextJs, installPlaywright, prepareFixture, writeAgentsMd } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await writeAgentsMd(sandbox)`,
   },
 ]
 
 function pack() {
-  fs.mkdirSync(TARBALL_DIR, { recursive: true })
-  const out = execFileSync(
-    'pnpm',
-    ['pack', '--pack-destination', TARBALL_DIR],
-    { cwd: path.join(ROOT, 'packages/next'), encoding: 'utf8' }
-  )
-  const produced = out.trim().split('\n').pop()
-  const src = path.isAbsolute(produced)
-    ? produced
-    : path.join(TARBALL_DIR, produced)
-  fs.renameSync(src, TARBALL)
+  packPackage(path.join(ROOT, 'packages/next'), TARBALL)
 }
 
 /** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName) {
+function writeExperiments(evalName, variants, timeout, runs) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
-  const evalsField = evalName ? `\n  evals: '${evalName}',` : ''
-  for (const v of VARIANTS) {
+  for (const v of variants) {
+    const selectedEvals = v.evals ?? (evalName ? [evalName] : null)
+    const evalsField = selectedEvals
+      ? `\n  evals: ${JSON.stringify(selectedEvals.length === 1 ? selectedEvals[0] : selectedEvals)},`
+      : ''
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
 
@@ -80,10 +80,11 @@ const config: ExperimentConfig = {
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
   scripts: ['build'],
-  runs: 1,
-  earlyExit: true,
-  timeout: 720,
+  runs: ${runs},
+  earlyExit: ${runs === 1},
+  timeout: ${timeout},
   sandbox: 'auto',
+  ${v.onRunComplete ? `onRunComplete: ${v.onRunComplete},` : ''}
   setup: async (sandbox) => {
     ${v.setup}
   },
@@ -102,6 +103,102 @@ function listEvals() {
     .map((d) => d.name)
 }
 
+function readFixtureConfig(evalName) {
+  const config = EVAL_CONFIG[evalName] ?? {}
+  const skillNames = config.skills ?? []
+  if (
+    !Array.isArray(skillNames) ||
+    skillNames.some((name) => typeof name !== 'string')
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.skills must be an array of skill names`
+    )
+  }
+  if (
+    config.timeout !== undefined &&
+    (typeof config.timeout !== 'number' || config.timeout <= 0)
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.timeout must be a positive number`
+    )
+  }
+  if (
+    config.agentFeedback !== undefined &&
+    typeof config.agentFeedback !== 'boolean'
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.agentFeedback must be a boolean`
+    )
+  }
+  return {
+    skills: skillNames,
+    timeout: config.timeout ?? 720,
+    agentFeedback: config.agentFeedback ?? false,
+  }
+}
+
+function getExperimentSettings(evalName) {
+  const skillEvals = (evalName ? [evalName] : listEvals()).map((name) => ({
+    name,
+    ...readFixtureConfig(name),
+  }))
+  const timeout = Math.max(...skillEvals.map((config) => config.timeout))
+  const configuredSkillEvals = skillEvals.filter(
+    ({ skills }) => skills.length > 0
+  )
+
+  /** @type {Map<string, { skills: string[], evals: string[] }>} */
+  const skillGroups = new Map()
+  for (const { name, skills } of configuredSkillEvals) {
+    const skillNames = [...new Set(skills)].sort()
+    const key = skillNames.join(',')
+    const group = skillGroups.get(key) ?? { skills: skillNames, evals: [] }
+    group.evals.push(name)
+    skillGroups.set(key, group)
+  }
+
+  const multipleSkillGroups = skillGroups.size > 1
+  const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
+    suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
+    imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    evals,
+  }))
+
+  /** @type {Map<string, { skills: string[], evals: string[] }>} */
+  const feedbackGroups = new Map()
+  for (const { name, skills, agentFeedback } of skillEvals) {
+    if (!agentFeedback) continue
+    const skillNames = [...new Set(skills)].sort()
+    const key = skillNames.join(',')
+    const group = feedbackGroups.get(key) ?? { skills: skillNames, evals: [] }
+    group.evals.push(name)
+    feedbackGroups.set(key, group)
+  }
+
+  const multipleFeedbackGroups = feedbackGroups.size > 1
+  const feedbackVariants = [...feedbackGroups.values()].map(
+    ({ skills, evals }) => ({
+      suffix: multipleFeedbackGroups
+        ? `agent-feedback-${skills.join('-') || 'no-skills'}`
+        : 'agent-feedback',
+      imports: `import { analyzeAgentFeedbackRun, installLocalSkills, installNextJs, prepareFixture, writeAgentFeedbackInstructions } from '../lib/setup.js'`,
+      setup: `await installNextJs(sandbox)\n    await prepareFixture(sandbox)${
+        skills.length > 0
+          ? `\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`
+          : ''
+      }\n    await writeAgentFeedbackInstructions(sandbox)`,
+      onRunComplete: 'analyzeAgentFeedbackRun',
+      evals,
+    })
+  )
+
+  return {
+    timeout,
+    variants: [...BASE_VARIANTS, ...skillVariants, ...feedbackVariants],
+  }
+}
+
 function main() {
   const argv = require('yargs/yargs')(process.argv.slice(2))
     .command(
@@ -117,6 +214,12 @@ function main() {
     .describe('all', 'Run every eval (slow — normally only CI does this)')
     .boolean('dry')
     .describe('dry', 'Preview without executing')
+    .number('runs')
+    .default('runs', 1)
+    .describe('runs', 'Run each selected eval this many times')
+    .array('variant')
+    .string('variant')
+    .describe('variant', 'Run only the named generated variant (repeatable)')
     .conflicts('all', 'eval-name')
     .check((argv) => {
       if (!argv.all && !argv.evalName) {
@@ -134,6 +237,9 @@ function main() {
           `Unknown eval: ${argv.evalName}\n(looked in ${FIXTURES_DIR})`
         )
       }
+      if (!Number.isInteger(argv.runs) || argv.runs < 1) {
+        throw new Error('--runs must be a positive integer')
+      }
       return true
     })
     .strict()
@@ -141,11 +247,30 @@ function main() {
 
   /** @type {string | null} */
   const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
+  const { variants: availableVariants, timeout } =
+    getExperimentSettings(evalName)
+  const requestedVariants = argv.variant ?? []
+  const unknownVariants = requestedVariants.filter(
+    (name) => !availableVariants.some((variant) => variant.suffix === name)
+  )
+  if (unknownVariants.length > 0) {
+    throw new Error(
+      `Unknown variant: ${unknownVariants.join(', ')}\nAvailable variants: ${availableVariants
+        .map((variant) => variant.suffix)
+        .join(', ')}`
+    )
+  }
+  const variants =
+    requestedVariants.length > 0
+      ? availableVariants.filter((variant) =>
+          requestedVariants.includes(variant.suffix)
+        )
+      : availableVariants
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
   // and `status` is the read-only preview.
   const agentEvalArgs = argv.dry
     ? ['status']
-    : ['run', ...VARIANTS.map((v) => v.suffix), '--force']
+    : ['run', ...variants.map((v) => v.suffix), '--force']
 
   if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
     console.error(
@@ -165,23 +290,13 @@ function main() {
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
-  for (const envFile of ['.env', '.env.local']) {
-    const src = path.join(ROOT, envFile)
-    const dest = path.join(EVALS_DIR, envFile)
-    try {
-      // Remove stale symlink or file before creating a fresh one.
-      fs.rmSync(dest, { force: true })
-      if (fs.existsSync(src)) {
-        fs.symlinkSync(src, dest)
-      }
-    } catch {}
-  }
+  linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(evalName)
+  writeExperiments(evalName, variants, timeout, argv.runs)
   console.log(
     evalName
-      ? `> Running ${evalName} (baseline + agents-md)`
-      : '> Running all evals (baseline + agents-md)'
+      ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
+      : `> Running all evals (${variants.map((v) => v.suffix).join(' + ')})`
   )
 
   // Same handoff pattern as run-tests.js with NEXT_TEST_PKG_PATHS. We invoke

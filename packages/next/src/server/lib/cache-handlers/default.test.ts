@@ -12,6 +12,20 @@ setFlagsFromString('--expose-gc')
 const forceGarbageCollection = runInNewContext('gc') as () => void
 
 describe('default use cache handler', () => {
+  /**
+   * These tests guard the handler against retaining the request that filled or
+   * read an entry. Whether a regression here fails depends on the
+   * `AsyncLocalStorage` implementation of the environment:
+   *
+   * - Node 20 and 22 attach the active store to every promise, so a retained
+   *   stream keeps the store reachable, and these tests fail on a regression.
+   * - Node 24 and later use `AsyncContextFrame`, and these tests pass with or
+   *   without the retention.
+   *
+   * CI runs Node 20.9, so the guard holds there. A regression is invisible to a
+   * developer who runs the suite on Node 24 or later.
+   */
+
   it('does not retain the async context that populated an entry', async () => {
     const handler = createDefaultCacheHandler(1024 * 1024)
     const requestStoreRef = await runInRequestContext(() =>

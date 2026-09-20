@@ -16,7 +16,10 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import type { StagedRenderingController } from './staged-rendering'
+import type {
+  AdvanceableRenderStage,
+  StagedRenderingController,
+} from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
@@ -79,6 +82,11 @@ export interface RequestStore extends CommonWorkUnitStore {
    * Certain APIs have different behavior in static and runtime prerenders.
    * - if `false`, they will follow static semantics
    * - if `true`, they will follow runtime semantics
+   *
+   * NOTE: Whenever the stage of a promise varies on `needsAppShell`,
+   * we should also call `trackIncompatibleShellContent` to signal this.
+   * Otherwise, instant validation or static shell validation might incorrectly
+   * use a render that resolves it at an inappropriate time.
    * */
   needsAppShell?: boolean // DEV-only
   /**
@@ -90,7 +98,11 @@ export interface RequestStore extends CommonWorkUnitStore {
   hasIncompatibleShellContent?: boolean
 
   cacheSignal?: CacheSignal | null
-  fallbackParams?: OpaqueFallbackRouteParams | null
+  /**
+   * These params resolve after the static stage without replacing their
+   * concrete values.
+   */
+  stagedFallbackParams?: OpaqueFallbackRouteParams | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation or when rendering
@@ -226,7 +238,7 @@ export interface PrerenderStoreModernRuntime
    * renders where all stages run without sequencing.
    */
   readonly stagedRendering: StagedRenderingController | null
-  readonly isSessionShell: boolean
+  readonly finalStage: AdvanceableRenderStage
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']

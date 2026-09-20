@@ -1,9 +1,10 @@
 use std::{
+    borrow::Borrow,
     cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
-    hash::{BuildHasher, BuildHasherDefault},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     mem::take,
     ops::Deref,
     panic::AssertUnwindSafe,
@@ -30,9 +31,9 @@ use tracing::{Instrument, Span, instrument};
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
-    CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc, SharedReference, TaskId,
-    TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    CellId, Completion, InvalidationReason, InvalidationReasonSet, NonLocalValue, OperationValue,
+    OperationVc, OutputContent, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc,
+    SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -198,6 +199,13 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
+
+    /// Pin a task against garbage collection. Delegates to
+    /// [`Backend::pin_task_for_gc`](crate::backend::Backend::pin_task_for_gc).
+    fn pin_task_for_gc(&self, task: TaskId);
+
+    /// Removes a pin added by [`pin_task_for_gc`](TurboTasksApi::pin_task_for_gc).
+    fn unpin_task_for_gc(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -923,6 +931,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub fn dispose_root_task(&self, task_id: TaskId) {
         self.backend.dispose_root_task(task_id, self);
+    }
+
+    /// Pins a task against garbage collection (a transient, session-only reference). Balanced by
+    /// [`unpin_task_for_gc`](Self::unpin_task_for_gc). Used for references that escape the tracked
+    /// task graph — e.g. a `DetachedVc` holding an `OperationVc` across the NAPI boundary.
+    pub fn pin_task_for_gc(&self, task_id: TaskId) {
+        self.backend.pin_task_for_gc(task_id, self);
+    }
+
+    /// Releases a pin added by [`pin_task_for_gc`](Self::pin_task_for_gc).
+    pub fn unpin_task_for_gc(&self, task_id: TaskId) {
+        self.backend.unpin_task_for_gc(task_id, self);
     }
 
     // TODO make sure that all dependencies settle before reading them
@@ -1898,6 +1918,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
+    fn pin_task_for_gc(&self, task: TaskId) {
+        self.backend.pin_task_for_gc(task, self);
+    }
+
+    fn unpin_task_for_gc(&self, task: TaskId) {
+        self.backend.unpin_task_for_gc(task, self);
+    }
+
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
     fn spawn_detached_for_testing(&self, fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
@@ -2222,9 +2250,101 @@ pub fn unmark_top_level_task_may_leak_eventually_consistent_state() {
     }
 }
 
+/// Pins the current task against garbage collection for the rest of the session, keeping it (and,
+/// via the reachability it anchors, the values it produced) alive even if it becomes disconnected
+/// from the live task graph. Use this when a value escapes the tracked graph — e.g. a `Vc` sent out
+/// of a `spawn_detached` future across a channel, or handed across the NAPI boundary — so no
+/// persistent parent lists it as a child and it would otherwise be collected.
+///
+/// No-op outside a task context, and on backends without garbage collection.
 pub fn prevent_gc() {
-    // TODO implement garbage collection
+    if let Some(task) = current_task_if_available("prevent_gc") {
+        with_turbo_tasks(|tt| tt.pin_task_for_gc(task));
+    }
 }
+
+/// An RAII guard that pins an [`OperationVc`]'s task against garbage collection.
+pub struct GcRoot<T: ?Sized> {
+    tt: Arc<dyn TurboTasksApi>,
+    vc: OperationVc<T>,
+}
+
+impl<T: ?Sized> GcRoot<T> {
+    /// Pins `vc`'s task, returning a guard that unpins it on drop.
+    pub fn pin(tt: Arc<dyn TurboTasksApi>, vc: OperationVc<T>) -> Self {
+        tt.pin_task_for_gc(vc.task_id());
+        Self { tt, vc }
+    }
+}
+
+/// A guard derefs to the operation it pins, so [`OperationVc`]'s own methods can be called on it
+/// directly and `*guard` recovers the operation itself.
+impl<T: ?Sized> Deref for GcRoot<T> {
+    type Target = OperationVc<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vc
+    }
+}
+
+impl<T: ?Sized> Clone for GcRoot<T> {
+    fn clone(&self) -> Self {
+        Self::pin(self.tt.clone(), self.vc)
+    }
+}
+
+impl<T: ?Sized> Drop for GcRoot<T> {
+    fn drop(&mut self) {
+        self.tt.unpin_task_for_gc(self.vc.task_id());
+    }
+}
+
+impl<T: ?Sized> Debug for GcRoot<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GcRoot").field("vc", &self.vc).finish()
+    }
+}
+
+impl<T: ?Sized> PartialEq for GcRoot<T> {
+    /// Compares the pinned operation only. Two guards for the same operation are interchangeable
+    /// as far as reachability is concerned, even though each holds its own pin.
+    fn eq(&self, other: &Self) -> bool {
+        self.vc == other.vc
+    }
+}
+
+impl<T: ?Sized> Eq for GcRoot<T> {}
+
+impl<T: ?Sized> Hash for GcRoot<T> {
+    /// Hashes the pinned operation, consistently with [`PartialEq`], so a guard can be looked up
+    /// in a set by the [`OperationVc`] it pins (see the [`Borrow`] impl).
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vc.hash(state);
+    }
+}
+
+/// Lets a collection keyed on guards be queried with the bare operation: `Borrow` plus the
+/// matching [`Hash`]/[`Eq`] impls give `OperationVc<T>: Equivalent<GcRoot<T>>`, so e.g.
+/// `IndexSet<GcRoot<T>>::swap_remove` accepts an `&OperationVc<T>`.
+impl<T: ?Sized> Borrow<OperationVc<T>> for GcRoot<T> {
+    fn borrow(&self) -> &OperationVc<T> {
+        &self.vc
+    }
+}
+
+impl<T: ?Sized> TraceRawVcs for GcRoot<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
+        self.vc.trace_raw_vcs(trace_context);
+    }
+}
+
+/// Safety: a `GcRoot` contains exactly one [`OperationVc`] and no [`Vc`] or [`ResolvedVc`], which
+/// is what [`OperationValue`] asserts.
+unsafe impl<T: ?Sized + Send> OperationValue for GcRoot<T> {}
+
+/// Safety: mirrors the [`OperationVc`] impl — a `GcRoot` holds no task-local data beyond the
+/// operation it pins.
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for GcRoot<T> {}
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
     with_turbo_tasks(|tt| {

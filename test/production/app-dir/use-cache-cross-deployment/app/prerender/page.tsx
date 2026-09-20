@@ -8,6 +8,8 @@ async function DynamicCache({ id }: { id: string }) {
   return <span id="data">{getDate()}</span>
 }
 
+export const instant = false
+
 export default function Page() {
   return (
     <main>

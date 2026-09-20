@@ -1,18 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('dynamic-href', () => {
-  const {
-    isNextDev: isDev,
-    next,
-    skipped,
-  } = nextTestSetup({
+  const { isNextDev: isDev, next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isDev) {
     it('should error when using dynamic href.pathname in app dir', async () => {

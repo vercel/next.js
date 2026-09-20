@@ -3,6 +3,7 @@ use std::{
     future::Future,
     iter::FusedIterator,
     ops::Deref,
+    sync::OnceLock,
 };
 
 use anyhow::{Context, Result, bail};
@@ -10,14 +11,14 @@ use bincode::{Decode, Encode};
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
-    visit::{EdgeRef, IntoNeighbors, IntoNodeReferences, NodeIndexable, Reversed},
+    visit::{EdgeRef, IntoNodeReferences, NodeIndexable, Reversed},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    CollectiblesSource, FxIndexMap, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -27,7 +28,10 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
-    issue::{ImportTracer, ImportTraces, Issue},
+    issue::{
+        ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, StyledString,
+        analyze::AnalyzeIssue,
+    },
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
@@ -292,7 +296,7 @@ impl GraphEntries {
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct SingleModuleGraph {
     pub graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
 
@@ -310,7 +314,26 @@ pub struct SingleModuleGraph {
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
-    pub entries: GraphEntries,
+    entries: GraphEntries,
+
+    /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
+    /// indices are stable because graph nodes are never removed.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "OnceLock::new")]
+    entry_nodes: OnceLock<FxHashSet<NodeIndex>>,
+}
+
+impl Clone for SingleModuleGraph {
+    fn clone(&self) -> Self {
+        Self {
+            graph: self.graph.clone(),
+            number_of_modules: self.number_of_modules,
+            modules: self.modules.clone(),
+            entries: self.entries.clone(),
+            // Never carry derived state into a clone that might be modified before being stored.
+            entry_nodes: OnceLock::new(),
+        }
+    }
 }
 
 #[derive(
@@ -502,6 +525,7 @@ impl SingleModuleGraph {
             number_of_modules,
             modules,
             entries: entries.clone(),
+            entry_nodes: OnceLock::new(),
         }
         .cell();
 
@@ -520,16 +544,23 @@ impl SingleModuleGraph {
         })
     }
 
-    /// Returns true if the given module is in this graph and is an entry module
+    fn entry_nodes(&self) -> &FxHashSet<NodeIndex> {
+        self.entry_nodes.get_or_init(|| {
+            self.entries
+                .all_modules()
+                .filter_map(|module| self.modules.get(&module).copied())
+                .collect()
+        })
+    }
+
+    /// Returns true if the given module is in this graph and is an entry module.
+    ///
+    /// Entry modules are tracked explicitly because an entry can have incoming edges when it is
+    /// part of a module cycle.
     pub fn has_entry_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
-        if let Some(index) = self.modules.get(&module) {
-            self.graph
-                .edges_directed(*index, Direction::Incoming)
-                .next()
-                .is_none()
-        } else {
-            false
-        }
+        self.modules
+            .get(&module)
+            .is_some_and(|index| self.entry_nodes().contains(index))
     }
 
     /// Iterate over graph entry points
@@ -712,6 +743,9 @@ impl ImportTracer for ModuleGraphImportTracer {
         let graph = &*self.await?.graph.await?;
 
         let reversed_graph = Reversed(&graph.graph.0);
+        // A graph entry may have incoming edges when it participates in a cycle, so roots cannot
+        // be inferred from graph topology alone.
+        let root_nodes = graph.entry_nodes();
         return Ok(ImportTraces::cell(ImportTraces(
             modules
                 .iter()
@@ -721,11 +755,11 @@ impl ImportTracer for ModuleGraphImportTracer {
                         // from a different graph than graph`.  Just error out.
                         bail!("inconsistent read?")
                     };
-                    // compute the path from this index to a root of the graph.
-                    let Some((_, path)) = petgraph::algo::astar(
+                    // Compute the path from this index to an explicit root of the graph.
+                    let path = match petgraph::algo::astar(
                         &reversed_graph,
                         module_idx,
-                        |n| reversed_graph.neighbors(n).next().is_none(),
+                        |n| root_nodes.contains(&n),
                         // Edge weights
                         |e| match e.weight().chunking_type {
                             // Prefer following normal imports/requires when we can
@@ -746,8 +780,31 @@ impl ImportTracer for ModuleGraphImportTracer {
                         // solution would be a hand written implementation of dijkstras so we can
                         // hoist redundant work out of this loop.
                         |_| 0,
-                    ) else {
-                        unreachable!("there must be a path to a root");
+                    ) {
+                        Some((_, path)) => path,
+                        None => {
+                            let module = graph
+                                .graph
+                                .node_weight(module_idx)
+                                .expect("module index must be present in the graph")
+                                .module();
+                            AnalyzeIssue::new(
+                                IssueSeverity::Bug,
+                                module.ident(),
+                                Vc::cell(rcstr!("Module graph is missing an entry point")),
+                                StyledString::Text(rcstr!(
+                                    "The module cannot reach any of the explicit entry points in \
+                                     its module graph."
+                                ))
+                                .cell(),
+                                None,
+                                None,
+                            )
+                            .to_resolved()
+                            .await?
+                            .emit();
+                            vec![module_idx]
+                        }
                     };
 
                     // Represent the path as a sequence of AssetIdents
@@ -1127,13 +1184,12 @@ impl ModuleGraphSnapshot {
     /// Returns a map of all modules in the graphs to their identifiers.
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
-        Ok(self
-            .iter_nodes()
+        self.iter_nodes()
             .map(async |n| Ok((n, n.ident().to_string().await?)))
-            .try_join()
-            .await?
+            .join()
+            .await
             .into_iter()
-            .collect::<FxHashMap<_, _>>())
+            .collect()
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.
@@ -1995,11 +2051,159 @@ pub mod tests {
     use crate::{
         asset::{Asset, AssetContent},
         ident::AssetIdent,
+        issue::{CollectibleIssuesExt, IssueSeverity},
         module::{Module, ModuleSideEffects},
         module_graph::chunk_group_info::EntryHeuristics,
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
     };
+
+    #[turbo_tasks::value(shared)]
+    struct ImportTraceTestResult {
+        has_entry: bool,
+        traces: Vec<Vec<RcStr>>,
+        missing_traces: Vec<Vec<RcStr>>,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn import_trace_test_operation(rootless: bool) -> Result<Vc<ImportTraceTestResult>> {
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let repo = TestRepo::new(
+            &root,
+            [
+                ("entry.js", vec!["dependency.js"]),
+                ("dependency.js", vec!["entry.js"]),
+            ],
+        );
+        let entry = Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join("entry.js")?, repo))
+            .to_resolved()
+            .await?;
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(
+                vec![ChunkGroupEntry::Entry {
+                    modules: vec![entry],
+                    heuristics: EntryHeuristics::default(),
+                }],
+                vec![],
+            )),
+            false,
+            false,
+        )
+        .connect()
+        .to_resolved()
+        .await?;
+        let graph = if rootless {
+            // Initialize the source graph's cache before cloning to ensure clones reset derived
+            // state instead of retaining entry indices that could become stale after modification.
+            let _ = graph.await?.entry_nodes();
+            let mut graph = (*graph.await?).clone();
+            graph.entries = GraphEntries::default();
+            graph.resolved_cell()
+        } else {
+            graph
+        };
+
+        let has_entry = graph.await?.has_entry_module(entry);
+        let tracer = ModuleGraphImportTracer::new(*graph);
+        let traces = tracer
+            .get_traces(root.join("dependency.js")?)
+            .await?
+            .0
+            .iter()
+            .map(|trace| trace.iter().map(|ident| ident.path.path.clone()).collect())
+            .collect();
+        let missing_traces = tracer
+            .get_traces(root.join("missing.js")?)
+            .await?
+            .0
+            .iter()
+            .map(|trace| trace.iter().map(|ident| ident.path.path.clone()).collect())
+            .collect();
+
+        Ok(ImportTraceTestResult {
+            has_entry,
+            traces,
+            missing_traces,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::value(shared)]
+    struct ImportTraceIssues {
+        issues: Vec<(IssueSeverity, RcStr)>,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn import_trace_issues_operation(
+        trace_operation: OperationVc<ImportTraceTestResult>,
+    ) -> Result<Vc<ImportTraceIssues>> {
+        let _ = trace_operation.connect().await?;
+        let issues = trace_operation
+            .peek_issues()
+            .iter()
+            .map(async |issue| {
+                let issue = issue.into_trait_ref().await?;
+                Ok((
+                    issue.severity(),
+                    issue.title().await?.to_unstyled_string().into(),
+                ))
+            })
+            .try_join()
+            .await?;
+        Ok(ImportTraceIssues { issues }.cell())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_import_trace_uses_explicit_entry_as_cycle_root() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let result = import_trace_test_operation(false)
+                .read_strongly_consistent()
+                .await?;
+            assert!(result.has_entry);
+            assert_eq!(
+                result.traces,
+                vec![vec![rcstr!("dependency.js"), rcstr!("entry.js")]]
+            );
+            assert!(result.missing_traces.is_empty());
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_cloned_rootless_import_trace_resets_cache_and_emits_bug_issue() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let trace_operation = import_trace_test_operation(true);
+            let result = trace_operation.read_strongly_consistent().await?;
+            assert!(!result.has_entry);
+            assert_eq!(result.traces, vec![vec![rcstr!("dependency.js")]]);
+            assert!(result.missing_traces.is_empty());
+
+            let issues = import_trace_issues_operation(trace_operation)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(
+                issues.issues,
+                vec![(
+                    IssueSeverity::Bug,
+                    rcstr!("Module graph is missing an entry point")
+                )]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_traverse_dfs_from_entries_diamond() {

@@ -1,5 +1,4 @@
 // @ts-check
-import fetch from 'node-fetch'
 
 export async function main() {
   const releasesArray = await fetch(

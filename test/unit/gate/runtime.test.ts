@@ -1,7 +1,12 @@
 // Imported through the same specifier tests use, so this also covers the
 // re-export from next-test-utils.
 import { gate } from 'next-test-utils'
-import { __testing, _test_gate, expectTestToFail } from '../../lib/gate/runtime'
+import {
+  __testing,
+  _test_gate,
+  _test_gate_describe_each,
+  expectTestToFail,
+} from '../../lib/gate/runtime'
 import {
   clearGateTestContext,
   setGateTestContext,
@@ -32,17 +37,21 @@ const runGated = (sources: string[], body: () => unknown) => {
 }
 
 type FakeTestFn = jest.Mock & {
-  skip: jest.Mock
+  skip: jest.Mock & { each: jest.Mock }
   only: jest.Mock & { failing: jest.Mock }
   failing: jest.Mock
+  each: jest.Mock
 }
 
-const makeFakeTestFn = (): FakeTestFn =>
-  Object.assign(jest.fn(), {
-    skip: jest.fn(),
+const makeFakeTestFn = (): FakeTestFn => {
+  const skip = Object.assign(jest.fn(), { each: jest.fn(() => jest.fn()) })
+  return Object.assign(jest.fn(), {
+    skip,
     only: Object.assign(jest.fn(), { failing: jest.fn() }),
     failing: jest.fn(),
+    each: jest.fn(() => jest.fn()),
   }) as FakeTestFn
+}
 
 /**
  * Swaps `global.it` / `global.test` / `global.describe` for spies while `fn`
@@ -292,6 +301,45 @@ describe('@gate runtime', () => {
       expect(fakes.describe).not.toHaveBeenCalled()
     })
 
+    it('skips every row of describe.each with describe.skip.each', () => {
+      const table = [{ name: 'one' }, { name: 'two' }]
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_describe_each([{ force: true, source: 'dev' }], table)(
+          'suite: $name',
+          () => {}
+        )
+      })
+      expect(fakes.describe.skip.each).toHaveBeenCalledWith(table)
+      expect(fakes.describe.each).not.toHaveBeenCalled()
+    })
+
+    it('registers describe.each normally when a force-gate holds', () => {
+      const table = [{ name: 'one' }]
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_describe_each([{ force: true, source: '!dev' }], table)(
+          'suite: $name',
+          () => {}
+        )
+      })
+      expect(fakes.describe.each).toHaveBeenCalledWith(table)
+      expect(fakes.describe.skip.each).not.toHaveBeenCalled()
+    })
+
+    it('forwards describe.each row arguments to the suite callback', () => {
+      const table = [{ name: 'one' }]
+      const callback = jest.fn()
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_describe_each([{ force: true, source: '!dev' }], table)(
+          'suite: $name',
+          callback
+        )
+      })
+      const boundDescribe = fakes.describe.each.mock.results[0].value
+      const registeredCallback = boundDescribe.mock.calls[0][1]
+      registeredCallback(table[0])
+      expect(callback).toHaveBeenCalledWith(table[0])
+    })
+
     it('leaves a `@gate` on the same test in charge when it holds', async () => {
       const fakes = withFakeTestGlobals(() => {
         _test_gate(
@@ -413,6 +461,49 @@ describe('@gate runtime', () => {
           throw new Error('boom')
         }, new Error('unused'))
       ).resolves.toBeUndefined()
+    })
+  })
+
+  // A lazy `@force-gate` on a describe force-passes the tests and skips the
+  // fixture build, so hooks registered inside such a describe must not run:
+  // they would touch a fixture that was never booted. These describes go
+  // through the real pragma path like the ones above. The wrapper describe
+  // carries no pragma, so its `beforeEach` is not gated and re-pins a config
+  // with cacheComponents on before each test (the file-level `afterEach`
+  // clears it again).
+  describe('a lazy @force-gate on a describe', () => {
+    beforeEach(() => {
+      registerFixture({
+        getResolvedConfig: async () => ({ cacheComponents: true }),
+      })
+    })
+
+    // @force-gate !cacheComponents
+    describe('skipped suite', () => {
+      beforeEach(() => {
+        throw new Error('beforeEach must be skipped')
+      })
+
+      afterEach(() => {
+        throw new Error('afterEach must be skipped')
+      })
+
+      it('force-passes without running its hooks or body', () => {
+        throw new Error('body must not run')
+      })
+    })
+
+    // @force-gate cacheComponents
+    describe('held suite', () => {
+      let hookRan = false
+
+      beforeEach(() => {
+        hookRan = true
+      })
+
+      it('runs hooks when the gate holds', () => {
+        expect(hookRan).toBe(true)
+      })
     })
   })
 })

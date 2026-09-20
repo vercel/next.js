@@ -52,7 +52,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -1434,7 +1434,11 @@ impl AppEndpoint {
             let client_reference_chunks =
                 get_client_references_chunks_for_hmr(*client_references_chunks);
             client_chunking_context
-                .hmr_chunk_list(client_components_chunks_ident, client_reference_chunks)
+                .hmr_chunk_list(
+                    client_components_chunks_ident,
+                    client_reference_chunks,
+                    HmrChunkListSource::Entry,
+                )
                 .await?
                 .iter()
                 .copied()
@@ -2168,14 +2172,26 @@ impl Endpoint for AppEndpoint {
             };
 
             let written_endpoint = match *output.await? {
-                AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
-                    server_entry_path: node_root
+                AppEndpointOutput::NodeJs { rsc_chunk, .. } => {
+                    let server_entry_path: RcStr = node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
-                        .into(),
-                    server_paths,
-                    client_paths,
-                },
+                        .into();
+                    let hmr_entry_path = server_entry_path
+                        .strip_prefix("server/app/")
+                        .unwrap_or(&server_entry_path)
+                        .strip_suffix(".js")
+                        .unwrap_or(&server_entry_path);
+                    EndpointOutputPaths::NodeJs {
+                        server_hmr_entry_paths: vec![
+                            format!("{hmr_entry_path}.js").into(),
+                            format!("{hmr_entry_path}/client-components-ssr.js").into(),
+                        ],
+                        server_entry_path,
+                        server_paths,
+                        client_paths,
+                    }
+                }
                 AppEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
                     server_paths,
                     client_paths,

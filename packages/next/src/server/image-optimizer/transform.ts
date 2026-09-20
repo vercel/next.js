@@ -49,6 +49,7 @@ export type ImageOptimizerTransformConfig = {
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
   >
   images: Pick<
     NextConfigComplete['images'],
@@ -62,7 +63,6 @@ export interface ImageOptimizerTransformLogger {
 }
 
 export interface ImageOptimizerTransformOptions {
-  isValidMime: (contentType: string) => boolean
   previousOutput?: {
     buffer: Buffer
     maxAge?: number
@@ -140,6 +140,7 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
+  mozjpeg = true,
 }: {
   buffer: Buffer
   contentType: string
@@ -151,6 +152,7 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
+  mozjpeg?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
@@ -183,7 +185,7 @@ export async function optimizeImage({
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg: true })
+    transformer.jpeg({ quality, mozjpeg })
   }
 
   const optimizedBuffer = await transformer.toBuffer()
@@ -195,7 +197,7 @@ export async function imageOptimizerTransform(
   imageUpstream: ImageUpstream,
   paramsResult: ImageOptimizerTransformParams,
   nextConfig: ImageOptimizerTransformConfig,
-  opts: ImageOptimizerTransformOptions
+  opts: ImageOptimizerTransformOptions = {}
 ): Promise<ImageOptimizerResult> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
@@ -256,14 +258,11 @@ export async function imageOptimizerTransform(
 
   if (mimeType) {
     contentType = mimeType
-  } else if (
-    opts.isValidMime(upstreamType) &&
-    upstreamType !== WEBP &&
-    upstreamType !== AVIF
-  ) {
-    contentType = upstreamType
-  } else {
+  } else if (upstreamType === WEBP || upstreamType === AVIF) {
+    // Downlevel WebP and AVIF when the client does not advertise support.
     contentType = JPEG
+  } else {
+    contentType = upstreamType
   }
 
   if (opts.previousOutput) {
@@ -287,6 +286,7 @@ export async function imageOptimizerTransform(
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+      mozjpeg: nextConfig.experimental.imgOptMozjpeg,
     })
     if (opts.handleDevOutput) {
       const output = await opts.handleDevOutput(optimizedBuffer, contentType)
@@ -301,21 +301,14 @@ export async function imageOptimizerTransform(
       upstreamEtag,
     }
   } catch (error) {
-    if (upstreamType) {
-      // If we fail to optimize, fallback to the original image
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge: nextConfig.images.minimumCacheTTL,
-        etag: upstreamEtag,
-        upstreamEtag,
-        error,
-      }
-    } else {
-      throw new ImageError(
-        400,
-        'Unable to optimize image and unable to fallback to upstream image'
-      )
+    // If we fail to optimize, fallback to the original image
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge: nextConfig.images.minimumCacheTTL,
+      etag: upstreamEtag,
+      upstreamEtag,
+      error,
     }
   }
 }

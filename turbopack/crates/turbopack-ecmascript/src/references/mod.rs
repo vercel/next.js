@@ -28,14 +28,13 @@ pub mod util;
 pub mod worker;
 
 use std::{
+    cell::RefCell,
     future::Future,
     mem::{replace, take},
-    ops::Deref,
     sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context, Result, bail};
-use bincode::{Decode, Encode};
 use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
@@ -68,8 +67,8 @@ use tokio::sync::OnceCell;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, JoinIterExt, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt,
+    Upcast, ValueToString, Vc, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -99,8 +98,8 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
-    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable, EnvVarInfo,
-    ModuleTypeResult, TypeofWindow,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
+    EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
@@ -113,6 +112,7 @@ use crate::{
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
+    ast_path_trie::{AstPathId, AstPathTrieBuilder},
     chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
@@ -134,9 +134,9 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
-            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
-            module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
+            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
+            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -230,12 +230,17 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
     code_gens: CodeGenCollection,
+    /// Interns the AST paths referenced by `code_gens`, so overlapping paths share storage.
+    /// Handed to the resulting [`CodeGens`] once analysis finishes.
+    ///
+    /// `RefCell` so that interning composes with the `&mut self` `add_*` methods.
+    ast_paths: RefCell<AstPathTrieBuilder>,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     cjs_static_exports: Option<CjsStaticExports>,
 
-    env_var_info_runtime: FxIndexSet<RcStr>,
+    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -252,6 +257,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
+            ast_paths: Default::default(),
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
@@ -262,6 +268,24 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         }
     }
 
+    /// Takes over an already-populated path trie.
+    ///
+    /// Must happen before any path is interned here, so that ids minted against `paths`
+    /// keep pointing at the same nodes.
+    pub fn adopt_ast_paths(&mut self, paths: AstPathTrieBuilder) {
+        debug_assert_eq!(
+            self.ast_paths.borrow().node_count(),
+            0,
+            "adopting a trie would invalidate the paths already interned here",
+        );
+        *self.ast_paths.borrow_mut() = paths;
+    }
+
+    /// Interns an AST path, returning the handle code generation stores.
+    pub fn intern_path(&self, path: &[AstParentKind]) -> AstPathId {
+        self.ast_paths.borrow_mut().intern(path.iter().copied())
+    }
+
     /// Adds an asset reference to the analysis result.
     pub fn add_reference(&mut self, reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>) {
         let r = ResolvedVc::upcast_non_strict(reference);
@@ -269,10 +293,27 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference with codegen to the analysis result.
-    pub fn add_reference_code_gen<R: IntoCodeGenReference>(&mut self, reference: R, path: AstPath) {
-        let (reference, code_gen) = reference.into_code_gen_reference(path);
-        self.references.insert(reference);
-        self.add_code_gen(code_gen);
+    pub fn add_reference_code_gen<R: IntoCodeGenReference>(
+        &mut self,
+        reference: R,
+        path: AstPathId,
+        link_context: ValueLinkContext,
+    ) {
+        match link_context {
+            ValueLinkContext::Default => {
+                let (reference, code_gen) =
+                    reference.into_code_gen_reference(&self.ast_paths.borrow(), path);
+                self.references.insert(reference);
+                self.add_code_gen(code_gen);
+            }
+            ValueLinkContext::InAlternative => {
+                debug_assert!(
+                    self.analyze_mode.is_tracing_assets(),
+                    "unexpected add_reference_code_gen InAlternative in non-tracing mode"
+                );
+                self.references.insert(reference.into_reference());
+            }
+        }
     }
 
     /// Adds an ESM asset reference to the analysis result.
@@ -333,9 +374,17 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Adds a runtime environment variable reference to the analysis result.
-    pub fn add_runtime_env_var_reference(&mut self, runtime_env: RcStr) {
-        self.env_var_info_runtime.insert(runtime_env);
+    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr) {
+        self.env_var_info_runtime
+            // Overwrite any existing value with Existence.
+            .insert(runtime_env, EnvVarAccessMode::Read);
+    }
+
+    pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr) {
+        self.env_var_info_runtime
+            .entry(runtime_env)
+            // Only set if it hasn't been set to Read already.
+            .or_insert(EnvVarAccessMode::Existence);
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -438,13 +487,21 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 esm_reexport_references: ResolvedVc::cell(
                     esm_reexport_references.unwrap_or_default(),
                 ),
-                code_generation: ResolvedVc::cell(code_generation),
+                code_generation: if code_generation.is_empty() {
+                    CodeGens::empty().to_resolved().await?
+                } else {
+                    CodeGens {
+                        code_gens: code_generation,
+                        ast_paths: self.ast_paths.into_inner().build(),
+                    }
+                    .resolved_cell()
+                },
                 async_module: self.async_module,
                 successful: self.successful,
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
                 env_var_info: EnvVarInfo {
-                    runtime: self.env_var_info_runtime.into_iter().collect(),
+                    runtime: self.env_var_info_runtime,
                 }
                 .resolved_cell(),
             },
@@ -498,6 +555,7 @@ struct AnalysisState<'a> {
     module_fragments_enabled: bool,
     cjs_tree_shaking: bool,
     cross_module_constants: bool,
+    lazy_compilation: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -834,6 +892,10 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("effects processing");
     async {
+        // The graph's code gens carry `AstPathId`s interned into the graph's own trie, so
+        // adopt that trie before taking them; effect processing then keeps interning into
+        // it, and every path in the module ends up in one arena.
+        analysis.adopt_ast_paths(take(&mut var_graph.ast_paths));
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
         let effects = take(&mut var_graph.effects);
         // How each `require("…")` call's result is used, keyed by call position.
@@ -866,6 +928,7 @@ async fn analyze_ecmascript_module_internal(
             module_fragments_enabled: options.module_fragments_enabled,
             cjs_tree_shaking: options.cjs_tree_shaking,
             cross_module_constants: options.cross_module_constants,
+            lazy_compilation: options.lazy_compilation,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -906,7 +969,7 @@ async fn analyze_ecmascript_module_internal(
 
                     analysis.add_code_gen(RemovalCodeGen::new(
                         unreachable_comment(),
-                        AstPathRange::StartAfter(start_ast_path.to_vec()),
+                        AstPathRange::StartAfter(analysis.intern_path(&start_ast_path)),
                     ));
                 }
                 Effect::Conditional {
@@ -938,7 +1001,7 @@ async fn analyze_ecmascript_module_internal(
                             if analyze_mode.is_code_gen() && !condition_has_side_effects {
                                 analysis.add_code_gen(ConstantConditionCodeGen::new(
                                     $expr,
-                                    condition_ast_path.to_vec().into(),
+                                    analysis.intern_path(&condition_ast_path),
                                 ));
                             }
                         };
@@ -1118,6 +1181,7 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         eval_context.imports.get_attributes(span),
                         export_usage,
+                        ValueLinkContext::Default,
                     )
                     .await?;
                 }
@@ -1222,7 +1286,7 @@ async fn analyze_ecmascript_module_internal(
                     if let Some(placeholder) = worker_placeholder {
                         analysis.add_code_gen(WorkerGlobalsReplacementCodeGen::new(
                             placeholder,
-                            ast_path.to_vec().into(),
+                            analysis.intern_path(&ast_path),
                         ));
                         continue;
                     }
@@ -1232,7 +1296,7 @@ async fn analyze_ecmascript_module_internal(
                             analysis_state.first_webpack_exports_info = false;
                             analysis.add_code_gen(ExportsInfoBinding::new());
                         }
-                        analysis.add_code_gen(ExportsInfoRef::new(ast_path.to_vec().into()));
+                        analysis.add_code_gen(ExportsInfoRef::new(analysis.intern_path(&ast_path)));
                         continue;
                     }
 
@@ -1261,6 +1325,7 @@ async fn analyze_ecmascript_module_internal(
                     mut prop,
                     ast_path,
                     span,
+                    in_truthiness_context,
                 } => {
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
@@ -1277,7 +1342,9 @@ async fn analyze_ecmascript_module_internal(
                         span,
                         &analysis_state,
                         &mut analysis,
-                        MembershipType::Member,
+                        MembershipType::Member {
+                            in_truthiness_context,
+                        },
                     )
                     .await?;
                 }
@@ -1314,7 +1381,7 @@ async fn analyze_ecmascript_module_internal(
                                     )
                             })
                         {
-                            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+                            analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
                     }
                 }
@@ -1379,13 +1446,16 @@ async fn analyze_ecmascript_module_internal(
                     {
                         // This is a constant import, we can inline it directly without creating
                         // a reference
-                        analysis
-                            .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
+                        analysis.add_code_gen(ConstantValueCodeGen::new(
+                            c,
+                            analysis.intern_path(&ast_path),
+                        ));
                     } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
-                            ast_path.to_vec().into(),
+                            analysis.intern_path(&ast_path),
+                            ValueLinkContext::Default,
                         )
                     } else {
                         if options.follow_reexports && !options.module_fragments_enabled {
@@ -1413,7 +1483,7 @@ async fn analyze_ecmascript_module_internal(
                                 analysis.add_code_gen(EsmBinding::new_keep_this(
                                     named_reference,
                                     Some(export),
-                                    ast_path.to_vec().into(),
+                                    analysis.intern_path(&ast_path),
                                 ));
                                 continue;
                             }
@@ -1423,7 +1493,7 @@ async fn analyze_ecmascript_module_internal(
                         analysis.add_code_gen(EsmBinding::new(
                             *r,
                             export,
-                            ast_path.to_vec().into(),
+                            analysis.intern_path(&ast_path),
                         ));
                     }
                 }
@@ -1477,7 +1547,7 @@ async fn analyze_ecmascript_module_internal(
                         ));
                     }
 
-                    analysis.add_code_gen(ImportMetaRef::new(ast_path.to_vec().into()));
+                    analysis.add_code_gen(ImportMetaRef::new(analysis.intern_path(&ast_path)));
                 }
             }
         }
@@ -1691,9 +1761,13 @@ async fn handle_call<'a>(
         } => {
             for alt in values {
                 if let JsValue::WellKnownFunction(wkf) = alt {
+                    // Only register the reference, but don't perform replacement, as it might
+                    // not actually be a require at runtime (due to the
+                    // alternatives)
                     handle_well_known_function_call(
                         wkf,
                         new,
+                        ValueLinkContext::InAlternative,
                         &linked_args,
                         handler,
                         span,
@@ -1720,6 +1794,7 @@ async fn handle_call<'a>(
             handle_well_known_function_call(
                 wkf,
                 new,
+                ValueLinkContext::Default,
                 &linked_args,
                 handler,
                 span,
@@ -1755,6 +1830,7 @@ async fn handle_dynamic_import<'a>(
     in_try: bool,
     attributes: &ImportAttributes,
     export_usage: ExportUsage,
+    link_context: ValueLinkContext,
 ) -> Result<()> {
     // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
     // so the import expression is preserved as-is in the output.
@@ -1767,6 +1843,7 @@ async fn handle_dynamic_import<'a>(
         origin,
         source,
         ignore_dynamic_requests,
+        lazy_compilation,
         ..
     } = state;
 
@@ -1798,6 +1875,8 @@ async fn handle_dynamic_import<'a>(
         error_mode,
         state.import_externals,
         export_usage,
+        link_context,
+        lazy_compilation,
     )
     .await
 }
@@ -1815,6 +1894,8 @@ async fn handle_dynamic_import_with_linked_args(
     error_mode: ResolveErrorMode,
     import_externals: bool,
     export_usage: ExportUsage,
+    link_context: ValueLinkContext,
+    lazy_compilation: bool,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1849,7 +1930,11 @@ async fn handle_dynamic_import_with_linked_args(
                 ),
             );
             if ignore_dynamic_requests {
-                analysis.add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                if link_context != ValueLinkContext::InAlternative {
+                    analysis.add_code_gen(DynamicExpression::new_promise(
+                        analysis.intern_path(ast_path),
+                    ));
+                }
                 return Ok(());
             }
         }
@@ -1873,9 +1958,11 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
+                lazy_compilation,
             )
             .await?,
-            ast_path.to_vec().into(),
+            analysis.intern_path(ast_path),
+            link_context,
         );
         return Ok(());
     }
@@ -1889,9 +1976,18 @@ async fn handle_dynamic_import_with_linked_args(
     Ok(())
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ValueLinkContext {
+    Default,
+    // The given value/callee was linked inside an alternative. Codegen replacements probably
+    // shouldn't be performed.
+    InAlternative,
+}
+
 async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     func: WellKnownFunctionKind<'a>,
     new: bool,
+    link_context: ValueLinkContext,
     linked_args: &F,
     handler: &Handler,
     span: Span,
@@ -1919,10 +2015,19 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
-    // Compute error mode from in_try and attributes.optional
+    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.is_tracing_assets()
+    {
+        // We are in an alternative (can't do any replacement anyway) and are not tracing assets, so
+        // we can skip further processing.
+        return Ok(());
+    }
+
     let error_mode = if attributes.optional {
+        // Explicitly marked optional
         ResolveErrorMode::Ignore
-    } else if in_try {
+    } else if in_try || link_context == ValueLinkContext::InAlternative {
+        // In try-catch, or we are not certain that this function is called at runtime (e.g. in a
+        // logical alternative).
         ResolveErrorMode::Warn
     } else {
         ResolveErrorMode::Error
@@ -1988,7 +2093,8 @@ where
                             error_mode,
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                         ),
-                        ast_path.to_vec().into(),
+                        analysis.intern_path(ast_path),
+                        link_context,
                     );
                 }
                 return Ok(());
@@ -2032,7 +2138,8 @@ where
                                 tracing_only,
                                 is_shared,
                             ),
-                            ast_path.to_vec().into(),
+                            analysis.intern_path(ast_path),
+                            link_context,
                         );
                     }
 
@@ -2136,7 +2243,8 @@ where
                             error_mode,
                             tracing_only,
                         ),
-                        ast_path.to_vec().into(),
+                        analysis.intern_path(ast_path),
+                        link_context,
                     );
 
                     return Ok(());
@@ -2179,6 +2287,8 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
+                link_context,
+                state.lazy_compilation,
             )
             .await?;
         }
@@ -2196,7 +2306,11 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if link_context != ValueLinkContext::InAlternative {
+                            analysis.add_code_gen(DynamicExpression::new(
+                                analysis.intern_path(ast_path),
+                            ));
+                        }
                         return Ok(());
                     }
                 }
@@ -2221,7 +2335,8 @@ where
                         call_usage.clone(),
                         state.cjs_tree_shaking,
                     ),
-                    ast_path.to_vec().into(),
+                    analysis.intern_path(ast_path),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2246,7 +2361,11 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if link_context != ValueLinkContext::InAlternative {
+                            analysis.add_code_gen(DynamicExpression::new(
+                                analysis.intern_path(ast_path),
+                            ));
+                        }
                         return Ok(());
                     }
                 }
@@ -2275,7 +2394,8 @@ where
                         call_usage.clone(),
                         state.cjs_tree_shaking,
                     ),
-                    ast_path.to_vec().into(),
+                    analysis.intern_path(ast_path),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2317,7 +2437,11 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if link_context != ValueLinkContext::InAlternative {
+                            analysis.add_code_gen(DynamicExpression::new(
+                                analysis.intern_path(ast_path),
+                            ));
+                        }
                         return Ok(());
                     }
                 }
@@ -2340,7 +2464,8 @@ where
                         attributes.chunking_type,
                         resolve_override,
                     ),
-                    ast_path.to_vec().into(),
+                    analysis.intern_path(ast_path),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2379,7 +2504,8 @@ where
                     Some(issue_source(source, span)),
                     error_mode,
                 ),
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
+                link_context,
             );
         }
 
@@ -2414,7 +2540,8 @@ where
                     error_mode,
                 )
                 .await?,
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
+                link_context,
             );
         }
 
@@ -3037,11 +3164,11 @@ where
                         )
                         .to_resolved()
                     })
-                    .try_join()
-                    .await?;
+                    .join()
+                    .await;
 
                 for resolved_dir_ref in resolved_dirs {
-                    analysis.add_reference(resolved_dir_ref);
+                    analysis.add_reference(resolved_dir_ref?);
                 }
 
                 return Ok(());
@@ -3097,7 +3224,7 @@ where
                     analysis.add_code_gen(ModuleHotReferenceCodeGen::new(
                         references,
                         esm_references,
-                        ast_path.to_vec().into(),
+                        analysis.intern_path(ast_path),
                     ));
                 } else if first_arg.is_unknown() {
                     let (args_str, hints) = explain_args(args);
@@ -3210,7 +3337,8 @@ where
                             issue_source(source, span),
                             error_mode,
                         ),
-                        ast_path.to_vec().into(),
+                        analysis.intern_path(ast_path),
+                        link_context,
                     );
                 }
             }
@@ -3339,7 +3467,8 @@ where
                         },
                         emit_to_all_entries,
                     ),
-                    ast_path.to_vec().into(),
+                    analysis.intern_path(ast_path),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -3391,7 +3520,8 @@ where
 
                 analysis.add_reference_code_gen(
                     CollectReference::new(origin, parent_module, namespace.as_rcstr()),
-                    ast_path.to_vec().into(),
+                    analysis.intern_path(ast_path),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -3429,9 +3559,10 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
 }
 
 enum MembershipType {
-    Member,
+    Member { in_truthiness_context: bool },
     In,
 }
+
 async fn handle_membership<'a>(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
@@ -3453,7 +3584,7 @@ async fn handle_membership<'a>(
             if has_member && let Some((mut name, false)) = obj_name.clone() {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
                 match ty {
-                    MembershipType::Member => {
+                    MembershipType::Member { .. } => {
                         if let Some(value) = state
                             .compile_time_info_ref
                             .free_var_references
@@ -3476,7 +3607,7 @@ async fn handle_membership<'a>(
                         {
                             analysis.add_code_gen(ConstantValueCodeGen::new(
                                 CompileTimeDefineValue::Bool(true),
-                                ast_path.to_vec().into(),
+                                analysis.intern_path(ast_path),
                             ));
                             return Ok(());
                         }
@@ -3487,12 +3618,12 @@ async fn handle_membership<'a>(
                 && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
             {
                 analysis.add_code_gen::<CodeGen>(match ty {
-                    MembershipType::Member => {
-                        CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
+                    MembershipType::Member { .. } => {
+                        CjsRequireCacheAccess::new(analysis.intern_path(ast_path)).into()
                     }
                     MembershipType::In => ConstantValueCodeGen::new(
                         CompileTimeDefineValue::Bool(true),
-                        ast_path.to_vec().into(),
+                        analysis.intern_path(ast_path),
                     )
                     .into(),
                 });
@@ -3511,7 +3642,20 @@ async fn handle_membership<'a>(
                     ]
                 )
         }) {
-            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+            match ty {
+                MembershipType::In => {
+                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                }
+                MembershipType::Member {
+                    in_truthiness_context,
+                } => {
+                    if in_truthiness_context {
+                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                    } else {
+                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                    }
+                }
+            }
             return Ok(());
         }
     }
@@ -3600,20 +3744,20 @@ async fn handle_free_var_reference(
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 value.clone(),
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::Ident(value) => {
             analysis.add_code_gen(IdentReplacement::new(
                 value.clone(),
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::Member(key, value) => {
             analysis.add_code_gen(MemberReplacement::new(
                 key.clone(),
                 value.clone(),
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::EcmaScriptModule {
@@ -3642,19 +3786,22 @@ async fn handle_free_var_reference(
                             state.origin
                         },
                         request.clone(),
-                        IssueSource::from_swc_offsets(
-                            state.source,
-                            span.lo.to_u32(),
-                            span.hi.to_u32(),
-                        ),
-                        Default::default(),
-                        export.clone().map(ModulePart::export),
-                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
-                        // level function could set ImportUsage properly here
-                        ImportUsage::TopLevel,
-                        state.import_externals,
-                        state.module_fragments_enabled,
-                        None,
+                        EsmAssetReferenceOptions {
+                            issue_source: IssueSource::from_swc_offsets(
+                                state.source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
+                            annotations: Default::default(),
+                            export_name: export.clone().map(ModulePart::export),
+                            // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                            // level function could set ImportUsage properly here
+                            import_usage: ImportUsage::TopLevel,
+                            import_externals: state.import_externals,
+                            module_fragments_enabled: state.module_fragments_enabled,
+                            export_usage_passthrough: None,
+                            resolve_override: None,
+                        },
                     )
                     .await?
                     .resolved_cell())
@@ -3664,7 +3811,7 @@ async fn handle_free_var_reference(
             analysis.add_code_gen(EsmBinding::new(
                 esm_reference,
                 export.clone(),
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::InputRelative(kind) => {
@@ -3675,7 +3822,7 @@ async fn handle_free_var_reference(
             };
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 as_abs_path(source_path).into(),
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::ReportUsage {
@@ -3754,7 +3901,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Function,
                 issue_source(source, span),
                 error_mode,
@@ -3768,7 +3915,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Unknown,
                 issue_source(source, span),
                 error_mode,
@@ -3782,7 +3929,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Function,
                 issue_source(source, span),
                 error_mode,
@@ -3792,7 +3939,7 @@ async fn analyze_amd_define(
             analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
                 vec![],
                 origin,
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Value,
                 issue_source(source, span),
                 error_mode,
@@ -3806,7 +3953,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                ast_path.to_vec().into(),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Unknown,
                 issue_source(source, span),
                 error_mode,
@@ -3894,7 +4041,7 @@ async fn analyze_amd_define_with_deps(
     analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
         requests,
         origin,
-        ast_path.to_vec().into(),
+        analysis.intern_path(ast_path),
         AmdDefineFactoryType::Function,
         issue_source(source, span),
         error_mode,
@@ -4298,34 +4445,6 @@ async fn require_context_visitor<'a>(
             RequireContextValue::from_context_map(map).await?,
         )),
     ))
-}
-
-#[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
-pub struct AstPath(
-    #[bincode(with_serde)]
-    #[turbo_tasks(trace_ignore)]
-    Vec<AstParentKind>,
-);
-
-impl TaskInput for AstPath {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
-unsafe impl NonLocalValue for AstPath {}
-
-impl Deref for AstPath {
-    type Target = [AstParentKind];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<Vec<AstParentKind>> for AstPath {
-    fn from(v: Vec<AstParentKind>) -> Self {
-        Self(v)
-    }
 }
 
 pub static TURBOPACK_HELPER: LazyLock<Atom> = LazyLock::new(|| atom!("__turbopack-helper__"));

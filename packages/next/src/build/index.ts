@@ -118,6 +118,7 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
+import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -125,6 +126,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -153,7 +155,10 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { installBindings } from './swc/install-bindings'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import {
@@ -335,6 +340,11 @@ export interface DynamicPrerenderManifestRoute
    * `generateStaticParams`.
    */
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * Whether this candidate must produce a nonempty static shell.
+   */
+  throwOnEmptyStaticShell?: boolean
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -1067,6 +1077,7 @@ export default async function build(
   let appType: RoutesManifest['appType']
 
   let loadedConfig: NextConfigComplete | undefined
+  let pendingUpgradeNudge: Promise<void> | undefined
   let staticWorker: StaticWorker
 
   // Turbopack compile warnings are deferred until after static generation.
@@ -1135,6 +1146,20 @@ export default async function build(
           )
         )
       loadedConfig = config
+
+      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      if (
+        config.experimental.agenticAutoUpgrade === 'security' ||
+        config.experimental.agenticAutoUpgrade === 'latest' ||
+        config.experimental.agenticAutoUpgrade === 'future'
+      ) {
+        const { nudgeForUpgrade } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        pendingUpgradeNudge = nudgeForUpgrade(dir, config, 'build')
+        // Build work proceeds in parallel, but a fatal security result must be
+        // observed before the command reports successful completion.
+        void pendingUpgradeNudge.catch(() => {})
+      }
 
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
@@ -1208,7 +1233,7 @@ export default async function build(
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
-          process.exit(0)
+          return
         }
         Log.info('Inlining static env ...')
         await nextBuildSpan
@@ -1221,9 +1246,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        flushAllTraces()
-        teardownTraceSubscriber()
-        process.exit(0)
+        return
       }
 
       // when using compile mode static env isn't inlined so we
@@ -1282,7 +1305,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveDeleteSyncWithAsyncRetries(
               distDir,
-              new Set(['cache', 'dev', 'lock', 'trace'])
+              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
             )
           )
       }
@@ -1400,7 +1423,8 @@ export default async function build(
       let middlewareFilePath: string | undefined
 
       for (const rootPath of rootPaths) {
-        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const { base: fileBase, dir: fileDir } = path.parse(rootPath)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const normalizedFileDir = normalizePathSep(fileDir)
         const isAtConventionLevel =
@@ -1793,11 +1817,7 @@ export default async function build(
             shutdownPromise: p,
             warnings,
             ...rest
-          } = await turbopackBuild(
-            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
-            telemetry
-          )
+          } = await turbopackBuild(telemetry)
           shutdownPromise = p
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
@@ -3161,6 +3181,13 @@ export default async function build(
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
+                // Legacy dynamicParams=false closes the entire route tuple.
+                const notFoundParams =
+                  fallbackModes.get(originalAppPath) === FallbackMode.NOT_FOUND
+                    ? Object.keys(
+                        getRouteRegex(normalizeAppPath(originalAppPath)).groups
+                      )
+                    : undefined
 
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
@@ -3188,6 +3215,7 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
+                    _notFoundParams: notFoundParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
@@ -3893,6 +3921,8 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
+                  throwOnEmptyStaticShell:
+                    prerenderCandidate?.throwOnEmptyStaticShell,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4658,30 +4688,55 @@ export default async function build(
       await shutdownPromise
 
       if (NextBuildContext.analyze) {
-        await cp(
-          path.join(__dirname, '../bundle-analyzer'),
-          path.join(dir, '.next/diagnostics/analyze'),
-          { recursive: true }
-        )
+        const analyzeDir = path.join(distDir, 'diagnostics/analyze')
+        await cp(path.join(__dirname, '../bundle-analyzer'), analyzeDir, {
+          recursive: true,
+        })
 
-        await mkdir(path.join(dir, '.next/diagnostics/analyze/data'), {
+        await mkdir(path.join(analyzeDir, 'data'), {
           recursive: true,
         })
 
         // Write an index of routes for the route picker
+        const routes = routesManifest.dynamicRoutes
+          .map((r) => r.page)
+          .concat(routesManifest.staticRoutes.map((r) => r.page))
         await writeFile(
-          path.join(dir, '.next/diagnostics/analyze/data/routes.json'),
-          JSON.stringify(
-            routesManifest.dynamicRoutes
-              .map((r) => r.page)
-              .concat(routesManifest.staticRoutes.map((r) => r.page)),
-            null,
-            2
-          )
+          path.join(analyzeDir, 'data/routes.json'),
+          JSON.stringify(routes, null, 2)
         )
+
+        // Capture this build alongside any prior builds so the analyzer UI
+        // can offer it as a comparison baseline in the future.
+        await writeAnalyzeSnapshot({
+          projectDir: dir,
+          analyzeDir,
+          routes,
+          appDirOnly,
+          noMangling: NextBuildContext.noMangling ?? false,
+        })
       }
+
+      await pendingUpgradeNudge
     })
   } catch (e) {
+    // A build can fail before the success path awaits this check. Surface an
+    // independent nudge failure so its retry receipt never hides the full
+    // reminder on the next build.
+    if (pendingUpgradeNudge) {
+      try {
+        await pendingUpgradeNudge
+      } catch (nudgeError) {
+        if (nudgeError !== e) {
+          Log.error(
+            nudgeError instanceof Error
+              ? nudgeError.message
+              : String(nudgeError)
+          )
+        }
+      }
+    }
+
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
       telemetry.record(

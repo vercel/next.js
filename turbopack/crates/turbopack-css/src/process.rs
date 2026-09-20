@@ -780,7 +780,7 @@ fn generate_css_source_map(
             m.generated_column,
             m.original.map(|v| v.original_line).unwrap_or_default(),
             m.original.map(|v| v.original_column).unwrap_or_default(),
-            Some(0),
+            m.original.map(|v| v.source).or(Some(0)),
             None,
             false,
         );
@@ -880,6 +880,8 @@ mod tests {
         assert_ne!(lint_lightningcss(code), vec![], "lightningcss: {code}");
     }
 
+    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
+    #[cfg(not(miri))]
     #[test]
     fn css_module_pure_lint() {
         assert_lint_success(
@@ -1008,6 +1010,8 @@ mod tests {
         );
     }
 
+    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
+    #[cfg(not(miri))]
     #[test]
     fn strip_bom_lets_lightningcss_parse() {
         let with_bom = "\u{feff}@layer a {}";

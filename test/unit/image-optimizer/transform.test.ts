@@ -2,8 +2,9 @@
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 import {
+  getSharp,
   imageOptimizerTransform,
-  type ImageOptimizerTransformOptions,
+  type ImageOptimizerTransformConfig,
 } from 'next/dist/server/image-optimizer/transform'
 import type {
   CachedRouteKind,
@@ -12,8 +13,6 @@ import type {
 
 const getImage = (filename: string) =>
   readFile(join(__dirname, 'images', filename))
-
-const isValidMime = (contentType: string) => contentType === 'image/png'
 
 const config = {
   images: {
@@ -32,7 +31,7 @@ const config = {
 async function transform(
   filename: string,
   mimeType = 'image/webp',
-  options?: ImageOptimizerTransformOptions
+  nextConfig: ImageOptimizerTransformConfig = config
 ) {
   const buffer = await getImage(filename)
   return imageOptimizerTransform(
@@ -43,8 +42,7 @@ async function transform(
       etag: 'source-etag',
     },
     { href: `/${filename}`, width: 64, quality: 75, mimeType },
-    config,
-    { isValidMime, ...options }
+    nextConfig
   )
 }
 
@@ -98,6 +96,24 @@ describe('imageOptimizerTransform', () => {
     expect(result.maxAge).toBe(120)
   })
 
+  it.each([undefined, true, false])(
+    'encodes JPEGs with imgOptMozjpeg=%s',
+    async (imgOptMozjpeg) => {
+      const result = await transform('test.jpg', 'image/jpeg', {
+        ...config,
+        experimental: { ...config.experimental, imgOptMozjpeg },
+      })
+      expect(result.error).toBeUndefined()
+      expect(result.contentType).toBe('image/jpeg')
+      const sharp = getSharp(1, false)
+      expect(await sharp(result.buffer).metadata()).toMatchObject({
+        format: 'jpeg',
+        width: 64,
+        isProgressive: imgOptMozjpeg ?? true,
+      })
+    }
+  )
+
   it('preserves the source format when no output format is requested', async () => {
     const result = await transform('test.png', '')
     expect(result.contentType).toBe('image/png')
@@ -108,6 +124,11 @@ describe('imageOptimizerTransform', () => {
     const result = await transform('test.avif')
     expect(result.buffer).not.toEqual(source)
     expect(result.contentType).toBe('image/webp')
+  })
+
+  it('downlevels an avif source when no output format is requested', async () => {
+    const result = await transform('test.avif', '')
+    expect(result.contentType).toBe('image/jpeg')
   })
 
   it('generates blur placeholders in development', async () => {
@@ -167,8 +188,7 @@ describe('imageOptimizerTransform', () => {
         {
           ...config,
           images: { ...config.images, dangerouslyAllowSVG: false },
-        },
-        { isValidMime }
+        }
       )
     ).rejects.toMatchObject({ statusCode: 400 })
   })
@@ -183,8 +203,7 @@ describe('imageOptimizerTransform', () => {
           etag: 'source-etag',
         },
         { href: '/bad', width: 64, quality: 75, mimeType: 'image/webp' },
-        config,
-        { isValidMime }
+        config
       )
     ).rejects.toMatchObject({ statusCode: 400 })
   })

@@ -106,6 +106,28 @@ export default function Page() {
             Dynamic param two
           </LinkAccordion>
         </li>
+        <li>
+          Excluded caches
+          <ul>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-shell-cache">
+                Uses a cache that is excluded from the shell due to short stale
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-prefetchable-cache">
+                Uses a cache that is excluded from all prerenders due to short
+                stale
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-prerenderable-cache">
+                Uses a cache that is excluded from static prerenders due to
+                short expire
+              </LinkAccordion>
+            </li>
+          </ul>
+        </li>
         {/* The speculative-* routes are partial (non-eager), so their
             links use prefetch={true} to opt into the Speculative phase —
             otherwise only their App Shell would be prefetched. */}
@@ -117,6 +139,87 @@ export default function Page() {
         <li>
           <LinkAccordion href="/speculative-cookies" prefetch={true}>
             Speculative cookies
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>{'Static requests with prefetch={true}'}</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/speculative-static-param/one" prefetch={true}>
+            Speculative static param one
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/speculative-static-param/two" prefetch={true}>
+            Speculative static param one
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>Conditional cookies in prefetch</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/no-cookies-in-prefetch">
+            Does not use cookies in the prefetch (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/no-cookies-in-prefetch"
+            prefetch={true}
+          >
+            Does not use cookies in the prefetch (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/no-cookies-in-prefetch-2">
+            Does not use cookies in the prefetch 2 (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/no-cookies-in-prefetch-2"
+            prefetch={true}
+          >
+            Does not use cookies in the prefetch 2 (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/yes-cookies-in-prefetch">
+            Uses cookies in the prefetch (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/yes-cookies-in-prefetch"
+            prefetch={true}
+          >
+            Uses cookies in the prefetch (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered">
+            Uses cookies in the prefetch, but was not prerendered
+            (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered"
+            prefetch={true}
+          >
+            Uses cookies in the prefetch, but was not prerendered
+            (prefetch=true)
           </LinkAccordion>
         </li>
       </ul>

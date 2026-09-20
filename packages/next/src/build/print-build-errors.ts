@@ -6,9 +6,9 @@ export function formatWarningsHeader(count: number): string {
 }
 
 /**
- * Processes and reports build issues from Turbopack entrypoints.
+ * Processes and reports build issues from Turbopack's N-API functions.
  *
- * @param entrypoints - The result object containing build issues to process.
+ * @param result - The result object containing build issues to process.
  * @param isDev - A flag indicating if the build is running in development mode.
  * @param opts.deferWarnings - When true, warnings are returned instead of
  *                             printed so the caller can print them later.
@@ -16,8 +16,8 @@ export function formatWarningsHeader(count: number): string {
  * @throws {Error} If a fatal issue is encountered, this function throws an error. In development mode, we only throw on
  *                 'fatal' and 'bug' issues. In production mode, we also throw on 'error' issues.
  */
-export function printBuildErrors(
-  entrypoints: TurbopackResult,
+export function printBuildErrors<T>(
+  result: TurbopackResult<T>,
   isDev: boolean,
   opts?: { deferWarnings?: boolean }
 ): { warnings: string[] } {
@@ -33,7 +33,7 @@ export function printBuildErrors(
   const seenErrors = new Set<string>()
   const seenWarnings = new Set<string>()
 
-  for (const issue of entrypoints.issues) {
+  for (const issue of result.issues) {
     // We only want to completely shut down the server
     if (issue.severity === 'fatal' || issue.severity === 'bug') {
       const formatted = formatIssue(issue)

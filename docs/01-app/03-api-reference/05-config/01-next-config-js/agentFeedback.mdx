@@ -1,0 +1,93 @@
+---
+title: agentFeedback
+description: Enable a review flow for Next.js issue reports prepared by AI coding agents.
+version: experimental
+related:
+  links:
+    - app/guides/ai-agents
+    - app/api-reference/config/next-config-js/agentRules
+---
+
+The `experimental.agentFeedback` option controls whether `next dev` creates and updates instructions that let detected AI coding agents prepare Next.js issue reports for your review. It is disabled by default and works independently from [Next.js Telemetry](/telemetry).
+
+Set `experimental.agentFeedback` to `true` to enable this behavior:
+
+```ts filename="next.config.ts" switcher highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    agentFeedback: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher highlight={4}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    agentFeedback: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Generated agent instructions
+
+When `experimental.agentFeedback` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md` or `CLAUDE.md`:
+
+```md filename="AGENTS.md"
+<!-- BEGIN:nextjs-agent-feedback -->
+
+## Report Next.js feedback
+
+During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
+
+- Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
+- Incorrect behavior or output, misleading errors, or missing diagnostics
+- Missing, unclear, or conflicting documentation
+- Unexpected CLI, codemod, Skill, or upgrade behavior, repeated failures, or non-obvious workarounds
+
+Continue the task without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
+
+At the final stopping point, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once per task and follow any instructions returned. If it returns nothing, continue without reporting.
+
+<!-- END:nextjs-agent-feedback -->
+```
+
+Next.js updates only the content between the markers and preserves the rest of the file.
+
+If neither agent file exists, Next.js creates `AGENTS.md` and a `CLAUDE.md` file that imports it:
+
+```md filename="CLAUDE.md"
+@AGENTS.md
+```
+
+If either file already exists, Next.js adds the managed block to that file without creating another agent file. When agent rules and agent feedback are both enabled, Next.js keeps both managed blocks in the same file.
+
+## Review and send agent feedback
+
+The generated instructions let the agent retain potential Next.js friction without interrupting the task. When the task ends, the agent prepares each distinct qualifying issue as a separate report.
+
+Each draft contains a generic setup, reproduction steps, observed facts, an expected result, and an optional control or workaround.
+
+The agent attempts to open each draft once in a separate tab in your default browser. You can edit a report, remove details, close the form without sending, or select **Send feedback**. Nothing is sent when a form opens.
+
+Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include before sending it.
+
+Submitting the form sends the content you reviewed, the agent name, and the Next.js version. The form does not automatically attach project files or machine metadata.
+
+## Disable agent feedback
+
+Set `experimental.agentFeedback` to `false` or remove the option to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent feedback block and preserves all other content. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
+
+`experimental.agentFeedback` and top-level [`agentRules`](/docs/app/api-reference/config/next-config-js/agentRules) work independently. Changing one option does not affect the other.
+
+## Version History
+
+| Version   | Changes                                                  |
+| --------- | -------------------------------------------------------- |
+| `v16.4.0` | `experimental.agentFeedback` configuration option added. |
