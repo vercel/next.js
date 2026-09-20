@@ -1,6 +1,7 @@
 import {
   FixCardAlignLeftIcon,
   FixCardArrowUpIcon,
+  FixCardCheckIcon,
   FixCardDatabaseIcon,
   FixCardHistoryIcon,
   FixCardLayoutIcon,
@@ -60,6 +61,8 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardLayoutIcon />
     case 'arrow-up':
       return <FixCardArrowUpIcon />
+    case 'check':
+      return <FixCardCheckIcon />
     case 'minus':
       return <FixCardMinusIcon />
     default:
