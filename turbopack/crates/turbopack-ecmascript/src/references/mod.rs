@@ -2011,6 +2011,16 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
+    if link_context == ValueLinkContext::InAlternative
+        && analysis.analyze_mode.is_codegen
+        && !analysis.analyze_mode.trace_file_references
+    {
+        // We are in an alternative (can't do any replacement anyway) and are only running
+        // codegen, so assume that we only care about the bundled output, not speculative
+        // references. Tracing modes still need to collect these references.
+        return Ok(());
+    }
+
     let error_mode = if attributes.optional {
         // Explicitly marked optional
         ResolveErrorMode::Ignore
