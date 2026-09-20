@@ -3242,8 +3242,9 @@ function writeServerResponseIntoCache(
         ? now + getStaleTimeMs(headData.staleTimeSeconds)
         : staleAt
 
-    // A head has no loading boundary. Match pingRuntimeHead, which spawns
-    // LoadingBoundary head entries using the concrete Full strategy.
+    // A head has no loading boundary. Match the scheduler, which spawns
+    // LoadingBoundary head entries using the concrete Full strategy (see the
+    // head's runtime fetch in pingRootRouteTree).
     const headFetchStrategy =
       fetchStrategy === FetchStrategy.LoadingBoundary
         ? FetchStrategy.Full
