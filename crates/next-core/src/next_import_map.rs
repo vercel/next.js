@@ -79,7 +79,6 @@ pub async fn get_next_client_import_map(
 
     insert_alias_option(
         &mut import_map,
-        &project_path,
         next_config.resolve_alias_options(),
         ["browser"],
     )
@@ -292,13 +291,7 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
-    insert_alias_option(
-        &mut import_map,
-        &project_path,
-        next_config.resolve_alias_options(),
-        [],
-    )
-    .await?;
+    insert_alias_option(&mut import_map, next_config.resolve_alias_options(), []).await?;
 
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
@@ -440,13 +433,7 @@ pub async fn get_next_edge_import_map(
 
     insert_optimized_module_aliases(&mut import_map, project_path.clone()).await?;
 
-    insert_alias_option(
-        &mut import_map,
-        &project_path,
-        next_config.resolve_alias_options(),
-        [],
-    )
-    .await?;
+    insert_alias_option(&mut import_map, next_config.resolve_alias_options(), []).await?;
 
     match &ty {
         ServerContextType::Pages { .. }
@@ -1423,13 +1410,12 @@ pub async fn try_get_next_package(
 
 pub async fn insert_alias_option<const N: usize>(
     import_map: &mut ImportMap,
-    project_path: &FileSystemPath,
     alias_options: Vc<ResolveAliasMap>,
     conditions: [&'static str; N],
 ) -> Result<()> {
     let conditions = BTreeMap::from(conditions.map(|c| (c.into(), ConditionValue::Set)));
     for (alias, value) in &alias_options.await? {
-        if let Some(mapping) = export_value_to_import_mapping(value, &conditions, project_path) {
+        if let Some(mapping) = export_value_to_import_mapping(value, &conditions) {
             import_map.insert_alias(alias, mapping);
         }
     }
@@ -1439,7 +1425,6 @@ pub async fn insert_alias_option<const N: usize>(
 fn export_value_to_import_mapping(
     value: &SubpathValue,
     conditions: &BTreeMap<RcStr, ConditionValue>,
-    project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
     let mut result = Vec::new();
     value.add_results(
@@ -1451,16 +1436,17 @@ fn export_value_to_import_mapping(
     if result.is_empty() {
         None
     } else {
+        // We need to make sure the alias resolves from the original import location, because we
+        // could have transitive dependencies where the aliased package only exists in the
+        // importing package's node_modules, not in the project root's node_modules.
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path.clone()))
-                .resolved_cell()
+            ImportMapping::PrimaryAlternative(result[0].0.into(), None).resolved_cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path.clone()))
-                            .resolved_cell()
+                        ImportMapping::PrimaryAlternative((*m).into(), None).resolved_cell()
                     })
                     .collect(),
             )
