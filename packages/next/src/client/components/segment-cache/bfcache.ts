@@ -1,5 +1,6 @@
 import { DYNAMIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
+import type { VaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import type { VaryPath } from './vary-path'
 
 /**
@@ -35,6 +36,11 @@ export type BFCacheEntry = {
   prefetchRsc: React.ReactNode | null
   head: React.ReactNode | null
   prefetchHead: React.ReactNode | null
+
+  // The source of the params `rsc` depends on, copied from the CacheNode that
+  // wrote this entry (see CacheNode.varyParams). A restored node reads it to
+  // decide whether a later navigation can keep its data.
+  varyParams: VaryParams | null
 
   // The bfcacheId of the CacheNode that wrote this entry. Restored on
   // history-traversal navigations so that `useRouter().bfcacheId` is stable
@@ -79,6 +85,7 @@ export function writeToBFCache(
     varyPath,
     cacheNode.rsc,
     cacheNode.prefetchRsc,
+    cacheNode.varyParams,
     cacheNode.head,
     cacheNode.prefetchHead,
     dynamicStaleAt,
@@ -91,6 +98,7 @@ function writeEntryToBFCache(
   varyPath: VaryPath,
   rsc: React.ReactNode,
   prefetchRsc: React.ReactNode,
+  varyParams: VaryParams | null,
   head: React.ReactNode,
   prefetchHead: React.ReactNode,
   dynamicStaleAt: number,
@@ -108,6 +116,8 @@ function writeEntryToBFCache(
     // SegmentCacheEntry. The head has its own separate cache entry.
     head,
     prefetchHead,
+
+    varyParams,
 
     bfcacheId,
 
@@ -139,12 +149,15 @@ export function writeHeadToBFCache(
   dynamicStaleAt: number
 ): void {
   // Write the special "segment" that represents the head data. The page
-  // node's head fields take the place of the entry's segment fields.
+  // node's head fields take the place of the entry's segment fields. The
+  // head's dependency source isn't tracked on the node, so the entry has
+  // none.
   writeEntryToBFCache(
     now,
     varyPath,
     cacheNode.head,
     cacheNode.prefetchHead,
+    null,
     null,
     null,
     dynamicStaleAt,
@@ -153,13 +166,26 @@ export function writeHeadToBFCache(
 }
 
 /**
- * Update the staleAt of an existing BFCache entry. Used after a dynamic
- * response arrives with a per-page stale time from `unstable_dynamicStaleTime`.
- * The per-page value is authoritative — it overrides whatever staleAt was set
- * by the default DYNAMIC_STALETIME_MS.
+ * Patches the entry written for a segment before its dynamic response
+ * arrived, with what the response filled in on the segment's CacheNode: the
+ * per-page stale time from `unstable_dynamicStaleTime` (authoritative over
+ * the default DYNAMIC_STALETIME_MS the entry was written with) and the
+ * source of the params its data depends on. The entry shares the node's
+ * deferred `rsc` promise, which the response resolves in place. Only the entry
+ * that shares the node's `rsc` is updated; a refresh may have replaced the
+ * entry at the same vary path, and that entry belongs to the newer node.
+ *
+ * TODO: This function exists because the entry gets `rsc` when it is written
+ * but the stale time and vary params only later, through a second write that
+ * has to find the entry again. The response should fill in all three as one
+ * unit: make the pending CacheNode itself the thenable (like DeferredRsc, but
+ * for the whole node) with an explicit pending → fulfilled/rejected
+ * transition, so the entry holds the node and observes its resolution
+ * directly, with nothing to look up or patch afterwards.
  */
-export function updateBFCacheEntryStaleAt(
+export function updateBFCacheEntryFromDynamicResponse(
   varyPath: VaryPath,
+  cacheNode: CacheNode,
   newStaleAt: number
 ): void {
   if (typeof window === 'undefined') {
@@ -175,8 +201,9 @@ export function updateBFCacheEntryStaleAt(
     isRevalidation,
     false
   )
-  if (entry !== null) {
+  if (entry !== null && entry.rsc === cacheNode.rsc) {
     entry.staleAt = newStaleAt
+    entry.varyParams = cacheNode.varyParams
   }
 }
 

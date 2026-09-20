@@ -11,7 +11,10 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type {
+  VaryParams,
+  VaryParamsIterable,
+} from './segment-cache/vary-params-decoding'
 import type { FullTransportData, PartialTransportData } from './rsc-transport'
 
 /** viewport metadata node */
@@ -44,6 +47,15 @@ export type CacheNode = {
    * trigger a lazy fetch.
    */
   prefetchRsc: React.ReactNode
+
+  /**
+   * The source of the params `rsc` depends on, from the response that
+   * produced it. Null when unknown: the data came from the segment cache, or
+   * from a render that didn't track params, or `rsc` is still pending — it
+   * is set alongside `rsc` when the response arrives. A navigation that only
+   * changes params this output did not depend on can keep rendering it.
+   */
+  varyParams: VaryParams | null
 
   prefetchHead: HeadData | null
 
