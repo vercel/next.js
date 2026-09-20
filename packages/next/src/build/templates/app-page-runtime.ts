@@ -1129,6 +1129,13 @@ export function createAppPageEntrypoint({
             fallbackMode = parseFallbackField(prerenderInfo.fallback)
           }
 
+          // A closed matcher rejects new paths, not regeneration of paths that
+          // were produced by the build. Their cache entries can be invalidated
+          // or evicted without removing the path from the build manifest.
+          if (fallbackMode === FallbackMode.NOT_FOUND && isPrerendered) {
+            fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+          }
+
           if (
             nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
@@ -1160,14 +1167,9 @@ export function createAppPageEntrypoint({
             isOnDemandRevalidate = true
           }
 
-          // TODO: adapt for PPR
-          // only allow on-demand revalidate for fallback: true/blocking
-          // or for prerendered fallback: false paths
-          if (
-            isOnDemandRevalidate &&
-            (fallbackMode !== FallbackMode.NOT_FOUND ||
-              previousIncrementalCacheEntry)
-          ) {
+          // On-demand revalidation blocks for admitted paths. Cache contents
+          // must not make an otherwise closed path eligible for generation.
+          if (isOnDemandRevalidate && fallbackMode !== FallbackMode.NOT_FOUND) {
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
 
@@ -1180,21 +1182,6 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // if the page has dynamicParams: false and this pathname wasn't
-            // prerendered trigger the no fallback handling
-            if (
-              // In development, fall through to render to handle missing
-              // getStaticPaths.
-              (isProduction || prerenderInfo) &&
-              // When fallback isn't present, abort this render so we 404
-              fallbackMode === FallbackMode.NOT_FOUND
-            ) {
-              if (nextConfig.adapterPath) {
-                return await render404()
-              }
-              throw new NoFallbackError()
-            }
-
             // When cacheComponents is enabled, we can use the fallback
             // response if the request is not a dynamic RSC request because the
             // RSC data when this feature flag is enabled does not contain any
@@ -1637,6 +1624,24 @@ export function createAppPageEntrypoint({
       }
 
       const handleResponse = async (span?: Span): Promise<null | void> => {
+        // Decide whether this URL is allowed before consulting ISR. An exact
+        // build path remains valid even when its cached result is missing, and
+        // the most specific matched route controls whether other paths may be
+        // generated. Neither a cache hit nor revalidation changes that decision.
+        if (
+          !isMinimalMode &&
+          !isDraftMode &&
+          pageIsDynamic &&
+          !res.writableEnded &&
+          prerenderInfo?.fallback === false &&
+          !isPrerendered
+        ) {
+          if (nextConfig.adapterPath) {
+            return await render404()
+          }
+          throw new NoFallbackError()
+        }
+
         const cacheEntry = await routeModule.handleResponse({
           cacheKey: ssgCacheKey,
           responseGenerator: (c) =>
