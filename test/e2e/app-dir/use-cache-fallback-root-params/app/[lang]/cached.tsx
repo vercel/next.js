@@ -1,5 +1,4 @@
 import { lang } from 'next/root-params'
-import { setImmediate } from 'node:timers/promises'
 
 async function getLanguage() {
   'use cache'
@@ -8,9 +7,6 @@ async function getLanguage() {
 
 async function getSharedContent() {
   'use cache'
-  // Finish after a sibling has had a chance to read an unknown root. That
-  // sibling's suspension must not cancel this independent cache fill.
-  await setImmediate()
   return 'shared content'
 }
 
