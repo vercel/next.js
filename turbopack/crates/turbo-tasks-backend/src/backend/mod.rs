@@ -1149,12 +1149,13 @@ impl TurboTasksBackend {
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
     /// just triggered without the backend carrying test-only state. Production reads the same
     /// numbers off the `gc` span.
+    #[allow(clippy::type_complexity)]
     fn snapshot_and_persist(
         &self,
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>), anyhow::Error> {
+    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>)> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
