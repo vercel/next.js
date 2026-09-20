@@ -60,6 +60,7 @@ import {
   getPathnameFromRequestURL,
   getRenderedPathname,
   getRenderedSearch,
+  normalizeRenderedSearch,
 } from '../../route-params'
 import {
   createCacheMap,
@@ -242,6 +243,22 @@ export function createRootRouteTree<TData>(
   head: RouteTree<TData>
 ): RootRouteTree<TData> {
   return { tree, head }
+}
+
+export function doesRouteStructureMatch<TCurrent, TNext>(
+  currentTree: RouteTree<TCurrent>,
+  nextTree: RouteTree<TNext>
+): boolean {
+  // The request key includes the param names and types, but not the values.
+  if (currentTree.requestKey !== nextTree.requestKey) {
+    return false
+  }
+  // The root request key is always empty (even for global Not Found), so we
+  // have to compare the root segment directly.
+  return (
+    nextTree.requestKey !== ROOT_SEGMENT_REQUEST_KEY ||
+    currentTree.segment === nextTree.segment
+  )
 }
 
 type RouteCacheEntryShared = {
@@ -813,7 +830,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     routeWithNoSearchParams.renderedSearch !== ''
       ? // Base route was rewritten. Reuse the same rewritten search string.
         routeWithNoSearchParams.renderedSearch
-      : requestedSearch
+      : normalizeRenderedSearch(requestedSearch)
 
   const optimisticUrl = new URL(
     routeWithNoSearchParams.canonicalUrl,
@@ -1418,11 +1435,11 @@ function pingBlockedTasks(entry: {
  * The head's request key on the client. The server's own key for the head,
  * HEAD_REQUEST_KEY, carries no path information: there is only one head per
  * URL, so the server has no need to distinguish parallel pages. On the client
- * the request key is the head's cache identity, so the head takes its page's
- * request key with HEAD_REQUEST_KEY appended — the key the server would have
- * assigned had the head been a segment below the page — and two pages' heads
- * never share a key. The head varies on the same params as its page, so the
- * rest of its vary path is the page's.
+ * the request key is the head's cache identity and what doesRouteStructureMatch
+ * compares, so the head takes its page's request key with HEAD_REQUEST_KEY
+ * appended — the key the server would have assigned had the head been a
+ * segment below the page — and two pages' heads never match. The head varies
+ * on the same params as its page, so the rest of its vary path is the page's.
  * The page must be the route's own: a page in a slot retained from another
  * URL (one with a refresh state) belongs to that URL's head. When a route has
  * multiple parallel pages of its own, the first one is used; the keys only
@@ -1732,6 +1749,9 @@ export function convertFlightRouterStateToRouteTree(
           renderedSearch: compressedRefreshState[1] as NormalizedSearch,
         }
       : null
+  // Use the incoming search params, even if the response has no new data for
+  // this segment. The base tree may still have the previous URL's. History
+  // restores pass in their saved search params instead.
   const renderedSearch =
     refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 

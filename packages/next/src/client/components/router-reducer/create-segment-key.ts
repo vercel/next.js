@@ -7,16 +7,12 @@ import { createRouterCacheKey } from './create-router-cache-key'
 // The browser uses the concrete keys instead, so navigation still resets or
 // preserves state as appropriate. Its bundle uses create-segment-key.browser.ts.
 // React keys are not embedded in the HTML.
-export function createSegmentKey(
-  segment: Segment,
-  // Server keys always omit search params, regardless of this browser option.
-  _withoutSearchParameters?: boolean
-): string {
+export function createSegmentKey(segment: Segment): string {
   if (Array.isArray(segment)) {
     return `${segment[0]}|${segment[2]}`
   }
 
-  return createRouterCacheKey(segment, true)
+  return createRouterCacheKey(segment)
 }
 
 // TODO: To model this more accurately, we should use React.optimisticKey

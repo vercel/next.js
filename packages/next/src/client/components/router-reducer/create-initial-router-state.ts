@@ -49,10 +49,11 @@ export function createInitialRouterState({
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
-  // The initial router state tree, derived from the transport tree. Page
-  // segments keep their search params, which travel inside the segment
-  // string.
-  const initialTree = transportNodeToFlightRouterState(initialTransportData.t)
+  // The initial router state tree, derived from the transport tree.
+  const initialTree = transportNodeToFlightRouterState(
+    initialTransportData.t,
+    initialRenderedSearch
+  )
 
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser

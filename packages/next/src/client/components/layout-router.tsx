@@ -563,10 +563,8 @@ export default function OuterLayoutRouter({
   // On the server, the key describes the segment's structure instead, so it
   // stays the same when unknown params become known during HTML resume.
   //
-  // The "cache" key of a segment, however, *does* include the search params, if
-  // it's possible that the segment accessed the search params on the server.
-  // (This only applies to page segments; layout segments cannot access search
-  // params on the server.)
+  // Whether the data can be reused is tracked separately, by the segment
+  // cache's vary paths.
   const activeTree = parentTree[1][parallelRouterKey]
   const activeRenderTree = parentRenderTree.slots?.get(parallelRouterKey)
   if (activeTree === undefined || activeRenderTree === undefined) {
@@ -583,7 +581,7 @@ export default function OuterLayoutRouter({
   }
 
   const activeSegment = activeTree[0]
-  const activeStateKey = createSegmentKey(activeSegment, true) // no search params
+  const activeStateKey = createSegmentKey(activeSegment)
 
   // At each level of the route tree, not only do we render the currently
   // active segment — we also render the last N segments that were active at

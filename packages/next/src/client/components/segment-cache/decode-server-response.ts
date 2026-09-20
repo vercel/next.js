@@ -32,7 +32,6 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import {
   doesStaticSegmentAppearInURL,
@@ -268,16 +267,6 @@ export function createRouteTreeNode<TData>(
     partialVaryPath = parentPartialVaryPath
     if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
       // This is a page segment.
-
-      // The navigation implementation expects the search params to be included
-      // in the segment. However, in the case of a static response, the search
-      // params are omitted. So the client needs to add them back in when reading
-      // from the Segment Cache.
-      //
-      // For consistency, we'll do this for live-render responses, too.
-      //
-      // TODO: We should move search params out of FlightRouterState and handle
-      // them entirely on the client, similar to our plan for dynamic params.
       segment = PAGE_SEGMENT_KEY
       varyPath = finalizeVaryPath(requestKey, renderedSearch, partialVaryPath)
       // The head is keyed under the route's own first page and varies on the
@@ -405,15 +394,31 @@ function resolveTransportSegment(
     pathnameParts,
     pathnamePartsIndex
   )
-  // TODO: We're intentionally not adding the search param to page segments
-  // here; it's tracked separately and added back during a read from the
-  // Segment Cache.
   return [
     transportSegment.n,
-    getCacheKeyForDynamicParam(paramValue, '' as NormalizedSearch),
+    getCacheKeyForDynamicParam(paramValue),
     transportSegment.t,
     transportSegment.s,
   ]
+}
+
+function doSegmentsMatch(
+  baseSegment: FlightRouterStateSegment,
+  segment: FlightRouterStateSegment
+): boolean {
+  if (typeof baseSegment === 'string' || typeof segment === 'string') {
+    // Static segments have to match exactly.
+    return baseSegment === segment
+  }
+  // Both segments are dynamic. The static sibling hints aren't part of the
+  // segment's identity, so only compare the param name, type, and value.
+  const [baseParamName, baseParamValue, baseParamType] = baseSegment
+  const [paramName, paramValue, paramType] = segment
+  return (
+    baseParamName === paramName &&
+    baseParamType === paramType &&
+    baseParamValue === paramValue
+  )
 }
 
 function decodeTransportNode(
@@ -453,18 +458,10 @@ function decodeTransportNode(
       // are still checked.
     } else {
       const baseSegment = compareBase[0]
-      if (
-        typeof originalSegment === 'string' &&
-        typeof baseSegment === 'string' &&
-        originalSegment.startsWith(PAGE_SEGMENT_KEY) &&
-        baseSegment.startsWith(PAGE_SEGMENT_KEY)
-      ) {
-        // Page segments match modulo embedded search params, which are
-        // validated separately (see getRenderedSearch).
-      } else if (originalSegment === DEFAULT_SEGMENT_KEY) {
+      if (originalSegment === DEFAULT_SEGMENT_KEY) {
         // A default filled in by the server is not a claim about the
         // position's identity.
-      } else if (!matchSegment(baseSegment, originalSegment)) {
+      } else if (!doSegmentsMatch(baseSegment, originalSegment)) {
         acc.treeDivergedFromBase = true
       }
     }
