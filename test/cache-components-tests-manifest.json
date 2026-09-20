@@ -355,6 +355,8 @@
       "test/production/app-dir/build-output/index.test.ts",
       "test/production/app-dir/client-components-tree-shaking/index.test.ts",
       "test/production/app-dir/deopted-into-client-rendering-warning/deopted-into-client-rendering-warning.test.ts",
+      "test/production/app-dir/dynamic-params-cache-miss/dynamic-params-cache-miss.test.ts",
+      "test/production/app-dir/dynamic-params-revalidation/dynamic-params-revalidation.test.ts",
       "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts",
       "test/production/app-dir/graceful-degrade/graceful-degrade-non-bot.test.ts",
       "test/production/app-dir/graceful-degrade/graceful-degrade.test.ts",
