@@ -1,11 +1,10 @@
-use std::{env, sync::MutexGuard};
+use std::io::Read;
 
 use anyhow::{Context, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc, turbofmt};
+use turbo_tasks::{ReadRef, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{GLOBAL_ENV_LOCK, ProcessEnv, TransientEnvMap, sorted_env_vars};
+use crate::{ProcessEnv, TransientEnvMap, dotenv_parse::parse_dotenv_into};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -40,32 +39,22 @@ impl DotenvProcessEnv {
 
         let file = self.path.read().await?;
         if let FileContent::Content(f) = &*file {
-            let res;
-            let vars;
-            {
-                let lock = GLOBAL_ENV_LOCK.lock().unwrap();
-
-                // Unfortunately, dotenvy only looks up variable references from the global env.
-                // So we must mutate while we process. Afterwards, we can restore the initial
-                // state.
-                let initial = sorted_env_vars();
-
-                restore_env(&initial, &prior, &lock);
-
-                // from_read will load parse and evaluate the Read, and set variables
-                // into the global env. If a later dotenv defines an already defined
-                // var, it'll be ignored.
-                res = dotenv::from_read(f.read()).map(|e| e.load());
-
-                vars = sorted_env_vars();
-                restore_env(&vars, &initial, &lock);
-            }
-
-            if let Err(e) = res {
+            // The parser resolves variable references against the supplied
+            // map — no process-global environment mutation (which is unsound
+            // from multi-threaded code) is involved at all.
+            let mut vars = (*prior).clone();
+            // The OS environment is case-insensitive on Windows and collapses
+            // case-variant duplicates (last wins) — mirror that before parsing.
+            #[cfg(windows)]
+            crate::dotenv_parse::dedupe_case_insensitive(&mut vars);
+            let mut content = String::new();
+            if let Err(e) = f.read().read_to_string(&mut content) {
                 // ast-grep-ignore: no-context-turbofmt
                 return Err(e)
                     .context(turbofmt!("unable to read {} for env vars", self.path).await?);
             }
+            parse_dotenv_into(&content, &mut vars);
+            vars.sort_keys();
 
             Ok(Vc::cell(vars))
         } else {
@@ -82,24 +71,5 @@ impl ProcessEnv for DotenvProcessEnv {
     fn read_all(self: Vc<Self>) -> Vc<TransientEnvMap> {
         let prior = self.read_prior();
         self.read_all_with_prior(prior)
-    }
-}
-
-/// Restores the global env variables to mirror `to`.
-fn restore_env(
-    from: &FxIndexMap<RcStr, RcStr>,
-    to: &FxIndexMap<RcStr, RcStr>,
-    _lock: &MutexGuard<()>,
-) {
-    for key in from.keys() {
-        if !to.contains_key(key) {
-            unsafe { env::remove_var(key) };
-        }
-    }
-    for (key, value) in to {
-        match from.get(key) {
-            Some(v) if v == value => {}
-            _ => unsafe { env::set_var(key, value) },
-        }
     }
 }
