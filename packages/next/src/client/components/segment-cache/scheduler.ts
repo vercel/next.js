@@ -1,13 +1,13 @@
+import { matchSegment } from '../match-segments'
+import { getRenderedSearchFromVaryPath } from './vary-path'
 import type {
   FlightRouterState,
-  Segment as FlightRouterStateSegment,
-  Segment,
+  CacheNode,
 } from '../../../shared/lib/app-router-types'
 import {
   PrefetchHint,
   StaticPrefetchDisabled,
 } from '../../../shared/lib/app-router-types'
-import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
   readRouteCacheEntry,
@@ -29,9 +29,8 @@ import {
   attemptToFulfillDynamicSegmentFromBFCache,
   attemptToUpgradeSegmentFromBFCache,
 } from './cache'
-import type { RouteCacheKey } from './cache-key'
+import type { NormalizedSearch, RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
-import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -44,10 +43,7 @@ import {
 } from './cache'
 import type { CacheMap } from './cache-map'
 import type { NavigationLockPrefetch } from './navigation-testing-lock'
-import {
-  addSearchParamsIfPageSegment,
-  PAGE_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 import { cleanup } from './lru'
 
@@ -66,12 +62,8 @@ const scheduleMicrotask =
 export type PrefetchTask = {
   key: RouteCacheKey
 
-  /**
-   * The FlightRouterState at the time the task was initiated. This is needed
-   * when falling back to the non-PPR behavior, which only prefetches up to
-   * the first loading boundary.
-   */
-  treeAtTimeOfPrefetch: FlightRouterState
+  // The active render tree when this task was scheduled.
+  renderTreeAtTimeOfPrefetch: RouteTree<CacheNode>
 
   /**
    * The cache versions at the time the task was initiated. Used to determine
@@ -308,7 +300,7 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * expected to be validated and normalized.
  *
  * @param key The RouteCacheKey to prefetch.
- * @param treeAtTimeOfPrefetch The app's current FlightRouterState
+ * @param renderTreeAtTimeOfPrefetch The active render tree and its vary paths
  * @param fetchStrategy Whether to prefetch dynamic data, in addition to
  * static data. This is used by `<Link prefetch={true}>`.
  * @param navigationLockPrefetch Testing API only. Non-null when this prefetch
@@ -317,7 +309,7 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  */
 export function schedulePrefetchTask(
   key: RouteCacheKey,
-  treeAtTimeOfPrefetch: FlightRouterState,
+  renderTreeAtTimeOfPrefetch: RouteTree<CacheNode>,
   fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority,
   onInvalidate: null | (() => void),
@@ -341,7 +333,7 @@ export function schedulePrefetchTask(
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
-    treeAtTimeOfPrefetch,
+    renderTreeAtTimeOfPrefetch,
     routeCacheVersion: getCurrentRouteCacheVersion(),
     segmentCacheVersion: getCurrentSegmentCacheVersion(),
     segmentCacheMap: taskSegmentCacheMap,
@@ -391,7 +383,7 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
 
 export function reschedulePrefetchTask(
   task: PrefetchTask,
-  treeAtTimeOfPrefetch: FlightRouterState,
+  renderTreeAtTimeOfPrefetch: RouteTree<CacheNode>,
   fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority
 ): void {
@@ -419,7 +411,7 @@ export function reschedulePrefetchTask(
     // Intent priority, even if the rescheduled priority is lower.
     task === mostRecentlyHoveredLink ? PrefetchPriority.Intent : priority
 
-  task.treeAtTimeOfPrefetch = treeAtTimeOfPrefetch
+  task.renderTreeAtTimeOfPrefetch = renderTreeAtTimeOfPrefetch
   task.fetchStrategy = fetchStrategy
 
   trackMostRecentlyHoveredLink(task)
@@ -436,7 +428,7 @@ export function reschedulePrefetchTask(
 export function isPrefetchTaskDirty(
   task: PrefetchTask,
   nextUrl: string | null,
-  tree: FlightRouterState
+  cache: RouteTree<CacheNode>
 ): boolean {
   // This is used to quickly bail out of a prefetch task if the result is
   // guaranteed to not have changed since the task was initiated. This is
@@ -446,7 +438,7 @@ export function isPrefetchTaskDirty(
   return (
     task.routeCacheVersion !== getCurrentRouteCacheVersion() ||
     task.segmentCacheVersion !== getCurrentSegmentCacheVersion() ||
-    task.treeAtTimeOfPrefetch !== tree ||
+    task.renderTreeAtTimeOfPrefetch !== cache ||
     task.key.nextUrl !== nextUrl
   )
 }
@@ -923,7 +915,7 @@ function pingRootRouteTree(
             now,
             task,
             route,
-            task.treeAtTimeOfPrefetch,
+            task.renderTreeAtTimeOfPrefetch,
             tree,
             null,
             staticWalkStrategy
@@ -1007,7 +999,7 @@ function pingRootRouteTree(
             now,
             task,
             route,
-            task.treeAtTimeOfPrefetch,
+            task.renderTreeAtTimeOfPrefetch,
             tree,
             spawnedEntries,
             fetchStrategy
@@ -1324,7 +1316,7 @@ function pingSharedPartOfCacheComponentsTree(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  oldTree: FlightRouterState,
+  oldTree: RouteTree<CacheNode>,
   newTree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The per-pass static walk strategy; see pingRootRouteTree where
@@ -1359,7 +1351,7 @@ function pingSharedPartOfCacheComponentsTree(
   ).bundle
 
   // Recursively ping the children.
-  const oldTreeChildren = oldTree[1]
+  const oldSlots = oldTree.slots
   const newTreeChildren = newTree.slots
   if (newTreeChildren !== null) {
     for (const [parallelRouteKey, newTreeChild] of newTreeChildren) {
@@ -1367,11 +1359,7 @@ function pingSharedPartOfCacheComponentsTree(
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
-      const newTreeChildSegment = newTreeChild.segment
-      const oldTreeChild: FlightRouterState | void =
-        oldTreeChildren[parallelRouteKey]
-      const oldTreeChildSegment: FlightRouterStateSegment | void =
-        oldTreeChild?.[0]
+      const oldTreeChild = oldSlots?.get(parallelRouteKey)
       // Only pass the bundle to the child that accepts it. A parent is
       // only ever bundled into one child.
       const bundleForChild =
@@ -1382,12 +1370,8 @@ function pingSharedPartOfCacheComponentsTree(
           : null
       let childExitStatus
       if (
-        oldTreeChildSegment !== undefined &&
-        doesCurrentSegmentMatchCachedSegment(
-          route,
-          newTreeChildSegment,
-          oldTreeChildSegment
-        )
+        oldTreeChild !== undefined &&
+        doesCurrentSegmentMatchCachedSegment(route, oldTreeChild, newTreeChild)
       ) {
         // We're still in the "shared" part of the tree.
         childExitStatus = pingSharedPartOfCacheComponentsTree(
@@ -1573,7 +1557,7 @@ function diffRouteTreeAgainstCurrent(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  oldTree: FlightRouterState,
+  oldTree: RouteTree<CacheNode>,
   newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy:
@@ -1582,31 +1566,22 @@ function diffRouteTreeAgainstCurrent(
     | FetchStrategy.LoadingBoundary
 ): FlightRouterState {
   // This is a single recursive traversal that does multiple things:
-  // - Finds the parts of the target route (newTree) that are not part of
-  //   of the current page (oldTree) by diffing them, using the same algorithm
-  //   as a real navigation.
+  // - Finds the segments that differ from the current route, comparing each
+  //   segment's identity as we traverse.
   // - Constructs a request tree (FlightRouterState) that describes which
   //   segments need to be prefetched and which ones are already cached.
   // - Creates a set of pending cache entries for the segments that need to
   //   be prefetched, so that a subsequent prefetch task does not request the
   //   same segments again.
-  const oldTreeChildren = oldTree[1]
+  const oldSlots = oldTree.slots
   const newTreeChildren = newTree.slots
   let requestTreeChildren: Record<string, FlightRouterState> = {}
   if (newTreeChildren !== null) {
     for (const [parallelRouteKey, newTreeChild] of newTreeChildren) {
-      const newTreeChildSegment = newTreeChild.segment
-      const oldTreeChild: FlightRouterState | void =
-        oldTreeChildren[parallelRouteKey]
-      const oldTreeChildSegment: FlightRouterStateSegment | void =
-        oldTreeChild?.[0]
+      const oldTreeChild = oldSlots?.get(parallelRouteKey)
       if (
-        oldTreeChildSegment !== undefined &&
-        doesCurrentSegmentMatchCachedSegment(
-          route,
-          newTreeChildSegment,
-          oldTreeChildSegment
-        )
+        oldTreeChild !== undefined &&
+        doesCurrentSegmentMatchCachedSegment(route, oldTreeChild, newTreeChild)
       ) {
         // This segment is already part of the current route. Keep traversing.
         const requestTreeChild = diffRouteTreeAgainstCurrent(
@@ -2624,34 +2599,25 @@ function pingFullSegmentRevalidation(
   }
 }
 
+// TODO: Removed in a later change, which compares route structure by
+// request key.
 function doesCurrentSegmentMatchCachedSegment(
   route: FulfilledRouteCacheEntry,
-  currentSegment: Segment,
-  cachedSegment: Segment
+  currentTree: RouteTree<CacheNode>,
+  cachedTree: RouteTree<null>
 ): boolean {
-  if (cachedSegment === PAGE_SEGMENT_KEY) {
-    // In the FlightRouterState stored by the router, the page segment has the
-    // rendered search params appended to the name of the segment. In the
-    // prefetch cache, however, this is stored separately. So, when comparing
-    // the router's current FlightRouterState to the cached FlightRouterState,
-    // we need to make sure we compare both parts of the segment.
-    // TODO: This is not modeled clearly. We use the same type,
-    // FlightRouterState, for both the CacheNode tree _and_ the prefetch cache
-    // _and_ the server response format, when conceptually those are three
-    // different things and treated in different ways. We should encode more of
-    // this information into the type design so mistakes are less likely.
-    return (
-      currentSegment ===
-      addSearchParamsIfPageSegment(
-        PAGE_SEGMENT_KEY,
-        urlSearchParamsToParsedUrlQuery(
-          new URLSearchParams(route.renderedSearch)
-        )
-      )
-    )
+  if (!matchSegment(currentTree.segment, cachedTree.segment)) {
+    return false
   }
-  // Non-page segments are compared using the same function as the server
-  return matchSegment(cachedSegment, currentSegment)
+  if (cachedTree.segment === PAGE_SEGMENT_KEY) {
+    // The render tree stores the page's rendered search on its vary path; the
+    // route cache stores it on the route entry.
+    const currentSearch =
+      getRenderedSearchFromVaryPath(currentTree.varyPath) ??
+      ('' as NormalizedSearch)
+    return currentSearch === route.renderedSearch
+  }
+  return true
 }
 
 /**

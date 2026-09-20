@@ -18,9 +18,9 @@ import type { FullTransportData, PartialTransportData } from './rsc-transport'
 export type HeadData = React.ReactNode
 
 /**
- * Cache node used in app-router / layout-router.
+ * Render state for a segment. Reuse this object while its data is unchanged;
+ * create a new one when a navigation replaces the segment's data.
  */
-
 export type CacheNode = {
   /**
    * When rsc is not null, it represents the RSC data for the
@@ -48,8 +48,6 @@ export type CacheNode = {
   prefetchHead: HeadData | null
 
   head: HeadData
-
-  slots: Record<string, CacheNode> | null
 
   /**
    * A shared mutable ref that tracks whether this segment should be scrolled
@@ -371,7 +369,7 @@ export function propagateSubtreeBits(
 /**
  * A path through the segment tree: a repeating sequence of segment and
  * parallel route key. Used by the client to address positions in the
- * CacheNode tree (see layout-router).
+ * render tree (see layout-router).
  */
 export type FlightSegmentPath =
   // Uses `any` as repeating pattern can't be typed.

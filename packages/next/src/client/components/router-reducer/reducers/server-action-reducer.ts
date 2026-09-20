@@ -365,7 +365,7 @@ export function serverActionReducer(
         // invalidate both caches until we have a way to detect cookie
         // mutations on the client.
         if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
-          invalidateEntirePrefetchCache(nextUrl, state.tree)
+          invalidateEntirePrefetchCache(nextUrl, state.cache)
         }
 
         // Start a cooldown before re-prefetching to allow CDN cache
@@ -525,7 +525,6 @@ export function serverActionReducer(
           currentUrl,
           currentRenderedSearch,
           state.cache,
-          currentFlightRouterState,
           freshnessPolicy,
           nextUrl,
           scrollBehavior,

@@ -60,7 +60,6 @@ export function serverPatchReducer(
     currentUrl,
     currentRenderedSearch,
     state.cache,
-    state.tree,
     action.freshnessPolicy,
     retryNextUrl,
     scrollBehavior,

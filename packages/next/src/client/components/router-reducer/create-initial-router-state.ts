@@ -5,7 +5,7 @@ import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
 import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
-import { createInitialCacheNodeForHydration } from '../render-tree'
+import { createInitialRenderTreeForHydration } from '../render-tree'
 import {
   writeRuntimePrefetchStreamIntoCache,
   spawnStaticStageCacheWrite,
@@ -71,7 +71,7 @@ export function createInitialRouterState({
   // stores this tree in the route cache, which strips the data on write —
   // see stripDataFromRouteTree.)
   // NOTE: The metadataVaryPath isn't used for anything currently because the
-  // head is embedded into the CacheNode tree, but eventually we'll lift it out
+  // head is embedded into the render tree, but eventually we'll lift it out
   // and store it on the top-level state object.
   //
   // For statically-generated-at-build-time HTML pages, the tree baked into
@@ -104,7 +104,7 @@ export function createInitialRouterState({
     acc
   )
   const metadataVaryPath = acc.metadataVaryPath
-  const initialTask = createInitialCacheNodeForHydration(
+  const initialTask = createInitialRenderTreeForHydration(
     navigatedAt,
     initialRouteTree,
     initialHead,

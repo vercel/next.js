@@ -1,4 +1,5 @@
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import type { RouteTree } from './segment-cache/cache'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import {
   FetchStrategy,
@@ -338,14 +339,13 @@ function rescheduleLinkPrefetch(
 
     const appRouterState = getCurrentAppRouterState()
     if (appRouterState !== null) {
-      const treeAtTimeOfPrefetch = appRouterState.tree
       if (existingPrefetchTask === null) {
         // Initiate a prefetch task.
         const nextUrl = appRouterState.nextUrl
         const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
         instance.prefetchTask = scheduleSegmentPrefetchTask(
           cacheKey,
-          treeAtTimeOfPrefetch,
+          appRouterState.cache,
           instance.fetchStrategy,
           priority,
           null,
@@ -356,7 +356,7 @@ function rescheduleLinkPrefetch(
         // effectively the same as canceling the old task and creating a new one.
         reschedulePrefetchTask(
           existingPrefetchTask,
-          treeAtTimeOfPrefetch,
+          appRouterState.cache,
           instance.fetchStrategy,
           priority
         )
@@ -367,18 +367,18 @@ function rescheduleLinkPrefetch(
 
 export function pingVisibleLinks(
   nextUrl: string | null,
-  tree: FlightRouterState
+  cache: RouteTree<CacheNode>
 ) {
   // For each currently visible link, cancel the existing prefetch task (if it
   // exists) and schedule a new one. This is effectively the same as if all the
   // visible links left and then re-entered the viewport.
   //
-  // This is called when the Next-Url or the base tree changes, since those
+  // This is called when the Next-Url or the active cache tree changes, since those
   // may affect the result of a prefetch task. It's also called after a
   // cache invalidation.
   for (const instance of prefetchableAndVisible) {
     const task = instance.prefetchTask
-    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, tree)) {
+    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, cache)) {
       // The cache has not been invalidated, and none of the inputs have
       // changed. Bail out.
       continue
@@ -391,7 +391,7 @@ export function pingVisibleLinks(
     const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
-      tree,
+      cache,
       instance.fetchStrategy,
       PrefetchPriority.Default,
       null,

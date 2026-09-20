@@ -1,5 +1,5 @@
+import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import type React from 'react'
-import type { Segment as FlightRouterStateSegment } from '../../../shared/lib/app-router-types'
 import {
   PrefetchHint,
   StaticAttemptHints,
@@ -201,9 +201,7 @@ export type RSCSegmentData = {
 
 export type RouteTree<TData> = {
   requestKey: SegmentRequestKey
-  // TODO: Remove the `segment` field, now that it can be reconstructed
-  // from `param`.
-  segment: FlightRouterStateSegment
+  segment: Segment
   varyPath: VaryPath
   // The vary path used for shell-scoped keying of this segment: the
   // segment's vary path with every non-root param replaced with Fallback
@@ -212,14 +210,6 @@ export type RouteTree<TData> = {
   // don't have to recompute it on every shell request.
   shellVaryPath: VaryPath
   refreshState: RefreshState | null
-  // Render output for this segment, when the tree was created from a server
-  // response that rendered it. The type parameter encodes a lifecycle
-  // invariant: trees stored long-term in the route cache
-  // (RouteCacheEntry.tree / .metadata) are RouteTree<null> — structure only —
-  // so RSC payloads can never be pinned in memory outside the segment
-  // cache's eviction control. Trees that carry data must be transient:
-  // created for a navigation or cache-write, then dropped once the data is
-  // transferred into CacheNodes / SegmentCacheEntries.
   data: TData
   // Keyed by parallel route slot name. Stored as a Map rather than a plain
   // object because slot names are app-defined; with a plain object, every
@@ -454,7 +444,7 @@ export function getCurrentSegmentCacheVersion(): number {
  */
 export function invalidateEntirePrefetchCache(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: RouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
@@ -472,7 +462,7 @@ export function invalidateEntirePrefetchCache(
  */
 export function invalidateRouteCacheEntries(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: RouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
 
@@ -489,7 +479,7 @@ export function invalidateRouteCacheEntries(
  */
 export function invalidateSegmentCacheEntries(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: RouteTree<CacheNode>
 ): void {
   currentSegmentCacheVersion++
 
@@ -534,7 +524,7 @@ function notifyInvalidationListener(task: PrefetchTask): void {
 
 export function pingInvalidationListeners(
   nextUrl: string | null,
-  tree: FlightRouterState
+  cache: RouteTree<CacheNode>
 ): void {
   // The rough equivalent of pingVisibleLinks, but for onInvalidate callbacks.
   // This is called when the Next-Url or the base tree changes, since those
@@ -544,7 +534,7 @@ export function pingInvalidationListeners(
     const tasks = invalidationListeners
     invalidationListeners = null
     for (const task of tasks) {
-      if (isPrefetchTaskDirty(task, nextUrl, tree)) {
+      if (isPrefetchTaskDirty(task, nextUrl, cache)) {
         notifyInvalidationListener(task)
       }
     }
@@ -1639,36 +1629,31 @@ export function convertRootFlightRouterStateToRouteTree(
   )
 }
 
-export function convertReusedFlightRouterStateToRouteTree(
-  parentRouteTree: RouteTree<RSCSegmentData | null>,
-  parallelRouteKey: string,
-  flightRouterState: FlightRouterState,
-  renderedSearch: NormalizedSearch,
-  acc: RouteTreeAccumulator
-) {
-  // Create a RouteTree for a FlightRouterState that was reused from an older
-  // route. This happens during a navigation when a parallel route slot does not
-  // match the target route; we reuse whatever slot was already active.
-
-  // Unlike a FlightRouterState, the RouteTree type contains backreferences to
-  // the parent segments. Append the vary path to the parent's vary path.
-  const parentPartialVaryPath = getPartialVaryPath(parentRouteTree.varyPath)
-  const segment = flightRouterState[0]
-  // And the request key.
-  const parentRequestKey = parentRouteTree.requestKey
-  const requestKeyPart = createSegmentRequestKeyPart(segment)
-  const requestKey = appendSegmentRequestKeyPart(
-    parentRequestKey,
-    parallelRouteKey,
-    requestKeyPart
-  )
-  return convertFlightRouterStateToRouteTree(
-    flightRouterState,
-    requestKey,
-    parentPartialVaryPath,
-    renderedSearch,
-    acc
-  )
+export function rebaseInactiveRouteTree<TData>(
+  treeToRebase: RouteTree<TData>
+): RouteTree<null> {
+  // A parallel route slot that the target route doesn't provide keeps the
+  // slot already active on the current route, under the new parent. The slot
+  // sits at the same route position, so its request keys and vary paths are
+  // unchanged: copy the structure and drop the payloads, which belong to the
+  // previous render and are reused separately by render-tree.
+  let slots: Map<string, RouteTree<null>> | null = null
+  if (treeToRebase.slots !== null) {
+    slots = new Map()
+    for (const [parallelRouteKey, child] of treeToRebase.slots) {
+      slots.set(parallelRouteKey, rebaseInactiveRouteTree(child))
+    }
+  }
+  return {
+    requestKey: treeToRebase.requestKey,
+    segment: treeToRebase.segment,
+    varyPath: treeToRebase.varyPath,
+    shellVaryPath: treeToRebase.shellVaryPath,
+    refreshState: treeToRebase.refreshState,
+    data: null,
+    slots,
+    prefetchHints: treeToRebase.prefetchHints,
+  }
 }
 
 export function convertFlightRouterStateToRouteTree(
@@ -1744,8 +1729,8 @@ export function convertFlightRouterStateToRouteTree(
   return tree
 }
 
-export function convertRouteTreeToFlightRouterState(
-  routeTree: RouteTree<RSCSegmentData | null>
+export function convertRouteTreeToFlightRouterState<TData>(
+  routeTree: RouteTree<TData>
 ): FlightRouterState {
   const parallelRoutes: Record<string, FlightRouterState> = {}
   const slots = routeTree.slots

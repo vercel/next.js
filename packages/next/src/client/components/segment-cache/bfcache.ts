@@ -1,4 +1,5 @@
 import { DYNAMIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { VaryPath } from './vary-path'
 
 /**
@@ -70,6 +71,24 @@ export function invalidateBfCache(): void {
 export function writeToBFCache(
   now: number,
   varyPath: VaryPath,
+  cacheNode: CacheNode,
+  dynamicStaleAt: number
+): void {
+  writeEntryToBFCache(
+    now,
+    varyPath,
+    cacheNode.rsc,
+    cacheNode.prefetchRsc,
+    cacheNode.head,
+    cacheNode.prefetchHead,
+    dynamicStaleAt,
+    cacheNode.bfcacheId
+  )
+}
+
+function writeEntryToBFCache(
+  now: number,
+  varyPath: VaryPath,
   rsc: React.ReactNode,
   prefetchRsc: React.ReactNode,
   head: React.ReactNode,
@@ -116,21 +135,20 @@ export function writeToBFCache(
 export function writeHeadToBFCache(
   now: number,
   varyPath: VaryPath,
-  head: React.ReactNode,
-  prefetchHead: React.ReactNode,
-  dynamicStaleAt: number,
-  bfcacheId: number
+  cacheNode: CacheNode,
+  dynamicStaleAt: number
 ): void {
-  // Read the special "segment" that represents the head data.
-  writeToBFCache(
+  // Write the special "segment" that represents the head data. The page
+  // node's head fields take the place of the entry's segment fields.
+  writeEntryToBFCache(
     now,
     varyPath,
-    head,
-    prefetchHead,
+    cacheNode.head,
+    cacheNode.prefetchHead,
     null,
     null,
     dynamicStaleAt,
-    bfcacheId
+    cacheNode.bfcacheId
   )
 }
 
