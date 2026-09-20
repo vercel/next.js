@@ -6,10 +6,7 @@ import type {
 } from './cache-key'
 import type { RouteTree } from './cache'
 import { Fallback, type FallbackType } from './cache-map'
-import {
-  HEAD_REQUEST_KEY,
-  type SegmentRequestKey,
-} from '../../../shared/lib/segment-cache/segment-value-encoding'
+import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 import {
   SEARCH_PARAMS_VARY_ID,
   type VaryParamId,
@@ -208,47 +205,6 @@ export function getPartialVaryPath(
     return parent.parent as PartialVaryPath | null
   }
   return parent as PartialVaryPath | null
-}
-
-export function finalizeMetadataVaryPath(
-  pageRequestKey: SegmentRequestKey,
-  renderedSearch: NormalizedSearch,
-  varyPath: PartialVaryPath | null
-): VaryPath {
-  // The metadata "segment" is not a real segment because it doesn't exist in
-  // the normal structure of the route tree, but in terms of caching, it
-  // behaves like a page segment because it varies by all the same params as
-  // a page.
-  //
-  // To keep the protocol for querying the server simple, the request key for
-  // the metadata does not include any path information. It's unnecessary from
-  // the server's perspective, because unlike page segments, there's only one
-  // metadata response per URL, i.e. there's no need to distinguish multiple
-  // parallel pages.
-  //
-  // However, this means the metadata request key is insufficient for
-  // caching the the metadata in the client cache, because on the client we
-  // use the request key to distinguish the metadata entry from all other
-  // page's metadata entries.
-  //
-  // So instead we create a simulated request key based on the page segment.
-  // Conceptually this is equivalent to the request key the server would have
-  // assigned the metadata segment if it treated it as part of the actual
-  // route structure.
-
-  // If there are multiple parallel pages, we use whichever is the first one.
-  // This is fine because the only difference between request keys for
-  // different parallel pages are things like route groups and parallel
-  // route slots. As long as it's always the same one, it doesn't matter.
-  //
-  // Append the actual metadata request key to the page request key. Note
-  // that we're not using a separate vary path part; it's unnecessary because
-  // these are not conceptually separate inputs.
-  return finalizeVaryPath(
-    (pageRequestKey + HEAD_REQUEST_KEY) as SegmentRequestKey,
-    renderedSearch,
-    varyPath
-  )
 }
 
 export function getSegmentVaryPathForRequest<TData>(

@@ -7,7 +7,6 @@
 
 import type {
   FlightRouterState,
-  HeadData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import {
@@ -21,10 +20,7 @@ import type {
   TransportSegment,
 } from '../../../shared/lib/rsc-transport'
 import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
-import type {
-  VaryParams,
-  VaryParamsIterable,
-} from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { decodeVaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   type SegmentRequestKey,
@@ -48,39 +44,31 @@ import { splitPathnameIntoParts } from './cache-key'
 import type { PartialVaryPath, VaryPath } from './vary-path'
 import {
   appendLayoutVaryPath,
-  finalizeMetadataVaryPath,
   finalizeVaryPath,
   getPartialVaryPath,
   getShellSegmentVaryPath,
 } from './vary-path'
 import {
   type RouteTree,
+  type RootRouteTree,
   type RSCSegmentData,
   type RefreshState,
   type RouteTreeAccumulator,
   convertFlightRouterStateToRouteTree,
   convertRootFlightRouterStateToRouteTree,
+  createMetadataRouteTree,
+  createRootRouteTree,
+  getHeadRequestKey,
 } from './cache'
 import { computeDynamicStaleAt } from './bfcache'
 
 export type NavigationSeed = {
-  renderedSearch: string
-  routeTree: RouteTree<RSCSegmentData | null>
-  metadataVaryPath: VaryPath | null
-  head: HeadData | null
-  isHeadPartial: boolean
+  renderedSearch: NormalizedSearch
   /**
-   * The source of the params the head's output depends on (root params
-   * included). Null means unknown — tracking wasn't enabled, or the decode
-   * had no root params to union in — so consumers key on all params.
+   * The decoded response. The head's `data` is decoded exactly like a segment
+   * node's: null when the response carries no head.
    */
-  headVaryParams: VaryParams | null
-  /**
-   * The head's own staleTime in seconds, when the response carries one
-   * (per-segment prefetch responses only — see TransportSegmentData['s']).
-   * Null means the response-level staleness governs the head.
-   */
-  headStaleTimeSeconds: number | null
+  root: RootRouteTree<RSCSegmentData | null>
   dynamicStaleAt: number
   // Whether the response rendered a segment whose identity differs from the
   // base tree's at the same position (inactive parallel route branches are
@@ -137,18 +125,23 @@ export function createNavigationSeed(
   // decodeTransportTreeIntoRouteTree. Callers whose responses always carry
   // concrete values (navigation responses) may pass null.
   renderedPathname: string | null,
+  // Already normalized by the response reader (see getRenderedSearch); the
+  // router state stores it as a plain string, so it is re-branded here.
   renderedSearch: string,
+  // Where to key the head. Null derives it from the route's own first page
+  // node (see createRouteTreeNode). Per-segment prefetch payloads pass the
+  // route's own metadata vary path instead: a standalone head response's tree
+  // is a bare root identity with no page node.
+  metadataVaryPath: VaryPath | null,
   dynamicStaleTimeSeconds: number
 ): NavigationSeed {
+  const normalizedRenderedSearch = renderedSearch as NormalizedSearch
   const acc: RouteTreeAccumulator = {
     metadataVaryPath: null,
     treeDivergedFromBase: false,
   }
   let routeTree: RouteTree<RSCSegmentData | null>
-  let head: HeadData | null = null
-  let isHeadPartial = true
-  let headVaryParams: VaryParams | null = null
-  let headStaleTimeSeconds: number | null = null
+  let headData: RSCSegmentData | null = null
   if (transportData !== null) {
     routeTree = decodeTransportTreeIntoRouteTree(
       transportData.t,
@@ -156,12 +149,11 @@ export function createNavigationSeed(
       rootVaryParams,
       isResponsePartial,
       renderedPathname,
-      renderedSearch as NormalizedSearch,
+      normalizedRenderedSearch,
       acc
     )
     const transportHead = transportData.h
     if (transportHead !== undefined) {
-      head = transportHead.r
       // The wire form of `p` determines which signal is authoritative for
       // the head's partiality, mirroring the per-node rule in
       // decodeTransportNode:
@@ -183,17 +175,20 @@ export function createNavigationSeed(
       //   carries a complete head; a partial (postponed) one does not.
       //   Without Cache Components, the server sends the correct
       //   isHeadPartial, so the wire boolean is used as-is.
-      isHeadPartial =
-        typeof transportHead.p === 'boolean'
-          ? process.env.__NEXT_CACHE_COMPONENTS
-            ? isResponsePartial
-            : transportHead.p
-          : readFulfilledIsPartial(transportHead.p)
-      headVaryParams = decodeVaryParams(transportHead.v, rootVaryParams)
-      headStaleTimeSeconds =
-        transportHead.s !== undefined
-          ? readFulfilledStaleTimeSeconds(transportHead.s)
-          : null
+      headData = {
+        rsc: transportHead.r,
+        isPartial:
+          typeof transportHead.p === 'boolean'
+            ? process.env.__NEXT_CACHE_COMPONENTS
+              ? isResponsePartial
+              : transportHead.p
+            : readFulfilledIsPartial(transportHead.p),
+        varyParams: decodeVaryParams(transportHead.v, rootVaryParams),
+        staleTimeSeconds:
+          transportHead.s !== undefined
+            ? readFulfilledStaleTimeSeconds(transportHead.s)
+            : null,
+      }
     }
   } else {
     if (currentTree === null) {
@@ -204,19 +199,33 @@ export function createNavigationSeed(
     }
     routeTree = convertRootFlightRouterStateToRouteTree(
       currentTree,
-      renderedSearch as NormalizedSearch,
+      normalizedRenderedSearch,
       acc
     )
   }
 
+  if (metadataVaryPath === null) {
+    metadataVaryPath = acc.metadataVaryPath
+    if (metadataVaryPath === null) {
+      // Every route renders a page, so a rendered tree always has a node to
+      // key the head under.
+      throw new InvariantError(
+        'Cannot key the head of a server response: its tree has no page ' +
+          'segment.'
+      )
+    }
+  }
+
   return {
-    routeTree,
-    metadataVaryPath: acc.metadataVaryPath,
-    renderedSearch,
-    head,
-    isHeadPartial,
-    headVaryParams,
-    headStaleTimeSeconds,
+    root: createRootRouteTree(
+      routeTree,
+      createMetadataRouteTree(
+        metadataVaryPath,
+        routeTree.prefetchHints,
+        headData
+      )
+    ),
+    renderedSearch: normalizedRenderedSearch,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
     treeDivergedFromBase: acc.treeDivergedFromBase,
   }
@@ -224,7 +233,7 @@ export function createNavigationSeed(
 
 /**
  * Creates a RouteTree node for a segment, with its identity and cache-key
- * information (vary paths, the normalized segment value)
+ * information (vary paths, the normalized segment value, the refresh state)
  * initialized, and the remaining fields set to their defaults. The caller
  * finishes initializing those in place after recursing into the children.
  * Shared by FlightRouterState conversion, transport decoding, and subtree
@@ -236,6 +245,7 @@ export function createRouteTreeNode<TData>(
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialVaryPath | null,
   renderedSearch: NormalizedSearch,
+  refreshState: RefreshState | null,
   acc: RouteTreeAccumulator
 ): RouteTree<TData | null> {
   let segment: FlightRouterStateSegment
@@ -270,15 +280,12 @@ export function createRouteTreeNode<TData>(
       // them entirely on the client, similar to our plan for dynamic params.
       segment = PAGE_SEGMENT_KEY
       varyPath = finalizeVaryPath(requestKey, renderedSearch, partialVaryPath)
-      // The metadata "segment" is not part the route tree, but it has the same
-      // conceptual params as a page segment. Write the vary path into the
-      // accumulator object. If there are multiple parallel pages, we use the
-      // first one. Which page we choose is arbitrary as long as it's
-      // consistently the same one every time every time. See
-      // finalizeMetadataVaryPath for more details.
-      if (acc.metadataVaryPath === null) {
-        acc.metadataVaryPath = finalizeMetadataVaryPath(
-          requestKey,
+      // The head is keyed under the route's own first page and varies on the
+      // same params as that page (see getHeadRequestKey). A page reused from
+      // another URL carries a refresh state and never keys it.
+      if (refreshState === null && acc.metadataVaryPath === null) {
+        acc.metadataVaryPath = finalizeVaryPath(
+          getHeadRequestKey(requestKey),
           renderedSearch,
           partialVaryPath
         )
@@ -293,7 +300,7 @@ export function createRouteTreeNode<TData>(
     requestKey,
     segment,
     shellVaryPath: getShellSegmentVaryPath(varyPath),
-    refreshState: null,
+    refreshState,
     data: null,
     varyPath,
     slots: null,
@@ -492,9 +499,9 @@ function decodeTransportNode(
     requestKey,
     parentPartialVaryPath,
     renderedSearch,
+    refreshState,
     acc
   )
-  tree.refreshState = refreshState
   const partialVaryPath = getPartialVaryPath(tree.varyPath)
 
   let slots: Map<string, RouteTree<RSCSegmentData | null>> | null = null

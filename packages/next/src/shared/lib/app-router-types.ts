@@ -57,10 +57,6 @@ export type CacheNode = {
    */
   varyParams: VaryParams | null
 
-  prefetchHead: HeadData | null
-
-  head: HeadData
-
   /**
    * A shared mutable ref that tracks whether this segment should be scrolled
    * to. All new segments created during a single navigation share the same

@@ -34,8 +34,6 @@ import {
 export type BFCacheEntry = {
   rsc: React.ReactNode | null
   prefetchRsc: React.ReactNode | null
-  head: React.ReactNode | null
-  prefetchHead: React.ReactNode | null
 
   // The source of the params `rsc` depends on, copied from the CacheNode that
   // wrote this entry (see CacheNode.varyParams). A restored node reads it to
@@ -80,46 +78,17 @@ export function writeToBFCache(
   cacheNode: CacheNode,
   dynamicStaleAt: number
 ): void {
-  writeEntryToBFCache(
-    now,
-    varyPath,
-    cacheNode.rsc,
-    cacheNode.prefetchRsc,
-    cacheNode.varyParams,
-    cacheNode.head,
-    cacheNode.prefetchHead,
-    dynamicStaleAt,
-    cacheNode.bfcacheId
-  )
-}
-
-function writeEntryToBFCache(
-  now: number,
-  varyPath: VaryPath,
-  rsc: React.ReactNode,
-  prefetchRsc: React.ReactNode,
-  varyParams: VaryParams | null,
-  head: React.ReactNode,
-  prefetchHead: React.ReactNode,
-  dynamicStaleAt: number,
-  bfcacheId: number
-): void {
   if (typeof window === 'undefined') {
     return
   }
 
   const entry: BFCacheEntry = {
-    rsc,
-    prefetchRsc,
+    rsc: cacheNode.rsc,
+    prefetchRsc: cacheNode.prefetchRsc,
 
-    // TODO: These fields will be removed from both BFCacheEntry and
-    // SegmentCacheEntry. The head has its own separate cache entry.
-    head,
-    prefetchHead,
+    varyParams: cacheNode.varyParams,
 
-    varyParams,
-
-    bfcacheId,
+    bfcacheId: cacheNode.bfcacheId,
 
     ref: null,
     // TODO: This is just a heuristic. Getting the actual size of the segment
@@ -140,29 +109,6 @@ function writeEntryToBFCache(
   }
   const isRevalidation = false
   setInCacheMap(bfcacheMap, varyPath, entry, isRevalidation)
-}
-
-export function writeHeadToBFCache(
-  now: number,
-  varyPath: VaryPath,
-  cacheNode: CacheNode,
-  dynamicStaleAt: number
-): void {
-  // Write the special "segment" that represents the head data. The page
-  // node's head fields take the place of the entry's segment fields. The
-  // head's dependency source isn't tracked on the node, so the entry has
-  // none.
-  writeEntryToBFCache(
-    now,
-    varyPath,
-    cacheNode.head,
-    cacheNode.prefetchHead,
-    null,
-    null,
-    null,
-    dynamicStaleAt,
-    cacheNode.bfcacheId
-  )
 }
 
 /**

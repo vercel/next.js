@@ -1,4 +1,4 @@
-import type { RouteTree } from './segment-cache/cache'
+import type { RootRouteTree } from './segment-cache/cache'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import {
@@ -345,7 +345,7 @@ function rescheduleLinkPrefetch(
         const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
         instance.prefetchTask = scheduleSegmentPrefetchTask(
           cacheKey,
-          appRouterState.cache,
+          appRouterState.root,
           instance.fetchStrategy,
           priority,
           null,
@@ -356,7 +356,7 @@ function rescheduleLinkPrefetch(
         // effectively the same as canceling the old task and creating a new one.
         reschedulePrefetchTask(
           existingPrefetchTask,
-          appRouterState.cache,
+          appRouterState.root,
           instance.fetchStrategy,
           priority
         )
@@ -367,7 +367,7 @@ function rescheduleLinkPrefetch(
 
 export function pingVisibleLinks(
   nextUrl: string | null,
-  cache: RouteTree<CacheNode>
+  root: RootRouteTree<CacheNode>
 ) {
   // For each currently visible link, cancel the existing prefetch task (if it
   // exists) and schedule a new one. This is effectively the same as if all the
@@ -378,7 +378,7 @@ export function pingVisibleLinks(
   // cache invalidation.
   for (const instance of prefetchableAndVisible) {
     const task = instance.prefetchTask
-    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, cache)) {
+    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, root)) {
       // The cache has not been invalidated, and none of the inputs have
       // changed. Bail out.
       continue
@@ -391,7 +391,7 @@ export function pingVisibleLinks(
     const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
-      cache,
+      root,
       instance.fetchStrategy,
       PrefetchPriority.Default,
       null,
