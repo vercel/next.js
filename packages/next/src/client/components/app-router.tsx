@@ -166,7 +166,10 @@ function HistoryUpdater({
 }
 
 function copyNextJsInternalHistoryState(data: any) {
-  if (data == null) data = {}
+  // Next.js stores its own keys on the history state, so it has to be an
+  // object. A primitive state (e.g. `''`) can't hold them and assigning to it
+  // throws in strict mode, so treat it like `null`.
+  if (data == null || typeof data !== 'object') data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
