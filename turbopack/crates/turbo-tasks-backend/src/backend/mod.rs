@@ -1138,7 +1138,7 @@ impl TurboTasksBackend {
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>), anyhow::Error> {
+    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>)> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
