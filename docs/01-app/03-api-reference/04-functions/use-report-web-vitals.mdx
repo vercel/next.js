@@ -181,12 +181,13 @@ measure the time it takes for the page to hydrate and render:
   route change (in ms)
 - `Next.js-render`: Length of time it takes for a page to finish render after a route change (in ms)
 
+Next.js passes these custom metrics to the `reportWebVitals` function exported from `pages/_app.js`.
+The `useReportWebVitals` hook reports only the [Web Vitals](#web-vitals) listed above.
+
 You can handle all the results of these metrics separately:
 
 ```jsx filename="pages/_app.js"
-import { useReportWebVitals } from 'next/web-vitals'
-
-function handleCustomMetrics(metric) {
+export function reportWebVitals(metric) {
   switch (metric.name) {
     case 'Next.js-hydration':
       // handle hydration results
@@ -202,9 +203,7 @@ function handleCustomMetrics(metric) {
   }
 }
 
-function MyApp({ Component, pageProps }) {
-  useReportWebVitals(handleCustomMetrics)
-
+export default function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
 }
 ```
@@ -239,15 +238,17 @@ useReportWebVitals(postWebVitals)
 > etc.)
 
 > ```js
-> useReportWebVitals(metric => {
+> useReportWebVitals((metric) => {
 >   // Use `window.gtag` if you initialized Google Analytics as this example:
 >   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics
 >   window.gtag('event', metric.name, {
->     value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value), // values must be integers
+>     value: Math.round(
+>       metric.name === 'CLS' ? metric.value * 1000 : metric.value
+>     ), // values must be integers
 >     event_label: metric.id, // id unique to current page load
 >     non_interaction: true, // avoids affecting bounce rate.
->   });
-> }
+>   })
+> })
 > ```
 >
 > Read more about [sending results to Google Analytics](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
