@@ -45,18 +45,12 @@ import {
 } from '../../route-params'
 import type { NormalizedSearch } from './cache-key'
 import { splitPathnameIntoParts } from './cache-key'
-import type {
-  PageVaryPath,
-  PartialSegmentVaryPath,
-  SegmentVaryPath,
-} from './vary-path'
+import type { PartialVaryPath, VaryPath } from './vary-path'
 import {
   appendLayoutVaryPath,
-  finalizeLayoutVaryPath,
   finalizeMetadataVaryPath,
-  finalizePageVaryPath,
-  getPartialLayoutVaryPath,
-  getPartialPageVaryPath,
+  finalizeVaryPath,
+  getPartialVaryPath,
   getShellSegmentVaryPath,
 } from './vary-path'
 import {
@@ -72,7 +66,7 @@ import { computeDynamicStaleAt } from './bfcache'
 export type NavigationSeed = {
   renderedSearch: string
   routeTree: RouteTree<RSCSegmentData | null>
-  metadataVaryPath: PageVaryPath | null
+  metadataVaryPath: VaryPath | null
   head: HeadData | null
   isHeadPartial: boolean
   /**
@@ -233,7 +227,7 @@ export function createNavigationSeed(
 
 /**
  * Creates a RouteTree node for a segment, with its identity and cache-key
- * information (vary paths, page-ness, the normalized segment value)
+ * information (vary paths, the normalized segment value)
  * initialized, and the remaining fields set to their defaults. The caller
  * finishes initializing those in place after recursing into the children.
  * Shared by the FlightRouterState converter and the transport decoder so the
@@ -244,16 +238,14 @@ export function createRouteTreeNode<TData>(
   originalSegment: FlightRouterStateSegment,
   isRootParam: boolean,
   requestKey: SegmentRequestKey,
-  parentPartialVaryPath: PartialSegmentVaryPath | null,
+  parentPartialVaryPath: PartialVaryPath | null,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ): RouteTree<TData | null> {
   let segment: FlightRouterStateSegment
-  let partialVaryPath: PartialSegmentVaryPath | null
-  let isPage: boolean
-  let varyPath: SegmentVaryPath
+  let partialVaryPath: PartialVaryPath | null
+  let varyPath: VaryPath
   if (Array.isArray(originalSegment)) {
-    isPage = false
     const paramCacheKey = originalSegment[1]
     const paramName = originalSegment[0]
     partialVaryPath = appendLayoutVaryPath(
@@ -262,7 +254,7 @@ export function createRouteTreeNode<TData>(
       paramName,
       isRootParam
     )
-    varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
+    varyPath = finalizeVaryPath(requestKey, null, partialVaryPath)
     segment = originalSegment
   } else {
     // This segment does not have a param. Inherit the partial vary path of
@@ -270,7 +262,6 @@ export function createRouteTreeNode<TData>(
     partialVaryPath = parentPartialVaryPath
     if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
       // This is a page segment.
-      isPage = true
 
       // The navigation implementation expects the search params to be included
       // in the segment. However, in the case of a static response, the search
@@ -282,11 +273,7 @@ export function createRouteTreeNode<TData>(
       // TODO: We should move search params out of FlightRouterState and handle
       // them entirely on the client, similar to our plan for dynamic params.
       segment = PAGE_SEGMENT_KEY
-      varyPath = finalizePageVaryPath(
-        requestKey,
-        renderedSearch,
-        partialVaryPath
-      )
+      varyPath = finalizeVaryPath(requestKey, renderedSearch, partialVaryPath)
       // The metadata "segment" is not part the route tree, but it has the same
       // conceptual params as a page segment. Write the vary path into the
       // accumulator object. If there are multiple parallel pages, we use the
@@ -302,9 +289,8 @@ export function createRouteTreeNode<TData>(
       }
     } else {
       // This is a layout segment.
-      isPage = false
       segment = originalSegment
-      varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
+      varyPath = finalizeVaryPath(requestKey, null, partialVaryPath)
     }
   }
   return {
@@ -313,11 +299,7 @@ export function createRouteTreeNode<TData>(
     shellVaryPath: getShellSegmentVaryPath(varyPath),
     refreshState: null,
     data: null,
-    // TODO: Cheating the type system here a bit because TypeScript can't tell
-    // that the type of isPage and varyPath are consistent. If isPage were
-    // wrong it would break the behavior and we'd catch it quickly.
-    varyPath: varyPath as any,
-    isPage: isPage as boolean as any,
+    varyPath,
     slots: null,
     prefetchHints: 0,
   }
@@ -446,7 +428,7 @@ function decodeTransportNode(
   rootVaryParams: VaryParamsIterable | null,
   isResponsePartial: boolean,
   requestKey: SegmentRequestKey,
-  parentPartialVaryPath: PartialSegmentVaryPath | null,
+  parentPartialVaryPath: PartialVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
   pathnameParts: Array<string> | null,
   // The URL position this node's children read from.
@@ -517,9 +499,7 @@ function decodeTransportNode(
     acc
   )
   tree.refreshState = refreshState
-  const partialVaryPath = tree.isPage
-    ? getPartialPageVaryPath(tree.varyPath)
-    : getPartialLayoutVaryPath(tree.varyPath)
+  const partialVaryPath = getPartialVaryPath(tree.varyPath)
 
   let slots: Map<string, RouteTree<RSCSegmentData | null>> | null = null
   const transportChildren = node.c

@@ -6,11 +6,25 @@
 
 import { readFulfilledValue } from '../rsc-transport'
 
-export type VaryParams = Set<string>
+/**
+ * The vary path id for search params. Path params are identified by their
+ * name. Search params don't have a fixed set of names, so any access to them
+ * is reported under this one id, and the segment is keyed by the whole search
+ * string (see createVaryingSearchParams in app-render/vary-params.ts).
+ *
+ * It's a number so it can't collide with a param name. `app/[?]/page.tsx` is a
+ * valid route.
+ */
+export const SEARCH_PARAMS_VARY_ID = 0
+
+// Path param names, and SEARCH_PARAMS_VARY_ID for the search params.
+export type VaryParamId = string | number
+
+export type VaryParams = Set<VaryParamId>
 
 /**
  * Vary params are serialized into the Flight stream as an
- * `AsyncIterable<string>` that yields each accessed param name exactly once
+ * `AsyncIterable<VaryParamId>` that yields each accessed param id exactly once
  * (the server dedupes before emitting). Because each access is flushed into the
  * stream as it happens, there's no step at the end of the render that has to
  * run for the client to read anything. If a prerender is aborted by sync I/O,
@@ -23,7 +37,7 @@ export type VaryParams = Set<string>
  * the render — folding them into every segment would otherwise require a merge
  * once the whole render is complete.
  */
-export type VaryParamsIterable = AsyncIterable<string>
+export type VaryParamsIterable = AsyncIterable<VaryParamId>
 
 /**
  * Synchronously drains a vary params `AsyncIterable`, adding each yielded name

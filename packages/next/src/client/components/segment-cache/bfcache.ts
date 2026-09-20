@@ -1,5 +1,5 @@
 import { DYNAMIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
-import type { SegmentVaryPath } from './vary-path'
+import type { VaryPath } from './vary-path'
 
 /**
  * Sentinel value indicating that no per-page dynamic stale time was provided.
@@ -69,7 +69,7 @@ export function invalidateBfCache(): void {
 
 export function writeToBFCache(
   now: number,
-  varyPath: SegmentVaryPath,
+  varyPath: VaryPath,
   rsc: React.ReactNode,
   prefetchRsc: React.ReactNode,
   head: React.ReactNode,
@@ -115,7 +115,7 @@ export function writeToBFCache(
 
 export function writeHeadToBFCache(
   now: number,
-  varyPath: SegmentVaryPath,
+  varyPath: VaryPath,
   head: React.ReactNode,
   prefetchHead: React.ReactNode,
   dynamicStaleAt: number,
@@ -141,7 +141,7 @@ export function writeHeadToBFCache(
  * by the default DYNAMIC_STALETIME_MS.
  */
 export function updateBFCacheEntryStaleAt(
-  varyPath: SegmentVaryPath,
+  varyPath: VaryPath,
   newStaleAt: number
 ): void {
   if (typeof window === 'undefined') {
@@ -162,9 +162,7 @@ export function updateBFCacheEntryStaleAt(
   }
 }
 
-export function readFromBFCache(
-  varyPath: SegmentVaryPath
-): BFCacheEntry | null {
+export function readFromBFCache(varyPath: VaryPath): BFCacheEntry | null {
   if (typeof window === 'undefined') {
     return null
   }
@@ -184,7 +182,7 @@ export function readFromBFCache(
 
 export function readFromBFCacheDuringRegularNavigation(
   now: number,
-  varyPath: SegmentVaryPath
+  varyPath: VaryPath
 ): BFCacheEntry | null {
   if (typeof window === 'undefined') {
     return null
