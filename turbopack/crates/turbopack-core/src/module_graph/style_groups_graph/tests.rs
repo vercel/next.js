@@ -518,6 +518,21 @@ fn make_acyclic_refines_non_adjacent_counterexample_move() {
 }
 
 #[test]
+fn make_acyclic_refines_node_toward_end() {
+    let groups = [vec![1, 0], vec![0, 2], vec![2, 1, 0]];
+    let (graph, _) = create_graph(&groups, 3);
+    let scc = strongly_connected_components(&graph)
+        .into_iter()
+        .find(|component| component.len() > 1)
+        .unwrap();
+    // Reverse of the preceding fixture: moving node 2 from the front to the end increases the
+    // satisfied edge weight from 3 to 4.
+    let mut order = vec![n(2), n(0), n(1)];
+    refine_feedback_arc_order(&mut order, &graph, &scc);
+    assert_eq!(ids(&order), vec![0, 1, 2]);
+}
+
+#[test]
 fn make_acyclic_refinement_keeps_equal_score_order() {
     let mut graph = build_graph(3, |g| {
         for from in 0..3 {
