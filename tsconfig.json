@@ -13,6 +13,7 @@
     "paths": {
       "development-sandbox": ["./test/lib/development-sandbox"],
       "next-test-utils": ["./test/lib/next-test-utils"],
+      "next-websocket-test-utils": ["./test/lib/next-websocket-test-utils"],
       "next-webdriver": ["./test/lib/next-webdriver"],
       "e2e-utils": ["./test/lib/e2e-utils"],
       "e2e-utils/*": ["./test/lib/e2e-utils/*"],
