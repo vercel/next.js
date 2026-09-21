@@ -182,6 +182,7 @@ export function PseudoHtmlDiff({
               onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
             >
               <CollapseIcon collapsed={isDiffCollapsed} />
+              <span data-nextjs-hydration-diff-title>Client/server diff</span>
             </button>
             <div data-nextjs-hydration-diff-badge>
               <span data-nextjs-hydration-diff-badge-item="client">
