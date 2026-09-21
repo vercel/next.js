@@ -30,6 +30,7 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../shared/lib/constants'
 import { parseReqUrl } from '../../lib/url'
+import { normalizeNextQueryParam } from '../web/utils'
 import {
   normalizeLocalePath,
   type PathLocale,
@@ -843,14 +844,20 @@ export abstract class RouteModule<
 
     // attempt parsing from pathname
     if (!params && serverUtils.dynamicRouteMatcher) {
-      const paramsMatch = serverUtils.dynamicRouteMatcher(
-        normalizeDataPath(
-          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
-        )
+      const pathname = normalizeDataPath(
+        rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
       )
+      const paramsMatch = serverUtils.dynamicRouteMatcher(pathname)
+      // An adapter can invoke the route template with no query params when an
+      // optional catch-all is omitted. Those template segments are unresolved,
+      // so let the query resolve the omission instead of treating the template
+      // as literal pathname data. Ordinary requests still preserve literals.
+      const isUpstreamRouteTemplate =
+        getRequestMeta(req, 'minimalMode') === true &&
+        pathname === normalizedSrcPage
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         paramsMatch || {},
-        true
+        !isUpstreamRouteTemplate
       )
 
       if (paramsResult.hasValidParams) {
@@ -909,19 +916,57 @@ export abstract class RouteModule<
     serverUtils.normalizeCdnUrl(req, combinedParamKeys)
     // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
     // Outside of that environment, there is no reason to do any normalization to honor those query values.
+    const capturedRouteParamKeys = new Set<string>()
     if (!routerServerContext?.isWrappedByNextServer) {
-      serverUtils.normalizeQueryParams(query, routeParamKeys)
+      const initialQuery = parseReqUrl(
+        getRequestMeta(req, 'initURL') || ''
+      )?.query
+      for (const key of Object.keys(initialQuery || {})) {
+        const normalizedKey = normalizeNextQueryParam(key)
+        if (normalizedKey) capturedRouteParamKeys.add(normalizedKey)
+      }
+      serverUtils.normalizeQueryParams(
+        query,
+        routeParamKeys,
+        // Pages Router captures still need the platform's pathname decode,
+        // including encoded separators in catch-all data requests.
+        this.definition.kind === RouteKind.APP_PAGE ||
+          this.definition.kind === RouteKind.APP_ROUTE
+          ? capturedRouteParamKeys
+          : undefined
+      )
     } else {
       serverUtils.filterInternalQuery(query, [])
     }
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
-      const queryResult = serverUtils.normalizeDynamicRouteParams(query, true)
+      const routeParamsInQuery = new Set(
+        Object.keys(serverUtils.defaultRouteMatches || {}).filter(
+          (key) => routeParamKeys.has(key) && query[key] !== undefined
+        )
+      )
+      // Adapters may inject params by matching the rewritten route template.
+      // A value captured from the incoming URL is literal input, even if it
+      // looks like a placeholder. Only params added after initURL was recorded
+      // can represent an omitted optional segment.
+      const placeholderRouteParamKeys = new Set(
+        Array.from(routeParamKeys).filter(
+          (key) => !capturedRouteParamKeys.has(key)
+        )
+      )
+      const queryResult = serverUtils.normalizeDynamicRouteParams(
+        query,
+        true,
+        placeholderRouteParamKeys
+      )
 
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         params || {},
         true
+      )
+      const omittedRouteParamFromQuery = Array.from(routeParamsInQuery).some(
+        (key) => query[key] === undefined
       )
 
       let paramsToInterpolate: ParsedUrlQuery
@@ -934,9 +979,14 @@ export abstract class RouteModule<
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        routeParamKeys.size > 0 &&
-        Object.keys(paramsResult.params).length <=
-          Object.keys(queryResult.params).length
+        ((routeParamKeys.size > 0 &&
+          Object.keys(paramsResult.params).length <=
+            Object.keys(queryResult.params).length) ||
+          // The adapter can supply an encoded optional catch-all placeholder
+          // in the query while matching the same value from the pathname.
+          // If normalization removed that query sentinel, prefer the omission
+          // over the independently matched pathname placeholder.
+          omittedRouteParamFromQuery)
       ) {
         paramsToInterpolate = queryResult.params
         params = Object.assign(queryResult.params)
