@@ -43,6 +43,32 @@ describe('use-cache-fallback-root-params', () => {
     }
   })
 
+  // These are per-shell build measurements, not the route-level manifest:
+  // a concrete prerender can supply that manifest's hints before the generic
+  // shell is rendered. Inspect the generic shell to exercise RDC pruning.
+  // @force-gate !dev && !deploy
+  it('preserves static-prefetch hints when only fallback roots are missing', async () => {
+    // PrefetchHint.ShouldAttemptStaticPrefetch. If this representation changes,
+    // preserve the regression rather than exposing router internals for tests.
+    const shouldAttemptStaticPrefetch = 0b100000000000000
+    for (const pathname of ['[lang]', '[lang]/nested', '[lang]/boundary']) {
+      const meta = JSON.parse(
+        await next.readFile(`.next/server/app/${pathname}.meta`)
+      )
+      expect(
+        (meta.prefetchHints?.hints ?? 0) & shouldAttemptStaticPrefetch
+      ).toBe(shouldAttemptStaticPrefetch)
+    }
+  })
+
+  // @force-gate !dev && !deploy
+  it('does not mistake searchParams in a cached page for a fallback root read', async () => {
+    const meta = JSON.parse(
+      await next.readFile('.next/server/app/[lang]/search.meta')
+    )
+    expect((meta.prefetchHints?.hints ?? 0) & 0b100000000000000).toBe(0)
+  })
+
   it('resolves cached and uncached roots on ordinary requests', async () => {
     await Promise.all(
       ['en', 'fr', 'de'].map(async (language) => {

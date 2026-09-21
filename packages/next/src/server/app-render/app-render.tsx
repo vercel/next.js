@@ -32,6 +32,7 @@ import type { NextParsedUrlQuery } from '../request-meta'
 import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
 import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
+import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
@@ -8875,18 +8876,31 @@ async function prerenderToStream(
         // doesn't know. A miss in the read-only seed becomes a dynamic hole.
         // Keep the original seed intact for shells where those roots are known.
         const cache = new Map(resumeDataCache.cache)
+        const dynamicCacheReasons = new Map(resumeDataCache.dynamicCacheReasons)
         for (const [key, pendingEntry] of cache) {
-          const { readRootParamNames } = await pendingEntry
+          const {
+            readRootParamNames,
+            entry: { revalidate, expire },
+          } = await pendingEntry
           if (readRootParamNames) {
             for (const name of readRootParamNames) {
               if (fallbackRouteParams.has(name)) {
                 cache.delete(key)
+                // Unlike an unexplained miss, this entry can become static
+                // once its root params are known. Preserve that distinction
+                // for the final pass's static-prefetch hint. Short-lived
+                // entries still need runtime data even with concrete params.
+                if (revalidate === 0 || expire < MIN_PRERENDERABLE_EXPIRE) {
+                  dynamicCacheReasons.set(key, 'runtime')
+                } else if (!dynamicCacheReasons.has(key)) {
+                  dynamicCacheReasons.set(key, 'fallback-params')
+                }
                 break
               }
             }
           }
         }
-        resumeDataCache = { ...resumeDataCache, cache }
+        resumeDataCache = { ...resumeDataCache, cache, dynamicCacheReasons }
       }
       reactServerPrerenderResultIsDynamic = null
       reactServerResumeDataCache = resumeDataCache

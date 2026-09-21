@@ -10,6 +10,10 @@ const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 function createMockedCache() {
   const cache = createPrerenderResumeDataCache()
+  // Omission reasons are only carried between passes of this prerender, never
+  // into the persisted cache used by a later request.
+  cache.dynamicCacheReasons.set('fallback-hole', 'fallback-params')
+  cache.dynamicCacheReasons.set('runtime-hole', 'runtime')
 
   // Should be included during serialization.
   cache.cache.set(
@@ -77,6 +81,19 @@ function createMockedCacheWithEntryThatFails() {
 
   return cache
 }
+
+describe('createPrerenderResumeDataCache', () => {
+  it('copies omission reasons without changing the seed', () => {
+    const seed = createMockedCache()
+    const clone = createPrerenderResumeDataCache(seed)
+
+    expect(clone.dynamicCacheReasons).toEqual(seed.dynamicCacheReasons)
+    clone.dynamicCacheReasons.set('fallback-hole', 'runtime')
+    expect(seed.dynamicCacheReasons.get('fallback-hole')).toBe(
+      'fallback-params'
+    )
+  })
+})
 
 describe('stringifyResumeDataCache', () => {
   it('throws in the edge runtime before serializing an empty cache', async () => {
@@ -175,7 +192,7 @@ describe('parseResumeDataCache', () => {
     expect(parsed.fetch).toEqual(new Map())
     expect(parsed.encryptedBoundArgs).toEqual(new Map())
     expect(parsed.decryptedBoundArgs).toEqual(new Map())
-    expect(parsed.dynamicCacheKeys).toBeUndefined()
+    expect(parsed.dynamicCacheReasons).toBeUndefined()
   })
 
   it.each([false, true])(
@@ -198,6 +215,7 @@ describe('parseResumeDataCache', () => {
 
       expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
       expect(parsed.fetch.size).toBe(0)
+      expect(parsed.dynamicCacheReasons).toBeUndefined()
     }
   )
 })

@@ -13,7 +13,7 @@ import {
   throwToInterruptStaticGeneration,
   annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 
 import {
   workUnitAsyncStorage,
@@ -429,12 +429,10 @@ function makeHangingSearchParams(
               // stall the App Shell cache-warming render. Re-wrapping the
               // result propagates the same behavior to promises derived via
               // `.then`/`.catch`/`.finally` that are then passed into a cache.
-              const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
-              if (dynamicAccessStore) {
-                dynamicAccessStore.abortController.abort(
-                  new Error('Accessed `searchParams` during prerendering.')
-                )
-              }
+              abortOnDynamicAccess(
+                'runtime',
+                new Error('Accessed `searchParams` during prerendering.')
+              )
               return new Proxy(originalMethod.apply(target, args), proxyHandler)
             },
           }[prop]

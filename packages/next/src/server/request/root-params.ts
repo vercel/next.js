@@ -13,7 +13,7 @@ import {
   trackFallbackParamsAccessed,
   trackPromiseUsed,
 } from '../dynamic-rendering-utils'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 import type { ParamValue } from './params'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { accumulateRootVaryParam } from '../app-render/vary-params'
@@ -87,14 +87,12 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
             trackFallbackParamsAccessed(prerenderStore, apiName)
             // Like fallback `params`, an unknown root makes the whole cache
             // invocation dynamic, even if it contains its own Suspense.
-            const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
-            if (dynamicAccessStore !== undefined) {
-              dynamicAccessStore.abortController.abort(
-                new Error(
-                  `Accessed fallback root parameter "${paramName}" during prerendering.`
-                )
+            abortOnDynamicAccess(
+              'fallback-params',
+              new Error(
+                `Accessed fallback root parameter "${paramName}" during prerendering.`
               )
-            }
+            )
           }
         )
       }

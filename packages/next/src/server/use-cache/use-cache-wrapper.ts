@@ -51,6 +51,7 @@ import {
   makeUnknownRuntimeDataHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
   trackFallbackParamsAccessed,
+  trackURLDataAccessed,
   trackIncompatibleShellContent,
   trackPromiseUsed,
 } from '../dynamic-rendering-utils'
@@ -122,7 +123,12 @@ import {
 import type { Params } from '../request/params'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import {
+  abortOnDynamicAccess,
+  dynamicAccessAsyncStorage,
+  type DynamicAccessAsyncStore,
+  type DynamicAccessReason,
+} from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
 import {
   RenderStage,
@@ -272,6 +278,7 @@ export type SharedCacheResult =
     }
   | {
       readonly type: 'prerender-dynamic'
+      readonly reason: DynamicAccessReason
       readonly hangingPromise: Promise<never>
     }
 
@@ -948,7 +955,7 @@ function generateCacheEntryWithCacheContext(
 
   return workUnitAsyncStorage.run(cacheStore, () =>
     dynamicAccessAsyncStorage.run(
-      { abortController: new AbortController() },
+      { abortController: new AbortController(), reason: null },
       generateCacheEntryImpl,
       workStore,
       cacheContext,
@@ -1316,6 +1323,7 @@ type GenerateCacheEntryResult =
     }
   | {
       readonly type: 'prerender-dynamic'
+      readonly reason: DynamicAccessReason
       readonly hangingPromise: Promise<never>
     }
 
@@ -1449,8 +1457,9 @@ async function generateCacheEntryImpl(
         getUseCacheFillTimeoutMs(workStore, prerenderStore.type)
       )
 
+      const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
       const dynamicAccessAbortSignal =
-        dynamicAccessAsyncStorage.getStore()?.abortController.signal
+        dynamicAccessStore?.abortController.signal
 
       const abortSignal = dynamicAccessAbortSignal
         ? AbortSignal.any([
@@ -1497,6 +1506,11 @@ async function generateCacheEntryImpl(
           },
         })
       } else if (dynamicAccessAbortSignal?.aborted) {
+        const reason = dynamicAccessStore?.reason ?? 'runtime'
+        const makeHangingPromise =
+          reason === 'fallback-params'
+            ? makeFallbackParamsHangingPromise
+            : makeURLDataHangingPromise
         if (
           innerCacheStore.type === 'cache' &&
           innerCacheStore.fallbackRootParamsPrerender !== null
@@ -1509,7 +1523,7 @@ async function generateCacheEntryImpl(
             innerCacheStore.readRootParamNames
           )
           const hangingPromise = trackPromiseUsed(
-            makeFallbackParamsHangingPromise<never>(
+            makeHangingPromise<never>(
               prerenderStore.renderSignal,
               workStore.route,
               'dynamic "use cache"',
@@ -1517,7 +1531,14 @@ async function generateCacheEntryImpl(
               null
             ),
             () => {
-              trackFallbackParamsAccessed(prerenderStore, 'dynamic "use cache"')
+              if (reason === 'fallback-params') {
+                trackFallbackParamsAccessed(
+                  prerenderStore,
+                  'dynamic "use cache"'
+                )
+              } else {
+                trackURLDataAccessed(prerenderStore, 'dynamic "use cache"')
+              }
               // The result may also be consumed by a deduped invocation, so
               // record dependencies against the cache consuming it now.
               const consumer = workUnitAsyncStorage.getStore()
@@ -1528,24 +1549,17 @@ async function generateCacheEntryImpl(
               }
               // Only a cache consuming this result must suspend. Do not share
               // cancellation with independent sibling cache fills.
-              const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
-              if (dynamicAccessStore !== undefined) {
-                dynamicAccessStore.abortController.abort(
-                  dynamicAccessAbortSignal.reason
-                )
-              }
+              abortOnDynamicAccess(reason, dynamicAccessAbortSignal.reason)
             }
           )
           getCacheSignal(outerWorkUnitStore)?.endRead()
-          return { type: 'prerender-dynamic', hangingPromise }
+          return { type: 'prerender-dynamic', reason, hangingPromise }
         }
 
         // If the prerender is aborted because of dynamic access (e.g. reading
         // fallback params), we return a hanging promise. This essentially makes
         // the "use cache" function dynamic.
-        // The dynamic access means reading either params or searchParams,
-        // both of which are URL data.
-        const hangingPromise = makeURLDataHangingPromise<never>(
+        const hangingPromise = makeHangingPromise<never>(
           prerenderStore.renderSignal,
           workStore.route,
           'dynamic "use cache"',
@@ -1554,7 +1568,7 @@ async function generateCacheEntryImpl(
 
         getCacheSignal(outerWorkUnitStore)?.endRead()
 
-        return { type: 'prerender-dynamic', hangingPromise }
+        return { type: 'prerender-dynamic', reason, hangingPromise }
       } else {
         stream = prelude
       }
@@ -2273,17 +2287,22 @@ export async function cache(
         // layout), we assume that the params are also accessed. This allows
         // us to abort early, and treat the function as dynamic, instead of
         // waiting for the timeout to be reached.
-        const dynamicAccessAbortController = new AbortController()
+        const dynamicAccessStore: DynamicAccessAsyncStore = {
+          abortController: new AbortController(),
+          reason: null,
+        }
 
         encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
-          { abortController: dynamicAccessAbortController },
+          dynamicAccessStore,
           encodeCacheKeyParts
         )
 
-        if (dynamicAccessAbortController.signal.aborted) {
-          // The dynamic access is means the arguments contain either
-          // params or searchParams, which are URL data.
-          return makeURLDataHangingPromise(
+        if (dynamicAccessStore.abortController.signal.aborted) {
+          const makeHangingPromise =
+            dynamicAccessStore.reason === 'fallback-params'
+              ? makeFallbackParamsHangingPromise
+              : makeURLDataHangingPromise
+          return makeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             'dynamic "use cache"',
@@ -2422,20 +2441,23 @@ export async function cache(
     // prospective prerender (e.g. because it accessed fallback params), we
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
-    if (resumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+    const dynamicReason =
+      resumeDataCache.dynamicCacheReasons?.get(serializedCacheKey)
+    if (dynamicReason !== undefined) {
       switch (workUnitStore.type) {
         case 'prerender':
-        case 'prerender-runtime':
-          // The cache key was marked dynamic because it depends on fallback
-          // params or search params, which are URL data.
-          // (Note that this can still occur in a runtime prerender for a runtime shell,
-          // which does not have access to params or searchParams)
-          return makeURLDataHangingPromise(
+        case 'prerender-runtime': {
+          const makeHangingPromise =
+            dynamicReason === 'fallback-params'
+              ? makeFallbackParamsHangingPromise
+              : makeURLDataHangingPromise
+          return makeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             'dynamic "use cache"',
             workUnitStore
           )
+        }
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -3145,7 +3167,10 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+              resumeDataCache.dynamicCacheReasons.set(
+                serializedCacheKey,
+                sharedCacheResult.reason
+              )
             }
             cacheSignal?.endRead()
             resolvableSharedCacheResult.resolve(sharedCacheResult)
@@ -3299,6 +3324,7 @@ export async function cache(
               )
               resolvableSharedCacheResult.resolve({
                 type: 'prerender-dynamic',
+                reason: 'runtime',
                 hangingPromise,
               })
               return hangingPromise
@@ -3484,7 +3510,10 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+              resumeDataCache.dynamicCacheReasons.set(
+                serializedCacheKey,
+                result.reason
+              )
             }
             resolvableSharedCacheResult.resolve(result)
             return result.hangingPromise

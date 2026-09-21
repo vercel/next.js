@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { DynamicAccessReason } from '../app-render/dynamic-access-async-storage.external'
 import {
   type UseCacheCacheStore,
   type FetchCacheStore,
@@ -61,11 +62,12 @@ export interface RenderResumeDataCache {
    * Serialized cache keys that were intentionally skipped during the
    * prospective prerender (e.g. because the cached function accessed fallback
    * params or other dynamic data). During the final prerender, a key in this
-   * set is returned as a hanging promise early, without attempting to look up
-   * or generate a cache entry. Optional because this field is intentionally not
+   * map is returned as a hanging promise early, without attempting to look up
+   * or generate a cache entry. The reason preserves whether knowing the params
+   * would make a static prefetch sufficient. Optional because this field is not
    * serialized and won't be present in deserialized caches.
    */
-  readonly dynamicCacheKeys?: ReadonlySet<string>
+  readonly dynamicCacheReasons?: ReadonlyMap<string, DynamicAccessReason>
 }
 
 /**
@@ -121,15 +123,16 @@ export interface PrerenderResumeDataCache {
    * Tracks serialized cache keys that were intentionally skipped during the
    * prospective prerender (e.g. because the cached function accessed fallback
    * params or other dynamic data). During the final prerender, a key in this
-   * set is returned as a hanging promise early, without attempting to look up
-   * or generate a cache entry.
+   * map is returned as a hanging promise early, without attempting to look up
+   * or generate a cache entry. Keep the reason so the final pass can distinguish
+   * fallback-param holes from data that still needs a runtime prefetch.
    *
    * This is intentionally not serialized. It is only used in-memory within a
    * single prerender cycle (prospective to final). During the resume at request
    * time, a cache miss for a dynamic key should generate a fresh entry rather
    * than being short-circuited.
    */
-  readonly dynamicCacheKeys: Set<string>
+  readonly dynamicCacheReasons: Map<string, DynamicAccessReason>
 }
 
 /**
@@ -236,9 +239,7 @@ export function createPrerenderResumeDataCache(
       encryptedBoundArgs: new Map(source.encryptedBoundArgs),
       decryptedBoundArgs: new Map(source.decryptedBoundArgs),
       imageResponses: new Map(source.imageResponses),
-      dynamicCacheKeys: source.dynamicCacheKeys
-        ? new Set(source.dynamicCacheKeys)
-        : new Set(),
+      dynamicCacheReasons: new Map(source.dynamicCacheReasons),
     }
   } else {
     return {
@@ -248,7 +249,7 @@ export function createPrerenderResumeDataCache(
       encryptedBoundArgs: new Map(),
       decryptedBoundArgs: new Map(),
       imageResponses: new Map(),
-      dynamicCacheKeys: new Set(),
+      dynamicCacheReasons: new Map(),
     }
   }
 }
