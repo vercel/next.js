@@ -1,7 +1,10 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import {
+  getLatestUpgradeVersion,
+  prepareUpgrade,
+} from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
 
 jest.mock('next/dist/server/config', () => ({
@@ -26,14 +29,15 @@ describe('prepare latest upgrade', () => {
   }
 
   function mockLatestVersion(version: string) {
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          version,
-          engines: { node: '>=18' },
-        }),
-        { status: 200 }
-      )
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            version,
+            engines: { node: '>=18' },
+          }),
+          { status: 200 }
+        )
     )
   }
 
@@ -110,6 +114,41 @@ describe('prepare latest upgrade', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(jest.mocked(global.fetch).mock.calls[0][0]).toBe(
       'https://registry.npmjs.org/next/latest'
+    )
+  })
+
+  it('allows an explicit patch upgrade without a reminder', async () => {
+    const directory = await createApp('17.1.0')
+    mockLatestVersion('17.1.1')
+
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual(
+      expect.objectContaining({ status: 'ready', targetVersion: '17.1.1' })
+    )
+    await expect(getLatestUpgradeVersion('17.1.0')).resolves.toBeNull()
+  })
+
+  it.each([null, {}, { version: 'invalid' }, { version: '17.2.0-canary.1' }])(
+    'reports invalid metadata for explicit upgrades but suppresses reminders: %j',
+    async (metadata) => {
+      const directory = await createApp('17.1.0')
+      global.fetch = jest.fn(async () => Response.json(metadata))
+
+      await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+        'Could not determine the latest stable Next.js version.'
+      )
+      await expect(getLatestUpgradeVersion('17.1.0')).resolves.toBeNull()
+    }
+  )
+
+  it('preserves metadata fetch errors in both callers', async () => {
+    const directory = await createApp('17.1.0')
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network unavailable'))
+
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'Could not fetch upgrade metadata.'
+    )
+    await expect(getLatestUpgradeVersion('17.1.0')).rejects.toThrow(
+      'Could not fetch upgrade metadata.'
     )
   })
 

@@ -52,15 +52,9 @@ export async function prepareUpgrade(
   }
 
   if (targetRequest === 'latest' || targetRequest === 'future') {
-    const url = `${NPM_REGISTRY}next/latest`
-    const { value } = await fetchJSON(url)
-    const release = value as { version: string } | null
+    const release = await fetchLatestRelease()
 
-    if (
-      !release ||
-      !semver.valid(release.version) ||
-      semver.prerelease(release.version)
-    ) {
+    if (!release) {
       throw new Error('Could not determine the latest stable Next.js version.')
     }
 
@@ -129,7 +123,7 @@ export async function prepareUpgrade(
       status: 'ready',
       installedVersion,
       targetVersion,
-      references: [url],
+      references: [release.reference],
       futureDefaults: pendingFutureDefaults,
     }
   }
@@ -296,15 +290,9 @@ export async function getLatestUpgradeVersion(version: string) {
     return null
   }
 
-  const { value } = await fetchJSON(`${NPM_REGISTRY}next/latest`)
-  const release = value as { version: string } | null
+  const release = await fetchLatestRelease()
 
-  if (
-    !release ||
-    !semver.valid(release.version) ||
-    semver.prerelease(release.version) !== null ||
-    !semver.gt(release.version, version)
-  ) {
+  if (!release || !semver.gt(release.version, version)) {
     return null
   }
 
@@ -317,6 +305,25 @@ export async function getLatestUpgradeVersion(version: string) {
   }
 
   return release.version
+}
+
+async function fetchLatestRelease(): Promise<{
+  version: string
+  reference: string
+} | null> {
+  const reference = `${NPM_REGISTRY}next/latest`
+  const { value } = await fetchJSON(reference)
+  const release = value as { version: string } | null
+
+  if (
+    !release ||
+    !semver.valid(release.version) ||
+    semver.prerelease(release.version)
+  ) {
+    return null
+  }
+
+  return { version: release.version, reference }
 }
 
 // Count only advisories affecting the running version for the startup prompt.
