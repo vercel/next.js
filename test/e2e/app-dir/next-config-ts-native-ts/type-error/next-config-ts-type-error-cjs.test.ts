@@ -16,7 +16,6 @@ describe('next-config-ts-type-error-cjs', () => {
     buildCommand: isNextDeploy
       ? '__NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true next build'
       : undefined,
-    env: isNextDeploy ? {} : { __NEXT_NODE_NATIVE_TS_LOADER_ENABLED: 'true' },
   })
 
   it('should throw with type error on build (CJS)', async () => {
