@@ -648,13 +648,6 @@ export function registerHeadAndReportingTests(
           const result = await prerender(
             '/shells/(default)/invalid-runtime-params/[slug]'
           )
-          // TODO(app-shells): Verify fallback params in build validation.
-          //
-          // This assertion can pass even if
-          // `workUnitStore.stagedFallbackParams` is missing. Without that set,
-          // validation treats these params as static. Partial Prefetching still
-          // delays them to the runtime stage, so the expected error does not
-          // detect the missing fallback params.
 
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`

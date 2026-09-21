@@ -64,6 +64,18 @@ type FallbackPrerenderedRoute = {
 export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 
 /**
+ * The subset of prerender metadata needed to select a shell during build-time
+ * Instant Validation.
+ */
+export type BuildValidationCandidate = Pick<
+  PrerenderedRoute,
+  | 'pathname'
+  | 'fallbackRouteParams'
+  | 'remainingPrerenderableParams'
+  | 'throwOnEmptyStaticShell'
+>
+
+/**
  * Describes how a dynamic pathname is matched when no concrete build-time
  * output matches it. It describes the logical route independently of any
  * artifacts produced for it, and is not itself something to render.

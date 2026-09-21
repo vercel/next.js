@@ -3,6 +3,8 @@ import {
   createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
+  getStagedFallbackParams,
+  selectPrerenderedRoute,
 } from './fallback-params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
@@ -71,6 +73,122 @@ describe('createOpaqueFallbackRouteParams', () => {
       expect(name).toBe('slug')
       expect(value).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
+  })
+})
+
+describe('getStagedFallbackParams', () => {
+  it('stages only unresolved params for a selected static shell', () => {
+    const stagedFallbackParams = getStagedFallbackParams({
+      fallbackRouteParams: [
+        { paramName: 'top', paramType: 'dynamic' },
+        { paramName: 'bottom', paramType: 'dynamic' },
+      ],
+      // This shell is selected for `/t1/[bottom]`: `top` comes from
+      // generateStaticParams, while `bottom` must remain staged.
+      remainingPrerenderableParams: [
+        { paramName: 'top', paramType: 'dynamic' },
+      ],
+      throwOnEmptyStaticShell: false,
+    })
+
+    expect(stagedFallbackParams).not.toBeNull()
+    expect(stagedFallbackParams!.size).toBe(1)
+    expect(stagedFallbackParams!.has('top')).toBe(false)
+    expect(stagedFallbackParams!.has('bottom')).toBe(true)
+  })
+})
+
+describe('selectPrerenderedRoute', () => {
+  it('selects the most-specific matching candidate', () => {
+    const generic = {
+      pathname: '/[top]/items/[bottom]',
+      fallbackRouteParams: [
+        { paramName: 'top', paramType: 'dynamic' },
+        { paramName: 'bottom', paramType: 'dynamic' },
+      ],
+    }
+    const specific = {
+      pathname: '/t1/items/[bottom]',
+      fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+    }
+
+    expect(selectPrerenderedRoute([generic, specific], '/t1/items/b1')).toBe(
+      specific
+    )
+  })
+
+  it('preserves input order for equal-specificity matches', () => {
+    const first = {
+      pathname: '/[team]/items/[slug]',
+      fallbackRouteParams: [
+        { paramName: 'team', paramType: 'dynamic' },
+        { paramName: 'slug', paramType: 'dynamic' },
+      ],
+    }
+    const second = {
+      pathname: '/[org]/items/[id]',
+      fallbackRouteParams: [
+        { paramName: 'org', paramType: 'dynamic' },
+        { paramName: 'id', paramType: 'dynamic' },
+      ],
+    }
+
+    expect(selectPrerenderedRoute([first, second], '/acme/items/example')).toBe(
+      first
+    )
+  })
+
+  it('selects the generic candidate for a novel pathname', () => {
+    const specific = {
+      pathname: '/t1/items/[bottom]',
+      fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+    }
+    const generic = {
+      pathname: '/[top]/items/[bottom]',
+      fallbackRouteParams: [
+        { paramName: 'top', paramType: 'dynamic' },
+        { paramName: 'bottom', paramType: 'dynamic' },
+      ],
+    }
+
+    expect(selectPrerenderedRoute([specific, generic], '/t2/items/b2')).toBe(
+      generic
+    )
+  })
+
+  it('handles mixed generateStaticParams candidate shapes', () => {
+    const candidates = [
+      {
+        pathname: '/[top]/items/[bottom]',
+        fallbackRouteParams: [
+          { paramName: 'top', paramType: 'dynamic' },
+          { paramName: 'bottom', paramType: 'dynamic' },
+        ],
+        remainingPrerenderableParams: [
+          { paramName: 'top', paramType: 'dynamic' },
+        ],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        pathname: '/t1/items/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        remainingPrerenderableParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        pathname: '/t1/items/b1',
+        fallbackRouteParams: undefined,
+        remainingPrerenderableParams: undefined,
+        throwOnEmptyStaticShell: undefined,
+      },
+    ] as const
+
+    expect(selectPrerenderedRoute(candidates, '/t1/items/b1')).toBe(
+      candidates[2]
+    )
+    expect(selectPrerenderedRoute(candidates, '/t2/items/b2')).toBe(
+      candidates[0]
+    )
   })
 })
 
