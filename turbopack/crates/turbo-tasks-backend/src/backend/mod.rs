@@ -1158,7 +1158,6 @@ impl TurboTasksBackend {
         let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
         let (gc_elapsed, gc_roots_to_persist, gc_outcome) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
-                parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
                 interrupted = tracing::field::Empty
