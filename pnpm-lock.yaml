@@ -929,6 +929,9 @@ importers:
       '@types/validate-npm-package-name':
         specifier: 4.0.2
         version: 4.0.2
+      '@vercel/detect-agent':
+        specifier: 1.2.3
+        version: 1.2.3
       '@vercel/ncc':
         specifier: 0.38.4
         version: 0.38.4

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
 import ciInfo from 'ci-info'
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
 import Conf from 'conf'
 import { existsSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
@@ -18,6 +18,7 @@ import packageJson from './package.json'
 import { Bundler } from './templates'
 
 let projectPath: string = ''
+const aiUpgradeFlags = new Set<boolean>()
 
 const handleSigTerm = () => process.exit(0)
 
@@ -112,6 +113,15 @@ const program = new Command(packageJson.name)
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
+  .addOption(
+    new Option(
+      '--ai-upgrade <type>',
+      'Configure AI upgrade reminders (default: security for humans, future for agents).'
+    ).choices(['security', 'latest', 'future'])
+  )
+  .option('--no-ai-upgrade', 'Disable AI upgrade reminders.')
+  .on('option:ai-upgrade', () => aiUpgradeFlags.add(true))
+  .on('option:no-ai-upgrade', () => aiUpgradeFlags.add(false))
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -137,6 +147,17 @@ const packageManager: PackageManager = !!opts.useNpm
         : getPkgManager()
 
 async function run(): Promise<void> {
+  if (aiUpgradeFlags.size > 1) {
+    program.error('Cannot use --ai-upgrade and --no-ai-upgrade together.')
+  }
+
+  const example = typeof opts.example === 'string' && opts.example.trim()
+  if (example && example !== 'default' && opts.aiUpgrade !== undefined) {
+    program.error(
+      'AI upgrade options are only supported with built-in templates.'
+    )
+  }
+
   const conf = new Conf({ projectName: 'create-next-app' })
 
   if (opts.resetPreferences) {
@@ -220,7 +241,6 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const example = typeof opts.example === 'string' && opts.example.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
     string,
     boolean | string
@@ -760,6 +780,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      aiUpgrade: opts.aiUpgrade,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -796,6 +817,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      aiUpgrade: opts.aiUpgrade,
     })
   }
   conf.set('preferences', preferences)

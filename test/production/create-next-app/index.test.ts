@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
   resolveNextTgzFilename,
@@ -271,6 +271,161 @@ describe('create-next-app', () => {
         files: ['.gitignore', 'package.json'],
       })
       projectFilesShouldNotExist({ cwd, projectName, files: ['node_modules'] })
+    })
+  })
+
+  it.each([
+    { flags: ['--ai-upgrade', 'security'], policy: 'security' },
+    { flags: ['--ai-upgrade', 'latest'], policy: 'latest' },
+    { flags: ['--ai-upgrade=future'], policy: 'future' },
+    { flags: ['--no-ai-upgrade'], policy: false },
+  ])('writes AI upgrade policy $policy', async ({ flags, policy }) => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'ai-upgrade'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--yes',
+          '--skip-install',
+          '--disable-git',
+          ...flags,
+        ],
+        nextTgzFilename,
+        { cwd, stdio: 'pipe', env: { AI_AGENT: 'codex' } }
+      )
+
+      expect(res.exitCode).toBe(0)
+      const config = await readFile(
+        join(cwd, projectName, 'next.config.ts'),
+        'utf8'
+      )
+      expect(config).toContain(`agenticAutoUpgrade: ${JSON.stringify(policy)}`)
+      expect(res.stdout).toContain(
+        `AI upgrade reminders: ${policy === false ? 'disabled' : policy}.`
+      )
+    })
+  })
+
+  it('defaults to future for an agent without enabling Cache Components', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'agent-upgrade'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--yes',
+          '--skip-install',
+          '--disable-git',
+          '--no-cache-components',
+          '--no-agents-md',
+        ],
+        nextTgzFilename,
+        { cwd, stdio: 'pipe', env: { AI_AGENT: 'codex' } }
+      )
+
+      expect(res.exitCode).toBe(0)
+      const config = await readFile(
+        join(cwd, projectName, 'next.config.ts'),
+        'utf8'
+      )
+      expect(config).toContain('agenticAutoUpgrade: "future"')
+      expect(config.includes('cacheComponents: true')).toBe(false)
+      expect(config.includes('partialPrefetching: true')).toBe(false)
+    })
+  })
+
+  it.each([
+    { flags: ['--js', '--no-app'], configFile: 'next.config.mjs' },
+    { flags: ['--ts', '--api'], configFile: 'next.config.ts' },
+    {
+      flags: ['--ts', '--app', '--empty', '--src-dir'],
+      configFile: 'next.config.ts',
+    },
+    { flags: ['--example', 'default'], configFile: 'next.config.mjs' },
+  ])('enrolls built-in template $flags', async ({ flags, configFile }) => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'template-upgrade'
+      const res = await run(
+        [
+          projectName,
+          '--yes',
+          '--skip-install',
+          '--disable-git',
+          '--ai-upgrade',
+          'security',
+          ...flags,
+        ],
+        nextTgzFilename,
+        { cwd, stdio: 'pipe' }
+      )
+
+      expect(res.exitCode).toBe(0)
+      const config = await readFile(join(cwd, projectName, configFile), 'utf8')
+      expect(config).toContain('agenticAutoUpgrade: "security"')
+    })
+  })
+
+  it.each([false, true])(
+    'preserves other config options (Rspack: %s)',
+    async (rspack) => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'composed-upgrade'
+        const res = await run(
+          [
+            projectName,
+            '--ts',
+            '--app',
+            '--tailwind',
+            '--react-compiler',
+            '--cache-components',
+            '--ai-upgrade',
+            'future',
+            '--skip-install',
+            '--disable-git',
+            ...(rspack ? ['--rspack'] : []),
+          ],
+          nextTgzFilename,
+          { cwd, stdio: 'pipe' }
+        )
+
+        expect(res.exitCode).toBe(0)
+        const config = await readFile(
+          join(cwd, projectName, 'next.config.ts'),
+          'utf8'
+        )
+        expect(config).toContain('agenticAutoUpgrade: "future"')
+        expect(config).toContain('reactCompiler: true')
+        expect(config).toContain('cacheComponents: true')
+        expect(config).toContain('partialPrefetching: true')
+        if (rspack) {
+          expect(config).toContain('export default withRspack(nextConfig)')
+        } else {
+          expect(config).toContain('loaders: ["@tailwindcss/turbopack"]')
+        }
+      })
+    }
+  )
+
+  it.each([
+    ['--ai-upgrade'],
+    ['--ai-upgrade', 'invalid'],
+    ['--ai-upgrade', 'future', '--no-ai-upgrade'],
+    ['--no-ai-upgrade', '--ai-upgrade', 'future'],
+    ['--example', 'basic-css', '--ai-upgrade', 'future'],
+    ['--example', 'basic-css', '--no-ai-upgrade'],
+  ])('rejects invalid AI upgrade options %j', async (...flags) => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'invalid-upgrade'
+      const res = await run([projectName, ...flags], nextTgzFilename, {
+        cwd,
+        stdio: 'pipe',
+        reject: false,
+      })
+
+      expect(res.exitCode).toBe(1)
+      expect(res.stderr).toMatch(/AI upgrade|ai-upgrade/)
+      projectFilesShouldNotExist({ cwd, projectName, files: ['package.json'] })
     })
   })
 })

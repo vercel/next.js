@@ -1,4 +1,5 @@
 import { PackageManager } from "../helpers/get-pkg-manager";
+import type { AIUpgradePolicy } from "../helpers/get-ai-upgrade-policy";
 
 export type TemplateType =
   | "app"
@@ -34,6 +35,7 @@ export interface InstallTemplateArgs {
   bundler: Bundler;
   reactCompiler: boolean;
   cacheComponents: boolean;
+  aiUpgrade: AIUpgradePolicy;
 }
 
 export enum Bundler {
