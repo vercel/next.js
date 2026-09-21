@@ -4,7 +4,7 @@ import { join } from 'path'
 import semver from 'next/dist/compiled/semver'
 import {
   getLatestUpgradeVersion,
-  getSecurityAdvisory,
+  getUpgradeAssessment,
   prepareUpgrade,
 } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -31,15 +31,16 @@ describe('prepare latest upgrade', () => {
   }
 
   function mockLatestVersion(version: string) {
-    global.fetch = jest.fn(
-      async () =>
-        new Response(
-          JSON.stringify({
-            version,
-            engines: { node: '>=18' },
-          }),
-          { status: 200 }
-        )
+    global.fetch = jest.fn(async (input) =>
+      String(input).startsWith('https://api.github.com/')
+        ? Response.json([])
+        : new Response(
+            JSON.stringify({
+              version,
+              engines: { node: '>=18' },
+            }),
+            { status: 200 }
+          )
     )
   }
 
@@ -124,7 +125,10 @@ describe('prepare latest upgrade', () => {
           ),
         })
       }
-      if (url === 'https://registry.npmjs.org/next/canary') {
+      if (
+        url === 'https://registry.npmjs.org/next/canary' ||
+        url === 'https://registry.npmjs.org/next/latest'
+      ) {
         return Response.json({ version: target })
       }
       if (
@@ -175,7 +179,9 @@ describe('prepare latest upgrade', () => {
           ranges: ['>=17.0.0 <17.2.1'],
           target: '17.3.0-canary.0',
         })
-        await expect(getSecurityAdvisory('17.2.0-canary.4')).resolves.toEqual({
+        await expect(
+          getUpgradeAssessment('17.2.0-canary.4', 'security')
+        ).resolves.toMatchObject({
           reference: expect.stringContaining(
             fallback ? 'registry.npmjs.org' : 'api.github.com'
           ),
@@ -209,7 +215,9 @@ describe('prepare latest upgrade', () => {
       it('keeps the finding visible when the tagged target is still affected', async () => {
         const directory = await createApp('17.2.0-canary.4')
         mockSecurityMetadata({ fallback, ranges: ['>=17.0.0 <17.2.1'] })
-        await expect(getSecurityAdvisory('17.2.0-canary.4')).resolves.toEqual({
+        await expect(
+          getUpgradeAssessment('17.2.0-canary.4', 'security')
+        ).resolves.toMatchObject({
           reference: expect.any(String),
         })
         await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
@@ -235,7 +243,9 @@ describe('prepare latest upgrade', () => {
           ranges: ['>=17.2.0 <17.2.1'],
           target: null,
         })
-        await expect(getSecurityAdvisory('17.2.0-canary.4')).resolves.toBeNull()
+        await expect(
+          getUpgradeAssessment('17.2.0-canary.4', 'security')
+        ).resolves.toMatchObject({ affected: false })
         await expect(prepareUpgrade(directory, 'security')).resolves.toEqual(
           expect.objectContaining({ status: 'unaffected' })
         )
@@ -248,7 +258,9 @@ describe('prepare latest upgrade', () => {
     async (target) => {
       const directory = await createApp('17.2.0-canary.4')
       mockSecurityMetadata({ target })
-      await expect(getSecurityAdvisory('17.2.0-canary.4')).resolves.toEqual({
+      await expect(
+        getUpgradeAssessment('17.2.0-canary.4', 'security')
+      ).resolves.toMatchObject({
         reference: expect.any(String),
       })
       await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
@@ -272,11 +284,184 @@ describe('prepare latest upgrade', () => {
   it('does not treat failed advisory providers as an unaffected version', async () => {
     const directory = await createApp('17.2.0-canary.4')
     mockSecurityMetadata({ fallback: true, npmFailure: true })
-    await expect(getSecurityAdvisory('17.2.0-canary.4')).rejects.toThrow()
+    await expect(
+      getUpgradeAssessment('17.2.0-canary.4', 'security')
+    ).rejects.toThrow()
     await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
       'Could not check for security updates.'
     )
   })
+
+  describe.each(['17.2.0', '17.2.0-canary.4'])(
+    'shared eligibility for %s',
+    (installed) => {
+      it.each(['security', 'latest', 'future'] as const)(
+        'uses the same safe target in the %s nudge and command',
+        async (policy) => {
+          const directory = await createApp(installed)
+          const target = installed.includes('canary')
+            ? '17.3.0-canary.1'
+            : '17.3.0'
+          mockSecurityMetadata({
+            ranges: ['>=17.0.0 <17.2.1'],
+            target,
+            published: [installed, target],
+          })
+          const advisory = await getUpgradeAssessment(installed, policy)
+          expect(advisory).toMatchObject({
+            upgrade: { status: 'ready', targetVersion: target },
+          })
+          expect(await prepareUpgrade(directory, policy)).toMatchObject({
+            status: 'ready',
+            targetVersion: target,
+          })
+        }
+      )
+
+      it.each(['security', 'latest', 'future'] as const)(
+        'retains the advisory when the %s target metadata cannot be fetched',
+        async (policy) => {
+          const directory = await createApp(installed)
+          mockSecurityMetadata({ ranges: ['>=17.0.0 <17.2.1'] })
+          const fetchMetadata = global.fetch
+          global.fetch = jest.fn(async (input, init) => {
+            if (String(input).startsWith('https://registry.npmjs.org/next')) {
+              return new Response(null, { status: 503 })
+            }
+            return fetchMetadata(input, init)
+          })
+          await expect(
+            getUpgradeAssessment(installed, policy)
+          ).resolves.toMatchObject({
+            upgrade: {
+              status: 'unknown',
+              reason: expect.stringContaining(
+                'Could not fetch upgrade metadata'
+              ),
+            },
+          })
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            'Could not fetch upgrade metadata'
+          )
+        }
+      )
+
+      it.each(['latest', 'future'] as const)(
+        'checks the %s target even when the installed version is unaffected',
+        async (policy) => {
+          const directory = await createApp(installed)
+          const target = installed.includes('canary')
+            ? '17.3.0-canary.1'
+            : '17.3.0'
+          mockSecurityMetadata({
+            ranges: [target],
+            target,
+            published: [installed, target],
+          })
+          await expect(
+            getUpgradeAssessment(installed, policy)
+          ).resolves.toMatchObject({
+            affected: false,
+            upgrade: { status: 'blocked' },
+          })
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            `${target} is affected by an active advisory`
+          )
+        }
+      )
+
+      it.each(['security', 'latest', 'future'] as const)(
+        'retains npm advisory warnings without release metadata for %s',
+        async (policy) => {
+          const directory = await createApp(installed)
+          mockSecurityMetadata({ fallback: true, ranges: [installed] })
+          const fetchMetadata = global.fetch
+          global.fetch = jest.fn(async (input, init) => {
+            if (String(input).startsWith('https://registry.npmjs.org/next')) {
+              return new Response(null, { status: 503 })
+            }
+            return fetchMetadata(input, init)
+          })
+          await expect(
+            getUpgradeAssessment(installed, policy)
+          ).resolves.toMatchObject({
+            affected: true,
+            reference:
+              'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk',
+            upgrade: { status: 'unknown' },
+          })
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            'Could not assess upgrade targets.'
+          )
+        }
+      )
+    }
+  )
+
+  it('reports incomplete canary advisory coverage when metadata is unavailable', async () => {
+    mockSecurityMetadata({ fallback: true, ranges: ['>=17.0.0 <17.2.1'] })
+    const fetchMetadata = global.fetch
+    global.fetch = jest.fn(async (input, init) => {
+      if (String(input) === 'https://registry.npmjs.org/next') {
+        return new Response(null, { status: 503 })
+      }
+      return fetchMetadata(input, init)
+    })
+    // A source-only npm query excludes this stable range for the canary.
+    // Reject so startup reports that advisories could not be checked.
+    await expect(
+      getUpgradeAssessment('17.2.0-canary.4', 'security')
+    ).rejects.toThrow('Could not check for security updates.')
+  })
+
+  it('includes a newly published tag in npm fallback assessment', async () => {
+    const target = '17.3.0-canary.7'
+    const directory = await createApp('17.2.0-canary.4')
+    mockSecurityMetadata({
+      fallback: true,
+      ranges: [target],
+      target,
+      published: ['17.2.0', '17.2.0-canary.4'],
+    })
+    await expect(
+      getUpgradeAssessment('17.2.0-canary.4', 'latest')
+    ).resolves.toMatchObject({
+      affected: false,
+      upgrade: {
+        status: 'blocked',
+        reason: `Next.js ${target} is affected by an active advisory.`,
+      },
+    })
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'affected by an active advisory'
+    )
+  })
+
+  it.each([false, true])(
+    'assesses the configured policy rather than a different safe security target, fallback=%s',
+    async (fallback) => {
+      const directory = await createApp('17.2.0')
+      mockSecurityMetadata({
+        fallback,
+        ranges: ['17.2.0', '17.3.0'],
+        target: '17.3.0',
+        published: ['17.2.0', '17.3.0', '18.0.0'],
+      })
+      await expect(
+        getUpgradeAssessment('17.2.0', 'security')
+      ).resolves.toMatchObject({
+        upgrade: { status: 'ready', targetVersion: '18.0.0' },
+      })
+      for (const policy of ['latest', 'future'] as const) {
+        await expect(
+          getUpgradeAssessment('17.2.0', policy)
+        ).resolves.toMatchObject({ upgrade: { status: 'blocked' } })
+        await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+          '17.3.0 is affected by an active advisory'
+        )
+      }
+    }
+  )
 
   it('preserves stable security target selection', async () => {
     const directory = await createApp('17.2.0')
@@ -297,7 +482,9 @@ describe('prepare latest upgrade', () => {
       await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
         'AI upgrades are not available for prerelease versions'
       )
-      await expect(getSecurityAdvisory(version)).resolves.toBeNull()
+      await expect(getUpgradeAssessment(version, 'security')).rejects.toThrow(
+        'prerelease versions'
+      )
       expect(global.fetch).toHaveBeenCalledTimes(0)
     }
   )
@@ -331,8 +518,9 @@ describe('prepare latest upgrade', () => {
               references: ['https://registry.npmjs.org/next/canary'],
             })
           )
-          expect(jest.mocked(global.fetch).mock.calls[0][0]).toBe(
-            'https://registry.npmjs.org/next/canary'
+          expect(global.fetch).toHaveBeenCalledWith(
+            'https://registry.npmjs.org/next/canary',
+            expect.any(Object)
           )
         }
       )
@@ -423,13 +611,16 @@ describe('prepare latest upgrade', () => {
     }
   )
 
-  it('fails a Future assessment when both advisory providers are unavailable', async () => {
-    const directory = await createApp('17.2.0-canary.4')
-    mockSecurityMetadata({ fallback: true, npmFailure: true })
-    await expect(prepareUpgrade(directory, 'future')).rejects.toThrow(
-      'Could not check for security updates.'
-    )
-  })
+  it.each(['latest', 'future'] as const)(
+    'fails a %s assessment when both advisory providers are unavailable',
+    async (policy) => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({ fallback: true, npmFailure: true })
+      await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+        'Could not check for security updates.'
+      )
+    }
+  )
 
   it('selects the exact latest stable release', async () => {
     const directory = await createApp('16.2.1')
@@ -443,9 +634,10 @@ describe('prepare latest upgrade', () => {
         references: ['https://registry.npmjs.org/next/latest'],
       })
     )
-    expect(global.fetch).toHaveBeenCalledTimes(1)
-    expect(jest.mocked(global.fetch).mock.calls[0][0]).toBe(
-      'https://registry.npmjs.org/next/latest'
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://registry.npmjs.org/next/latest',
+      expect.any(Object)
     )
   })
 
@@ -456,32 +648,51 @@ describe('prepare latest upgrade', () => {
     await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual(
       expect.objectContaining({ status: 'ready', targetVersion: '17.1.1' })
     )
-    await expect(getLatestUpgradeVersion('17.1.0')).resolves.toBeNull()
+    expect(getLatestUpgradeVersion('17.1.0', '17.1.1')).toBeNull()
   })
 
   it.each([null, {}, { version: 'invalid' }, { version: '17.2.0-canary.1' }])(
     'reports invalid metadata for explicit upgrades but suppresses reminders: %j',
     async (metadata) => {
       const directory = await createApp('17.1.0')
-      global.fetch = jest.fn(async () => Response.json(metadata))
+      global.fetch = jest.fn(async (input) =>
+        Response.json(
+          String(input).startsWith('https://api.github.com/') ? [] : metadata
+        )
+      )
 
       await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
         'Could not determine the latest stable Next.js version.'
       )
-      await expect(getLatestUpgradeVersion('17.1.0')).resolves.toBeNull()
+      expect(
+        getLatestUpgradeVersion(
+          '17.1.0',
+          String(metadata && 'version' in metadata ? metadata.version : '')
+        )
+      ).toBeNull()
     }
   )
 
-  it('preserves metadata fetch errors in both callers', async () => {
+  it('preserves target lookup failures in the shared assessment and command', async () => {
     const directory = await createApp('17.1.0')
-    global.fetch = jest.fn().mockRejectedValue(new Error('Network unavailable'))
+    global.fetch = jest.fn(async (input) => {
+      if (String(input).startsWith('https://api.github.com/')) {
+        return Response.json([])
+      }
+      throw new Error('Network unavailable')
+    })
 
     await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
       'Could not fetch upgrade metadata.'
     )
-    await expect(getLatestUpgradeVersion('17.1.0')).rejects.toThrow(
-      'Could not fetch upgrade metadata.'
-    )
+    await expect(
+      getUpgradeAssessment('17.1.0', 'latest')
+    ).resolves.toMatchObject({
+      upgrade: {
+        status: 'unknown',
+        reason: expect.stringContaining('Could not fetch upgrade metadata.'),
+      },
+    })
   })
 
   it('does nothing when the app already uses latest', async () => {
