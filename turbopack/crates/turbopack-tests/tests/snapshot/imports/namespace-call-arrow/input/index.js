@@ -5,5 +5,6 @@ console.log(
   ns.plainFn(2),
   ns.methodLike(),
   ns.evalFn(),
-  ns.classFn()
+  ns.classFn(),
+  ns.default()
 )

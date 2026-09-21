@@ -125,13 +125,25 @@ impl ImportSource {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
+        Ok(magic_identifier::mangle(
+            &self.get_namespace_description(chunking_context).await?,
+        ))
+    }
+
+    /// The unmangled description of the imported namespace, such as `imported module {id}`.
+    ///
+    /// This is what [`Self::get_namespace_ident`] mangles. It is also the uniquifying part of a
+    /// captured binding's name, so that both are derived from the same source.
+    pub(crate) async fn get_namespace_description(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<String> {
         Ok(match self {
             ImportSource::Module { asset } => {
-                ReferencedAsset::get_ident_from_placeable(asset, chunking_context).await?
+                let id = asset.chunk_item_id(chunking_context).await?;
+                format!("imported module {id}")
             }
-            ImportSource::External { request, ty } => {
-                magic_identifier::mangle(&format!("{ty} external {request}"))
-            }
+            ImportSource::External { request, ty } => format!("{ty} external {request}"),
         })
     }
 }

@@ -15,7 +15,6 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -134,19 +133,20 @@ impl EsmBinding {
                                 ctxt,
                                 export: Some(export),
                                 can_value_bind: true,
+                                import_source,
                                 ..
                             } = &imported_ident
                             && !is_assignment_target(trie, self.ast_path)
                         {
-                            // A unique name for the local binding
+                            // A readable, unique name for the local binding. It can surface in the
+                            // error overlay, so it names the import rather than hashing it.
                             let binding_name = {
                                 let imported_name = self.export.as_deref().unwrap_or(export);
+                                let source = import_source
+                                    .get_namespace_description(chunking_context)
+                                    .await?;
                                 magic_identifier::mangle(&format!(
-                                    "imported binding {imported_name} {}",
-                                    encode_hex(hash_xxh3_hash64((
-                                        /* namespace */ namespace_ident,
-                                        /* export */ export,
-                                    )))
+                                    "imported binding {imported_name} from {source}"
                                 ))
                                 .into()
                             };

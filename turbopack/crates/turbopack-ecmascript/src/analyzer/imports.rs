@@ -16,7 +16,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::{Atom, atom},
-        utils::{IsDirective, find_pat_ids},
+        utils::{IsDirective, contains_this_expr, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
@@ -34,7 +34,7 @@ use crate::{
     analyzer::{
         Bump, ConstantString, ConstantValue, ObjectPart,
         cjs_ast::{is_global, is_module_dot_exports},
-        graph::{AssignmentScope, AssignmentScopes, EvalContext},
+        graph::EvalContext,
         is_unresolved, is_unresolved_id,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
@@ -407,6 +407,68 @@ pub enum Export {
     Error,
 }
 
+#[derive(Debug)]
+pub(crate) enum AssignmentScope {
+    /// assigned in the root scope
+    ModuleEval,
+    /// assigned in a function scopes
+    Function,
+}
+
+/// Whether the value bound to a name can observe `this` when called.
+///
+/// Every place that binds a name contributes one of these, and they merge: a name is only
+/// `NotUsingThis` when every value it can hold is. Merging makes the result independent of the
+/// order the binding sites are visited, which matters because a function declaration hoists and
+/// can be assigned before it is declared.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum ThisUsage {
+    /// A directly visible function whose body provably never reaches `this`.
+    NotUsingThis,
+    /// Anything else. Either the value was seen to reach `this`, or it is not a function literal
+    /// this analysis can see through, such as a call, a conditional or an imported value.
+    MaybeUsingThis,
+}
+
+impl ThisUsage {
+    /// Combines two bindings of the same name. `MaybeUsingThis` wins.
+    pub(crate) fn merge(self, other: ThisUsage) -> Self {
+        match (self, other) {
+            (ThisUsage::NotUsingThis, ThisUsage::NotUsingThis) => ThisUsage::NotUsingThis,
+            _ => ThisUsage::MaybeUsingThis,
+        }
+    }
+}
+
+/// Tracks the locations where this was assigned to:
+/// This is used to track the _liveness_ of exports.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum AssignmentScopes {
+    /// assigned only in the root scope
+    AllInModuleEvalScope,
+    /// assigned in any set of function scopes
+    AllInFunctionScopes,
+    /// assigned in both module and function scopes
+    Mixed,
+}
+impl AssignmentScopes {
+    pub(crate) fn new(initial: AssignmentScope) -> Self {
+        match initial {
+            AssignmentScope::ModuleEval => AssignmentScopes::AllInModuleEvalScope,
+            AssignmentScope::Function => AssignmentScopes::AllInFunctionScopes,
+        }
+    }
+
+    pub(crate) fn merge(self, other: AssignmentScope) -> Self {
+        // If the other assignment kind is the same as the current one, return the current one.
+        if self == Self::new(other) {
+            self
+        } else {
+            AssignmentScopes::Mixed
+        }
+    }
+}
+
 /// The storage for all kinds of imports.
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
@@ -459,8 +521,12 @@ pub(crate) struct ImportMap {
     /// whether an export is live or not.
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
 
-    /// Bindings whose value is a function that provably never reaches `this`.
-    pub(super) fns_not_using_this: FxHashSet<Id>,
+    /// Whether the value bound to each name can observe `this` when called.
+    ///
+    /// Every binding site of a name merges into this, so the answer does not depend on visit
+    /// order. That matters because a function declaration hoists: `f = …` can be visited before
+    /// the `function f()` that describes the declared value.
+    pub(super) this_usage: FxHashMap<Id, ThisUsage>,
 
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
 
@@ -835,13 +901,13 @@ impl ImportMap {
     ///
     /// Conservative: true unless the binding was seen to be a function that provably never
     /// reaches `this`.
-    pub fn get_export_ident_maybe_uses_this(&self, id: &Id) -> bool {
-        !self.fns_not_using_this.contains(id)
+    pub(crate) fn get_export_ident_maybe_uses_this(&self, id: &Id) -> bool {
+        !matches!(self.this_usage.get(id), Some(ThisUsage::NotUsingThis))
     }
 
     /// Returns the liveness of a given export identifier. An export is live if it might change
     /// values after module evaluation.
-    pub fn get_export_ident_liveness(&self, id: Id, unresolved_mark: Mark) -> Liveness {
+    fn get_export_ident_liveness(&self, id: Id, unresolved_mark: Mark) -> Liveness {
         if let Some(assignment_scopes) = self.assignment_scopes.get(&id) {
             // If all assignments are in module scope, the export is not live.
             if *assignment_scopes != AssignmentScopes::AllInModuleEvalScope {
@@ -1011,11 +1077,6 @@ mod analyzer_state {
     pub(super) struct AnalyzerState {
         is_in_fn: bool,
         cur_top_level_decl_name: Option<Id>,
-        /// How many enclosing scopes bind their own `this`. Arrows do not, so a `this` inside one
-        /// belongs to the function around it.
-        this_binding_depth: u32,
-        /// Set while visiting a top level declaration whose body has reached `this`.
-        cur_top_level_decl_uses_this: bool,
     }
 
     impl AnalyzerState {
@@ -1027,19 +1088,6 @@ mod analyzer_state {
         /// Returns whether the current context is inside a function.
         pub(super) fn is_in_fn(&self) -> bool {
             self.is_in_fn
-        }
-
-        /// Returns whether `this` currently refers to a binding inside the top level declaration
-        /// rather than to the declaration's own value.
-        ///
-        /// A `this` nested one level deep belongs to the exported function itself; deeper than
-        /// that it belongs to some inner function, which receives its own receiver.
-        pub(super) fn this_binds_to_top_level_decl(&self) -> bool {
-            self.this_binding_depth == 1
-        }
-
-        pub(super) fn mark_top_level_decl_uses_this(&mut self) {
-            self.cur_top_level_decl_uses_this = true;
         }
     }
 
@@ -1053,58 +1101,159 @@ mod analyzer_state {
             let is_top_level_fn = self.state.cur_top_level_decl_name.is_none();
             if is_top_level_fn {
                 self.state.cur_top_level_decl_name = Some(name.to_id());
-                self.state.cur_top_level_decl_uses_this = false;
             }
             let result = visitor(self);
             if is_top_level_fn {
-                // Record the answer only when it is a "no". Everything else stays absent, which
-                // reads as "maybe".
-                if !self.state.cur_top_level_decl_uses_this {
-                    self.data.fns_not_using_this.insert(name.to_id());
-                }
                 self.state.cur_top_level_decl_name = None;
-                self.state.cur_top_level_decl_uses_this = false;
             }
             result
         }
 
-        /// Runs `visitor` with `this` bound to a new scope, without marking the body as being
-        /// inside a function.
-        ///
-        /// A class body rebinds `this` for its field initializers and static blocks, but it is
-        /// not a function scope: a declaration in it is still evaluated during module
-        /// evaluation, which is what [`AnalyzerState::is_in_fn`] reports.
-        pub(super) fn enter_this_binding_scope<T>(
-            &mut self,
-            visitor: impl FnOnce(&mut Self) -> T,
-        ) -> T {
-            self.state.this_binding_depth += 1;
-            let result = visitor(self);
-            self.state.this_binding_depth -= 1;
-            result
-        }
-
-        /// Runs `visitor` with the right is_in_fn value.
-        ///
-        /// `binds_this` is false for arrows, which take `this` from their enclosing scope.
-        pub(super) fn enter_fn<T>(
-            &mut self,
-            binds_this: bool,
-            visitor: impl FnOnce(&mut Self) -> T,
-        ) -> T {
+        /// Runs `visitor` with the right is_in_fn value
+        pub(super) fn enter_fn<T>(&mut self, visitor: impl FnOnce(&mut Self) -> T) -> T {
             let old_is_in_fn = self.state.is_in_fn;
             self.state.is_in_fn = true;
-            if binds_this {
-                self.state.this_binding_depth += 1;
-            }
             let result = visitor(self);
-            if binds_this {
-                self.state.this_binding_depth -= 1;
-            }
             self.state.is_in_fn = old_is_in_fn;
             result
         }
     }
+}
+
+/// Whether calling `value` can observe the receiver it is called with, when a name is bound to
+/// `value`.
+///
+/// Only a function literal can be seen through. An arrow never observes its call receiver, since it
+/// takes `this` from where it was defined. Anything else is opaque.
+fn value_this_usage(value: &Expr, unresolved_mark: Mark) -> ThisUsage {
+    match unparen(value) {
+        Expr::Arrow(_) => ThisUsage::NotUsingThis,
+        Expr::Fn(f) => function_this_usage(&f.function, unresolved_mark),
+        _ => ThisUsage::MaybeUsingThis,
+    }
+}
+
+/// Whether calling `function` can observe the receiver it is called with.
+fn function_this_usage(function: &Function, unresolved_mark: Mark) -> ThisUsage {
+    let mut finder = ReceiverFinder {
+        unresolved_mark,
+        found: false,
+    };
+    // Default parameter values are evaluated with the function's receiver too.
+    function.params.visit_with(&mut finder);
+    function.body.visit_with(&mut finder);
+    if finder.found {
+        ThisUsage::MaybeUsingThis
+    } else {
+        ThisUsage::NotUsingThis
+    }
+}
+
+/// Looks for a read of the receiver of the function it is started in.
+///
+/// Only the parts of the function that share its `this` are visited. Nested functions, object
+/// accessors and class bodies bind their own, so they are skipped entirely. Arrows do not, so they
+/// are looked through. The search stops at the first read it finds.
+struct ReceiverFinder {
+    unresolved_mark: Mark,
+    found: bool,
+}
+
+impl Visit for ReceiverFinder {
+    fn visit_stmt(&mut self, node: &Stmt) {
+        if !self.found {
+            node.visit_children_with(self);
+        }
+    }
+
+    fn visit_expr(&mut self, node: &Expr) {
+        if !self.found {
+            node.visit_children_with(self);
+        }
+    }
+
+    fn visit_this_expr(&mut self, _node: &ThisExpr) {
+        self.found = true;
+    }
+
+    fn visit_call_expr(&mut self, node: &CallExpr) {
+        // A direct `eval` runs in the enclosing scope, so the evaluated code can read `this`
+        // without it appearing anywhere in the source. `new Function(...)`, an indirect `eval` and
+        // a string passed to `setTimeout` are all compiled in the global scope, so they cannot.
+        if let Callee::Expr(callee) = &node.callee
+            && let Expr::Ident(ident) = unparen(callee)
+            && ident.sym == atom!("eval")
+            && is_unresolved_id(&ident.to_id(), self.unresolved_mark)
+        {
+            self.found = true;
+            return;
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, _node: &Function) {}
+
+    // An accessor's key is evaluated with our receiver, but its body has its own.
+    fn visit_getter_prop(&mut self, node: &GetterProp) {
+        node.key.visit_with(self);
+    }
+    fn visit_setter_prop(&mut self, node: &SetterProp) {
+        node.key.visit_with(self);
+    }
+
+    fn visit_class(&mut self, node: &Class) {
+        // The class body sees the class or an instance as `this`. Only the parts evaluated with
+        // the receiver around the class can read ours.
+        node.super_class.visit_with(self);
+        self.found |= class_reads_outer_this(node);
+    }
+}
+
+/// Whether a decorator or computed member key of `class` reads `this`.
+///
+/// Both are evaluated with the receiver around the class rather than the class's own, even though
+/// they sit inside the class body.
+fn class_reads_outer_this(class: &Class) -> bool {
+    fn key_reads_this(key: &PropName) -> bool {
+        matches!(key, PropName::Computed(key) if contains_this_expr(key))
+    }
+    fn decorators_read_this(decorators: &[Decorator]) -> bool {
+        decorators.iter().any(contains_this_expr)
+    }
+    fn function_decorators_read_this(function: &Function) -> bool {
+        decorators_read_this(&function.decorators)
+            || function
+                .params
+                .iter()
+                .any(|param| decorators_read_this(&param.decorators))
+    }
+
+    decorators_read_this(&class.decorators)
+        || class.body.iter().any(|member| match member {
+            ClassMember::Method(method) => {
+                key_reads_this(&method.key) || function_decorators_read_this(&method.function)
+            }
+            ClassMember::PrivateMethod(method) => function_decorators_read_this(&method.function),
+            ClassMember::ClassProp(prop) => {
+                key_reads_this(&prop.key) || decorators_read_this(&prop.decorators)
+            }
+            ClassMember::PrivateProp(prop) => decorators_read_this(&prop.decorators),
+            ClassMember::AutoAccessor(accessor) => {
+                matches!(&accessor.key, Key::Public(key) if key_reads_this(key))
+                    || decorators_read_this(&accessor.decorators)
+            }
+            ClassMember::Constructor(constructor) => {
+                constructor.params.iter().any(|param| match param {
+                    ParamOrTsParamProp::Param(param) => decorators_read_this(&param.decorators),
+                    ParamOrTsParamProp::TsParamProp(param) => {
+                        decorators_read_this(&param.decorators)
+                    }
+                })
+            }
+            ClassMember::StaticBlock(_)
+            | ClassMember::TsIndexSignature(_)
+            | ClassMember::Empty(_) => false,
+        })
 }
 
 struct Analyzer<'a> {
@@ -1139,6 +1288,26 @@ impl Analyzer<'_> {
         };
         self.data
             .ensure_reference(reference, self.current_module_item_order)
+    }
+
+    /// Merges one binding site's [`ThisUsage`] into the answer for `id`.
+    ///
+    /// Only module-scope binding sites are recorded. Assigning an export inside a function makes
+    /// it live, and the answer is never used for a live binding, so `usage` is not even computed
+    /// there.
+    fn merge_this_usage(&mut self, id: Id, usage: impl FnOnce() -> ThisUsage) {
+        if self.state.is_in_fn() {
+            return;
+        }
+        let usage = usage();
+        match self.data.this_usage.entry(id) {
+            Entry::Occupied(mut e) => {
+                *e.get_mut() = e.get().merge(usage);
+            }
+            Entry::Vacant(e) => {
+                e.insert(usage);
+            }
+        }
     }
 
     fn register_assignment_scope(&mut self, id: Id) {
@@ -1430,7 +1599,13 @@ impl Visit for Analyzer<'_> {
             .insert(rcstr!("default"), (id.clone(), n.span));
         self.program_decl_usage
             .exports
-            .insert(rcstr!("default"), id);
+            .insert(rcstr!("default"), id.clone());
+        // A class is left unanswered: calling `ns.default()` throws, and `new ns.default()` never
+        // passes the namespace, so the answer cannot matter.
+        if let DefaultDecl::Fn(f) = &n.decl {
+            let unresolved_mark = self.unresolved_mark;
+            self.merge_this_usage(id, || function_this_usage(&f.function, unresolved_mark));
+        }
         n.visit_children_with(self);
     }
 
@@ -1458,7 +1633,9 @@ impl Visit for Analyzer<'_> {
             ),
         );
 
-        self.register_assignment_scope(default_id);
+        self.register_assignment_scope(default_id.clone());
+        let unresolved_mark = self.unresolved_mark;
+        self.merge_this_usage(default_id, || value_this_usage(&n.expr, unresolved_mark));
         n.visit_children_with(self);
     }
 
@@ -1519,17 +1696,6 @@ impl Visit for Analyzer<'_> {
     // potentially support more webpack magic comments in the future:
     // https://webpack.js.org/api/module-methods/#magic-comments
     fn visit_call_expr(&mut self, n: &CallExpr) {
-        // A direct `eval` runs in the enclosing scope, so the evaluated code can read `this`
-        // without it appearing anywhere in the source.
-        if self.state.this_binds_to_top_level_decl()
-            && let Callee::Expr(callee) = &n.callee
-            && let Expr::Ident(ident) = unparen(callee)
-            && ident.sym == atom!("eval")
-            && is_unresolved_id(&ident.to_id(), self.unresolved_mark)
-        {
-            self.state.mark_top_level_decl_uses_this();
-        }
-
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
                 Callee::Import(Import { span, .. }) => Some(*span),
@@ -1565,35 +1731,27 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_getter_prop(&mut self, node: &GetterProp) {
-        self.enter_fn(/* binds_this */ true, |this| {
+        self.enter_fn(|this| {
             node.visit_children_with(this);
         });
     }
     fn visit_setter_prop(&mut self, node: &SetterProp) {
-        self.enter_fn(/* binds_this */ true, |this| {
+        self.enter_fn(|this| {
             node.visit_children_with(this);
         });
     }
     fn visit_function(&mut self, node: &Function) {
-        self.enter_fn(/* binds_this */ true, |this| {
+        self.enter_fn(|this| {
             node.visit_children_with(this);
         });
     }
     fn visit_constructor(&mut self, node: &Constructor) {
-        self.enter_fn(/* binds_this */ true, |this| {
+        self.enter_fn(|this| {
             node.visit_children_with(this);
         });
     }
     fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
-        self.enter_fn(/* binds_this */ false, |this| {
-            node.visit_children_with(this);
-        });
-    }
-    fn visit_class(&mut self, node: &Class) {
-        // A class body binds `this` without being a function: field initializers and static
-        // blocks each get the class as their receiver. Methods bump the depth again through
-        // `visit_function`, which is harmless -- a `this` inside one is nested either way.
-        self.enter_this_binding_scope(|this| {
+        self.enter_fn(|this| {
             node.visit_children_with(this);
         });
     }
@@ -1700,24 +1858,11 @@ impl Visit for Analyzer<'_> {
         node.visit_children_with(self);
     }
 
-    fn visit_this_expr(&mut self, _node: &ThisExpr) {
-        // Only a `this` that binds to the declaration's own function body says anything about the
-        // exported value. Deeper ones belong to an inner function with its own receiver.
-        if self.state.this_binds_to_top_level_decl() {
-            self.state.mark_top_level_decl_uses_this();
-        }
-    }
-
-    fn visit_with_stmt(&mut self, node: &WithStmt) {
-        // A `with` block can resolve a bare name against its scrutinee, so the body may read
-        // `this` without naming it.
-        if self.state.this_binds_to_top_level_decl() {
-            self.state.mark_top_level_decl_uses_this();
-        }
-        node.visit_children_with(self);
-    }
-
     fn visit_fn_decl(&mut self, node: &FnDecl) {
+        let unresolved_mark = self.unresolved_mark;
+        self.merge_this_usage(node.ident.to_id(), || {
+            function_this_usage(&node.function, unresolved_mark)
+        });
         self.enter_top_level_decl(&node.ident, |this| {
             node.visit_children_with(this);
         });
@@ -1750,22 +1895,57 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
-        // `const f = () => …` / `const f = function () {…}` binds a directly visible function to a
-        // name, so it can answer the `this` question just like a function declaration. Anything
-        // else (a call, a conditional, an imported value) stays unanswered and therefore "maybe".
-        if let Pat::Ident(binding) = &node.name
-            && let Some(init) = &node.init
-            && matches!(unparen(init), Expr::Arrow(_) | Expr::Fn(_))
-        {
-            self.enter_top_level_decl(&binding.id, |this| {
-                node.visit_children_with(this);
-            });
-            return;
+        // A declarator without an initializer assigns nothing, so it contributes nothing.
+        if let Some(init) = &node.init {
+            let unresolved_mark = self.unresolved_mark;
+            if let Pat::Ident(binding) = &node.name {
+                self.merge_this_usage(binding.to_id(), || value_this_usage(init, unresolved_mark));
+                if matches!(unparen(init), Expr::Arrow(_) | Expr::Fn(_)) {
+                    self.enter_top_level_decl(&binding.id, |this| {
+                        node.visit_children_with(this);
+                    });
+                    return;
+                }
+            } else {
+                // A destructuring pattern binds values this analysis does not track through.
+                for id in find_pat_ids::<_, Id>(&node.name) {
+                    self.merge_this_usage(id, || ThisUsage::MaybeUsingThis);
+                }
+            }
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_for_in_stmt(&mut self, node: &ForInStmt) {
+        // The loop head assigns each name it binds without an assignment expression.
+        for id in find_pat_ids::<_, Id>(&node.left) {
+            self.merge_this_usage(id, || ThisUsage::MaybeUsingThis);
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_for_of_stmt(&mut self, node: &ForOfStmt) {
+        for id in find_pat_ids::<_, Id>(&node.left) {
+            self.merge_this_usage(id, || ThisUsage::MaybeUsingThis);
         }
         node.visit_children_with(self);
     }
 
     fn visit_assign_expr(&mut self, node: &AssignExpr) {
+        // A plain `f = <value>` can be answered from the value. Anything else -- a compound
+        // assignment, or a destructuring pattern whose elements this analysis does not track
+        // through -- is opaque, so the names it binds fall back to "maybe".
+        if node.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Ident(i)) = &node.left
+        {
+            let unresolved_mark = self.unresolved_mark;
+            self.merge_this_usage(i.to_id(), || value_this_usage(&node.right, unresolved_mark));
+        } else {
+            for id in find_pat_ids::<_, Id>(&node.left) {
+                self.merge_this_usage(id, || ThisUsage::MaybeUsingThis);
+            }
+        }
+
         if node.op == AssignOp::Assign
             && let AssignTarget::Simple(SimpleAssignTarget::Member(target)) = &node.left
             && is_module_dot_exports(target, self.unresolved_mark)
