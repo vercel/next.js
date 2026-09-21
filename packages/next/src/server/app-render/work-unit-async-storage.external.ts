@@ -436,8 +436,10 @@ export interface UnstableCacheStore extends CommonCacheStore {
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
-export interface GenerateStaticParamsStore extends CommonWorkUnitStore {
-  readonly type: 'generate-static-params'
+export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
+  readonly type: 'build-time-generator'
+  /** The public export name to use in diagnostics, regardless of bundling. */
+  readonly functionName: string
   readonly rootParams: Params
 }
 
@@ -445,7 +447,7 @@ export type WorkUnitStore =
   | RequestStore
   | CacheStore
   | PrerenderStore
-  | GenerateStaticParamsStore
+  | BuildTimeGeneratorStore
 
 export function willConsumerServerCache(
   workUnitStore: WorkUnitStore | undefined
@@ -466,7 +468,7 @@ export function willConsumerServerCache(
     case 'request':
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -506,7 +508,7 @@ export function getResumeDataCache(
     case 'private-cache':
     case 'unstable-cache':
     case 'prerender-legacy':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -528,7 +530,7 @@ export function getHmrRefreshHash(
       case 'validation-client':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -551,7 +553,7 @@ export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
       case 'prerender-runtime':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -576,7 +578,7 @@ export function getServerComponentsHmrCache(
       case 'prerender-runtime':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -605,7 +607,7 @@ export function getDraftModeProviderForCacheScope(
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-legacy':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -629,7 +631,7 @@ export function getStagedRenderingController(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -656,7 +658,7 @@ export function getCacheSignal(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -678,7 +680,7 @@ export function getVaryParamsAccumulator(
     case 'prerender-client':
     case 'validation-client':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       workUnitStore satisfies never
