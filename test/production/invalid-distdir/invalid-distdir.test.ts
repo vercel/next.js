@@ -79,6 +79,31 @@ describe('invalid distDir', () => {
 
   // `cleanDistDir: false` is a legacy escape hatch from Next 11, when cleaning
   // became the default. It skips cleaning entirely, so the guard never runs.
+  it('refuses an unrecognized distDir in generate mode', async () => {
+    // Generate mode resumes from a distDir a previous compile produced, so it
+    // never cleans. It should still report a misconfigured distDir rather than
+    // failing later on a missing BUILD_ID.
+    await next.patchFile('not-a-build-dir/important.txt', 'user data')
+
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = { distDir: 'not-a-build-dir' }`,
+      async () => {
+        const { cliOutput } = await next.build({
+          args: ['--experimental-build-mode', 'generate'],
+        })
+
+        expect(cliOutput).toContain(
+          'does not appear to have been created by Next.js'
+        )
+        expect(cliOutput).not.toContain('BUILD_ID')
+        expect(await next.readFile('not-a-build-dir/important.txt')).toBe(
+          'user data'
+        )
+      }
+    )
+  })
+
   it('skips the check when cleaning is disabled', async () => {
     await next.patchFile('not-a-build-dir/important.txt', 'user data')
 

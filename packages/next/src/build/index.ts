@@ -1222,6 +1222,19 @@ export default async function build(
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
+      // Validate whenever we would otherwise trust the directory, not just
+      // before cleaning: generate mode resumes from a distDir a previous
+      // compile produced, so an unrecognized one is a misconfiguration there
+      // too, and this reports it before `getBuildId` fails on a missing
+      // BUILD_ID. `cleanDistDir: false` is the exception, since it exists so
+      // an app can keep its own files alongside the build output.
+      //
+      // Must run before the lock file is written, which would make any
+      // directory look like ours.
+      if (config.cleanDistDir) {
+        verifyDistDir(distDir)
+      }
+
       const buildId = await getBuildId(
         isGenerateMode,
         distDir,
@@ -1288,12 +1301,6 @@ export default async function build(
         throw new Error(
           '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
         )
-      }
-
-      // Must run before the lock file is written, which would make any
-      // directory look like ours.
-      if (config.cleanDistDir && !isGenerateMode) {
-        verifyDistDir(distDir)
       }
 
       if (config.experimental.lockDistDir) {
