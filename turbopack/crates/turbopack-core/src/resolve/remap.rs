@@ -58,6 +58,11 @@ pub enum SubpathValue {
     /// An excluded subpath, defined with `"path": null`, prevents importing
     /// this subpath.
     Excluded,
+
+    /// An empty subpath, defined with `"path": false`, resolves to an empty
+    /// module (empty object for namespace/CJS imports, `undefined` for named
+    /// bindings).
+    Empty,
 }
 
 /// A `SubpathValue` that was applied to a pattern. See `SubpathValue` for
@@ -68,6 +73,7 @@ pub enum ReplacedSubpathValue {
     Conditional(Vec<(RcStr, ReplacedSubpathValue)>),
     Result(Pattern),
     Excluded,
+    Empty,
 }
 
 impl AliasTemplate for SubpathValue {
@@ -90,6 +96,7 @@ impl AliasTemplate for SubpathValue {
             ),
             SubpathValue::Result(value) => ReplacedSubpathValue::Result(value.clone().into()),
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
+            SubpathValue::Empty => ReplacedSubpathValue::Empty,
         }
     }
 
@@ -109,6 +116,7 @@ impl AliasTemplate for SubpathValue {
                 ReplacedSubpathValue::Result(capture.spread_into_star(value))
             }
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
+            SubpathValue::Empty => ReplacedSubpathValue::Empty,
         }
     }
 }
@@ -198,6 +206,7 @@ impl SubpathValue {
                 true
             }
             SubpathValue::Excluded => true,
+            SubpathValue::Empty => true,
         }
     }
 
@@ -206,7 +215,8 @@ impl SubpathValue {
             Value::Null => Ok(SubpathValue::Excluded),
             Value::String(s) => Ok(SubpathValue::Result(s.as_str().into())),
             Value::Number(_) => bail!("numeric values are invalid in {ty}s field entries"),
-            Value::Bool(_) => bail!("boolean values are invalid in {ty}s field entries"),
+            Value::Bool(false) => Ok(SubpathValue::Empty),
+            Value::Bool(true) => bail!("boolean true is invalid in {ty}s field entries"),
             Value::Object(object) => Ok(SubpathValue::Conditional(
                 object
                     .iter()
@@ -332,6 +342,7 @@ impl ReplacedSubpathValue {
                 true
             }
             ReplacedSubpathValue::Excluded => true,
+            ReplacedSubpathValue::Empty => true,
         }
     }
 }
@@ -358,6 +369,7 @@ impl<'a> Iterator for ResultsIterMut<'a> {
                 }
                 SubpathValue::Result(r) => return Some(r),
                 SubpathValue::Excluded => {}
+                SubpathValue::Empty => {}
             }
         }
         None
