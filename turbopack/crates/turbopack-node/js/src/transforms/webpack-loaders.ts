@@ -24,7 +24,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
-      buildDirectories?: string[]
+      buildDependencyRequests?: Array<[string, boolean]>
     }
   | {
       type: 'emittedError'
@@ -170,7 +170,6 @@ const transform = (
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
     const buildDependencies = new Set<string>()
-    const buildDirectories = new Set<string>()
 
     const logs: Array<{
       time: number
@@ -201,22 +200,7 @@ const transform = (
               : {}
           },
           addBuildDependency(dependency: string) {
-            const resolved = pathResolve(contextDir, dependency)
-            const pathLike =
-              path.isAbsolute(dependency) || /^\.{1,2}[\\/]/.test(dependency)
-            try {
-              if (fs.statSync(resolved).isDirectory()) {
-                buildDirectories.add(resolved)
-              } else {
-                buildDependencies.add(resolved)
-              }
-            } catch {
-              if (pathLike && /[\\/]$/.test(dependency)) {
-                buildDirectories.add(resolved)
-              } else {
-                buildDependencies.add(resolved)
-              }
-            }
+            buildDependencies.add(dependency)
           },
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
@@ -575,8 +559,24 @@ const transform = (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildFilePaths: [...buildDependencies].sort(),
-          buildDirectories: [...buildDirectories].sort(),
+          buildDependencyRequests: [...buildDependencies]
+            .map((dependency) => {
+              const isDirectory = /[\\/]$/.test(dependency)
+              let request = isDirectory ? dependency.slice(0, -1) : dependency
+              if (path.isAbsolute(request)) {
+                request = path.relative(contextDir, request)
+                if (
+                  !path.isAbsolute(request) &&
+                  request.split(path.sep)[0] !== '..'
+                ) {
+                  request = `./${request}`
+                }
+              }
+              request =
+                path.sep === '/' ? request : request.replaceAll(path.sep, '/')
+              return [request, isDirectory] as [string, boolean]
+            })
+            .sort(([a], [b]) => a.localeCompare(b)),
         })
         if (err) {
           // Resolve loader paths to include in the error message using
