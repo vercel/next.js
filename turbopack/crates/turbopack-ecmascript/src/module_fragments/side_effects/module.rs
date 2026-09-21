@@ -98,7 +98,10 @@ impl Module for SideEffectsModule {
                         SingleChunkableModuleReference::new(
                             *ResolvedVc::upcast(*side_effect),
                             rcstr!("side effect"),
-                            ExportUsage::evaluation(),
+                            // This wrapper emits a runtime import by module ID, so a merged target
+                            // must remain externally addressable even though only its evaluation
+                            // is semantically used.
+                            ExportUsage::all(),
                         )
                         .to_resolved()
                         .await?,
