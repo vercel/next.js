@@ -240,16 +240,21 @@ async fn build_files_changed(
     for path in paths {
         let path = cwd.join(&path)?;
         let entry_type = path.get_type().await?;
-        match &*entry_type {
-            FileSystemEntryType::File | FileSystemEntryType::NotFound => {
+        let supported = match &*entry_type {
+            FileSystemEntryType::File => {
                 path.read().await?;
+                true
+            }
+            FileSystemEntryType::NotFound => {
+                path.read().await?;
+                false
             }
             FileSystemEntryType::Directory
             | FileSystemEntryType::Symlink
             | FileSystemEntryType::Other
-            | FileSystemEntryType::Error => {}
-        }
-        if !matches!(&*entry_type, FileSystemEntryType::File) {
+            | FileSystemEntryType::Error => false,
+        };
+        if !supported {
             BuildDependencyIssue {
                 source: IssueSource::from_source_only(source),
                 path,
@@ -304,19 +309,43 @@ async fn loaders_changed(
 }
 
 #[turbo_tasks::function]
-async fn build_directories_changed(
+async fn build_dependency_requests_changed(
     cwd: FileSystemPath,
-    paths: Vec<RcStr>,
+    requests: Vec<(RcStr, bool)>,
+    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<Completion>> {
-    paths
-        .iter()
-        .map(async |path| {
-            cwd.join(path)?
-                .track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), true)
-                .await
-        })
-        .try_join()
-        .await?;
+    for (request, is_directory) in requests {
+        let path = cwd.join(&request)?;
+        let entry_type = path.get_type().await?;
+        let supported = match &*entry_type {
+            FileSystemEntryType::File if !is_directory => {
+                path.read().await?;
+                true
+            }
+            FileSystemEntryType::Directory if is_directory => {
+                path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
+                    .await?;
+                true
+            }
+            FileSystemEntryType::NotFound => {
+                path.read().await?;
+                false
+            }
+            FileSystemEntryType::File
+            | FileSystemEntryType::Directory
+            | FileSystemEntryType::Symlink
+            | FileSystemEntryType::Other
+            | FileSystemEntryType::Error => false,
+        };
+        if !supported {
+            BuildDependencyIssue {
+                source: IssueSource::from_source_only(source),
+                path,
+            }
+            .resolved_cell()
+            .emit();
+        }
+    }
     Ok(Completion::new())
 }
 
@@ -541,7 +570,7 @@ pub enum InfoMessage {
         #[serde(default)]
         build_file_paths: Vec<RcStr>,
         #[serde(default)]
-        build_directories: Vec<RcStr>,
+        build_dependency_requests: Vec<(RcStr, bool)>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -719,7 +748,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 file_paths,
                 directories,
                 build_file_paths,
-                build_directories,
+                build_dependency_requests,
             } => {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
@@ -748,8 +777,13 @@ impl EvaluateContext for WebpackLoaderContext {
                         .await?;
                         Ok::<_, anyhow::Error>(())
                     };
-                    let build_directory_subscriptions = async {
-                        build_directories_changed(self.cwd.clone(), build_directories).await?;
+                    let build_dependency_request_subscriptions = async {
+                        build_dependency_requests_changed(
+                            self.cwd.clone(),
+                            build_dependency_requests,
+                            *self.context_source_for_issue,
+                        )
+                        .await?;
                         Ok::<_, anyhow::Error>(())
                     };
                     let directory_subscriptions = directories
@@ -765,7 +799,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         env_subscriptions,
                         file_subscriptions,
                         build_file_subscriptions,
-                        build_directory_subscriptions,
+                        build_dependency_request_subscriptions,
                         directory_subscriptions
                     )?;
                 }
@@ -1123,9 +1157,8 @@ impl Issue for BuildDependencyIssue {
             StyledString::Text(rcstr!("The path at ")),
             StyledString::Code(self.path.to_string().into()),
             StyledString::Text(
-                " was passed to this.addBuildDependency, but it is not an exact existing file or \
-                 an explicit directory. Only exact existing file paths and explicit directories \
-                 are supported; other inputs may require restarting the development server."
+                " is not an exact existing file or explicit directory build dependency. \
+                 Unsupported inputs may require restarting the development server."
                     .into(),
             ),
         ])))

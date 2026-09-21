@@ -5,7 +5,10 @@ const loader = async function (content) {
   this.async()
 
   if (this.resourcePath.endsWith('unsupported-build-dependency.ts')) {
-    this.addBuildDependency(path.join(__dirname, 'missing-build-dependency.js'))
+    this.addBuildDependency(path.join(__dirname, 'cyclic-build-dependency'))
+    this.addBuildDependency(
+      `${path.join(__dirname, 'utils', 'build-dependency.js')}${path.sep}`
+    )
     return this.callback(
       null,
       `export const utilFn = () => 'unsupported build dependency';`
@@ -16,11 +19,12 @@ const loader = async function (content) {
     'directory-build-dependency.ts'
   )
   if (directoryBuildDependency) {
-    const packageEntry = require.resolve('build-dependency-package')
-    const packageDirectory = path.dirname(packageEntry)
-    this.addBuildDependency(packageDirectory)
+    const packageDirectory = path.join(__dirname, 'build-dependency-package')
+    const nestedEntry = path.join(packageDirectory, 'nested', 'value.js')
+    const directoryMarker = path.sep === '/' ? '\\' : '/'
+    this.addBuildDependency(`${packageDirectory}${directoryMarker}`)
     const packageValue = fs
-      .readFileSync(packageEntry, 'utf8')
+      .readFileSync(nestedEntry, 'utf8')
       .match(/'([^']+)'/)[1]
     return this.callback(
       null,

@@ -4,9 +4,6 @@ import { retry, waitFor } from 'next-test-utils'
 describe('turbopack-loader-file-dependencies', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      'build-dependency-package': 'file:./build-dependency-package',
-    },
   })
 
   it('should update when the dependency file changes', async () => {
@@ -61,30 +58,36 @@ describe('turbopack-loader-file-dependencies', () => {
 
   // @force-gate turbopack
   it('warns for unsupported build dependency inputs', async () => {
-    const outputIndex = next.cliOutput.length
-    const $ = await next.render$('/unsupported')
-    expect($('p').text()).toContain('unsupported build dependency')
-    await retry(() => {
-      const output = next.cliOutput.slice(outputIndex)
-      expect(output).toContain('Unsupported webpack loader build dependency')
-      expect(output).toContain('missing-build-dependency.js')
-      expect(output).toContain('exact existing file')
-      expect(output).not.toMatch(/EISDIR|ELOOP/)
-    })
+    await next.symlink('cyclic-build-dependency', 'cyclic-build-dependency')
+    try {
+      const outputIndex = next.cliOutput.length
+      const $ = await next.render$('/unsupported')
+      expect($('p').text()).toContain('unsupported build dependency')
+      await retry(() => {
+        const output = next.cliOutput.slice(outputIndex)
+        expect(output).toContain('Unsupported webpack loader build dependency')
+        expect(output).toContain('cyclic-build-dependency')
+        expect(output).toContain('build-dependency.js')
+        expect(output).not.toMatch(/EISDIR|ELOOP/)
+      })
+    } finally {
+      await next.deleteFile('cyclic-build-dependency')
+    }
   })
 
-  it('updates when a file in a build dependency directory changes', async () => {
+  // @force-gate turbopack
+  it('updates when a nested file in a build dependency directory changes', async () => {
     const $ = await next.render$('/directory')
-    expect($('p').text()).toContain('directory build dependency: package-one')
+    expect($('p').text()).toContain('directory build dependency: nested-one')
 
     await next.patchFile(
-      'node_modules/build-dependency-package/one.js',
-      "module.exports = 'package-two'",
+      'build-dependency-package/nested/value.js',
+      "module.exports = 'nested-two'",
       async () => {
         await retry(async () => {
           const $2 = await next.render$('/directory')
           expect($2('p').text()).toContain(
-            'directory build dependency: package-two'
+            'directory build dependency: nested-two'
           )
         }, 10000)
       }
