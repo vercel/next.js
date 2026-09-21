@@ -6,7 +6,12 @@ export const dynamicParams = false
 export const revalidate = 3600
 
 export function generateStaticParams() {
-  return [{ slug: 'known' }, { slug: 'mutable' }, { slug: 'initially-missing' }]
+  return [
+    { slug: 'known' },
+    { slug: 'concurrent' },
+    { slug: 'mutable' },
+    { slug: 'initially-missing' },
+  ]
 }
 
 export default async function Page({

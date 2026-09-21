@@ -2,7 +2,7 @@ export const dynamicParams = false
 export const revalidate = 1
 
 export function generateStaticParams() {
-  return [{ slug: 'known' }]
+  return [{ slug: 'known' }, { slug: 'stale' }]
 }
 
 export default function Page() {

@@ -56,6 +56,50 @@ describe('dynamicParams: false revalidation', () => {
     })
   })
 
+  it('shares regeneration across concurrent requests after invalidation', async () => {
+    const before = await readPage('/closed/concurrent')
+    expect(before.status).toBe(200)
+    await revalidate('/closed/concurrent')
+
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () => readPage('/closed/concurrent'))
+    )
+    for (const response of responses) {
+      expect(response.status).toBe(200)
+      expect(response.generation).not.toBe('')
+      expect(response.generation).not.toBe(before.generation)
+      expect(response).toEqual(responses[0])
+    }
+    expect(await readPage('/closed/concurrent')).toEqual(responses[0])
+  })
+
+  it('serves a stale response while regenerating without changing that response to a 404', async () => {
+    const outputStart = next.cliOutput.length
+    await revalidate('/timed/stale')
+    const before = await readPage('/timed/stale')
+    expect(before.status).toBe(200)
+    expect(before.generation).not.toBe('')
+
+    // A stale cache hit resolves the request before the background generator
+    // finishes. Admission checks must not turn that regeneration into a 404.
+    await retry(async () => {
+      const response = await next.fetch('/timed/stale')
+      expect(response.status).toBe(200)
+      const $ = load(await response.text())
+      expect(response.headers.get('x-nextjs-cache')).toBe('STALE')
+      expect($('#generation').text()).toBe(before.generation)
+    })
+    await retry(async () => {
+      const after = await readPage('/timed/stale')
+      expect(after.status).toBe(200)
+      expect(after.generation).not.toBe('')
+      expect(after.generation).not.toBe(before.generation)
+    })
+    const output = next.cliOutput.slice(outputStart)
+    expect(output).not.toContain('NoFallbackError')
+    expect(output).not.toContain('ERR_HTTP_HEADERS_SENT')
+  })
+
   it('allows content to disappear and return at an admitted URL', async () => {
     const original = await next.readFile('content.json')
     try {
@@ -76,6 +120,7 @@ describe('dynamicParams: false revalidation', () => {
     const original = await next.readFile('content.json')
     try {
       expect((await readPage('/closed/initially-missing')).status).toBe(404)
+      // Omit the key: only an explicit null means the content is unavailable.
       await next.patchFile(
         'content.json',
         JSON.stringify({ mutable: 'available' })

@@ -1628,11 +1628,13 @@ export function createAppPageEntrypoint({
         // build path remains valid even when its cached result is missing, and
         // the most specific matched route controls whether other paths may be
         // generated. Neither a cache hit nor revalidation changes that decision.
+        // Server Actions may be forwarded to a worker's route pattern rather
+        // than a concrete URL. That invokes the action, not a page navigation.
         if (
           !isMinimalMode &&
           !isDraftMode &&
+          !isPossibleServerAction &&
           pageIsDynamic &&
-          !res.writableEnded &&
           prerenderInfo?.fallback === false &&
           !isPrerendered
         ) {

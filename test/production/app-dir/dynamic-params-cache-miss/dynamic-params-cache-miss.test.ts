@@ -16,6 +16,17 @@ describe('dynamicParams: false with an empty cache', () => {
     )
   })
 
+  it('allows authenticated revalidation of an admitted path with no cache entry', async () => {
+    const { previewModeId } = JSON.parse(
+      await next.readFile('.next/server/preview-props.json')
+    )
+    const headers = { 'x-prerender-revalidate': previewModeId }
+    const known = await next.fetch('/closed/known', { headers })
+    expect(known.status).toBe(200)
+    expect(load(await known.text())('#slug').text()).toBe('known')
+    expect((await next.fetch('/closed/unlisted', { headers })).status).toBe(404)
+  })
+
   it.each(['document', 'navigation', 'bot'])(
     'rejects an unlisted %s request before a cache lookup or render',
     async (kind) => {
