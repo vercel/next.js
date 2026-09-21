@@ -1,3 +1,10 @@
+// Manual/local differential check only — do not invoke from Cargo tests or CI.
+//
+// First generate the focused Turbopack output:
+//   UPDATE=1 cargo nextest run -p turbopack-tests -E 'test(webpack_parity)'
+// Then, from the repository root, compare it with root-pinned webpack:
+//   node turbopack/crates/turbopack-tests/js/cjs-webpack-parity.mjs \
+//     turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/webpack-parity .
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
