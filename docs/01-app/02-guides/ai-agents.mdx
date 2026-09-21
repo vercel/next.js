@@ -4,7 +4,7 @@ nav_title: AI Coding Agents
 description: Learn how Next.js helps AI coding agents use current framework guidance, inspect applications, verify changes, and report issues.
 related:
   title: Next Steps
-  description: Explore related Next.js tools and workflows.
+  description: Learn more about the APIs and tools described in this guide.
   links:
     - app/guides/mcp
     - app/getting-started/upgrading
@@ -13,6 +13,8 @@ related:
 ---
 
 AI coding agents may rely on training data that predates the Next.js version installed in a project. To help agents use current APIs and verify their work, Next.js provides and evaluates version-matched documentation, managed project instructions, runtime tools, structured errors, reusable Skills, and optional agent feedback. See the results in the [Next.js agent evaluations](https://nextjs.org/evals).
+
+For more background, read about the AI tooling introduced in [Next.js 16.2](/blog/next-16-2-ai) and [Next.js 16.3](/blog/next-16-3-ai-improvements).
 
 <span id="step-1-point-agents-at-the-bundled-docs" />
 
@@ -123,8 +125,6 @@ The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mc
 The [`next-dev-loop` skill](#next-dev-loop) adds the **browser's view** through [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. The Skill opens `agent-browser` with React DevTools enabled, which also exposes the component tree and pending Suspense boundaries. An agent can run a command such as `react tree` and use the structured output to decide what to inspect next.
 
 Together with the Next.js MCP server, `next-dev-loop` combines the framework's and the browser's perspectives into one edit-and-verify loop.
-
-> **Good to know:** For the story behind this tooling, see the [Next.js 16.2](https://nextjs.org/blog/next-16-2-ai) and [Next.js 16.3](https://nextjs.org/blog/next-16-3-ai-improvements) AI blog posts.
 
 <span id="step-3-let-errors-drive-the-fixes" />
 
