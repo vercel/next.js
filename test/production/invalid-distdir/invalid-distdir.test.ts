@@ -104,19 +104,46 @@ describe('invalid distDir', () => {
     )
   })
 
-  it('skips the check when cleaning is disabled', async () => {
+  it('refuses an unrecognized distDir even when cleaning is disabled', async () => {
+    // `cleanDistDir: false` disables deleting, not the requirement that
+    // distDir be a directory Next.js owns.
     await next.patchFile('not-a-build-dir/important.txt', 'user data')
 
     await next.patchFile(
       'next.config.js',
       `module.exports = { distDir: 'not-a-build-dir', cleanDistDir: false }`,
       async () => {
-        const { exitCode } = await next.build()
+        const { cliOutput } = await next.build()
 
-        expect(exitCode).toBe(0)
-        // Cleaning was skipped entirely, so the file is still there.
+        expect(cliOutput).toContain(
+          'does not appear to have been created by Next.js'
+        )
         expect(await next.readFile('not-a-build-dir/important.txt')).toBe(
           'user data'
+        )
+      }
+    )
+  })
+
+  it('builds into a Next.js-created distDir when cleaning is disabled', async () => {
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = { distDir: 'not-a-build-dir' }`,
+      async () => {
+        expect((await next.build()).exitCode).toBe(0)
+      }
+    )
+
+    // Stale output from that build is kept rather than cleaned.
+    await next.patchFile('not-a-build-dir/stale-output.txt', 'stale')
+
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = { distDir: 'not-a-build-dir', cleanDistDir: false }`,
+      async () => {
+        expect((await next.build()).exitCode).toBe(0)
+        expect(await next.hasFile('not-a-build-dir/stale-output.txt')).toBe(
+          true
         )
       }
     )

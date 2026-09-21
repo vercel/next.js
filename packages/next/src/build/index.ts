@@ -1222,18 +1222,10 @@ export default async function build(
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
-      // Validate whenever we would otherwise trust the directory, not just
-      // before cleaning: generate mode resumes from a distDir a previous
-      // compile produced, so an unrecognized one is a misconfiguration there
-      // too, and this reports it before `getBuildId` fails on a missing
-      // BUILD_ID. `cleanDistDir: false` is the exception, since it exists so
-      // an app can keep its own files alongside the build output.
-      //
-      // Must run before the lock file is written, which would make any
-      // directory look like ours.
-      if (config.cleanDistDir) {
-        verifyDistDir(distDir)
-      }
+      // `distDir` must be a directory Next.js owns regardless of what we go on
+      // to do with it, so this is not conditional on cleaning. Must run before
+      // the lock file is written, which would make any directory look ours.
+      verifyDistDir(distDir)
 
       const buildId = await getBuildId(
         isGenerateMode,
