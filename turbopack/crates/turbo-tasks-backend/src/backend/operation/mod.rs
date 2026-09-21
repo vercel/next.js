@@ -1278,7 +1278,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         if matches!(self.phase, ExecutePhase::Gc(_)) {
             return;
         }
-        self.backend.operation_suspend_point(|| op.clone().into());
+        self.backend
+            .operation_suspend_point(|| op.clone().into(), self.turbo_tasks);
     }
 
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {

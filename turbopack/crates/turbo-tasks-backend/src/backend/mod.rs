@@ -101,6 +101,22 @@ const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 /// ensures we are responsive and this ensures a minimum amount of progress.
 const GC_MIN_PROGRESS: Duration = Duration::from_millis(100);
 
+fn parse_gc_at_suspend_points_probability(value: &str) -> Option<f64> {
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|probability| (0.0..=1.0).contains(probability))
+}
+
+fn normalize_gc_at_suspend_points_probability(probability: Option<f64>) -> Option<f64> {
+    probability.filter(|probability| *probability > 0.0)
+}
+
+fn gc_at_suspend_point_sampled(probability: f64) -> bool {
+    debug_assert!((0.0..=1.0).contains(&probability));
+    probability >= 1.0 || (probability > 0.0 && rand::random::<f64>() < probability)
+}
+
 /// Priority used to re-schedule a task that became stale during execution.
 ///
 /// Stale tasks must run again, but at a priority that reflects why they're being re-run rather
@@ -169,6 +185,16 @@ pub struct BackendOptions {
     /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
     /// [`GC_MIN_PROGRESS`].
     pub gc_min_progress: Option<Duration>,
+
+    /// Probability that an eligible operation suspension point runs a GC cycle. `None` disables
+    /// suspension-point GC. Only intended for testing.
+    #[doc(hidden)]
+    pub gc_collect_at_suspend_points: Option<f64>,
+
+    /// Evicts after every suspension-point GC instead of using the normal background eviction
+    /// policy. Only intended for testing. Implies `gc_collect_at_suspend_points`.
+    #[doc(hidden)]
+    pub evict_at_suspend_points: bool,
 }
 
 impl Default for BackendOptions {
@@ -183,6 +209,8 @@ impl Default for BackendOptions {
             gc: None,
             gc_root_ttl: None,
             gc_min_progress: None,
+            gc_collect_at_suspend_points: None,
+            evict_at_suspend_points: false,
         }
     }
 }
@@ -195,6 +223,7 @@ pub enum TurboTasksBackendJob {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SnapshotReason {
     Test,
+    SuspensionPoint,
     Stop,
     InitialSnapshotTimeout,
     RegularSnapshotInterval,
@@ -205,6 +234,7 @@ impl SnapshotReason {
     fn as_str(self) -> &'static str {
         match self {
             SnapshotReason::Test => "test",
+            SnapshotReason::SuspensionPoint => "suspension point",
             SnapshotReason::Stop => "stop",
             SnapshotReason::InitialSnapshotTimeout => "initial snapshot timeout",
             SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
@@ -311,6 +341,29 @@ impl TurboTasksBackend {
         if !options.dependency_tracking {
             options.active_tracking = false;
         }
+        options.evict_at_suspend_points |= std::env::var_os("TURBO_ENGINE_EVICT_AT_SUSPEND_POINTS")
+            .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")));
+        if let Ok(value) = std::env::var("TURBO_ENGINE_GC_AT_SUSPEND_POINTS_PROBABILITY") {
+            match parse_gc_at_suspend_points_probability(&value) {
+                Some(probability) => {
+                    options.gc_collect_at_suspend_points =
+                        normalize_gc_at_suspend_points_probability(Some(probability))
+                }
+                None => eprintln!(
+                    "warning: TURBO_ENGINE_GC_AT_SUSPEND_POINTS_PROBABILITY must be a number from \
+                     0 to 1; ignoring {value:?}"
+                ),
+            }
+        }
+        options.gc_collect_at_suspend_points =
+            normalize_gc_at_suspend_points_probability(options.gc_collect_at_suspend_points);
+        if options.evict_at_suspend_points
+            || std::env::var_os("TURBO_ENGINE_GC_AT_SUSPEND_POINTS")
+                .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
+        {
+            options.gc_collect_at_suspend_points.get_or_insert(1.0);
+        }
+        let gc_collect_at_suspend_points = options.gc_collect_at_suspend_points.is_some();
         let small_preallocation = options.small_preallocation;
         let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
         let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
@@ -318,8 +371,10 @@ impl TurboTasksBackend {
             .next_free_task_id()
             .expect("Failed to get task id");
 
-        let mut gc_enabled = options.gc.unwrap_or(false);
+        // The suspension-point stress mode is meaningless without GC, so it forces GC on.
+        let mut gc_enabled = gc_collect_at_suspend_points || options.gc.unwrap_or(false);
         if gc_enabled
+            && !gc_collect_at_suspend_points
             && options.storage_mode == Some(StorageMode::ReadWrite)
             && options.eviction_mode == EvictionMode::Off
         {
@@ -330,6 +385,16 @@ impl TurboTasksBackend {
             );
             gc_enabled = false;
         }
+
+        assert!(
+            !gc_collect_at_suspend_points
+                || (gc_enabled
+                    && matches!(
+                        options.storage_mode,
+                        Some(StorageMode::ReadWrite | StorageMode::ReadWriteOnShutdown)
+                    )),
+            "gc_collect_at_suspend_points requires GC and persistent storage"
+        );
 
         Self {
             options,
@@ -390,8 +455,45 @@ impl TurboTasksBackend {
         ))
     }
 
-    fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if self.should_persist() {
+    fn operation_suspend_point(
+        &self,
+        suspend: impl FnOnce() -> AnyOperation,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        if !self.should_persist() {
+            return;
+        }
+        if self
+            .options
+            .gc_collect_at_suspend_points
+            .is_some_and(gc_at_suspend_point_sampled)
+            && let Some(_serialize) = self.snapshot_in_progress.try_lock()
+        {
+            let suspended_operation = suspend();
+            let runtime = tokio::runtime::Handle::current();
+            std::thread::scope(|scope| {
+                scope
+                    .spawn(|| {
+                        let _runtime = runtime.enter();
+                        self.snapshot_coord.run_with_operation_suspended(
+                            suspended_operation,
+                            || {
+                                self.snapshot_and_persist_locked(
+                                    None,
+                                    SnapshotReason::SuspensionPoint,
+                                    turbo_tasks,
+                                )
+                                .expect("snapshot at operation suspension point failed");
+                                if self.options.evict_at_suspend_points {
+                                    self.storage.evict_after_snapshot(None);
+                                }
+                            },
+                        );
+                    })
+                    .join()
+                    .unwrap()
+            });
+        } else {
             self.snapshot_coord.suspend_point(suspend);
         }
     }
@@ -475,6 +577,7 @@ impl TurboTasksBackend {
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
         self.backing_storage.roots().unwrap_or_default()
     }
+
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics if `task` exists in
     /// neither memory nor persistent storage (rather than fabricating a blank).
@@ -1150,13 +1253,19 @@ impl TurboTasksBackend {
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<(Instant, bool, Option<GcStats>), anyhow::Error> {
+        let _snapshot_in_progress = self.snapshot_in_progress.lock();
+        self.snapshot_and_persist_locked(parent_span, reason, turbo_tasks)
+    }
+
+    fn snapshot_and_persist_locked(
+        &self,
+        parent_span: Option<tracing::Id>,
+        reason: SnapshotReason,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Result<(Instant, bool, Option<GcStats>), anyhow::Error> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
-        // Serialize snapshots. The internal protocol (snapshot_mode, snapshot
-        // request bit, suspended_operations) assumes only one snapshot runs at
-        // a time. Held for the entire snapshot lifecycle.
-        let _snapshot_in_progress = self.snapshot_in_progress.lock();
 
         // One exclusion covers the GC pass and the snapshot that follows it, so the collected
         // tasks' tombstones (derived from the `deleted` flag) ride this same commit and no
@@ -1660,7 +1769,9 @@ impl TurboTasksBackend {
 
         // Only when it should write regularly to the storage, we schedule the initial snapshot
         // job.
-        if matches!(self.options.storage_mode, Some(StorageMode::ReadWrite)) {
+        if matches!(self.options.storage_mode, Some(StorageMode::ReadWrite))
+            && self.options.gc_collect_at_suspend_points.is_none()
+        {
             // Schedule the snapshot job
             let _span = trace_span!("persisting background job").entered();
             let _span = tracing::info_span!("thread").entered();
@@ -4182,4 +4293,40 @@ fn encode_task_data(
             })?;
     }
     Ok(SmallVec::from_slice(scratch_buffer))
+}
+
+#[cfg(test)]
+mod gc_at_suspend_points_probability_tests {
+    use super::{
+        gc_at_suspend_point_sampled, normalize_gc_at_suspend_points_probability,
+        parse_gc_at_suspend_points_probability,
+    };
+
+    #[test]
+    fn parses_only_probabilities() {
+        assert_eq!(parse_gc_at_suspend_points_probability("0"), Some(0.0));
+        assert_eq!(parse_gc_at_suspend_points_probability("0.25"), Some(0.25));
+        assert_eq!(parse_gc_at_suspend_points_probability("1"), Some(1.0));
+        assert_eq!(parse_gc_at_suspend_points_probability("-0.1"), None);
+        assert_eq!(parse_gc_at_suspend_points_probability("1.1"), None);
+        assert_eq!(parse_gc_at_suspend_points_probability("NaN"), None);
+        assert_eq!(parse_gc_at_suspend_points_probability("invalid"), None);
+    }
+
+    #[test]
+    fn probability_bounds_are_deterministic() {
+        for _ in 0..100 {
+            assert!(!gc_at_suspend_point_sampled(0.0));
+            assert!(gc_at_suspend_point_sampled(1.0));
+        }
+    }
+
+    #[test]
+    fn zero_probability_disables_suspend_point_gc() {
+        assert_eq!(normalize_gc_at_suspend_points_probability(Some(0.0)), None);
+        assert_eq!(
+            normalize_gc_at_suspend_points_probability(Some(0.25)),
+            Some(0.25)
+        );
+    }
 }

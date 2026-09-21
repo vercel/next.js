@@ -179,6 +179,30 @@ impl<O> SnapshotCoordinator<O> {
         suspend_point_cold(self, suspend);
     }
 
+    /// Runs a callback with the current operation suspended.
+    pub fn run_with_operation_suspended<R>(&self, operation: O, run: impl FnOnce() -> R) -> R {
+        let operation = Arc::new(operation);
+        {
+            let mut state = self.state.lock();
+            state
+                .suspended_operations
+                .insert(PtrEqArc::from(operation.clone()));
+            let prev = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel);
+            assert!(
+                (prev & !SNAPSHOT_REQUESTED_BIT) > 0,
+                "run_with_operation_suspended called without a live operation: prev={prev:#x}"
+            );
+            if prev - 1 == SNAPSHOT_REQUESTED_BIT {
+                self.operations_drained.notify_all();
+            }
+        }
+        let _resume = SuspendedOperationGuard {
+            coord: self,
+            operation,
+        };
+        run()
+    }
+
     /// Begin a snapshot. Sets the snapshot bit, blocks until all in-flight
     /// operations have drained or suspended, and returns a [`SnapshotPhase`]
     /// guard that releases the bit on drop.
@@ -238,6 +262,23 @@ impl<O> SnapshotCoordinator<O> {
             coord: self,
             suspended_operations,
         }
+    }
+}
+
+struct SuspendedOperationGuard<'a, O> {
+    coord: &'a SnapshotCoordinator<O>,
+    operation: Arc<O>,
+}
+
+impl<O> Drop for SuspendedOperationGuard<'_, O> {
+    fn drop(&mut self) {
+        let mut state = self.coord.state.lock();
+        self.coord
+            .in_progress_operations
+            .fetch_add(1, Ordering::AcqRel);
+        state
+            .suspended_operations
+            .remove(&PtrEqArc::from(self.operation.clone()));
     }
 }
 
@@ -342,6 +383,7 @@ impl<O> Drop for SnapshotPhase<'_, O> {
 #[cfg(test)]
 mod tests {
     use std::{
+        panic::{AssertUnwindSafe, catch_unwind},
         sync::{
             Arc,
             atomic::{AtomicBool, AtomicUsize},
@@ -378,6 +420,26 @@ mod tests {
         let g = coord.begin_operation();
         assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 1);
         drop(g);
+        assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 0);
+    }
+
+    #[test]
+    fn suspended_operation_is_restored_after_panic() {
+        let coord = SnapshotCoordinator::<Op>::new();
+        let operation = coord.begin_operation();
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            coord.run_with_operation_suspended(42, || panic!("callback failed"));
+        }));
+
+        assert!(result.is_err());
+        assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 1);
+        assert!(coord.state.lock().suspended_operations.is_empty());
+
+        drop(operation);
+        let phase = coord.begin_snapshot();
+        drop(phase);
+        drop(coord.begin_operation());
         assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 0);
     }
 
