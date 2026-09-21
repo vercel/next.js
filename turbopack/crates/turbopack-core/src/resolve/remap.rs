@@ -184,6 +184,17 @@ impl ReplacedSubpathValue {
     /// It uses `conditions` to skip or enter conditional results, storing any
     /// runtime-unknown condition overrides in `condition_overrides` so that
     /// callers can attach them to the resolved request key.
+    ///
+    /// Returns `true` when a definitive result is found that covers all
+    /// possible values of any unknown conditions — i.e., [`Excluded`],
+    /// [`Empty`], or a concrete [`Result`] was matched. Callers (particularly
+    /// [`Alternatives`] and the outer lookup loop) use this to stop trying
+    /// further alternatives once a terminal match has been established.
+    ///
+    /// [`Excluded`]: ReplacedSubpathValue::Excluded
+    /// [`Empty`]: ReplacedSubpathValue::Empty
+    /// [`Result`]: ReplacedSubpathValue::Result
+    /// [`Alternatives`]: ReplacedSubpathValue::Alternatives
     pub fn add_results<'a, 'b>(
         self,
         prefix: Cow<'a, str>,
@@ -192,24 +203,23 @@ impl ReplacedSubpathValue {
         unspecified_condition: &ConditionValue,
         condition_overrides: &mut FxHashMap<RcStr, ConditionValue>,
         target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
-    ) {
+    ) -> bool {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
                 // Try alternatives in order, stopping at the first definitive result.
                 for value in list {
-                    let prev_len = target.len();
-                    value.add_results(
+                    if value.add_results(
                         prefix.clone(),
                         key,
                         conditions,
                         unspecified_condition,
                         condition_overrides,
                         target,
-                    );
-                    if target.len() > prev_len {
-                        break;
+                    ) {
+                        return true;
                     }
                 }
+                false
             }
             ReplacedSubpathValue::Conditional(list) => {
                 for (condition, value) in list {
@@ -223,36 +233,33 @@ impl ReplacedSubpathValue {
                     };
                     match condition_value {
                         ConditionValue::Set => {
-                            let prev_len = target.len();
-                            value.add_results(
+                            if value.add_results(
                                 prefix.clone(),
                                 key,
                                 conditions,
                                 unspecified_condition,
                                 condition_overrides,
                                 target,
-                            );
-                            if target.len() > prev_len {
-                                break;
+                            ) {
+                                return true;
                             }
                         }
                         ConditionValue::Unset => {}
                         ConditionValue::Unknown => {
-                            // Unknown conditions are tried as Set; if a result is found, the
-                            // condition is recorded as Unset in overrides so the caller can mark
-                            // the request key accordingly. We then continue to the next condition
-                            // to collect results for all possible runtime values.
+                            // The condition's value is unknown at compile time. We explore both
+                            // branches: try the condition as Set, collect results for that case,
+                            // then mark it as Unset in overrides and continue to the next
+                            // condition to collect results for the opposite case. This ensures
+                            // all possible runtime values are represented in `target`.
                             condition_overrides.insert(condition.clone(), ConditionValue::Set);
-                            let prev_len = target.len();
-                            value.add_results(
+                            if value.add_results(
                                 prefix.clone(),
                                 key,
                                 conditions,
                                 unspecified_condition,
                                 condition_overrides,
                                 target,
-                            );
-                            if target.len() > prev_len {
+                            ) {
                                 condition_overrides.insert(condition, ConditionValue::Unset);
                             } else {
                                 condition_overrides.remove(condition.as_str());
@@ -260,6 +267,7 @@ impl ReplacedSubpathValue {
                         }
                     }
                 }
+                false
             }
             ReplacedSubpathValue::Result(r) => {
                 target.push(ReplacedSubpathValueResult {
@@ -268,6 +276,7 @@ impl ReplacedSubpathValue {
                     map_prefix: prefix,
                     map_key: key,
                 });
+                true
             }
             ReplacedSubpathValue::Excluded => {
                 target.push(ReplacedSubpathValueResult {
@@ -276,6 +285,7 @@ impl ReplacedSubpathValue {
                     map_prefix: prefix,
                     map_key: key,
                 });
+                true
             }
             ReplacedSubpathValue::Empty => {
                 target.push(ReplacedSubpathValueResult {
@@ -284,6 +294,7 @@ impl ReplacedSubpathValue {
                     map_prefix: prefix,
                     map_key: key,
                 });
+                true
             }
         }
     }
