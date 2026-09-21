@@ -80,6 +80,7 @@ import {
   getRawHttpResponseStatus,
   isWebSocketUpgradeRequest,
   isWebSocketClientDisconnectError,
+  ownWebSocketUpgradeSocketErrors,
   preflightWebSocketUpgrade,
   validateWebSocketHandshake,
   validateWebSocketOrigin,
@@ -92,6 +93,12 @@ import {
   tryAcquireWebSocketScopeLease,
   type WebSocketScopeLease,
 } from '../websocket-connection-registry'
+import {
+  armUnclaimedUpgradeSocketTimeout,
+  claimWebSocketHMRRequestOnce,
+  isNextHMRUpgradeRequest,
+  UPGRADE_DELEGATION_MESSAGE,
+} from '../websocket-upgrade-listener'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -159,6 +166,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
+  restartServer?: () => Promise<void>
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -298,6 +306,7 @@ export async function initialize(opts: {
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
+        restartServer: opts.restartServer,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
       })
@@ -959,6 +968,9 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     devMemoryThresholdRestart,
+    webSocketRouteHandlersEnabled: Boolean(
+      config.experimental.webSocketRouteHandlers
+    ),
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -1015,26 +1027,39 @@ export async function initialize(opts: {
     development?.bundler?.ensureMiddleware
   )
 
-  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
-    let isHMRRequest = false
-    if (opts.dev && development && req.url) {
-      const { basePath, assetPrefix } = config
-      let hmrPrefix = basePath
-      if (assetPrefix) {
-        hmrPrefix = normalizedAssetPrefix(assetPrefix)
-        if (URL.canParse(hmrPrefix)) {
-          hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
-        }
+  const isWebSocketHMRRequest = (requestUrl: string | undefined): boolean => {
+    if (!opts.dev || !development) return false
+    const { basePath, assetPrefix } = config
+    let hmrPrefix = basePath
+    if (assetPrefix) {
+      hmrPrefix = normalizedAssetPrefix(assetPrefix)
+      if (URL.canParse(hmrPrefix)) {
+        hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
       }
-      isHMRRequest = req.url.startsWith(
-        ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
-      )
     }
+    const hmrPath = ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
+    return isNextHMRUpgradeRequest(requestUrl, hmrPath)
+  }
 
-    const webSocketUpgradeExclusiveOwner = getRequestMeta(
-      req,
-      'webSocketUpgradeExclusiveOwner'
-    )
+  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
+    const isHMRRequest = isWebSocketHMRRequest(req.url)
+
+    const webSocketUpgradeOwnership =
+      getRequestMeta(req, 'webSocketUpgradeOwnership') ?? 'shared'
+
+    // Multiple automatic Next.js listeners share one Node upgrade event. Only
+    // the app whose base path matches may evaluate the request or apply its
+    // origin policy; the other apps leave the HMR socket untouched. The
+    // dispatch layer knows the live sibling matchers; trust its verdict rather
+    // than a URL-shape guess (a route path containing `/_next/hmr` must not be
+    // deferred by every app into a hang).
+    if (
+      webSocketUpgradeOwnership === 'sibling' &&
+      !isHMRRequest &&
+      getRequestMeta(req, 'webSocketSiblingHMR') === true
+    ) {
+      return
+    }
     let isWebSocketRequest = Boolean(
       config.experimental.webSocketRouteHandlers &&
         !isHMRRequest &&
@@ -1045,16 +1070,14 @@ export async function initialize(opts: {
     if (
       config.experimental.webSocketRouteHandlers &&
       !isHMRRequest &&
-      webSocketUpgradeExclusiveOwner === false
+      webSocketUpgradeOwnership === 'shared'
     ) {
       // Node dispatches upgrade listeners synchronously and does not await
       // their promises. Until the lifecycle layer installs a coordinated
       // dispatcher, a shared server must leave every non-HMR upgrade entirely
       // to its embedding listeners. Those listeners may already have accepted
       // the socket and are allowed to mutate the request headers.
-      Log.warnOnce(
-        'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. WebSocket Route Handlers require Next.js to exclusively own the upgrade event; pass `httpServer` to `next()` without additional upgrade listeners.'
-      )
+      Log.warnOnce(UPGRADE_DELEGATION_MESSAGE)
       return
     }
 
@@ -1072,14 +1095,56 @@ export async function initialize(opts: {
       if (isWebSocketRequest) {
         addRequestMeta(req, 'webSocketRegistryScope', webSocketRegistryScope)
       }
-      req.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
-      socket.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
+      ownWebSocketUpgradeSocketErrors(req, socket)
+
+      // RFC order: development origin checks and the internal HMR channel
+      // claim come before any application WebSocket validation. The product
+      // origin policy below (same-origin default + allowedOrigins) is
+      // strictly stronger than allowedDevOrigins, so it intentionally
+      // supersedes it for application WebSocket routes.
+      if (opts.dev && development && req.url) {
+        if (
+          blockCrossSiteDEV(
+            req,
+            socket,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
+          return
+        }
+
+        // only handle HMR requests if the basePath in the request
+        // matches the basePath for the handler responding to the request
+        if (isHMRRequest) {
+          // Two apps can share one HMR path (e.g. one app's basePath equals
+          // another's assetPrefix). The first app to reach this claims the
+          // connection; the sibling defers instead of both answering.
+          if (!claimWebSocketHMRRequestOnce(req)) return
+          return development.bundler.hotReloader.onHMR(
+            req,
+            socket,
+            head,
+            (client, { isLegacyClient }) => {
+              if (isLegacyClient) {
+                // Only send the ISR manifest to legacy clients, i.e. Pages
+                // Router clients, or App Router clients that have Cache
+                // Components disabled. The ISR manifest is only used to inform
+                // the static indicator, which currently does not provide useful
+                // information if Cache Components is enabled due to its binary
+                // nature (i.e. it does not support showing info for partially
+                // static pages).
+                client.send(
+                  JSON.stringify({
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
+                    data: development.service?.appIsrManifest || {},
+                  } satisfies AppIsrManifestMessage)
+                )
+              }
+            }
+          )
+        }
+      }
 
       if (config.experimental.webSocketRouteHandlers && !isHMRRequest) {
         const preflight = await preflightWebSocketUpgrade(req, socket)
@@ -1121,49 +1186,8 @@ export async function initialize(opts: {
         }
       }
 
-      if (opts.dev && development && req.url) {
-        if (
-          blockCrossSiteDEV(
-            req,
-            socket,
-            development.config.allowedDevOrigins,
-            opts.hostname
-          )
-        ) {
-          return
-        }
-
-        // only handle HMR requests if the basePath in the request
-        // matches the basePath for the handler responding to the request
-        if (isHMRRequest) {
-          return development.bundler.hotReloader.onHMR(
-            req,
-            socket,
-            head,
-            (client, { isLegacyClient }) => {
-              if (isLegacyClient) {
-                // Only send the ISR manifest to legacy clients, i.e. Pages
-                // Router clients, or App Router clients that have Cache
-                // Components disabled. The ISR manifest is only used to inform
-                // the static indicator, which currently does not provide useful
-                // information if Cache Components is enabled due to its binary
-                // nature (i.e. it does not support showing info for partially
-                // static pages).
-                client.send(
-                  JSON.stringify({
-                    type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
-                    data: development.service?.appIsrManifest || {},
-                  } satisfies AppIsrManifestMessage)
-                )
-              }
-            }
-          )
-        }
-      }
-
       if (!isWebSocketRequest) {
-        // Preserve the legacy upgrade path exactly when the flag is disabled
-        // or another protocol owns this request.
+        // Route legacy upgrades without invoking WebSocket Route Handlers.
         const res = new MockedResponse({
           resWriter: () => {
             throw new Error(
@@ -1179,13 +1203,19 @@ export async function initialize(opts: {
             signal: signalFromNodeResponse(socket),
           })
 
-        if (matchedOutput) return socket.end()
-        if (finished && parsedUrl.protocol) {
-          if (!statusCode) {
-            return await proxyRequest(req, socket, parsedUrl, head)
-          }
+        if (!matchedOutput && finished && parsedUrl.protocol && !statusCode) {
+          return await proxyRequest(req, socket, parsedUrl, head)
+        }
+        if (webSocketUpgradeOwnership === 'exclusive') {
+          socket.destroy()
+          return
+        }
+        if (matchedOutput || (finished && parsedUrl.protocol)) {
           return socket.end()
         }
+        // A shared listener may still claim the socket. Node's request
+        // timeouts no longer apply after the upgrade event.
+        armUnclaimedUpgradeSocketTimeout(socket)
         return
       }
 
@@ -1278,8 +1308,9 @@ export async function initialize(opts: {
         return
       }
 
-      // Shared-server requests return before route resolution, so reaching
-      // this point means Next.js exclusively owns the unmatched socket.
+      // Shared-server requests returned before route resolution. Direct and
+      // outer-dispatched handlers own both matched and unmatched sockets once
+      // they have been selected.
       await writeRawHttpError(req, socket, 404, 'Not Found')
     } catch (err) {
       if (!isWebSocketClientDisconnectError(err)) {
@@ -1328,5 +1359,9 @@ export async function initialize(opts: {
     agentRules: config.agentRules,
     agentFeedback: config.experimental.agentFeedback,
     devMemoryThresholdRestart,
+    webSocketRouteHandlersEnabled: Boolean(
+      config.experimental.webSocketRouteHandlers
+    ),
+    isWebSocketHMRRequest,
   }
 }
