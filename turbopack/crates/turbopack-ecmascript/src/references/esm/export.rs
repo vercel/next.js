@@ -32,7 +32,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
-    module_fragments::part::module::EcmascriptModulePartAsset,
+    module_fragments::part::module::{EcmascriptModulePartAsset, side_effects_for_reexport},
     references::esm::{base::ReferencedAsset, mangle::mangled_export_names},
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     utils::module_id_to_lit,
@@ -101,7 +101,7 @@ pub async fn is_export_missing(
         return Ok(Vc::cell(true));
     }
 
-    let all_export_names = get_all_export_names(*module).await?;
+    let all_export_names = get_all_export_names(*module, false).await?;
     if all_export_names.esm_exports.contains_key(&export_name) {
         return Ok(Vc::cell(false));
     }
@@ -128,7 +128,7 @@ pub async fn is_export_missing(
 pub async fn all_known_export_names(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let export_names = get_all_export_names(module).await?;
+    let export_names = get_all_export_names(module, false).await?;
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
@@ -153,15 +153,19 @@ pub async fn follow_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     ignore_side_effect_of_entry: bool,
+    preserve_intermediate_side_effects: bool,
 ) -> Result<Vc<FollowExportsResult>> {
     let mut ignore_side_effects = ignore_side_effect_of_entry;
 
     let mut module = module;
     let mut export_name = export_name;
     loop {
-        if !ignore_side_effects
-            && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
-        {
+        let module_side_effects = if preserve_intermediate_side_effects {
+            side_effects_for_reexport(module).await?
+        } else {
+            *module.side_effects().await?
+        };
+        if !ignore_side_effects && module_side_effects != ModuleSideEffects::SideEffectFree {
             // TODO It's unfortunate that we have to use the whole module here.
             // This is often the Facade module, which includes all reexports.
             // Often we could use Locals + the followed reexports instead.
@@ -199,7 +203,12 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = find_export_from_reexports(*module, export_name.clone()).await?;
+            let result = find_export_from_reexports(
+                *module,
+                export_name.clone(),
+                preserve_intermediate_side_effects,
+            )
+            .await?;
             match &*result {
                 FindExportFromReexportsResult::NotFound => {
                     return Ok(FollowExportsResult::cell(FollowExportsResult {
@@ -305,10 +314,14 @@ enum FindExportFromReexportsResult {
 async fn find_export_from_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
+    preserve_intermediate_side_effects: bool,
 ) -> Result<Vc<FindExportFromReexportsResult>> {
     // TODO why do we need a special case for this?
     if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
         && matches!(module.await?.part, ModulePart::Exports)
+        && (!preserve_intermediate_side_effects
+            || side_effects_for_reexport(ResolvedVc::upcast(module)).await?
+                == ModuleSideEffects::SideEffectFree)
     {
         let module_part = EcmascriptModulePartAsset::select_part(
             *module.await?.full_module,
@@ -322,11 +335,16 @@ async fn find_export_from_reexports(
         ))
         .is_none()
         {
-            return Ok(find_export_from_reexports(module_part, export_name));
+            return Ok(find_export_from_reexports(
+                module_part,
+                export_name,
+                preserve_intermediate_side_effects,
+            ));
         }
     }
 
-    let all_export_names = get_all_export_names(*module).await?;
+    let all_export_names =
+        get_all_export_names(*module, preserve_intermediate_side_effects).await?;
     Ok(
         if let Some(esm_export) = all_export_names.esm_exports.get(&export_name) {
             FindExportFromReexportsResult::EsmExport(esm_export.clone())
@@ -353,6 +371,7 @@ struct AllExportNamesResult {
 #[turbo_tasks::function]
 async fn get_all_export_names(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    preserve_intermediate_side_effects: bool,
 ) -> Result<Vc<AllExportNamesResult>> {
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
@@ -380,7 +399,11 @@ async fn get_all_export_names(
                 if let ReferencedAsset::Some(m) =
                     ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
-                    Some(expand_star_exports(**esm_ref, *m))
+                    Some(expand_star_exports(
+                        **esm_ref,
+                        *m,
+                        preserve_intermediate_side_effects,
+                    ))
                 } else {
                     None
                 },
@@ -418,13 +441,27 @@ pub struct ExpandStarResult {
 pub async fn expand_star_exports(
     root_reference: ResolvedVc<Box<dyn ModuleReference>>,
     root_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    preserve_intermediate_side_effects: bool,
 ) -> Result<Vc<ExpandStarResult>> {
     let mut esm_exports = FxIndexMap::default();
     let mut dynamic_exporting_modules = Vec::new();
-    let mut checked_modules = FxHashSet::default();
-    checked_modules.insert(root_module);
-    let mut queue = vec![(root_reference, root_module, root_module.get_exports())];
-    while let Some((reference, asset, exports)) = queue.pop() {
+    let mut checked_routes = FxHashSet::default();
+    checked_routes.insert((root_module, None));
+    let mut queue = vec![(root_reference, None, root_module, root_module.get_exports())];
+    while let Some((reference, side_effect_boundary, asset, exports)) = queue.pop() {
+        // Preserve the first effectful module on each star-export route. Bindings discovered
+        // further down are still valid exports of this boundary module, but resolving through the
+        // boundary ensures its evaluation is not lost when the star tree is flattened.
+        let side_effect_boundary = if !preserve_intermediate_side_effects {
+            None
+        } else if side_effect_boundary.is_some()
+            || side_effects_for_reexport(asset).await? == ModuleSideEffects::SideEffectFree
+        {
+            side_effect_boundary
+        } else {
+            Some(reference)
+        };
+
         match &*exports.await? {
             EcmascriptExports::EsmExports(exports) => {
                 let exports = exports.await?;
@@ -433,22 +470,41 @@ pub async fn expand_star_exports(
                         continue;
                     }
                     if let Entry::Vacant(entry) = esm_exports.entry(key.clone()) {
-                        entry.insert(match esm_export {
-                            EsmExport::LocalBinding(_, liveness) => EsmExport::ImportedBinding(
-                                reference,
+                        entry.insert(if let Some(side_effect_boundary) = side_effect_boundary {
+                            // Import through the first effectful module on the route even when the
+                            // descendant export was already represented as an imported binding.
+                            // That module still reexports `key`, and following through it gives the
+                            // caller a chance to retain only its evaluation before continuing.
+                            let is_mutable = match esm_export {
+                                EsmExport::LocalBinding(_, liveness) => {
+                                    *liveness == Liveness::Mutable
+                                }
+                                EsmExport::ImportedBinding(_, _, is_mutable) => *is_mutable,
+                                _ => false,
+                            };
+                            EsmExport::ImportedBinding(
+                                side_effect_boundary,
                                 key.clone(),
-                                *liveness == Liveness::Mutable,
-                            ),
-                            _ => esm_export.clone(),
+                                is_mutable,
+                            )
+                        } else {
+                            match esm_export {
+                                EsmExport::LocalBinding(_, liveness) => EsmExport::ImportedBinding(
+                                    reference,
+                                    key.clone(),
+                                    *liveness == Liveness::Mutable,
+                                ),
+                                _ => esm_export.clone(),
+                            }
                         });
                     }
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
                         &ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
-                        && checked_modules.insert(*asset)
+                        && checked_routes.insert((*asset, side_effect_boundary))
                     {
-                        queue.push((*esm_ref, *asset, asset.get_exports()));
+                        queue.push((*esm_ref, side_effect_boundary, *asset, asset.get_exports()));
                     }
                 }
             }
@@ -610,7 +666,7 @@ impl EsmExports {
                 continue;
             };
 
-            let export_info = expand_star_exports(*esm_ref, **asset).await?;
+            let export_info = expand_star_exports(*esm_ref, **asset, false).await?;
 
             for export in export_info.esm_exports.keys() {
                 if export == "default" {
