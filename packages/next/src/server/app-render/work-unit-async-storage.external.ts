@@ -102,7 +102,7 @@ export interface RequestStore extends CommonWorkUnitStore {
    * These params resolve after the static stage without replacing their
    * concrete values.
    */
-  stagedFallbackParams?: OpaqueFallbackRouteParams | null
+  stagedFallbackParams?: ReadonlySet<string> | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation or when rendering

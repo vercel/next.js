@@ -2,7 +2,6 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
-import type { OpaqueFallbackRouteParams } from './fallback-params'
 import type { VaryParamsAccumulator } from '../app-render/vary-params'
 import {
   createVaryingParams,
@@ -663,7 +662,7 @@ function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   userpaceParams: Params,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  stagedFallbackParams: ReadonlySet<string> | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
