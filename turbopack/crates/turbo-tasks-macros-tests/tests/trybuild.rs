@@ -1,3 +1,6 @@
+// Miri cannot run trybuild because its subprocesses require the unsupported `posix_spawnattr_init`.
+#![cfg(not(miri))]
+
 // Unset RUSTC_WRAPPER before trybuild tests run. When sccache wraps rustc, it
 // emits "warning: ignoring -C extra-filename flag due to -o flag" which pollutes
 // trybuild's stderr snapshot comparisons. Unsetting it here means only the

@@ -42,6 +42,7 @@ import {
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
@@ -193,6 +194,13 @@ export function createAppPageEntrypoint({
   }
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
+
+  // The legacy prerender manifest says whether unmatched values return 404,
+  // but does not list all of the route's parameter names. Read them from the
+  // route pattern once, since the names do not depend on the request.
+  const routeParamNames = parseNormalizedAppRoute(
+    normalizedSrcPage
+  ).dynamicSegments.map((segment) => segment.param.paramName)
 
   async function handler(
     req: IncomingMessage,
@@ -529,9 +537,10 @@ export function createAppPageEntrypoint({
       ? true
       : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
 
-    // PPR shells are generated for streaming metadata. Requests that require
-    // blocking metadata must bypass the shell so the prerender and dynamic
-    // render use the same metadata tree.
+    // A PPR shell has already closed its head before the dynamic render resumes.
+    // Blocking metadata resolved during the resume would therefore be emitted
+    // after the head, where HTML-limited bots cannot observe it. Bypass the
+    // shell so blocking metadata is included in the initial document head.
     const shouldForceDynamicPPRRender =
       isRoutePPREnabled && !serveStreamingMetadata
 
@@ -573,6 +582,15 @@ export function createAppPageEntrypoint({
 
     const remainingPrerenderableParams =
       prerenderInfo?.remainingPrerenderableParams ?? []
+    const remainingFallbackRouteParams = nextConfig.cacheComponents
+      ? (prerenderInfo?.fallbackRouteParams?.filter(
+          (param) =>
+            !remainingPrerenderableParams.some(
+              (prerenderableParam) =>
+                prerenderableParam.paramName === param.paramName
+            )
+        ) ?? [])
+      : []
     // Concrete optional routes like `/optional-catchall` can still match their
     // generic shell entry (eg /optional-catchall/[[...slug]]) in the prerender manifest.
     // If the omitted param already resolved to a real prerendered path, keep serving that concrete result.
@@ -586,11 +604,11 @@ export function createAppPageEntrypoint({
       prerenderInfo?.fallback === null &&
       (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
 
-    // SSG writes and navigation RDC reads use the same completed-shell key.
-    // Completion uses the matched shell rather than the fully resolved
-    // pathname. A request for `/prefix/c/foo` can complete
-    // `/prefix/[one]/[two]` to `/prefix/c/[two]`. This avoids creating an entry
-    // for every value of `two`.
+    // SSG writes and navigation RDC reads use the same shell key. Completion
+    // uses the matched shell rather than the fully resolved pathname. A request
+    // for `/prefix/c/foo` can complete `/prefix/[one]/[two]` to
+    // `/prefix/c/[two]`. This avoids creating an entry for every value of
+    // `two`.
     //
     // The completed-shell key also applies when unresolved root params require
     // a blocking render. A source shell cannot be shared across root branches.
@@ -603,12 +621,16 @@ export function createAppPageEntrypoint({
         ? prerenderInfo.fallback
         : prerenderMatch.source
       : null
-    let completedShellCacheKey: string | null = null
+    let shellCacheKey: string | null = null
     if (
-      nextConfig.partialPrefetching &&
+      nextConfig.cacheComponents &&
+      // Never-prerenderable params must stay out of the key even when Partial
+      // Prefetching is disabled.
+      (nextConfig.partialPrefetching ||
+        remainingFallbackRouteParams.length > 0) &&
       fallbackPathname &&
       prerenderInfo?.fallbackRouteParams?.length &&
-      remainingPrerenderableParams.length > 0
+      !hasOmittedConcreteFallbackParam
     ) {
       const cacheKey = buildCompletedShellCacheKey(
         fallbackPathname,
@@ -616,14 +638,16 @@ export function createAppPageEntrypoint({
         params
       )
 
-      // Only a more complete shell gets a separate cache entry.
-      if (cacheKey !== fallbackPathname) {
-        completedShellCacheKey = cacheKey
+      if (
+        cacheKey !== fallbackPathname ||
+        remainingFallbackRouteParams.length > 0
+      ) {
+        shellCacheKey = cacheKey
       }
     }
 
     let ssgCacheKey: string | null = null
-    let usesCompletedShellCacheKey = false
+    let usesShellCacheKey = false
     if (
       !isDraftMode &&
       isSSG &&
@@ -632,19 +656,14 @@ export function createAppPageEntrypoint({
       !hasPostponedState &&
       !isDynamicRSCRequest
     ) {
-      if (
-        // Partial fallback shells are only specialized per request when Partial
-        // Prefetching is enabled, mirroring the `partialFallback` flag the
-        // adapter emits for deployments. When it's disabled we fall through to
-        // the normal ISR cache key (`resolvedPathname`) so the shell stays
-        // shared, matching the behavior before the `partialFallbacks` config
-        // flag was removed.
-        nextConfig.partialPrefetching &&
-        fallbackPathname &&
-        prerenderInfo?.fallbackRouteParams?.length
-      ) {
-        ssgCacheKey = completedShellCacheKey
-        usesCompletedShellCacheKey = completedShellCacheKey !== null
+      if (shellCacheKey !== null) {
+        // Normal fallback serving uses the source shell's separate cache
+        // lookup. Explicit revalidation skips that path, so it must write the
+        // source key here even when no params can be completed.
+        if (shellCacheKey !== fallbackPathname || isOnDemandRevalidate) {
+          ssgCacheKey = shellCacheKey
+          usesShellCacheKey = true
+        }
       } else {
         ssgCacheKey = resolvedPathname
       }
@@ -709,17 +728,6 @@ export function createAppPageEntrypoint({
     const isWrappedByNextServer = Boolean(
       routerServerContext?.isWrappedByNextServer
     )
-    const remainingFallbackRouteParams =
-      nextConfig.partialPrefetching && remainingPrerenderableParams.length > 0
-        ? (prerenderInfo?.fallbackRouteParams?.filter(
-            (param) =>
-              !remainingPrerenderableParams.some(
-                (prerenderableParam) =>
-                  prerenderableParam.paramName === param.paramName
-              )
-          ) ?? [])
-        : []
-
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
       if (routerServerContext?.render404) {
@@ -906,6 +914,15 @@ export function createAppPageEntrypoint({
 
             multiZoneDraftMode,
             prefetchHints: prefetchHintsManifest,
+            // With dynamicParams = false, every parameter is restricted to the
+            // paths generated at build time. Advertise this even for allowed
+            // URLs. Read the current manifest here because dev updates it as
+            // routes compile.
+            notFoundParams:
+              prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
+              false
+                ? routeParamNames
+                : undefined,
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
             staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
@@ -1371,8 +1388,7 @@ export function createAppPageEntrypoint({
             // from entering an infinite loop of revalidations.
             !forceStaticRender
           ) {
-            const incrementalCacheKey =
-              completedShellCacheKey ?? resolvedPathname
+            const incrementalCacheKey = shellCacheKey ?? resolvedPathname
             const incrementalCacheEntry = await incrementalCache.get(
               incrementalCacheKey,
               {
@@ -1539,8 +1555,8 @@ export function createAppPageEntrypoint({
                   // The platform strips never-prerenderable param values before
                   // calling the origin.
                   !isMinimalMode &&
-                    (usesCompletedShellCacheKey ||
-                      (forceStaticRender && completedShellCacheKey !== null)) &&
+                    (usesShellCacheKey ||
+                      (forceStaticRender && shellCacheKey !== null)) &&
                     remainingFallbackRouteParams.length > 0
                   ? createOpaqueFallbackRouteParams(
                       remainingFallbackRouteParams

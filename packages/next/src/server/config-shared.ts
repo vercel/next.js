@@ -14,7 +14,7 @@ import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
-import type { MemoryEvictionMode } from '../build/swc/types'
+import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
 
 /**
@@ -79,6 +79,9 @@ export type NextConfigComplete = Required<
       instantInsights: { validationLevel: ValidationLevel }
       // Normalized by finalized config with a default and the expected type
       turbopackMemoryEvictionMode: MemoryEvictionMode
+      // Normalized by config.ts: `false`/unset becomes `undefined` (GC off),
+      // `true` becomes `{}` (GC on with default timings)
+      turbopackGcOptions: TurbopackGcOptions | undefined
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -486,6 +489,27 @@ export function resolveCssChunkingMode(
 }
 
 export interface ExperimentalConfig {
+  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  /**
+   * Adds managed instructions to AGENTS.md or CLAUDE.md that let AI coding
+   * agents prepare anonymized Next.js feedback for user review.
+   */
+  agentFeedback?: boolean
+  /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   *
+   * Root names must contain 1-40 characters, using only ASCII letters, digits,
+   * underscores, or hyphens. They must not be Windows device names and must be
+   * unique under ASCII case-insensitive comparison. Invalid roots produce a
+   * warning and are ignored.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
@@ -778,6 +802,21 @@ export interface ExperimentalConfig {
    * Defaults to `'auto'`
    */
   turbopackMemoryEviction?: false | 'full' | 'auto'
+
+  /**
+   * Enables Turbopack's garbage collector, which deletes unreachable
+   * tasks from the persistent cache and from memory.
+   *
+   *
+   * - `false` (default): never collect.
+   * - `true`: collect
+   * - An object: collect, overriding individual timings.
+   *   - `minProgressMs`: how long a GC pass runs before it will honour an
+   *     interrupt. Defaults to 100ms.
+   *   - `rootTtlMs`: how long a GC root may go un-anchored before it ages out.
+   *     Defaults to 3 days.
+   */
+  turbopackGc?: boolean | { minProgressMs?: number; rootTtlMs?: number }
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -1606,6 +1645,9 @@ export type ExportPathMap = {
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
+    /** Parameters whose novel values are rejected by routing. @internal */
+    _notFoundParams?: readonly string[]
+
     /**
      * @internal
      */
@@ -2297,6 +2339,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
+    agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
@@ -2473,6 +2516,7 @@ export interface NextConfigRuntime {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'taint'
+    | 'agentFeedback'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
@@ -2544,6 +2588,7 @@ export function getNextConfigRuntime(
 
   const experimental = {
     taint: ex.taint,
+    agentFeedback: ex.agentFeedback,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,

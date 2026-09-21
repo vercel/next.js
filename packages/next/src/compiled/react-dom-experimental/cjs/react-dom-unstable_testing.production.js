@@ -2495,6 +2495,7 @@ function makePrefixMap(styleProp, eventName) {
   return prefixes;
 }
 var vendorPrefixes = {
+    animationcancel: makePrefixMap("Animation", "AnimationCancel"),
     animationend: makePrefixMap("Animation", "AnimationEnd"),
     animationiteration: makePrefixMap("Animation", "AnimationIteration"),
     animationstart: makePrefixMap("Animation", "AnimationStart"),
@@ -2508,7 +2509,8 @@ var vendorPrefixes = {
 canUseDOM &&
   ((style = document.createElement("div").style),
   "AnimationEvent" in window ||
-    (delete vendorPrefixes.animationend.animation,
+    (delete vendorPrefixes.animationcancel.animation,
+    delete vendorPrefixes.animationend.animation,
     delete vendorPrefixes.animationiteration.animation,
     delete vendorPrefixes.animationstart.animation),
   "TransitionEvent" in window ||
@@ -2523,7 +2525,8 @@ function getVendorPrefixedEventName(eventName) {
       return (prefixedEventNames[eventName] = prefixMap[styleProp]);
   return eventName;
 }
-var ANIMATION_END = getVendorPrefixedEventName("animationend"),
+var ANIMATION_CANCEL = getVendorPrefixedEventName("animationcancel"),
+  ANIMATION_END = getVendorPrefixedEventName("animationend"),
   ANIMATION_ITERATION = getVendorPrefixedEventName("animationiteration"),
   ANIMATION_START = getVendorPrefixedEventName("animationstart"),
   TRANSITION_RUN = getVendorPrefixedEventName("transitionrun"),
@@ -15449,22 +15452,23 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1820 = 0;
-  i$jscomp$inline_1820 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1820++
+  var i$jscomp$inline_1821 = 0;
+  i$jscomp$inline_1821 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1821++
 ) {
-  var eventName$jscomp$inline_1821 =
-      simpleEventPluginEvents[i$jscomp$inline_1820],
-    domEventName$jscomp$inline_1822 =
-      eventName$jscomp$inline_1821.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1823 =
-      eventName$jscomp$inline_1821[0].toUpperCase() +
-      eventName$jscomp$inline_1821.slice(1);
+  var eventName$jscomp$inline_1822 =
+      simpleEventPluginEvents[i$jscomp$inline_1821],
+    domEventName$jscomp$inline_1823 =
+      eventName$jscomp$inline_1822.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1824 =
+      eventName$jscomp$inline_1822[0].toUpperCase() +
+      eventName$jscomp$inline_1822.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1822,
-    "on" + capitalizedEvent$jscomp$inline_1823
+    domEventName$jscomp$inline_1823,
+    "on" + capitalizedEvent$jscomp$inline_1824
   );
 }
+registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
 registerSimpleEvent(ANIMATION_ITERATION, "onAnimationIteration");
 registerSimpleEvent(ANIMATION_START, "onAnimationStart");
@@ -15761,6 +15765,7 @@ function dispatchEventForPluginEventSystem(
           case "touchstart":
             SyntheticEventCtor = SyntheticTouchEvent;
             break;
+          case ANIMATION_CANCEL:
           case ANIMATION_END:
           case ANIMATION_ITERATION:
           case ANIMATION_START:
@@ -15805,7 +15810,10 @@ function dispatchEventForPluginEventSystem(
           nativeEvent.type,
           inCapturePhase,
           !inCapturePhase &&
-            ("scroll" === domEventName || "scrollend" === domEventName)
+            ("scroll" === domEventName ||
+              "scrollend" === domEventName ||
+              "toggle" === domEventName ||
+              "beforetoggle" === domEventName)
         );
         0 < inCapturePhase.length &&
           ((reactName = new SyntheticEventCtor(
@@ -18640,13 +18648,19 @@ function validateDocumentPositionWithFiberTree(
     return precedingBoundaryFiber;
   }
   if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
-    if (null === otherFiber)
-      return (
-        (otherFiber = getOwnerDocumentFromRootContainer(otherNode)),
-        otherNode === otherFiber ||
-          otherNode === otherFiber.documentElement ||
-          otherNode === otherFiber.body
-      );
+    if (null === otherFiber) {
+      a: {
+        for (otherFiber = fragmentFiber.return; null !== otherFiber; ) {
+          if (3 === otherFiber.tag) {
+            otherFiber = otherFiber.stateNode.containerInfo;
+            break a;
+          }
+          otherFiber = otherFiber.return;
+        }
+        otherFiber = null;
+      }
+      return null !== otherFiber && otherNode.contains(otherFiber);
+    }
     a: {
       otherFiber = fragmentFiber;
       for (
@@ -20772,16 +20786,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2265 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2269 = React.version;
 if (
-  "19.3.0-experimental-019019be-20260911" !==
-  isomorphicReactPackageVersion$jscomp$inline_2265
+  "19.3.0-experimental-59aff3e1-20260918" !==
+  isomorphicReactPackageVersion$jscomp$inline_2269
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2265,
-      "19.3.0-experimental-019019be-20260911"
+      isomorphicReactPackageVersion$jscomp$inline_2269,
+      "19.3.0-experimental-59aff3e1-20260918"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20801,24 +20815,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2926 = {
+var internals$jscomp$inline_2930 = {
   bundleType: 0,
-  version: "19.3.0-experimental-019019be-20260911",
+  version: "19.3.0-experimental-59aff3e1-20260918",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-019019be-20260911"
+  reconcilerVersion: "19.3.0-experimental-59aff3e1-20260918"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2927 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2931 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2927.isDisabled &&
-    hook$jscomp$inline_2927.supportsFiber
+    !hook$jscomp$inline_2931.isDisabled &&
+    hook$jscomp$inline_2931.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2927.inject(
-        internals$jscomp$inline_2926
+      (rendererID = hook$jscomp$inline_2931.inject(
+        internals$jscomp$inline_2930
       )),
-        (injectedHook = hook$jscomp$inline_2927);
+        (injectedHook = hook$jscomp$inline_2931);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -21064,4 +21078,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-019019be-20260911";
+exports.version = "19.3.0-experimental-59aff3e1-20260918";

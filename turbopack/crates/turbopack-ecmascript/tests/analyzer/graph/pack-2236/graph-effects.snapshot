@@ -226,39 +226,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        15,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -308,39 +278,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        16,
+                    ),
                 ),
             },
         },

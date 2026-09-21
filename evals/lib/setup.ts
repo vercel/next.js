@@ -1,6 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, posix, relative } from 'node:path'
-import type { Sandbox } from '@vercel/agent-eval'
+import type {
+  EvalRunData,
+  RunCompleteContext,
+  Sandbox,
+} from '@vercel/agent-eval'
 
 const REPO_ROOT = join(process.cwd(), '..')
 
@@ -200,6 +204,88 @@ Before any Next.js work, find and read the relevant doc in \`node_modules/next/d
     'AGENTS.md': body,
     'CLAUDE.md': '@AGENTS.md\n',
   })
+}
+
+/**
+ * Enable the exact managed feedback block from the packed Next.js build.
+ *
+ * The production command checks a remote kill switch before returning its
+ * bundled protocol. Evals replace only that network decision with a stable
+ * enabled response so model behavior is reproducible and independent of the
+ * live rollout state.
+ */
+export async function writeAgentFeedbackInstructions(
+  sandbox: Sandbox
+): Promise<void> {
+  if (!(await isNextApp(sandbox))) {
+    console.log('> Fixture does not depend on Next.js; skipping agent feedback')
+    return
+  }
+
+  const script = String.raw`
+const fs = require('node:fs')
+const path = require('node:path')
+const nextRoot = path.dirname(require.resolve('next/package.json'))
+const statusPath = path.join(
+  nextRoot,
+  'dist/cli/internal/agent-feedback-status.js'
+)
+fs.writeFileSync(
+  statusPath,
+  "'use strict'\nexports.isAgentFeedbackEnabled = async function () { return true }\n"
+)
+require(path.join(nextRoot, 'dist/server/lib/generate-agent-files.js'))
+  .writeAgentFeedbackFiles(process.cwd())
+`
+  const { exitCode, stderr } = await sandbox.runCommand('node', ['-e', script])
+  if (exitCode !== 0) {
+    throw new Error(
+      `enabling agent feedback for the eval failed (exit ${exitCode}):\n${stderr}`
+    )
+  }
+  console.log('  Enabled deterministic agent feedback instructions')
+}
+
+const REPORT_URL_PATTERN =
+  /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
+
+/** Attach report counts to result.json so repeated runs expose trigger rates. */
+export function analyzeAgentFeedbackRun({
+  runData,
+}: RunCompleteContext): EvalRunData {
+  const encodedReports = new Set<string>()
+  for (const match of runData.transcript?.matchAll(REPORT_URL_PATTERN) ?? []) {
+    encodedReports.add(match[1])
+  }
+
+  let validReports = 0
+  const triggerReasons: string[] = []
+  for (const encoded of encodedReports) {
+    try {
+      const report = JSON.parse(Buffer.from(encoded, 'base64url').toString())
+      if (report && typeof report === 'object') {
+        validReports += 1
+        if (typeof report.triggerReason === 'string') {
+          triggerReasons.push(report.triggerReason)
+        }
+      }
+    } catch {}
+  }
+
+  return {
+    ...runData,
+    result: {
+      ...runData.result,
+      analysis: {
+        ...runData.result.analysis,
+        agentFeedback: {
+          reportCount: encodedReports.size,
+          validReportCount: validReports,
+          triggerReasons: [...new Set(triggerReasons)].sort(),
+        },
+      },
+    },
+  }
 }
 
 /**

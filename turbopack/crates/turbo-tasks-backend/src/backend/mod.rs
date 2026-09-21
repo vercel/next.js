@@ -157,16 +157,17 @@ pub struct BackendOptions {
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     pub eviction_mode: EvictionMode,
 
-    /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
-    /// it from the `TURBO_ENGINE_GC` env var;
+    /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
+    ///
+    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
-    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
 
-    /// Overrides how long a GC pass runs before it will honour an interrupt.
+    /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
+    /// [`GC_MIN_PROGRESS`].
     pub gc_min_progress: Option<Duration>,
 }
 
@@ -311,57 +312,24 @@ impl TurboTasksBackend {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
+        let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
 
-        let mut gc_enabled = options.gc.unwrap_or_else(|| {
-            std::env::var_os("TURBO_ENGINE_GC")
-                .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
-        });
+        let mut gc_enabled = options.gc.unwrap_or(false);
         if gc_enabled
             && options.storage_mode == Some(StorageMode::ReadWrite)
             && options.eviction_mode == EvictionMode::Off
         {
             eprintln!(
-                "warning: GC is enabled but eviction is disabled on a ReadWrite backend; GC would \
-                 leave collected tasks resident forever. Forcing GC off. Enable eviction \
-                 ('auto'/'full') to use GC in this mode."
+                "warning: GC is enabled but eviction is disabled; GC would leave collected tasks \
+                 resident forever. Forcing GC off. Enable eviction ('auto'/'full') to use GC in \
+                 this mode."
             );
             gc_enabled = false;
         }
-
-        let gc_min_progress = options.gc_min_progress.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_MIN_PROGRESS_MS set but is not parsable: \
-                             {e}. Using the default instead."
-                        );
-                        GC_MIN_PROGRESS
-                    }
-                },
-                Err(_) => GC_MIN_PROGRESS,
-            }
-        });
-
-        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
-                             Using the default instead."
-                        );
-                        DEFAULT_GC_ROOT_TTL
-                    }
-                },
-                Err(_) => DEFAULT_GC_ROOT_TTL,
-            }
-        });
 
         Self {
             options,
@@ -1288,19 +1256,15 @@ impl TurboTasksBackend {
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
-            fn compressed_size(data: &[u8]) -> Result<usize> {
-                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-                    data,
-                    &mut Vec::new(),
-                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
-                )?)
+            fn compressed_size(data: &[u8]) -> usize {
+                lz4_flex::block::compress(data).len()
             }
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.data_compressed += Self::compressed_size(data);
                 }
                 self.data_count += 1;
             }
@@ -1309,7 +1273,7 @@ impl TurboTasksBackend {
                 self.meta += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.meta_compressed += Self::compressed_size(data);
                 }
                 self.meta_count += 1;
             }
@@ -1811,6 +1775,7 @@ impl TurboTasksBackend {
         let shard = get_shard(&self.storage.task_cache, hash);
 
         let mut ctx = self.execute_context(turbo_tasks);
+        let mut created_new = false;
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
@@ -1818,7 +1783,12 @@ impl TurboTasksBackend {
             get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
-            operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+            operation::ConnectChildOperation::run(
+                parent_task,
+                task_id,
+                /* release_construction_ref */ false,
+                ctx,
+            );
             return task_id;
         }
 
@@ -1885,6 +1855,7 @@ impl TurboTasksBackend {
 
             // The entry closure has returned, so the task_cache shard lock is released before
             // cache tracking or aggregation updates can re-enter the backend.
+            created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
                 // Update the aggregation number before connecting the child. We don't need this on
@@ -1916,7 +1887,9 @@ impl TurboTasksBackend {
             task_id
         };
 
-        operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+        // New tasks carry a transient ref so they survive construction. Release it while
+        // connecting the task to the graph.
+        operation::ConnectChildOperation::run(parent_task, task_id, created_new, ctx);
 
         task_id
     }
@@ -3532,7 +3505,12 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+        ConnectChildOperation::run(
+            parent_task,
+            task,
+            /* release_construction_ref */ false,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {

@@ -50,7 +50,7 @@ The managed block should look like this:
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -801,7 +801,9 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-If you specify a `quality` prop not included in the `image.qualities` array, the quality will be coerced to the closest value in `images.qualities`. For example, given the configuration above, a `quality` prop of 80, is coerced to 75.
+If you specify a `quality` prop not included in the `images.qualities` array, the quality will be coerced to the closest value in `images.qualities`. For example, given the configuration above, a `quality` prop of 80, is coerced to 75.
+
+Review custom image qualities. Add required values to `images.qualities`, and test direct `/_next/image` requests because unsupported `q` values return `400`.
 
 ### Local IP Restriction (Breaking change)
 
@@ -1246,3 +1248,20 @@ For the full migration path, see [Migrating to Cache Components](/docs/app/guide
 ### `unstable_rootParams`
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
+
+## Review migration checklist
+
+After applying the changes relevant to your app, review these action items before
+you consider the migration complete:
+
+- [ ] The app meets the Node.js, TypeScript, and React requirements in this guide.
+- [ ] Async Request API access and affected callers are migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts; use React `use` for synchronous Client Components where appropriate.
+- [ ] Dynamic metadata image functions and sitemap functions handle their asynchronous parameters, and affected generated URLs work.
+- [ ] Development and build scripts agree with the effective bundler configuration, including plugins, loaders, aliases, and affected Sass imports.
+- [ ] Middleware and proxy changes preserve the required runtime and routing behavior. Edge middleware is not blindly renamed to proxy.
+- [ ] Parallel route slots have appropriate defaults, and direct navigation and reloads retain the intended fallback behavior.
+- [ ] Affected image requests succeed under the documented restrictions and defaults while preserving the intended quality.
+- [ ] Existing cache API calls follow the documented signatures and semantics. React Compiler and Cache Components are not enabled merely to complete the upgrade.
+- [ ] Removed APIs and configuration have no remaining consumers. Runtime configuration replacements preserve server and client visibility and the required evaluation time.
+- [ ] Scripts and CI no longer invoke `next lint`; linting runs separately where the app requires it.
+- [ ] The app's supported checks and affected runtime behavior pass. A green build alone does not close runtime findings.

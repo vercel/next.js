@@ -494,7 +494,7 @@ export async function createHotReloaderTurbopack(
     })
   }
 
-  const project = await bindings.turbo.createProject(
+  const projectResult = await bindings.turbo.createProject(
     {
       rootPath,
       projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
@@ -535,9 +535,14 @@ export async function createHotReloaderTurbopack(
     {
       turbopackMemoryEviction:
         opts.nextConfig.experimental.turbopackMemoryEvictionMode,
+      gc: opts.nextConfig.experimental.turbopackGcOptions,
       isShortSession: false,
     }
   )
+  for (const issue of projectResult.issues) {
+    printNonFatalIssue(issue)
+  }
+  const project = projectResult.value
   backgroundLogCompilationEvents(project, {
     eventTypes: [
       'StartupCacheInvalidationEvent',
@@ -569,7 +574,7 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
-    if (process.env.NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
+    if (process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
       await project.shutdown()
     } else {
       await project.onExit()

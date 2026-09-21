@@ -1,0 +1,72 @@
+---
+title: agentRules
+description: Configure whether Next.js creates instructions for AI coding agents.
+related:
+  links:
+    - app/guides/ai-agents
+    - app/api-reference/config/next-config-js/agentFeedback
+---
+
+The `agentRules` option controls whether `next dev` creates and updates version-matched documentation instructions for detected AI coding agents. It is enabled by default.
+
+Set `agentRules` to `false` to disable this behavior:
+
+```ts filename="next.config.ts" switcher highlight={4}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  agentRules: false,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher highlight={3}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  agentRules: false,
+}
+
+module.exports = nextConfig
+```
+
+## Generated agent instructions
+
+When `agentRules` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md` or `CLAUDE.md`:
+
+```md filename="AGENTS.md"
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+```
+
+The managed block directs agents to documentation bundled with the installed Next.js version. Next.js updates only the content between the markers and preserves the rest of the file.
+
+If neither agent file exists, Next.js creates `AGENTS.md` and a `CLAUDE.md` file that imports it:
+
+```md filename="CLAUDE.md"
+@AGENTS.md
+```
+
+If either file already exists, Next.js adds the managed block to that file without creating another agent file.
+
+## Disable agent rules
+
+Set `agentRules` to `false` to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent rules block and preserves all other content, even when no agent is detected. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
+
+To prevent [`create-next-app`](/docs/app/api-reference/cli/create-next-app) from creating agent files in a new project, pass the `--no-agents-md` option.
+
+`agentRules` and [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) work independently. Changing one option does not affect the other.
+
+## Version History
+
+| Version   | Changes                                                                          |
+| --------- | -------------------------------------------------------------------------------- |
+| `v16.4.0` | Setting `agentRules` to `false` removes an existing managed block on `next dev`. |
+| `v16.3.0` | `agentRules` configuration option added.                                         |

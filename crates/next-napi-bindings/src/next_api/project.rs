@@ -29,8 +29,8 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
+        AdditionalRootConfig, DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions,
+        Project, ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -90,7 +90,7 @@ use crate::{
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
             MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
-            NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
+            NapiTurbopackGcOptions, NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
             DetachedVc, NapiIssue, NapiUsedFeature, SubscriptionTask, TurbopackResult, get_issues,
@@ -149,6 +149,13 @@ pub struct NapiWatchOptions {
 }
 
 #[napi(object)]
+pub struct NapiAdditionalRoot {
+    pub key: RcStr,
+    pub path: RcStr,
+    pub ignore_if_missing: Option<bool>,
+}
+
+#[napi(object)]
 pub struct NapiProjectOptions {
     /// An absolute root path (Unix or Windows path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -169,6 +176,9 @@ pub struct NapiProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
+
+    /// Additional filesystem roots from next.config.js.
+    pub additional_roots: Vec<NapiAdditionalRoot>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
@@ -226,12 +236,6 @@ pub struct NapiProjectOptions {
 /// Refer to [`NapiProjectOptions`] for documentation on this struct's fields.
 #[napi(object)]
 pub struct NapiPartialProjectOptions {
-    pub root_path: Option<RcStr>,
-
-    pub project_path: Option<RcStr>,
-
-    pub watch: Option<NapiWatchOptions>,
-
     pub next_config: Option<RcStr>,
 
     pub env: Option<Vec<NapiEnvVar>>,
@@ -273,6 +277,8 @@ pub struct NapiTurboEngineOptions {
     pub skip_compaction: Option<bool>,
     /// Turbopack memory eviction mode for the persistent cache.
     pub turbopack_memory_eviction: MemoryEvictionMode,
+    /// Tuning for Turbopack's reference-counting GC. `None` disables the GC.
+    pub gc: Option<NapiTurbopackGcOptions>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -287,8 +293,9 @@ impl From<NapiWatchOptions> for WatchOptions {
     }
 }
 
-impl From<NapiProjectOptions> for ProjectOptions {
-    fn from(val: NapiProjectOptions) -> Self {
+impl NapiProjectOptions {
+    fn into_project_options(self) -> ProjectOptions {
+        let val = self;
         let NapiProjectOptions {
             root_path,
             project_path,
@@ -296,6 +303,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             dist_dir: _,
             watch,
             next_config,
+            additional_roots,
             env,
             define_env,
             dev,
@@ -317,6 +325,14 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path,
             watch: watch.into(),
             next_config,
+            additional_roots: additional_roots
+                .into_iter()
+                .map(|root| AdditionalRootConfig {
+                    key: root.key,
+                    path: root.path,
+                    ignore_if_missing: root.ignore_if_missing.unwrap_or(false),
+                })
+                .collect(),
             env: env.into_iter().map(|var| (var.name, var.value)).collect(),
             define_env: define_env.into(),
             dev,
@@ -339,12 +355,10 @@ impl From<NapiProjectOptions> for ProjectOptions {
     }
 }
 
-impl From<NapiPartialProjectOptions> for PartialProjectOptions {
-    fn from(val: NapiPartialProjectOptions) -> Self {
+impl NapiPartialProjectOptions {
+    fn into_partial_project_options(self) -> PartialProjectOptions {
+        let val = self;
         let NapiPartialProjectOptions {
-            root_path,
-            project_path,
-            watch,
             next_config,
             env,
             define_env,
@@ -357,9 +371,6 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             write_routes_hashes_manifest,
         } = val;
         PartialProjectOptions {
-            root_path,
-            project_path,
-            watch: watch.map(From::from),
             next_config,
             env: env.map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: define_env.map(|env| env.into()),
@@ -406,13 +417,19 @@ pub struct ProjectInstance {
     _container_gc_root: GcRoot<ProjectContainer>,
 }
 
-#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
+#[napi(object, object_from_js = false)]
+pub struct NapiProject {
+    #[napi(ts_type = "{ __napiType: \"Project\" }")]
+    pub project: External<ProjectInstance>,
+}
+
+#[napi(ts_return_type = "Promise<TurbopackResult<{ project: { __napiType: \"Project\" } }>>")]
 pub fn project_new<'env>(
     env: &'env Env,
     mut options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
-) -> napi::Result<PromiseRaw<'env, External<ProjectInstance>>> {
+) -> napi::Result<PromiseRaw<'env, TurbopackResult<NapiProject>>> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
@@ -564,7 +581,6 @@ pub fn project_new<'env>(
     env.spawn_future(
         async move {
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
-            let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 &options.next_version,
@@ -575,7 +591,8 @@ pub fn project_new<'env>(
                     is_short_session: turbo_engine_options.is_short_session.unwrap_or(false),
                     skip_compaction: turbo_engine_options.skip_compaction.unwrap_or(false),
                 },
-                turbopack_memory_eviction,
+                turbo_engine_options.turbopack_memory_eviction,
+                turbo_engine_options.gc,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -595,16 +612,17 @@ pub fn project_new<'env>(
                 });
             }
 
-            let options = ProjectOptions::from(options);
+            let options = options.into_project_options();
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
-            let (container, container_op) = turbo_tasks
+            let (container, container_op, initialization_issues) = turbo_tasks
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
-                    ProjectContainer::initialize(container_op, options).await?;
+                    let initialization_issues =
+                        ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
                     // Return the operation itself so we can pin it below
-                    Ok((container, container_op))
+                    Ok((container, container_op, initialization_issues))
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -645,12 +663,20 @@ pub fn project_new<'env>(
                 });
             }
 
-            Ok(External::new(ProjectInstance {
-                turbopack_ctx,
-                container,
-                exit_receiver: Mutex::new(Some(exit_receiver)),
-                _container_gc_root: container_gc_root,
-            }))
+            Ok(TurbopackResult {
+                result: NapiProject {
+                    project: External::new(ProjectInstance {
+                        turbopack_ctx,
+                        container,
+                        exit_receiver: Mutex::new(Some(exit_receiver)),
+                        _container_gc_root: container_gc_root,
+                    }),
+                },
+                issues: initialization_issues
+                    .iter()
+                    .map(|issue| NapiIssue::from(&**issue))
+                    .collect(),
+            })
         }
         .instrument(tracing::info_span!("create project")),
     )
@@ -739,7 +765,7 @@ pub async fn project_update(
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
     let ctx = &project.turbopack_ctx;
-    let options = options.into();
+    let options = options.into_partial_project_options();
     let container = project.container;
     ctx.turbo_tasks()
         .run(async move { container.update(options).await })
