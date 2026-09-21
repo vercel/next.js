@@ -674,6 +674,53 @@ export type WithStringifiedURLs<T> = T extends URL
  */
 type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
+type WithSelectedTitle<T> = T extends { title: AbsoluteTemplateString }
+  ? Omit<T, 'title'> & { title: string }
+  : T
+
+/**
+ * Metadata that has finished route-level resolution and post-processing. It
+ * contains only values that can be turned into metadata elements; it is never
+ * used as the parent of another metadata resolver.
+ */
+type SelectedMetadata = Omit<
+  ResolvedMetadata,
+  | 'metadataBase'
+  | 'title'
+  | 'openGraph'
+  | 'twitter'
+  | 'themeColor'
+  | 'colorScheme'
+  | 'viewport'
+> & {
+  title: string | null
+  openGraph: WithSelectedTitle<
+    NonNullable<ResolvedMetadata['openGraph']>
+  > | null
+  twitter: WithSelectedTitle<NonNullable<ResolvedMetadata['twitter']>> | null
+}
+
+type MetadataSelection =
+  | {
+      status: 'resolved'
+      value: SelectedMetadata | undefined
+    }
+  | {
+      status: 'not-found' | 'forbidden' | 'unauthorized' | 'redirect' | 'error'
+      reason: unknown
+    }
+
+type MetadataSelectionHandle = Promise<MetadataSelection>
+
+type MetadataSelectorResult =
+  | SelectedMetadata
+  | MetadataSelection
+  | PromiseLike<SelectedMetadata | MetadataSelection>
+
+type MetadataSelector<Slot extends string = string> = (slots: {
+  [Key in 'children' | Slot]: MetadataSelectionHandle
+}) => MetadataSelectorResult
+
 type RobotsRuleBase = {
   allow?: string | string[] | undefined
   disallow?: string | string[] | undefined
@@ -808,13 +855,43 @@ interface ResolvedViewport extends ViewportLayout {
 
 type ResolvingViewport = Promise<ResolvedViewport>
 
+type ViewportSelection =
+  | {
+      status: 'resolved'
+      value: ResolvedViewport | undefined
+    }
+  | {
+      status: 'not-found' | 'forbidden' | 'unauthorized' | 'redirect' | 'error'
+      reason: unknown
+    }
+
+type ViewportSelectionHandle = Promise<ViewportSelection>
+
+type ViewportSelectorResult =
+  | ResolvedViewport
+  | ViewportSelection
+  | PromiseLike<ResolvedViewport | ViewportSelection>
+
+type ViewportSelector<Slot extends string = string> = (slots: {
+  [Key in 'children' | Slot]: ViewportSelectionHandle
+}) => ViewportSelectorResult
+
 export type {
   Metadata,
   ResolvedMetadata,
   ResolvedMetadataWithURLs,
   ResolvingMetadata,
+  SelectedMetadata,
+  MetadataSelection,
+  MetadataSelectionHandle,
+  MetadataSelector,
+  MetadataSelectorResult,
   MetadataRoute,
   Viewport,
   ResolvingViewport,
   ResolvedViewport,
+  ViewportSelection,
+  ViewportSelectionHandle,
+  ViewportSelector,
+  ViewportSelectorResult,
 }
