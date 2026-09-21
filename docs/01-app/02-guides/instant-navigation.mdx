@@ -9,7 +9,7 @@ related:
     - app/api-reference/file-conventions/route-segment-config/instant
     - app/guides/optimizing-prefetching
     - app/getting-started/caching
-    - app/getting-started/revalidating
+    - app/guides/cache-components
     - app/guides/prefetching
 ---
 
@@ -145,7 +145,7 @@ The **Navigation Inspector** in the Next.js DevTools freezes the page at its ini
 
 Pair it with the React DevTools Suspense panel to see exactly which boundary covers which part of the page. See [Visualize loading states with the Next.js DevTools](#visualize-loading-states-with-the-nextjs-devtools) for the workflow.
 
-See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for patterns to reduce fallback coverage and pull more content into the shell.
+See [Maximizing the static shell](/docs/app/getting-started/rendering-model#maximizing-the-static-shell) for patterns to reduce fallback coverage and pull more content into the shell.
 
 ## A page that navigates instantly
 
@@ -581,4 +581,4 @@ For opted-out segments, the navigation blocks on the server. If the content depe
 - [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
 - [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and should resolve before navigation
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
-- [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`
+- [Caching](/docs/app/getting-started/caching#cachelife) for how to set cache lifetimes with `cacheLife`, and [Revalidating the cache](/docs/app/getting-started/mutating-data#revalidating-the-cache) for expiring entries with `updateTag`

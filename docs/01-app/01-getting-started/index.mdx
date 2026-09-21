@@ -5,7 +5,15 @@ description: Learn how to create full-stack web applications with the Next.js Ap
 
 Welcome to the Next.js documentation!
 
-This **Getting Started** section will help you create your first Next.js app and learn the core features you'll use in every project.
+This **Getting Started** section takes you from creating a new Next.js project to deploying it, while introducing the core concepts behind the App Router.
+
+## How the App Router works
+
+An App Router application is a tree of React components defined by files and folders in the `app` directory. Layouts and pages are Server Components by default, so they can fetch data and render on the server without adding their component code to the browser. Add Client Components where you need state, event handlers, or browser APIs.
+
+Next.js prerenders as much of each route as possible. Give reusable data or UI a cache lifetime so it can be included in a shell or prefetch, and place request-time work behind Suspense so it can stream when needed. Use Server Functions to mutate data and refresh or revalidate the affected UI.
+
+The pages that follow build on that model as they cover routing and navigation, error handling, styling, metadata, Route Handlers, and deployment.
 
 ## Pre-requisite knowledge
 

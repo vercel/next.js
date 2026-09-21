@@ -3,10 +3,10 @@ title: Server and Client Components
 description: Learn how you can use React Server and Client Components to render parts of your application on the server or the client.
 related:
   title: Next Steps
-  description: Learn more about the APIs mentioned in this page.
+  description: Learn more about composing across the boundary, and the APIs mentioned on this page.
   links:
-    - app/api-reference/directives/use-client
     - app/guides/server-and-client-boundary
+    - app/api-reference/directives/use-client
 ---
 
 By default, layouts and pages are [Server Components](https://react.dev/reference/rsc/server-components), which lets you fetch data and render parts of your UI on the server, optionally cache the result, and stream it to the client. When you need interactivity or browser APIs, you can use [Client Components](https://react.dev/reference/rsc/use-client) to layer in functionality.
@@ -19,6 +19,13 @@ This page explains how Server and Client Components work in Next.js and when to 
 
 The client and server environments have different capabilities. Server and Client Components allow you to run logic in each environment depending on your use case.
 
+Use **Server Components** when you need:
+
+- Fetch data from databases or APIs close to the source.
+- Use API keys, tokens, and other secrets without exposing them to the client.
+- Reduce the amount of JavaScript sent to the browser.
+- Improve the [First Contentful Paint (FCP)](https://web.dev/fcp/), and stream content progressively to the client.
+
 Use **Client Components** when you need:
 
 - [State](https://react.dev/learn/managing-state) and [event handlers](https://react.dev/learn/responding-to-events). E.g. `onClick`, `onChange`.
@@ -26,12 +33,7 @@ Use **Client Components** when you need:
 - Browser-only APIs. E.g. `localStorage`, `window`, `navigator.geolocation`, etc.
 - [Custom hooks](https://react.dev/learn/reusing-logic-with-custom-hooks).
 
-Use **Server Components** when you need:
-
-- Fetch data from databases or APIs close to the source.
-- Use API keys, tokens, and other secrets without exposing them to the client.
-- Reduce the amount of JavaScript sent to the browser.
-- Improve the [First Contentful Paint (FCP)](https://web.dev/fcp/), and stream content progressively to the client.
+When both would work, prefer a Server Component, and move the boundary as far down the tree as you can. [Reducing JS bundle size](#reducing-js-bundle-size) shows what that buys you.
 
 For example, the `<Page>` component is a Server Component that fetches data about a post, and passes it as props to the `<LikeButton>` which handles client-side interactivity.
 
@@ -98,42 +100,6 @@ export default function LikeButton({ likes }) {
   // ...
 }
 ```
-
-## How do Server and Client Components work in Next.js?
-
-### On the server
-
-On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)), including [parallel route slots](/docs/app/api-reference/file-conventions/parallel-routes) whether or not they are displayed:
-
-- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
-- **Client Components** and the RSC Payload are used to [prerender](/docs/app/glossary#prerendering) HTML.
-
-> **What is the React Server Component Payload (RSC)?**
->
-> The RSC Payload is a compact, serialized representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
->
-> - The rendered result of Server Components
-> - Placeholders for where Client Components should be rendered and references to their JavaScript files
-> - Any props passed from a Server Component to a Client Component
-
-### On the client (first load)
-
-Then, on the client:
-
-1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
-2. **RSC Payload** is used to reconcile the Client and Server Component trees.
-3. **JavaScript** is used to hydrate Client Components and make the application interactive.
-
-> **What is hydration?**
->
-> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
-
-### Subsequent Navigations
-
-On subsequent navigations:
-
-- The **RSC Payload** is prefetched and cached for instant navigation.
-- **Client Components** are rendered entirely on the client, without the server-rendered HTML.
 
 ## Examples
 
@@ -602,3 +568,39 @@ bun add server-only
 Next.js handles `server-only` and `client-only` imports internally to provide clearer error messages when a module is used in the wrong environment. The contents of these packages from NPM are not used by Next.js.
 
 Next.js also provides its own type declarations for `server-only` and `client-only`, for TypeScript configurations where [`noUncheckedSideEffectImports`](https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports) is active.
+
+## How do Server and Client Components work in Next.js?
+
+### On the server
+
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)), including [parallel route slots](/docs/app/api-reference/file-conventions/parallel-routes) whether or not they are displayed:
+
+- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
+- **Client Components** and the RSC Payload are used to [prerender](/docs/app/glossary#prerendering) HTML.
+
+> **What is the React Server Component Payload (RSC)?**
+>
+> The RSC Payload is a compact, serialized representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
+>
+> - The rendered result of Server Components
+> - Placeholders for where Client Components should be rendered and references to their JavaScript files
+> - Any props passed from a Server Component to a Client Component
+
+### On the client (first load)
+
+Then, on the client:
+
+1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
+2. **RSC Payload** is used to reconcile the Client and Server Component trees.
+3. **JavaScript** is used to hydrate Client Components and make the application interactive.
+
+> **What is hydration?**
+>
+> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
+
+### Subsequent Navigations
+
+On subsequent navigations:
+
+- The **RSC Payload** is prefetched and cached for instant navigation.
+- **Client Components** are rendered entirely on the client, without the server-rendered HTML.

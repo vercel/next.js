@@ -1,13 +1,21 @@
 ---
 title: Installation
-description: Learn how to create a new Next.js application with the `create-next-app` CLI, and set up TypeScript, ESLint, and Module Path Aliases.
+description: Learn how to create a new Next.js application with the create-next-app CLI or by hand, and set up TypeScript, ESLint, and Module Path Aliases.
+related:
+  title: Next Steps
+  description: Learn more about browser support, local development, and the CLI commands mentioned on this page.
+  links:
+    - app/guides/local-development
+    - architecture/supported-browsers
+    - app/api-reference/cli/create-next-app
+    - app/api-reference/cli/next
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
 <AppOnly>
 
-Create a new Next.js app and run it locally.
+A Next.js project has the `next` package installed and an `app` folder that defines your routes. This page walks you through creating one with `create-next-app` or setting it up manually, including TypeScript, linting, and import aliases.
 
 ## Quick start
 
@@ -49,17 +57,6 @@ Before you begin, make sure your development environment meets the following req
 
 - Minimum Node.js version: [20.9](https://nodejs.org/)
 - Operating systems: macOS, Windows (including WSL), and Linux.
-
-## Supported browsers
-
-Next.js supports modern browsers with zero configuration.
-
-- Chrome 111+
-- Edge 111+
-- Firefox 111+
-- Safari 16.4+
-
-Learn more about [browser support](/docs/architecture/supported-browsers), including how to configure polyfills and target specific browsers.
 
 ## Create with the CLI
 
@@ -488,4 +485,4 @@ Upgrading also updates the documentation bundled inside the `next` package at `n
 Let's get our Next.js knowledge up to speed, and give me a summary of what's new for you
 ```
 
-See [Upgrading](/docs/app/getting-started/upgrading) for version guides and manual upgrade steps, or the [preview docs](https://preview.nextjs.org) to explore features before they ship in a stable version.
+See [Upgrading](/docs/app/guides/upgrading) for version guides and manual upgrade steps, or the [preview docs](https://preview.nextjs.org) to explore features before they ship in a stable version.
