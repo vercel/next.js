@@ -52,3 +52,98 @@ export function usesOnlyClassThis() {
   }
   return Inner
 }
+
+// A module-eval-scope assignment leaves the binding `Constant`, but it can still
+// swap in a function that reads `this`, so the declared value cannot be trusted.
+export let reassignedArrow = () => 'no-this'
+reassignedArrow = function () {
+  return this === undefined ? 'no-this' : 'has-this'
+}
+
+// The same holds for a function declaration reassigned at module scope.
+export function reassignedFn() {
+  return 'no-this'
+}
+reassignedFn = function () {
+  return this === undefined ? 'no-this' : 'has-this'
+}
+
+// A destructuring assignment reaches the binding through a pattern rather than a
+// plain identifier, but it replaces the value just the same.
+export let viaArrayPat = () => 'no-this'
+;[viaArrayPat] = [
+  function () {
+    return this === undefined ? 'no-this' : 'has-this'
+  },
+]
+
+export let viaObjectPat = () => 'no-this'
+;({ viaObjectPat } = {
+  viaObjectPat: function () {
+    return this === undefined ? 'no-this' : 'has-this'
+  },
+})
+
+// A function declaration hoists, so this assignment is visited before the
+// declaration that records the declared answer.
+export function reassignedBeforeDecl() {
+  return 'no-this'
+}
+reassignedBeforeDecl = function () {
+  return this === undefined ? 'no-this' : 'has-this'
+}
+
+// `export default` of a directly visible function that reads `this` must keep the
+// namespace as the receiver, just like a named export.
+export default function () {
+  return this === undefined ? 'no-this' : 'has-this'
+}
+
+// A class rebinds `this` only for its body. The `extends` clause and computed member
+// keys are evaluated with the receiver of the enclosing function.
+export function viaHeritage() {
+  let seen
+  class Inner extends ((seen = this === undefined ? 'no-this' : 'has-this'),
+  Object) {}
+  return seen
+}
+
+export function viaComputedMethodKey() {
+  let seen
+  class Inner {
+    [(seen = this === undefined ? 'no-this' : 'has-this')]() {}
+  }
+  return seen
+}
+
+export function viaComputedFieldKey() {
+  let seen
+  class Inner {
+    [(seen = this === undefined ? 'no-this' : 'has-this')] = 1
+  }
+  return seen
+}
+
+// The initializer is a call the analysis cannot see through, so the assignment below,
+// which never runs, must not make the binding look `this`-free.
+function makeThisReader() {
+  return function () {
+    return this === undefined ? 'no-this' : 'has-this'
+  }
+}
+export let opaqueInit = makeThisReader()
+if (typeof opaqueInit !== 'function') {
+  opaqueInit = () => 'no-this'
+}
+
+// A `for...of` head assigns the binding without an assignment expression.
+export function viaForOf() {
+  return 'no-this'
+}
+for (viaForOf of [
+  function () {
+    return this === undefined ? 'no-this' : 'has-this'
+  },
+]) {
+  // the loop head is the assignment
+}

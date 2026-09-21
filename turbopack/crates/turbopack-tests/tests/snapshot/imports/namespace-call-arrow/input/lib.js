@@ -32,3 +32,6 @@ export function classFn() {
   }
   return Inner
 }
+
+// `export default` of a directly visible arrow: no `this` of its own either.
+export default () => 'default-arrow'
