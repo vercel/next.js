@@ -15,9 +15,6 @@ if (
 
 /** @type {import('next').NextConfig} */
 module.exports = {
-  experimental: {
-    webpackBuildWorker: true,
-  },
   webpack(config, { webpack: callbackWebpack }) {
     if (
       process.env.EXPECTED_WEBPACK_VERSION &&
