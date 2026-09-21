@@ -2398,7 +2398,8 @@ async function getErrorRSCPayload(
     ctx.missingPrefetchHintPolicy,
     Boolean(ctx.renderOpts.partialPrefetching),
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.notFoundParams
   )
   // Attach the error shell as the root's render output. Vary params are not
   // tracked for error pages.
@@ -3006,10 +3007,16 @@ async function renderAppPage(
     null
 
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+  // Keep the placeholder map for dev's separate prerender validation. The
+  // request store only needs names to defer params during a staged render.
   const stagedFallbackParams =
+    getRequestMeta(req, 'stagedFallbackParams') ?? null
+  const stagedFallbackParamNames =
     postponedState?.stagedFallbackParams !== undefined
       ? postponedState.stagedFallbackParams
-      : (getRequestMeta(req, 'stagedFallbackParams') ?? null)
+      : stagedFallbackParams
+        ? new Set(stagedFallbackParams.keys())
+        : null
   const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
   const createRequestStore = createRequestStoreForRender.bind(
@@ -3024,7 +3031,7 @@ async function renderAppPage(
     isHmrRefresh,
     serverComponentsHmrCache,
     renderResumeDataCache,
-    stagedFallbackParams,
+    stagedFallbackParamNames,
     hmrRefreshHash
   )
   const requestStore = createRequestStore()
@@ -3353,7 +3360,6 @@ function prepareAppPage(
     } else {
       postponedState = parsePostponedState(
         renderOpts.postponed,
-        interpolatedParams,
         renderOpts.experimental.maxPostponedStateSizeBytes,
         renderOpts.experimental.disableResumeDataCacheCompression
       )
@@ -6767,7 +6773,9 @@ export async function runValidationInDevFromSnapshot(
     isHmrRefresh: message.request.isHmrRefresh,
     hmrRefreshHash: message.request.hmrRefreshHash,
     serverComponentsHmrCache: undefined,
-    stagedFallbackParams: fallbackRouteParams,
+    stagedFallbackParams: fallbackRouteParams
+      ? new Set(fallbackRouteParams.keys())
+      : null,
   })
 
   const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)
