@@ -4,6 +4,53 @@ import { DeployRuntimeLogs } from '../../lib/next-modes/deploy-runtime-logs'
 
 jest.mock('execa', () => jest.fn())
 
+it('shuts down a real subprocess after collecting output', async () => {
+  const realExeca = jest.requireActual<typeof execa>('execa')
+  let child: ReturnType<typeof execa> | undefined
+  jest.mocked(execa).mockImplementationOnce(() => {
+    child = realExeca(
+      process.execPath,
+      [
+        '-e',
+        `console.log(JSON.stringify({ message: 'ready' }));
+         console.error('CLI diagnostic');
+         setInterval(() => {}, 1000)`,
+      ],
+      { buffer: false }
+    )
+    return child
+  })
+  let onMessage: (message: string) => void
+  const message = new Promise<string>((resolve) => {
+    onMessage = resolve
+  })
+  const collector = new DeployRuntimeLogs(
+    'https://fixture.vercel.app',
+    { cwd: process.cwd(), env: process.env, flags: [] },
+    (value) => onMessage(value)
+  )
+  let timer: ReturnType<typeof setTimeout>
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Collector did not stop')), 3000)
+  })
+  try {
+    await Promise.race([
+      (async () => {
+        expect(await message).toBe('ready\n')
+        await collector.stop()
+      })(),
+      deadline,
+    ])
+  } finally {
+    clearTimeout(timer!)
+    // Release the real process even when the shutdown regression occurs.
+    child?.all?.resume()
+    child?.kill('SIGKILL')
+    await child?.catch(() => {})
+    jest.clearAllMocks()
+  }
+})
+
 describe('deploy runtime logs', () => {
   let stdout: PassThrough
   let stderr: PassThrough
