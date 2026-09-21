@@ -181,14 +181,14 @@ pub struct ReplacedSubpathValueResult<'a, 'b> {
 /// Used to decide whether callers should continue trying further alternatives.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TerminalState {
-    /// No result was produced; keep trying alternatives.
+    /// No definitive result was produced; keep trying alternatives.
     Unset,
-    /// A concrete path or empty result was added to `target`. The path might
-    /// not exist at runtime, so outer alternatives may still be collected, but
-    /// the current level is considered satisfied.
+    /// A concrete path result was added to `target`. The path might not exist
+    /// at runtime, so outer alternatives may still be collected for fallback.
     Result,
-    /// The import is definitively blocked (`null` / `Excluded`). No result was
-    /// added. Stop immediately — do not try further alternatives.
+    /// A definitive terminal match was found. Stop immediately — do not try
+    /// further alternatives. This is returned by both [`ReplacedSubpathValue::Excluded`]
+    /// (no result added) and [`ReplacedSubpathValue::Empty`] (empty-module result added).
     Stop,
 }
 
@@ -200,13 +200,15 @@ impl ReplacedSubpathValue {
     /// callers can attach them to the resolved request key.
     ///
     /// Returns a [`TerminalState`] indicating what happened:
-    /// - [`TerminalState::Stop`] — the import is definitively blocked ([`Excluded`]); callers must
-    ///   stop immediately.
-    /// - [`TerminalState::Result`] — a concrete path or empty module result was added;
-    ///   [`Alternatives`] continues collecting but will return `Result` at the end.
-    /// - [`TerminalState::Unset`] — no result was produced; keep trying.
+    /// - [`TerminalState::Stop`] — a definitive terminal match was found ([`Excluded`]: import
+    ///   blocked, no result added; or [`Empty`]: empty-module result added). Callers must stop
+    ///   immediately and not try further alternatives.
+    /// - [`TerminalState::Result`] — a concrete path result was added. The path might not exist at
+    ///   runtime, so [`Alternatives`] continues collecting fallbacks but returns `Result`.
+    /// - [`TerminalState::Unset`] — no definitive result was produced; keep trying.
     ///
     /// [`Excluded`]: ReplacedSubpathValue::Excluded
+    /// [`Empty`]: ReplacedSubpathValue::Empty
     /// [`Alternatives`]: ReplacedSubpathValue::Alternatives
     pub fn add_results<'a, 'b>(
         self,
@@ -288,61 +290,44 @@ impl ReplacedSubpathValue {
                 }
                 TerminalState::Unset
             }
-            ReplacedSubpathValue::Result(r) => push_result(
-                ReplacedSubpathValueResultType::Path(r),
-                condition_overrides,
-                prefix,
-                key,
-                target,
-            ),
-            ReplacedSubpathValue::Excluded => {
-                // The import is blocked (null). Don't add a result; stop immediately.
+            ReplacedSubpathValue::Result(r) => {
+                target.push(ReplacedSubpathValueResult {
+                    ty: ReplacedSubpathValueResultType::Path(r),
+                    conditions: condition_overrides
+                        .iter()
+                        .filter_map(|(k, v)| match v {
+                            ConditionValue::Set => Some((k.clone(), true)),
+                            ConditionValue::Unset => Some((k.clone(), false)),
+                            ConditionValue::Unknown => None,
+                        })
+                        .collect(),
+                    map_prefix: prefix,
+                    map_key: key,
+                });
+                TerminalState::Result
+            }
+            // The import is blocked (null). Don't add a result; stop immediately.
+            ReplacedSubpathValue::Excluded => TerminalState::Stop,
+            ReplacedSubpathValue::Empty => {
+                // Empty already resolves to an empty module; push the result and stop —
+                // no fallback alternatives are needed.
+                target.push(ReplacedSubpathValueResult {
+                    ty: ReplacedSubpathValueResultType::Empty,
+                    conditions: condition_overrides
+                        .iter()
+                        .filter_map(|(k, v)| match v {
+                            ConditionValue::Set => Some((k.clone(), true)),
+                            ConditionValue::Unset => Some((k.clone(), false)),
+                            ConditionValue::Unknown => None,
+                        })
+                        .collect(),
+                    map_prefix: prefix,
+                    map_key: key,
+                });
                 TerminalState::Stop
             }
-            ReplacedSubpathValue::Empty => push_result(
-                ReplacedSubpathValueResultType::Empty,
-                condition_overrides,
-                prefix,
-                key,
-                target,
-            ),
         }
     }
-}
-
-/// Collects the currently active condition overrides into a `(key, bool)` list
-/// for attaching to a [RequestKey].
-fn collect_active_conditions(
-    condition_overrides: &FxHashMap<RcStr, ConditionValue>,
-) -> Vec<(RcStr, bool)> {
-    condition_overrides
-        .iter()
-        .filter_map(|(k, v)| match v {
-            ConditionValue::Set => Some((k.clone(), true)),
-            ConditionValue::Unset => Some((k.clone(), false)),
-            ConditionValue::Unknown => None,
-        })
-        .collect()
-}
-
-/// Appends a leaf result to `target` and returns [`TerminalState::Result`].
-///
-/// Shared by the [`ReplacedSubpathValue::Result`] and [`ReplacedSubpathValue::Empty`]
-/// arms of [`ReplacedSubpathValue::add_results`].
-fn push_result<'a, 'b>(
-    ty: ReplacedSubpathValueResultType,
-    condition_overrides: &FxHashMap<RcStr, ConditionValue>,
-    prefix: Cow<'a, str>,
-    key: &'b AliasKey,
-    target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
-) -> TerminalState {
-    target.push(ReplacedSubpathValueResult {
-        ty,
-        conditions: collect_active_conditions(condition_overrides),
-        map_prefix: prefix,
-        map_key: key,
-    });
-    TerminalState::Result
 }
 
 struct ResultsIterMut<'a> {
