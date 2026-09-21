@@ -1,0 +1,14 @@
+{
+  "name": "custom-server-error-loop-repro",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "next": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
