@@ -28,14 +28,17 @@ async function directoryContains(
   return false
 }
 
-function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
+function runMetadataStreamingTests(legacyMetadataResolution: boolean) {
+  const parallelRouteMetadata = !legacyMetadataResolution
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    nextConfig: {
-      experimental: {
-        parallelRouteMetadata,
-      },
-    },
+    nextConfig: legacyMetadataResolution
+      ? {
+          deprecated: {
+            legacyMetadataResolution: true,
+          },
+        }
+      : undefined,
   })
 
   // The deploy harness does not expose the emitted server bundle.
@@ -262,8 +265,8 @@ function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
 }
 
 describe.each([false, true])(
-  'app-dir - metadata-streaming (parallelRouteMetadata: %s)',
-  (parallelRouteMetadata) => {
-    runMetadataStreamingTests(parallelRouteMetadata)
+  'app-dir - metadata-streaming (legacyMetadataResolution: %s)',
+  (legacyMetadataResolution) => {
+    runMetadataStreamingTests(legacyMetadataResolution)
   }
 )

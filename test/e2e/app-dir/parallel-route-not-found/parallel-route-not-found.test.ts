@@ -1,13 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 
-function runParallelRouteNotFoundTests(parallelRouteMetadata: boolean) {
+function runParallelRouteNotFoundTests(legacyMetadataResolution: boolean) {
+  const parallelRouteMetadata = !legacyMetadataResolution
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    nextConfig: {
-      experimental: {
-        parallelRouteMetadata,
-      },
-    },
+    nextConfig: legacyMetadataResolution
+      ? {
+          deprecated: {
+            legacyMetadataResolution: true,
+          },
+        }
+      : undefined,
   })
 
   // TODO: adjust the test to work with the new error
@@ -132,8 +135,8 @@ function runParallelRouteNotFoundTests(parallelRouteMetadata: boolean) {
 }
 
 describe.each([false, true])(
-  'parallel-route-not-found (parallelRouteMetadata: %s)',
-  (parallelRouteMetadata) => {
-    runParallelRouteNotFoundTests(parallelRouteMetadata)
+  'parallel-route-not-found (legacyMetadataResolution: %s)',
+  (legacyMetadataResolution) => {
+    runParallelRouteNotFoundTests(legacyMetadataResolution)
   }
 )

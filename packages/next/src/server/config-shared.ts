@@ -488,6 +488,16 @@ export function resolveCssChunkingMode(
   return 'loose'
 }
 
+export interface DeprecatedConfig {
+  /**
+   * Use the legacy metadata resolution behavior instead of resolving metadata
+   * independently across parallel routes.
+   *
+   * @default false
+   */
+  legacyMetadataResolution?: true
+}
+
 export interface ExperimentalConfig {
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
@@ -539,7 +549,6 @@ export interface ExperimentalConfig {
   cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  parallelRouteMetadata?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -1314,6 +1323,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   isExperimentalCompile?: boolean
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  parallelRouteMetadata?: boolean
 
   useWasmBinary?: boolean
 
@@ -2160,6 +2173,12 @@ export interface NextConfig {
   agentRules?: boolean
 
   /**
+   * Options for deprecated features that are still available for backwards
+   * compatibility.
+   */
+  deprecated?: DeprecatedConfig
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -2338,6 +2357,7 @@ export const defaultConfig = Object.freeze({
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+  deprecated: {} as DeprecatedConfig,
   experimental: {
     agentFeedback: false,
     coldCacheBadge: false,
@@ -2347,7 +2367,6 @@ export const defaultConfig = Object.freeze({
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
-    parallelRouteMetadata: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     linkNoTouchStart: false,
@@ -2522,7 +2541,6 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
-    | 'parallelRouteMetadata'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2569,6 +2587,8 @@ export interface NextConfigRuntime {
     trustHostHeader?: NextConfigComplete['experimental']['trustHostHeader']
     /** @internal */
     isExperimentalCompile?: NextConfigComplete['experimental']['isExperimentalCompile']
+    /** @internal */
+    parallelRouteMetadata?: NextConfigComplete['experimental']['parallelRouteMetadata']
   }
 }
 
