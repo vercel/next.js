@@ -124,6 +124,10 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     line-height: var(--size-20);
   }
   [data-nextjs-hydration-diff-type='invalid-html']
+    [data-nextjs-container-errors-pseudo-html-line-sign] {
+    color: var(--color-gray-alpha-1000);
+  }
+  [data-nextjs-hydration-diff-type='invalid-html']
     .nextjs__container_errors__component-stack,
   [data-nextjs-hydration-diff-type='invalid-html']
     .nextjs__container_errors__component-stack code {

@@ -177,7 +177,7 @@ export function PseudoHtmlDiff({
           <>
             <button
               aria-expanded={!isDiffCollapsed}
-              aria-label={`${isDiffCollapsed ? 'Expand' : 'Collapse'} component stack`}
+              aria-label={`${isDiffCollapsed ? 'Expand' : 'Collapse'} client/server diff`}
               data-nextjs-container-errors-pseudo-html-collapse-button
               onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
             >
@@ -194,7 +194,7 @@ export function PseudoHtmlDiff({
             </div>
           </>
         ) : (
-          <div data-nextjs-hydration-diff-title>Component stack</div>
+          <div data-nextjs-hydration-diff-title>Rendered hierarchy</div>
         )}
       </div>
       <pre className="nextjs__container_errors__component-stack">
