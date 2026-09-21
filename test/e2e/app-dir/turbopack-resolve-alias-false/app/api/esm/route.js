@@ -3,7 +3,8 @@
 import * as namespaceImport from 'some-lib'
 // Named import should resolve to `undefined`.
 import { someExport as namedImport } from 'some-lib'
-// Default import should resolve to `undefined`.
+// Turbopack resolves the default import to `undefined`; webpack's empty module
+// interop resolves it to `{}`.
 import defaultImport from 'some-lib'
 
 export function GET() {
