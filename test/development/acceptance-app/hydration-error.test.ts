@@ -330,25 +330,8 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Page params={Promise} searchParams={Promise}>
-                             <table>
-                               <tbody>
-                                 <tr>
-     >                             test
-                       ...
-                     ...
-           ...",
+         "componentStack": "<tr>
+     > test",
          "description": "In HTML, text nodes cannot be a child of <tr>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -401,26 +384,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <table>
-     >                             {" "}
-                                   ...
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <table>
+     >   {" "}",
        "description": "In HTML, whitespace text nodes cannot be a child of <table>. Make sure you don't have any extra whitespace between tags on each line of your source code.
      This will cause a hydration error.",
        "environmentLabel": null,
@@ -495,25 +461,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-     >                             <p>
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <p>
+     >   <p>",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -552,25 +502,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Page params={Promise} searchParams={Promise}>
-                             <div>
-                               <div>
-     >                           <p>
-     >                             <div>
-                       ...
-                     ...
-           ...",
+         "componentStack": "<div>
+     > <p>
+     >   <div>",
          "description": "In HTML, <div> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -609,25 +543,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <div>
-     >                             <tr>
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <div>
+     >   <tr>",
          "description": "In HTML, <tr> cannot be a child of <div>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -666,29 +584,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-                                   <span>
-                                     <span>
-                                       <span>
-                                         <span>
-     >                                     <p>
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <p>
+     >           <p>",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -755,27 +653,9 @@ describe('Error overlay for hydration errors in App router', () => {
            ],
          },
          {
-           "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Next.js Internal Component>
-                                 <script>
-                                 <RootLayout>
-       >                           <html>
-                                     <body>
-                                     <Script src="https://ex..." strategy="beforeInte...">
-       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                             ...
-                 ...",
+           "componentStack": "<RootLayout>
+       > <html>
+       >     <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
            "environmentLabel": null,
@@ -818,26 +698,9 @@ describe('Error overlay for hydration errors in App router', () => {
            ],
          },
          {
-           "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Next.js Internal Component>
-                                 <RootLayout>
-       >                           <html>
-                                     <body>
-                                     <Script src="https://ex..." strategy="beforeInte...">
-       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                             ...
-                 ...",
+           "componentStack": "<RootLayout>
+       > <html>
+       >     <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
            "environmentLabel": null,

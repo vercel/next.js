@@ -12,25 +12,9 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
-           "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-       >                           <p>
-       >                             <p>
-                             ...
-                           ...
-                 ...",
+           "componentStack": "<Page params={Promise} searchParams={Promise}>
+       > <p>
+       >   <p>",
            "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
            "environmentLabel": null,
@@ -190,25 +174,9 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
-           "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-       >                           <p className="client">
-       >                             <p>
-                             ...
-                           ...
-                 ...",
+           "componentStack": "<Page params={Promise} searchParams={Promise}>
+       > <p className="client">
+       >   <p>",
            "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
            "environmentLabel": null,
