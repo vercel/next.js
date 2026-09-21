@@ -53,7 +53,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-import { recursiveDeleteSyncWithAsyncRetries } from '../lib/recursive-delete'
+import { verifyDistDirOwnership, cleanDistDir } from '../lib/dist-dir'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -1290,6 +1290,15 @@ export default async function build(
         )
       }
 
+      // Refuse to recursively delete a directory that doesn't look like ours,
+      // so a misconfigured `distDir` can't destroy user data. This must run
+      // before the lock file is written, since that would make any directory
+      // look like ours. Containment within the project is checked earlier,
+      // during config validation.
+      if (config.cleanDistDir && !isGenerateMode) {
+        verifyDistDirOwnership(distDir)
+      }
+
       if (config.experimental.lockDistDir) {
         // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
         // process exit.
@@ -1303,10 +1312,13 @@ export default async function build(
         await nextBuildSpan
           .traceChild('clean')
           .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(
-              distDir,
-              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
-            )
+            cleanDistDir(distDir, [
+              'cache',
+              'dev',
+              'diagnostics',
+              'lock',
+              'trace',
+            ])
           )
       }
 

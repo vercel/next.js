@@ -35,7 +35,7 @@ import getBaseWebpackConfig, {
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
-import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
+import { cleanDistDir } from '../../lib/dist-dir'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -66,7 +66,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { type Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
-import { existsSync, promises as fs } from 'fs'
+import { existsSync } from 'fs'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
@@ -686,13 +686,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   private async clean(span: Span): Promise<void> {
+    // `distDir` ownership is verified in `setup-dev-bundler`, before the lock
+    // file is written.
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        recursiveDeleteSyncWithAsyncRetries(
-          join(this.dir, this.config.distDir),
-          new Set(['cache', 'lock'])
-        )
+        cleanDistDir(join(this.dir, this.config.distDir), ['cache', 'lock'])
       )
   }
 
@@ -895,16 +894,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
     }
 
+    // `clean()` creates distDir and writes its `package.json`, which ensures
+    // commonjs handling for emitted files even when the project is
+    // `"type": "module"`.
     await this.clean(startSpan)
-    // Ensure distDir exists before writing package.json
-    await fs.mkdir(this.distDir, { recursive: true })
 
     const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
-
-    const distPackageJsonPath = join(this.distDir, 'package.json')
-    // Ensure commonjs handling is used for files in the distDir (generally .next)
-    // Files outside of the distDir can be "type": "module"
-    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
 
     this.activeWebpackConfigs = await this.getWebpackConfig(startSpan)
 

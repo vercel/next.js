@@ -121,6 +121,7 @@ import {
 } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
+import { verifyDistDirOwnership } from '../../../lib/dist-dir'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
 
@@ -215,6 +216,13 @@ async function startWatcher(
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+
+  // Refuse to recursively delete a directory that doesn't look like ours, so a
+  // misconfigured `distDir` can't destroy user data. This must run before the
+  // lock file is written, since that would make any directory look like ours.
+  // Containment within the project is checked earlier, during config
+  // validation.
+  verifyDistDirOwnership(distDir)
 
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {

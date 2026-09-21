@@ -1,0 +1,38 @@
+---
+title: Invalid distDir
+---
+
+## Why This Error Occurred
+
+Next.js takes full ownership of the directory configured as `distDir` (`.next` by
+default) and deletes its contents on every build and dev session. To protect against
+data loss, it refuses to clean the directory when either of the following is true:
+
+- `distDir` resolves outside both the application directory (the one holding
+  `next.config.js`) and the workspace root containing it. This is usually a relative
+  path that escapes the workspace, such as `distDir: '../..'`, which can resolve to a
+  directory holding unrelated projects.
+
+  Pointing `distDir` elsewhere _inside_ the workspace is supported: an application at
+  `apps/web` may use `distDir: '../.next'`.
+
+- `distDir` is not empty and is missing the `.next-build-dir` marker file that Next.js
+  writes into the directories it owns. This usually means it points at a directory used
+  for something else, such as `src` or the application directory itself (`distDir: '.'`).
+
+## Possible Ways to Fix It
+
+Point `distDir` at a directory used only by Next.js:
+
+```js filename="next.config.js"
+module.exports = {
+  distDir: 'build',
+}
+```
+
+If the directory is the one you want, delete its contents yourself first, then run the
+build again.
+
+## Useful Links
+
+- [`distDir` configuration](/docs/app/api-reference/config/next-config-js/distDir)

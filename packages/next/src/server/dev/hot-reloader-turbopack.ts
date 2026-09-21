@@ -23,6 +23,7 @@ import {
   HMR_MESSAGE_SENT_TO_SERVER,
 } from './hot-reloader-types'
 import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
+import { cleanDistDir } from '../../lib/dist-dir'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
@@ -425,9 +426,12 @@ export async function createHotReloaderTurbopack(
     )
   }
 
+  // `distDir` ownership is verified in `setup-dev-bundler`, before the lock
+  // file is written.
+  //
   // This must finish before Turbopack records any writes. Once turbo-tasks has
   // recorded a write effect, it dedups by hash without checking the file.
-  await recursiveDeleteSyncWithAsyncRetries(distDir, RETAINED_OUTPUT_PATHS)
+  await cleanDistDir(distDir, RETAINED_OUTPUT_PATHS)
   await Promise.all(
     TURBOPACK_OUTPUT_DIRS.map((subDir) =>
       recursiveDeleteSyncWithAsyncRetries(
