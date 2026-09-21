@@ -1,4 +1,6 @@
 /* global location */
+export * as default from './index'
+
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 import type Router from '../shared/lib/router/router'

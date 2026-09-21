@@ -289,7 +289,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_app")?,
             page_extensions,
-            Some(next_package.join("app.js")?),
+            Some(next_package.join("dist/esm/pages/_app.js")?),
             app_router_path.clone(),
             app_router_path,
         )
@@ -300,7 +300,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_document")?,
             page_extensions,
-            Some(next_package.join("document.js")?),
+            Some(next_package.join("dist/esm/pages/_document.js")?),
             document_router_path.clone(),
             document_router_path,
         )
@@ -311,7 +311,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_error")?,
             page_extensions,
-            Some(next_package.join("dist/pages/_error.js")?),
+            Some(next_package.join("dist/esm/pages/_error.js")?),
             error_router_path.clone(),
             error_router_path,
         )

@@ -114,7 +114,9 @@ describe('minified module ids', () => {
       })
 
       it('should have long module id for the next client runtime module', async () => {
-        expect(staticBundles).toContain('next/dist/client/next-dev-turbopack')
+        expect(staticBundles).toMatch(
+          /next\/dist\/(?:esm\/)?client\/next-dev-turbopack/
+        )
       })
     }
   )

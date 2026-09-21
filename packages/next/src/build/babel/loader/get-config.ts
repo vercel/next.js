@@ -33,7 +33,7 @@ export type BabelPluginPassList = ReadonlyArray<BabelPlugin>
 export type BabelPluginPasses = ReadonlyArray<BabelPluginPassList>
 
 const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+  /(next[\\/]dist[\\/](?:esm[\\/])?shared[\\/]lib)|(next[\\/]dist[\\/](?:esm[\\/])?client)|(next[\\/]dist[\\/](?:esm[\\/])?pages)/
 
 /**
  * The properties defined here are the conditions with which subsets of inputs

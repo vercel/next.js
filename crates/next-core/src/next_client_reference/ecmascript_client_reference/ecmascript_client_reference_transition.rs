@@ -3,7 +3,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     context::ProcessResult,
-    file_source::FileSource,
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -61,23 +60,8 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                 .into_vc(),
             None => source.ident(),
         };
-        let ident_ref = ident.await?;
-        let client_source = if ident_ref.path.path.contains("next/dist/esm/") {
-            let path = ident_ref
-                .path
-                .root()
-                .await?
-                .join(&ident_ref.path.path.replace("next/dist/esm/", "next/dist/"))?;
-            Vc::upcast(FileSource::new_with_query_and_fragment(
-                path,
-                ident_ref.query.clone(),
-                ident_ref.fragment.clone(),
-            ))
-        } else {
-            source
-        };
         let client_module = this.client_transition.process(
-            client_source,
+            source,
             module_asset_context,
             ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );

@@ -174,7 +174,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         let stem = stem.replace(".shared-runtime", "");
 
         let resource_request = format!(
-            "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
+            "next/dist/esm/server/route-modules/{}/vendored/contexts/{}.js",
             match self.server_context_type {
                 ServerContextType::AppRoute { .. } => "app-route",
                 ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
@@ -198,54 +198,6 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             .await?
             .join(&format!("{base}/{resource_request}"))?;
 
-        Ok(Vc::cell(Some(
-            ResolveResult::source(ResolvedVc::upcast(
-                FileSource::new(new_path).to_resolved().await?,
-            ))
-            .resolved_cell(),
-        )))
-    }
-}
-
-#[turbo_tasks::value]
-pub(crate) struct NextSharedRuntimeResolvePlugin {
-    condition: ResolvedVc<AfterResolvePluginCondition>,
-}
-
-#[turbo_tasks::value_impl]
-impl NextSharedRuntimeResolvePlugin {
-    #[turbo_tasks::function]
-    pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
-        let condition = AfterResolvePluginCondition::new_with_glob(
-            root.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
-                GlobOptions::default(),
-            ),
-        )
-        .to_resolved()
-        .await?;
-        Ok(NextSharedRuntimeResolvePlugin { condition }.cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        *self.condition
-    }
-
-    #[turbo_tasks::function]
-    async fn after_resolve(
-        self: Vc<Self>,
-        fs_path: FileSystemPath,
-        _lookup_path: FileSystemPath,
-        _reference_type: ReferenceType,
-        _request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
-        let raw_fs_path = fs_path.clone();
-        let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
-        let new_path = fs_path.root().await?.join(&modified_path)?;
         Ok(Vc::cell(Some(
             ResolveResult::source(ResolvedVc::upcast(
                 FileSource::new(new_path).to_resolved().await?,

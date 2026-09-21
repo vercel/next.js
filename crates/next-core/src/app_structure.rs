@@ -1007,7 +1007,7 @@ async fn directory_tree_to_entrypoints(
 
     let builtin_default = get_next_package(app_dir.clone())
         .await?
-        .join("dist/client/components/builtin/default.js")?;
+        .join("dist/esm/client/components/builtin/default.js")?;
     let entrypoints_ref = entrypoints.await?;
     let plain_tree = directory_tree.into_plain().await?;
     let mut declared_slots = FxIndexMap::default();
@@ -1782,7 +1782,7 @@ async fn directory_tree_to_loader_tree_internal(
             app_dir.clone(),
             &mut modules.not_found,
             &mut parent_modules.not_found,
-            "dist/client/components/builtin/not-found.js",
+            "dist/esm/client/components/builtin/not-found.js",
             is_first_layer_group_route,
         )
         .await?;
@@ -1791,7 +1791,7 @@ async fn directory_tree_to_loader_tree_internal(
             app_dir.clone(),
             &mut modules.forbidden,
             &mut parent_modules.forbidden,
-            "dist/client/components/builtin/forbidden.js",
+            "dist/esm/client/components/builtin/forbidden.js",
             is_first_layer_group_route,
         )
         .await?;
@@ -1800,7 +1800,7 @@ async fn directory_tree_to_loader_tree_internal(
             app_dir.clone(),
             &mut modules.unauthorized,
             &mut parent_modules.unauthorized,
-            "dist/client/components/builtin/unauthorized.js",
+            "dist/esm/client/components/builtin/unauthorized.js",
             is_first_layer_group_route,
         )
         .await?;
@@ -1810,7 +1810,7 @@ async fn directory_tree_to_loader_tree_internal(
         check_and_update_global_module_references(
             app_dir.clone(),
             &mut modules.global_error,
-            "dist/client/components/builtin/global-error.js",
+            "dist/esm/client/components/builtin/global-error.js",
         )
         .await?;
     }
@@ -2097,9 +2097,9 @@ async fn default_route_tree(
         // Explicit children detection omits that structural child; this
         // fallback remains for applications that disable the flag.
         let default_file = if contains_interception && slot_name == "children" {
-            "dist/client/components/builtin/default-null.js"
+            "dist/esm/client/components/builtin/default-null.js"
         } else {
-            "dist/client/components/builtin/default.js"
+            "dist/esm/client/components/builtin/default.js"
         };
 
         get_next_package(app_dir).await?.join(default_file)?
@@ -2115,7 +2115,7 @@ async fn retained_route_tree(
 ) -> Result<AppPageLoaderTree> {
     let default_null = get_next_package(app_dir)
         .await?
-        .join("dist/client/components/builtin/default-null.js")?;
+        .join("dist/esm/client/components/builtin/default-null.js")?;
     synthetic_default_route_tree(global_metadata, app_page, default_null).await
 }
 
@@ -2327,7 +2327,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             modules.layout = Some(
                 get_next_package(app_dir.clone())
                     .await?
-                    .join("dist/client/components/builtin/layout.js")?,
+                    .join("dist/esm/client/components/builtin/layout.js")?,
             );
         }
 
@@ -2335,28 +2335,28 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             modules.not_found = Some(
                 get_next_package(app_dir.clone())
                     .await?
-                    .join("dist/client/components/builtin/not-found.js")?,
+                    .join("dist/esm/client/components/builtin/not-found.js")?,
             );
         }
         if modules.forbidden.is_none() {
             modules.forbidden = Some(
                 get_next_package(app_dir.clone())
                     .await?
-                    .join("dist/client/components/builtin/forbidden.js")?,
+                    .join("dist/esm/client/components/builtin/forbidden.js")?,
             );
         }
         if modules.unauthorized.is_none() {
             modules.unauthorized = Some(
                 get_next_package(app_dir.clone())
                     .await?
-                    .join("dist/client/components/builtin/unauthorized.js")?,
+                    .join("dist/esm/client/components/builtin/unauthorized.js")?,
             );
         }
         if modules.global_error.is_none() {
             modules.global_error = Some(
                 get_next_package(app_dir.clone())
                     .await?
-                    .join("dist/client/components/builtin/global-error.js")?,
+                    .join("dist/esm/client/components/builtin/global-error.js")?,
             );
         }
 
@@ -2388,7 +2388,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                     // page is built-in/empty-stub
                                     page: Some(get_next_package(app_dir.clone())
                                         .await?
-                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                        .join("dist/esm/client/components/builtin/empty-stub.js")?,
                                     ),
                                     ..Default::default()
                                 }
@@ -2400,7 +2400,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                         Some(v) => Some(v),
                                         None => Some(get_next_package(app_dir.clone())
                                             .await?
-                                            .join("dist/client/components/builtin/not-found.js")?,
+                                            .join("dist/esm/client/components/builtin/not-found.js")?,
                                         ),
                                     },
                                     ..Default::default()
@@ -2428,7 +2428,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         None => Some(
                             get_next_package(app_dir.clone())
                                 .await?
-                                .join("dist/client/components/builtin/global-not-found.js")?,
+                                .join("dist/esm/client/components/builtin/global-not-found.js")?,
                         ),
                     }
                 } else {
@@ -2474,7 +2474,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         parallel_routes: FxIndexMap::default(),
                         modules: AppDirModules {
                             page: Some(next_package
-                                .join("dist/client/components/builtin/app-error.js")?),
+                                .join("dist/esm/client/components/builtin/app-error.js")?),
                             ..Default::default()
                         },
                         global_metadata,

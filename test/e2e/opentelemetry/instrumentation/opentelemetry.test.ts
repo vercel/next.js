@@ -100,7 +100,7 @@ describe.each(
   ].filter(Boolean)
 )('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
   const {
-    next: { next, skipped, isNextDev },
+    next: { next, skipped, isNextDev, isTurbopack },
     getCollector,
   } = setup({
     useDirectEntrypointHandler,
@@ -279,7 +279,13 @@ describe.each(
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                          'next.clientComponentLoadCount': isNextDev
+                            ? isTurbopack
+                              ? 7
+                              : 8
+                            : isTurbopack
+                              ? 6
+                              : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -963,7 +969,13 @@ describe.each(
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
+                          'next.clientComponentLoadCount': isNextDev
+                            ? isTurbopack
+                              ? 10
+                              : 12
+                            : isTurbopack
+                              ? 8
+                              : 10,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -1091,7 +1103,13 @@ describe.each(
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                          'next.clientComponentLoadCount': isNextDev
+                            ? isTurbopack
+                              ? 8
+                              : 9
+                            : isTurbopack
+                              ? 7
+                              : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -2218,7 +2236,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
 })
 
 describe('opentelemetry with custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: true,
@@ -2345,7 +2363,13 @@ describe('opentelemetry with custom server', () => {
                   },
                   {
                     attributes: {
-                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                      'next.clientComponentLoadCount': isNextDev
+                        ? isTurbopack
+                          ? 7
+                          : 8
+                        : isTurbopack
+                          ? 6
+                          : 7,
                       'next.span_type': 'NextNodeServer.clientComponentLoading',
                     },
                     kind: 0,

@@ -23,6 +23,69 @@ describe('app-dir - esm js extension', () => {
     expect($('head link[href="/test.js"]').length).toBe(1)
   })
 
+  async function getApiExportResults(pathname: string) {
+    const $ = await next.render$(pathname)
+
+    return Object.fromEntries(
+      $('[data-api]')
+        .map((_index, element) => ({
+          name: $(element).attr('data-api'),
+          passed: $(element).attr('data-passed') === 'true',
+        }))
+        .get()
+        .map(({ name, passed }) => [name, passed])
+    )
+  }
+
+  it('should preserve Pages Router API exports for ESM and CommonJS imports', async () => {
+    const results = await getApiExportResults('/api-exports')
+
+    expect(results).toEqual({
+      app: true,
+      cache: true,
+      'compat/router': true,
+      constants: true,
+      document: true,
+      dynamic: true,
+      error: true,
+      form: true,
+      head: true,
+      image: true,
+      'legacy/image': true,
+      link: true,
+      navigation: true,
+      offline: true,
+      og: true,
+      router: true,
+      script: true,
+      server: true,
+      'web-vitals': true,
+    })
+  })
+
+  it('should preserve App Router API exports for ESM and CommonJS imports', async () => {
+    const results = await getApiExportResults('/app/api-exports')
+
+    expect(results).toEqual({
+      cache: true,
+      'compat/router': true,
+      constants: true,
+      dynamic: true,
+      form: true,
+      head: true,
+      headers: true,
+      image: true,
+      'legacy/image': true,
+      link: true,
+      navigation: true,
+      offline: true,
+      og: true,
+      script: true,
+      server: true,
+      'web-vitals': true,
+    })
+  })
+
   it('should be able to use nextjs api in pages router', async () => {
     const $ = await next.render$('/pages')
 

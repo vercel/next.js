@@ -15,6 +15,7 @@ export async function next__polyfill_module(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@next/polyfill-module')))
     .target('dist/build/polyfills')
+    .target('dist/esm/build/polyfills')
 }
 
 export async function browser_polyfills(task, opts) {
@@ -2409,6 +2410,7 @@ export async function next_compile(task, opts) {
       'bin',
       'server',
       'server_esm',
+      'api_cjs',
       'api_esm',
       'nextbuild',
       'nextbuildjest',
@@ -2503,6 +2505,13 @@ export async function api_esm(task, opts) {
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/api')
     .target('dist/esm/api')
+}
+
+export async function api_cjs(task, opts) {
+  await task
+    .source(['src/api/cache.ts', 'src/api/cache.browser.ts'])
+    .swc('server', { dev: opts.dev })
+    .target('dist/api-cjs')
 }
 
 export async function nextbuild(task, opts) {
@@ -2760,7 +2769,7 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
-  await task.watch('src/api', 'api_esm', opts)
+  await task.watch('src/api', ['api_esm', 'api_cjs'], opts)
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],

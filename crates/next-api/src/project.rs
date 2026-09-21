@@ -1949,10 +1949,14 @@ impl Project {
         // `ends_with` is the correct matcher here.
         static FEATURE_MODULE_PATH_SUFFIXES: &[(&str, &str)] = &[
             ("next/image", "/next/image.js"),
+            ("next/image", "/next/dist/esm/api/image.js"),
             ("next/future/image", "/next/future/image.js"),
             ("next/legacy/image", "/next/legacy/image.js"),
+            ("next/legacy/image", "/next/dist/esm/client/legacy/image.js"),
             ("next/script", "/next/script.js"),
+            ("next/script", "/next/dist/esm/api/script.js"),
             ("next/dynamic", "/next/dynamic.js"),
+            ("next/dynamic", "/next/dist/esm/api/dynamic.js"),
             ("next/font/google", "/next/font/google/target.css"),
             ("next/font/local", "/next/font/local/target.css"),
             ("@next/font/google", "/@next/font/google/target.css"),
@@ -2052,6 +2056,7 @@ impl Project {
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, _)) = parent
                 && let Some(&feature) = matching.get(&node)
+                && matching.get(&parent_node) != Some(&feature)
             {
                 pairs.insert((feature, parent_node));
             }

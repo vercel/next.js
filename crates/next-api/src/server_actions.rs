@@ -269,19 +269,26 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
         let app_project = self.project.app_project().await?.unwrap();
         let next_dir = get_next_package(self.project.project_path().owned().await?).await?;
-        let source_to_ignore = FileSource::new(
-            next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?,
-        );
+        let sources_to_ignore = [
+            FileSource::new(
+                next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?,
+            ),
+            FileSource::new(
+                next_dir.join("dist/esm/server/route-modules/app-page/module.compiled.js")?,
+            ),
+        ];
         let modules_to_ignore = Vc::cell(
             [
                 app_project.rsc_module_context(),
                 app_project.route_module_context(),
             ]
             .iter()
-            .map(|c| {
-                c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
-                    .module()
-                    .to_resolved()
+            .flat_map(|c| {
+                sources_to_ignore.iter().map(|s| {
+                    c.process(Vc::upcast(*s), ReferenceType::Undefined)
+                        .module()
+                        .to_resolved()
+                })
             })
             .try_join()
             .await?,

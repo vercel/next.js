@@ -4,8 +4,12 @@ import type { ImageProps, ImageLoader, StaticImageData } from './get-img-props'
 import { getImgProps } from './get-img-props'
 import { Image } from '../../client/image-component'
 
-// This is replaced by webpack alias
-import defaultLoader from 'next/dist/shared/lib/image-loader'
+// This is replaced by a bundler alias. Use a namespace import so a custom
+// loader without a default export can reach the framework's runtime validation
+// instead of failing static ESM export validation first.
+import * as defaultLoaderModule from 'next/dist/shared/lib/image-loader'
+
+const defaultLoader = Reflect.get(defaultLoaderModule, 'default')
 
 /**
  * For more advanced use cases, you can call `getImageProps()`

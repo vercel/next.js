@@ -6,6 +6,7 @@
 // `packages/next/src/build/create-compiler-aliases.ts`. Paths are relative to
 // `packages/next/dist` (extension omitted).
 export const browserVariantModules = [
+  'api/cache',
   'client/components/client-boundary-params',
   'client/components/instant-samples',
   'client/components/instant-validation/impl',
