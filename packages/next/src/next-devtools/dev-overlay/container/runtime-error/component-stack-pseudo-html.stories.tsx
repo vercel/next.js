@@ -33,6 +33,6 @@ export const ReactUnifiedMismatch: Story = {
 export const InvalidHtmlNesting: Story = {
   args: {
     reactOutputComponentDiff:
-      '<Page>\n  <article>\n    <p>\n>     <p className="text-red-900">\n>     </p>\n    </p>\n  </article>',
+      '...\n  <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>\n    <Page params={Promise} searchParams={Promise}>\n>     <p>\n>       <p>\n  ...',
   },
 }

@@ -90,6 +90,24 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-hydration-diff-type='invalid-html'] {
     color: var(--color-gray-1000);
     font-size: var(--size-13);
+    overflow: hidden;
+  }
+  [data-nextjs-hydration-diff-type='invalid-html']
+    [data-nextjs-container-errors-pseudo-html-line] {
+    box-sizing: border-box;
+  }
+  [data-nextjs-hydration-diff-type='invalid-html']
+    .nextjs__container_errors__component-stack,
+  [data-nextjs-hydration-diff-type='invalid-html']
+    .nextjs__container_errors__component-stack code {
+    overflow-x: hidden;
+    overflow-wrap: anywhere;
+  }
+  [data-nextjs-hydration-diff-title] {
+    color: var(--color-gray-900);
+    font-family: var(--font-stack-sans);
+    font-size: var(--size-12);
+    margin-left: 12px;
   }
   [data-nextjs-container-errors-pseudo-html--diff] {
     scroll-snap-align: center;
