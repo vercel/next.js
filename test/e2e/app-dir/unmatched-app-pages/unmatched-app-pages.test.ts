@@ -47,6 +47,8 @@ describe('unmatched-app-pages', () => {
          }
         `)
       }
+
+      expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).toBe(1)
@@ -64,9 +66,16 @@ describe('unmatched-app-pages', () => {
 
        Every page must be part of at least one complete route. Add matching pages or default files for the sibling parallel route slots, or remove the unreachable pages."
       `)
+      expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
   })
 })
+
+function expectDefaultStrictRouteMatchingWarning(output: string): void {
+  expect(stripAnsi(output)).toContain(
+    'you can temporarily restore loose route matching by setting `deprecated.looseRouteMatching` to `true`'
+  )
+}
 
 function extractUnmatchedPagesError(output: string): string {
   const normalizedOutput = stripAnsi(output)

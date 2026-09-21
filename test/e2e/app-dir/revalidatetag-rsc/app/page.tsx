@@ -19,6 +19,9 @@ export default async function Page() {
       <Link href="/revalidate_via_page?tag=data" id="revalidate-via-page">
         Revalidate via page
       </Link>
+      <Link href="/revalidate_via_cache" id="revalidate-via-cache">
+        Revalidate via cache
+      </Link>
     </div>
   )
 }

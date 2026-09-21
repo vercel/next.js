@@ -8,12 +8,6 @@ const tools = dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
 const executable = join(tools, 'next/node_modules/next/dist/bin/next')
 const assessment = join(tools, 'security/assessment.mjs')
-const assessmentConfig = join(tools, 'security/assessment.json')
-
-if (existsSync(assessmentConfig)) {
-  const { source } = JSON.parse(readFileSync(assessmentConfig, 'utf8'))
-  if (source) process.env.__NEXT_VERSION = source
-}
 appendFileSync(
   join(tools, 'invocations.jsonl'),
   JSON.stringify({
@@ -46,7 +40,10 @@ if (args[0] === 'build' && existsSync(assessment)) {
 if (existsSync(assessment)) await import(pathToFileURL(assessment).href)
 
 if (args[0] === 'upgrade') {
-  process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
+  const { version } = JSON.parse(
+    readFileSync(join(tools, 'next/node_modules/next/package.json'), 'utf8')
+  )
+  process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = version
 }
 
 process.argv = [process.execPath, executable, ...args]

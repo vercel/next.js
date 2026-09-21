@@ -17,8 +17,6 @@ export async function isAgentFeedbackEnabled(
     })
 
     return response.ok && (await response.text()) === 'true'
-  } catch {
-    return false
   } finally {
     clearTimeout(timeout)
   }
