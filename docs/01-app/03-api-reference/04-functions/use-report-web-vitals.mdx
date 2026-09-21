@@ -1,6 +1,6 @@
 ---
 title: useReportWebVitals
-description: API Reference for the useReportWebVitals function.
+description: Measure and report Core Web Vitals (LCP, CLS, INP, FCP, TTFB) to any analytics provider with the `useReportWebVitals` hook.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -181,12 +181,24 @@ measure the time it takes for the page to hydrate and render:
   route change (in ms)
 - `Next.js-render`: Length of time it takes for a page to finish render after a route change (in ms)
 
-Next.js passes these custom metrics to the `reportWebVitals` function exported from `pages/_app.js`.
-The `useReportWebVitals` hook reports only the [Web Vitals](#web-vitals) listed above.
-
-You can handle all the results of these metrics separately:
+Next.js reports these custom metrics to the `reportWebVitals` function exported from
+`pages/_app`, and reports the [Web Vitals](#web-vitals) listed above to `useReportWebVitals`.
+Each entry point reports its own set, so export `reportWebVitals` alongside the hook to
+receive both:
 
 ```jsx filename="pages/_app.js"
+import { useReportWebVitals } from 'next/web-vitals'
+
+const logWebVitals = (metric) => {
+  console.log(metric)
+}
+
+export default function MyApp({ Component, pageProps }) {
+  useReportWebVitals(logWebVitals)
+
+  return <Component {...pageProps} />
+}
+
 export function reportWebVitals(metric) {
   switch (metric.name) {
     case 'Next.js-hydration':
@@ -201,10 +213,6 @@ export function reportWebVitals(metric) {
     default:
       break
   }
-}
-
-export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
 }
 ```
 
