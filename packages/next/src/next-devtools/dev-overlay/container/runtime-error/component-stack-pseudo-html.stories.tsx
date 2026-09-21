@@ -29,3 +29,10 @@ export const ReactUnifiedMismatch: Story = {
       '<Page>\n  <Layout>\n    <div>asd\n-     <p>Server content</p>\n+     <p>Client content</p>',
   },
 }
+
+export const InvalidHtmlNesting: Story = {
+  args: {
+    reactOutputComponentDiff:
+      '<Page>\n  <article>\n    <p>\n>     <p className="text-red-900">\n>     </p>\n    </p>\n  </article>',
+  },
+}

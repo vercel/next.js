@@ -55,12 +55,14 @@ export function PseudoHtmlDiff({
 }) {
   const [isDiffCollapsed, toggleCollapseHtml] = useState(true)
 
-  const htmlComponents = useMemo(() => {
+  const { hasClientServerDiff, htmlComponents } = useMemo(() => {
     const componentStacks: React.ReactNode[] = []
     const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
+    let containsClientServerDiff = false
     reactComponentDiffLines.forEach((line, index) => {
       const isDiffLine = line[0] === '+' || line[0] === '-'
       const isHighlightedLine = line[0] === '>'
+      containsClientServerDiff ||= isDiffLine
       const hasSign = isDiffLine || isHighlightedLine
       const sign = hasSign ? line[0] : ''
       const signIndex = hasSign ? line.indexOf(sign) : -1
@@ -110,31 +112,42 @@ export function PseudoHtmlDiff({
         )
       }
     })
-    return componentStacks
+    return {
+      hasClientServerDiff: containsClientServerDiff,
+      htmlComponents: componentStacks,
+    }
   }, [reactOutputComponentDiff])
 
   return (
     <div
       data-nextjs-container-errors-pseudo-html
       data-nextjs-container-errors-pseudo-html-collapse={isDiffCollapsed}
+      data-nextjs-hydration-diff-type={
+        hasClientServerDiff ? 'client-server' : 'invalid-html'
+      }
     >
       <div data-nextjs-hydration-diff-header>
         <button
           aria-expanded={!isDiffCollapsed}
-          aria-label="complete Component Stack"
+          aria-label={`${isDiffCollapsed ? 'Expand' : 'Collapse'} component stack`}
           data-nextjs-container-errors-pseudo-html-collapse-button
           onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
         >
           <CollapseIcon collapsed={isDiffCollapsed} />
+          {!hasClientServerDiff && (
+            <span data-nextjs-hydration-diff-title>Component stack</span>
+          )}
         </button>
-        <div data-nextjs-hydration-diff-badge>
-          <span data-nextjs-hydration-diff-badge-item="client">
-            <span>+</span> Client
-          </span>
-          <span data-nextjs-hydration-diff-badge-item="server">
-            <span>-</span> Server
-          </span>
-        </div>
+        {hasClientServerDiff && (
+          <div data-nextjs-hydration-diff-badge>
+            <span data-nextjs-hydration-diff-badge-item="client">
+              <span>+</span> Client
+            </span>
+            <span data-nextjs-hydration-diff-badge-item="server">
+              <span>-</span> Server
+            </span>
+          </div>
+        )}
       </div>
       <pre className="nextjs__container_errors__component-stack">
         <code>{htmlComponents}</code>

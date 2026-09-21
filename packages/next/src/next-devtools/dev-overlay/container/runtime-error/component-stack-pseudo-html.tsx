@@ -10,7 +10,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
     line-height: 1.33em; /* 16px in 12px font size */
-    border-radius: var(--rounded-md-2);
+    border-radius: var(--rounded-xl);
   }
   [data-nextjs-container-errors-pseudo-html-line] {
     display: inline-block;
@@ -19,12 +19,19 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     line-height: calc(5 / 3);
   }
   [data-nextjs-container-errors-pseudo-html--diff='error'] {
-    background: var(--color-amber-100);
-    box-shadow: 2px 0 0 0 var(--color-amber-900) inset;
+    background: var(--color-red-200);
+    box-shadow: 2px 0 0 0 var(--color-red-900) inset;
     font-weight: bold;
   }
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
     all: unset;
+    align-items: center;
+    color: var(--color-gray-900);
+    cursor: pointer;
+    display: flex;
+    font-family: var(--font-stack-sans);
+    font-size: var(--size-12);
+    gap: 8px;
     margin-left: 12px;
     &:focus {
       outline: none;
@@ -52,7 +59,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   }
   [data-nextjs-container-errors-pseudo-html--diff='error']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
-    color: var(--color-amber-900);
+    color: var(--color-red-900);
   }
   ${/* hide but text are still accessible in DOM */ ''}
   [data-nextjs-container-errors-pseudo-html--hint] {
@@ -79,6 +86,10 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     white-space: pre-wrap;
     scroll-snap-type: y mandatory;
     overflow-y: hidden;
+  }
+  [data-nextjs-hydration-diff-type='invalid-html'] {
+    color: var(--color-gray-1000);
+    font-size: var(--size-13);
   }
   [data-nextjs-container-errors-pseudo-html--diff] {
     scroll-snap-align: center;

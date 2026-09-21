@@ -107,6 +107,10 @@ describe('hydration-error-count', () => {
        ]
       `)
     }
+
+    expect(
+      await browser.elementsByCss('[data-nextjs-hydration-diff-badge]')
+    ).toHaveLength(0)
   })
 
   it('should have correct hydration error count for html diff', async () => {
@@ -183,6 +187,10 @@ describe('hydration-error-count', () => {
        }
       `)
     }
+
+    expect(
+      await browser.elementsByCss('[data-nextjs-hydration-diff-badge]')
+    ).toHaveLength(1)
   })
 
   it('should display correct hydration info in each hydration error view', async () => {
