@@ -14,7 +14,10 @@ pub use crate::analyzer::graph::{
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
-    analyzer::{Bump, JsValue, graph::visitor::Analyzer},
+    analyzer::{
+        Bump, JsValue,
+        graph::visitor::{Analyzer, evaluation_reachable_functions},
+    },
     ast_path_trie::AstPathTrieBuilder,
     chunk::CjsStaticExports,
     code_gen::CodeGen,
@@ -90,6 +93,7 @@ pub fn create_graph<'a>(
         code_gens: Default::default(),
         ast_paths: Default::default(),
         supports_block_scoping,
+        evaluation_reachable_functions: evaluation_reachable_functions(m),
     };
 
     // CommonJS export recognition runs for a CommonJS module that emits code when either CJS

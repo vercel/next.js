@@ -149,15 +149,20 @@ impl BindingUsage {
     }
 }
 
-/// Defines whether following a module reference can execute its target during evaluation of the
-/// referencing module.
+/// Defines whether following a module reference is reachable from the referencing module's own
+/// evaluation path.
+///
+/// A cyclic importer can invoke an exported function before the exporting module has completed,
+/// but that invocation belongs to the importer's evaluation path. The eager static cycle already
+/// represents that dependency for module-evaluation ordering.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Copy, Default, Hash, Serialize, Deserialize)]
 pub enum ModuleEvaluationTiming {
-    /// The target may execute during evaluation of the referencing module.
+    /// The reference may be followed from the referencing module's own evaluation path.
     #[default]
     Evaluation,
-    /// The target can only execute after evaluation of the referencing module has completed.
+    /// The reference is only reachable through a function-like body that the referencing module
+    /// does not invoke while evaluating.
     Deferred,
 }
 

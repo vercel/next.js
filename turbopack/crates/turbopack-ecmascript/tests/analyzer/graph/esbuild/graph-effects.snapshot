@@ -352,7 +352,7 @@
         span: 2725..2751,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -632,7 +632,7 @@
         span: 2775..2800,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Conditional {
         condition: Logical(
@@ -978,7 +978,7 @@
                         span: 2828..3484,
                         in_try: false,
                         new: true,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(
@@ -1382,7 +1382,7 @@
                         span: 3526..3571,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -1519,7 +1519,7 @@
                         span: 3589..3606,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -2314,7 +2314,7 @@
         span: 1025..1034,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -2464,7 +2464,7 @@
         span: 1038..1053,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     In {
         left: Variable(
@@ -2931,7 +2931,7 @@
                                         span: 1325..1374,
                                         in_try: false,
                                         new: true,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                 ],
                                 range: Exact(
@@ -3308,7 +3308,7 @@
                         span: 1530..1563,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     Member {
                         obj: FreeVar(
@@ -3553,7 +3553,7 @@
                         span: 1602..1638,
                         in_try: true,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     FreeVar {
                         var: "downloadedBinPath",
@@ -3705,7 +3705,7 @@
                         span: 1670..1701,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     Member {
                         obj: FreeVar(
@@ -3941,7 +3941,7 @@
                         span: 1712..1734,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     Conditional {
                         condition: Not(
@@ -4262,7 +4262,7 @@
                                         span: 1758..1778,
                                         in_try: true,
                                         new: false,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                     FreeVar {
                                         var: "Error",
@@ -4466,7 +4466,7 @@
                                         span: 1810..2124,
                                         in_try: false,
                                         new: true,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                 ],
                                 range: Exact(
@@ -4650,7 +4650,7 @@
                         span: 2196..2213,
                         in_try: true,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                     Conditional {
                         condition: Variable(
@@ -5020,7 +5020,7 @@
                                         span: 2312..2338,
                                         in_try: false,
                                         new: false,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5123,7 +5123,7 @@
                                         span: 2299..2339,
                                         in_try: false,
                                         new: false,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                     Member {
                                         obj: Variable(
@@ -5416,7 +5416,7 @@
                                         span: 2422..2444,
                                         in_try: false,
                                         new: false,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5554,7 +5554,7 @@
                                         span: 2367..2452,
                                         in_try: false,
                                         new: false,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -5790,7 +5790,7 @@
                                         span: 2463..2491,
                                         in_try: false,
                                         new: false,
-                                        evaluation_timing: Deferred,
+                                        evaluation_timing: Evaluation,
                                     },
                                     Conditional {
                                         condition: Not(
@@ -6086,7 +6086,7 @@
                                                         span: 2501..2540,
                                                         in_try: false,
                                                         new: false,
-                                                        evaluation_timing: Deferred,
+                                                        evaluation_timing: Evaluation,
                                                     },
                                                     Member {
                                                         obj: FreeVar(
@@ -6355,7 +6355,7 @@
                                                         span: 2548..2580,
                                                         in_try: false,
                                                         new: false,
-                                                        evaluation_timing: Deferred,
+                                                        evaluation_timing: Evaluation,
                                                     },
                                                 ],
                                                 range: Exact(

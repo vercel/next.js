@@ -453,7 +453,7 @@
         span: 443..476,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: FreeVar(
@@ -698,7 +698,7 @@
         span: 515..551,
         in_try: true,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [

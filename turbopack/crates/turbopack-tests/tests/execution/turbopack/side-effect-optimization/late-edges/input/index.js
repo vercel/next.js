@@ -2,6 +2,8 @@ import * as dynamicUnused from './dynamic-unused.js'
 import * as requireUnused from './require-unused.js'
 import * as deferredContexts from './deferred-contexts.js'
 import * as evaluationContexts from './evaluation-contexts.js'
+import * as localCalled from './local-called.js'
+import * as cyclicX from './cyclic-x.js'
 import { loadDynamic } from './dynamic-used.js'
 import { loadRequire } from './require-used.js'
 
@@ -9,11 +11,15 @@ const unusedDynamic = dynamicUnused
 const unusedRequire = requireUnused
 const unusedDeferredContexts = deferredContexts
 const unusedEvaluationContexts = evaluationContexts
+const unusedLocalCalled = localCalled
+const unusedCyclicX = cyclicX
 
 it('separates evaluation-time and deferred module edges', async () => {
   expect(globalThis.__lateDynamicEffect).toBeUndefined()
   expect(globalThis.__lateRequireEffect).toBeUndefined()
   expect(globalThis.__evaluationContextEffect).toBe(true)
+  expect(globalThis.__localCalledEffect).toBe(true)
+  expect(globalThis.__cyclicLoaderEffect).toBe(true)
 
   const factory = __turbopack_modules__.get(
     [...__turbopack_modules__.keys()].find((moduleId) =>
@@ -31,6 +37,8 @@ it('separates evaluation-time and deferred module edges', async () => {
   expect(source).not.toContain(`${inputPath}/require-unused.js`)
   expect(source).not.toContain(`${inputPath}/deferred-contexts.js`)
   expect(source).toContain(`${inputPath}/evaluation-contexts.js`)
+  expect(source).toContain(`${inputPath}/local-called.js`)
+  expect(source).toContain(`${inputPath}/cyclic-x.js`)
 
   const dynamicModule = await loadDynamic()
   expect(dynamicModule.value).toBe('dynamic')

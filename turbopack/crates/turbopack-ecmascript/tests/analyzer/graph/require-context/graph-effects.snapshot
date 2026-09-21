@@ -542,7 +542,7 @@
         span: 34..42,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     MemberCall {
         obj: MemberCall(
@@ -618,7 +618,7 @@
         span: 34..49,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [

@@ -758,7 +758,7 @@
         span: 427..436,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [
@@ -845,7 +845,7 @@
         span: 489..505,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [
@@ -948,7 +948,7 @@
                         span: 642..651,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(
@@ -1015,7 +1015,7 @@
                         span: 654..670,
                         in_try: false,
                         new: false,
-                        evaluation_timing: Deferred,
+                        evaluation_timing: Evaluation,
                     },
                 ],
                 range: Exact(

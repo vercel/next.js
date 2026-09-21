@@ -2527,7 +2527,7 @@
         span: 1231..1286,
         in_try: false,
         new: false,
-        evaluation_timing: Deferred,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(

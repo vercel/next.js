@@ -82,6 +82,8 @@ async fn compute_side_effect_free_module_info_single(
         // parent is a module that depends on it.
         |child, parent, _s| {
             Ok(if let Some((_, ref_data)) = child {
+                // if the parent imports this module in a 'deferred' mechanism our side effects
+                // don't flow to it.
                 if ref_data.binding_usage.evaluation_timing == ModuleEvaluationTiming::Deferred {
                     return Ok(GraphTraversalAction::Exclude);
                 }
