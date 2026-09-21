@@ -44,8 +44,10 @@ export async function prepareUpgrade(
     throw new Error('Could not determine the installed Next.js version.')
   }
 
-  // TODO: Handle prereleases
-  if (semver.prerelease(installedVersion)) {
+  if (
+    semver.prerelease(installedVersion) &&
+    (!isCanary(installedVersion) || targetRequest !== 'security')
+  ) {
     throw new Error(
       'AI upgrades are not available for prerelease versions of Next.js yet.'
     )
@@ -90,7 +92,7 @@ export async function prepareUpgrade(
 
       if (
         securitySnapshot?.ranges.some((range) =>
-          semver.satisfies(targetVersion, range)
+          matchesAdvisory(targetVersion, range)
         )
       ) {
         throw new Error(
@@ -202,7 +204,20 @@ async function fetchJSON(
   }
 }
 
-function parseReleases(value: unknown): SecuritySnapshot['releases'] {
+function isCanary(version: string): boolean {
+  return semver.prerelease(version)?.[0] === 'canary'
+}
+
+function matchesAdvisory(version: string, range: string): boolean {
+  return semver.satisfies(version, range, {
+    includePrerelease: isCanary(version),
+  })
+}
+
+function parseReleases(
+  value: unknown,
+  canary: boolean
+): SecuritySnapshot['releases'] {
   const data = value as {
     versions:
       | Record<
@@ -212,10 +227,28 @@ function parseReleases(value: unknown): SecuritySnapshot['releases'] {
           }
         >
       | undefined
+    'dist-tags': Record<string, string> | undefined
   }
 
   if (!data?.versions) {
     throw new Error('Could not determine a safe Next.js version.')
+  }
+
+  if (canary) {
+    const version = data['dist-tags']?.canary
+    if (
+      !version ||
+      !semver.valid(version) ||
+      !isCanary(version) ||
+      data.versions[version]?.version !== version
+    ) {
+      throw new Error(
+        'Could not determine a published Next.js version on the canary dist-tag.'
+      )
+    }
+
+    // Follow the channel's current target, not an arbitrary published canary.
+    return [{ version }]
   }
 
   return Object.entries(data.versions).flatMap(([version, metadata]) => {
@@ -333,7 +366,7 @@ export async function getSecurityAdvisory(version: string) {
     throw new Error('The running Next.js version is not valid semver.')
   }
 
-  if (semver.prerelease(version)) {
+  if (semver.prerelease(version) && !isCanary(version)) {
     return null
   }
 
@@ -341,18 +374,24 @@ export async function getSecurityAdvisory(version: string) {
   let reference: string
 
   try {
-    const result = await readGitHubAdvisories(version)
+    // Match canaries locally against the complete package advisory set.
+    const result = await readGitHubAdvisories(
+      isCanary(version) ? null : version
+    )
     advisories = result.advisories
     reference = result.reference
   } catch {
-    advisories = await readNpmAdvisories([version])
+    if (isCanary(version)) {
+      const { value } = await fetchJSON(`${NPM_REGISTRY}next`)
+      advisories = await readNpmAdvisories(advisoryVersions(value, version))
+    } else {
+      advisories = await readNpmAdvisories([version])
+    }
     reference = NPM_ADVISORIES
   }
 
   if (
-    !affectedRanges(advisories).some((range) =>
-      semver.satisfies(version, range)
-    )
+    !affectedRanges(advisories).some((range) => matchesAdvisory(version, range))
   ) {
     return null
   }
@@ -453,6 +492,27 @@ async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
   return advisories
 }
 
+function advisoryVersions(value: unknown, checkedVersion: string): string[] {
+  const data = value as { versions: Record<string, unknown> | undefined }
+  if (
+    !data?.versions ||
+    typeof data.versions !== 'object' ||
+    Array.isArray(data.versions)
+  ) {
+    throw new Error('Could not check for security updates.')
+  }
+
+  // npm omits stable-range advisories when queried only for a canary. Include
+  // published stable versions as well as prereleases to retrieve their ranges.
+  const versions = Object.keys(data.versions).filter((version) =>
+    semver.valid(version)
+  )
+  if (!versions.includes(checkedVersion)) {
+    versions.push(checkedVersion)
+  }
+  return versions
+}
+
 // TODO: Replace provider-specific requests with a Next.js-maintained endpoint
 // that returns advisory ranges and exact safe targets for each major.
 async function readSecuritySnapshot(
@@ -467,7 +527,7 @@ async function readSecuritySnapshot(
     githubRanges = affectedRanges((await readGitHubAdvisories(null)).advisories)
 
     if (
-      !githubRanges.some((range) => semver.satisfies(installedVersion, range))
+      !githubRanges.some((range) => matchesAdvisory(installedVersion, range))
     ) {
       return
     }
@@ -482,7 +542,6 @@ async function readSecuritySnapshot(
 
   try {
     const { value } = await fetchJSON(registryURL)
-    releases = parseReleases(value)
 
     if (githubRanges) {
       ranges = githubRanges
@@ -490,12 +549,17 @@ async function readSecuritySnapshot(
     } else {
       // Query every published version, including prereleases: querying only the
       // installed version could miss advisories affecting a candidate target.
-      const versions = Object.keys(
-        (value as { versions: Record<string, unknown> }).versions
-      ).filter((version) => semver.valid(version))
-      ranges = affectedRanges(await readNpmAdvisories(versions))
+      ranges = affectedRanges(
+        await readNpmAdvisories(advisoryVersions(value, installedVersion))
+      )
       advisoryReference = NPM_ADVISORIES
     }
+
+    if (!ranges.some((range) => matchesAdvisory(installedVersion, range))) {
+      return
+    }
+
+    releases = parseReleases(value, isCanary(installedVersion))
   } catch (error) {
     if (!githubRanges) {
       throw new Error(
@@ -520,13 +584,13 @@ function selectSecurityTarget(
 ): PackageRelease | undefined {
   const ranges = snapshot.ranges
 
-  if (!ranges.some((range) => semver.satisfies(source, range))) {
+  if (!ranges.some((range) => matchesAdvisory(source, range))) {
     return
   }
 
   const releases = snapshot.releases
-  // Consider only the latest stable release of each major, not an older patch
-  // that happens to be safe while that major's latest release is affected.
+  // For stable installs, consider only the latest release of each major, not
+  // an older safe patch. Canary installs have only the current dist-tag target.
   const latest = new Map<number, PackageRelease>()
 
   for (const release of releases) {
@@ -547,10 +611,22 @@ function selectSecurityTarget(
 
     if (
       semver.gt(candidate.version, source) &&
-      !ranges.some((range) => semver.satisfies(candidate.version, range))
+      !ranges.some((range) => matchesAdvisory(candidate.version, range))
     ) {
       return candidate
     }
+  }
+
+  if (isCanary(source)) {
+    const target = releases[0].version
+    const affected = ranges.filter((range) => matchesAdvisory(target, range))
+    throw new Error(
+      `Next.js ${source} is affected by a published security advisory. ` +
+        (affected.length > 0
+          ? `The current canary target ${target} also matches an advisory (${affected.join('; ')}), so the upgrade cannot proceed.`
+          : `The current canary target ${target} is not newer, so the upgrade cannot proceed.`) +
+        `\nReferences:\n${snapshot.references.join('\n')}`
+    )
   }
 
   throw new Error('No safe Next.js update is currently available.')
