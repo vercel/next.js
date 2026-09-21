@@ -1,0 +1,253 @@
+{
+  "webpackVersion": "5.98.0",
+  "runtime": {
+    "values": {
+      "direct": "USED_DIRECT_EXPORT",
+      "objectLiteral": "USED_OBJECT_LITERAL",
+      "defineProperty": "USED_DEFINE_PROPERTY",
+      "computed": "USED_COMPUTED_KEY",
+      "dynamicComputed": "USED_DYNAMIC_COMPUTED",
+      "dynamicFixed": "USED_DYNAMIC_FIXED",
+      "conditional": "USED_CONDITIONAL_ELSE",
+      "wholeReexport": "USED_WHOLE_REEXPORT_LEAF",
+      "directPropertyReexport": "USED_DIRECT_PROPERTY_REEXPORT_LEAF"
+    },
+    "trace": [
+      "conditional:condition",
+      "conditional:unused-rhs-else",
+      "direct-property:side-effect-leaf"
+    ],
+    "sideEffectLeafEvaluations": 1,
+    "wholeReexportIdentity": true,
+    "cache": {
+      "wrapper": true,
+      "leaf": true
+    },
+    "cycle": {
+      "before": "USED_CYCLE_A_BEFORE",
+      "fromB": "USED_CYCLE_B_VALUE",
+      "after": "USED_CYCLE_A_AFTER",
+      "bSawBefore": "USED_CYCLE_A_BEFORE",
+      "bSawAfter": null
+    }
+  },
+  "retention": {
+    "turbopack": {
+      "direct": {
+        "modules": {
+          "direct.js": true
+        },
+        "sentinels": {
+          "USED_DIRECT_EXPORT": true,
+          "UNUSED_DIRECT_EXPORT": false
+        }
+      },
+      "objectLiteral": {
+        "modules": {
+          "object-literal.js": true
+        },
+        "sentinels": {
+          "USED_OBJECT_LITERAL": true,
+          "UNUSED_OBJECT_LITERAL": false
+        }
+      },
+      "defineProperty": {
+        "modules": {
+          "define-property.js": true
+        },
+        "sentinels": {
+          "USED_DEFINE_PROPERTY": true,
+          "UNUSED_DEFINE_PROPERTY": false
+        }
+      },
+      "computed": {
+        "modules": {
+          "computed.js": true
+        },
+        "sentinels": {
+          "USED_COMPUTED_KEY": true,
+          "UNUSED_COMPUTED_KEY": false
+        }
+      },
+      "dynamicComputed": {
+        "modules": {
+          "dynamic-computed.js": true
+        },
+        "sentinels": {
+          "USED_DYNAMIC_COMPUTED": true,
+          "USED_DYNAMIC_FIXED": true,
+          "UNUSED_DYNAMIC_CONSERVATIVE": true
+        }
+      },
+      "conditional": {
+        "modules": {
+          "conditional.js": true
+        },
+        "sentinels": {
+          "USED_CONDITIONAL_THEN": false,
+          "USED_CONDITIONAL_ELSE": true,
+          "UNUSED_CONDITIONAL_THEN": false,
+          "UNUSED_CONDITIONAL_ELSE": false,
+          "conditional:condition": true,
+          "conditional:unused-rhs-then": false,
+          "conditional:unused-rhs-else": true
+        }
+      },
+      "wholeReexport": {
+        "modules": {
+          "whole-reexport.js": true,
+          "whole-reexport-leaf.js": true
+        },
+        "sentinels": {
+          "USED_WHOLE_REEXPORT_LEAF": true,
+          "UNUSED_WHOLE_REEXPORT_LEAF": true
+        }
+      },
+      "directProperty": {
+        "modules": {
+          "direct-property-reexport.js": true,
+          "direct-property-used-leaf.js": true,
+          "direct-property-unused-leaf.js": false,
+          "direct-property-side-effect-leaf.js": true
+        },
+        "sentinels": {
+          "USED_DIRECT_PROPERTY_REEXPORT_LEAF": true,
+          "UNUSED_DIRECT_PROPERTY_REEXPORT_LEAF": false,
+          "UNUSED_SIDE_EFFECT_EXPORT_VALUE": false,
+          "direct-property:side-effect-leaf": true
+        }
+      },
+      "cycle": {
+        "modules": {
+          "cycle-a.js": true,
+          "cycle-b.js": true
+        },
+        "sentinels": {
+          "USED_CYCLE_A_BEFORE": true,
+          "USED_CYCLE_A_AFTER": true,
+          "USED_CYCLE_B_VALUE": true
+        }
+      }
+    },
+    "webpack": {
+      "direct": {
+        "modules": {
+          "direct.js": true
+        },
+        "sentinels": {
+          "USED_DIRECT_EXPORT": true,
+          "UNUSED_DIRECT_EXPORT": true
+        }
+      },
+      "objectLiteral": {
+        "modules": {
+          "object-literal.js": true
+        },
+        "sentinels": {
+          "USED_OBJECT_LITERAL": true,
+          "UNUSED_OBJECT_LITERAL": true
+        }
+      },
+      "defineProperty": {
+        "modules": {
+          "define-property.js": true
+        },
+        "sentinels": {
+          "USED_DEFINE_PROPERTY": true,
+          "UNUSED_DEFINE_PROPERTY": false
+        }
+      },
+      "computed": {
+        "modules": {
+          "computed.js": true
+        },
+        "sentinels": {
+          "USED_COMPUTED_KEY": true,
+          "UNUSED_COMPUTED_KEY": false
+        }
+      },
+      "dynamicComputed": {
+        "modules": {
+          "dynamic-computed.js": true
+        },
+        "sentinels": {
+          "USED_DYNAMIC_COMPUTED": true,
+          "USED_DYNAMIC_FIXED": true,
+          "UNUSED_DYNAMIC_CONSERVATIVE": true
+        }
+      },
+      "conditional": {
+        "modules": {
+          "conditional.js": true
+        },
+        "sentinels": {
+          "USED_CONDITIONAL_THEN": false,
+          "USED_CONDITIONAL_ELSE": true,
+          "UNUSED_CONDITIONAL_THEN": false,
+          "UNUSED_CONDITIONAL_ELSE": false,
+          "conditional:condition": true,
+          "conditional:unused-rhs-then": false,
+          "conditional:unused-rhs-else": true
+        }
+      },
+      "wholeReexport": {
+        "modules": {
+          "whole-reexport.js": true,
+          "whole-reexport-leaf.js": true
+        },
+        "sentinels": {
+          "USED_WHOLE_REEXPORT_LEAF": true,
+          "UNUSED_WHOLE_REEXPORT_LEAF": true
+        }
+      },
+      "directProperty": {
+        "modules": {
+          "direct-property-reexport.js": true,
+          "direct-property-used-leaf.js": true,
+          "direct-property-unused-leaf.js": true,
+          "direct-property-side-effect-leaf.js": true
+        },
+        "sentinels": {
+          "USED_DIRECT_PROPERTY_REEXPORT_LEAF": true,
+          "UNUSED_DIRECT_PROPERTY_REEXPORT_LEAF": false,
+          "UNUSED_SIDE_EFFECT_EXPORT_VALUE": false,
+          "direct-property:side-effect-leaf": true
+        }
+      },
+      "cycle": {
+        "modules": {
+          "cycle-a.js": true,
+          "cycle-b.js": true
+        },
+        "sentinels": {
+          "USED_CYCLE_A_BEFORE": true,
+          "USED_CYCLE_A_AFTER": true,
+          "USED_CYCLE_B_VALUE": true
+        }
+      }
+    }
+  },
+  "classifications": [
+    {
+      "field": "direct.sentinels.UNUSED_DIRECT_EXPORT",
+      "turbopack": false,
+      "webpack": true,
+      "classification": "turbopack-improvement",
+      "reason": "Turbopack recognizes direct dot-property CommonJS writes as named exports and removes the unused pure assignment; webpack 5.98.0 retains its literal."
+    },
+    {
+      "field": "objectLiteral.sentinels.UNUSED_OBJECT_LITERAL",
+      "turbopack": false,
+      "webpack": true,
+      "classification": "turbopack-improvement",
+      "reason": "Turbopack removes the unused pure property from a module.exports object literal; webpack 5.98.0 retains it."
+    },
+    {
+      "field": "directProperty.modules.direct-property-unused-leaf.js",
+      "turbopack": false,
+      "webpack": true,
+      "classification": "turbopack-improvement",
+      "reason": "Turbopack drops the export-owned require edge when the outer export is unused and the leaf is explicitly side-effect-free; webpack 5.98.0 keeps the empty leaf module."
+    }
+  ]
+}

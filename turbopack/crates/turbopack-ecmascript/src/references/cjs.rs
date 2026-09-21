@@ -105,6 +105,7 @@ pub struct CjsRequireAssetReference {
     chunking_type_attribute: Option<SpecifiedChunkingType>,
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     usage: ExportUsage,
+    import_usage: ImportUsage,
     cjs_tree_shaking: bool,
 }
 
@@ -117,6 +118,7 @@ impl CjsRequireAssetReference {
         chunking_type_attribute: Option<SpecifiedChunkingType>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         usage: ExportUsage,
+        import_usage: ImportUsage,
         cjs_tree_shaking: bool,
     ) -> Self {
         CjsRequireAssetReference {
@@ -127,6 +129,7 @@ impl CjsRequireAssetReference {
             chunking_type_attribute,
             resolve_override,
             usage,
+            import_usage,
             cjs_tree_shaking,
         }
     }
@@ -163,7 +166,7 @@ impl ModuleReference for CjsRequireAssetReference {
 
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
-            import: ImportUsage::TopLevel,
+            import: self.import_usage.clone(),
             export: self.usage.clone(),
         }
     }

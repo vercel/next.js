@@ -162,6 +162,13 @@ pub enum ImportUsage {
     /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
+    /// This import is used only by these exports, but the same reference also performs module
+    /// evaluation. It can only be removed when all owning exports are unused *and* the target is
+    /// declared side-effect-free.
+    ///
+    /// CommonJS direct-property re-exports use this because a single `require()` both reads the
+    /// forwarded value and evaluates the dependency.
+    ExportsWithEvaluation(FrozenSet<RcStr>),
 }
 
 /// Defines what parts of a module are used by another module

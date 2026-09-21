@@ -178,6 +178,8 @@ pub async fn compute_binding_usage_info(
                     return Ok(GraphTraversalAction::Continue);
                 };
 
+                let mut effective_export_usage = ref_data.binding_usage.export.clone();
+
                 if remove_unused_imports {
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
@@ -203,14 +205,24 @@ pub async fn compute_binding_usage_info(
                     }
                     // If the current edge is an unused import, skip it
                     match &ref_data.binding_usage.import {
-                        ImportUsage::Exports(exports) => {
+                        ImportUsage::Exports(exports)
+                        | ImportUsage::ExportsWithEvaluation(exports) => {
                             let source_used_exports = used_exports
                                 .get(&parent)
                                 .context("parent module must have usage info")?;
-                            if exports
+                            let owning_exports_unused = exports
                                 .iter()
-                                .all(|e| !source_used_exports.is_export_used(e))
-                            {
+                                .all(|e| !source_used_exports.is_export_used(e));
+                            let evaluation_can_be_dropped =
+                                matches!(&ref_data.binding_usage.import, ImportUsage::Exports(_))
+                                    || side_effect_free_modules
+                                        .as_ref()
+                                        .expect(
+                                            "this must be present if `remove_unused_imports` is \
+                                             true",
+                                        )
+                                        .contains(&target);
+                            if owning_exports_unused && evaluation_can_be_dropped {
                                 // all exports are unused
                                 #[cfg(debug_assertions)]
                                 debug_unused_references_name.insert((
@@ -226,6 +238,14 @@ pub async fn compute_binding_usage_info(
 
                                 return Ok(GraphTraversalAction::Skip);
                             } else {
+                                if owning_exports_unused
+                                    && matches!(
+                                        &ref_data.binding_usage.import,
+                                        ImportUsage::ExportsWithEvaluation(_)
+                                    )
+                                {
+                                    effective_export_usage = ExportUsage::Evaluation;
+                                }
                                 #[cfg(debug_assertions)]
                                 debug_unused_references_name.remove(&(
                                     parent,
@@ -266,7 +286,7 @@ pub async fn compute_binding_usage_info(
                 }
 
                 let is_first_visit = !used_exports.contains_key(&target);
-                let changed = match &ref_data.binding_usage.export {
+                let changed = match &effective_export_usage {
                     ExportUsage::Passthrough {
                         namespace_object_may_escape,
                     } => {

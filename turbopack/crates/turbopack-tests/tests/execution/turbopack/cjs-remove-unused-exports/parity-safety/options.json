@@ -1,0 +1,4 @@
+{
+  "cjsTreeShaking": true,
+  "followReexports": true
+}

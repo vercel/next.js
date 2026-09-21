@@ -1,0 +1,13 @@
+{
+  "runtime": "NodeJs",
+  "runtimeType": "Production",
+  "removeUnusedImports": true,
+  "removeUnusedExports": true,
+  "cjsTreeShaking": true,
+  "followReexports": true,
+  "minifyType": {
+    "Minify": {
+      "mangle": null
+    }
+  }
+}

@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, fs::canonicalize, io, path::PathBuf};
+use std::{collections::VecDeque, fs, fs::canonicalize, io, path::PathBuf, process::Command};
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashSet;
@@ -232,7 +232,20 @@ fn test(resource: PathBuf) {
 
     // Separating this into a different function fixes my IDE's types for some
     // reason...
-    run(resource).unwrap();
+    run(resource.clone()).unwrap();
+
+    if resource.join("differential.json").is_file() {
+        let script = PathBuf::from(REPO_ROOT.as_str())
+            .join("turbopack/crates/turbopack-tests/js/cjs-webpack-parity.mjs");
+        let status = Command::new("node")
+            .arg(script)
+            .arg(&resource)
+            .arg(REPO_ROOT.as_str())
+            .status()
+            .context("failed to run CommonJS webpack parity helper")
+            .unwrap();
+        assert!(status.success(), "CommonJS webpack parity helper failed");
+    }
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]

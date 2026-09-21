@@ -1,0 +1,1 @@
+exports.value = 'USED_DIRECT_PROPERTY_REEXPORT_LEAF'

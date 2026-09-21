@@ -32,7 +32,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{
         Bump, ConstantString, ConstantValue, ObjectPart,
-        cjs_ast::{is_global, is_module_dot_exports},
+        cjs_ast::{is_exports_object, is_global, is_module_dot_exports},
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
     },
@@ -370,7 +370,7 @@ impl ProgramDeclUsage {
         // Fold re-exports (`export { x } from "foo"`) into `import_usage` for tree-shaking.
         for (reference, names) in &self.named_reexports {
             let usage = match import_usage.get(reference) {
-                Some(ImportUsage::TopLevel) => continue,
+                Some(ImportUsage::TopLevel | ImportUsage::ExportsWithEvaluation(_)) => continue,
                 // Used locally and re-exported, e.g.
                 // `import {foo} from 'm'; export function w(){foo()} export {foo} from 'm'`
                 // → union: Exports({"w"}) ∪ {"foo"}.
@@ -472,6 +472,9 @@ pub(crate) struct CjsImports {
 
     /// `const x = require("m")`
     pub(crate) bindings: FxHashMap<Id, BytePos>,
+
+    /// A direct-property `require()` whose value is owned by named CommonJS exports.
+    pub(crate) import_usage: FxHashMap<BytePos, ImportUsage>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -1536,15 +1539,33 @@ impl Visit for Analyzer<'_> {
     fn visit_assign_expr(&mut self, node: &AssignExpr) {
         if node.op == AssignOp::Assign
             && let AssignTarget::Simple(SimpleAssignTarget::Member(target)) = &node.left
-            && is_module_dot_exports(target, self.unresolved_mark)
-            && let Some(call) = as_require_call(&node.right, self.unresolved_mark)
         {
-            self.data.cjs_imports.resolved.insert(
-                call.span.lo,
-                ExportUsage::Passthrough {
-                    namespace_object_may_escape: true,
-                },
-            );
+            if is_module_dot_exports(target, self.unresolved_mark)
+                && let Some(call) = as_require_call(&node.right, self.unresolved_mark)
+            {
+                self.data.cjs_imports.resolved.insert(
+                    call.span.lo,
+                    ExportUsage::Passthrough {
+                        namespace_object_may_escape: true,
+                    },
+                );
+            } else if is_exports_object(&target.obj, self.unresolved_mark)
+                && let Some(exported) = extract_name_from_member_prop(&target.prop)
+                    .and_then(|names| names.into_iter().next())
+                && let Expr::Member(source) = unparen(&node.right)
+                && let Some(call) = as_require_call(&source.obj, self.unresolved_mark)
+                && let Some(imported) = extract_name_from_member_prop(&source.prop)
+                    .and_then(|names| names.into_iter().next())
+            {
+                self.data
+                    .cjs_imports
+                    .resolved
+                    .insert(call.span.lo, ExportUsage::Named(imported));
+                self.data.cjs_imports.import_usage.insert(
+                    call.span.lo,
+                    ImportUsage::ExportsWithEvaluation([exported].into_iter().collect()),
+                );
+            }
         }
         node.visit_children_with(self);
     }

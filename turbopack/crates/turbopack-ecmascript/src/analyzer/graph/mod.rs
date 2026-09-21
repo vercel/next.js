@@ -4,7 +4,7 @@ use swc_core::{
     common::BytePos,
     ecma::{ast::*, visit::VisitWithAstPath},
 };
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, ImportUsage};
 
 pub use crate::analyzer::graph::{
     effects::{
@@ -41,6 +41,9 @@ pub struct VarGraph<'a> {
     /// calls fall back to `ExportUsage::All`.
     pub require_usage: FxHashMap<BytePos, ExportUsage>,
 
+    /// [`ImportUsage`] per `require("…")` call when its evaluation is owned by named exports.
+    pub require_import_usage: FxHashMap<BytePos, ImportUsage>,
+
     /// Present when the module is a statically-analyzable CommonJS module (no
     /// dynamic exports); carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
@@ -76,6 +79,7 @@ pub fn create_graph<'a>(
             effects: Default::default(),
             code_gens: Default::default(),
             require_usage: Default::default(),
+            require_import_usage: Default::default(),
             cjs_static_exports: Default::default(),
         },
         eval_context,

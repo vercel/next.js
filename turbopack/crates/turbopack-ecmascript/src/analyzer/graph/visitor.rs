@@ -115,6 +115,9 @@ struct CjsExportsCollector {
     has_top_level_return: bool,
     /// Whether any export is defined with `Object.defineProperty`.
     has_define_property_export: bool,
+    /// Whether an export write is nested in top-level control flow. Such writes are droppable,
+    /// but aren't unconditional bindings that can participate in scope hoisting.
+    has_conditional_export: bool,
 }
 
 /// The removable writes, the always-removable ones, and whether the `__esModule`
@@ -585,6 +588,7 @@ mod analyzer_state {
         pub(in crate::analyzer::graph) fn enable_require_usage(&mut self, imports: &ImportMap) {
             let cjs_imports = imports.cjs_imports();
             self.data.require_usage = cjs_imports.resolved.clone();
+            self.data.require_import_usage = cjs_imports.import_usage.clone();
             // Seed each namespace binding as `Evaluation`; a binding that's never
             // read keeps that (only the target's side effects matter), while a
             // member read upgrades it to `PartialNamespaceObject` below.
@@ -705,6 +709,12 @@ mod analyzer_state {
             }
         }
 
+        pub(super) fn set_cjs_has_conditional_export(&mut self) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.has_conditional_export = true;
+            }
+        }
+
         pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPath) {
             self.push_cjs_export(DroppableCjsExportAssignment::Write { name, path });
         }
@@ -743,24 +753,24 @@ mod analyzer_state {
             // A top-level `return` skips the writes after it, and would abandon the rest
             // of a merged factory. An `Object.defineProperty` export keeps its value in
             // the descriptor, which the merge has no local to bind it to.
-            let static_exports =
-                (!c.has_top_level_return && !c.has_define_property_export).then(|| {
-                    CjsStaticExports {
-                        export_names: c
-                            .writes
-                            .iter()
-                            .flat_map(|w| match w {
-                                DroppableCjsExportAssignment::Write { name, .. } => {
-                                    std::slice::from_ref(name)
-                                }
-                                DroppableCjsExportAssignment::ObjectLiteral { names, .. } => {
-                                    names.as_slice()
-                                }
-                            })
-                            .cloned()
-                            .collect(),
-                        has_es_module: c.has_es_module,
-                    }
+            let static_exports = (!c.has_top_level_return
+                && !c.has_define_property_export
+                && !c.has_conditional_export)
+                .then(|| CjsStaticExports {
+                    export_names: c
+                        .writes
+                        .iter()
+                        .flat_map(|w| match w {
+                            DroppableCjsExportAssignment::Write { name, .. } => {
+                                std::slice::from_ref(name)
+                            }
+                            DroppableCjsExportAssignment::ObjectLiteral { names, .. } => {
+                                names.as_slice()
+                            }
+                        })
+                        .cloned()
+                        .collect(),
+                    has_es_module: c.has_es_module,
                 });
             // Dropping an unused write stays sound regardless of the `return`, but
             // `__esModule` may be set after it, so it can't be claimed.
@@ -780,7 +790,7 @@ mod analyzer_state {
             let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = target else {
                 return false;
             };
-            if !matches!(member.prop, MemberProp::Ident(_)) {
+            if extract_name_from_member_prop(&member.prop).is_none() {
                 return false;
             }
             is_exports_object(&member.obj, self.eval_context.unresolved_mark)
@@ -1467,10 +1477,15 @@ impl<'a> Analyzer<'a, '_> {
         if n.op != AssignOp::Assign {
             return;
         }
-        // Only top-level writes can be dropped.
-        if self.is_in_fn() || self.is_in_nested_block_scope() {
+        // Writes inside functions run after module evaluation and can mutate the export
+        // namespace at arbitrary times. Top-level control-flow blocks are safe to track:
+        // dropping an unused assignment keeps both the branch and its RHS effects intact.
+        if self.is_in_fn() {
             self.taint_cjs_exports();
             return;
+        }
+        if self.is_in_nested_block_scope() {
+            self.set_cjs_has_conditional_export();
         }
         let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
             return;
@@ -1478,14 +1493,16 @@ impl<'a> Analyzer<'a, '_> {
         // After a replacement only `module.exports` still reaches the exports object.
         let dead = self.cjs_exports_object_replaced()
             && !is_module_exports_chain(&member.obj, self.eval_context.unresolved_mark);
-        let MemberProp::Ident(name) = &member.prop else {
+        let Some(name) =
+            extract_name_from_member_prop(&member.prop).and_then(|names| names.into_iter().next())
+        else {
             return;
         };
 
         // Transpilers use this to signal that this is transpiled esm.
         // Which in turn changes the behavior of default exports. such that `import foo from
         // 'transpiled-esm-cjs'` gets the `default` export instead of the namespace
-        if !dead && name.sym.as_ref() == "__esModule" {
+        if !dead && &*name == "__esModule" {
             // Only a literal `true` is the interop marker.
             if matches!(unparen(&n.right), Expr::Lit(Lit::Bool(b)) if b.value) {
                 self.set_cjs_has_es_module();
@@ -1494,7 +1511,6 @@ impl<'a> Analyzer<'a, '_> {
         }
 
         // The RHS isn't inspected; the code-gen keeps it as `<value>`.
-        let name = RcStr::from(name.sym.as_str());
         let path = as_parent_path(ast_path).into();
         if dead {
             self.record_dead_cjs_write(name, path);
