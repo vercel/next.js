@@ -36,11 +36,16 @@ function shouldOutputCommonJs(filename: string) {
   return isCommonJSFile(filename) || nextDistPath.test(filename)
 }
 
-export function getParserOptions({ filename, jsConfig, ...rest }: any) {
+export function getParserOptions({
+  filename,
+  jsConfig,
+  decoratorVersion,
+  ...rest
+}: any) {
   const isTSFile = filename.endsWith('.ts')
   const hasTsSyntax = isTypeScriptFile(filename)
   const enableDecorators = Boolean(
-    jsConfig?.compilerOptions?.experimentalDecorators
+    decoratorVersion || jsConfig?.compilerOptions?.experimentalDecorators
   )
   return {
     ...rest,
@@ -104,10 +109,16 @@ function getBaseSWCOptions({
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
-  const parserConfig = getParserOptions({ filename, jsConfig })
+  const parserConfig = getParserOptions({
+    filename,
+    jsConfig,
+    decoratorVersion: compilerOptions?.decoratorVersion,
+  })
   const paths = jsConfig?.compilerOptions?.paths
-  const enableDecorators = Boolean(
-    jsConfig?.compilerOptions?.experimentalDecorators
+  const decoratorVersion = compilerOptions?.decoratorVersion
+  const enableLegacyDecorators = Boolean(
+    decoratorVersion === 'legacy' ||
+      (!decoratorVersion && jsConfig?.compilerOptions?.experimentalDecorators)
   )
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
@@ -147,8 +158,10 @@ function getBaseSWCOptions({
               },
             }
           : {}),
-        legacyDecorator: enableDecorators,
-        decoratorMetadata: emitDecoratorMetadata,
+        legacyDecorator: enableLegacyDecorators,
+        decoratorVersion:
+          decoratorVersion === 'legacy' ? undefined : decoratorVersion,
+        decoratorMetadata: enableLegacyDecorators && emitDecoratorMetadata,
         useDefineForClassFields: useDefineForClassFields,
         react: {
           importSource:
