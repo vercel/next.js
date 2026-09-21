@@ -4,14 +4,16 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 export enum RenderStage {
   Before = 1,
   //
-  ShellStatic = 11,
+  ShellStatic = 10,
+  PrefetchStatic = 11,
+  NavigationStatic = 12,
   Static = 13,
   //
-  ShellRuntime = 21,
-  Runtime = 23,
+  ShellRuntime = 20,
+  Runtime = 21,
+  NavigationRuntime = 22,
   //
   Dynamic = 30,
-  //
   Abandoned = 40,
 }
 
@@ -22,10 +24,13 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic,
+  RenderStage.NavigationStatic,
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
   RenderStage.Runtime,
+  RenderStage.NavigationRuntime,
   //
   RenderStage.Dynamic,
 ]

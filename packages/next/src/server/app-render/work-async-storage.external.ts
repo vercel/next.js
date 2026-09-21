@@ -29,6 +29,7 @@ export interface WorkStore {
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles: ResolvedCacheLifeProfiles
   readonly useCacheTimeout: number
+  readonly durableUseCacheEntries: boolean
   readonly staticPageGenerationTimeout: number
 
   readonly isOnDemandRevalidate?: boolean

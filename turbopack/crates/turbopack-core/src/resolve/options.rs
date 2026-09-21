@@ -29,9 +29,8 @@ pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub F
     TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ResolveModules {
-    /// when inside of path, use the list of directories to
-    /// resolve inside these
-    Nested(FileSystemPath, Vec<RcStr>),
+    /// Starting from the lookup path, look for modules in these directories at each parent.
+    Nested(Vec<RcStr>),
     /// look into that directory, unless the request has an excluded extension
     Path {
         dir: FileSystemPath,
@@ -664,6 +663,15 @@ pub struct ResolveOptions {
     pub collect_affecting_sources: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
+    /// The directory that a request starting with `/` (a [`Request::ServerRelative`]) resolves
+    /// from, e.g. `/dir/file.js`. A request that doesn't exist below this directory is not
+    /// resolved, so `/` can't reach outside of it.
+    ///
+    /// When unset, there is nothing to resolve such a request from, so it isn't supported: it
+    /// reports an issue saying so and doesn't resolve.
+    ///
+    /// [`Request::ServerRelative`]: crate::resolve::parse::Request::ServerRelative
+    pub server_relative_root: Option<FileSystemPath>,
 
     pub placeholder_for_future_extensions: (),
 }

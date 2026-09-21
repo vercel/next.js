@@ -6,7 +6,7 @@
     "build": "nx run next-nx-test:build",
     "dev": "nx run next-nx-test:dev",
     "start": "nx run next-nx-test:serve:production",
-    "repro": "rm -rf dist && npm run build && npm run start"
+    "repro": "rm -rf dist && pnpm run build && pnpm run start"
   },
   "private": true,
   "dependencies": {
@@ -27,6 +27,5 @@
   },
   "workspaces": [
     "apps/*"
-  ],
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  ]
 }

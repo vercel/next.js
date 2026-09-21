@@ -102,6 +102,8 @@ const CHILD_EXIT_TIMEOUT_MS = parseInt(
   process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
   10
 )
+const shouldWaitForChildExit =
+  process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1'
 
 const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
@@ -118,11 +120,14 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     child.exitCode === null &&
     child.signalCode === null
   ) {
-    let exitTimeout = setTimeout(() => {
-      child?.kill('SIGKILL')
-    }, CHILD_EXIT_TIMEOUT_MS)
+    let exitTimeout: NodeJS.Timeout | undefined
+    if (!shouldWaitForChildExit) {
+      exitTimeout = setTimeout(() => {
+        child?.kill('SIGKILL')
+      }, CHILD_EXIT_TIMEOUT_MS)
+    }
     await once(child, 'exit').catch(() => {})
-    clearTimeout(exitTimeout)
+    if (exitTimeout) clearTimeout(exitTimeout)
   }
 
   sessionSpan.stop()

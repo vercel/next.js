@@ -642,7 +642,7 @@ impl DepGraph {
 
                 // Skip directives, as we copy them to each modules.
                 if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(s)),
+                    expr: Expr::Lit(Lit::Str(s)),
                     ..
                 })) = &data[g].content
                     && s.value.starts_with("use ")
@@ -1367,7 +1367,7 @@ impl DepGraph {
                 }
 
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    expr: box Expr::Assign(assign),
+                    expr: Expr::Assign(assign),
                     ..
                 })) => {
                     let mut used_ids = ids_used_by_ignoring_nested(
@@ -1680,17 +1680,17 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
 
 pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<PartId> {
     asserts.props.iter().find_map(|prop| match prop {
-        PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+        PropOrSpread::Prop(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),
-            value: box Expr::Lit(Lit::Num(chunk_id)),
+            value: Expr::Lit(Lit::Num(chunk_id)),
         })) if &*key.sym == ASSERT_CHUNK_KEY => Some(PartId::Internal(
             chunk_id.value.abs() as u32,
             chunk_id.value.is_sign_positive(),
         )),
 
-        PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+        PropOrSpread::Prop(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),
-            value: box Expr::Lit(Lit::Str(s)),
+            value: Expr::Lit(Lit::Str(s)),
         })) if &*key.sym == ASSERT_CHUNK_KEY => match s.value.as_str()? {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),

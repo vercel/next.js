@@ -3,7 +3,6 @@ import { styles as dialog } from '../components/dialog'
 import { styles as errorLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
 import { styles as pagination } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 import { styles as overlay } from '../components/overlay/styles'
-import { styles as footer } from '../components/errors/error-overlay-footer/error-overlay-footer'
 import { TERMINAL_STYLES } from '../components/terminal/terminal'
 import { styles as versionStaleness } from '../components/version-staleness-info/version-staleness-info'
 import { styles as buildErrorStyles } from '../container/build-error'
@@ -31,7 +30,6 @@ export function ComponentStyles() {
         ${overlay}
         ${dialog}
         ${errorLayout}
-        ${footer}
         ${pagination}
         ${CODE_FRAME_STYLES}
         ${TERMINAL_STYLES}

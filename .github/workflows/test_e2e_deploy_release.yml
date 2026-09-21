@@ -136,10 +136,47 @@ jobs:
           retention-days: 5
           if-no-files-found: error
 
+      # Runs last in setup so the steps above overlap with npm propagation.
+      - name: wait-for-published-next
+        env:
+          # The spec that comes after `next@` when the deploy tests install
+          # it: a dist-tag, an exact version, or a tarball URL.
+          NEXT_VERSION_SPEC: ${{ steps.version.outputs.value }}
+          POLL_TIMEOUT_SECONDS: 900
+          POLL_INTERVAL_SECONDS: 15
+        run: |
+          set -euo pipefail
+
+          if [[ "$NEXT_VERSION_SPEC" == http* ]]; then
+            echo "next@$NEXT_VERSION_SPEC is a tarball URL, skipping npm availability check"
+            exit 0
+          fi
+
+          deadline=$((SECONDS + POLL_TIMEOUT_SECONDS))
+          attempt=1
+          while true; do
+            if resolved="$(pnpm view "next@$NEXT_VERSION_SPEC" version)"; then
+              echo "next@$NEXT_VERSION_SPEC is available on npm (resolved to $resolved, attempt $attempt)"
+              break
+            fi
+
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out after ${POLL_TIMEOUT_SECONDS}s waiting for next@$NEXT_VERSION_SPEC to become available on npm"
+              exit 1
+            fi
+
+            echo "next@$NEXT_VERSION_SPEC is not available on npm yet (attempt $attempt), retrying in ${POLL_INTERVAL_SECONDS}s"
+            sleep "$POLL_INTERVAL_SECONDS"
+            attempt=$((attempt + 1))
+          done
+
   test-deploy-webpack:
     name: Run Deploy Tests (Webpack)
     needs: setup
     if: ${{ github.event.inputs.deployScriptPath == '' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
@@ -174,6 +211,9 @@ jobs:
   test-deploy-turbopack:
     name: Run Deploy Tests (Turbopack)
     needs: [setup]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
@@ -224,6 +264,9 @@ jobs:
     name: Run Deploy Adapter Tests (Turbopack)
     needs: setup
     if: ${{ github.event.inputs.deployScriptPath == '' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:

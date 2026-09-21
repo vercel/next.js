@@ -3,11 +3,9 @@ import fs from 'fs'
 import path from 'path'
 
 describe('dynamic-import-tree-shaking', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // Recursively read all .js files in a directory
   function getAllServerFiles(dir: string): string[] {

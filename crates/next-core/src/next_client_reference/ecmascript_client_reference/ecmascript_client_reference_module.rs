@@ -20,7 +20,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
-    resolve::ModuleResolveResult,
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
     source::OptionSource,
     virtual_source::VirtualSource,
 };
@@ -285,7 +285,9 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
 impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        self.proxy_module().get_exports()
+        // Borrowed from the proxy module, a separate module identity, so they must not carry a
+        // mangling decision — see `EcmascriptExports::borrowed`.
+        self.proxy_module().get_exports().borrowed()
     }
 
     #[turbo_tasks::function]
@@ -391,5 +393,15 @@ impl ModuleReference for EcmascriptClientReference {
             _ty: self.ty,
             merge_tag: self.merge_tag.clone(),
         })
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: ExportUsage::Passthrough {
+                // React Flight resolves the target module with the original export name.
+                namespace_object_may_escape: true,
+            },
+        }
     }
 }

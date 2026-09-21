@@ -35,6 +35,7 @@ import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { areTagsExpired, areTagsStale } from './tags-manifest.external'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -144,6 +145,7 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly disableForTestmode?: boolean
   readonly cacheHandler?: CacheHandler
   readonly hasCustomCacheHandler: boolean
+  readonly previewProps: DeepReadonly<__ApiPreviewProps>
   readonly prerenderManifest: DeepReadonly<PrerenderManifest>
   readonly requestHeaders: Record<string, undefined | string | string[]>
   readonly allowedRevalidateHeaderKeys?: string[]
@@ -170,7 +172,8 @@ export class IncrementalCache implements IncrementalCacheType {
     serverDistDir,
     requestHeaders,
     maxMemoryCacheSize,
-    getPrerenderManifest,
+    previewProps,
+    prerenderManifest,
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
@@ -183,7 +186,8 @@ export class IncrementalCache implements IncrementalCacheType {
     allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
-    getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
+    previewProps: DeepReadonly<__ApiPreviewProps>
+    prerenderManifest: DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
   }) {
@@ -232,14 +236,15 @@ export class IncrementalCache implements IncrementalCacheType {
     this[minimalModeKey] = minimalMode
     this.requestHeaders = requestHeaders
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
-    this.prerenderManifest = getPrerenderManifest()
+    this.previewProps = previewProps
+    this.prerenderManifest = prerenderManifest
     this.cacheControls = new SharedCacheControls(this.prerenderManifest)
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
 
     if (
       requestHeaders[PRERENDER_REVALIDATE_HEADER] ===
-      this.prerenderManifest?.preview?.previewModeId
+      this.previewProps.previewModeId
     ) {
       this.isOnDemandRevalidate = true
     }
@@ -247,7 +252,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (minimalMode) {
       revalidatedTags = this.revalidatedTags = getPreviouslyRevalidatedTags(
         requestHeaders,
-        this.prerenderManifest?.preview?.previewModeId
+        this.previewProps.previewModeId
       )
     }
 

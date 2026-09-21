@@ -72,6 +72,12 @@ describe('cached navigations - global partialPrefetching', () => {
       expect(await browser.elementById('headers-boundary').text()).toContain(
         'Header:'
       )
+      expect(await browser.elementById('navigation-boundary').text()).toContain(
+        'Navigation content'
+      )
+      expect(await browser.elementById('prefetch-boundary').text()).toContain(
+        'Prefetch content'
+      )
 
       // Only connection() shows a Suspense fallback — it's truly dynamic.
       expect(await browser.elementById('connection-boundary').text()).toBe(

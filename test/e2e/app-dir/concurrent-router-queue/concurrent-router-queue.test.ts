@@ -17,6 +17,7 @@ describe('concurrent-router-queue', () => {
     files: __dirname,
   })
 
+  // Not gated: a clean hydration is expected in both states of the flag.
   it('hydrates cleanly without invoking the forked entry points', async () => {
     // `pushErrorAsConsoleLog` records uncaught page errors into the console
     // log capture, which works in both dev and start modes.
@@ -29,6 +30,10 @@ describe('concurrent-router-queue', () => {
     expect(errors).toEqual([])
   })
 
+  // The stubs only throw when the fork is active; with the flag off, the
+  // sequential router handles the navigation and the test fails its
+  // expectations — which is what the gate asserts on the axis-A run.
+  // @gate concurrentRouterQueue
   it('fails loudly on link navigation', async () => {
     const browser = await next.browser('/', { pushErrorAsConsoleLog: true })
     await browser.waitForElementByCss('#invoke-action')
@@ -55,6 +60,7 @@ describe('concurrent-router-queue', () => {
     expect(await browser.hasElementByCssSelector('#target-page')).toBe(false)
   })
 
+  // @gate concurrentRouterQueue
   it('fails loudly on server action invocation', async () => {
     const browser = await next.browser('/')
     await browser.waitForElementByCss('#invoke-action')

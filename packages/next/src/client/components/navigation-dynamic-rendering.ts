@@ -8,4 +8,4 @@
 export {
   useDynamicRouteParams,
   useDynamicSearchParams,
-} from '../../server/app-render/dynamic-rendering'
+} from '../../server/app-render/dynamic-rendering-client'

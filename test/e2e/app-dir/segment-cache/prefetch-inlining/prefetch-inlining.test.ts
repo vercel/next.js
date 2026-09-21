@@ -185,7 +185,7 @@ async function getRouteTreeFromHistory(
 }
 
 describe('prefetch inlining', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -533,6 +533,40 @@ describe('prefetch inlining', () => {
     )
   })
 
+  if (isNextStart) {
+    it('partially generated dynamic route: build hints use the most specific shell', async () => {
+      const hints = await next.readJSON('.next/server/prefetch-hints.json')
+
+      expect(hints['/test-dynamic-partial/[top]/[bottom]'])
+        .toMatchInlineSnapshot(`
+     {
+       "hints": 64,
+       "slots": {
+         "children": {
+           "hints": 96,
+           "slots": {
+             "children": {
+               "hints": 32,
+               "slots": {
+                 "children": {
+                   "hints": 64,
+                   "slots": {
+                     "children": {
+                       "hints": 160,
+                       "slots": null,
+                     },
+                   },
+                 },
+               },
+             },
+           },
+         },
+       },
+     }
+    `)
+    })
+  }
+
   // TODO: Add a test for stale hints (InliningHintsStale). The stale hints
   // mechanism expires the route cache entry so the next prefetch re-fetches
   // the correct tree. This is hard to test reliably with act() because the
@@ -602,15 +636,15 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
     // Reveal a default (auto) link to the route. The route is a Partial
     // Prefetching route (the page is partial), so every segment the
     // prefetch walks is held to the runtime-completeness contract — and the
     // route's static-attempt hint is unset because the page reads cookies,
-    // so the walked layout deopts directly to the batched runtime prefetch,
+    // so the walked layout deopts directly to the batched runtime shell,
     // which serves its whole subtree. The inlined layout content arrives in
-    // that runtime response. (No static bundle request fires: the Shell
+    // that runtime shell response. (No static bundle request fires: the Shell
     // phase already runtime-cached every entry in the bundle chain, and a
     // runtime-complete entry is never re-fetched by a static prefetch.)
     await act(
@@ -625,9 +659,8 @@ describe('prefetch inlining', () => {
       { includes: 'Static layout content', kind: 'runtime' }
     )
 
-    // Reveal a prefetch={true} link to the same route. Everything is
-    // already runtime-cached at the per-link tier by the prefetch above, so
-    // opting in has nothing left to fetch.
+    // Reveal a prefetch={true} link to the same route. The shell is complete,
+    // so a runtime prefetch will not give us any more data and should be skipped.
     await act(async () => {
       await browser
         .elementByCss(
@@ -675,7 +708,7 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
     await act(
       async () => {
@@ -687,7 +720,7 @@ describe('prefetch inlining', () => {
       },
       // The layout reads cookies, so the route's static-attempt hint is
       // unset and the Speculative pass deopts the layout directly to the
-      // batched runtime prefetch, which serves the whole subtree — the
+      // batched runtime shell, which serves the whole subtree — the
       // static inner layout and page ride along in that single runtime
       // response. No static bundle request fires: every entry was already
       // runtime-cached at the shell tier by the Shell phase, and a
@@ -776,7 +809,7 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
     await act(
       async () => {
@@ -787,7 +820,7 @@ describe('prefetch inlining', () => {
           .click()
       },
       // Same as the runtime passthrough test: the hint-unset layout deopts
-      // to the batched runtime prefetch, which serves the whole subtree
+      // to the batched runtime shell, which serves the whole subtree
       // (both slots) in a single runtime response.
       { includes: 'Runtime parallel main content', kind: 'runtime' }
     )
@@ -809,8 +842,8 @@ describe('prefetch inlining', () => {
     // [item] param and searchParams, making it depend on runtime data.
     //
     // Because the layout reads cookies, the route's static-attempt hint is
-    // unset, so on this Partial Prefetching route every per-link prefetch
-    // deopts its new subtree to the batched runtime prefetch. The head is
+    // unset, so on this Partial Prefetching route every shell and prefetch
+    // deopt its new subtree to a runtime request. The head is
     // param-dependent, so it is NOT part of the reusable App Shell — but
     // whenever a runtime prefetch fires for a segment, the head rides
     // along in the same request. So each prefetched sibling gets its own
@@ -832,22 +865,27 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
-    // Prefetch and navigate to route A. This caches the layout, the static
-    // page, and A's head (riding along with the runtime prefetch), and
-    // makes A the current page.
+    // Runtime-prefetch (with prefetch={true}) route A. This caches the layout, the
+    // static page, and A's head.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/test-independent-head/a"]')
         .click()
-    })
+    }, [
+      // Shell
+      { includes: 'item-layout', kind: 'runtime' },
+      // Speculative (search params)
+      { includes: 'Independent Head Title: a', kind: 'runtime' },
+    ])
+    // Navigate to A. It should be fully prefetched.
     await act(async () => {
       await browser.elementByCss('a[href="/test-independent-head/a"]').click()
     }, 'no-requests')
 
-    // Now we're on route A. Reveal the sibling link to route B. The
-    // layout is shared between A and B, so it's already cached and won't
+    // Now we're on route A. Reveal the sibling link to route B (with prefetch={true}).
+    // The layout is shared between A and B, so it's already cached and won't
     // be re-fetched. The only new segment is the [item] page. On this
     // hint-unset route it deopts to the batched runtime prefetch, and B's
     // param-specific head rides along in the same request — no standalone
@@ -857,9 +895,7 @@ describe('prefetch inlining', () => {
         .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
         .click()
     }, [
-      // The page below the layout arrives via the runtime prefetch.
-      { includes: 'page-independent-head', kind: 'runtime' },
-      // ...and B's head rides along in the same runtime response.
+      // The page and the head arrive in the same runtime response.
       { includes: 'Independent Head Title: b', kind: 'runtime' },
     ])
 

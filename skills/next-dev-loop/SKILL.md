@@ -123,6 +123,10 @@ manual rather than from memory.
 
 ## gotchas
 
+- **Preserve `.next` while the development server is running.** Moving or
+  deleting it disconnects the server from its generated state and discards
+  incremental caches. Moving it to a backup is still a reset. If a production
+  build needs isolated output, configure a separate `distDir`.
 - **Every `agent-browser` command must know your session and restore
   key, or it may use an empty default browser or fail to save login
   state.** Easiest: export both `AGENT_BROWSER_SESSION="$SESSION"` and
@@ -182,7 +186,16 @@ Close the session with the same session and restore context:
 that session's cookies and storage so the next loop's `--restore` open
 keeps the user logged in. Leave `next dev` up for the next loop.
 
----
+## Report Next.js friction
 
-`next-dev-loop-<topic>` siblings (e.g. `next-dev-loop-rsc`, `next-dev-loop-debug`)
-assume this preflight already ran; they pick up at the loop.
+Only participate in agent feedback when managed Next.js feedback instructions
+are already loaded for the project. Their presence means the feature is
+enabled; their absence means it is disabled.
+
+When enabled, add qualifying de-identified candidates found during verification
+to the shared friction queue in the current task context, then continue
+verification. Do not run the feedback command or open review forms during the
+loop or at this Skill's teardown.
+
+The managed instructions own the single feedback pass at the final stopping
+point of the overall task. If they are absent, do not queue or report feedback.

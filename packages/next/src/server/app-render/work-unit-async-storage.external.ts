@@ -16,7 +16,10 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import type { StagedRenderingController } from './staged-rendering'
+import type {
+  AdvanceableRenderStage,
+  StagedRenderingController,
+} from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
@@ -79,6 +82,11 @@ export interface RequestStore extends CommonWorkUnitStore {
    * Certain APIs have different behavior in static and runtime prerenders.
    * - if `false`, they will follow static semantics
    * - if `true`, they will follow runtime semantics
+   *
+   * NOTE: Whenever the stage of a promise varies on `needsAppShell`,
+   * we should also call `trackIncompatibleShellContent` to signal this.
+   * Otherwise, instant validation or static shell validation might incorrectly
+   * use a render that resolves it at an inappropriate time.
    * */
   needsAppShell?: boolean // DEV-only
   /**
@@ -90,7 +98,11 @@ export interface RequestStore extends CommonWorkUnitStore {
   hasIncompatibleShellContent?: boolean
 
   cacheSignal?: CacheSignal | null
-  fallbackParams?: OpaqueFallbackRouteParams | null
+  /**
+   * These params resolve after the static stage without replacing their
+   * concrete values.
+   */
+  stagedFallbackParams?: ReadonlySet<string> | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation or when rendering
@@ -226,7 +238,7 @@ export interface PrerenderStoreModernRuntime
    * renders where all stages run without sequencing.
    */
   readonly stagedRendering: StagedRenderingController | null
-  readonly isSessionShell: boolean
+  readonly finalStage: AdvanceableRenderStage
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
@@ -424,8 +436,12 @@ export interface UnstableCacheStore extends CommonCacheStore {
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
-export interface GenerateStaticParamsStore extends CommonWorkUnitStore {
-  readonly type: 'generate-static-params'
+export type BuildTimeGeneratorName = 'generateStaticParams'
+
+export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
+  readonly type: 'build-time-generator'
+  /** The public export name to use in diagnostics, regardless of bundling. */
+  readonly functionName: BuildTimeGeneratorName
   readonly rootParams: Params
 }
 
@@ -433,7 +449,7 @@ export type WorkUnitStore =
   | RequestStore
   | CacheStore
   | PrerenderStore
-  | GenerateStaticParamsStore
+  | BuildTimeGeneratorStore
 
 export function willConsumerServerCache(
   workUnitStore: WorkUnitStore | undefined
@@ -454,7 +470,7 @@ export function willConsumerServerCache(
     case 'request':
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -494,7 +510,7 @@ export function getResumeDataCache(
     case 'private-cache':
     case 'unstable-cache':
     case 'prerender-legacy':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -516,7 +532,7 @@ export function getHmrRefreshHash(
       case 'validation-client':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -539,7 +555,7 @@ export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
       case 'prerender-runtime':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -564,7 +580,7 @@ export function getServerComponentsHmrCache(
       case 'prerender-runtime':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -593,7 +609,7 @@ export function getDraftModeProviderForCacheScope(
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-legacy':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -617,7 +633,7 @@ export function getStagedRenderingController(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -644,7 +660,7 @@ export function getCacheSignal(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -666,7 +682,7 @@ export function getVaryParamsAccumulator(
     case 'prerender-client':
     case 'validation-client':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       workUnitStore satisfies never

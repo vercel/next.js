@@ -1,9 +1,7 @@
 import { Suspense } from 'react'
 
-// `id` is covered by `generateStaticParams` only for `x`, so `/mixed/en/x` is a
-// fully prerendered route (both params resolve in the static shell) while other
-// ids such as `123` are deferred to the runtime stage. The parent `[lang]`
-// layout reads `lang`; this page reads only `id`.
+// Both params have generators, so the route has a fully generated shape. Novel
+// values can complete an optional shell without deferring either param.
 export function generateStaticParams() {
   return [{ id: 'x' }]
 }

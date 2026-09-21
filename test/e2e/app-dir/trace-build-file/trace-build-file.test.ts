@@ -3,11 +3,12 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
+// The trace assertions require access to local build output.
+// @force-gate !deploy
 describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: !isNextDev,
-    skipDeployment: true,
     env: {
       // Enable persistent caching even when the git working directory is
       // dirty (e.g. when developing Next.js itself). Without this, the
@@ -78,6 +79,9 @@ describe('trace-build-file', () => {
       }
 
       if (process.env.IS_TURBOPACK_TEST) {
+        // Compaction only runs when it is due, so it may or may not appear.
+        foundEvents.delete('turbopack-compaction')
+
         expect([...foundEvents].sort()).toMatchInlineSnapshot(`
                 [
                   "next-build",
@@ -86,7 +90,6 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
-                  "turbopack-build-events",
                   "turbopack-persistence",
                 ]
               `)

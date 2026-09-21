@@ -4,15 +4,18 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde_json::json;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
 };
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
+    file_source::FileSource,
     module::{Module, Modules},
     module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
@@ -21,7 +24,7 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use crate::{nft::traced_modules_for_entries, project::Project};
+use crate::{nft::traced_modules_for_entries, nft_json_builder::NftJsonBuilder, project::Project};
 
 /// The modules `next/dist/server/require-hook` resolves its aliased requests to at runtime
 /// (currently all of styled-jsx), so that the Pages Router renderer and user code share a single
@@ -34,11 +37,10 @@ use crate::{nft::traced_modules_for_entries, project::Project};
 /// Used by the server NFTs below and, so that they are part of every endpoint's trace regardless
 /// of how the output is assembled, by [`Project::additional_traced_modules`].
 #[turbo_tasks::function]
-pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
-    let asset_context = Vc::upcast(externals_tracing_module_context(
-        get_tracing_compile_time_info(),
-        false,
-    ));
+pub(crate) async fn require_hook_modules(
+    project_path: FileSystemPath,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
         get_next_package(project_path).await?.join("_")?,
@@ -75,6 +77,7 @@ pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Resu
     let asset_context = Vc::upcast(externals_tracing_module_context(
         get_tracing_compile_time_info(),
         false,
+        None,
     ));
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
@@ -184,11 +187,8 @@ impl Asset for ServerNftJsonAsset {
         let this = self.await?;
 
         // Example: [project]/apps/my-website/.next/
-        let base_dir = this
-            .project
-            .project_root_path()
-            .await?
-            .join(&this.project.node_root().await?.path)?;
+        let nft_path = self.path().owned().await?;
+        let mut nft_json = NftJsonBuilder::new(this.project, &nft_path).await?;
 
         let module_graph = ModuleGraph::from_graphs(
             vec![SingleModuleGraph::new_with_entries(
@@ -202,45 +202,46 @@ impl Asset for ServerNftJsonAsset {
 
         let hash_salt = this.project.next_config().output_hash_salt();
 
-        let mut server_output_assets = traced_modules_for_entries(
+        let server_output_assets = traced_modules_for_entries(
             module_graph,
             Modules::empty(),
             self.entries(),
             Some(self.ignores()),
             None,
-            hash_salt,
         )
         .await?
         .iter()
         .map(async |m| {
+            let path = m.ident().await?.path.clone();
+            let source = m.source().await?.context("NFT module has no content")?;
+            let content = source.content();
             Ok((
-                base_dir
-                    .get_relative_path_to(&m.ident().await?.path)
-                    .context("failed to compute relative path for server NFT JSON")?,
-                m.source()
-                    .await?
-                    .context("NFT module has no content")?
-                    .content()
+                path,
+                content
                     .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .owned()
                     .await?,
+                content.await?,
             ))
         })
         .try_join()
         .await?;
 
+        for (path, hash, content) in server_output_assets {
+            nft_json.add(path, hash, &content)?;
+        }
+
         let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
         for ty in ["app-page", "pages"] {
             let dir = next_dir.join(&format!("dist/server/route-modules/{ty}"))?;
             let module_path = dir.join("module.compiled.js")?;
-            server_output_assets.push((
-                base_dir
-                    .get_relative_path_to(&module_path)
-                    .context("failed to compute relative path for server NFT JSON")?,
-                module_path
-                    .read()
-                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                    .await?,
-            ));
+            let content = FileSource::new(module_path.clone()).content();
+            let hash = content
+                .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                .owned()
+                .await?;
+            let content = content.await?;
+            nft_json.add(module_path, hash, &content)?;
 
             let contexts_dir = dir.join("vendored/contexts")?;
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
@@ -254,35 +255,93 @@ impl Asset for ServerNftJsonAsset {
                     continue;
                 };
                 if file.extension() == Some("js") {
-                    server_output_assets.push((
-                        base_dir
-                            .get_relative_path_to(file)
-                            .context("failed to compute relative path for server NFT JSON")?,
-                        file.read()
-                            .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                            .await?,
-                    ))
+                    let content = FileSource::new(file.clone()).content();
+                    let hash = content
+                        .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                        .owned()
+                        .await?;
+                    let content = content.await?;
+                    nft_json.add(file.clone(), hash, &content)?;
                 }
             }
         }
 
-        server_output_assets.sort_unstable();
-        // Dedupe as some entries may be duplicates: a file might be referenced multiple times,
-        // e.g. as a RawModule (from an FS operation) and as an EcmascriptModuleAsset because it
-        // was required.
-        server_output_assets.dedup();
-
-        let (files, file_hashes): (Vec<_>, Vec<_>) = server_output_assets.into_iter().unzip();
-        let json = json!({
-            "version": 1,
-            "files": files,
-            "fileHashes": file_hashes
-        });
+        let json = serde_json::to_string(&nft_json.into_json(None))?;
 
         Ok(AssetContent::file(
-            FileContent::Content(File::from(json.to_string())).cell(),
+            FileContent::Content(File::from(json)).cell(),
         ))
     }
+}
+
+/// These globs are used to prune the module graph for the server NFT JSON assets. They are always
+/// ignored for every page, so we can completely skip even parsing/walking these modules.
+fn next_owned_ignores(
+    ty: &ServerNftType,
+    has_next_support: bool,
+    is_standalone: bool,
+) -> Vec<RcStr> {
+    let mut globs = vec![
+        rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
+        rcstr!("**/*.d.ts"),
+        rcstr!("**/*.map"),
+        rcstr!("**/next/dist/pages/**/*"),
+        rcstr!("**/next/dist/compiled/next-server/**/*.dev.js"),
+        rcstr!("**/next/dist/compiled/webpack/*"),
+        rcstr!("**/node_modules/webpack5/**/*"),
+        rcstr!("**/next/dist/server/lib/route-resolver*"),
+        // Upgrade workflows are CLI-only and are not needed by production servers.
+        rcstr!("**/next/dist/lib/upgrade/**/*"),
+        // The testmode interceptors bundle reads its HTTP parser WASM with a
+        // dynamic path, making the tracer include the bundle's whole
+        // directory. Test proxying is not supported in standalone output, so
+        // keep the parser asset (and the license file picked up by the
+        // directory glob) out of production traces.
+        rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE"),
+        rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**"),
+        rcstr!("**/next/dist/compiled/semver/semver/**/*.js"),
+        rcstr!("**/next/dist/compiled/jest-worker/**/*"),
+        // -- The following were added for Turbopack specifically --
+        // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
+        rcstr!("**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js"),
+        // client/components/app-router.js has a process.env.NODE_ENV guard, but we
+        // can't set that.
+        rcstr!("**/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js"),
+        // server/lib/router-server.js doesn't guard this require:
+        rcstr!("**/next/dist/server/lib/router-utils/setup-dev-bundler.js"),
+        // server/next.js doesn't guard this require
+        rcstr!("**/next/dist/server/dev/next-dev-server.js"),
+        // next/dist/compiled/babel* pulls in this, but we never actually transpile at
+        // deploy-time
+        rcstr!("**/next/dist/compiled/browserslist/**"),
+    ];
+
+    // only ignore image-optimizer code when
+    // this is being handled outside of next-server
+    if has_next_support {
+        globs.extend([
+            rcstr!("**/node_modules/sharp/**/*"),
+            rcstr!("**/@img/sharp-libvips*/**/*"),
+            rcstr!("**/next/dist/server/image-optimizer.js"),
+        ]);
+    }
+
+    if !is_standalone {
+        globs.extend([
+            rcstr!("**/*/next/dist/server/next.js"),
+            rcstr!("**/*/next/dist/bin/next"),
+        ]);
+    }
+
+    if matches!(ty, ServerNftType::Minimal) {
+        globs.extend([
+            rcstr!("**/next/dist/compiled/edge-runtime/**/*"),
+            rcstr!("**/next/dist/server/web/sandbox/**/*"),
+            rcstr!("**/next/dist/server/post-process.js"),
+        ]);
+    }
+
+    globs
 }
 
 #[turbo_tasks::value_impl]
@@ -291,9 +350,23 @@ impl ServerNftJsonAsset {
     async fn entries(&self) -> Result<Vc<Modules>> {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
+        let prune = Glob::alternatives(
+            next_owned_ignores(
+                &self.ty,
+                *self.project.ci_has_next_support().await?,
+                is_standalone,
+            )
+            .into_iter()
+            .map(|g| Glob::new(g, GlobOptions::default()))
+            .collect(),
+        )
+        .to_resolved()
+        .await?;
+
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
             false,
+            Some((self.project.project_root_path().owned().await?, prune)),
         ));
 
         let project_path = self.project.project_path().owned().await?;
@@ -327,7 +400,9 @@ impl ServerNftJsonAsset {
         // The modules the require hook needs are part of every endpoint's trace (see
         // `Project::additional_traced_modules`), but `next-server.js` / `next-minimal-server.js`
         // are traced on their own for `output: 'standalone'`, so they have to be added here too.
-        let hook_modules = require_hook_modules(project_path).owned().await?;
+        let hook_modules = require_hook_modules(project_path, asset_context)
+            .owned()
+            .await?;
 
         Ok(Vc::cell(
             hook_modules
@@ -372,86 +447,25 @@ impl ServerNftJsonAsset {
             if route_glob.await?.matches("next-server") {
                 for (glob, root) in exclude_patterns {
                     additional_ignores.insert(if root.path.is_empty() {
-                        glob.to_string()
+                        glob.clone()
                     } else {
-                        format!("{root}/{glob}")
+                        format!("{root}/{glob}").into()
                     });
                 }
             }
         }
 
-        let server_ignores_glob = [
-            "**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js",
-            "**/*.d.ts",
-            "**/*.map",
-            "**/next/dist/pages/**/*",
-            "**/next/dist/compiled/next-server/**/*.dev.js",
-            "**/next/dist/compiled/webpack/*",
-            "**/node_modules/webpack5/**/*",
-            "**/next/dist/server/lib/route-resolver*",
-            // The testmode interceptors bundle reads its HTTP parser WASM with a
-            // dynamic path, making the tracer include the bundle's whole
-            // directory. Test proxying is not supported in standalone output, so
-            // keep the parser asset (and the license file picked up by the
-            // directory glob) out of production traces.
-            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE",
-            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**",
-            "**/next/dist/compiled/semver/semver/**/*.js",
-            "**/next/dist/compiled/jest-worker/**/*",
-            // -- The following were added for Turbopack specifically --
-            // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
-            "**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js",
-            // client/components/app-router.js has a process.env.NODE_ENV guard, but we
-            // can't set that.
-            "**/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js",
-            // server/lib/router-server.js doesn't guard this require:
-            "**/next/dist/server/lib/router-utils/setup-dev-bundler.js",
-            // server/next.js doesn't guard this require
-            "**/next/dist/server/dev/next-dev-server.js",
-            // next/dist/compiled/babel* pulls in this, but we never actually transpile at
-            // deploy-time
-            "**/next/dist/compiled/browserslist/**",
-        ]
-        .into_iter()
-        .chain(additional_ignores.iter().map(|s| s.as_str()))
-        // only ignore image-optimizer code when
-        // this is being handled outside of next-server
-        .chain(if has_next_support {
-            Either::Left(
-                [
-                    "**/node_modules/sharp/**/*",
-                    "**/@img/sharp-libvips*/**/*",
-                    "**/next/dist/server/image-optimizer.js",
-                ]
-                .into_iter(),
-            )
-        } else {
-            Either::Right(std::iter::empty())
-        })
-        .chain(if is_standalone {
-            Either::Left(std::iter::empty())
-        } else {
-            Either::Right(["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"].into_iter())
-        })
-        .map(|g| Glob::new(g.into(), Default::default()))
-        .collect::<Vec<_>>();
+        // The project-provided ignores can match one of the entry requests `entries()` resolves,
+        // so they can only be applied to the finished graph:
+        // `traced_modules_for_entries` inserts entries without consulting the glob (the
+        // `parent == None` arm in `nft.rs`), whereas pruning one would delete it and everything
+        // reachable only through it.
+        let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support, is_standalone)
+            .into_iter()
+            .chain(additional_ignores)
+            .map(|g| Glob::new(g, Default::default()))
+            .collect::<Vec<_>>();
 
-        Ok(match self.ty {
-            ServerNftType::Full => Glob::alternatives(server_ignores_glob),
-            ServerNftType::Minimal => Glob::alternatives(
-                server_ignores_glob
-                    .into_iter()
-                    .chain(
-                        [
-                            "**/next/dist/compiled/edge-runtime/**/*",
-                            "**/next/dist/server/web/sandbox/**/*",
-                            "**/next/dist/server/post-process.js",
-                        ]
-                        .into_iter()
-                        .map(|g| Glob::new(g.into(), Default::default())),
-                    )
-                    .collect(),
-            ),
-        })
+        Ok(Glob::alternatives(server_ignores_glob))
     }
 }

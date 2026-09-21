@@ -24,12 +24,10 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
 
@@ -124,7 +122,7 @@ pub enum AmdDefineFactoryType {
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    path: AstPath,
+    path: AstPathId,
     factory_type: AmdDefineFactoryType,
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
@@ -134,7 +132,7 @@ impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        path: AstPath,
+        path: AstPathId,
         factory_type: AmdDefineFactoryType,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
@@ -151,6 +149,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -158,7 +157,7 @@ impl AmdDefineWithDependenciesCodeGen {
         let resolved_elements = self
             .dependencies_requests
             .iter()
-            .map(|element| async move {
+            .map(async |element| {
                 Ok(match element {
                     AmdDefineDependencyElement::Request {
                         request,
@@ -199,6 +198,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
         visitors.push(create_visitor!(
             exact,
+            trie,
             self.path,
             visit_mut_call_expr,
             |call_expr: &mut CallExpr| {

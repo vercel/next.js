@@ -72,7 +72,7 @@ type CreateComponentTreeProps = {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  MetadataOutlet: ComponentType
+  MetadataOutlet: ComponentType<{ tree: LoaderTree }>
   isPrerendering: boolean
   hintTree: PrefetchHints | null
 }
@@ -153,7 +153,7 @@ async function createComponentTreeInternal(
     missingSlots?: Set<string>
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
-    MetadataOutlet: ComponentType | null
+    MetadataOutlet: ComponentType<{ tree: LoaderTree }> | null
     isPrerendering: boolean
     hintTree: PrefetchHints | null
   },
@@ -191,7 +191,7 @@ async function createComponentTreeInternal(
     parseLoaderTree(tree)
 
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const partialPrefetching = ctx.renderOpts.partialPrefetching
+  const partialPrefetching = Boolean(ctx.renderOpts.partialPrefetching)
 
   const {
     layout,
@@ -368,7 +368,7 @@ async function createComponentTreeInternal(
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -412,7 +412,7 @@ async function createComponentTreeInternal(
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -601,6 +601,7 @@ async function createComponentTreeInternal(
             partialPrefetching,
             getDynamicParamFromSegment,
             query,
+            ctx.renderOpts.notFoundParams,
             rootLayoutIncludedAtThisLevelOrAbove
           )
         } else {
@@ -630,9 +631,10 @@ async function createComponentTreeInternal(
               missingSlots,
               preloadCallbacks,
               authInterrupts,
-              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+              MetadataOutlet:
+                experimental.parallelRouteMetadata || isChildrenRouteKey
+                  ? MetadataOutlet
+                  : null,
               isPrerendering,
               hintTree: childHintTree,
             },
@@ -740,7 +742,8 @@ async function createComponentTreeInternal(
     prefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
     partialPrefetching,
-    !rootLayoutIncluded
+    !rootLayoutIncluded,
+    ctx.renderOpts.notFoundParams
   )
 
   // Convert the parallel route map into an object after all promises have been resolved.
@@ -924,7 +927,7 @@ async function createComponentTreeInternal(
         },
         wrappedPageElement,
         layerAssets,
-        MetadataOutlet ? createElement(MetadataOutlet, null) : null
+        MetadataOutlet ? createElement(MetadataOutlet, { tree }) : null
       ),
       parallelRouteNodes,
       loadingData,

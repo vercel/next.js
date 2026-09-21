@@ -3531,13 +3531,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": ["instant validation causes Only implemented in dev"],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
       "app dir - instant-validation-client should error when a client component exports instant"
@@ -5244,15 +5237,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - next-image (with https) loads images without any errors"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8031,7 +8015,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
-    "passed": ["turbopack-reports should render page importing sqlite3"],
+    "passed": [
+      "turbopack-reports should render page importing a package that loads a native binding"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8458,13 +8444,6 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
-    "passed": ["webpack-loader-errors should skip in non-dev mode"],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16101,17 +16080,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/firebase-grpc/test/index.test.ts": {
-    "passed": [
-      "Building Firebase production mode Throws no error when building with firebase dependency without worker_threads"
-    ],
-    "failed": [],
-    "pending": [
-      "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/future/test/index.test.ts": {
     "passed": [
       "excludeDefaultMomentLocales production mode should load momentjs"
@@ -20166,16 +20134,16 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/node-fetch-keep-alive/test/index.test.ts": {
+  "test/integration/fetch-keep-alive/test/index.test.ts": {
     "passed": [
-      "node-fetch-keep-alive dev should send keep-alive for getServerSideProps",
-      "node-fetch-keep-alive dev should send keep-alive for getStaticPaths",
-      "node-fetch-keep-alive dev should send keep-alive for getStaticProps",
-      "node-fetch-keep-alive dev should send keep-alive for json API",
-      "node-fetch-keep-alive production mode should send keep-alive for getServerSideProps",
-      "node-fetch-keep-alive production mode should send keep-alive for getStaticPaths",
-      "node-fetch-keep-alive production mode should send keep-alive for getStaticProps",
-      "node-fetch-keep-alive production mode should send keep-alive for json API"
+      "fetch-keep-alive dev should send keep-alive for getServerSideProps",
+      "fetch-keep-alive dev should send keep-alive for getStaticPaths",
+      "fetch-keep-alive dev should send keep-alive for getStaticProps",
+      "fetch-keep-alive dev should send keep-alive for json API",
+      "fetch-keep-alive production mode should send keep-alive for getServerSideProps",
+      "fetch-keep-alive production mode should send keep-alive for getStaticPaths",
+      "fetch-keep-alive production mode should send keep-alive for getStaticProps",
+      "fetch-keep-alive production mode should send keep-alive for json API"
     ],
     "failed": [],
     "pending": [],

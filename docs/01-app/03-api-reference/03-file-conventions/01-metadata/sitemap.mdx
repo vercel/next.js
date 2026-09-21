@@ -389,7 +389,7 @@ export default async function sitemap(props) {
 }
 ```
 
-Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `/product/sitemap/1.xml`.
+Your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
 
 See the [`generateSitemaps` API reference](/docs/app/api-reference/functions/generate-sitemaps) for more information.
 
@@ -413,6 +413,8 @@ type Sitemap = Array<{
   alternates?: {
     languages?: Languages<string>
   }
+  images?: string[]
+  videos?: Videos[]
 }>
 ```
 

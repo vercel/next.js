@@ -382,7 +382,7 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // sending the job.
 
     let (mut operation, _) = FutureRetry::new(
-        || async {
+        async || {
             let mut operation = pool.operation().await?;
             operation
                 .send(Bytes::from(serde_json::to_vec(

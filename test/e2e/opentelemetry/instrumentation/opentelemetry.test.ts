@@ -14,25 +14,41 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
 const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
+const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
 
-function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
-  let collector: Collector
+type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
-  function getCollector(): Collector {
+function setupCollector(next: NextInstance, port: number) {
+  let collector: Collector | undefined
+
+  // The app's span exporter remains active for the entire suite. Keep its
+  // endpoint available for the same lifetime and only reset collected state.
+  beforeAll(async () => {
+    collector = await connectCollector({ port })
+    await next.start()
+  })
+
+  beforeEach(() => {
+    collector?.reset()
+  })
+
+  afterAll(async () => {
+    await collector?.shutdown()
+  })
+
+  return function getCollector(): Collector {
+    if (!collector) {
+      throw new Error('OpenTelemetry collector is not connected')
+    }
     return collector
   }
+}
 
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
-
-  let next = nextTestSetup({
+function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+  const testSetup = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
     dependencies: require('./package.json').dependencies,
     ...(!useDirectEntrypointHandler
       ? {
@@ -64,7 +80,14 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
         }
       : undefined,
   })
-  return { next, getCollector }
+  return {
+    next: testSetup,
+    getCollector: testSetup.skipped
+      ? () => {
+          throw new Error('OpenTelemetry test setup was skipped')
+        }
+      : setupCollector(testSetup.next, COLLECTOR_PORT),
+  }
 }
 
 describe.each(
@@ -87,6 +110,42 @@ describe.each(
   if (skipped) {
     return
   }
+
+  let connectedCollector: Collector
+
+  async function expectAppRouteTrace(pathname: string) {
+    expect((await next.fetch(pathname)).status).toBe(200)
+    await expectTrace(getCollector(), [
+      {
+        name: 'GET /api/app/[param]/data',
+        attributes: {
+          'http.target': pathname,
+          'next.span_type': 'BaseServer.handleRequest',
+        },
+      },
+    ])
+  }
+
+  it('collects a trace before the per-test reset', async () => {
+    connectedCollector = getCollector()
+    await expectAppRouteTrace('/api/app/param/data')
+  })
+
+  it('keeps the collector connected across per-test resets', async () => {
+    expect(getCollector()).toBe(connectedCollector)
+    expect(getCollector().getSpans()).toEqual([])
+    await expectAppRouteTrace('/api/app/param/data')
+  })
+
+  it('closes collector connections after each export', async () => {
+    const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
+      method: 'POST',
+      body: '[]',
+    })
+
+    expect(response.status).toBe(202)
+    expect(response.headers.get('connection')).toBe('close')
+  })
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
@@ -556,6 +615,95 @@ describe.each(
               },
             ])
           })
+
+          it('should preserve the committed status when a route response stream errors', async () => {
+            const response = await next.fetch(
+              '/api/app/param/stream-error',
+              env.fetchInit
+            )
+
+            expect(response.status).toBe(200)
+            await expect(response.text()).rejects.toThrow()
+
+            await retry(() => {
+              expect(next.cliOutput).toContain(
+                '[instrumentation] observed app route stream error'
+              )
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/stream-error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/stream-error',
+                  'http.status_code': 200,
+                  'http.target': '/api/app/param/stream-error',
+                  'next.route': '/api/app/[param]/stream-error',
+                  'next.span_name': 'GET /api/app/[param]/stream-error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                  'error.type': 'Error',
+                },
+                kind: 1,
+                status: { code: 2, message: 'failed to pipe response' },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/stream-error',
+                    attributes: {
+                      'next.route': '/api/app/[param]/stream-error',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/stream-error',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/stream-error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          if (useDirectEntrypointHandler && env.name === 'root context') {
+            it('should end a committed response when pending revalidation fails', async () => {
+              const response = await next.fetch(
+                '/api/app/param/revalidation-error'
+              )
+
+              expect(response.status).toBe(200)
+
+              const rejectResponse = await next.fetch(
+                '/api/app/param/revalidation-error/reject'
+              )
+              expect(rejectResponse.status).toBe(204)
+              await expect(response.text()).resolves.toBe('committed')
+            })
+          }
 
           it('should record accurate status code for non-200 route handler responses', async () => {
             await next.fetch('/api/app/param/status', env.fetchInit)
@@ -1608,6 +1756,139 @@ describe.each(
       useDirectEntrypointHandler: true,
     },
   ].filter(Boolean)
+)(
+  'opentelemetry App Route module loading - $name',
+  ({ useDirectEntrypointHandler }) => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      ...(!useDirectEntrypointHandler
+        ? {
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+            },
+          }
+        : {
+            startCommand: 'pnpm start-entrypoint',
+            packageJson: {
+              scripts: {
+                'start-entrypoint':
+                  'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+              },
+            },
+            serverReadyPattern: /- Local:/,
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+              NODE_ENV: 'production',
+            },
+          }),
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace cold App Route module loading once', async () => {
+      collector = await connectCollector({
+        port: APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT,
+      })
+      await next.start()
+
+      const pathname = '/api/app/param/data'
+      const route = '/api/app/[param]/data'
+      expect((await next.fetch(pathname)).status).toBe(200)
+
+      let coldSpanId: string | undefined
+      await retry(async () => {
+        const spans = collector?.getSpans() ?? []
+        const rootSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'BaseServer.handleRequest' &&
+            span.attributes?.['http.target'] === pathname
+        )
+        const moduleLoadSpans = spans.filter(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'AppRouteRouteModule.loadUserland' &&
+            span.attributes?.['next.route'] === route
+        )
+
+        expect(rootSpan).toBeDefined()
+        expect(moduleLoadSpans).toEqual([
+          expect.objectContaining({
+            runtime: 'nodejs',
+            name: 'load app route module',
+            traceId: rootSpan?.traceId,
+            attributes: {
+              'next.route': route,
+              'next.span_category': 'nextjs',
+              'next.span_name': 'load app route module',
+              'next.span_type': 'AppRouteRouteModule.loadUserland',
+            },
+            status: { code: 0 },
+          }),
+        ])
+
+        const moduleLoadSpan = moduleLoadSpans[0]
+        const ancestorIds = new Set<string>()
+        const parentBySpanId = new Map(
+          spans.map((span) => [span.id, span.parentId])
+        )
+        let parentId = moduleLoadSpan.parentId
+        while (parentId) {
+          ancestorIds.add(parentId)
+          parentId = parentBySpanId.get(parentId)
+        }
+        expect(ancestorIds).toContain(rootSpan?.id)
+        coldSpanId = moduleLoadSpan.id
+      })
+
+      expect((await next.fetch(pathname)).status).toBe(200)
+      await retry(async () => {
+        const spans = collector?.getSpans() ?? []
+        expect(
+          spans.filter(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'AppRouteRouteModule.loadUserland' &&
+              span.attributes?.['next.route'] === route
+          )
+        ).toEqual([expect.objectContaining({ id: coldSpanId })])
+        expect(
+          spans.filter(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' &&
+              span.attributes?.['http.target'] === pathname
+          )
+        ).toHaveLength(2)
+      })
+    })
+  }
+)
+
+describe.each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
 )('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
   describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
     const {
@@ -1811,6 +2092,7 @@ describe.each(
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
+      skipStart: true,
       dependencies: require('./package.json').dependencies,
       env: {
         TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
@@ -1823,16 +2105,7 @@ describe.each(
       return
     }
 
-    let collector: Collector | undefined
-
-    beforeEach(async () => {
-      collector = await connectCollector({ port: COLLECTOR_PORT })
-    })
-
-    afterEach(async () => {
-      await collector?.shutdown()
-      collector = undefined
-    })
+    const getCollector = setupCollector(next, COLLECTOR_PORT)
 
     // Regression for https://github.com/vercel/otel/issues/107.
     it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
@@ -1845,7 +2118,7 @@ describe.each(
 
       let spans: SavedSpan[] = []
       await retry(async () => {
-        const all = collector?.getSpans() ?? []
+        const all = getCollector().getSpans()
         const root = all.find(
           (s) =>
             s.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
@@ -1878,6 +2151,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
     dependencies: require('./package.json').dependencies,
     env: {
       NEXT_OTEL_FETCH_DISABLED: '1',
@@ -1889,20 +2163,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     return
   }
 
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-    await new Promise((r) => setTimeout(r, 1000))
-  })
+  const getCollector = setupCollector(next, COLLECTOR_PORT)
   ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
     'root context',
     () => {
@@ -1960,6 +2221,7 @@ describe('opentelemetry with custom server', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
     packageJson: {
@@ -1979,19 +2241,7 @@ describe('opentelemetry with custom server', () => {
     return
   }
 
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
+  const getCollector = setupCollector(next, COLLECTOR_PORT)
 
   it('should set attributes correctly on handleRequest span', async () => {
     await next.fetch('/app/param/rsc-fetch')
@@ -2138,6 +2388,7 @@ if (isNextStart) {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
+      skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
       packageJson: {
@@ -2157,19 +2408,7 @@ if (isNextStart) {
       return
     }
 
-    let collector: Collector
-
-    function getCollector(): Collector {
-      return collector
-    }
-
-    beforeEach(async () => {
-      collector = await connectCollector({ port: COLLECTOR_PORT })
-    })
-
-    afterEach(async () => {
-      await collector.shutdown()
-    })
+    const getCollector = setupCollector(next, COLLECTOR_PORT)
 
     const directEntrypointCases = [
       { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
@@ -2193,7 +2432,7 @@ if (isNextStart) {
 
           await retry(
             async () => {
-              const spans = collector.getSpans()
+              const spans = getCollector().getSpans()
               const handleRequestSpan = spans.find((span) => {
                 if (
                   span.attributes?.['next.span_type'] !==
@@ -2284,6 +2523,7 @@ async function expectTrace(
         (span) =>
           ![
             'LoadComponents.loadRouteModule',
+            'AppRouteRouteModule.loadUserland',
             'RouteModule.prepare',
             'Instrumentation.loadModule',
             'Instrumentation.register',

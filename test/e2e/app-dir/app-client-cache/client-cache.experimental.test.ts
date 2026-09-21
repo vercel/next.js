@@ -234,6 +234,8 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
+    // Deploy mode exclusion: This nested suite reads telemetry events from the
+    // local Next.js CLI output.
     if (!isNextDeploy) {
       describe('telemetry', () => {
         it('should send staleTimes feature usage event', async () => {
@@ -368,6 +370,8 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
+    // Deploy mode exclusion: This nested suite reads telemetry events from the
+    // local Next.js CLI output.
     if (!isNextDeploy) {
       describe('telemetry', () => {
         it('should send staleTimes feature usage event', async () => {
