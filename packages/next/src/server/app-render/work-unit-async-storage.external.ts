@@ -436,10 +436,12 @@ export interface UnstableCacheStore extends CommonCacheStore {
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
+export type BuildTimeGeneratorName = 'generateStaticParams'
+
 export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
   readonly type: 'build-time-generator'
   /** The public export name to use in diagnostics, regardless of bundling. */
-  readonly functionName: string
+  readonly functionName: BuildTimeGeneratorName
   readonly rootParams: Params
 }
 

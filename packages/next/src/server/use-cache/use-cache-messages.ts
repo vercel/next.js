@@ -4,6 +4,8 @@
  * immediate fix, then link to the relevant docs.
  */
 
+import type { BuildTimeGeneratorName } from '../app-render/work-unit-async-storage.external'
+
 const NEXT_REQUEST_IN_USE_CACHE =
   'https://nextjs.org/docs/messages/next-request-in-use-cache'
 
@@ -123,11 +125,29 @@ export function createDraftModeMutationInUnstableCacheError(
 
 export function createRevalidateDuringRenderError(
   route: string,
-  expression: string,
-  generatorName?: string
+  expression: string
 ): Error {
   return new Error(
-    `Route "${route}": \`${expression}\` can't be called during render, inside a cached function, or inside \`${generatorName ?? 'generateStaticParams'}\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
+    `Route "${route}": \`${expression}\` can't be called during render. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
+  )
+}
+
+export function createRevalidateInCachedFunctionError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside a cached function. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
+  )
+}
+
+export function createRevalidateInBuildTimeGeneratorError(
+  route: string,
+  expression: string,
+  generatorName: BuildTimeGeneratorName
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside \`${generatorName}\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
   )
 }
 
