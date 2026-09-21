@@ -30,7 +30,7 @@ describe('loadAgentFeedbackInstructions', () => {
         async () => '# Agent feedback protocol\n'
       )
     ).resolves.toBe(
-      '# Dry run\n\nUse the protocol below to prepare each qualifying report and encode its review URL, but do not open a browser tab. Print each review URL for inspection instead. Do not clear retained candidates or mark the feedback pass complete.\n\n# Agent feedback protocol\n'
+      '# Dry run\n\nUse the protocol below to prepare each qualifying report draft and encode its review URL, but do not open a browser tab. Print each review URL for inspection instead. Do not clear the feedback candidate queue or mark the reporting pass complete.\n\n# Agent feedback protocol\n'
     )
     expect(isEnabled).not.toHaveBeenCalled()
   })

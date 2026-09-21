@@ -14,6 +14,8 @@ related:
 
 Next.js provides AI coding agents with version-matched documentation, runtime visibility, structured errors, reusable workflows, and automatic feedback. These capabilities help agents use the APIs and patterns supported by your installed Next.js version, verify their work, and report framework friction for your review.
 
+<span id="step-1-point-agents-at-the-bundled-docs" />
+
 ## Version-matched documentation
 
 Make sure `AGENTS.md` exists at your project root and directs agents to the bundled docs. When you install `next`, the Next.js documentation is bundled at `node_modules/next/dist/docs/`, mirroring the structure of the [Next.js documentation site](https://nextjs.org/docs):
@@ -99,7 +101,7 @@ The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single
 
 ## Automatic agent feedback
 
-Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents keep track of potential Next.js issues without interrupting an active task. Before sending a final response, the agent opens each qualifying issue as a separate review form in your default browser.
+Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents keep track of potential Next.js issues without interrupting the current user request. Immediately before the final response, the agent evaluates those feedback candidates and opens each qualifying issue as a separate review form in your default browser.
 
 Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. Nothing is sent until you select **Send feedback**, and agent feedback is separate from [Next.js Telemetry](/telemetry).
 
@@ -110,21 +112,23 @@ With the option enabled, `next dev` adds the following managed feedback instruct
 
 ## Report Next.js feedback
 
-During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the current user request, retain anonymized facts as feedback candidates for Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior, repeated failures, or non-obvious workarounds
 
-Continue the task without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
-Before sending the user a final response, after all requested work and tool calls are complete, review the queue. If it contains candidates, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once and follow any instructions returned. If it returns nothing, finish the response without retrying or investigating. Keep unresolved candidates for a later response, and never reopen a report already presented to the user.
+Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass. If the feedback candidate queue is not empty, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once and follow any instructions returned. If it returns nothing, finish the final response without retrying or investigating. Keep unresolved feedback candidates for a later final response, and never create a duplicate report draft or reopen a review form already presented to the user.
 
 <!-- END:nextjs-agent-feedback -->
 ```
 
 Next.js updates only the content between the agent feedback markers and preserves the rest of the file. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to configure automatic agent feedback.
+
+<span id="step-2-give-agents-runtime-visibility" />
 
 ## Runtime visibility
 
@@ -141,6 +145,8 @@ The **browser's view** comes from [`agent-browser`](https://github.com/vercel-la
 The [`next-dev-loop` skill](#next-dev-loop) builds on both views, combining the framework's and the browser's perspective into a single edit-and-verify loop.
 
 > **Good to know:** For the story behind this tooling, see the [Next.js 16.2](https://nextjs.org/blog/next-16-2-ai) and [Next.js 16.3](https://nextjs.org/blog/next-16-3-ai-improvements) AI blog posts.
+
+<span id="step-3-let-errors-drive-the-fixes" />
 
 ## Built-in guidance for errors
 
@@ -167,6 +173,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 In `next dev` the stack frame resolves to your source, in both the dev overlay and the terminal. A production build minifies server code, so when the build error alone isn't enough, [`next build --debug-prerender`](/docs/app/guides/building#debugging-build-errors) turns on server source maps and continues past the first failure.
 
 The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) walks through the full loop an agent runs on these errors, from reading the insight to writing an `instant()` test that fails before the fix and passes once it's in place.
+
+<span id="step-4-hand-multi-step-workflows-to-skills" />
 
 ## Skills for multi-step workflows
 

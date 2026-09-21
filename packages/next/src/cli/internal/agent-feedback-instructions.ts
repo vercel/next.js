@@ -16,7 +16,7 @@ export interface AgentFeedbackInstructionsOptions {
 
 const DRY_RUN_INSTRUCTIONS = `# Dry run
 
-Use the protocol below to prepare each qualifying report and encode its review URL, but do not open a browser tab. Print each review URL for inspection instead. Do not clear retained candidates or mark the feedback pass complete.
+Use the protocol below to prepare each qualifying report draft and encode its review URL, but do not open a browser tab. Print each review URL for inspection instead. Do not clear the feedback candidate queue or mark the reporting pass complete.
 
 `
 

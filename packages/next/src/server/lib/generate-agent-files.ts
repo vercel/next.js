@@ -47,16 +47,16 @@ function buildAgentFeedbackBlock(): string {
 
 ## Report Next.js feedback
 
-During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the current user request, retain anonymized facts as feedback candidates for Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior, repeated failures, or non-obvious workarounds
 
-Continue the task without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
-Before sending the user a final response, after all requested work and tool calls are complete, review the queue. If it contains candidates, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once and follow any instructions returned. If it returns nothing, finish the response without retrying or investigating. Keep unresolved candidates for a later response, and never reopen a report already presented to the user.
+Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass. If the feedback candidate queue is not empty, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once and follow any instructions returned. If it returns nothing, finish the final response without retrying or investigating. Keep unresolved feedback candidates for a later final response, and never create a duplicate report draft or reopen a review form already presented to the user.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }
