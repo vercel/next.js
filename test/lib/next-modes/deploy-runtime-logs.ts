@@ -19,6 +19,9 @@ export class DeployRuntimeLogs {
       ['logs', url, '--follow', '--json', ...options.flags],
       { cwd: options.cwd, env: options.env, buffer: false }
     )
+    // Execa 2 also waits for its combined output stream to end. Drain it even
+    // though messages are read from stdout, or shutdown can hang after exit.
+    this.process.all?.resume()
     const lines = createInterface({ input: this.process.stdout! })
     lines.on('line', (line) => {
       if (this.stopping || this.error || !line.trim()) return
