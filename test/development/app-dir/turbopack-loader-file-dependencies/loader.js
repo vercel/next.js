@@ -32,6 +32,35 @@ const loader = async function (content) {
     )
   }
 
+  if (this.resourcePath.endsWith('package-build-dependency.ts')) {
+    const packageEntry = require.resolve('build-dependency-package')
+    this.addBuildDependency('build-dependency-package')
+    const packageValue = fs
+      .readFileSync(packageEntry, 'utf8')
+      .match(/'([^']+)'/)[1]
+    return this.callback(
+      null,
+      `export const utilFn = () => 'package build dependency: ${packageValue}, generated at ${new Date().toISOString()}';`
+    )
+  }
+
+  if (this.resourcePath.endsWith('esm-build-dependency.ts')) {
+    const packageEntry = path.join(
+      __dirname,
+      'node_modules',
+      'build-dependency-esm-package',
+      'import.mjs'
+    )
+    this.addBuildDependency('build-dependency-esm-package/conditional.mjs')
+    const packageValue = fs
+      .readFileSync(packageEntry, 'utf8')
+      .match(/'([^']+)'/)[1]
+    return this.callback(
+      null,
+      `export const utilFn = () => 'ESM build dependency: ${packageValue}, generated at ${new Date().toISOString()}';`
+    )
+  }
+
   if (!this.resourcePath.endsWith('file-to-transform.ts')) {
     return this.callback(null, content)
   }

@@ -39,6 +39,7 @@ use turbopack_core::{
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         ResolveErrorMode,
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
         origin::PlainResolveOrigin,
         parse::Request,
@@ -315,7 +316,32 @@ async fn build_dependency_requests_changed(
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<Completion>> {
     for (request, is_directory) in requests {
-        let path = cwd.join(&request)?;
+        let path = if is_directory {
+            cwd.join(&request)?
+        } else {
+            let parsed_request = Request::parse(Pattern::Constant(request.clone()));
+            let options = if request.ends_with(".mjs") {
+                node_esm_resolve_options(cwd.root().owned().await?)
+            } else {
+                node_cjs_resolve_options(cwd.root().owned().await?)
+            };
+            let resolved = resolve(
+                cwd.clone(),
+                ReferenceType::Undefined,
+                parsed_request,
+                options,
+            );
+            match resolved.await {
+                Ok(result) => {
+                    if let Some(resolved_source) = result.first_source() {
+                        resolved_source.ident().await?.path.clone()
+                    } else {
+                        cwd.join(&request)?
+                    }
+                }
+                Err(_) => cwd.join(&request)?,
+            }
+        };
         let entry_type = path.get_type().await?;
         let supported = match &*entry_type {
             FileSystemEntryType::File if !is_directory => {
@@ -1157,8 +1183,8 @@ impl Issue for BuildDependencyIssue {
             StyledString::Text(rcstr!("The path at ")),
             StyledString::Code(self.path.to_string().into()),
             StyledString::Text(
-                " is not an exact existing file or explicit directory build dependency. \
-                 Unsupported inputs may require restarting the development server."
+                " could not be resolved to an existing file or explicit directory build \
+                 dependency. Unsupported inputs may require restarting the development server."
                     .into(),
             ),
         ])))
