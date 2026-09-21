@@ -388,17 +388,19 @@ impl TurboTasksBackend {
         ))
     }
 
-    fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if self.should_persist() {
-            self.snapshot_coord.suspend_point(suspend);
-        }
+    fn operation_suspend_point(
+        &self,
+        operation_guard: &mut OperationGuard<'_, AnyOperation>,
+        suspend: impl FnOnce() -> AnyOperation,
+    ) {
+        operation_guard.suspend_point(suspend);
     }
 
-    pub(crate) fn start_operation(&self) -> OperationGuard<'_, AnyOperation> {
+    pub(crate) fn start_operation(&self) -> Option<OperationGuard<'_, AnyOperation>> {
         if !self.should_persist() {
-            return OperationGuard::noop();
+            return None;
         }
-        self.snapshot_coord.begin_operation()
+        Some(self.snapshot_coord.begin_operation())
     }
 
     fn should_persist(&self) -> bool {

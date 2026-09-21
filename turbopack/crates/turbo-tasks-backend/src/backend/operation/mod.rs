@@ -222,7 +222,7 @@ impl TaskLockCounter {
 
 enum ExecutePhase<'e> {
     Normal {
-        _guard: OperationGuard<'e, AnyOperation>,
+        _guard: Option<OperationGuard<'e, AnyOperation>>,
     },
     Child,
     Gc(&'e dyn Fn(TaskId)),
@@ -1274,11 +1274,14 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
-        // suspend guards become no-ops under GC
-        if matches!(self.phase, ExecutePhase::Gc(_)) {
+        let ExecutePhase::Normal {
+            _guard: Some(guard),
+        } = &mut self.phase
+        else {
             return;
-        }
-        self.backend.operation_suspend_point(|| op.clone().into());
+        };
+        self.backend
+            .operation_suspend_point(guard, || op.clone().into());
     }
 
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {
