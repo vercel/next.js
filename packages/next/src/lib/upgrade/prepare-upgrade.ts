@@ -44,22 +44,25 @@ export async function prepareUpgrade(
     throw new Error('Could not determine the installed Next.js version.')
   }
 
-  if (
-    semver.prerelease(installedVersion) &&
-    (!isCanary(installedVersion) || targetRequest !== 'security')
-  ) {
+  if (semver.prerelease(installedVersion) && !isCanary(installedVersion)) {
     throw new Error(
       'AI upgrades are not available for prerelease versions of Next.js yet.'
     )
   }
 
   if (targetRequest === 'latest' || targetRequest === 'future') {
-    const release = await fetchLatestRelease()
+    const canary = isCanary(installedVersion)
+    const release = await fetchLatestRelease(installedVersion)
 
     if (!release) {
-      throw new Error('Could not determine the latest stable Next.js version.')
+      throw new Error(
+        canary
+          ? 'Could not determine the latest Next.js version on the canary dist-tag.'
+          : 'Could not determine the latest stable Next.js version.'
+      )
     }
 
+    const releaseKind = canary ? 'canary release' : 'stable release'
     const targetVersion =
       targetRequest === 'future' && semver.gt(installedVersion, release.version)
         ? installedVersion
@@ -71,7 +74,7 @@ export async function prepareUpgrade(
     ) {
       return {
         status: 'unaffected',
-        reason: `Next.js ${installedVersion} is already the latest stable release.`,
+        reason: `Next.js ${installedVersion} is already the latest ${releaseKind}.`,
       }
     }
 
@@ -81,7 +84,7 @@ export async function prepareUpgrade(
     ) {
       return {
         status: 'unaffected',
-        reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
+        reason: `Next.js ${installedVersion} is newer than the latest ${releaseKind} ${release.version}.`,
       }
     }
 
@@ -317,19 +320,21 @@ function affectedRanges(advisories: Advisory[]): string[] {
 }
 
 export async function getLatestUpgradeVersion(version: string) {
-  // TODO: Support prerelease upgrade policies once their target selection is
-  // defined for explicit upgrades and background reminders.
-  if (!semver.valid(version) || semver.prerelease(version)) {
+  if (
+    !semver.valid(version) ||
+    (semver.prerelease(version) && !isCanary(version))
+  ) {
     return null
   }
 
-  const release = await fetchLatestRelease()
+  const release = await fetchLatestRelease(version)
 
   if (!release || !semver.gt(release.version, version)) {
     return null
   }
 
-  // Patch releases remain available to explicit upgrades without a reminder.
+  // Patches and consecutive canaries remain available to explicit upgrades
+  // without a reminder.
   if (
     semver.major(release.version) === semver.major(version) &&
     semver.minor(release.version) === semver.minor(version)
@@ -340,18 +345,19 @@ export async function getLatestUpgradeVersion(version: string) {
   return release.version
 }
 
-async function fetchLatestRelease(): Promise<{
+async function fetchLatestRelease(installedVersion: string): Promise<{
   version: string
   reference: string
 } | null> {
-  const reference = `${NPM_REGISTRY}next/latest`
+  const canary = isCanary(installedVersion)
+  const reference = `${NPM_REGISTRY}next/${canary ? 'canary' : 'latest'}`
   const { value } = await fetchJSON(reference)
   const release = value as { version: string } | null
 
   if (
     !release ||
     !semver.valid(release.version) ||
-    semver.prerelease(release.version)
+    (canary ? !isCanary(release.version) : semver.prerelease(release.version))
   ) {
     return null
   }

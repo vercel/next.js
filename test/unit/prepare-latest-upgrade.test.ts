@@ -311,6 +311,126 @@ describe('prepare latest upgrade', () => {
     )
   })
 
+  describe.each(['latest', 'future'] as const)(
+    '%s canary upgrades',
+    (policy) => {
+      it.each([
+        '17.2.0-canary.5',
+        '17.2.1-canary.0',
+        '17.3.0-canary.0',
+        '18.0.0-canary.0',
+      ])(
+        'selects the exact canary tag %s for an explicit upgrade',
+        async (target) => {
+          const directory = await createApp('17.2.0-canary.4')
+          mockSecurityMetadata({ target, ranges: [] })
+          await expect(prepareUpgrade(directory, policy)).resolves.toEqual(
+            expect.objectContaining({
+              status: 'ready',
+              targetVersion: target,
+              references: ['https://registry.npmjs.org/next/canary'],
+            })
+          )
+          expect(jest.mocked(global.fetch).mock.calls[0][0]).toBe(
+            'https://registry.npmjs.org/next/canary'
+          )
+        }
+      )
+
+      it.each(['17.2.0-canary.4', '17.2.0-canary.3'])(
+        'does not change versions when the tag is equal or older: %s',
+        async (target) => {
+          const directory = await createApp('17.2.0-canary.4')
+          jest
+            .mocked(loadConfig)
+            .mockResolvedValue({ cacheComponents: true } as never)
+          mockSecurityMetadata({ target, ranges: [] })
+          await expect(prepareUpgrade(directory, policy)).resolves.toEqual(
+            expect.objectContaining({ status: 'unaffected' })
+          )
+        }
+      )
+
+      it.each([null, 'invalid', '17.3.0', '17.3.0-rc.1'])(
+        'rejects invalid or wrong-channel tag metadata: %s',
+        async (target) => {
+          const directory = await createApp('17.2.0-canary.4')
+          mockSecurityMetadata({ target })
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            'Could not determine the latest Next.js version on the canary dist-tag.'
+          )
+        }
+      )
+
+      it.each(['17.2.0-rc.1', '17.2.0-beta.1', '17.2.0-preview.1'])(
+        'keeps other prereleases unsupported: %s',
+        async (installed) => {
+          const directory = await createApp(installed)
+          mockSecurityMetadata()
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            'AI upgrades are not available for prerelease versions'
+          )
+          expect(global.fetch).toHaveBeenCalledTimes(0)
+        }
+      )
+    }
+  )
+
+  it.each([false, true])(
+    'rejects an affected Future canary with npm fallback=%s',
+    async (fallback) => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({ fallback, ranges: ['>=17.0.0 <17.2.1'] })
+      await expect(prepareUpgrade(directory, 'future')).rejects.toThrow(
+        '17.2.0-canary.5 is affected by an active advisory.'
+      )
+    }
+  )
+
+  it.each(['17.2.0-canary.4', '17.2.0-canary.3'])(
+    'adopts available defaults without a version change when the tag is %s',
+    async (target) => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockSecurityMetadata({ target, ranges: [] })
+      await expect(prepareUpgrade(directory, 'future')).resolves.toEqual(
+        expect.objectContaining({
+          status: 'ready',
+          targetVersion: '17.2.0-canary.4',
+          futureDefaults: [
+            expect.objectContaining({ name: 'Cache Components' }),
+          ],
+        })
+      )
+    }
+  )
+
+  it('keeps the stable Future availability boundary for a same-base canary', async () => {
+    const directory = await createApp('16.3.0-canary.1')
+    mockSecurityMetadata({ target: '16.3.0-canary.1', ranges: [] })
+    await expect(prepareUpgrade(directory, 'future')).resolves.toEqual(
+      expect.objectContaining({ status: 'unaffected' })
+    )
+  })
+
+  it.each([false, true])(
+    'assesses a retained Future version missing from registry metadata with npm fallback=%s',
+    async (fallback) => {
+      const directory = await createApp('17.2.0-canary.9')
+      mockSecurityMetadata({ fallback, ranges: ['17.2.0-canary.9'] })
+      await expect(prepareUpgrade(directory, 'future')).rejects.toThrow(
+        '17.2.0-canary.9 is affected by an active advisory.'
+      )
+    }
+  )
+
+  it('fails a Future assessment when both advisory providers are unavailable', async () => {
+    const directory = await createApp('17.2.0-canary.4')
+    mockSecurityMetadata({ fallback: true, npmFailure: true })
+    await expect(prepareUpgrade(directory, 'future')).rejects.toThrow(
+      'Could not check for security updates.'
+    )
+  })
+
   it('selects the exact latest stable release', async () => {
     const directory = await createApp('16.2.1')
     mockLatestVersion('17.1.0')

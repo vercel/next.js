@@ -182,6 +182,15 @@ describe('latest nudge release selection', () => {
     ['16.1.0', '17.0.0-canary.1', null],
     ['16.1.0-canary.1', '16.1.0', null],
     ['16.0.0-canary.1', '16.1.0', null],
+    ['17.2.0-canary.4', '17.2.0-canary.9', null],
+    ['17.2.0-canary.9', '17.2.0-canary.10', null],
+    ['17.2.0-canary.4', '17.2.1-canary.0', null],
+    ['17.2.0-canary.4', '17.3.0-canary.0', '17.3.0-canary.0'],
+    ['17.2.0-canary.4', '18.0.0-canary.0', '18.0.0-canary.0'],
+    ['17.2.0-canary.4', '17.2.0-canary.4', null],
+    ['17.2.0-canary.4', '17.1.0-canary.99', null],
+    ['17.2.0-canary.4', '17.3.0-rc.1', null],
+    ['17.2.0-rc.1', '17.3.0', null],
   ])(
     'selects %s → %s for a nudge only across major/minor versions',
     async (installed, latest, expected) => {
@@ -190,6 +199,12 @@ describe('latest nudge release selection', () => {
         .mockResolvedValue(new Response(JSON.stringify({ version: latest })))
 
       await expect(readLatestUpgradeVersion(installed)).resolves.toBe(expected)
+      if (installed.includes('-canary.')) {
+        expect(global.fetch).toHaveBeenCalledWith(
+          'https://registry.npmjs.org/next/canary',
+          expect.any(Object)
+        )
+      }
     }
   )
 })
@@ -201,6 +216,29 @@ describe('latest upgrade nudge', () => {
     jest.mocked(getSecurityAdvisory).mockResolvedValue(null)
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
   })
+
+  it.each(['latest', 'future'] as const)(
+    'links a canary %s reminder to the selected channel',
+    async (policy) => {
+      jest.mocked(getLatestUpgradeVersion).mockResolvedValue('17.3.0-canary.1')
+      await expect(
+        nudgeForUpgrade(directory, config(policy), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(
+          'Reference: https://registry.npmjs.org/next/canary'
+        ),
+      })
+      await expect(
+        nudgeForUpgrade(directory, config(policy), 'build')
+      ).resolves.toBeUndefined()
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Reference: https://registry.npmjs.org/next/canary'
+        )
+      )
+    }
+  )
 
   it('stops once and allows a matching retry with a warning', async () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue('17.0.0')
@@ -296,10 +334,31 @@ describe('composed future nudge', () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
   })
 
-  it('does not offer Future Defaults from a prerelease', async () => {
+  it.each(['16.3.0-canary.1', '16.4.0-rc.1', '16.4.0-beta.1'])(
+    'does not offer defaults before stable availability or for another prerelease: %s',
+    async (version) => {
+      await expect(
+        getFutureUpgrade(config('future', { cacheComponents: false }), version)
+      ).resolves.toBeNull()
+    }
+  )
+
+  it('offers available defaults on canary without a version reminder', async () => {
     await expect(
       getFutureUpgrade(
         config('future', { cacheComponents: false }),
+        '16.4.0-canary.1'
+      )
+    ).resolves.toEqual({
+      installedVersion: '16.4.0-canary.1',
+      names: ['Cache Components'],
+    })
+  })
+
+  it('does not remind about defaults already adopted on canary', async () => {
+    await expect(
+      getFutureUpgrade(
+        config('future', { cacheComponents: true }),
         '16.4.0-canary.1'
       )
     ).resolves.toBeNull()

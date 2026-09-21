@@ -547,6 +547,40 @@ describe('agentic upgrade prompts', () => {
     `)
   })
 
+  it.each(['latest', 'future'] as const)(
+    'hands off the exact canary target for %s upgrades',
+    async (policy) => {
+      jest.mocked(prepareUpgrade).mockResolvedValue({
+        status: 'ready',
+        installedVersion: '17.2.0-canary.4',
+        targetVersion: '17.2.0-canary.9',
+        references: ['https://registry.npmjs.org/next/canary'],
+        futureDefaults: [],
+      })
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: policy,
+      })
+
+      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+      const prompt = normalizedBootstrapCalls().flat().join('\n')
+      expect(prompt).toContain(
+        'from Next.js 17.2.0-canary.4 to 17.2.0-canary.9'
+      )
+      expect(prompt).toContain(
+        policy === 'latest'
+          ? 'newer canary Next.js release'
+          : 'latest canary release'
+      )
+      expect(prompt).toContain('https://registry.npmjs.org/next/canary')
+      expect(String(jest.mocked(writeFile).mock.calls[0][1])).toContain(
+        'upgrade 17.2.0-canary.9 --yes --skip-adoption'
+      )
+    }
+  )
+
   it('adds temporary Future Default instructions to the migration prompt', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
