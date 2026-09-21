@@ -39,16 +39,9 @@ export function createWebSocket(
       webSocket.send(data)
     }
   }
-  let runtimeErrorStateReporter: ReturnType<
-    typeof import('../runtime-error-state').createRuntimeErrorStateReporter
-  > | null
-  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
-    const { createRuntimeErrorStateReporter } =
-      require('../runtime-error-state') as typeof import('../runtime-error-state')
-    runtimeErrorStateReporter = createRuntimeErrorStateReporter(sendMessage)
-  } else {
-    runtimeErrorStateReporter = null
-  }
+  const { createRuntimeErrorStateReporter } =
+    require('../runtime-error-state') as typeof import('../runtime-error-state')
+  const runtimeErrorStateReporter = createRuntimeErrorStateReporter(sendMessage)
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
@@ -65,7 +58,7 @@ export function createWebSocket(
 
     function handleOnline() {
       logQueue.onSocketReady(newWebSocket)
-      runtimeErrorStateReporter?.reportCurrent()
+      runtimeErrorStateReporter.reportCurrent()
 
       reconnections = 0
       window.console.log('[HMR] connected')
