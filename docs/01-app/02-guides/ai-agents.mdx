@@ -12,13 +12,13 @@ related:
     - app/api-reference/config/next-config-js/agentFeedback
 ---
 
-Next.js provides AI coding agents with version-matched documentation, runtime visibility, structured errors, reusable workflows, and automatic feedback. These capabilities help agents use the APIs and patterns supported by your installed Next.js version, verify their work, and report framework friction for your review.
+Next.js provides AI coding agents with version-matched documentation, managed project instructions, runtime visibility, structured errors, reusable workflows, and automatic feedback. These capabilities help agents use the APIs and patterns supported by your installed Next.js version, verify their work, and report framework friction for your review.
 
 <span id="step-1-point-agents-at-the-bundled-docs" />
 
 ## Version-matched documentation
 
-Make sure `AGENTS.md` exists at your project root and directs agents to the bundled docs. When you install `next`, the Next.js documentation is bundled at `node_modules/next/dist/docs/`, mirroring the structure of the [Next.js documentation site](https://nextjs.org/docs):
+Every Next.js installation includes documentation that matches the installed framework version. The documentation is available at `node_modules/next/dist/docs/` and mirrors the structure of the [Next.js documentation site](https://nextjs.org/docs):
 
 ```txt
 node_modules/next/dist/docs/
@@ -31,37 +31,13 @@ node_modules/next/dist/docs/
 └── index.mdx
 ```
 
-Agents always have access to docs that match your installed version, with no network request or external lookup required. [Upgrading Next.js](/docs/app/getting-started/upgrading) also upgrades the bundled docs, including new guidance for existing features. Most AI coding agents, including Claude Code, Codex, Cursor, and GitHub Copilot, automatically read `AGENTS.md` when they start a session.
-
-### New projects
-
-[`create-next-app`](/docs/app/api-reference/cli/create-next-app) generates `AGENTS.md` and `CLAUDE.md` automatically. No additional setup is needed:
-
-```bash package="pnpm"
-pnpm create next-app@canary
-```
-
-```bash package="npm"
-npx create-next-app@canary
-```
-
-```bash package="yarn"
-yarn create next-app@canary
-```
-
-```bash package="bun"
-bun create next-app@canary
-```
-
-If you don't want the agent files, pass `--no-agents-md`:
-
-```bash
-npx create-next-app@canary --no-agents-md
-```
+The bundled copy gives coding agents access to the APIs and patterns supported by the project without a network request or external lookup. [Upgrading Next.js](/docs/app/getting-started/upgrading) also updates the bundled documentation.
 
 ### Managed documentation instructions
 
-Next.js keeps AI coding agents aligned with your installed framework version by adding managed instructions that direct them to the bundled docs. The instructions appear in `AGENTS.md` or `CLAUDE.md` at the project root:
+Next.js makes the bundled documentation discoverable through managed instructions in `AGENTS.md` or `CLAUDE.md` at the project root. Most AI coding agents, including Claude Code, Codex, Cursor, and GitHub Copilot, read these files when they start a session.
+
+[`create-next-app`](/docs/app/api-reference/cli/create-next-app) creates the agent files for new projects. When `next dev` detects a coding agent, it creates or updates the managed instructions for existing projects. The block directs the agent to the documentation installed with the project:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -79,15 +55,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 @AGENTS.md
 ```
 
-Next.js updates only the content between the agent rules markers and preserves the rest of the file.
+Next.js updates only the content between the agent rules markers and preserves the rest of the file. The [`agentRules` API reference](/docs/app/api-reference/config/next-config-js/agentRules) describes how to configure this behavior.
 
-[Benchmark results on nextjs.org/evals](https://nextjs.org/evals) show that agents perform better when they read the bundled docs. See the [`agentRules` API reference](/docs/app/api-reference/config/next-config-js/agentRules) to configure the managed instructions.
+[Benchmark results on nextjs.org/evals](https://nextjs.org/evals) show that agents perform better when they read the bundled documentation.
 
-### For earlier versions
+### Version support
 
-On version 16.2, the docs are bundled but `AGENTS.md` is not auto-generated. Add the file yourself with an instruction to read the bundled docs at `node_modules/next/dist/docs/` before writing code.
+Next.js 16.3 and later include the bundled documentation and managed agent instructions. Next.js 16.2 includes the bundled documentation but does not generate the instructions automatically.
 
-On version 16.1 and earlier, the docs are not bundled either. Use the legacy `agents-md` command, which downloads a version-matched copy to `.next-docs/` in the project root and indexes it in `AGENTS.md`:
+Next.js 16.1 and earlier do not include the bundled documentation. The legacy `agents-md` command downloads a version-matched copy to `.next-docs/` and indexes it in `AGENTS.md`:
 
 ```bash
 npx @next/codemod@canary agents-md
@@ -95,7 +71,7 @@ npx @next/codemod@canary agents-md
 
 ### Docs over the network
 
-The Next.js docs are also available as Markdown over the network, for agents that fetch pages instead of reading `node_modules`. Append `.md` to any page URL on [nextjs.org/docs](https://nextjs.org/docs) for a plain Markdown version, and clients that send an `Accept: text/markdown` header get Markdown too. This includes the per-error pages under `/docs/messages`, which are not bundled.
+The Next.js documentation is also available as Markdown over the network for agents that fetch pages instead of reading `node_modules`. Every page on [nextjs.org/docs](https://nextjs.org/docs) has a plain Markdown version at its `.md` URL, and clients that send an `Accept: text/markdown` header receive Markdown. This includes the per-error pages under `/docs/messages`, which are not bundled.
 
 The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single-file [`/docs/llms-full.txt`](https://nextjs.org/docs/llms-full.txt) follow the [`llms.txt` convention](https://llmstxt.org/), so agents that already read `llms.txt` for other tools can discover the Next.js docs the same way.
 
