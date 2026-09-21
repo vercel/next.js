@@ -53,7 +53,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-import { verifyDistDirOwnership, cleanDistDir } from '../lib/dist-dir'
+import { verifyDistDir, cleanDistDir } from '../lib/dist-dir'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -1290,13 +1290,10 @@ export default async function build(
         )
       }
 
-      // Refuse to recursively delete a directory that doesn't look like ours,
-      // so a misconfigured `distDir` can't destroy user data. This must run
-      // before the lock file is written, since that would make any directory
-      // look like ours. Containment within the project is checked earlier,
-      // during config validation.
+      // Must run before the lock file is written, which would make any
+      // directory look like ours.
       if (config.cleanDistDir && !isGenerateMode) {
-        verifyDistDirOwnership(distDir)
+        verifyDistDir(distDir)
       }
 
       if (config.experimental.lockDistDir) {

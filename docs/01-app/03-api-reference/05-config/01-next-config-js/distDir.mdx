@@ -28,5 +28,4 @@ To protect against data loss, Next.js refuses to clean the directory and fails w
 
 - `distDir` resolves outside both the application directory and the workspace root, such
   as `../..` from a standalone project.
-- `distDir` is not empty and is missing the `.next-build-dir` marker file that Next.js
-  writes into the directories it owns.
+- `distDir` is not empty and does not appear to have been created by Next.js.

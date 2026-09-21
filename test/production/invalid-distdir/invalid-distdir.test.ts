@@ -44,7 +44,7 @@ describe('invalid distDir', () => {
         // Caught by one of the two checks depending on whether the app is its
         // own workspace: containment when it is, ownership when it is not.
         expect(cliOutput).toMatch(
-          /should be inside of the application directory|missing the '\.next-build-dir' file/
+          /should be inside of the application directory|does not appear to have been created by Next\.js/
         )
         // The application's own source is untouched.
         expect(await next.hasFile('pages/index.tsx')).toBe(true)
@@ -62,7 +62,9 @@ describe('invalid distDir', () => {
       async () => {
         const { cliOutput } = await next.build()
 
-        expect(cliOutput).toContain('.next-build-dir')
+        expect(cliOutput).toContain(
+          'does not appear to have been created by Next.js'
+        )
 
         // Nothing was deleted.
         expect(await next.readFile('not-a-build-dir/important.txt')).toBe(

@@ -426,9 +426,6 @@ export async function createHotReloaderTurbopack(
     )
   }
 
-  // `distDir` ownership is verified in `setup-dev-bundler`, before the lock
-  // file is written.
-  //
   // This must finish before Turbopack records any writes. Once turbo-tasks has
   // recorded a write effect, it dedups by hash without checking the file.
   await cleanDistDir(distDir, RETAINED_OUTPUT_PATHS)

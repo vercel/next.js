@@ -16,9 +16,9 @@ data loss, it refuses to clean the directory when either of the following is tru
   Pointing `distDir` elsewhere _inside_ the workspace is supported: an application at
   `apps/web` may use `distDir: '../.next'`.
 
-- `distDir` is not empty and is missing the `.next-build-dir` marker file that Next.js
-  writes into the directories it owns. This usually means it points at a directory used
-  for something else, such as `src` or the application directory itself (`distDir: '.'`).
+- `distDir` is not empty and does not appear to have been created by Next.js. This
+  usually means it points at a directory used for something else, such as `src` or the
+  application directory itself (`distDir: '.'`).
 
 ## Possible Ways to Fix It
 
