@@ -70,7 +70,17 @@ Click a module to see its size, inspect its full import chain and see exactly wh
   height={874}
 />
 
-### Step 4: Write output to disk for sharing or diffing
+### Step 4: Compare snapshots
+
+Each analyzer run saves a snapshot that you can use on either side of a comparison. Use `--snapshot-name` to give the current run a recognizable name:
+
+```bash filename="Terminal"
+npx next experimental-analyze --snapshot-name before-refactor
+```
+
+Run the analyzer again after making changes, then use the **Compare from** and **to** controls to select either named snapshot.
+
+### Step 5: Write output to disk for sharing or diffing
 
 If you want to share the analysis with teammates or compare bundle sizes before/after optimizations, you can skip the interactive view and save the analysis as a static file with the `--output` flag:
 
