@@ -107,11 +107,11 @@ pub fn make_task_dirty(
 
 /// Requires the guard to be allocated with [TaskDataCategory::All]
 pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
-    task: &mut E::TaskGuardImpl,
+    task: &mut E::TaskGuardImpl<'_>,
     make_stale: bool,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut E,
+    ctx: &E,
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.

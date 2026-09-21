@@ -69,7 +69,7 @@ use crate::{
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
             connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
-            prepare_new_children,
+            prepare_connect_children, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -398,7 +398,7 @@ impl TurboTasksBackend {
         task: TaskId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let _ = ctx.task(task, TaskDataCategory::All);
     }
 
@@ -502,11 +502,11 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
-fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
-    ctx: &mut C,
+fn lock_task_and_optional_reader<'e, 'ctx, C: ExecuteContext<'e>>(
+    ctx: &'ctx C,
     task_id: TaskId,
     reader_id: Option<TaskId>,
-) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+) -> (C::TaskGuardImpl<'ctx>, Option<C::TaskGuardImpl<'ctx>>) {
     let Some(reader_id) = reader_id else {
         return (ctx.task(task_id, TaskDataCategory::All), None);
     };
@@ -555,7 +555,7 @@ impl TurboTasksBackend {
                 .then_some(reader_id)
         });
         let (mut task, mut reader_task) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
+            lock_task_and_optional_reader(&ctx, task_id, need_reader_task);
         task.assert_not_deleted("read_task_output");
 
         fn listen_to_done_event(
@@ -792,6 +792,7 @@ impl TurboTasksBackend {
                 OutputValue::Output(task) => Ok(RawVc::task_output(*task)),
                 OutputValue::Error(error) => Err(error.clone()),
             };
+            let mut queue_to_execute = None;
             if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
             {
@@ -829,10 +830,16 @@ impl TurboTasksBackend {
                     let _ = reader_task.add_output_dependencies(task_id);
                 }
                 drop(reader_task);
-
-                queue.execute(&mut ctx);
+                queue_to_execute = Some(queue);
             } else {
                 drop(task);
+            }
+
+            // End every task guard's shared context borrow before queue execution or error
+            // conversion needs mutable access to the execute context.
+            drop(reader_task);
+            if let Some(queue) = queue_to_execute {
+                queue.execute(&mut ctx);
             }
 
             return result.map(ReadOutcome::Value).map_err(|error| {
@@ -922,7 +929,7 @@ impl TurboTasksBackend {
             final_read_hint,
         } = options;
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let need_reader_task = reader.and_then(|reader_id| {
             (self.should_track_dependencies()
                 && !matches!(tracking, ReadCellTracking::Untracked)
@@ -930,7 +937,7 @@ impl TurboTasksBackend {
                 .then_some(reader_id)
         });
         let (mut task, reader_task) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
+            lock_task_and_optional_reader(&ctx, task_id, need_reader_task);
         task.assert_not_deleted("read_task_cell");
 
         let content = if final_read_hint {
@@ -1933,7 +1940,7 @@ impl TurboTasksBackend {
         if task_id.is_transient() {
             return;
         }
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         task.invalidate_serialization();
     }
@@ -1955,7 +1962,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         // Diagnostic path: the caller may name any id, including one that no longer exists, so this
         // must not assert existence. A nonexistent task falls through to the "unknown" case below.
         let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
@@ -2035,7 +2042,7 @@ impl TurboTasksBackend {
         #[cfg(feature = "task_dirty_cause")]
         let cause;
         {
-            let mut ctx = self.execute_context(turbo_tasks);
+            let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
             task.assert_not_deleted("try_start_task_execution");
             task_type = task.get_task_type().to_owned();
@@ -2768,14 +2775,14 @@ impl TurboTasksBackend {
             && task
                 .get_activeness()
                 .is_some_and(|activeness| activeness.active_counter > 0);
-        connect_children(
-            ctx,
+        let connect_plan = prepare_connect_children(
             task_id,
             task,
             new_children,
             has_active_count,
             ctx.should_track_activeness(),
         );
+        connect_children(ctx, connect_plan);
 
         None
     }
@@ -3224,7 +3231,7 @@ impl TurboTasksBackend {
         cell: CellId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<TypedCellContent> {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         task.assert_not_deleted("try_read_own_task_cell");
         if let Some(content) = task.get_cell_data(&cell).cloned() {
@@ -3241,7 +3248,7 @@ impl TurboTasksBackend {
         reader_id: Option<TaskId>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -3375,7 +3382,7 @@ impl TurboTasksBackend {
     }
 
     fn mark_own_task_as_finished(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(InProgressStateInner {
             marked_as_completed,
@@ -3416,7 +3423,7 @@ impl TurboTasksBackend {
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().remove(&task_id);
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();

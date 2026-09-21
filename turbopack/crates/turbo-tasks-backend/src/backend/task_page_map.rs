@@ -324,6 +324,7 @@ impl<T: TaskSlotValue + Send + 'static> PagedVec<T> {
             .count()
     }
 
+    #[cfg(test)]
     fn live_page_count(&self) -> usize {
         self.entries()
             .filter(|(_, entry)| !entry.page.load(Ordering::Acquire).is_null())
@@ -365,7 +366,7 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
         }
     }
 
-    fn namespace_and_index(&self, key: TaskId) -> (&PagedVec<T>, usize) {
+    fn id_space(&self, key: TaskId) -> (&PagedVec<T>, usize) {
         let raw = *key as usize;
         if key.is_transient() {
             (&self.transient, raw & !(TRANSIENT_TASK_BIT as usize))
@@ -379,7 +380,7 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
         key: TaskId,
         access: StorageAccessToken<'a>,
     ) -> Option<TaskMapGuard<'a, T>> {
-        let (namespace, index) = self.namespace_and_index(key);
+        let (namespace, index) = self.id_space(key);
         let entry = namespace.entry(index)?;
         let page = entry.load()?;
         let offset = index & PAGE_MASK;
@@ -401,7 +402,7 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
         if let Some(task) = self.get(key, access) {
             return task;
         }
-        let (namespace, index) = self.namespace_and_index(key);
+        let (namespace, index) = self.id_space(key);
         let entry = namespace.get_or_create_entry(index);
         let page = entry.get_or_insert();
         let offset = index & PAGE_MASK;
@@ -467,22 +468,22 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
         self.persistent.reclaim_empty_pages(access) + self.transient.reclaim_empty_pages(access)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn loaded_page_count(&self) -> usize {
         self.persistent.live_page_count() + self.transient.live_page_count()
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn directory_entry_count(&self) -> usize {
         self.persistent.entries.count() + self.transient.entries.count()
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn directory_entry_size() -> usize {
         std::mem::size_of::<PageDirectoryEntry<T>>()
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn pointer_page_size() -> usize {
         std::mem::size_of::<TaskPointerPage<T>>()
     }

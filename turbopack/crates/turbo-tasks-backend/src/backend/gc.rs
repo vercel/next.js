@@ -168,7 +168,7 @@ impl TurboTasksBackend {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         // Technically we only need to manipulate transient data so meta is overkill. But the task
         // must be resident if we are adding a pin so this isn't wasteful
         let mut task = ctx.task(task, TaskDataCategory::Meta);

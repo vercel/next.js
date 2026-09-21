@@ -8,6 +8,7 @@ mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
 use std::{
+    cell::Cell,
     fmt::{Debug, Display, Formatter},
     sync::Arc,
 };
@@ -60,7 +61,9 @@ enum TaskAccess {
 // exactly one implementation (`ExecuteContextImpl` / `TaskGuardImpl`), so the abstraction buys
 // nothing and just adds declaration overhead and extra generic plumbing.
 pub trait ExecuteContext<'e>: Sized {
-    type TaskGuardImpl: TaskGuard + 'e;
+    type TaskGuardImpl<'ctx>: TaskGuard + 'ctx
+    where
+        Self: 'ctx;
     fn child_context<'l>(&'l self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
     where
         'e: 'l;
@@ -72,7 +75,11 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// The check applies only to persistent tasks; a `MustExist` open of a transient id falls
     /// through to create. See `ExecuteContextImpl::open_task`.
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
+    fn task<'ctx>(
+        &'ctx self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Self::TaskGuardImpl<'ctx>;
     /// Opens a task, materializing an in-memory storage entry for it if one is not resident yet
     /// (inserting a blank, then restoring `category` from disk if present). Use only where the
     /// task's storage may not be resident: the first connect of a freshly-minted child (threads can
@@ -81,29 +88,29 @@ pub trait ExecuteContext<'e>: Sized {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// new `TaskId`.
-    fn open_or_create_task_storage(
-        &mut self,
+    fn open_or_create_task_storage<'ctx>(
+        &'ctx self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Self::TaskGuardImpl;
+    ) -> Self::TaskGuardImpl<'ctx>;
     /// Prepares (as in fetches from persistent storage) a list of tasks.
     /// The iterator should not have duplicates, as this would cause over-fetching.
     fn prepare_tasks(
-        &mut self,
+        &self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
     );
-    fn for_each_task(
-        &mut self,
+    fn for_each_task<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
-        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+        func: impl FnMut(Self::TaskGuardImpl<'ctx>, &'ctx Self),
     );
-    fn for_each_task_meta(
-        &mut self,
+    fn for_each_task_meta<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = TaskId>,
         reason: &'static str,
-        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+        func: impl FnMut(Self::TaskGuardImpl<'ctx>, &'ctx Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
@@ -111,11 +118,11 @@ pub trait ExecuteContext<'e>: Sized {
             func,
         )
     }
-    fn for_each_task_all(
-        &mut self,
+    fn for_each_task_all<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = TaskId>,
         reason: &'static str,
-        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+        func: impl FnMut(Self::TaskGuardImpl<'ctx>, &'ctx Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::All)),
@@ -126,13 +133,13 @@ pub trait ExecuteContext<'e>: Sized {
     /// Opens two tasks that must **already exist** under a single lock acquisition (to atomically
     /// read/mutate an edge between them). Both ids are opened `MustExist` — an edge only exists
     /// between already-materialized tasks.
-    fn task_pair(
-        &mut self,
+    fn task_pair<'ctx>(
+        &'ctx self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority);
+    ) -> (Self::TaskGuardImpl<'ctx>, Self::TaskGuardImpl<'ctx>);
+    fn schedule_task(&self, task: &impl TaskGuard, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
@@ -143,7 +150,7 @@ pub trait ExecuteContext<'e>: Sized {
     /// be a transition to collectibility.
     ///
     /// Only effective in a gc context see [`Self::collects_gc_candidates`].
-    fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
+    fn note_maybe_collectible(&self, task: &impl TaskGuard);
     /// Whether [`Self::note_maybe_collectible`] does anything, i.e. this is a GC context.
     ///
     /// Lets a caller skip work that only exists to feed the collector — in particular opening a
@@ -162,94 +169,55 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
-        &mut self,
+        &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
     ) -> Option<(TaskId, CachedTaskTypeArc)>;
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
     /// Opaque proof that this context is covered by a live operation admission or exclusion.
-    fn storage_access_token(&self) -> StorageAccessToken<'e>;
+    fn storage_access_token(&self) -> StorageAccessToken<'_>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
     fn create(self) -> impl ExecuteContext<'e>;
 }
 
-/// Counter that tracks how many task guards are alive, detecting concurrent access.
+/// Same-context lock count used to reject unordered nested task locks.
 ///
-/// Task guards are `!Send`, and parallel child contexts each own a distinct counter. One context's
-/// counter is therefore touched by only one thread at a time, allowing non-RMW atomic load/store
-/// while retaining `Send` for a context moved between accesses.
-
-#[derive(Clone)]
-struct TaskLockCounter(std::sync::Arc<std::sync::atomic::AtomicU8>);
+/// Task guards borrow this counter from their context and are `!Send`, so plain `Cell` access is
+/// sufficient. The guard's context lifetime — not this count — protects epoch admission.
+struct TaskLockCounter(Cell<u8>);
 
 impl TaskLockCounter {
     fn new() -> Self {
-        Self(std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)))
+        Self(Cell::new(0))
     }
 
-    /// Set the count to 1 and panic if concurrent access is detected.
     fn acquire(&self) {
         assert_eq!(
-            self.0.load(std::sync::atomic::Ordering::Relaxed),
+            self.0.get(),
             0,
             "Concurrent task lock acquisition detected. This is not allowed and indicates a bug. \
              It can lead to deadlocks."
         );
-        self.0.store(1, std::sync::atomic::Ordering::Relaxed);
+        self.0.set(1);
     }
 
-    /// Set the count to `n` and panic if concurrent access is detected.
     fn acquire_multiple(&self, n: u8) {
         assert_eq!(
-            self.0.load(std::sync::atomic::Ordering::Relaxed),
+            self.0.get(),
             0,
             "Concurrent task lock acquisition detected. This is not allowed and indicates a bug. \
              It can lead to deadlocks."
         );
-        self.0.store(n, std::sync::atomic::Ordering::Relaxed);
+        self.0.set(n);
     }
 
-    /// Decrement the same-thread count by 1.
     fn release(&self) {
-        let previous = self.0.load(std::sync::atomic::Ordering::Relaxed);
+        let previous = self.0.get();
         assert!(previous > 0, "task lock counter underflow");
-        self.0
-            .store(previous - 1, std::sync::atomic::Ordering::Relaxed);
-    }
-
-    fn is_clear(&self) -> bool {
-        self.0.load(std::sync::atomic::Ordering::Acquire) == 0
-    }
-
-    fn assert_clear(&self) {
-        assert!(
-            self.is_clear(),
-            "operation reached a suspend point while a task guard was alive"
-        );
-    }
-}
-
-#[cfg(test)]
-mod task_lock_counter_tests {
-    use static_assertions::assert_not_impl_any;
-
-    use super::{TaskGuardImpl, TaskLockCounter};
-
-    assert_not_impl_any!(TaskGuardImpl<'static>: Send, Sync);
-
-    #[test]
-    fn live_task_guard_prevents_suspend() {
-        let counter = TaskLockCounter::new();
-        counter.acquire();
-        assert!(
-            std::panic::catch_unwind(|| counter.assert_clear()).is_err(),
-            "suspension must fail before an active task guard is unregistered"
-        );
-        counter.release();
-        counter.assert_clear();
+        self.0.set(previous - 1);
     }
 }
 
@@ -270,7 +238,7 @@ impl<'e> EpochOwner<'e> {
 
 enum ExecutePhase<'e> {
     Normal {
-        guard: Option<OperationGuard<'e, AnyOperation>>,
+        guard: OperationGuard<'e, AnyOperation>,
         access: StorageAccessToken<'e>,
     },
     Child {
@@ -278,7 +246,7 @@ enum ExecutePhase<'e> {
         access: StorageAccessToken<'e>,
     },
     Gc {
-        collector: &'e dyn Fn(TaskId),
+        collector: &'e (dyn Fn(TaskId) + Send + Sync),
         phase: &'e SnapshotPhase<'e, AnyOperation>,
         access: StorageAccessToken<'e>,
     },
@@ -295,11 +263,7 @@ impl<'e> ExecutePhase<'e> {
 
     fn child_owner(&self) -> EpochOwner<'_> {
         match self {
-            ExecutePhase::Normal { guard, .. } => EpochOwner::Operation(
-                guard
-                    .as_ref()
-                    .expect("normal execute context must retain operation admission"),
-            ),
+            ExecutePhase::Normal { guard, .. } => EpochOwner::Operation(guard),
             ExecutePhase::Child { owner, .. } => *owner,
             ExecutePhase::Gc { phase, .. } => EpochOwner::Exclusion(phase),
         }
@@ -313,27 +277,6 @@ pub struct ExecuteContextImpl<'e> {
     task_lock_counter: TaskLockCounter,
 }
 
-impl Drop for ExecuteContextImpl<'_> {
-    fn drop(&mut self) {
-        if self.task_lock_counter.is_clear() {
-            return;
-        }
-        if let ExecutePhase::Normal { guard, .. } = &mut self.phase
-            && let Some(guard) = guard.take()
-        {
-            // Keep the coordinator admission permanently live rather than allowing an exclusive
-            // phase to free a task pointer still held by an escaped guard. This is a protocol
-            // violation, so fail loudly after preserving memory safety even if panic is caught.
-            std::mem::forget(guard);
-            panic!("execute context dropped while a task guard was alive");
-        }
-        // Child and GC contexts borrow rather than own their admission/phase, so they cannot leak
-        // it to preserve an escaped pointer. Abort rather than permit an unwind catcher to release
-        // the borrowed epoch while a task guard remains live.
-        std::process::abort();
-    }
-}
-
 impl<'e> ExecuteContextImpl<'e> {
     pub(super) fn new(
         backend: &'e TurboTasksBackend,
@@ -344,10 +287,7 @@ impl<'e> ExecuteContextImpl<'e> {
         Self {
             backend,
             turbo_tasks,
-            phase: ExecutePhase::Normal {
-                guard: Some(guard),
-                access,
-            },
+            phase: ExecutePhase::Normal { guard, access },
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -362,7 +302,7 @@ impl<'e> ExecuteContextImpl<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
         _phase: &'e SnapshotPhase<'_, AnyOperation>,
-        gc_collectible: &'e dyn Fn(TaskId),
+        gc_collectible: &'e (dyn Fn(TaskId) + Send + Sync),
     ) -> Self {
         Self {
             backend,
@@ -376,12 +316,12 @@ impl<'e> ExecuteContextImpl<'e> {
         }
     }
 
-    fn open_task(
-        &mut self,
+    fn open_task<'ctx>(
+        &'ctx self,
         task_id: TaskId,
         category: TaskDataCategory,
         access: TaskAccess,
-    ) -> TaskGuardImpl<'e> {
+    ) -> TaskGuardImpl<'ctx> {
         self.task_lock_counter.acquire();
 
         // A resident entry always corresponds to a task that exists (only a `MaybeCreate` open ever
@@ -518,7 +458,7 @@ impl<'e> ExecuteContextImpl<'e> {
             task_id,
             #[cfg(debug_assertions)]
             category,
-            task_lock_counter: self.task_lock_counter.clone(),
+            task_lock_counter: &self.task_lock_counter,
         }
     }
 
@@ -640,16 +580,16 @@ impl<'e> ExecuteContextImpl<'e> {
         }
     }
 
-    fn prepare_tasks_with_callback(
-        &mut self,
+    fn prepare_tasks_with_callback<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         call_prepared_task_callback_for_transient_tasks: bool,
         reason: &'static str,
         mut prepared_task_callback: impl FnMut(
-            &mut Self,
+            &'ctx Self,
             TaskId,
             TaskDataCategory,
-            StorageWriteGuard<'e>,
+            StorageWriteGuard<'ctx>,
         ),
     ) {
         #[cfg(feature = "trace_prepare_tasks")]
@@ -1041,7 +981,10 @@ fn apply_restore_result(
 }
 
 impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
-    type TaskGuardImpl = TaskGuardImpl<'e>;
+    type TaskGuardImpl<'ctx>
+        = TaskGuardImpl<'ctx>
+    where
+        Self: 'ctx;
 
     fn child_context<'l>(&'l self) -> impl ChildExecuteContext<'l> + use<'e, 'l>
     where
@@ -1056,33 +999,37 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         }
     }
 
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
+    fn task<'ctx>(
+        &'ctx self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Self::TaskGuardImpl<'ctx> {
         self.open_task(task_id, category, TaskAccess::MustExist)
     }
 
-    fn open_or_create_task_storage(
-        &mut self,
+    fn open_or_create_task_storage<'ctx>(
+        &'ctx self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Self::TaskGuardImpl {
+    ) -> Self::TaskGuardImpl<'ctx> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
     }
 
     fn prepare_tasks(
-        &mut self,
+        &self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
     ) {
         self.prepare_tasks_with_callback(task_ids, false, reason, |_, _, _, _| {});
     }
 
-    fn for_each_task(
-        &mut self,
+    fn for_each_task<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
-        mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+        mut func: impl FnMut(Self::TaskGuardImpl<'ctx>, &'ctx Self),
     ) {
-        let task_lock_counter = self.task_lock_counter.clone();
+        let task_lock_counter = &self.task_lock_counter;
         self.prepare_tasks_with_callback(
             task_ids,
             true,
@@ -1098,19 +1045,19 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                     task_id,
                     #[cfg(debug_assertions)]
                     category: _category,
-                    task_lock_counter: task_lock_counter.clone(),
+                    task_lock_counter,
                 };
                 func(guard, this);
             },
         );
     }
 
-    fn task_pair(
-        &mut self,
+    fn task_pair<'ctx>(
+        &'ctx self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl) {
+    ) -> (Self::TaskGuardImpl<'ctx>, Self::TaskGuardImpl<'ctx>) {
         self.task_lock_counter.acquire_multiple(2);
 
         let (mut task1, mut task2) =
@@ -1293,19 +1240,19 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 task_id: task_id1,
                 #[cfg(debug_assertions)]
                 category,
-                task_lock_counter: self.task_lock_counter.clone(),
+                task_lock_counter: &self.task_lock_counter,
             },
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 #[cfg(debug_assertions)]
                 category,
-                task_lock_counter: self.task_lock_counter.clone(),
+                task_lock_counter: &self.task_lock_counter,
             },
         )
     }
 
-    fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority) {
+    fn schedule_task(&self, task: &impl TaskGuard, parent_priority: TaskPriority) {
         let priority = schedule_priority(task, parent_priority);
         self.turbo_tasks.schedule(task.id(), priority);
     }
@@ -1318,7 +1265,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         // suspend guards become no-ops under GC
         match self.phase {
             ExecutePhase::Normal { .. } => {
-                self.task_lock_counter.assert_clear();
+                // A live task guard borrows this context, so this `&mut self` method is unavailable
+                // until every guard has dropped.
                 self.backend.operation_suspend_point(|| op.clone().into());
             }
             // Children remain covered by the parent's admission until their scope joins. They must
@@ -1327,7 +1275,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         }
     }
 
-    fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {
+    fn note_maybe_collectible(&self, task: &impl TaskGuard) {
         if let ExecutePhase::Gc { collector, .. } = self.phase
             && task.is_gc_collectible()
         {
@@ -1352,7 +1300,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn task_by_type(
-        &mut self,
+        &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
@@ -1385,7 +1333,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         self.backend.debug_get_task_description(task_id)
     }
 
-    fn storage_access_token(&self) -> StorageAccessToken<'e> {
+    fn storage_access_token(&self) -> StorageAccessToken<'_> {
         self.phase.access_token()
     }
 }
@@ -1810,7 +1758,7 @@ pub struct TaskGuardImpl<'a> {
     // None means no categories are accessible other than transient data.
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
-    task_lock_counter: TaskLockCounter,
+    task_lock_counter: &'a TaskLockCounter,
 }
 
 impl Drop for TaskGuardImpl<'_> {
@@ -2036,13 +1984,13 @@ impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue);
 
+pub(crate) use self::connect_children::{connect_children, prepare_connect_children};
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
         is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::{OutdatedEdge, capture_all_outgoing_edges},
-    connect_children::connect_children,
     invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
@@ -2083,28 +2031,32 @@ mod filter_transient_tracking_tests {
     /// Build a `TaskGuardImpl` for a persistent task, fully restored and with
     /// `All` category so `check_access` passes for both data and meta fields.
     /// The guard must be dropped before `storage` (enforced by the borrow).
-    fn guard_for(storage: &Storage, task_id: TaskId) -> TaskGuardImpl<'_> {
+    fn guard_for<'a>(
+        storage: &'a Storage,
+        counter: &'a TaskLockCounter,
+        task_id: TaskId,
+    ) -> TaskGuardImpl<'a> {
         let mut write = storage.access_mut(StorageAccessToken::operation(), task_id);
         write.flags.set_restored(TaskDataCategory::All);
-        let task_lock_counter = TaskLockCounter::new();
-        task_lock_counter.acquire();
+        counter.acquire();
         TaskGuardImpl {
             task: write,
             task_id,
             #[cfg(debug_assertions)]
             category: TaskDataCategory::All,
-            task_lock_counter,
+            task_lock_counter: counter,
         }
     }
 
     #[test]
     fn autoset_add_remove_only_tracks_persistent_keys() {
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
         let task_id = persistent_task(1);
 
         // `children` is an AutoSet<TaskId> meta field with filter_transient.
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             assert!(g.add_children(transient_task(2)));
             assert!(
                 !g.meta_modified(),
@@ -2124,7 +2076,7 @@ mod filter_transient_tracking_tests {
         // persistent entry must.
         let task_id = persistent_task(10);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             // Seed via the tracked accessors, then clear the flag so the removal
             // assertions below start from a clean state. (`children_mut` is not
             // accessible cross-module, so we can't seed untracked here.)
@@ -2150,11 +2102,12 @@ mod filter_transient_tracking_tests {
     #[test]
     fn autoset_extend_tracks_iff_any_persistent() {
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
 
         // Extend with only transient children: no meta modification.
         let task_id = persistent_task(1);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.extend_children([transient_task(2), transient_task(3)]);
             assert!(g.children_contains(&transient_task(2)));
             assert!(
@@ -2166,7 +2119,7 @@ mod filter_transient_tracking_tests {
         // Extend with a mix: meta modification.
         let task_id = persistent_task(10);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.extend_children([transient_task(11), persistent_task(12)]);
             assert!(
                 g.meta_modified(),
@@ -2178,11 +2131,12 @@ mod filter_transient_tracking_tests {
     #[test]
     fn countermap_update_count_only_tracks_persistent_keys() {
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
         let task_id = persistent_task(1);
 
         // `upper` is a CounterMap<TaskId> meta field with filter_transient.
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             let _ = g.update_upper_count(transient_task(2), 1);
             assert!(
                 !g.meta_modified(),
@@ -2201,11 +2155,12 @@ mod filter_transient_tracking_tests {
     #[test]
     fn countermap_update_counts_batch_tracks_iff_any_persistent() {
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
 
         // followers: CounterMap<TaskId>, filter_transient, has update_counts.
         let task_id = persistent_task(1);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.update_followers_counts([transient_task(2), transient_task(3)].into_iter(), 1);
             assert!(
                 !g.meta_modified(),
@@ -2215,7 +2170,7 @@ mod filter_transient_tracking_tests {
 
         let task_id = persistent_task(10);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.update_followers_counts([transient_task(11), persistent_task(12)].into_iter(), 1);
             assert!(
                 g.meta_modified(),
@@ -2227,12 +2182,13 @@ mod filter_transient_tracking_tests {
     #[test]
     fn direct_option_set_take_tracks_by_value_transience() {
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
 
         // `output` is a direct Option<OutputValue> meta field with filter_transient.
         // Setting a transient output: no meta modification.
         let task_id = persistent_task(1);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.set_output(OutputValue::Output(transient_task(2)));
             assert!(
                 !g.meta_modified(),
@@ -2250,7 +2206,7 @@ mod filter_transient_tracking_tests {
         // Setting a persistent output: meta modification.
         let task_id = persistent_task(10);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.set_output(OutputValue::Output(persistent_task(11)));
             assert!(
                 g.meta_modified(),
@@ -2261,7 +2217,7 @@ mod filter_transient_tracking_tests {
         // Taking a persistent output dirties meta (seed untracked first).
         let task_id = persistent_task(20);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.typed_mut()
                 .set_output(OutputValue::Cell(cell_ref(persistent_task(21))));
             assert!(!g.meta_modified());
@@ -2278,7 +2234,7 @@ mod filter_transient_tracking_tests {
         // value untracked, clear the flag, then replace.)
         let task_id = persistent_task(30);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.typed_mut()
                 .set_output(OutputValue::Output(persistent_task(31)));
             g.task.flags.set_meta_modified(false);
@@ -2295,7 +2251,7 @@ mod filter_transient_tracking_tests {
         // persists).
         let task_id = persistent_task(40);
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.set_output(OutputValue::Output(transient_task(41)));
             assert!(!g.meta_modified());
             g.set_output(OutputValue::Output(transient_task(42)));
@@ -2354,17 +2310,20 @@ mod cell_data_tracking_tests {
         SharedReference::new(triomphe::Arc::new(0u32))
     }
 
-    fn guard_for(storage: &Storage, task_id: TaskId) -> TaskGuardImpl<'_> {
+    fn guard_for<'a>(
+        storage: &'a Storage,
+        counter: &'a TaskLockCounter,
+        task_id: TaskId,
+    ) -> TaskGuardImpl<'a> {
         let mut write = storage.access_mut(StorageAccessToken::operation(), task_id);
         write.flags.set_restored(TaskDataCategory::All);
-        let task_lock_counter = TaskLockCounter::new();
-        task_lock_counter.acquire();
+        counter.acquire();
         TaskGuardImpl {
             task: write,
             task_id,
             #[cfg(debug_assertions)]
             category: TaskDataCategory::All,
-            task_lock_counter,
+            task_lock_counter: counter,
         }
     }
 
@@ -2376,7 +2335,8 @@ mod cell_data_tracking_tests {
         // are still stored in memory. Tracking is monotonic: a later persistable
         // write flips the flag even after skipped writes left it clean.
         let storage = Storage::new(2, true);
-        let mut g = guard_for(&storage, persistent_task(1));
+        let counter = TaskLockCounter::new();
+        let mut g = guard_for(&storage, &counter, persistent_task(1));
 
         let skip = cell_of::<SkipCheapV>(0);
         g.insert_cell_data(skip, dummy_ref(), persistence_of(&skip));
@@ -2399,11 +2359,12 @@ mod cell_data_tracking_tests {
     #[test]
     fn remove_tracks_only_for_persistable() {
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
         let skip = cell_of::<SkipCheapV>(0);
         let persistable = cell_of::<PersistableV>(0);
 
         // Removing a Skip cell: no tracking.
-        let mut g = guard_for(&storage, persistent_task(1));
+        let mut g = guard_for(&storage, &counter, persistent_task(1));
         g.insert_cell_data(skip, dummy_ref(), persistence_of(&skip));
         assert!(!g.data_modified());
         assert!(g.remove_cell_data(&skip, persistence_of(&skip)).is_some());
@@ -2411,10 +2372,11 @@ mod cell_data_tracking_tests {
             !g.data_modified(),
             "removing a Skip cell must not dirty data"
         );
+        drop(g);
 
         // Removing a Persistable cell: tracks. Seed via the tracking-free
         // TaskStorage accessor so the removal is the only tracked mutation.
-        let mut g = guard_for(&storage, persistent_task(2));
+        let mut g = guard_for(&storage, &counter, persistent_task(2));
         g.typed_mut()
             .cell_data_mut()
             .insert(persistable, dummy_ref());
@@ -2438,11 +2400,12 @@ mod cell_data_tracking_tests {
         // a task that only wrote such a cell is both evictable-clean AND keeps the
         // value. This is the core safety property of not tracking Skip writes.
         let storage = Storage::new(2, true);
+        let counter = TaskLockCounter::new();
         let task_id = persistent_task(1);
         let cell = cell_of::<SkipNeverV>(0);
 
         {
-            let mut g = guard_for(&storage, task_id);
+            let mut g = guard_for(&storage, &counter, task_id);
             g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell));
             assert!(
                 !g.data_modified(),
@@ -2457,10 +2420,37 @@ mod cell_data_tracking_tests {
             crate::backend::snapshot_coordinator::SnapshotCoordinator::<AnyOperation>::new();
         storage.evict_after_snapshot(&coordinator, None);
 
-        let g = guard_for(&storage, task_id);
+        let g = guard_for(&storage, &counter, task_id);
         assert!(
             g.cell_data_contains(&cell),
             "Skip + evict=never cell must survive eviction even though the task was never modified"
         );
+    }
+}
+
+#[cfg(test)]
+mod task_lock_counter_tests {
+    use static_assertions::{assert_impl_all, assert_not_impl_any};
+
+    use super::{ChildExecuteContextImpl, ExecuteContextImpl, TaskGuardImpl, TaskLockCounter};
+
+    assert_not_impl_any!(TaskGuardImpl<'static>: Send, Sync);
+    assert_not_impl_any!(ExecuteContextImpl<'static>: Sync);
+    assert_impl_all!(ExecuteContextImpl<'static>: Send);
+    assert_impl_all!(ChildExecuteContextImpl<'static>: Send);
+
+    #[test]
+    fn counter_rejects_nested_independent_locks_and_tracks_pairs() {
+        let counter = TaskLockCounter::new();
+        counter.acquire();
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| counter.acquire())).is_err(),
+            "a second independent task lock must be rejected"
+        );
+        counter.release();
+
+        counter.acquire_multiple(2);
+        counter.release();
+        counter.release();
     }
 }

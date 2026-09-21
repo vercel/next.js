@@ -18,18 +18,26 @@ use crate::backend::{
     storage_schema::TaskStorageAccessors,
 };
 
-pub fn connect_children(
-    ctx: &mut impl ExecuteContext<'_>,
+pub(crate) struct ConnectChildrenPlan {
+    parent_task_id: TaskId,
+    new_follower_ids: SmallVec<[TaskId; 4]>,
+    upper_ids: Option<SmallVec<[TaskId; 4]>>,
+    parent_has_active_count: bool,
+    should_track_activeness: bool,
+}
+
+/// Mutates the parent while its task guard is live, then returns owned work that can be applied
+/// after the guard — and therefore its shared execute-context borrow — has ended.
+pub(crate) fn prepare_connect_children(
     parent_task_id: TaskId,
     mut parent_task: impl TaskGuard,
     new_children: FxHashSet<TaskId>,
     parent_has_active_count: bool,
     should_track_activeness: bool,
-) {
+) -> ConnectChildrenPlan {
     debug_assert!(!new_children.is_empty());
 
     let parent_aggregation = get_aggregation_number(&parent_task);
-
     let old_children = parent_task.children_len();
     parent_task.extend_children(new_children.iter().copied());
     debug_assert!(
@@ -39,12 +47,26 @@ pub fn connect_children(
         len = new_children.len()
     );
 
-    let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
+    let new_follower_ids = new_children.into_iter().collect();
+    let upper_ids = (!is_aggregating_node(parent_aggregation)).then(|| get_uppers(&parent_task));
 
-    let aggregating_node = is_aggregating_node(parent_aggregation);
-    let upper_ids = (!aggregating_node).then(|| get_uppers(&parent_task));
+    ConnectChildrenPlan {
+        parent_task_id,
+        new_follower_ids,
+        upper_ids,
+        parent_has_active_count,
+        should_track_activeness,
+    }
+}
 
-    drop(parent_task);
+pub(crate) fn connect_children(ctx: &mut impl ExecuteContext<'_>, plan: ConnectChildrenPlan) {
+    let ConnectChildrenPlan {
+        parent_task_id,
+        new_follower_ids,
+        upper_ids,
+        parent_has_active_count,
+        should_track_activeness,
+    } = plan;
 
     fn process_new_children(
         ctx: &mut impl ExecuteContext<'_>,

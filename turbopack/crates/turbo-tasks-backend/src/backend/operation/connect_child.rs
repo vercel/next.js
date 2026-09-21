@@ -20,12 +20,12 @@ use crate::{
 /// connect handshake.
 ///
 /// GC destructively mutates tasks so mark resurrected tasks as dirty to get them re-scheduled.
-pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
-    guard: C::TaskGuardImpl,
+pub(super) fn resurrect_deleted<'e, 'ctx, C: ExecuteContext<'e>>(
+    guard: C::TaskGuardImpl<'ctx>,
     task_id: TaskId,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut C,
-) -> C::TaskGuardImpl {
+    ctx: &'ctx C,
+) -> C::TaskGuardImpl<'ctx> {
     if !guard.deleted() {
         return guard;
     }
@@ -126,7 +126,7 @@ impl ConnectChildOperation {
 
             // Revive the child if GC soft-deleted it. This can happen in a rare race between a
             // cache hit on a task and snapshotting actually performing the delete.
-            let mut child_task = resurrect_deleted(child_task, child_task_id, &mut queue, &mut ctx);
+            let mut child_task = resurrect_deleted(child_task, child_task_id, &mut queue, &ctx);
 
             let has_output = child_task.has_output();
             // An already constructed top-level task was made a root when it was first connected.
