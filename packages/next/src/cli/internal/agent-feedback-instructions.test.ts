@@ -1,4 +1,7 @@
-import { loadAgentFeedbackInstructions } from './agent-feedback-instructions'
+import {
+  agentFeedbackInstructionsCli,
+  loadAgentFeedbackInstructions,
+} from './agent-feedback-instructions'
 
 describe('loadAgentFeedbackInstructions', () => {
   it('returns the protocol when feedback is enabled', async () => {
@@ -45,5 +48,37 @@ describe('loadAgentFeedbackInstructions', () => {
         }
       )
     ).resolves.toBeNull()
+  })
+
+  it('propagates feedback status errors', async () => {
+    await expect(
+      loadAgentFeedbackInstructions({}, async () => {
+        throw new Error('network unavailable')
+      })
+    ).rejects.toThrow('network unavailable')
+  })
+})
+
+describe('agentFeedbackInstructionsCli', () => {
+  const originalExitCode = process.exitCode
+
+  afterEach(() => {
+    process.exitCode = originalExitCode
+    jest.restoreAllMocks()
+  })
+
+  it('reports feedback status errors and exits with a failure', async () => {
+    const writeError = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+
+    await agentFeedbackInstructionsCli({}, async () => {
+      throw new Error('network unavailable')
+    })
+
+    expect(writeError).toHaveBeenCalledWith(
+      'Unable to check whether Next.js agent feedback is enabled. Rerun this command with network access.\n'
+    )
+    expect(process.exitCode).toBe(1)
   })
 })

@@ -14,7 +14,11 @@ import {
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { encodeHeaderSafe } from '../../lib/encode-header-safe'
-import { createRevalidateDuringRenderError } from '../../use-cache/use-cache-messages'
+import {
+  createRevalidateDuringRenderError,
+  createRevalidateInBuildTimeGeneratorError,
+  createRevalidateInCachedFunctionError,
+} from '../../use-cache/use-cache-messages'
 import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
@@ -145,16 +149,34 @@ function revalidate(
 
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
+    // Prefer the more specific contexts over the general render-phase error.
+    switch (workUnitStore.type) {
+      case 'build-time-generator':
+        throw createRevalidateInBuildTimeGeneratorError(
+          store.route,
+          expression,
+          workUnitStore.functionName
+        )
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw createRevalidateInCachedFunctionError(store.route, expression)
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'prerender-legacy':
+      case 'request':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+
     if (workUnitStore.phase === 'render') {
       throw createRevalidateDuringRenderError(store.route, expression)
     }
 
     switch (workUnitStore.type) {
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-      case 'generate-static-params':
-        throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender

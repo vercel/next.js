@@ -112,8 +112,13 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
     case 'prerender-runtime': {
       break
     }
-    case 'generate-static-params': {
+    case 'build-time-generator': {
       if (!(paramName in workUnitStore.rootParams)) {
+        if (workUnitStore.functionName !== 'generateStaticParams') {
+          throw new Error(
+            `Route ${workStore.route} used ${apiName} inside \`${workUnitStore.functionName}\`, but the \`${paramName}\` parameter is not available in this build-time generator.`
+          )
+        }
         throw new Error(
           `Route ${workStore.route} used ${apiName} inside \`generateStaticParams\`, but the \`${paramName}\` parameter was not provided by a parent \`generateStaticParams\`. In \`generateStaticParams\`, root params are only available for segments nested below the segment that provides them.`
         )

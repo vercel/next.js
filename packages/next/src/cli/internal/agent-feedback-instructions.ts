@@ -9,10 +9,13 @@ const AGENT_FEEDBACK_PROTOCOL_PATH = path.join(
 
 type IsEnabled = () => Promise<boolean>
 type ReadProtocol = () => Promise<string>
-
 export interface AgentFeedbackInstructionsOptions {
   dryRun?: boolean
 }
+
+type LoadInstructions = (
+  options?: AgentFeedbackInstructionsOptions
+) => Promise<string | null>
 
 const DRY_RUN_INSTRUCTIONS = `# Dry run
 
@@ -26,11 +29,11 @@ export async function loadAgentFeedbackInstructions(
   readProtocol: ReadProtocol = () =>
     readFile(AGENT_FEEDBACK_PROTOCOL_PATH, 'utf8')
 ): Promise<string | null> {
-  try {
-    if (!options.dryRun && !(await isEnabled())) {
-      return null
-    }
+  if (!options.dryRun && !(await isEnabled())) {
+    return null
+  }
 
+  try {
     const protocol = await readProtocol()
     return options.dryRun ? `${DRY_RUN_INSTRUCTIONS}${protocol}` : protocol
   } catch {
@@ -39,10 +42,18 @@ export async function loadAgentFeedbackInstructions(
 }
 
 export async function agentFeedbackInstructionsCli(
-  options: AgentFeedbackInstructionsOptions = {}
+  options: AgentFeedbackInstructionsOptions = {},
+  loadInstructions: LoadInstructions = loadAgentFeedbackInstructions
 ): Promise<void> {
-  const instructions = await loadAgentFeedbackInstructions(options)
-  if (instructions) {
-    process.stdout.write(instructions)
+  try {
+    const instructions = await loadInstructions(options)
+    if (instructions) {
+      process.stdout.write(instructions)
+    }
+  } catch {
+    process.stderr.write(
+      'Unable to check whether Next.js agent feedback is enabled. Rerun this command with network access.\n'
+    )
+    process.exitCode = 1
   }
 }

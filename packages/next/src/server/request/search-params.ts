@@ -70,9 +70,9 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createSearchParamsFromClient should not be called inside generateStaticParams.'
+          `createSearchParamsFromClient should not be called inside ${workUnitStore.functionName}.`
         )
       case 'validation-client': {
         if (workUnitStore.validationSamples) {
@@ -133,9 +133,9 @@ export function createServerSearchParamsForServerPage(
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerSearchParamsForServerPage should not be called inside generateStaticParams.'
+          `createServerSearchParamsForServerPage should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
@@ -195,9 +195,9 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
+          `createPrerenderSearchParamsForClientPage should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-legacy':
       case 'request':

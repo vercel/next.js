@@ -456,6 +456,9 @@ function assignDefaultsAndValidate(
     },
   }
 
+  result.experimental.strictRouteMatching =
+    !result.deprecated.looseRouteMatching
+
   // Pruning assumes that children only exists when it is backed by an
   // ordinary route branch. Restoring the legacy implicit children slot must
   // therefore also restore the legacy matcher behavior.

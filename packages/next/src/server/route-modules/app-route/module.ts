@@ -1508,7 +1508,7 @@ function trackDynamic(
           workUnitStore.usedDynamic = true
         }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
