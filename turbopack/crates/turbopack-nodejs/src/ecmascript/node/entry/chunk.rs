@@ -2,7 +2,6 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -76,8 +75,8 @@ impl EcmascriptBuildNodeEntryChunk {
         let chunk_path = self.path().owned().await?;
         let chunk_directory = self.path().await?.parent();
         let runtime_path = self.runtime_chunk().path().owned().await?;
-        let runtime_relative_path =
-            if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
+        let runtime_request =
+            if let Some(path) = chunk_directory.get_relative_request_to(&runtime_path) {
                 path
             } else {
                 turbobail!(
@@ -85,11 +84,6 @@ impl EcmascriptBuildNodeEntryChunk {
                      chunk ({runtime_path})",
                 );
             };
-        let runtime_request = if runtime_relative_path.starts_with("../") {
-            runtime_relative_path
-        } else {
-            RcStr::from(format!("./{runtime_relative_path}"))
-        };
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {

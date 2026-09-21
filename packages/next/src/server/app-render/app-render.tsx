@@ -1071,14 +1071,14 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   const selectStaleTime = createSelectStaleTime(experimental)
   const staleTimeIterable = new StaleTimeIterable()
+  const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
 
   const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
-    // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-    // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-    // we should change this to track sync IO, log an error and advance to dynamic.
-    syncIO: SyncIOMode.Untracked,
+    // Synchronous request-time data ends the static stage before its result can
+    // enter the Cached Navigation.
+    syncIO: getSyncIOMode(prefetchMode),
     finalStage: null,
   })
 
@@ -1111,10 +1111,7 @@ async function generateStagedDynamicFlightRenderResultNode(
   // fill caches and then spawn a final runtime prerender whose result stream
   // is embedded in the RSC payload. This is gated because it adds extra server
   // processing and increases the response payload size.
-  if (
-    Boolean(renderOpts.partialPrefetching) ||
-    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
-  ) {
+  if (prefetchMode === PrefetchingMode.Partial) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
     requestStore.resumeDataCache = prerenderResumeDataCache
@@ -1359,7 +1356,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: (() => RequestStore) | undefined,
-  fallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<RenderResult> {
   const {
     htmlRequestId,
@@ -1512,7 +1509,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       getPayload,
       onError,
       shouldValidate,
-      fallbackRouteParams: fallbackParams,
+      fallbackRouteParams: stagedFallbackParams,
       getDevRenderDidError: () => didErrorObservably,
       navigationKind: {
         type: 'prefetched-client',
@@ -2401,7 +2398,8 @@ async function getErrorRSCPayload(
     ctx.missingPrefetchHintPolicy,
     Boolean(ctx.renderOpts.partialPrefetching),
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.notFoundParams
   )
   // Attach the error shell as the root's render output. Vary params are not
   // tracked for error pages.
@@ -2601,7 +2599,7 @@ function installGlobalModuleLoadingHandlers(
       case 'prerender-legacy':
       case 'request':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         return false
       default:
         workUnitStore satisfies never
@@ -3009,7 +3007,16 @@ async function renderAppPage(
     null
 
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
-  const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
+  // Keep the placeholder map for dev's separate prerender validation. The
+  // request store only needs names to defer params during a staged render.
+  const stagedFallbackParams =
+    getRequestMeta(req, 'stagedFallbackParams') ?? null
+  const stagedFallbackParamNames =
+    postponedState?.stagedFallbackParams !== undefined
+      ? postponedState.stagedFallbackParams
+      : stagedFallbackParams
+        ? new Set(stagedFallbackParams.keys())
+        : null
   const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
   const createRequestStore = createRequestStoreForRender.bind(
@@ -3024,7 +3031,7 @@ async function renderAppPage(
     isHmrRefresh,
     serverComponentsHmrCache,
     renderResumeDataCache,
-    fallbackParams,
+    stagedFallbackParamNames,
     hmrRefreshHash
   )
   const requestStore = createRequestStore()
@@ -3069,7 +3076,7 @@ async function renderAppPage(
           ctx,
           requestStore,
           createRequestStore,
-          fallbackParams
+          stagedFallbackParams
         )
       } else if (cacheComponents && cachedNavigations) {
         // MARK: RSC cacheComponents
@@ -3116,7 +3123,7 @@ async function renderAppPage(
           postponedState,
           metadata,
           undefined, // Prevent restartable-render behavior in dev + Cache Components mode
-          fallbackParams
+          stagedFallbackParams
         )
 
         return new RenderResult(stream, {
@@ -3158,7 +3165,7 @@ async function renderAppPage(
     // and we currently we don't copy changes over when creating a new store,
     // so the restarted render wouldn't be correct.
     didExecuteServerAction ? undefined : createRequestStore,
-    fallbackParams
+    stagedFallbackParams
   )
 
   // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
@@ -3353,7 +3360,6 @@ function prepareAppPage(
     } else {
       postponedState = parsePostponedState(
         renderOpts.postponed,
-        interpolatedParams,
         renderOpts.experimental.maxPostponedStateSizeBytes,
         renderOpts.experimental.disableResumeDataCacheCompression
       )
@@ -3534,7 +3540,7 @@ async function renderToStream(
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
-  fallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
@@ -3782,7 +3788,7 @@ async function renderToStream(
               getPayload,
               onError: serverComponentsErrorHandler,
               shouldValidate: true,
-              fallbackRouteParams: fallbackParams,
+              fallbackRouteParams: stagedFallbackParams,
               getDevRenderDidError: () => didErrorObservably,
               // An initial HTML load serves the static shell; runtime and
               // dynamic content stream in afterward.
@@ -3844,14 +3850,14 @@ async function renderToStream(
 
         const selectStaleTime = createSelectStaleTime(experimental)
         const staleTimeIterable = new StaleTimeIterable()
+        const prefetchMode = await getPrefetchingModeForPage(renderOpts, tree)
 
         const stageController = new StagedRenderingController({
           abortSignal: null,
           abandonController: null,
-          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-          // we should change this to track sync IO, log an error and advance to dynamic.
-          syncIO: SyncIOMode.Untracked,
+          // Synchronous request-time data ends the static stage before its
+          // result can enter the Cached Navigation.
+          syncIO: getSyncIOMode(prefetchMode),
           finalStage: null,
         })
 
@@ -3887,10 +3893,7 @@ async function renderToStream(
         // Partial Prefetching is on for the route, either per segment (a
         // `prefetch` of 'partial') or globally (the
         // `partialPrefetching` config).
-        if (
-          Boolean(renderOpts.partialPrefetching) ||
-          (await anySegmentHasPartialPrefetchingEnabled(tree))
-        ) {
+        if (prefetchMode === PrefetchingMode.Partial) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
 
@@ -5283,7 +5286,13 @@ async function resolveLazyDevValidationInputs(
   }
 
   if ('syncInterruptReason' in inputs) {
-    await logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    await logMessagesAndSendErrorsToBrowser(
+      [inputs.syncInterruptReason],
+      ctx,
+      // We're not going to run validation, so mark this as the validation result for tests.
+      { logAsValidationResult: true }
+    )
+
     return VALIDATION_BAILOUT
   }
   return inputs
@@ -5294,7 +5303,12 @@ function forwardErrorsFromWarmRender(
   ctx: AppRenderContext
 ) {
   if ('syncInterruptReason' in inputs) {
-    void logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    void logMessagesAndSendErrorsToBrowser(
+      [inputs.syncInterruptReason],
+      ctx,
+      // We're not going to run validation, so mark this as the validation result for tests.
+      { logAsValidationResult: true }
+    )
     return true
   }
 
@@ -6400,10 +6414,23 @@ function createAsyncApiPromises(
  */
 async function logMessagesAndSendErrorsToBrowser(
   messages: unknown[],
-  ctx: AppRenderContext
+  ctx: AppRenderContext,
+  options: { logAsValidationResult?: boolean } = {}
 ): Promise<void> {
-  const { htmlRequestId, renderOpts } = ctx
+  const logAsValidationResult =
+    process.env.__NEXT_TEST_MODE &&
+    process.env.NEXT_TEST_LOG_VALIDATION &&
+    options.logAsValidationResult
+
+  const { htmlRequestId, requestId, renderOpts } = ctx
+  const url = ctx.url.href
   const { sendErrorsToBrowser } = renderOpts
+
+  if (logAsValidationResult) {
+    console.log(
+      formatValidationEvent({ type: 'validation_start', requestId, url })
+    )
+  }
 
   const errors: Error[] = []
   for (const message of messages) {
@@ -6422,6 +6449,12 @@ async function logMessagesAndSendErrorsToBrowser(
     if (message instanceof Error) {
       errors.push(message)
     }
+  }
+
+  if (logAsValidationResult) {
+    console.log(
+      formatValidationEvent({ type: 'validation_end', requestId, url })
+    )
   }
 
   if (errors.length > 0) {
@@ -6689,8 +6722,9 @@ export async function runValidationInDevFromSnapshot(
 
   // `requestFallbackRouteParams` reproduces `ctx.getDynamicParamFromSegment`
   // exactly, so the depth-loop segment keys match the seed render's Flight.
-  // `fallbackRouteParams` is separate and only marks params unknown in the
-  // prerender stores.
+  // `fallbackRouteParams` is the staged set of the main-thread request store.
+  // It marks params unknown in the prerender stores, and the worker's request
+  // store defers the same params, so both validation paths stage alike.
   //
   // TODO: Those two fallback params sets are very confusing in the whole code
   // base. We should maybe refactor this to make their different roles clearer.
@@ -6739,7 +6773,9 @@ export async function runValidationInDevFromSnapshot(
     isHmrRefresh: message.request.isHmrRefresh,
     hmrRefreshHash: message.request.hmrRefreshHash,
     serverComponentsHmrCache: undefined,
-    fallbackParams: requestFallbackRouteParams,
+    stagedFallbackParams: fallbackRouteParams
+      ? new Set(fallbackRouteParams.keys())
+      : null,
   })
 
   const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)
@@ -9590,7 +9626,8 @@ async function prerenderToStream(
             resumeDataCache,
             cacheComponents,
             renderOpts.experimental.maxPostponedStateSizeBytes,
-            renderOpts.experimental.disableResumeDataCacheCompression
+            renderOpts.experimental.disableResumeDataCacheCompression,
+            fallbackRouteParams
           )
         }
         reactServerResult.consume()
@@ -10131,7 +10168,8 @@ async function prerenderToStream(
             originalResumeDataCache,
             cacheComponents,
             renderOpts.experimental.maxPostponedStateSizeBytes,
-            renderOpts.experimental.disableResumeDataCacheCompression
+            renderOpts.experimental.disableResumeDataCacheCompression,
+            fallbackRouteParams
           )
           originalFlightPrerenderResult.consume()
           errorServerResult.consume()

@@ -697,6 +697,7 @@ mod tests {
         assert_eq!(runner.total_queued(), 3);
     }
 
+    #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_cpu_bound_tasks() {
         struct ExecutorImpl;

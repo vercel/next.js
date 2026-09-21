@@ -32,7 +32,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{
         Bump, ConstantString, ConstantValue, ObjectPart,
-        cjs_ast::is_global,
+        cjs_ast::{is_global, is_module_dot_exports},
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
     },
@@ -69,6 +69,10 @@ pub struct ImportAnnotations {
 /// Enables a specified transition for the annotated import
 static ANNOTATION_TRANSITION: LazyLock<Wtf8Atom> =
     LazyLock::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
+
+/// Changes how export usage is propagated to the referenced module
+static ANNOTATION_EXPORT_USAGE: LazyLock<Wtf8Atom> =
+    LazyLock::new(|| crate::annotations::ANNOTATION_EXPORT_USAGE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
 static ATTRIBUTE_MODULE_TYPE: LazyLock<Wtf8Atom> = LazyLock::new(|| atom!("type").into());
@@ -220,6 +224,12 @@ impl ImportAnnotations {
     pub fn transition(&self) -> Option<Cow<'_, str>> {
         self.get(&ANNOTATION_TRANSITION)
             .map(|v| v.to_string_lossy())
+    }
+
+    /// Whether this import forwards the importing module's export usage
+    pub fn export_usage_passthrough(&self) -> bool {
+        self.get(&ANNOTATION_EXPORT_USAGE)
+            .is_some_and(|value| value == "passthrough")
     }
 
     /// Returns the content on the chunking-type annotation
@@ -1523,6 +1533,22 @@ impl Visit for Analyzer<'_> {
         node.visit_children_with(self);
     }
 
+    fn visit_assign_expr(&mut self, node: &AssignExpr) {
+        if node.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(target)) = &node.left
+            && is_module_dot_exports(target, self.unresolved_mark)
+            && let Some(call) = as_require_call(&node.right, self.unresolved_mark)
+        {
+            self.data.cjs_imports.resolved.insert(
+                call.span.lo,
+                ExportUsage::Passthrough {
+                    namespace_object_may_escape: true,
+                },
+            );
+        }
+        node.visit_children_with(self);
+    }
+
     fn visit_expr_stmt(&mut self, node: &ExprStmt) {
         // A bare `require("…")` statement discards its result → evaluation only.
         if let Some(call) = as_require_call(&node.expr, self.unresolved_mark) {
@@ -1701,6 +1727,15 @@ mod tests {
         })
     }
 
+    /// Helper to create a string property name
+    fn str_key(s: &str) -> PropName {
+        PropName::Str(Str {
+            span: DUMMY_SP,
+            value: Atom::from(s).into(),
+            raw: None,
+        })
+    }
+
     /// Helper to create a key-value property
     fn kv_prop(key: PropName, value: Box<Expr>) -> PropOrSpread {
         PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { key, value })))
@@ -1755,6 +1790,20 @@ mod tests {
         let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(!annotations.has_turbopack_loader());
         assert!(annotations.module_type().is_some());
+    }
+
+    #[test]
+    fn test_parse_export_usage_passthrough() {
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(
+                str_key(crate::annotations::ANNOTATION_EXPORT_USAGE),
+                str_lit("passthrough"),
+            )],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
+        assert!(annotations.export_usage_passthrough());
     }
 
     #[test]

@@ -2,14 +2,12 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('swcPlugins', () => {
   describe('supports swcPlugins', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '13.0.0',
       },
     })
-    if (skipped) return
 
     it('basic case', async () => {
       const html = await next.render('/')

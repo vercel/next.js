@@ -260,7 +260,7 @@ pub async fn detect_react_compiler_target(
         project_path.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(),
     );
 
     let Some(source) = react_pkg_result.await?.first_source() else {
@@ -336,7 +336,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {
@@ -353,15 +353,11 @@ pub async fn resolve_babel_plugin_react_compiler(
 
     // The relative path should only ever fail to resolve when the `fs` is different, which should
     // only happen due to eventual consistency.
-    let plugin_path = project_path
-        .get_relative_path_to(&source.ident().await?.path.parent())
-        .context("failed to resolve relative path for react compiler plugin")?;
-
-    Ok(Some(if plugin_path.starts_with("../") {
-        plugin_path
-    } else {
-        RcStr::from(format!("./{plugin_path}"))
-    }))
+    Ok(Some(
+        project_path
+            .get_relative_request_to(&source.ident().await?.path.parent())
+            .context("failed to resolve relative path for react compiler plugin")?,
+    ))
 }
 
 #[turbo_tasks::value]

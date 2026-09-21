@@ -429,6 +429,165 @@ impl AppPath {
             )
         })
     }
+
+    /// Returns the ordinary route that an interception route substitutes for.
+    /// This is the route that must handle a direct request or hard refresh.
+    pub fn intercepted_path(&self) -> Option<AppPath> {
+        let (interception_index, segment) =
+            self.iter().enumerate().find_map(|(index, segment)| {
+                let PathSegment::Static(segment) = segment else {
+                    return None;
+                };
+
+                let (marker, target) =
+                    ["(..)(..)", "(...)", "(..)", "(.)"]
+                        .into_iter()
+                        .find_map(|marker| {
+                            segment.strip_prefix(marker).map(|target| (marker, target))
+                        })?;
+                Some((index, (marker, target)))
+            })?;
+
+        let (marker, target) = segment;
+        if target.is_empty() {
+            return None;
+        }
+
+        let mut canonical_segments = match marker {
+            "(...)" => Vec::new(),
+            _ => self.0[..interception_index].to_vec(),
+        };
+        let levels_to_pop = match marker {
+            "(..)(..)" => 2,
+            "(..)" => 1,
+            _ => 0,
+        };
+        for _ in 0..levels_to_pop {
+            canonical_segments.pop()?;
+        }
+        let target = if let Some(target) = target
+            .strip_prefix("[[...")
+            .and_then(|target| target.strip_suffix("]]"))
+        {
+            PathSegment::OptionalCatchAll(target.into())
+        } else if let Some(target) = target
+            .strip_prefix("[...")
+            .and_then(|target| target.strip_suffix(']'))
+        {
+            PathSegment::CatchAll(target.into())
+        } else if let Some(target) = target
+            .strip_prefix('[')
+            .and_then(|target| target.strip_suffix(']'))
+        {
+            PathSegment::Dynamic(target.into())
+        } else {
+            PathSegment::Static(target.into())
+        };
+        canonical_segments.push(target);
+        canonical_segments.extend_from_slice(&self.0[interception_index + 1..]);
+
+        Some(AppPath(canonical_segments))
+    }
+
+    /// Returns whether the supplied ordinary route patterns cover every URL matched by this
+    /// route pattern.
+    pub fn is_route_pattern_covered_by<'a>(
+        &self,
+        ordinary_routes: impl IntoIterator<Item = &'a AppPath>,
+    ) -> bool {
+        let route = RoutePattern::new(self);
+        let ordinary_routes = ordinary_routes
+            .into_iter()
+            .map(RoutePattern::new)
+            .collect::<Vec<_>>();
+
+        if !route.unbounded {
+            return ordinary_routes
+                .iter()
+                .any(|ordinary| pattern_covers_at_length(ordinary, &route, route.min_length));
+        }
+
+        let Some(unbounded_coverage_start) = ordinary_routes
+            .iter()
+            .filter(|ordinary| ordinary.unbounded && prefix_covers(ordinary, &route))
+            .map(|ordinary| ordinary.min_length.max(route.min_length))
+            .min()
+        else {
+            return false;
+        };
+
+        // An optional or required catchall can have its shorter paths covered by fixed routes
+        // before another catchall takes over the remaining suffix.
+        (route.min_length..unbounded_coverage_start).all(|length| {
+            ordinary_routes
+                .iter()
+                .any(|ordinary| pattern_covers_at_length(ordinary, &route, length))
+        })
+    }
+}
+
+struct RoutePattern<'a> {
+    prefix: &'a [PathSegment],
+    min_length: usize,
+    unbounded: bool,
+}
+
+impl<'a> RoutePattern<'a> {
+    fn new(path: &'a AppPath) -> Self {
+        match path.last() {
+            Some(PathSegment::CatchAll(_)) => Self {
+                prefix: &path[..path.len() - 1],
+                min_length: path.len(),
+                unbounded: true,
+            },
+            Some(PathSegment::OptionalCatchAll(_)) => Self {
+                prefix: &path[..path.len() - 1],
+                min_length: path.len() - 1,
+                unbounded: true,
+            },
+            _ => Self {
+                prefix: path,
+                min_length: path.len(),
+                unbounded: false,
+            },
+        }
+    }
+}
+
+fn accepts_length(pattern: &RoutePattern<'_>, length: usize) -> bool {
+    if pattern.unbounded {
+        length >= pattern.min_length
+    } else {
+        length == pattern.min_length
+    }
+}
+
+fn prefix_covers(canonical: &RoutePattern<'_>, intercepted: &RoutePattern<'_>) -> bool {
+    canonical
+        .prefix
+        .iter()
+        .enumerate()
+        .all(|(index, canonical_segment)| match canonical_segment {
+            PathSegment::Dynamic(_) => true,
+            PathSegment::Static(canonical_segment) => matches!(
+                intercepted.prefix.get(index),
+                Some(PathSegment::Static(intercepted_segment))
+                    if canonical_segment == intercepted_segment
+            ),
+            PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_) => {
+                unreachable!("catchall segments are excluded from the route prefix")
+            }
+        })
+}
+
+fn pattern_covers_at_length(
+    canonical: &RoutePattern<'_>,
+    intercepted: &RoutePattern<'_>,
+    length: usize,
+) -> bool {
+    accepts_length(canonical, length)
+        && accepts_length(intercepted, length)
+        && prefix_covers(canonical, intercepted)
 }
 
 impl Deref for AppPath {
@@ -489,7 +648,62 @@ impl From<AppPage> for AppPath {
 
 #[cfg(test)]
 mod test {
-    use crate::next_app::{AppPage, PageSegment, PageType};
+    use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
+
+    #[test]
+    fn resolves_intercepted_app_paths() {
+        for (interception, canonical) in [
+            ("/(.)photo/[id]", "/photo/[id]"),
+            ("/feed/(.)photo/[id]", "/feed/photo/[id]"),
+            ("/feed/(..)photo/[id]", "/photo/[id]"),
+            ("/feed/nested/(..)(..)photo/[id]", "/photo/[id]"),
+            ("/feed/(...)photo/[id]", "/photo/[id]"),
+            ("/(.)[username]/[id]", "/[username]/[id]"),
+            ("/(.)[...slug]", "/[...slug]"),
+            ("/(.)[[...slug]]", "/[[...slug]]"),
+        ] {
+            let interception =
+                AppPath::from(AppPage::parse(interception.trim_start_matches('/')).unwrap());
+            let canonical =
+                AppPath::from(AppPage::parse(canonical.trim_start_matches('/')).unwrap());
+
+            assert_eq!(interception.intercepted_path(), Some(canonical));
+        }
+    }
+
+    #[test]
+    fn checks_route_pattern_coverage() {
+        for (route, ordinary_routes, expected) in [
+            ("/photo/[id]", &["/photo/[slug]"][..], true),
+            ("/showcase/[...parts]", &["/[...slug]"][..], true),
+            (
+                "/items/[...parts]",
+                &["/items/[id]", "/items/[id]/[...rest]"][..],
+                true,
+            ),
+            (
+                "/items/[[...parts]]",
+                &["/items", "/items/[...rest]"][..],
+                true,
+            ),
+            ("/photo/[id]", &[][..], false),
+            ("/items/[...parts]", &["/items/[id]"][..], false),
+            ("/items/[[...parts]]", &["/items/[...rest]"][..], false),
+            ("/items/[id]", &["/items/one", "/items/two"][..], false),
+        ] {
+            let route = AppPath::from(AppPage::parse(route.trim_start_matches('/')).unwrap());
+            let ordinary_routes = ordinary_routes
+                .iter()
+                .map(|route| AppPath::from(AppPage::parse(route.trim_start_matches('/')).unwrap()))
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                route.is_route_pattern_covered_by(ordinary_routes.iter()),
+                expected,
+                "coverage for {route} from {ordinary_routes:?}"
+            );
+        }
+    }
 
     #[test]
     fn test_normalize_metadata_route() {

@@ -3,11 +3,12 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
+// The trace assertions require access to local build output.
+// @force-gate !deploy
 describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: !isNextDev,
-    skipDeployment: true,
     env: {
       // Enable persistent caching even when the git working directory is
       // dirty (e.g. when developing Next.js itself). Without this, the

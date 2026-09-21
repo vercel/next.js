@@ -2787,6 +2787,8 @@
               key,
               loadServerReference
             );
+          case "H":
+            return;
           case "T":
             parentObject = "$" + value.slice(2);
             response = response._tempRefs;
@@ -5325,10 +5327,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-6c0e1047-20260908",
+      version: "19.3.0-canary-59aff3e1-20260918",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-6c0e1047-20260908",
+      reconcilerVersion: "19.3.0-canary-59aff3e1-20260918",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

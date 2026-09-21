@@ -38,9 +38,14 @@ describe('app dir - css', () => {
            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
 
            Generated code of PostCSS transform of loaders [next/dist/build/webpack/loaders/resolve-url-loader/index, next/dist/compiled/sass-loader] transform of file content of app/global.scss:
-           ./app/global.scss.css:1:884
-           > 1 | ...ate(-50%, 0px)}input.defaultCheckbox::before path{fill:currentColor}input:checked.defaul...
-               |                                                ^
+           ./app/global.scss.css:46:30
+             44 | }
+             45 |
+           > 46 | input.defaultCheckbox::before path {
+                |                              ^
+             47 |   fill: currentColor;
+             48 | }
+             49 |
 
            Import trace:
              Client Component Browser:

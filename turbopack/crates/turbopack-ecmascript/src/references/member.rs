@@ -15,9 +15,9 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
 };
 
 #[derive(
@@ -26,16 +26,17 @@ use crate::{
 pub struct MemberReplacement {
     key: RcStr,
     value: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl MemberReplacement {
-    pub fn new(key: RcStr, value: RcStr, path: AstPath) -> Self {
+    pub fn new(key: RcStr, value: RcStr, path: AstPathId) -> Self {
         MemberReplacement { key, value, path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();
@@ -44,7 +45,7 @@ impl MemberReplacement {
         let value = self.value.clone();
 
         let comments_clone = comments.clone();
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let span = Span::dummy_with_cmt();
 
             comments_clone.add_leading(

@@ -784,7 +784,7 @@ export async function handleAction({
   // which to resume the destination page.
   const isActionOnlyFallbackRequest =
     isFetchAction &&
-    requestStore.fallbackParams != null &&
+    ctx.fallbackRouteParams != null &&
     typeof ctx.renderOpts.postponed === 'string'
   const shouldSkipPageRendering =
     actionWasForwarded || isActionOnlyFallbackRequest

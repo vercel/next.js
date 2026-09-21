@@ -290,6 +290,7 @@ impl Storage {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
+        task.gc_pin_for_construction();
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
             if !task_id.is_transient() {
@@ -1151,6 +1152,18 @@ mod tests {
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
+    }
+
+    #[test]
+    fn new_task_is_pinned_during_construction() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        storage.initialize_new_task(task_id, None);
+
+        let task = storage.access_mut(task_id);
+        assert_eq!(task.gc_transient_ref_count(), 1);
+        assert!(!task.gc_maybe_collectible());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't

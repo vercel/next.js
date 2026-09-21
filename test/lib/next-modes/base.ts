@@ -85,7 +85,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.8";
+const nextjsReactPeerVersion = "19.3.0";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -1244,10 +1244,7 @@ export class NextInstance {
    * @param opts the optional options to pass to the underlying fetch
    * @returns the fetch response
    */
-  public async fetch(
-    pathname: string,
-    opts?: import('node-fetch').RequestInit
-  ) {
+  public async fetch(pathname: string, opts?: RequestInit) {
     try {
       this.throwIfUnavailable()
     } catch (error) {

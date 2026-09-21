@@ -10,7 +10,13 @@ const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 export function registerSyncIoAndBlockingTests(
   ctx: InstantValidationCaseContext
 ) {
-  const { isNextDev, navigateTo, expectNoDevValidationErrors, prerender } = ctx
+  const {
+    isNextDev,
+    navigateTo,
+    expectNoDevValidationErrors,
+    getInstantInsight,
+    prerender,
+  } = ctx
 
   describe('Sync IO', () => {
     it('sync IO after session data', async () => {
@@ -19,7 +25,7 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/sync-io/sync-io-after-cookies'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
@@ -79,7 +85,7 @@ export function registerSyncIoAndBlockingTests(
         const browser = await navigateTo(
           '/suspense-in-root/sync-io/sync-io-after-navigation'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
@@ -137,7 +143,7 @@ export function registerSyncIoAndBlockingTests(
         const browser = await navigateTo(
           '/suspense-in-root/sync-io/sync-io-after-prefetch'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
@@ -196,7 +202,7 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
@@ -265,7 +271,7 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
@@ -360,7 +366,7 @@ export function registerSyncIoAndBlockingTests(
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -456,7 +462,7 @@ export function registerSyncIoAndBlockingTests(
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -521,7 +527,7 @@ export function registerSyncIoAndBlockingTests(
         const browser = await navigateTo(
           '/suspense-in-root/runtime/invalid-blocking-inside-runtime'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {

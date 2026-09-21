@@ -1,10 +1,99 @@
 import { nextTestSetup } from 'e2e-utils'
+import { randomUUID } from 'crypto'
+import escapeStringRegexp from 'escape-string-regexp'
+import stripAnsi from 'strip-ansi'
 import { join } from 'path'
 import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
 
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-runtime'),
+  })
+
+  async function readSWR(key: string, roots: string) {
+    const $ = await next.render$(`/${roots}/swr?key=${key}`)
+    expect(`${$('#lang').text()}/${$('#country-code').text()}`).toBe(roots)
+    const value = $('#value').text()
+    expect(value).toBeDateString()
+    return value
+  }
+
+  async function revalidateSWR(key: string, roots: string) {
+    const response = await next.fetch(`/${roots}/swr/revalidate?key=${key}`, {
+      method: 'POST',
+    })
+    expect(response.status).toBe(204)
+  }
+
+  it('should revalidate only the tagged root params', async () => {
+    const key = randomUUID()
+    const enValue = await readSWR(key, 'en/us')
+    const frValue = await readSWR(key, 'fr/ca')
+    expect(enValue).not.toBe(frValue)
+
+    await revalidateSWR(key, 'en/us')
+    // TODO: Restore this assertion on deploy when tag revalidation supports
+    // stale-while-revalidate for remote cache entries.
+    if (!isNextDeploy) {
+      expect(await readSWR(key, 'en/us')).toBe(enValue)
+    }
+    expect(await readSWR(key, 'fr/ca')).toBe(frValue)
+    await retry(async () => {
+      expect(new Date(await readSWR(key, 'en/us'))).toBeAfter(new Date(enValue))
+    })
+    expect(await readSWR(key, 'fr/ca')).toBe(frValue)
+  })
+
+  // @force-gate !deploy
+  it('should deduplicate background revalidation separately for each root pair', async () => {
+    const key = randomUUID()
+    const roots = ['en/us', 'fr/ca']
+    const values = await Promise.all(roots.map((root) => readSWR(key, root)))
+    await Promise.all(roots.map((root) => revalidateSWR(key, root)))
+    const outputIndex = next.cliOutput.length
+    const getOutput = () =>
+      stripAnsi(next.cliOutput.slice(outputIndex))
+        .split('\n')
+        .filter((line) => !line.includes(' Cache '))
+        .join('\n')
+
+    // Complete the triggering responses before more requests read the stale
+    // entries.
+    expect(await Promise.all(roots.map((root) => readSWR(key, root)))).toEqual(
+      values
+    )
+    expect(await Promise.all(roots.map((root) => readSWR(key, root)))).toEqual(
+      values
+    )
+
+    await retry(() => {
+      const output = getOutput()
+      for (const root of roots) {
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`swr start ${key} ${root}`),
+          1
+        )
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`swr finish ${key} ${root}`),
+          1
+        )
+      }
+    })
+    for (const [index, root] of roots.entries()) {
+      await retry(async () => {
+        expect(new Date(await readSWR(key, root))).toBeAfter(
+          new Date(values[index])
+        )
+      })
+      expect(getOutput()).toIncludeRepeated(
+        escapeStringRegexp(`swr start ${key} ${root}`),
+        1
+      )
+      expect(getOutput()).toIncludeRepeated(
+        escapeStringRegexp(`swr finish ${key} ${root}`),
+        1
+      )
+    }
   })
 
   if (isNextDev) {
@@ -291,15 +380,25 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// In deploy mode, concurrent requests could hit different lambdas.
-// @force-gate !deploy
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
   })
 
+  it('should key a joining outer cache by the root params read by its inner cache', async () => {
+    const english = await next.render$('/ca/en/nested?prime=1')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/nested')
+    expect(french('#first')).toHaveLength(0)
+    expect(french('#second').text()).toBe('fr')
+  })
+
   it('should dedupe same root params and isolate different root params', async () => {
+    // In deploy mode, this can flake if Fluid routes concurrent requests
+    // to different function instances: each instance may independently
+    // compute a value before the cache is populated.
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
       next.render$('/ca/en'),

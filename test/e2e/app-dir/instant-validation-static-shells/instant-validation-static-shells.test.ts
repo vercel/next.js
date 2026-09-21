@@ -1,10 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { createGetInstantInsight } from 'e2e-utils/instant-validation'
 import { waitForNoErrorToast } from 'next-test-utils'
 import { join } from 'node:path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('instant validation - opting out of static shells', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'valid'),
@@ -38,14 +36,34 @@ describe('instant validation', () => {
     const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
       skipStart: true,
+      env: {
+        NEXT_TEST_LOG_VALIDATION: '1',
+      },
     })
+
+    let currentCliOutputIndex = 0
+    beforeEach(() => {
+      currentCliOutputIndex = next.cliOutput.length
+    })
+
+    function getCliOutputSinceMark(): string {
+      if (next.cliOutput.length < currentCliOutputIndex) {
+        currentCliOutputIndex = 0
+      }
+      return next.cliOutput.slice(currentCliOutputIndex)
+    }
+
+    const getInstantInsight = createGetInstantInsight(
+      getCliOutputSinceMark,
+      next
+    )
 
     if (isNextDev) {
       beforeAll(() => next.start())
       it('errors in dev', async () => {
         const browser = await next.browser('/blocking-page-below-static')
         await browser.elementByCss('main')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",

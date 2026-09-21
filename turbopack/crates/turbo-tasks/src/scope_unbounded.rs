@@ -916,6 +916,8 @@ mod tests {
     }
 
     /// Sustained work keeps workers alive rather than churning them:
+    // This test is too slow to run under Miri.
+    #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_unbounded_busy_queue_does_not_churn_workers() {
         const ITEMS: usize = 20_000;

@@ -156,7 +156,7 @@ class TestProfile {
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.8";
+const nextjsReactPeerVersion = "19.3.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -244,7 +244,6 @@ const testFilters = {
   development: new RegExp('^(test/(development|e2e))'),
   production: new RegExp('^(test/(production|e2e))'),
   unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
-  examples: 'examples/',
   e2e: 'test/e2e/',
 }
 
@@ -255,7 +254,9 @@ const mockTrace = () => ({
 })
 
 // which types we have configured to run separate
-const configuredTestTypes = Object.values(testFilters)
+// `examples/` additionally excludes test files inside example apps, which run
+// with each example's own jest/vitest setup instead of this runner.
+const configuredTestTypes = [...Object.values(testFilters), 'examples/']
 /** @type {Map<string, { output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
@@ -405,7 +406,7 @@ async function main() {
 
   const options = {
     concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
-    debug: argv.debug ?? false,
+    debug: argv.debug ?? core.isDebug(),
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
     group: argv.group ?? false,

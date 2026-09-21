@@ -472,7 +472,8 @@ pub struct ActionManifestWorkerEntry<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestWorkerEntryDurability<'a> {
     pub code_hash: &'a str,
-    pub runtime_env_vars: &'a [RcStr],
+    pub runtime_env_vars_read: &'a [RcStr],
+    pub runtime_env_vars_existence: &'a [RcStr],
 }
 
 #[derive(Serialize, Debug, Clone)]

@@ -220,6 +220,38 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       await next.deleteFile('handler-remote-data.json')
     })
 
+    it('should not miss when an env var changes during cache generation', async () => {
+      // Regression test for mutating env vars which changes the cache key mid-rendering and breaks
+      // the multi-phase rendering process (be it within the next build prerendering, or in the
+      // resume case at runtime).
+      // RDC stores cache entries, and we should use those entries regardless of whether env vars
+      // changed in the meantime (among other things, to prevent tearing).
+      //
+      // Error: Route "foo": Unexpected cache miss after cache warming phase during prerendering.
+      // This is likely caused by non-deterministic arguments that differ between the cache warming
+      // phase and the final prerender phase (e.g. unstable array order). Ensure that arguments
+      // passed to cached functions are deterministic.
+      //
+      // Error: Route "foo": Next.js encountered uncached or runtime data during prerendering.
+      await next.stop()
+      delete next.env.MUTATED_DURING_CACHE_GENERATION
+
+      try {
+        await next.start()
+        const output = next.getCliOutputFromHere()
+        const browser = await next.browser('/env-mutation/test')
+
+        expect(output()).not.toContain('Error')
+        expect(output()).not.toContain(
+          'Unexpected cache miss after cache warming phase during prerendering'
+        )
+        expect(await browser.elementById('data').text()).toBe('test:unset')
+      } finally {
+        await next.stop()
+        delete next.env.MUTATED_DURING_CACHE_GENERATION
+      }
+    })
+
     it('should not recompute when nothing changes', async () => {
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
       const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
@@ -371,6 +403,63 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       } finally {
         delete next.env['FOOBAR']
       }
+    })
+
+    it('should recompute when runtime env var truthiness changes', async () => {
+      await next.patchFile(
+        'app/logic.ts',
+        `export function getDate() {
+  return new Date().toISOString() + ':' + Boolean(process.env.FOOBAR)
+}`,
+        async () => {
+          try {
+            delete next.env['FOOBAR']
+            const unset = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-unset'
+            )
+
+            next.env['FOOBAR'] = ''
+            const falsy = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-falsy'
+            )
+
+            // unset -> falsy revalidates
+            expect(unset.keyRoot).not.toBe(falsy.keyRoot)
+            expect(unset.dataRoot).not.toBe(falsy.dataRoot)
+            expect(unset.dataRoot).toEndWith(':false')
+
+            next.env['FOOBAR'] = 'truthy-1'
+            const truthy1 = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-truthy-1'
+            )
+
+            // falsy -> truthy revalidates
+            expect(falsy.keyRoot).not.toBe(truthy1.keyRoot)
+            expect(falsy.dataRoot).not.toBe(truthy1.dataRoot)
+            expect(falsy.dataRoot).toEndWith(':false')
+            expect(truthy1.dataRoot).toEndWith(':true')
+
+            next.env['FOOBAR'] = 'truthy-2'
+            const truthy2 = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-truthy-2'
+            )
+
+            // truthy -> different truthy DOESN'T revalidate
+            expect(truthy1.keyRoot).toBe(truthy2.keyRoot)
+            expect(truthy1.dataRoot).toBe(truthy2.dataRoot)
+          } finally {
+            delete next.env['FOOBAR']
+          }
+        }
+      )
     })
 
     it('should still work when imported client reference changes', async () => {

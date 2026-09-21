@@ -61,7 +61,15 @@ export default function Home() {
 }
 ```
 
-The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
+`'auto'` is equivalent to omitting `prefetch` or passing `undefined`. In a conditional expression, return `'auto'` for links that should keep the default App Shell prefetch:
+
+```tsx filename="app/page.tsx"
+<Link href={href} prefetch={isFeatured ? true : 'auto'} />
+```
+
+Use `prefetch={false}` only when you want to disable prefetching for a link.
+
+The `/search` page renders a static heading and a `<Results>` list based on the query. The `search()` function caches results by query so later requests can reuse them.
 
 ```tsx filename="app/search/page.tsx"
 import { Suspense } from 'react'
@@ -215,6 +223,40 @@ Without it, keeping a subtree out of a prefetch means leaving it uncached, which
 
 For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
 
+Unlike [`connection()`](/docs/app/api-reference/functions/connection), `unstable_navigation()` does not make the subtree request-dependent. This lets reusable content keep its cache lifetime while waiting for navigation. See [How `unstable_navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-unstable_navigation-differs-from-connection) for the full comparison.
+
+## Test prefetched and deferred content
+
+The [Instant navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) explains how to install and configure `@next/playwright`. For a client navigation, use `instant()` to inspect the destination's prefetched UI.
+
+When [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#verify-prefetched-ui-with-tests), run this test before enabling the feature and rerun the same assertions afterward. This preserves the UI selected from the legacy full prefetch while its implementation moves to the App Shell or a per-link prefetch.
+
+Inside the callback, click the link, wait for the destination URL, and assert which content is available. After the callback releases the navigation, assert that deferred content eventually renders:
+
+```ts filename="e2e/product-navigation.test.ts" highlight={8-15,17}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('prefetches the product summary but not reviews', async ({ page }) => {
+  await page.goto('/products')
+
+  await instant(page, async () => {
+    await page.click('a[href="/products/baseball-cap"]')
+    await page.waitForURL((url) => url.pathname === '/products/baseball-cap')
+
+    await expect(
+      page.getByRole('heading', { name: 'Baseball Cap' })
+    ).toBeVisible()
+    await expect(page.getByTestId('product-summary')).toBeVisible()
+    await expect(page.getByTestId('reviews')).toHaveCount(0)
+  })
+
+  await expect(page.getByTestId('reviews')).toBeVisible()
+})
+```
+
+While the `instant()` callback is running, dynamic content is paused. In this example, the product summary is part of the prefetched UI, while reviews wait for navigation. The final assertion confirms that the reviews render after the pause is released.
+
 ## Trade-offs
 
 Use `prefetch={true}` on routes where:
@@ -222,6 +264,8 @@ Use `prefetch={true}` on routes where:
 - Part of the component tree depends on URL data: the full URL, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
 - That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
+
+Prefetching cached data does not change its freshness behavior. If a mutation can update the data, [tag and invalidate the cached result](/docs/app/getting-started/revalidating).
 
 Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link prefetch={true}>` can wake a server, and that cost only pays off if more of the page is ready before the click:
 
