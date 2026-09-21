@@ -1,16 +1,13 @@
+import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO: Test didn't (or maybe) never ran in CI but it should.
 describe.skip('app dir - next-image (with https)', () => {
-  const { next, skipped } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
+  const { next } = nextTestSetup({
+    files: join(__dirname, '../../../e2e/app-dir/next-image'),
+
     startCommand: `pnpm next dev --experimental-https`,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('loads images without any errors', async () => {
     let failCount = 0
