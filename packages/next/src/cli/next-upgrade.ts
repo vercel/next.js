@@ -327,7 +327,10 @@ export async function spawnNextUpgrade(
                     document,
                   })
                 )
-              } catch {
+              } catch (error) {
+                if (document.startsWith('skills/')) {
+                  throw error
+                }
                 Log.warn(`Could not prepare upgrade document ${document}.`)
               }
             }
@@ -343,6 +346,9 @@ export async function spawnNextUpgrade(
               documents,
             })
           }
+        } catch (error) {
+          await rm(runDirectory, { recursive: true, force: true })
+          throw error
         } finally {
           contextSpinner?.stop()
         }
@@ -368,7 +374,8 @@ ${preparedFutureDefaults
       `- ${futureDefault.name}\n${futureDefault.documents.map((document) => `  - Read and follow ${JSON.stringify(document)}.`).join('\n')}`
   )
   .join('\n')}
-Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.`
+Complete and verify each adoption before starting the next. Verify its prerequisites even when their flags are already enabled. Repair failures within the current adoption; if verification remains blocked, report the blocker and do not start dependent adoption work.
+Remove temporary opt-outs and TODO markers introduced for required adoption work. Preserve unrelated TODOs and intentional configuration. Optional optimization is not part of this upgrade; report those opportunities separately.`
         : ''
 
       // Pass resolved inputs directly; the agent owns repairs and verification.
