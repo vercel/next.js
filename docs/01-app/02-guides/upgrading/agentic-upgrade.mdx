@@ -13,7 +13,11 @@ as instructed so the original task can continue with a warning. Tell the user
 about the finding and ask whether they want to run the upgrade. Continue
 independent work while waiting. If approved, complete the upgrade.
 
-For `latest`, the CLI pins npm's latest stable Next.js release as the target.
+For `latest`, the CLI pins the release from the app's channel: npm's `latest`
+dist-tag for stable installations and `canary` for canary installations.
+
+Security upgrades and advisory checks are supported only for stable installations.
+Canary installations support `latest` and `future` without advisory assessment.
 
 ## 1. Check for duplicates
 
