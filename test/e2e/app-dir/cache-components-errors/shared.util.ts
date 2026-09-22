@@ -14,73 +14,50 @@ export interface CacheComponentsErrorsContext {
 // into one `*.test.ts` entry file per group of sections (each with a
 // `.partial-prefetching` variant), all sharing this wrapper. Each entry
 // boots its own server (and, in `next start` mode, runs its own builds).
-// Snapshots can be updated with the sibling update-snapshots.sh script.
+// Each entry owns its gated describe because pragmas are only transformed in
+// test files. Snapshots can be updated with the sibling update-snapshots.sh script.
 export function runCacheComponentsErrorsTests(
   registerTests: (ctx: CacheComponentsErrorsContext) => void
 ) {
-  describe('Cache Components Errors', () => {
-    const { next, isTurbopack, isNextStart, isRspack, skipped } = nextTestSetup(
-      {
-        files: __dirname + '/fixtures/default',
-        skipStart: !isNextDev,
-        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-        // No deploy-specific incompatibility is documented.
-        skipDeployment: true,
-      }
-    )
+  const { next, isTurbopack, isNextStart, isRspack } = nextTestSetup({
+    files: __dirname + '/fixtures/default',
+    skipStart: !isNextDev,
+  })
 
-    if (skipped) return
-
-    afterEach(async () => {
-      if (isNextStart) {
-        await next.stop()
-      }
-    })
-
-    const testCases: { isDebugPrerender: boolean; name: string }[] = []
-
-    if (isNextDev) {
-      testCases.push({ isDebugPrerender: false, name: 'Dev' })
-    } else {
-      const prerenderMode = process.env.NEXT_TEST_DEBUG_PRERENDER
-      // The snapshots can't be created for both modes at the same time because of
-      // an issue in the typescript plugin for prettier. Defining
-      // NEXT_TEST_DEBUG_PRERENDER allows us to run them sequentially, when we
-      // need to update the snapshots.
-      if (!prerenderMode || prerenderMode === 'true') {
-        testCases.push({
-          isDebugPrerender: true,
-          name: 'Build With --prerender-debug',
-        })
-      }
-      if (!prerenderMode || prerenderMode === 'false') {
-        testCases.push({
-          isDebugPrerender: false,
-          name: 'Build Without --prerender-debug',
-        })
-      }
+  afterEach(async () => {
+    if (isNextStart) {
+      await next.stop()
     }
+  })
 
-    describe.each(testCases)('$name', ({ isDebugPrerender }) => {
-      beforeAll(async () => {
-        if (isNextStart) {
-          const args = ['--experimental-build-mode', 'compile']
+  const testCases: { isDebugPrerender: boolean; name: string }[] = []
 
-          if (isDebugPrerender) {
-            args.push('--debug-prerender')
-          }
-
-          await next.build({ args })
-        }
+  if (isNextDev) {
+    testCases.push({ isDebugPrerender: false, name: 'Dev' })
+  } else {
+    const prerenderMode = process.env.NEXT_TEST_DEBUG_PRERENDER
+    // The snapshots can't be created for both modes at the same time because of
+    // an issue in the typescript plugin for prettier. Defining
+    // NEXT_TEST_DEBUG_PRERENDER allows us to run them sequentially, when we
+    // need to update the snapshots.
+    if (!prerenderMode || prerenderMode === 'true') {
+      testCases.push({
+        isDebugPrerender: true,
+        name: 'Build With --prerender-debug',
       })
+    }
+    if (!prerenderMode || prerenderMode === 'false') {
+      testCases.push({
+        isDebugPrerender: false,
+        name: 'Build Without --prerender-debug',
+      })
+    }
+  }
 
-      const prerender = async (pathname: string) => {
-        const args = [
-          '--experimental-build-mode',
-          'generate',
-          '--debug-build-paths',
-          `app${pathname}/page.tsx`,
-        ]
+  describe.each(testCases)('$name', ({ isDebugPrerender }) => {
+    beforeAll(async () => {
+      if (isNextStart) {
+        const args = ['--experimental-build-mode', 'compile']
 
         if (isDebugPrerender) {
           args.push('--debug-prerender')
@@ -88,15 +65,30 @@ export function runCacheComponentsErrorsTests(
 
         await next.build({ args })
       }
+    })
 
-      registerTests({
-        next,
-        isTurbopack,
-        isRspack,
-        isNextStart,
-        isDebugPrerender,
-        prerender,
-      })
+    const prerender = async (pathname: string) => {
+      const args = [
+        '--experimental-build-mode',
+        'generate',
+        '--debug-build-paths',
+        `app${pathname}/page.tsx`,
+      ]
+
+      if (isDebugPrerender) {
+        args.push('--debug-prerender')
+      }
+
+      await next.build({ args })
+    }
+
+    registerTests({
+      next,
+      isTurbopack,
+      isRspack,
+      isNextStart,
+      isDebugPrerender,
+      prerender,
     })
   })
 }

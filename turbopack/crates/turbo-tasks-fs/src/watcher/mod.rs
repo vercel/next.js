@@ -1134,6 +1134,9 @@ mod tests {
     /// `recursive_mode` is set explicitly rather than left to the platform default so that both
     /// watching strategies are covered on every host. `TURBO_TASKS_FORCE_WATCH_MODE` still
     /// overrides it, collapsing these into two cases.
+    // Miri cannot run the native cases because inotify is unsupported, while the polling cases
+    // require Turbo Tasks' link-section registry, which is unavailable under Miri.
+    #[cfg(not(miri))]
     #[rstest]
     #[case::native_recursive(None, DiskWatcherRecursiveMode::Recursive)]
     #[case::native_non_recursive(None, DiskWatcherRecursiveMode::NonRecursive)]

@@ -1,12 +1,12 @@
 use std::{borrow::Cow, fmt::Display, io::Write};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    FileSystem, FileSystemPath, VirtualFileSystem, WriteLinkContent, WriteLinkTarget,
-    WriteLinkTargetType, rope::RopeBuilder,
+    FileSystem, FileSystemPath, VirtualFileSystem, WriteLinkContent, WriteLinkTargetType,
+    rope::RopeBuilder,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
@@ -497,22 +497,8 @@ impl Asset for ExternalsSymlinkAsset {
         // path: [output]/bench/app-router-server/.next/node_modules/lodash-ee4fa714b6d81ca3
         // target: [project]/node_modules/.pnpm/lodash@3.10.1/node_modules/lodash
 
-        let output_root_to_project_root = this.chunking_context.output_root_to_root_path().await?;
-        let project_root_to_target = &this.target.path;
-
-        let path = self.path().await?;
-        let path_to_output_root = path
-            .parent()
-            .get_relative_path_to(&*this.chunking_context.output_root().await?)
-            .context("path must be inside output root")?;
-
-        let target = format!(
-            "{path_to_output_root}/{output_root_to_project_root}/{project_root_to_target}",
-        )
-        .into();
-
         Ok(AssetContent::Redirect(WriteLinkContent {
-            target: WriteLinkTarget::Relative(target),
+            target: this.target.clone(),
             target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
         })
         .cell())

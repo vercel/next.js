@@ -20,6 +20,7 @@ import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
 import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
+import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
@@ -122,7 +123,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
 
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
-  const project = await bindings.turbo.createProject(
+  const projectResult = await bindings.turbo.createProject(
     {
       ...sharedProjectOptions,
       debugBuildPaths: NextBuildContext.debugBuildPaths,
@@ -143,6 +144,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
         }
       : undefined
   )
+  const project = projectResult.value
   const shutdownController = new AbortController()
   const compilationEvents = backgroundLogCompilationEvents(project, {
     // Compilation events carry their own timestamps, so they hang directly off
@@ -162,6 +164,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   }
 
   try {
+    printBuildErrors(projectResult, dev)
+
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
@@ -181,6 +185,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     // keeping SSG errors more prominent than compile warnings.
     const { warnings } = printBuildErrors(entrypoints, dev, {
       deferWarnings: true,
+      strictRouteMatchingDefaultWarning:
+        getStrictRouteMatchingDefaultWarning(config),
     })
 
     // Skip when telemetry is fully off — featureUsage() isn't free.

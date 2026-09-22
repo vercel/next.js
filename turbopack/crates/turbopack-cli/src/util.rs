@@ -4,7 +4,9 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{DiskFileSystem, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr,
+};
 
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
@@ -61,6 +63,7 @@ pub async fn project_fs(
         Vc::cell(project_dir),
         vec![denied_root_path],
         DiskWatcherConfig::default(),
+        DiskFileSystemMap::empty(),
     );
     if watch {
         disk_fs.await?.start_watching().await?;

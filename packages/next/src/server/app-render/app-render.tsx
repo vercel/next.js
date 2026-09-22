@@ -2398,7 +2398,8 @@ async function getErrorRSCPayload(
     ctx.missingPrefetchHintPolicy,
     Boolean(ctx.renderOpts.partialPrefetching),
     getDynamicParamFromSegment,
-    query
+    query,
+    ctx.renderOpts.notFoundParams
   )
   // Attach the error shell as the root's render output. Vary params are not
   // tracked for error pages.
@@ -2598,7 +2599,7 @@ function installGlobalModuleLoadingHandlers(
       case 'prerender-legacy':
       case 'request':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         return false
       default:
         workUnitStore satisfies never
@@ -3006,10 +3007,16 @@ async function renderAppPage(
     null
 
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+  // Keep the placeholder map for dev's separate prerender validation. The
+  // request store only needs names to defer params during a staged render.
   const stagedFallbackParams =
+    getRequestMeta(req, 'stagedFallbackParams') ?? null
+  const stagedFallbackParamNames =
     postponedState?.stagedFallbackParams !== undefined
       ? postponedState.stagedFallbackParams
-      : (getRequestMeta(req, 'stagedFallbackParams') ?? null)
+      : stagedFallbackParams
+        ? new Set(stagedFallbackParams.keys())
+        : null
   const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
   const createRequestStore = createRequestStoreForRender.bind(
@@ -3024,7 +3031,7 @@ async function renderAppPage(
     isHmrRefresh,
     serverComponentsHmrCache,
     renderResumeDataCache,
-    stagedFallbackParams,
+    stagedFallbackParamNames,
     hmrRefreshHash
   )
   const requestStore = createRequestStore()
@@ -3353,7 +3360,6 @@ function prepareAppPage(
     } else {
       postponedState = parsePostponedState(
         renderOpts.postponed,
-        interpolatedParams,
         renderOpts.experimental.maxPostponedStateSizeBytes,
         renderOpts.experimental.disableResumeDataCacheCompression
       )
@@ -5280,7 +5286,13 @@ async function resolveLazyDevValidationInputs(
   }
 
   if ('syncInterruptReason' in inputs) {
-    await logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    await logMessagesAndSendErrorsToBrowser(
+      [inputs.syncInterruptReason],
+      ctx,
+      // We're not going to run validation, so mark this as the validation result for tests.
+      { logAsValidationResult: true }
+    )
+
     return VALIDATION_BAILOUT
   }
   return inputs
@@ -5291,7 +5303,12 @@ function forwardErrorsFromWarmRender(
   ctx: AppRenderContext
 ) {
   if ('syncInterruptReason' in inputs) {
-    void logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    void logMessagesAndSendErrorsToBrowser(
+      [inputs.syncInterruptReason],
+      ctx,
+      // We're not going to run validation, so mark this as the validation result for tests.
+      { logAsValidationResult: true }
+    )
     return true
   }
 
@@ -6397,10 +6414,23 @@ function createAsyncApiPromises(
  */
 async function logMessagesAndSendErrorsToBrowser(
   messages: unknown[],
-  ctx: AppRenderContext
+  ctx: AppRenderContext,
+  options: { logAsValidationResult?: boolean } = {}
 ): Promise<void> {
-  const { htmlRequestId, renderOpts } = ctx
+  const logAsValidationResult =
+    process.env.__NEXT_TEST_MODE &&
+    process.env.NEXT_TEST_LOG_VALIDATION &&
+    options.logAsValidationResult
+
+  const { htmlRequestId, requestId, renderOpts } = ctx
+  const url = ctx.url.href
   const { sendErrorsToBrowser } = renderOpts
+
+  if (logAsValidationResult) {
+    console.log(
+      formatValidationEvent({ type: 'validation_start', requestId, url })
+    )
+  }
 
   const errors: Error[] = []
   for (const message of messages) {
@@ -6419,6 +6449,12 @@ async function logMessagesAndSendErrorsToBrowser(
     if (message instanceof Error) {
       errors.push(message)
     }
+  }
+
+  if (logAsValidationResult) {
+    console.log(
+      formatValidationEvent({ type: 'validation_end', requestId, url })
+    )
   }
 
   if (errors.length > 0) {
@@ -6737,7 +6773,9 @@ export async function runValidationInDevFromSnapshot(
     isHmrRefresh: message.request.isHmrRefresh,
     hmrRefreshHash: message.request.hmrRefreshHash,
     serverComponentsHmrCache: undefined,
-    stagedFallbackParams: fallbackRouteParams,
+    stagedFallbackParams: fallbackRouteParams
+      ? new Set(fallbackRouteParams.keys())
+      : null,
   })
 
   const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)

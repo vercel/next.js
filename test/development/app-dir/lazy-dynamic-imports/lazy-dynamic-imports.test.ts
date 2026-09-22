@@ -285,6 +285,18 @@ export const invalid = ;`
       }
     })
 
+    it('preloads CSS for an SSR-rendered next/dynamic component', async () => {
+      const $ = await next.render$('/next-dynamic-css')
+      const href = $('link[rel="stylesheet"][data-precedence="dynamic"]').attr(
+        'href'
+      )
+
+      expect(href).toBeDefined()
+      expect(
+        await next.fetch(href!).then((response) => response.text())
+      ).toContain('next-dynamic-css-marker')
+    })
+
     it('activates a pattern import without colliding with its target', async () => {
       const browser = await next.browser('/pattern')
       const getActivationKeys = async (): Promise<string[]> =>

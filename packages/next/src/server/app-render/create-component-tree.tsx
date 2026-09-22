@@ -368,7 +368,7 @@ async function createComponentTreeInternal(
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -412,7 +412,7 @@ async function createComponentTreeInternal(
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -601,6 +601,7 @@ async function createComponentTreeInternal(
             partialPrefetching,
             getDynamicParamFromSegment,
             query,
+            ctx.renderOpts.notFoundParams,
             rootLayoutIncludedAtThisLevelOrAbove
           )
         } else {
@@ -741,7 +742,8 @@ async function createComponentTreeInternal(
     prefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
     partialPrefetching,
-    !rootLayoutIncluded
+    !rootLayoutIncluded,
+    ctx.renderOpts.notFoundParams
   )
 
   // Convert the parallel route map into an object after all promises have been resolved.

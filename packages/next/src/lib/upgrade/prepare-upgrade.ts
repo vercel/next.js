@@ -37,7 +37,6 @@ export async function prepareUpgrade(
     await readFile(requireFromApp.resolve('next/package.json'), 'utf8')
   ) as {
     version: string
-    engines: { node: string | undefined } | undefined
   }
   const installedVersion = installedNext.version
 
@@ -55,10 +54,7 @@ export async function prepareUpgrade(
   if (targetRequest === 'latest' || targetRequest === 'future') {
     const url = `${NPM_REGISTRY}next/latest`
     const { value } = await fetchJSON(url)
-    const release = value as {
-      version: string
-      engines: { node: string | undefined } | undefined
-    } | null
+    const release = value as { version: string } | null
 
     if (
       !release ||
@@ -72,10 +68,6 @@ export async function prepareUpgrade(
       targetRequest === 'future' && semver.gt(installedVersion, release.version)
         ? installedVersion
         : release.version
-    const nodeRange =
-      targetVersion === installedVersion
-        ? (installedNext.engines?.node ?? null)
-        : (release.engines?.node ?? null)
 
     if (
       targetRequest === 'latest' &&
@@ -95,12 +87,6 @@ export async function prepareUpgrade(
         status: 'unaffected',
         reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
       }
-    }
-
-    if (!nodeRange || !semver.satisfies(process.versions.node, nodeRange)) {
-      throw new Error(
-        `Next.js ${targetVersion} requires Node.js ${nodeRange ?? '(version unavailable)'}. Update Node.js before continuing.`
-      )
     }
 
     let pendingFutureDefaults: FutureDefaultEntry[] = []

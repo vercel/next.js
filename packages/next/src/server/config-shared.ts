@@ -488,9 +488,38 @@ export function resolveCssChunkingMode(
   return 'loose'
 }
 
+export interface DeprecatedConfig {
+  /**
+   * Use the legacy loose App Router matching behavior instead of requiring
+   * every URL to construct a complete parallel route tree.
+   *
+   * @default false
+   */
+  looseRouteMatching?: true
+}
+
 export interface ExperimentalConfig {
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  /**
+   * Adds managed instructions to AGENTS.md or CLAUDE.md that let AI coding
+   * agents prepare anonymized Next.js feedback for user review.
+   */
+  agentFeedback?: boolean
+  /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   *
+   * Root names must contain 1-40 characters, using only ASCII letters, digits,
+   * underscores, or hyphens. They must not be Windows device names and must be
+   * unique under ASCII case-insensitive comparison. Invalid roots produce a
+   * warning and are ignored.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
@@ -1459,9 +1488,9 @@ export interface ExperimentalConfig {
 
   /**
    * Omits catch-all-derived App Router matchers that cannot construct a
-   * complete parallel route tree for their URL. This requires
-   * `explicitParallelRouteChildren`; setting that option to `false` also
-   * disables strict route matching.
+   * complete parallel route tree.
+   *
+   * @internal Used by the Next.js internals only.
    */
   strictRouteMatching?: boolean
 
@@ -1625,6 +1654,9 @@ export type ExportPathMap = {
      * @internal
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
+
+    /** Parameters whose novel values are rejected by routing. @internal */
+    _notFoundParams?: readonly string[]
 
     /**
      * @internal
@@ -2138,6 +2170,12 @@ export interface NextConfig {
   agentRules?: boolean
 
   /**
+   * Options for deprecated features that are still available for backwards
+   * compatibility.
+   */
+  deprecated?: DeprecatedConfig
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -2316,7 +2354,9 @@ export const defaultConfig = Object.freeze({
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+  deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
@@ -2409,7 +2449,7 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
-    strictRouteMatching: false,
+    strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     disableResumeDataCacheCompression: false,
@@ -2493,6 +2533,7 @@ export interface NextConfigRuntime {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'taint'
+    | 'agentFeedback'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
@@ -2564,6 +2605,7 @@ export function getNextConfigRuntime(
 
   const experimental = {
     taint: ex.taint,
+    agentFeedback: ex.agentFeedback,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,

@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 
 use crate::{
@@ -24,6 +25,7 @@ enum Repr {
         data: *const [u8],
         _backing: Arc<[u8]>,
     },
+    #[cfg(feature = "mmap")]
     Mmap {
         data: *const [u8],
         _backing: Arc<Mmap>,
@@ -45,6 +47,7 @@ impl ArcBytes {
     fn backing_bytes(&self) -> Option<&[u8]> {
         match &self.repr {
             Repr::Arc { _backing, .. } => Some(_backing),
+            #[cfg(feature = "mmap")]
             Repr::Mmap { _backing, .. } => Some(_backing),
             Repr::Inline { .. } => None,
         }
@@ -78,7 +81,9 @@ impl Deref for ArcBytes {
         match &self.repr {
             // SAFETY: `data` points into the backing held by the same variant, which keeps it
             // alive for as long as `self`.
-            Repr::Arc { data, .. } | Repr::Mmap { data, .. } => unsafe { &**data },
+            Repr::Arc { data, .. } => unsafe { &**data },
+            #[cfg(feature = "mmap")]
+            Repr::Mmap { data, .. } => unsafe { &**data },
             // Borrowed from `self`, so this is recomputed after a move rather than stored.
             Repr::Inline { buf, len } => &buf[..*len as usize],
         }
@@ -114,7 +119,11 @@ impl Eq for ArcBytes {}
 impl ArcBytes {
     /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
     pub fn is_mmap_backed(&self) -> bool {
-        matches!(self.repr, Repr::Mmap { .. })
+        #[cfg(feature = "mmap")]
+        return matches!(self.repr, Repr::Mmap { .. });
+
+        #[cfg(not(feature = "mmap"))]
+        false
     }
 
     /// Returns `true` if the backing `Arc` allocation is shared (i.e., there
@@ -124,12 +133,15 @@ impl ArcBytes {
     pub fn is_shared_arc(&self) -> bool {
         match &self.repr {
             Repr::Arc { _backing, .. } => Arc::strong_count(_backing) > 1,
-            Repr::Mmap { .. } | Repr::Inline { .. } => false,
+            #[cfg(feature = "mmap")]
+            Repr::Mmap { .. } => false,
+            Repr::Inline { .. } => false,
         }
     }
 }
 
 impl SharedBytes for ArcBytes {
+    #[cfg(feature = "mmap")]
     type MmapHandle = Arc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
@@ -142,6 +154,7 @@ impl SharedBytes for ArcBytes {
         Self {
             repr: match self.repr {
                 Repr::Arc { _backing, .. } => Repr::Arc { data, _backing },
+                #[cfg(feature = "mmap")]
                 Repr::Mmap { _backing, .. } => Repr::Mmap { data, _backing },
                 Repr::Inline { .. } => unreachable!("handled above"),
             },
@@ -168,6 +181,7 @@ impl SharedBytes for ArcBytes {
                     data,
                     _backing: _backing.clone(),
                 },
+                #[cfg(feature = "mmap")]
                 Repr::Mmap { _backing, .. } => Repr::Mmap {
                     data,
                     _backing: _backing.clone(),
@@ -179,6 +193,7 @@ impl SharedBytes for ArcBytes {
         }
     }
 
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),
