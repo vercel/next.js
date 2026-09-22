@@ -9,6 +9,7 @@ import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-crypto'
+import './node-polyfill-url-parse'
 
 import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
