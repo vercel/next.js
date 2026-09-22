@@ -351,12 +351,19 @@ contextPrototype.s = esmExport;
  * since that group's names are recovered by splitting on them.
  *
  * Groups whose head is a module id are instantiated in list order, at the point where the call
- * appears, so the producer must not merge such a group across an import of another module.
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
  *
  * `id` names the module the exports belong to when this module was merged into a scope-hoisting
  * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
  */ function esmReexport(list, id) {
-    var _this, _loop = function() {
+    var bindings = [];
+    var i = 0;
+    while(i < list.length){
         var head = list[i++];
         var start = i;
         while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
@@ -369,32 +376,47 @@ contextPrototype.s = esmExport;
         // going through `context.s`, so the producer never routes them here and this stays synchronous.
         var namespace = typeof head === 'string' || typeof head === 'number' ? // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
         // argument. Passed here only to satisfy the declared type.
-        _this.i(head, false) : head;
+        this.i(head, false) : head;
         if (end - start === 1) {
-            var _loop = function(j) {
-                var importedName = pairs[j + 1];
-                bindings.push(pairs[j], function() {
-                    return namespace[importedName];
-                });
-            };
             var pairs = list[start].split(',');
-            for(var j = 0; j < pairs.length; j += 2)_loop(j);
+            for(var j = 0; j < pairs.length; j += 2){
+                appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1]);
+            }
         } else {
-            var _loop1 = function(j1) {
-                var importedName = list[j1 + 1];
-                bindings.push(list[j1], function() {
-                    return namespace[importedName];
-                });
-            };
-            for(var j1 = start; j1 < end; j1 += 2)_loop1(j1);
+            for(var j1 = start; j1 < end; j1 += 2){
+                appendReexportBinding(bindings, list[j1], namespace, list[j1 + 1]);
+            }
         }
-    };
-    var bindings = [];
-    var i = 0;
-    while(i < list.length)_this = this, _loop();
+    }
     esmExport.call(this, bindings, id);
 }
 contextPrototype.S = esmReexport;
+function appendReexportBinding(bindings, exportedName, namespace, importedName) {
+    var descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName);
+    if (descriptor) {
+        if ('value' in descriptor) {
+            // Code generation only routes immutable imported bindings through this helper, so a data
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
+            return;
+        }
+        if (descriptor.get) {
+            // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+            // generated code: every group head is either produced by
+            // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+            // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+            // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+            // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+            // of allocating another wrapper getter.
+            bindings.push(exportedName, descriptor.get);
+            return;
+        }
+    }
+    // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+    bindings.push(exportedName, function() {
+        return namespace[importedName];
+    });
+}
 function ensureDynamicExports(module, exports) {
     var reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {

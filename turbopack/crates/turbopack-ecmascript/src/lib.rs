@@ -108,7 +108,10 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
+    analyzer::{
+        graph::EvalContext, imports::ExportRegistrationMode,
+        side_effects::compute_module_evaluation_side_effects,
+    },
     ast_path_trie::AstPathTrie,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -684,6 +687,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             generate_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
+            // Derived from this module's own `ImportMap` during code generation.
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -1054,6 +1059,9 @@ pub struct EcmascriptModuleContentOptions {
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
+    /// Set by synthetic modules that re-export but have no source of their own to analyze, so
+    /// there is no `ImportMap` to classify them from.
+    export_registration_mode: Option<ExportRegistrationMode>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
@@ -1074,11 +1082,14 @@ impl EcmascriptModuleContentOptions {
             code_generation,
             async_module,
             exports,
+            export_registration_mode,
             async_module_info,
             ..
         } = self;
 
         async {
+            let async_module_ref = async_module.await?;
+            let esm_references_ref = esm_references.await?;
             // The export registration is computed first: when it can spell the whole module's
             // exports as one compact call, it also performs those imports, and reports which
             // references it subsumed so they don't emit them a second time.
@@ -1090,7 +1101,11 @@ impl EcmascriptModuleContentOptions {
                             scope_hoisting_context,
                             eval_context,
                             *module,
-                            eval_context.imports.export_registration_mode(),
+                            export_registration_mode
+                                .unwrap_or_else(|| eval_context.imports.export_registration_mode()),
+                            export_registration_mode
+                                .map(|_| (&part_references[..], &esm_references_ref[..])),
+                            async_module_info.is_some(),
                         )
                         .await?;
                     (Some(code_gen), subsumed)
@@ -1099,7 +1114,7 @@ impl EcmascriptModuleContentOptions {
                 };
 
             let additional_code_gens = [
-                if let Some(async_module) = &*async_module.await? {
+                if let Some(async_module) = &*async_module_ref {
                     Some(
                         async_module
                             .code_generation(
@@ -1117,12 +1132,17 @@ impl EcmascriptModuleContentOptions {
 
             let part_code_gens = part_references
                 .iter()
-                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
+                .map(|r| {
+                    r.code_generation(
+                        **chunking_context,
+                        scope_hoisting_context,
+                        &subsumed_imports.namespaces,
+                    )
+                })
                 .try_join()
                 .await?;
 
-            let esm_code_gens = esm_references
-                .await?
+            let esm_code_gens = esm_references_ref
                 .iter()
                 .map(|r| {
                     r.code_generation(

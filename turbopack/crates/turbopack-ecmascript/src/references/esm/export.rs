@@ -38,10 +38,11 @@ use crate::{
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::{
-        base::{ImportSource, ReferencedAsset, ReferencedAssetIdent},
+        base::{EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent},
         mangle::mangled_export_names,
     },
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT},
+    side_effect_optimization::reference::EcmascriptModulePartReference,
     utils::module_id_to_lit,
 };
 
@@ -646,6 +647,28 @@ impl EsmExports {
     }
 }
 
+/// Resolves a synthetic facade reference to the namespace key and module used by a compact group.
+async fn compact_reference_target(
+    reference: ResolvedVc<Box<dyn ModuleReference>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    scope_hoisting_context: ScopeHoistingContext<'_>,
+) -> Result<Option<(NamespaceKey, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>)>> {
+    let referenced_asset =
+        ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?;
+    let Some(ReferencedAssetIdent::Module {
+        namespace_ident,
+        ctxt,
+        import_source: ImportSource::Module { asset },
+        ..
+    }) = referenced_asset
+        .get_ident(chunking_context, None, scope_hoisting_context)
+        .await?
+    else {
+        return Ok(None);
+    };
+    Ok(Some(((namespace_ident, ctxt), asset)))
+}
+
 /// Collects the exports into one group per source module, or returns `None` if any export does not
 /// fit the compact shape (a plain, immutable forward of a named binding out of an in-graph module)
 /// so the caller falls back to the general registration.
@@ -654,6 +677,7 @@ async fn build_compact_reexports(
     mangled_names: Option<&FrozenMap<RcStr, RcStr>>,
     eval_context: &EvalContext,
     mode: ExportRegistrationMode,
+    synthetic_references: Option<SyntheticReexportReferences<'_>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<CompactReexports>> {
@@ -665,6 +689,46 @@ async fn build_compact_reexports(
     // Keyed by the namespace variable, which names the resolved module: two exports forwarded from
     // the same module share a group even when they came from different `export ... from` clauses.
     let mut groups: FxIndexMap<NamespaceKey, ReexportGroup> = FxIndexMap::default();
+    let mut synthetic_order: FxIndexMap<NamespaceKey, usize> = FxIndexMap::default();
+    let mut positions_known = true;
+
+    if let Some((part_references, esm_references)) = synthetic_references {
+        // Structural part references run first. A facade's locals reference may have no forwarded
+        // names at all, but the empty group still imports it for evaluation.
+        for (order, reference) in part_references.iter().enumerate() {
+            if let Some((key, asset)) = compact_reference_target(
+                ResolvedVc::upcast(*reference),
+                chunking_context,
+                scope_hoisting_context,
+            )
+            .await?
+            {
+                synthetic_order.entry(key.clone()).or_insert(order);
+                groups.entry(key.clone()).or_insert_with(|| ReexportGroup {
+                    order,
+                    namespace_ident: key.0,
+                    ctxt: key.1,
+                    asset,
+                    locally_bound: false,
+                    reference_spans: FxHashSet::default(),
+                    pairs: Vec::new(),
+                });
+            }
+        }
+
+        let offset = part_references.len();
+        for (index, reference) in esm_references.iter().enumerate() {
+            if let Some((key, _)) = compact_reference_target(
+                ResolvedVc::upcast(*reference),
+                chunking_context,
+                scope_hoisting_context,
+            )
+            .await?
+            {
+                synthetic_order.entry(key).or_insert(offset + index);
+            }
+        }
+    }
 
     for (exported, local) in exports {
         let EsmExport::ImportedBinding(esm_ref, imported_name, mutable) = local else {
@@ -675,11 +739,12 @@ async fn build_compact_reexports(
             return Ok(None);
         }
 
-        // The analysis-time export carries the reference's position, which is what lets the groups
-        // be emitted in source order.
-        let Some(Export::ImportedBinding(idx, _, _)) = eval_context.imports.exports.get(exported)
-        else {
-            return Ok(None);
+        // An ordinary module gets source order from its analysis-time import map. A synthetic
+        // facade has no import map, so its explicit reference list supplies the same ordering.
+        let idx = match eval_context.imports.exports.get(exported) {
+            Some(Export::ImportedBinding(idx, _, _)) => Some(*idx),
+            Some(_) => return Ok(None),
+            None => None,
         };
 
         let referenced_asset =
@@ -706,23 +771,32 @@ async fn build_compact_reexports(
             .and_then(|names| names.get(exported))
             .unwrap_or(exported)
             .clone();
+        let key = (namespace_ident.clone(), ctxt);
+        let order = if let Some(idx) = idx {
+            idx
+        } else if let Some(order) = synthetic_order.get(&key) {
+            *order
+        } else {
+            positions_known = false;
+            0
+        };
 
-        let group = groups
-            .entry((namespace_ident.clone(), ctxt))
-            .or_insert_with(|| ReexportGroup {
-                order: *idx,
-                namespace_ident,
-                ctxt,
-                asset,
-                locally_bound: false,
-                reference_spans: FxHashSet::default(),
-                pairs: Vec::new(),
-            });
-        group.order = group.order.min(*idx);
-        group.locally_bound |= locally_bound.contains(idx);
-        group
-            .reference_spans
-            .insert(eval_context.imports.reference_span(*idx));
+        let group = groups.entry(key).or_insert_with(|| ReexportGroup {
+            order,
+            namespace_ident,
+            ctxt,
+            asset,
+            locally_bound: false,
+            reference_spans: FxHashSet::default(),
+            pairs: Vec::new(),
+        });
+        group.order = group.order.min(order);
+        if let Some(idx) = idx {
+            group.locally_bound |= locally_bound.contains(&idx);
+            group
+                .reference_spans
+                .insert(eval_context.imports.reference_span(idx));
+        }
         group.pairs.push((exported_key, imported_key));
     }
 
@@ -733,11 +807,13 @@ async fn build_compact_reexports(
     let mut groups: Vec<ReexportGroup> = groups.into_values().collect();
     groups.sort_by_key(|g| g.order);
 
-    // The imports can only be subsumed when nothing else depends on them running where they are:
-    // the mode says no import follows a re-export, and no re-exported module is also bound to a
-    // name the module's own code uses.
-    let subsume_imports =
-        mode == ExportRegistrationMode::Reexport && !groups.iter().any(|group| group.locally_bound);
+    // A scope-hoisted factory contains several logical modules. Another registration in the same
+    // factory may still read a namespace imported by this one, so suppression is only safe when
+    // this module owns its factory. Unknown relative order is safe only for one group.
+    let subsume_imports = mode == ExportRegistrationMode::Reexport
+        && scope_hoisting_context.module().is_none()
+        && (positions_known || groups.len() == 1)
+        && !groups.iter().any(|group| group.locally_bound);
 
     Ok(Some(CompactReexports {
         groups,
@@ -785,6 +861,12 @@ async fn emit_compact_reexports(
                 ))
                 .into(),
             ));
+        }
+
+        if group.pairs.is_empty() {
+            // An evaluation-only group is represented by its head followed immediately by the
+            // next group's sentinel (or the end of the list).
+            continue;
         }
 
         if comma_free {
@@ -855,6 +937,24 @@ struct ReexportGroup {
 /// one group would read the wrong variable and suppress both declarations.
 pub(crate) type NamespaceKey = (String, Option<SyntaxContext>);
 
+type SyntheticReexportReferences<'a> = (
+    &'a [ResolvedVc<EcmascriptModulePartReference>],
+    &'a [ResolvedVc<EsmAssetReference>],
+);
+
+fn compact_registration_is_safe(
+    mode: ExportRegistrationMode,
+    is_circuit_breaker: bool,
+    export_usage_known: bool,
+    is_async_module: bool,
+) -> bool {
+    matches!(
+        mode,
+        ExportRegistrationMode::Mixed | ExportRegistrationMode::Reexport
+    ) && !(is_circuit_breaker && export_usage_known)
+        && !is_async_module
+}
+
 /// Imports performed by one compact registration. Binding references are identified by namespace;
 /// evaluation references also need their source span so an earlier independent `import './x'` of
 /// the same module is retained rather than being suppressed with a later re-export declaration.
@@ -880,6 +980,8 @@ impl EsmExports {
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         export_registration_mode: ExportRegistrationMode,
+        synthetic_references: Option<SyntheticReexportReferences<'_>>,
+        is_async_module: bool,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
@@ -944,11 +1046,15 @@ impl EsmExports {
 
         // A module whose exports are *only* forwarded from other modules can register them all in
         // one compact call instead of one arrow function per binding. `export_registration_mode`
-        // decided during analysis whether that is possible without reordering evaluation; the rest
-        // of the conditions are about this particular code generation being able to express it.
-        let compact = if matches!(
+        // decided during analysis whether that is possible without reordering evaluation. Async
+        // modules may yield a promise from `i()`, and a known circuit breaker must expose its
+        // getters before importing the other side of the cycle, so both stay on the general
+        // registration.
+        let compact = if compact_registration_is_safe(
             export_registration_mode,
-            ExportRegistrationMode::Mixed | ExportRegistrationMode::Reexport
+            export_usage_info.is_circuit_breaker,
+            export_usage_info.export_usage_known,
+            is_async_module,
         ) && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
@@ -957,6 +1063,7 @@ impl EsmExports {
                 mangled_names.as_ref(),
                 eval_context,
                 export_registration_mode,
+                synthetic_references,
                 chunking_context,
                 scope_hoisting_context,
             )
@@ -1204,5 +1311,46 @@ impl EsmExports {
                 Default::default(),
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ExportRegistrationMode, compact_registration_is_safe};
+
+    #[test]
+    fn compact_registration_rejects_async_modules_and_known_cycle_breakers() {
+        assert!(compact_registration_is_safe(
+            ExportRegistrationMode::Reexport,
+            false,
+            true,
+            false
+        ));
+        assert!(!compact_registration_is_safe(
+            ExportRegistrationMode::Reexport,
+            false,
+            true,
+            true
+        ));
+        assert!(!compact_registration_is_safe(
+            ExportRegistrationMode::Reexport,
+            true,
+            true,
+            false
+        ));
+        // Without export-usage analysis, `is_circuit_breaker` is conservatively true rather than
+        // evidence of an actual cycle, so the compact form remains available.
+        assert!(compact_registration_is_safe(
+            ExportRegistrationMode::Reexport,
+            true,
+            false,
+            false
+        ));
+        assert!(!compact_registration_is_safe(
+            ExportRegistrationMode::Normal,
+            false,
+            true,
+            false
+        ));
     }
 }
