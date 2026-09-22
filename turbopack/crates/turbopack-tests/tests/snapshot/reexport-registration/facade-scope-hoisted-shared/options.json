@@ -1,4 +1,5 @@
 {
   "followReexports": true,
-  "scopeHoisting": true
+  "scopeHoisting": true,
+  "singleChunk": true
 }
