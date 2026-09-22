@@ -122,13 +122,16 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
-import { FALLBACK_PARAMS, RUNTIME_DATA } from '../resume-data-cache/cache-store'
+import {
+  FALLBACK_PARAMS,
+  RUNTIME_DATA,
+  SESSION_DATA,
+} from '../resume-data-cache/cache-store'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import {
   abortOnDynamicAccess,
   dynamicAccessAsyncStorage,
   type DynamicAccessAsyncStore,
-  type DynamicAccessReason,
 } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
 import {
@@ -279,7 +282,10 @@ export type SharedCacheResult =
     }
   | {
       readonly type: 'prerender-dynamic'
-      readonly reason: DynamicAccessReason
+      readonly reason:
+        | typeof FALLBACK_PARAMS
+        | typeof RUNTIME_DATA
+        | typeof SESSION_DATA
       readonly hangingPromise: Promise<never>
     }
 
@@ -570,7 +576,8 @@ function saveSharedCacheEntryToResumeDataCache(
   if (
     existingEntry !== undefined &&
     existingEntry !== FALLBACK_PARAMS &&
-    existingEntry !== RUNTIME_DATA
+    existingEntry !== RUNTIME_DATA &&
+    existingEntry !== SESSION_DATA
   ) {
     return
   }
@@ -1330,7 +1337,7 @@ type GenerateCacheEntryResult =
     }
   | {
       readonly type: 'prerender-dynamic'
-      readonly reason: DynamicAccessReason
+      readonly reason: typeof FALLBACK_PARAMS | typeof RUNTIME_DATA
       readonly hangingPromise: Promise<never>
     }
 
@@ -1560,7 +1567,12 @@ async function generateCacheEntryImpl(
             }
           )
           getCacheSignal(outerWorkUnitStore)?.endRead()
-          return { type: 'prerender-dynamic', reason, hangingPromise }
+          return {
+            type: 'prerender-dynamic',
+            reason:
+              reason === 'fallback-params' ? FALLBACK_PARAMS : RUNTIME_DATA,
+            hangingPromise,
+          }
         }
 
         // If the prerender is aborted because of dynamic access (e.g. reading
@@ -1575,7 +1587,11 @@ async function generateCacheEntryImpl(
 
         getCacheSignal(outerWorkUnitStore)?.endRead()
 
-        return { type: 'prerender-dynamic', reason, hangingPromise }
+        return {
+          type: 'prerender-dynamic',
+          reason: reason === 'fallback-params' ? FALLBACK_PARAMS : RUNTIME_DATA,
+          hangingPromise,
+        }
       } else {
         stream = prelude
       }
@@ -2449,14 +2465,22 @@ export async function cache(
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
     let rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
-    if (rdcEntry === FALLBACK_PARAMS || rdcEntry === RUNTIME_DATA) {
+    if (
+      rdcEntry === FALLBACK_PARAMS ||
+      rdcEntry === RUNTIME_DATA ||
+      rdcEntry === SESSION_DATA
+    ) {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime': {
-          const makeHangingPromise =
-            rdcEntry === FALLBACK_PARAMS
-              ? makeFallbackParamsHangingPromise
-              : makeURLDataHangingPromise
+          let makeHangingPromise
+          if (rdcEntry === FALLBACK_PARAMS) {
+            makeHangingPromise = makeFallbackParamsHangingPromise
+          } else if (rdcEntry === SESSION_DATA) {
+            makeHangingPromise = makeSessionDataHangingPromise
+          } else {
+            makeHangingPromise = makeURLDataHangingPromise
+          }
           return makeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
@@ -3177,9 +3201,7 @@ export async function cache(
             if (resumeDataCache?.mutable) {
               resumeDataCache.cache.set(
                 serializedCacheKey,
-                sharedCacheResult.reason === 'fallback-params'
-                  ? FALLBACK_PARAMS
-                  : RUNTIME_DATA
+                sharedCacheResult.reason
               )
             }
             cacheSignal?.endRead()
@@ -3334,7 +3356,7 @@ export async function cache(
               )
               resolvableSharedCacheResult.resolve({
                 type: 'prerender-dynamic',
-                reason: 'runtime',
+                reason: SESSION_DATA,
                 hangingPromise,
               })
               return hangingPromise
@@ -3520,12 +3542,7 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.cache.set(
-                serializedCacheKey,
-                result.reason === 'fallback-params'
-                  ? FALLBACK_PARAMS
-                  : RUNTIME_DATA
-              )
+              resumeDataCache.cache.set(serializedCacheKey, result.reason)
             }
             resolvableSharedCacheResult.resolve(result)
             return result.hangingPromise

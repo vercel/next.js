@@ -276,7 +276,11 @@ import {
   type RenderResumeDataCache,
   type ResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
-import { FALLBACK_PARAMS, RUNTIME_DATA } from '../resume-data-cache/cache-store'
+import {
+  FALLBACK_PARAMS,
+  RUNTIME_DATA,
+  SESSION_DATA,
+} from '../resume-data-cache/cache-store'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
@@ -8880,7 +8884,8 @@ async function prerenderToStream(
         for (const [key, pendingEntry] of cache) {
           if (
             pendingEntry === FALLBACK_PARAMS ||
-            pendingEntry === RUNTIME_DATA
+            pendingEntry === RUNTIME_DATA ||
+            pendingEntry === SESSION_DATA
           ) {
             continue
           }
@@ -8897,7 +8902,7 @@ async function prerenderToStream(
                 // for the final pass's static-prefetch hint. Short-lived
                 // entries still need runtime data even with concrete params.
                 if (revalidate === 0 || expire < MIN_PRERENDERABLE_EXPIRE) {
-                  cache.set(key, RUNTIME_DATA)
+                  cache.set(key, SESSION_DATA)
                 } else {
                   cache.set(key, FALLBACK_PARAMS)
                 }

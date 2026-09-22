@@ -64,11 +64,14 @@ export const FALLBACK_PARAMS = Symbol.for(
   'next.resume-data-cache.fallback-params'
 )
 export const RUNTIME_DATA = Symbol.for('next.resume-data-cache.runtime-data')
+// Unlike params/searchParams, short-lived data also prevents a static shell.
+export const SESSION_DATA = Symbol.for('next.resume-data-cache.session-data')
 
 type UseCacheCacheStoreValue =
   | Promise<CollectedCacheResult>
   | typeof FALLBACK_PARAMS
   | typeof RUNTIME_DATA
+  | typeof SESSION_DATA
 
 /**
  * A cache store for "use cache" results, or markers explaining why an entry
@@ -138,7 +141,11 @@ export async function serializeUseCacheCacheStore(
 ): Promise<Array<[string, UseCacheCacheStoreSerialized] | null>> {
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
-      if (value === FALLBACK_PARAMS || value === RUNTIME_DATA) {
+      if (
+        value === FALLBACK_PARAMS ||
+        value === RUNTIME_DATA ||
+        value === SESSION_DATA
+      ) {
         return null
       }
 

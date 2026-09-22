@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { load } from 'cheerio'
+import { PrefetchHint } from 'next/src/shared/lib/app-router-types'
 
 describe('use-cache-fallback-root-params', () => {
   const { next } = nextTestSetup({
@@ -48,16 +49,14 @@ describe('use-cache-fallback-root-params', () => {
   // shell is rendered. Inspect the generic shell to exercise RDC pruning.
   // @force-gate !dev && !deploy
   it('preserves static-prefetch hints when only fallback roots are missing', async () => {
-    // PrefetchHint.ShouldAttemptStaticPrefetch. If this representation changes,
-    // preserve the regression rather than exposing router internals for tests.
-    const shouldAttemptStaticPrefetch = 0b100000000000000
     for (const pathname of ['[lang]', '[lang]/nested', '[lang]/boundary']) {
       const meta = JSON.parse(
         await next.readFile(`.next/server/app/${pathname}.meta`)
       )
       expect(
-        (meta.prefetchHints?.hints ?? 0) & shouldAttemptStaticPrefetch
-      ).toBe(shouldAttemptStaticPrefetch)
+        (meta.prefetchHints?.hints ?? 0) &
+          PrefetchHint.ShouldAttemptStaticPrefetch
+      ).toBe(PrefetchHint.ShouldAttemptStaticPrefetch)
     }
   })
 
@@ -66,7 +65,10 @@ describe('use-cache-fallback-root-params', () => {
     const meta = JSON.parse(
       await next.readFile('.next/server/app/[lang]/search.meta')
     )
-    expect((meta.prefetchHints?.hints ?? 0) & 0b100000000000000).toBe(0)
+    expect(
+      (meta.prefetchHints?.hints ?? 0) &
+        PrefetchHint.ShouldAttemptStaticPrefetch
+    ).toBe(0)
   })
 
   it('resolves cached and uncached roots on ordinary requests', async () => {
