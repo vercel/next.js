@@ -38,7 +38,7 @@
     "publish": false,
     "timeout": 900
   },
-  "agent-059-server-only-bundle-boundary": {
+  "agent-059-server-client-account-boundary": {
     "timeout": 1200
   }
 }
