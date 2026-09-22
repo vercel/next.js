@@ -116,10 +116,6 @@ export const styles = `
 
       .error-overlay-tab {
         white-space: nowrap;
-
-        &:disabled {
-          display: none;
-        }
       }
 
       .nextjs-container-build-error-version-status {
