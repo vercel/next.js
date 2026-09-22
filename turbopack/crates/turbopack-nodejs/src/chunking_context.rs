@@ -799,7 +799,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsage::all())
+            Ok(ModuleExportUsage::unknown())
         }
     }
 
