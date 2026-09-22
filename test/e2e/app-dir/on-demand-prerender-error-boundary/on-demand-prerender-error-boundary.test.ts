@@ -21,6 +21,275 @@ describe('on-demand-prerender-error-boundary', () => {
     expect(await browser.elementByCss('h1').text()).toBe(slug)
   })
 
+  // @force-gate prod && cacheComponents
+  describe('partial prerender recovery', () => {
+    for (const withSuspense of [false, true]) {
+      it(`recovers during the same request after a transient prerender error with Suspense=${withSuspense}`, async () => {
+        const slug = `transient-${randomUUID()}`
+        const pathname = `/partial/${withSuspense ? 'suspense-' : ''}${slug}`
+        const message = `Transient prerender error: ${pathname}`
+        const usesGenericErrorPage = await gate(
+          (conditions) => conditions.deploy && !conditions.adapter
+        )
+        let documentRequests = 0
+        const { browser, response } = await next.browserWithResponse(pathname, {
+          extraHTTPHeaders: { 'accept-language': 'en-GB' },
+          beforePageLoad(page) {
+            page.on('request', (request) => {
+              if (
+                request.isNavigationRequest() &&
+                new URL(request.url()).pathname === pathname
+              ) {
+                documentRequests++
+              }
+            })
+          },
+        })
+        try {
+          expect(response.status()).toBe(500)
+          expect(response.headers()['cache-control']).toBe(
+            usesGenericErrorPage
+              ? 'public, max-age=0, must-revalidate'
+              : 'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
+
+          if (!usesGenericErrorPage) {
+            expect(await response.text()).toContain('Recovered during resume')
+          }
+
+          await retry(async () => {
+            const body = await browser.elementByCss('body').text()
+            expect(body).not.toContain(message)
+            if (usesGenericErrorPage) {
+              expect(body).toContain(
+                'A server error occurred. Reload to try again.'
+              )
+            } else {
+              expect(await browser.elementById('content').text()).toBe(
+                'Recovered during resume'
+              )
+              expect(await browser.elementById('request-content').text()).toBe(
+                'en-GB'
+              )
+              expect(body).not.toContain('Partial prerender error boundary')
+            }
+          })
+          expect(documentRequests).toBe(1)
+
+          await retry(async () => {
+            const report = await next.fetch(
+              `/test-data?key=${encodeURIComponent(`report-${pathname}`)}`
+            )
+            expect(report.status).toBe(200)
+            expect(await report.json()).toMatchObject({
+              message,
+              request: { path: pathname, method: 'GET' },
+              context: {
+                routerKind: 'App Router',
+                routeType: 'render',
+                routePath: expect.stringMatching(
+                  /^\/partial\/\[slug\](?:\/page)?$/
+                ),
+              },
+            })
+          }, 30_000)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it(`recovers at the same URL and retains the successful page with Suspense=${withSuspense}`, async () => {
+        const key = `recovery-${randomUUID()}`
+        const pathname = `/partial/${withSuspense ? 'suspense-' : ''}${key}`
+        const usesGenericErrorPage = await gate(
+          (conditions) => conditions.deploy && !conditions.adapter
+        )
+
+        for (const [value, status, language] of [
+          ['error', 500, 'en-GB'],
+          ['ready', 200, 'de-DE'],
+          ['error', 200, 'fr-FR'],
+        ] as const) {
+          await setData(key, value)
+          const { browser, response } = await next.browserWithResponse(
+            pathname,
+            {
+              extraHTTPHeaders: { 'accept-language': language },
+            }
+          )
+          try {
+            expect(response.status()).toBe(status)
+            if (status === 500 && !usesGenericErrorPage) {
+              expect(response.headers()['cache-control']).toBe(
+                'private, no-cache, no-store, max-age=0, must-revalidate'
+              )
+            }
+            await retry(async () => {
+              if (status === 500) {
+                expect(await browser.elementByCss('body').text()).toContain(
+                  usesGenericErrorPage
+                    ? 'A server error occurred. Reload to try again.'
+                    : 'Partial prerender error boundary'
+                )
+              } else {
+                expect(await browser.elementById('content').text()).toBe(
+                  'ready'
+                )
+              }
+              if (status !== 500 || !usesGenericErrorPage) {
+                expect(
+                  await browser.elementById('request-content').text()
+                ).toBe(language)
+              }
+            })
+          } finally {
+            await browser.close()
+          }
+        }
+      })
+
+      it(`reports the original partial prerender error and route context with Suspense=${withSuspense}`, async () => {
+        const slug = `reported-${randomUUID()}`
+        const pathname = `/partial/${withSuspense ? 'suspense-' : ''}${slug}`
+        const message = `Reported partial prerender error: ${slug}`
+        const { browser, response } = await next.browserWithResponse(pathname, {
+          extraHTTPHeaders: { 'accept-language': 'en-GB' },
+        })
+        try {
+          expect(response.status()).toBe(500)
+          expect(await browser.elementByCss('body').text()).not.toContain(
+            message
+          )
+          const usesGenericErrorPage = await gate(
+            (conditions) => conditions.deploy && !conditions.adapter
+          )
+          if (!usesGenericErrorPage) {
+            await retry(async () => {
+              expect(await browser.elementByCss('body').text()).toContain(
+                'Partial prerender error boundary'
+              )
+              expect(await browser.elementById('request-content').text()).toBe(
+                'en-GB'
+              )
+            })
+          }
+        } finally {
+          await browser.close()
+        }
+
+        await retry(async () => {
+          const report = await next.fetch(
+            `/test-data?key=${encodeURIComponent(`report-${pathname}`)}`
+          )
+          expect(report.status).toBe(200)
+          expect(await report.json()).toMatchObject({
+            message,
+            request: { path: pathname, method: 'GET' },
+            context: {
+              routerKind: 'App Router',
+              routeType: 'render',
+              routePath: expect.stringMatching(
+                /^\/partial\/\[slug\](?:\/page)?$/
+              ),
+            },
+          })
+        }, 30_000)
+      })
+    }
+
+    for (const slug of ['suspense-error', 'error']) {
+      it(`renders ${slug} and its dynamic sibling after a failed prefetch`, async () => {
+        const pathname = `/partial/${slug}`
+        let page: Page | undefined
+        const browser = await next.browser('/partial', {
+          extraHTTPHeaders: { 'accept-language': 'en-GB' },
+          beforePageLoad(browserPage) {
+            page = browserPage
+          },
+        })
+        try {
+          if (page === undefined) {
+            throw new Error('The browser did not provide a Playwright page')
+          }
+
+          const act = createRouterAct(page, { allowErrorStatusCodes: [500] })
+          await act(async () => {
+            await browser
+              .elementByCss(`input[data-link-accordion="${pathname}"]`)
+              .click()
+          })
+
+          // Failed Flight responses cause an MPA navigation, outside act.
+          await browser.elementByCss(`a[href="${pathname}"]`).click()
+          await page.waitForURL((url) => url.pathname === pathname, {
+            timeout: 30_000,
+          })
+          const usesGenericErrorPage = await gate(
+            (conditions) => conditions.deploy && !conditions.adapter
+          )
+          await retry(async () => {
+            expect(await browser.elementByCss('body').text()).toContain(
+              usesGenericErrorPage
+                ? 'A server error occurred. Reload to try again.'
+                : 'Partial prerender error boundary'
+            )
+            if (!usesGenericErrorPage) {
+              expect(await browser.elementById('request-content').text()).toBe(
+                'en-GB'
+              )
+            }
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    for (const [slug, status, expectedText] of [
+      ['healthy', 200, 'Healthy page'],
+      ['suspense-error', 500, 'Partial prerender error boundary'],
+      ['error', 500, 'Partial prerender error boundary'],
+      ['suspense-missing', 200, 'Partial prerender not-found boundary'],
+      ['missing', 404, 'Partial prerender not-found boundary'],
+    ] as const) {
+      it(`resumes ${slug} with the current request outside the page boundary`, async () => {
+        const usesGenericErrorPage =
+          status === 500 &&
+          (await gate((conditions) => conditions.deploy && !conditions.adapter))
+
+        for (const language of ['en-GB', 'de-DE']) {
+          const { browser, response } = await next.browserWithResponse(
+            `/partial/${slug}`,
+            { extraHTTPHeaders: { 'accept-language': language } }
+          )
+          try {
+            expect(response.status()).toBe(status)
+            if (status === 500 && !usesGenericErrorPage) {
+              expect(response.headers()['cache-control']).toBe(
+                'private, no-cache, no-store, max-age=0, must-revalidate'
+              )
+            }
+
+            await retry(async () => {
+              expect(await browser.elementByCss('body').text()).toContain(
+                usesGenericErrorPage
+                  ? 'A server error occurred. Reload to try again.'
+                  : expectedText
+              )
+              if (!usesGenericErrorPage) {
+                expect(
+                  await browser.elementById('request-content').text()
+                ).toBe(language)
+              }
+            })
+          } finally {
+            await browser.close()
+          }
+        }
+      })
+    }
+  })
+
   async function setData(key: string, value: string) {
     const pathname = `/test-data?key=${encodeURIComponent(key)}`
     const invalidation = await next.fetch(pathname, { method: 'DELETE' })

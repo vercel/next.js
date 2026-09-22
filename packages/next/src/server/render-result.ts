@@ -79,7 +79,10 @@ export type AppPageRenderResultMetadata = {
 export type PrerenderFailure = {
   readonly error: Error
   readonly result: RenderResult<
-    Pick<AppPageRenderResultMetadata, 'headers' | 'flightData' | 'fetchMetrics'>
+    Pick<
+      AppPageRenderResultMetadata,
+      'headers' | 'flightData' | 'fetchMetrics' | 'postponed'
+    >
   >
 }
 

@@ -6,7 +6,9 @@ export const onRequestError: Instrumentation.onRequestError = async (
   request,
   context
 ) => {
-  if (!request.path.startsWith('/reported-')) {
+  if (
+    !/^\/(?:partial\/(?:suspense-)?)?(?:reported|transient)-/.test(request.path)
+  ) {
     return
   }
 

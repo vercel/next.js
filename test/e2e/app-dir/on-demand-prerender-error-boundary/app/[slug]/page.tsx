@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { cacheLife, unstable_noStore } from 'next/cache'
 import { SsrError } from '../../ssr-error'
 import { getOrigin } from '../../origin'
+import { getData } from '../../test-data'
 
 export function generateStaticParams() {
   return [{ slug: 'prerendered' }]
@@ -27,20 +28,6 @@ async function IOContent() {
 function NoStoreContent() {
   unstable_noStore()
   return <p id="content">No-store content</p>
-}
-
-async function getData(key: string) {
-  'use cache'
-
-  // The HTTP boundary keeps the data tag out of the page's ISR entry.
-  const response = await fetch(
-    `${getOrigin()}/test-data?key=${encodeURIComponent(key)}`,
-    { cache: 'no-store' }
-  )
-  if (!response.ok) {
-    throw new Error(`Failed to read test data: ${response.status}`)
-  }
-  return response.text()
 }
 
 export default async function Page({

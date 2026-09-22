@@ -1660,6 +1660,82 @@ export function createAppPageEntrypoint({
         }
       }
 
+      const invokeOnCacheEntry = (cacheEntry: ResponseCacheEntry) => {
+        // If we support RDC for Navigations, prefer the callback that can
+        // deliver postponed state for both document and RSC requests.
+        const onCacheEntry = supportsRDCForNavigations
+          ? (getRequestMeta(req, 'onCacheEntryV2') ??
+            getRequestMeta(req, 'onCacheEntry'))
+          : getRequestMeta(req, 'onCacheEntry')
+        if (!onCacheEntry) {
+          return false
+        }
+
+        const rawCacheEntryUrl = getRequestMeta(req, 'initURL') ?? req.url
+        const cacheEntryUrl = rawCacheEntryUrl
+          ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
+          : undefined
+
+        return onCacheEntry(cacheEntry, { url: cacheEntryUrl })
+      }
+
+      const resumeRender = (
+        body: RenderResult,
+        postponed: string | undefined,
+        span?: Span
+      ) => {
+        // Attach the continuation before rendering so the prelude can start
+        // streaming immediately.
+        const transformer = new TransformStream<Uint8Array, Uint8Array>()
+        body.push(transformer.readable)
+
+        // This metadata supplies fallback params when the saved state does not
+        // record them. App-render uses the saved state's own set when present.
+        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+          addRequestMeta(
+            req,
+            'stagedFallbackParams',
+            createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+          )
+        }
+
+        // Start the resume without awaiting it. The response consumes the
+        // continuation stream attached above.
+        doRender({
+          span,
+          postponed,
+          // The resume retains concrete param values; staging only defers
+          // access.
+          fallbackRouteParams: null,
+          renderOperation: 'render',
+        })
+          .then(async (result) => {
+            if (!result) {
+              throw new Error('Invariant: expected a result to be returned')
+            }
+
+            if ('error' in result) {
+              throw result.error
+            }
+
+            if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
+              throw new Error(
+                `Invariant: expected a page response, got ${result.value?.kind}`
+              )
+            }
+
+            // Pipe the resume result to the transformer.
+            await result.value.html.pipeTo(transformer.writable)
+          })
+          .catch((err) => {
+            // An error occurred during piping or preparing the render, abort
+            // the transformers writer so we can terminate the stream.
+            transformer.writable.abort(err).catch((e) => {
+              console.error("couldn't abort transformer", e)
+            })
+          })
+      }
+
       const handleResponse = async (span?: Span): Promise<null | void> => {
         const cacheEntry = await routeModule.handleResponse({
           cacheKey: ssgCacheKey,
@@ -1740,6 +1816,40 @@ export function createAppPageEntrypoint({
             // The router discards failed prefetches and falls back to a
             // document load when navigation receives a failed Flight response.
             response = RenderResult.fromStatic('', RSC_CONTENT_TYPE_HEADER)
+          } else if (typeof result.metadata.postponed === 'string') {
+            // The platform needs the postponed state to resume with the actual
+            // request. This value is only for delivery; the response cache
+            // retains the failure and never persists it as ISR output.
+            if (
+              await invokeOnCacheEntry({
+                value: {
+                  kind: CachedRouteKind.APP_PAGE,
+                  html: result,
+                  rscData: result.metadata.flightData,
+                  postponed: result.metadata.postponed,
+                  status: 500,
+                  headers: undefined,
+                  segmentData: undefined,
+                },
+                cacheControl: { revalidate: 0, expire: undefined },
+              })
+            ) {
+              return null
+            }
+
+            if (isMinimalMode) {
+              // A prerender invocation may have filtered request headers, so
+              // only the platform can resume with the original request.
+              throw cacheEntry.error
+            }
+
+            // Each request owns its continuation. The buffered prelude and
+            // postponed state can be shared by the response cache.
+            response = RenderResult.fromStatic(
+              result.toUnchunkedString(),
+              HTML_CONTENT_TYPE_HEADER
+            )
+            resumeRender(response, result.metadata.postponed, span)
           }
 
           return sendRenderResult({
@@ -1939,16 +2049,6 @@ export function createAppPageEntrypoint({
           })
         }
 
-        // If there's a callback for `onCacheEntry`, call it with the cache entry
-        // and the revalidate options. If we support RDC for Navigations, we
-        // prefer the `onCacheEntryV2` callback. Once RDC for Navigations is the
-        // default, we can remove the fallback to `onCacheEntry` as
-        // `onCacheEntryV2` is now fully supported.
-        const onCacheEntry = supportsRDCForNavigations
-          ? (getRequestMeta(req, 'onCacheEntryV2') ??
-            getRequestMeta(req, 'onCacheEntry'))
-          : getRequestMeta(req, 'onCacheEntry')
-
         // `onCacheEntry` lets the platform capture a freshly prerendered result
         // so the proxy can write it to the ISR cache; on deploy it returns true
         // and the function returns below. In debug-shell mode the render was
@@ -1956,17 +2056,8 @@ export function createAppPageEntrypoint({
         // to capture, and we need to reach the serve path below to close the
         // document. `onCacheEntry` is absent in `next start`/dev, so this guard
         // only affects the deploy (minimalMode) path.
-        if (onCacheEntry && !isDebugStaticShell) {
-          const rawCacheEntryUrl = getRequestMeta(req, 'initURL') ?? req.url
-          const cacheEntryUrl = rawCacheEntryUrl
-            ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
-            : undefined
-
-          const finished = await onCacheEntry(cacheEntry, {
-            url: cacheEntryUrl,
-          })
-
-          if (finished) return null
+        if (!isDebugStaticShell && (await invokeOnCacheEntry(cacheEntry))) {
+          return null
         }
 
         if (cachedData.headers) {
@@ -2212,58 +2303,7 @@ export function createAppPageEntrypoint({
           body.push(createPPRBoundarySentinel())
         }
 
-        // This request has postponed, so let's create a new transformer that the
-        // dynamic data can pipe to that will attach the dynamic data to the end
-        // of the response.
-        const transformer = new TransformStream<Uint8Array, Uint8Array>()
-        body.push(transformer.readable)
-
-        // This metadata supplies fallback params when the saved state does not
-        // record them. App-render uses the saved state's own set when present.
-        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
-          addRequestMeta(
-            req,
-            'stagedFallbackParams',
-            createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          )
-        }
-
-        // Perform the render again, but this time, provide the postponed state.
-        // We don't await because we want the result to start streaming now, and
-        // we've already chained the transformer's readable to the render result.
-        doRender({
-          span,
-          postponed: cachedData.postponed,
-          // The resume retains concrete param values; staging only defers
-          // access.
-          fallbackRouteParams: null,
-          renderOperation: 'render',
-        })
-          .then(async (result) => {
-            if (!result) {
-              throw new Error('Invariant: expected a result to be returned')
-            }
-
-            if ('error' in result) {
-              throw result.error
-            }
-
-            if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-              throw new Error(
-                `Invariant: expected a page response, got ${result.value?.kind}`
-              )
-            }
-
-            // Pipe the resume result to the transformer.
-            await result.value.html.pipeTo(transformer.writable)
-          })
-          .catch((err) => {
-            // An error occurred during piping or preparing the render, abort
-            // the transformers writer so we can terminate the stream.
-            transformer.writable.abort(err).catch((e) => {
-              console.error("couldn't abort transformer", e)
-            })
-          })
+        resumeRender(body, cachedData.postponed, span)
 
         return sendRenderResult({
           req,
