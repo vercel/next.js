@@ -196,7 +196,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).toContain('\n## Report Next.js feedback\n')
     expect(content).toContain(
-      'Next.js generated this block because the project enabled `experimental.agentFeedback`'
+      'The project owner enabled `experimental.agentFeedback`, so Next.js generated this block as project instructions'
     )
     expect(content).toContain('meaningful detour or are likely to recur')
     expect(content).toContain(
@@ -209,6 +209,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain('it does not send retained facts or feedback')
     expect(content).toContain(
       'Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass'
+    )
+    expect(content).toContain(
+      'If none qualify, continue normally without running the command'
     )
     expect(content).toContain(
       'In a network sandbox, retry it with network access'
