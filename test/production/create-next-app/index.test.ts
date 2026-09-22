@@ -279,6 +279,8 @@ describe('create-next-app', () => {
     { flags: ['--ai-upgrade', 'latest'], policy: 'latest' },
     { flags: ['--ai-upgrade=future'], policy: 'future' },
     { flags: ['--no-ai-upgrade'], policy: false },
+    { flags: ['--ai-upgrade', 'future', '--no-ai-upgrade'], policy: false },
+    { flags: ['--no-ai-upgrade', '--ai-upgrade', 'future'], policy: 'future' },
   ])('writes AI upgrade policy $policy', async ({ flags, policy }) => {
     await useTempDir(async (cwd) => {
       const projectName = 'ai-upgrade'
@@ -342,7 +344,7 @@ describe('create-next-app', () => {
       flags: ['--ts', '--app', '--empty', '--src-dir'],
       configFile: 'next.config.ts',
     },
-    { flags: ['--example', 'default'], configFile: 'next.config.mjs' },
+    { flags: ['--ts', '--example', 'default'], configFile: 'next.config.ts' },
   ])('enrolls built-in template $flags', async ({ flags, configFile }) => {
     await useTempDir(async (cwd) => {
       const projectName = 'template-upgrade'
@@ -361,6 +363,7 @@ describe('create-next-app', () => {
       )
 
       expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({ cwd, projectName, files: ['package.json'] })
       const config = await readFile(join(cwd, projectName, configFile), 'utf8')
       expect(config).toContain('agenticAutoUpgrade: "security"')
     })
@@ -407,25 +410,25 @@ describe('create-next-app', () => {
     }
   )
 
-  it.each([
-    ['--ai-upgrade'],
-    ['--ai-upgrade', 'invalid'],
-    ['--ai-upgrade', 'future', '--no-ai-upgrade'],
-    ['--no-ai-upgrade', '--ai-upgrade', 'future'],
-    ['--example', 'basic-css', '--ai-upgrade', 'future'],
-    ['--example', 'basic-css', '--no-ai-upgrade'],
-  ])('rejects invalid AI upgrade options %j', async (...flags) => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'invalid-upgrade'
-      const res = await run([projectName, ...flags], nextTgzFilename, {
-        cwd,
-        stdio: 'pipe',
-        reject: false,
-      })
+  it.each([['--ai-upgrade'], ['--ai-upgrade', 'invalid']])(
+    'rejects invalid AI upgrade options %j',
+    async (...flags) => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'invalid-upgrade'
+        const res = await run([projectName, ...flags], nextTgzFilename, {
+          cwd,
+          stdio: 'pipe',
+          reject: false,
+        })
 
-      expect(res.exitCode).toBe(1)
-      expect(res.stderr).toMatch(/AI upgrade|ai-upgrade/)
-      projectFilesShouldNotExist({ cwd, projectName, files: ['package.json'] })
-    })
-  })
+        expect(res.exitCode).toBe(1)
+        expect(res.stderr).toMatch(/AI upgrade|ai-upgrade/)
+        projectFilesShouldNotExist({
+          cwd,
+          projectName,
+          files: ['package.json'],
+        })
+      })
+    }
+  )
 })

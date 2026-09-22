@@ -18,7 +18,6 @@ import packageJson from './package.json'
 import { Bundler } from './templates'
 
 let projectPath: string = ''
-const aiUpgradeFlags = new Set<boolean>()
 
 const handleSigTerm = () => process.exit(0)
 
@@ -120,8 +119,6 @@ const program = new Command(packageJson.name)
     ).choices(['security', 'latest', 'future'])
   )
   .option('--no-ai-upgrade', 'Disable AI upgrade reminders.')
-  .on('option:ai-upgrade', () => aiUpgradeFlags.add(true))
-  .on('option:no-ai-upgrade', () => aiUpgradeFlags.add(false))
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -147,17 +144,6 @@ const packageManager: PackageManager = !!opts.useNpm
         : getPkgManager()
 
 async function run(): Promise<void> {
-  if (aiUpgradeFlags.size > 1) {
-    program.error('Cannot use --ai-upgrade and --no-ai-upgrade together.')
-  }
-
-  const example = typeof opts.example === 'string' && opts.example.trim()
-  if (example && example !== 'default' && opts.aiUpgrade !== undefined) {
-    program.error(
-      'AI upgrade options are only supported with built-in templates.'
-    )
-  }
-
   const conf = new Conf({ projectName: 'create-next-app' })
 
   if (opts.resetPreferences) {
@@ -241,6 +227,7 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
+  const example = typeof opts.example === 'string' && opts.example.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
     string,
     boolean | string
@@ -253,7 +240,7 @@ async function run(): Promise<void> {
   let skipPrompt = ciInfo.isCI || opts.yes
   let useRecommendedDefaults = false
 
-  if (!example) {
+  if (!example || example === 'default') {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: false,
