@@ -16,6 +16,7 @@ import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { futureDefaults } from 'next/dist/lib/upgrade/future-defaults'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
@@ -39,6 +40,7 @@ jest.mock('next/dist/build/output/log', () => ({
   bootstrap: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
+  warn: jest.fn(),
 }))
 jest.mock('next/dist/compiled/cli-select', () => ({
   __esModule: true,
@@ -97,6 +99,32 @@ function normalizedWriteFileCalls() {
   return normalizedFileWriteCalls().filter(([path]) =>
     String(path).includes('/skills/')
   )
+}
+
+function mockSkillInstructions(failedSkill: string | undefined = undefined) {
+  crossSpawn.mockImplementation((_command, args) => {
+    const skill = args[args.length - 1].split('/').pop()
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: EventEmitter & { setEncoding: jest.Mock }
+      stderr: EventEmitter & { setEncoding: jest.Mock }
+    }
+    child.stdout = Object.assign(new EventEmitter(), {
+      setEncoding: jest.fn(),
+    })
+    child.stderr = Object.assign(new EventEmitter(), {
+      setEncoding: jest.fn(),
+    })
+    process.nextTick(() => {
+      if (skill === failedSkill) {
+        child.stderr.emit('data', 'Skill unavailable')
+        child.emit('close', 1)
+      } else {
+        child.stdout.emit('data', `Follow ${skill}.\n`)
+        child.emit('close', 0)
+      }
+    })
+    return child
+  })
 }
 
 function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
@@ -587,37 +615,10 @@ describe('agentic upgrade prompts', () => {
       installedVersion: '16.2.0',
       targetVersion: '16.4.0',
       references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [
-        {
-          name: 'Cache Components',
-          availableSince: '16.3.0',
-          isAdopted: jest.fn(() => false),
-          adoptionDoc: [
-            'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'skills/next-cache-components-adoption/SKILL.md',
-          ],
-          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
-        },
-      ],
+      futureDefaults: [...futureDefaults],
     })
 
-    crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      process.nextTick(() => {
-        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
-        child.emit('close', 0)
-      })
-      return child
-    })
+    mockSkillInstructions()
 
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
@@ -625,7 +626,6 @@ describe('agentic upgrade prompts', () => {
       ai: 'future',
     })
 
-    expect(crossSpawn).toHaveBeenCalledTimes(1)
     expect(normalizedFileWriteCalls()).toContainEqual([
       '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
       expect.stringMatching(
@@ -633,77 +633,48 @@ describe('agentic upgrade prompts', () => {
       ),
     ])
 
-    expect({
-      prompt: normalizedBootstrapCalls(),
-      savedInstructions: normalizedWriteFileCalls(),
-    }).toMatchInlineSnapshot(`
-     {
-       "prompt": [
-         [
-           "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+    expect(crossSpawn.mock.calls.map(([, args]) => args)).toEqual([
+      [
+        'skills@1.5.26',
+        'use',
+        'https://github.com/vercel/next.js/tree/v16.4.0/skills/next-cache-components-adoption',
+      ],
+      [
+        'skills@1.5.26',
+        'use',
+        'https://github.com/vercel/next.js/tree/v16.4.0/skills/next-partial-prefetching-adoption',
+      ],
+    ])
 
-     We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
-
-     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     After completing and verifying the version migration, adopt these Future Defaults in order:
-     - Cache Components
-       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
-       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
-     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
-
-     References:
-     - https://registry.npmjs.org/next/latest",
-         ],
-       ],
-       "savedInstructions": [
-         [
-           "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md",
-           "Adopt Cache Components safely.
-     ",
-         ],
-       ],
-     }
-    `)
+    expect(normalizedWriteFileCalls()).toEqual([
+      [
+        '/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md',
+        'Follow next-cache-components-adoption.\n',
+      ],
+      [
+        '/tmp/next-upgrade-test/skills/next-partial-prefetching-adoption/PROMPT.md',
+        'Follow next-partial-prefetching-adoption.\n',
+      ],
+    ])
+    expect(normalizedBootstrapCalls()).toEqual([
+      [
+        expect.stringMatching(
+          /skills\/next-cache-components-adoption\/PROMPT\.md[\s\S]*skills\/next-partial-prefetching-adoption\/PROMPT\.md/
+        ),
+      ],
+    ])
   })
 
-  it('includes the shared preflight without a version migration when current', async () => {
+  it('adopts only Partial Prefetching without a version migration when current', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '16.4.0',
       targetVersion: '16.4.0',
       references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [
-        {
-          name: 'Cache Components',
-          availableSince: '16.3.0',
-          isAdopted: jest.fn(() => false),
-          adoptionDoc: [
-            'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'skills/next-cache-components-adoption/SKILL.md',
-          ],
-          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
-        },
-      ],
+      futureDefaults: [futureDefaults[1]],
     })
 
-    crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      process.nextTick(() => {
-        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
-        child.emit('close', 0)
-      })
-      return child
-    })
+    mockSkillInstructions()
 
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
@@ -732,25 +703,80 @@ describe('agentic upgrade prompts', () => {
       '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
       expect.anything(),
     ])
-    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
-     [
-       [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+    expect(normalizedWriteFileCalls()).toEqual([
+      [
+        '/tmp/next-upgrade-test/skills/next-partial-prefetching-adoption/PROMPT.md',
+        'Follow next-partial-prefetching-adoption.\n',
+      ],
+    ])
+    expect(normalizedBootstrapCalls()).toEqual([
+      [
+        expect.stringContaining(
+          '/skills/next-partial-prefetching-adoption/PROMPT.md'
+        ),
+      ],
+    ])
+  })
 
-     We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
+  it('can use the adoption skill when its companion guide is unavailable', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '16.4.0',
+      targetVersion: '16.4.0',
+      references: [],
+      futureDefaults: [futureDefaults[1]],
+    })
+    jest.mocked(cp).mockImplementation(async (source) => {
+      if (String(source).endsWith('adopting-partial-prefetching.md')) {
+        throw new Error('Guide unavailable')
+      }
+    })
+    mockSkillInstructions()
 
-     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'future',
+    })
 
-     Adopt these Future Defaults in order:
-     - Cache Components
-       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
-       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
-     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
+    expect(process.exitCode).toBeUndefined()
+    expect(normalizedBootstrapCalls()).toHaveLength(1)
+    expect(normalizedBootstrapCalls()[0][0]).toContain(
+      '/skills/next-partial-prefetching-adoption/PROMPT.md'
+    )
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Could not prepare upgrade document docs/01-app/02-guides/adopting-partial-prefetching.md.'
+    )
+  })
 
-     References:
-     - https://registry.npmjs.org/next/latest",
-       ],
-     ]
-    `)
+  it.each([
+    'next-cache-components-adoption',
+    'next-partial-prefetching-adoption',
+  ])('stops before handoff when %s cannot be prepared', async (skill) => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '16.4.0',
+      targetVersion: '16.4.0',
+      references: [],
+      futureDefaults: [...futureDefaults],
+    })
+    mockSkillInstructions(skill)
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'future',
+    })
+
+    expect(normalizedBootstrapCalls()).toEqual([])
+    expect(process.exitCode).toBe(1)
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      `Could not prepare skills/${skill}/SKILL.md: Skill unavailable`
+    )
+    expect(rm).toHaveBeenCalledWith('/tmp/next-upgrade-test', {
+      recursive: true,
+      force: true,
+    })
   })
 })

@@ -472,14 +472,17 @@ describe('composed future nudge', () => {
       )
     ).resolves.toEqual({
       installedVersion: '16.4.0-canary.1',
-      names: ['Cache Components'],
+      names: ['Cache Components', 'Partial Prefetching'],
     })
   })
 
   it('does not remind about defaults already adopted on canary', async () => {
     await expect(
       getFutureUpgrade(
-        config('future', { cacheComponents: true }),
+        config('future', {
+          cacheComponents: true,
+          partialPrefetching: true,
+        }),
         '16.4.0-canary.1'
       )
     ).resolves.toBeNull()
@@ -508,13 +511,16 @@ describe('composed future nudge', () => {
       getFutureUpgrade(config('future', { cacheComponents: false }), '16.4.0')
     ).resolves.toEqual({
       installedVersion: '16.4.0',
-      names: ['Cache Components'],
+      names: ['Cache Components', 'Partial Prefetching'],
     })
   })
 
   it('stays silent when all available Future Defaults are adopted', async () => {
     await expect(
-      getFutureUpgrade(config('future', { cacheComponents: true }), '16.4.0')
+      getFutureUpgrade(
+        config('future', { cacheComponents: true, partialPrefetching: true }),
+        '16.4.0'
+      )
     ).resolves.toBeNull()
   })
 
