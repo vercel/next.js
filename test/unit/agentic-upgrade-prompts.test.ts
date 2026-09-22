@@ -671,7 +671,7 @@ describe('agentic upgrade prompts', () => {
       installedVersion: '16.4.0',
       targetVersion: '16.4.0',
       references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [futureDefaults[1]],
+      futureDefaults: [futureDefaults[2]],
     })
 
     mockSkillInstructions()
@@ -724,7 +724,7 @@ describe('agentic upgrade prompts', () => {
       installedVersion: '16.4.0',
       targetVersion: '16.4.0',
       references: [],
-      futureDefaults: [futureDefaults[1]],
+      futureDefaults: [futureDefaults[2]],
     })
     jest.mocked(cp).mockImplementation(async (source) => {
       if (String(source).endsWith('adopting-partial-prefetching.md')) {
