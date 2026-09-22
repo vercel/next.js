@@ -1,11 +1,12 @@
-import { nextTestSetup, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-// @force-gate !deploy
 describe('404 Page Support SSG', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    deployBuildArtifacts: [
+      '.next/routes-manifest.json',
+      '.next/prerender-manifest.json',
+    ],
     disableAutoSkewProtection: true,
   })
 
@@ -17,13 +18,15 @@ describe('404 Page Support SSG', () => {
 
   it('should render error correctly', async () => {
     const text = await next.render('/err')
-    if (isNextStart) {
+    if (!isNextDev) {
       expect(text).toContain('Internal Server Error')
     } else {
       expect(text).toContain('oops')
     }
   })
 
+  // This assertion needs runtime logs, which are not collected by this suite.
+  // @force-gate !deploy
   it('should not show an error in the logs for 404 SSG', async () => {
     const gip404Err =
       /`pages\/404` can not have getInitialProps\/getServerSideProps/
@@ -36,7 +39,7 @@ describe('404 Page Support SSG', () => {
     expect(html).toContain('hello from index')
   })
 
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should not revalidate custom 404 page', async () => {
       const res1 = await next.render('/non-existent')
       const res2 = await next.render('/non-existent')

@@ -12,6 +12,11 @@ import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
 import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
 import { packPackages } from '../create-next-install'
+import { randomUUID } from 'crypto'
+import {
+  createBuildArtifactScript,
+  parseBuildArtifacts,
+} from './deploy-build-artifacts'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -21,9 +26,15 @@ export class NextDeployInstance extends NextInstance {
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
+  private readonly artifactFiles: string[]
+  private buildArtifacts = new Map<string, Buffer>()
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
+    this.artifactFiles = [...(opts.deployBuildArtifacts ?? [])]
+    if (this.artifactFiles.length) {
+      createBuildArtifactScript(this.artifactFiles)
+    }
 
     if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
       this.env = {
@@ -228,6 +239,13 @@ export class NextDeployInstance extends NextInstance {
     this._supportsImmutableAssets =
       supportsImmutableAssets === '1' ? true : false
 
+    if (this.artifactFiles.length) {
+      this.buildArtifacts = parseBuildArtifacts(
+        this._cliOutput,
+        this.artifactFiles
+      )
+    }
+
     require('console').log(
       `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, supportsImmutableAssets: ${this._supportsImmutableAssets}`
     )
@@ -239,8 +257,8 @@ export class NextDeployInstance extends NextInstance {
     vercelFlags: string[]
   ): Promise<string> {
     // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
-    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
-    // of the build (see `base.ts`). A deployment can report `Ready` before that
+    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order), followed by an
+    // artifact completion marker when requested. A deployment can report `Ready` before that
     // tail has propagated to the log query API, so `vercel inspect --logs` can
     // return a truncated prefix that stops before the markers. Gate on the
     // last-printed marker so a partial read can't slip into the parser, and
@@ -264,7 +282,11 @@ export class NextDeployInstance extends NextInstance {
       // Build logs are piped to stderr, so combine both streams.
       output = buildLogs.stdout + buildLogs.stderr
 
-      if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
+      if (
+        /NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output) &&
+        (!this.artifactFiles.length ||
+          /NEXT_TEST_BUILD_ARTIFACT_END:[a-f0-9]{64}/.test(output))
+      ) {
         return output
       }
 
@@ -284,6 +306,23 @@ export class NextDeployInstance extends NextInstance {
   public async setup(parentSpan: Span) {
     await super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
+
+    if (this.artifactFiles.length) {
+      const filename = `.next-test-build-artifacts-${randomUUID()}.cjs`
+      await fs.writeFile(
+        path.join(this.testDir, filename),
+        createBuildArtifactScript(this.artifactFiles)
+      )
+      const packageJsonPath = path.join(this.testDir, 'package.json')
+      const pkg = await fs.readJSON(packageJsonPath)
+      // Append to the build itself so fixture-defined post-build scripts are
+      // preserved. The collector runs only after a successful build.
+      pkg.scripts.build += ` && node ${filename}`
+      await this.writeFixtureConfiguration(
+        packageJsonPath,
+        JSON.stringify(pkg, null, 2) + '\n'
+      )
+    }
 
     await this.writeMirrorNpmrcIfNecessary()
 
@@ -1029,6 +1068,7 @@ export class NextDeployInstance extends NextInstance {
     if (!this._startPromise) {
       this._cliOutput = ''
       this._url = ''
+      this.buildArtifacts.clear()
       // Reuse a ready deployment on subsequent calls, as start() did before
       // deployment moved out of setup(). A failed attempt can be retried.
       this._startPromise = this.deploy().catch((error) => {
@@ -1046,7 +1086,14 @@ export class NextDeployInstance extends NextInstance {
     throw new Error('patchFile is not available in deploy test mode')
   }
   public async readFile(filename: string): Promise<string> {
-    throw new Error('readFile is not available in deploy test mode')
+    return (await this.readFileBuffer(filename)).toString('utf8')
+  }
+  public async readJSON(filename: string) {
+    // Preserve existing access to fixture JSON; declared outputs must always
+    // come from the remote build, never a stale local file.
+    return this.artifactFiles.includes(filename)
+      ? JSON.parse(await this.readFile(filename))
+      : super.readJSON(filename)
   }
   public async deleteFile(filename: string): Promise<void> {
     throw new Error('deleteFile is not available in deploy test mode')
@@ -1058,7 +1105,14 @@ export class NextDeployInstance extends NextInstance {
     throw new Error('renameFile is not available in deploy test mode')
   }
   public async readFileBuffer(filename: string): Promise<Buffer> {
-    throw new Error('readFileBuffer is not available in deploy test mode')
+    this.throwIfUnavailable()
+    const artifact = this.buildArtifacts.get(filename)
+    if (!artifact) {
+      throw new Error(
+        `Build artifact ${filename} is unavailable. Declare it in deployBuildArtifacts and await a successful deployment.`
+      )
+    }
+    return Buffer.from(artifact)
   }
   public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
     throw new Error('writeFileBuffer is not available in deploy test mode')

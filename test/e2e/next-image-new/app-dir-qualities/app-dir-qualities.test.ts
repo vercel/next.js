@@ -4,7 +4,7 @@ import { waitForNoRedbox } from 'next-test-utils'
 describe('Image qualities config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    deployBuildArtifacts: ['.next/images-manifest.json'],
   })
 
   async function getSrc(browser: Playwright, id: string) {

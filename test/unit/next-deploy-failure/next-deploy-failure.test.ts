@@ -1,5 +1,14 @@
 import execa from 'execa'
 import { trace } from 'next/dist/trace'
+import { execFileSync } from 'child_process'
+import fs from 'fs-extra'
+import os from 'os'
+import path from 'path'
+import { randomBytes } from 'crypto'
+import {
+  createBuildArtifactScript,
+  parseBuildArtifacts,
+} from '../../lib/next-modes/deploy-build-artifacts'
 
 jest.mock('execa', () => jest.fn())
 
@@ -217,6 +226,71 @@ describe('deployment lifecycle', () => {
     expect(next.deploymentId).toBe('deployment-id')
   })
 
+  it('collects declared remote artifacts without reading local build output', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'next-artifacts-'))
+    const filename = '.next/routes-manifest.json'
+    const next = new NextDeployInstance({
+      files: __dirname,
+      deployBuildArtifacts: [filename],
+    })
+    next.testDir = dir
+    try {
+      await fs.writeJSON(path.join(dir, 'package.json'), {
+        scripts: { build: 'next build && pnpm post-build' },
+      })
+      await fs.outputJSON(path.join(dir, filename), { pages404: true })
+      await next.setup(trace('test'))
+      const pkg = await fs.readJSON(path.join(dir, 'package.json'))
+      expect(pkg.scripts.build).toMatch(
+        /^next build && pnpm post-build && node \.next-test-build-artifacts-[\w-]+\.cjs$/
+      )
+      const script = pkg.scripts.build.split(' && node ')[1]
+      const output = execFileSync(process.execPath, [script], {
+        cwd: dir,
+        encoding: 'utf8',
+      })
+      // A deploy runner has no copy of files produced in the remote build.
+      await fs.remove(path.join(dir, '.next'))
+      await expect(next.readJSON(filename)).rejects.toThrow('unavailable')
+      successfulDeployment()
+      logs.stderr += '\n' + output
+      await next.start()
+      expect(await next.readJSON(filename)).toEqual({ pages404: true })
+      expect(await next.readJSON('package.json')).toEqual(pkg)
+      const buffer = await next.readFileBuffer(filename)
+      buffer.fill(0)
+      expect(await next.readJSON(filename)).toEqual({ pages404: true })
+      await expect(next.readFile('package.json')).rejects.toThrow(
+        'Declare it in deployBuildArtifacts'
+      )
+    } finally {
+      await fs.remove(dir)
+    }
+  })
+
+  it('waits for artifact logs even when the build ID markers have arrived', async () => {
+    const next = new NextDeployInstance({
+      files: __dirname,
+      deployBuildArtifacts: ['.next/routes-manifest.json'],
+    })
+    const output = `${ids}\nNEXT_TEST_BUILD_ARTIFACT_END:${'a'.repeat(64)}`
+    jest
+      .spyOn(require('timers/promises'), 'setTimeout')
+      .mockResolvedValue(undefined)
+    jest
+      .mocked(execa)
+      .mockResolvedValueOnce({ stdout: '', stderr: ids, exitCode: 0 } as never)
+      .mockResolvedValueOnce({
+        stdout: '',
+        stderr: output,
+        exitCode: 0,
+      } as never)
+    await expect(
+      (next as any).fetchBuildLogsUntilComplete(deploymentUrl, process.env, [])
+    ).resolves.toBe(output)
+    expect(execa).toHaveBeenCalledTimes(2)
+  })
+
   it('reuses a deployment for concurrent and subsequent start calls', async () => {
     successfulDeployment()
     const next = await instance()
@@ -309,5 +383,138 @@ describe('deployment lifecycle', () => {
     await expect(next.start()).rejects.toThrow('Failed to deploy project')
     await next.destroy()
     expect(execa).toHaveBeenCalledWith('mock-cleanup', [], expect.anything())
+  })
+})
+
+describe('build artifact transport', () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'next-artifacts-'))
+  })
+
+  afterEach(async () => {
+    await fs.remove(dir)
+  })
+
+  function collect(files: string[]) {
+    return execFileSync(
+      process.execPath,
+      ['-e', createBuildArtifactScript(files)],
+      {
+        cwd: dir,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    )
+  }
+
+  it('round trips JSON and binary files through timestamped, reordered logs', async () => {
+    const files = ['output dir/manifest.json', 'output dir/binary.bin']
+    const bytes = randomBytes(6000)
+    await fs.outputJSON(path.join(dir, files[0]), { route: '/ä' })
+    await fs.outputFile(path.join(dir, files[1]), bytes)
+    const output = collect(files)
+      .trim()
+      .split('\n')
+      .reverse()
+      .map((line) => `12:00:00.000 ${line}`)
+      .join('\n')
+    const artifacts = parseBuildArtifacts(output, files)
+    expect(JSON.parse(artifacts.get(files[0])!.toString())).toEqual({
+      route: '/ä',
+    })
+    expect(artifacts.get(files[1])).toEqual(bytes)
+  })
+
+  it('allows identical log redelivery', async () => {
+    await fs.outputFile(path.join(dir, '.next/file'), 'content')
+    const output = collect(['.next/file'])
+    expect(
+      parseBuildArtifacts(output + output, ['.next/file'])
+        .get('.next/file')!
+        .toString()
+    ).toBe('content')
+  })
+
+  it('rejects missing completion markers and missing chunks', async () => {
+    await fs.outputFile(path.join(dir, '.next/file'), randomBytes(6000))
+    const output = collect(['.next/file'])
+    expect(() =>
+      parseBuildArtifacts(
+        output.replace(/NEXT_TEST_BUILD_ARTIFACT_END:[^\n]+/, ''),
+        ['.next/file']
+      )
+    ).toThrow('completion marker')
+    expect(() =>
+      parseBuildArtifacts(
+        output.replace(/NEXT_TEST_BUILD_ARTIFACT:[^\n]+\n/, ''),
+        ['.next/file']
+      )
+    ).toThrow('Incomplete')
+  })
+
+  it('rejects corrupted and conflicting chunks', async () => {
+    await fs.outputFile(path.join(dir, '.next/file'), 'content')
+    const output = collect(['.next/file'])
+    const corrupted = output.replace(/(:0:1:)./, '$1!').replace(':!', ':A')
+    expect(() => parseBuildArtifacts(corrupted, ['.next/file'])).toThrow(
+      'checksum'
+    )
+    expect(() =>
+      parseBuildArtifacts(output + corrupted, ['.next/file'])
+    ).toThrow('Inconsistent')
+  })
+
+  it('rejects an unexpected artifact inventory', async () => {
+    await fs.outputFile(path.join(dir, '.next/file'), 'content')
+    const output = collect(['.next/file'])
+    expect(() => parseBuildArtifacts(output, ['.next/other'])).toThrow(
+      'Unexpected build artifact entry'
+    )
+    expect(() => parseBuildArtifacts(output, [])).toThrow(
+      'Unexpected build artifact inventory'
+    )
+  })
+
+  it.each([
+    '/absolute',
+    '../outside',
+    '.next/../secret',
+    'C:\\secret',
+    '.next//file',
+    './file',
+  ])('rejects invalid paths: %s', (file) => {
+    expect(() => createBuildArtifactScript([file])).toThrow(
+      'relative file paths'
+    )
+  })
+
+  it('rejects duplicate requested paths', () => {
+    expect(() =>
+      createBuildArtifactScript(['.next/file', '.next/file'])
+    ).toThrow('unique relative file paths')
+  })
+
+  it('fails the build when a requested file is missing', () => {
+    expect(() => collect(['.next/missing'])).toThrow()
+  })
+
+  it('rejects symlinks outside the fixture', async () => {
+    await fs.symlink(os.tmpdir(), path.join(dir, 'outside'))
+    expect(() => collect(['outside'])).toThrow('escapes the fixture')
+  })
+
+  it('rejects artifacts that exceed the raw size limit', async () => {
+    await fs.outputFile(
+      path.join(dir, '.next/file'),
+      Buffer.alloc(8 * 1024 * 1024 + 1)
+    )
+    expect(() => collect(['.next/file'])).toThrow('size limits')
+  })
+
+  it('rejects artifacts that exceed the compressed log budget', async () => {
+    await fs.outputFile(path.join(dir, '.next/file'), randomBytes(256 * 1024))
+    expect(() => collect(['.next/file'])).toThrow('build-log transport limit')
   })
 })
