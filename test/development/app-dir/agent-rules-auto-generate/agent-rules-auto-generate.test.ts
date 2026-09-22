@@ -203,6 +203,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
+    expect(content).toContain('it does not send retained facts or feedback')
     expect(content).toContain(
       'Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass'
     )
