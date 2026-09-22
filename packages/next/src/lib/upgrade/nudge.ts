@@ -8,12 +8,14 @@ import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
 import { futureDefaults } from './future-defaults'
+import { UpgradeReminder } from './reminder-telemetry'
 import type { UpgradeAssessment } from './prepare-upgrade'
 
 type SecurityNudgeOptions = {
   directory: string
   distDir: string
   command: 'dev' | 'build'
+  policy: NudgeKind
 }
 
 type NudgeKind = 'security' | 'latest' | 'future'
@@ -120,13 +122,27 @@ async function showNudge(
 
   if (retryAllowed) {
     Log.warn(warning)
+    await UpgradeReminder.create(
+      warning,
+      errorName,
+      options.directory,
+      options.distDir,
+      options.policy,
+      kind,
+      options.command
+    ).recordShown()
     return
   }
 
-  const error = new Error(prompt)
-  error.name = errorName
-  Object.assign(error, { exitCode: 1 })
-  throw error
+  throw UpgradeReminder.create(
+    prompt,
+    errorName,
+    options.directory,
+    options.distDir,
+    options.policy,
+    kind,
+    options.command
+  )
 }
 
 async function nudgeForSecurity(
@@ -310,7 +326,7 @@ export async function nudgeForUpgrade(
     return
   }
 
-  const options = { directory, distDir: config.distDir, command }
+  const options = { directory, distDir: config.distDir, command, policy }
   if (await nudgeForSecurity(options, policy, assessment)) {
     return
   }

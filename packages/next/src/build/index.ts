@@ -4733,6 +4733,9 @@ export default async function build(
               ? nudgeError.message
               : String(nudgeError)
           )
+          const { recordUpgradeReminder } =
+            require('../lib/upgrade/reminder-telemetry') as typeof import('../lib/upgrade/reminder-telemetry')
+          await recordUpgradeReminder(nudgeError)
         }
       }
     }

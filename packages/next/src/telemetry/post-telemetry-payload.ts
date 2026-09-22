@@ -15,10 +15,14 @@ interface Payload {
   }>
 }
 
-export function postNextTelemetryPayload(payload: Payload, signal?: any) {
-  if (!signal && 'timeout' in AbortSignal) {
-    signal = AbortSignal.timeout(5000)
-  }
+export function postNextTelemetryPayload(
+  payload: Payload,
+  signal: AbortSignal | undefined = undefined
+) {
+  // Callers supply cancellation for detached flushing. It must not disable the
+  // timeout, particularly when a CLI waits for telemetry before exiting.
+  const timeout = AbortSignal.timeout(5000)
+  signal = signal ? AbortSignal.any([signal, timeout]) : timeout
   return (
     retry(
       () =>

@@ -86,4 +86,62 @@ describe('postNextTelemetryPayload', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(2) // Initial try + 1 retry
   })
+  it('retains a timeout when the caller supplies a cancellation signal', async () => {
+    const timeout = new AbortController()
+    const timeoutSpy = jest
+      .spyOn(AbortSignal, 'timeout')
+      .mockReturnValue(timeout.signal)
+    const caller = new AbortController()
+    let started: () => void
+    const requestStarted = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    global.fetch = jest.fn((_url, options) => {
+      const signal = options!.signal!
+      started()
+      return new Promise((_resolve, reject) => {
+        if (signal.aborted) {
+          reject(signal.reason)
+          return
+        }
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        })
+      })
+    }) as typeof fetch
+    try {
+      const pending = postNextTelemetryPayload(
+        {
+          meta: {},
+          context: { anonymousId: 'a', projectId: 'p', sessionId: 's' },
+          events: [],
+        },
+        caller.signal
+      )
+      await requestStarted
+      timeout.abort()
+      await pending
+      expect(caller.signal.aborted).toBe(false)
+      expect(timeoutSpy).toHaveBeenCalledWith(5000)
+    } finally {
+      timeoutSpy.mockRestore()
+    }
+  })
+
+  it('preserves caller cancellation', async () => {
+    const caller = new AbortController()
+    caller.abort()
+    global.fetch = jest.fn(async (_url, options) => {
+      expect(options!.signal!.aborted).toBe(true)
+      throw new Error('aborted')
+    }) as typeof fetch
+    await postNextTelemetryPayload(
+      {
+        meta: {},
+        context: { anonymousId: 'a', projectId: 'p', sessionId: 's' },
+        events: [],
+      },
+      caller.signal
+    )
+  })
 })

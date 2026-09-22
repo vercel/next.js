@@ -6,6 +6,7 @@ import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
+import type { EventUpgradeHandoff } from '../../telemetry/events/upgrade'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bold, cyan, dim } from '../picocolors'
 import { runChildProcess } from './run-child-process'
@@ -107,7 +108,10 @@ async function chooseHarness(
   }
 }
 
-function copyUpgradePrompt(prompt: string, noHarness = false): void {
+function copyUpgradePrompt(
+  prompt: string,
+  noHarness = false
+): 'copied' | 'printed' {
   const commands =
     process.platform === 'darwin'
       ? [['pbcopy']]
@@ -134,7 +138,7 @@ function copyUpgradePrompt(prompt: string, noHarness = false): void {
           ? 'No supported coding agent found. The upgrade prompt was copied to your clipboard.'
           : 'Upgrade prompt copied. Paste it into your coding agent.'
       )
-      return
+      return 'copied'
     }
   }
 
@@ -144,12 +148,14 @@ function copyUpgradePrompt(prompt: string, noHarness = false): void {
       : 'Could not access the clipboard. Copy this upgrade prompt:'
   )
   Log.bootstrap(prompt)
+  return 'printed'
 }
 
 function launchHarness(
   harness: UpgradeHarness,
   prompt: string,
-  directory: string
+  directory: string,
+  onSpawn: () => void
 ): Promise<number> {
   // Windows shell shims cannot carry literal line breaks in an argument.
   if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
@@ -159,23 +165,29 @@ function launchHarness(
   return runChildProcess(
     harness.path,
     ['--model', UPGRADE_MODELS[harness.name], prompt],
-    { cwd: directory, stdio: 'inherit' }
+    { cwd: directory, stdio: 'inherit' },
+    onSpawn
   )
 }
 
 export async function handoffUpgrade(
   prompt: string,
-  directory: string
+  directory: string,
+  onHandoff: (
+    state: EventUpgradeHandoff['handoffState']
+  ) => Promise<void> = async () => {}
 ): Promise<void> {
   // Existing agents keep their session, model and permissions.
   if (await getAgentName()) {
     Log.bootstrap(prompt)
+    await onHandoff('current-agent')
     return
   }
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     Log.info('Copy this upgrade prompt into your coding agent:')
     Log.bootstrap(prompt)
+    await onHandoff('printed')
     return
   }
 
@@ -183,7 +195,7 @@ export async function handoffUpgrade(
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    copyUpgradePrompt(prompt, true)
+    await onHandoff(copyUpgradePrompt(prompt, true))
     return
   }
 
@@ -191,13 +203,14 @@ export async function handoffUpgrade(
   const harness = await chooseHarness(installed)
 
   if (harness === 'copy') {
-    copyUpgradePrompt(prompt)
+    await onHandoff(copyUpgradePrompt(prompt))
     return
   }
 
   if (!harness) {
     Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
     process.exitCode = 1
+    await onHandoff('cancelled')
     return
   }
 
@@ -205,9 +218,12 @@ export async function handoffUpgrade(
     `  Continuing with ${cyan(bold(getHarnessDisplayName(harness.name)))}...\n`
   )
   try {
-    process.exitCode = await launchHarness(harness, prompt, directory)
+    process.exitCode = await launchHarness(harness, prompt, directory, () => {
+      void onHandoff(harness.name)
+    })
   } catch {
     Log.error(`Could not start ${getHarnessDisplayName(harness.name)}.`)
     process.exitCode = 1
+    await onHandoff('failed')
   }
 }

@@ -17,10 +17,20 @@ type UpgradePreparation =
       futureDefaults: FutureDefaultEntry[]
     }
 
+export class UpgradePreparationError extends Error {
+  constructor(
+    message: string,
+    readonly prepareState: 'blocked' | 'unknown',
+    readonly installedVersion: string
+  ) {
+    super(message)
+  }
+}
+
 export async function prepareUpgrade(
   directory: string,
   targetRequest: string = 'security'
-): Promise<UpgradePreparation> {
+): Promise<UpgradePreparation & { installedVersion: string }> {
   if (
     targetRequest !== 'security' &&
     targetRequest !== 'latest' &&
@@ -55,10 +65,14 @@ export async function prepareUpgrade(
     targetRequest
   )
   if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
-    throw new Error(upgrade.reason)
+    throw new UpgradePreparationError(
+      upgrade.reason,
+      upgrade.status,
+      installedVersion
+    )
   }
   if (upgrade.status !== 'ready' || targetRequest !== 'future') {
-    return upgrade
+    return { ...upgrade, installedVersion }
   }
 
   const config = await loadConfig(PHASE_INFO, directory, {
@@ -76,6 +90,7 @@ export async function prepareUpgrade(
   ) {
     return {
       status: 'unaffected',
+      installedVersion,
       reason: `Next.js ${installedVersion} is current and all available Future Defaults are enabled.`,
     }
   }

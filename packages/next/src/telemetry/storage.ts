@@ -9,7 +9,6 @@ import { getAnonymousMeta } from './anonymous-meta'
 import * as ciEnvironment from '../server/ci-info'
 import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
-import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.
@@ -59,7 +58,10 @@ export class Telemetry {
 
   private queue: Set<Promise<RecordObject>>
 
-  constructor({ distDir }: { distDir: string }) {
+  constructor(
+    { distDir }: { distDir: string },
+    private projectDir: string = process.cwd()
+  ) {
     // Read in the constructor so that .env can be loaded before reading
     const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
     this.NEXT_TELEMETRY_DISABLED = NEXT_TELEMETRY_DISABLED
@@ -167,7 +169,7 @@ export class Telemetry {
   }
 
   private async getProjectId(): Promise<string> {
-    this.loadProjectId = this.loadProjectId || getRawProjectId()
+    this.loadProjectId = this.loadProjectId || getRawProjectId(this.projectDir)
     return this.oneWayHash(await this.loadProjectId)
   }
 

@@ -15,12 +15,23 @@ import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { Telemetry } from 'next/dist/telemetry/storage'
+import {
+  UpgradePreparationError,
+  prepareUpgrade,
+} from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 
+jest.mock('next/dist/telemetry/storage', () => ({
+  Telemetry: jest.fn(),
+}))
+jest.mock('@next/env', () => ({
+  loadEnvConfig: jest.fn(),
+  updateInitialEnv: jest.fn(),
+}))
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
   cp: jest.fn(),
@@ -60,6 +71,9 @@ jest.mock('next/dist/lib/picocolors', () => ({
   dim: (text: string) => text,
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+  UpgradePreparationError: jest.requireActual(
+    'next/dist/lib/upgrade/prepare-upgrade'
+  ).UpgradePreparationError,
   prepareUpgrade: jest.fn(),
 }))
 jest.mock('next/dist/server/config', () => ({
@@ -115,6 +129,8 @@ function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
 }
 
 describe('agentic upgrade prompts', () => {
+  const record = jest.fn()
+  const flush = jest.fn()
   const originalPath = process.env.PATH
   const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
   const originalExpectedCliVersion =
@@ -124,6 +140,10 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    jest
+      .mocked(Telemetry)
+      .mockImplementation(() => ({ record, flush }) as never)
+    delete process.env.__NEXT_UPGRADE_TELEMETRY
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
     global.fetch = jest.fn()
@@ -152,6 +172,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
     jest.mocked(loadConfig).mockResolvedValue({
+      distDir: '.next',
       default: { experimental: { agenticAutoUpgrade: false } },
     } as never)
     jest
@@ -188,6 +209,7 @@ describe('agentic upgrade prompts', () => {
   it('uses the pinned CLI without looking up canary again', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'unaffected',
+      installedVersion: '16.3.5',
       reason: 'Already current.',
     })
 
@@ -238,6 +260,7 @@ describe('agentic upgrade prompts', () => {
         )
       jest.mocked(prepareUpgrade).mockResolvedValue({
         status: 'unaffected',
+        installedVersion: '16.3.5',
         reason: 'Already current.',
       })
 
@@ -496,6 +519,7 @@ describe('agentic upgrade prompts', () => {
     'uses the configured %s policy for a bare AI upgrade',
     async (policy) => {
       jest.mocked(loadConfig).mockResolvedValue({
+        distDir: '.next',
         default: { experimental: { agenticAutoUpgrade: policy } },
       } as never)
 
@@ -514,6 +538,73 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
+  it.each([true, 'latest'] as const)(
+    'uses the configured telemetry directory for --ai=%s',
+    async (ai) => {
+      jest.mocked(loadConfig).mockResolvedValue({
+        distDir: '.custom',
+        default: {
+          distDir: '.raw',
+          experimental: { agenticAutoUpgrade: 'security' },
+        },
+      } as never)
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai,
+      })
+      expect(loadConfig).toHaveBeenCalledTimes(ai === true ? 2 : 1)
+      expect(normalizeConfig).toHaveBeenCalledTimes(ai === true ? 1 : 0)
+      expect(loadConfig).toHaveBeenLastCalledWith(
+        PHASE_PRODUCTION_BUILD,
+        '/workspace/app',
+        { silent: true }
+      )
+      expect(Telemetry).toHaveBeenCalledWith(
+        { distDir: expect.stringMatching(/[/\\]app[/\\]\.custom$/) },
+        '/workspace/app'
+      )
+      expect(prepareUpgrade).toHaveBeenCalledWith(
+        '/workspace/app',
+        ai === true ? 'security' : 'latest'
+      )
+    }
+  )
+
+  it('preserves explicit upgrades when reading telemetry configuration fails', async () => {
+    jest.mocked(loadConfig).mockRejectedValue(new Error('Cannot load config'))
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'latest',
+    })
+    expect(Telemetry).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('preserves bare upgrades when resolved telemetry config rejects legacy options', async () => {
+    jest
+      .mocked(loadConfig)
+      .mockImplementation(async (_phase, _dir, options) => {
+        if (options?.rawConfig) {
+          return {
+            target: 'serverless',
+            experimental: { agenticAutoUpgrade: 'latest' },
+          } as never
+        }
+        throw new Error('The target property is no longer supported')
+      })
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: true,
+    })
+    expect(Telemetry).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+    expect(process.exitCode).toBeUndefined()
+  })
+
   it('passes the latest target to the existing agent', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
@@ -529,7 +620,11 @@ describe('agentic upgrade prompts', () => {
       ai: 'latest',
     })
 
-    expect(loadConfig).not.toHaveBeenCalled()
+    expect(loadConfig).toHaveBeenCalledWith(
+      PHASE_PRODUCTION_BUILD,
+      '/workspace/app',
+      { silent: true }
+    )
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
@@ -752,5 +847,207 @@ describe('agentic upgrade prompts', () => {
        ],
      ]
     `)
+  })
+  it.each(['blocked', 'unknown'] as const)(
+    'records structured %s preparation failures without error text',
+    async (state) => {
+      jest
+        .mocked(prepareUpgrade)
+        .mockRejectedValue(
+          new UpgradePreparationError('private diagnostic', state, '16.0.0')
+        )
+      await spawnNextUpgrade('/workspace/app', {
+        ai: 'latest',
+        revision: 'latest',
+        verbose: false,
+      })
+      expect(record.mock.calls.map(([event]) => event.eventName)).toEqual([
+        'NEXT_UPGRADE_STARTED',
+        'NEXT_UPGRADE_PREPARED',
+        'NEXT_UPGRADE_FINISHED',
+      ])
+      expect(record.mock.calls[1][0].payload).toEqual({
+        upgradeId: expect.any(String),
+        prepareState: state,
+        installedVersion: '16.0.0',
+        targetVersion: null,
+        durationMs: expect.any(Number),
+      })
+      expect(
+        JSON.stringify(record.mock.calls).includes('private diagnostic')
+      ).toBe(false)
+      expect(record.mock.calls[2][0].payload.outcome).toBe('failure')
+    }
+  )
+
+  it('records an unaffected attempt without handoff or failure', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'unaffected',
+      installedVersion: '16.0.0',
+      reason: 'Already current.',
+    })
+    await spawnNextUpgrade('/workspace/app', {
+      ai: 'latest',
+      revision: 'latest',
+      verbose: false,
+    })
+    expect(record.mock.calls.map(([event]) => event.eventName)).toEqual([
+      'NEXT_UPGRADE_STARTED',
+      'NEXT_UPGRADE_PREPARED',
+    ])
+    expect(record.mock.calls[1][0].payload.prepareState).toBe('unaffected')
+  })
+
+  it('records a guide preparation failure without claiming ready', async () => {
+    jest.mocked(cp).mockRejectedValue(new Error('private file path'))
+    await spawnNextUpgrade('/workspace/app', {
+      ai: 'latest',
+      revision: 'latest',
+      verbose: false,
+    })
+    expect(record.mock.calls.map(([event]) => event.eventName)).toEqual([
+      'NEXT_UPGRADE_STARTED',
+      'NEXT_UPGRADE_PREPARED',
+      'NEXT_UPGRADE_FINISHED',
+    ])
+    expect(record.mock.calls[1][0].payload).toMatchObject({
+      prepareState: 'unknown',
+      installedVersion: '14.1.1',
+      targetVersion: '16.3.5',
+    })
+  })
+
+  it('keeps one attempt across a delegated CLI and consumes context before handoff', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest
+      .mocked(global.fetch)
+      .mockResolvedValue(
+        new Response(JSON.stringify({ version: '99.0.0-canary.1' }))
+      )
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { ai: 'latest', revision: 'latest', verbose: false },
+      'dev:21d268bc-e130-4415-860c-dc46532e614b'
+    )
+    const context = crossSpawn.mock.calls[0][2].env.__NEXT_UPGRADE_TELEMETRY
+    expect(record.mock.calls.map(([event]) => event.eventName)).toEqual([
+      'NEXT_UPGRADE_STARTED',
+    ])
+    process.env.__NEXT_UPGRADE_TELEMETRY = context
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
+    await spawnNextUpgrade('/workspace/app', {
+      ai: 'latest',
+      revision: 'latest',
+      verbose: false,
+    })
+    expect(process.env.__NEXT_UPGRADE_TELEMETRY).toBeUndefined()
+    expect(record.mock.calls.map(([event]) => event.eventName)).toEqual([
+      'NEXT_UPGRADE_STARTED',
+      'NEXT_UPGRADE_PREPARED',
+      'NEXT_UPGRADE_HANDOFF',
+    ])
+    expect(
+      new Set(record.mock.calls.map(([event]) => event.payload.upgradeId)).size
+    ).toBe(1)
+    expect(record.mock.calls[0][0].payload).toMatchObject({
+      trigger: 'dev',
+      reminderId: '21d268bc-e130-4415-860c-dc46532e614b',
+    })
+  })
+
+  describe('handoff telemetry boundaries', () => {
+    beforeEach(() => {
+      process.env.PATH = '/agents'
+      overrideTTY(process.stdin)
+      overrideTTY(process.stdout)
+      jest.mocked(getAgentName).mockResolvedValue(null)
+      jest.mocked(access).mockResolvedValue(undefined)
+      jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    })
+
+    it.each(['codex', 'claude'])(
+      'reports %s spawn before close and never infers success from exit zero',
+      async (name) => {
+        jest.mocked(cliSelect).mockResolvedValue({ id: name } as never)
+        const child = new EventEmitter()
+        crossSpawn.mockImplementation(() => {
+          process.nextTick(() => child.emit('spawn'))
+          return child
+        })
+        let spawned: () => void
+        const reported = new Promise<void>((resolve) => {
+          spawned = resolve
+        })
+        const onHandoff = jest.fn(async () => {
+          spawned()
+        })
+        const completion = handoffUpgrade('prompt', '/workspace/app', onHandoff)
+        await reported
+        expect(onHandoff).toHaveBeenCalledWith(name)
+        expect(process.exitCode).toBeUndefined()
+        child.emit('close', 0, null)
+        await completion
+        expect(onHandoff.mock.calls).toEqual([[name]])
+        expect(process.exitCode).toBe(0)
+      }
+    )
+
+    it('reports a failed handoff if agent selection fails after preparation', async () => {
+      jest
+        .mocked(cliSelect)
+        .mockRejectedValue(new Error('terminal unavailable'))
+      await spawnNextUpgrade('/workspace/app', {
+        ai: 'latest',
+        revision: 'latest',
+        verbose: false,
+      })
+      expect(record.mock.calls.map(([event]) => event.eventName)).toEqual([
+        'NEXT_UPGRADE_STARTED',
+        'NEXT_UPGRADE_PREPARED',
+        'NEXT_UPGRADE_HANDOFF',
+        'NEXT_UPGRADE_FINISHED',
+      ])
+      expect(record.mock.calls[2][0].payload.handoffState).toBe('failed')
+    })
+
+    it('reports failure when the harness cannot spawn', async () => {
+      jest.mocked(cliSelect).mockResolvedValue({ id: 'codex' } as never)
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('error', new Error('ENOENT')))
+        return child
+      })
+      const onHandoff = jest.fn(async () => {})
+      await handoffUpgrade('prompt', '/workspace/app', onHandoff)
+      expect(onHandoff.mock.calls).toEqual([['failed']])
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('reports cancellation separately from failure', async () => {
+      jest.mocked(cliSelect).mockResolvedValue({ id: 'cancel' } as never)
+      const onHandoff = jest.fn(async () => {})
+      await handoffUpgrade('prompt', '/workspace/app', onHandoff)
+      expect(onHandoff.mock.calls).toEqual([['cancelled']])
+      expect(crossSpawn).toHaveBeenCalledTimes(0)
+    })
+
+    it.each([
+      ['copied', 0],
+      ['printed', 1],
+    ] as const)(
+      'reports %s based on the clipboard result',
+      async (expected, status) => {
+        jest.mocked(cliSelect).mockResolvedValue({ id: 'copy' } as never)
+        Object.assign(crossSpawn, { sync: jest.fn(() => ({ status })) })
+        const onHandoff = jest.fn(async () => {})
+        await handoffUpgrade('prompt', '/workspace/app', onHandoff)
+        expect(onHandoff.mock.calls).toEqual([[expected]])
+      }
+    )
   })
 })

@@ -1876,7 +1876,8 @@ function getCacheKey(
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
   debugPrerender?: boolean,
-  pid?: number
+  pid?: number,
+  rawConfig: boolean | undefined = undefined
 ): string {
   // The next.config.js is unique per project, so we can use the dir as the major key
   // to generate the unique config key. Include PID to invalidate on server restart.
@@ -1887,6 +1888,8 @@ function getCacheKey(
     reactProductionProfiling: Boolean(reactProductionProfiling),
     debugPrerender: Boolean(debugPrerender),
     pid: pid || 0,
+    // Raw loads skip defaults and adapter hooks and cannot satisfy a resolved load.
+    rawConfig: Boolean(rawConfig),
   })
 
   return djb2Hash(keyData).toString(36)
@@ -1968,7 +1971,8 @@ async function loadConfigImpl(
     customConfig,
     reactProductionProfiling,
     debugPrerender,
-    process.pid
+    process.pid,
+    rawConfig
   )
 
   // Check if we have a cached result
