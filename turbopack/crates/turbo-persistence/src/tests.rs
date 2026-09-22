@@ -2339,6 +2339,8 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
 /// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
 /// matching value, and dropping the tombstone would resurrect it.
+// This test takes about 16 minutes under Miri and is too slow for the Miri CI job.
+#[cfg(not(miri))]
 #[test]
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
