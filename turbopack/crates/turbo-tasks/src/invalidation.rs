@@ -34,7 +34,17 @@ pub struct Invalidator {
 
 impl Invalidator {
     pub fn invalidate(self, turbo_tasks: &dyn TurboTasksApi) {
-        turbo_tasks.invalidate(self.task);
+        if tracing::enabled!(target: "turbopack_hmr_diagnostics", tracing::Level::INFO) {
+            tracing::info_span!(
+                target: "turbopack_hmr_diagnostics",
+                "external invalidator dispatch",
+                task_id = self.task.to_primitive(),
+                has_reason = false,
+            )
+            .in_scope(|| turbo_tasks.invalidate(self.task));
+        } else {
+            turbo_tasks.invalidate(self.task);
+        }
     }
 
     pub fn invalidate_with_reason<T: InvalidationReason>(
@@ -42,10 +52,18 @@ impl Invalidator {
         turbo_tasks: &dyn TurboTasksApi,
         reason: T,
     ) {
-        turbo_tasks.invalidate_with_reason(
-            self.task,
-            (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
-        );
+        let reason = (Arc::new(reason) as Arc<dyn InvalidationReason>).into();
+        if tracing::enabled!(target: "turbopack_hmr_diagnostics", tracing::Level::INFO) {
+            tracing::info_span!(
+                target: "turbopack_hmr_diagnostics",
+                "external invalidator dispatch",
+                task_id = self.task.to_primitive(),
+                has_reason = true,
+            )
+            .in_scope(|| turbo_tasks.invalidate_with_reason(self.task, reason));
+        } else {
+            turbo_tasks.invalidate_with_reason(self.task, reason);
+        }
     }
 }
 
