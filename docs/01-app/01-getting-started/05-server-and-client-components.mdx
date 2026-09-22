@@ -141,7 +141,7 @@ On subsequent navigations:
 
 You can create a Client Component by adding the [`"use client"`](https://react.dev/reference/rsc/use-client) directive at the top of the file, above your imports.
 
-Before converting an existing component, review its imports and props. Keep database code in modules marked with `import 'server-only'`, and pass only data the user may see: all props sent to a Client Component become available to the browser. See [Adding interactivity to an existing component](/docs/app/guides/server-and-client-boundary#adding-interactivity-to-an-existing-component).
+When adding a Client Component, review its imports and props. Keep database code in modules marked with `import 'server-only'`, and pass only data the user may see: all props sent to a Client Component become available to the browser. See [Adding interactivity to an existing component](/docs/app/guides/server-and-client-boundary#adding-interactivity-to-an-existing-component).
 
 ```tsx filename="app/ui/counter.tsx" highlight={1} switcher
 'use client'

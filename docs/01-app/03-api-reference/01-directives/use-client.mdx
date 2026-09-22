@@ -11,7 +11,7 @@ The `'use client'` directive declares an entry point for the components to be re
 
 ## Usage
 
-Before converting an existing component, keep database and session code in modules marked with `import 'server-only'`. Next.js handles this import internally without requiring a separate package installation. Import shared values and validators from modules that do not depend on server code. See [Adding interactivity to an existing component](/docs/app/guides/server-and-client-boundary#adding-interactivity-to-an-existing-component).
+When adding a Client Component, keep database and session code in modules marked with `import 'server-only'`. Next.js handles this import internally without requiring a separate package installation. Import shared values and validators from modules that do not depend on server code. See [Adding interactivity to an existing component](/docs/app/guides/server-and-client-boundary#adding-interactivity-to-an-existing-component).
 
 To declare an entry point for the Client Components, add the `'use client'` directive **at the top of the file**, before any imports:
 

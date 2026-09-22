@@ -165,7 +165,7 @@ Keep shared values and validators in separate modules that can run in either env
 
 ### Adding interactivity to an existing component
 
-Before adding `'use client'` to an existing component, review both its imports and the data its callers pass to it:
+When adding interactivity to an existing feature, review the code that stays on the server as well as the client code. Follow these steps whether you convert an existing component or extract a smaller Client Component:
 
 1. **Protect database modules.** Add `import 'server-only'` to the existing module that owns the database client or queries, even if no Client Component currently imports it. This makes future accidental client imports fail at build time. Next.js handles this import internally; [installing the package is optional](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning).
 2. **Separate shared code.** Import constants, types, and validators from modules that do not import database or session code. Marking a shared validator `server-only` would prevent using it in the browser.
