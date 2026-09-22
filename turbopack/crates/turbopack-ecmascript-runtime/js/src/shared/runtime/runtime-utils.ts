@@ -262,7 +262,7 @@ contextPrototype.s = esmExport
  * ])
  * ```
  *
- * or the **namespace object** of a module that has already been imported, which is used directly:
+ * or the **namespace value** of a module that has already been imported, which is used directly:
  *
  * ```js
  * var ns1 = context.i(76061)
@@ -271,7 +271,8 @@ contextPrototype.s = esmExport
  *
  * The producer picks the namespace form when it has generated the import anyway -- because some
  * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
- * apart by type: a namespace object is always an object, a module id never is.
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
  *
  * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
  * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
@@ -307,17 +308,17 @@ function esmReexport(
     // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
     i++
 
-    // An already-imported namespace is passed as an object; a module id never is, so the type is
-    // enough to tell them apart. `esmImport` may return a promise for an async module, but
-    // re-exports of async modules keep going through `context.s`, so the producer never routes them
-    // here and this stays synchronous.
+    // Module ids are always strings or numbers. Other values are already-imported namespaces;
+    // notably, interop with a CommonJS function export produces a callable namespace function.
+    // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+    // going through `context.s`, so the producer never routes them here and this stays synchronous.
     const namespace = (
-      typeof head === 'object' && head !== null
-        ? head
-        : // `EsmImport` declares an `allowExportDefault` parameter that `esmImport` itself does not
+      typeof head === 'string' || typeof head === 'number'
+        ? // `EsmImport` declares an `allowExportDefault` parameter that `esmImport` itself does not
           // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
           // argument. Passed here only to satisfy the declared type.
-          this.i(head as ModuleId, false)
+          this.i(head, false)
+        : head
     ) as Record<string, unknown>
     if (end - start === 1) {
       const pairs = (list[start] as string).split(',')
