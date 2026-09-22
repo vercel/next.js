@@ -625,21 +625,21 @@ pub struct ChildProcessPool {
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
     pub project_dir: FileSystemPath,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
     /// Semaphore to limit the number of concurrent operations in general
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
     /// Semaphore to limit the number of concurrently booting up processes
     /// (excludes one-off processes)
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     bootup_semaphore: Arc<Semaphore>,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     shared_stdout: SharedOutputSet,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     shared_stderr: SharedOutputSet,
     debug: bool,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     stats: Arc<Mutex<NodeJsPoolStats>>,
 }
 

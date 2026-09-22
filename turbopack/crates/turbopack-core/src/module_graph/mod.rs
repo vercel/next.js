@@ -282,12 +282,11 @@ pub struct SingleModuleGraph {
     // HashMaps have nondeterministic order, but this map is only used for lookups (in
     // `get_module`) and not iteration.
     //
-    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
+    // This contains Vcs, but they are already contained in the graph.
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
-    #[turbo_tasks(unsafe_ignore)]
     entries: GraphEntries,
 
     /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node

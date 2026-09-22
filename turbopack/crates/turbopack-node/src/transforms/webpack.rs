@@ -87,7 +87,6 @@ struct WebpackLoadersProcessingResult {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     source: Either<RcStr, BytesBase64>,
     map: Option<RcStr>,
-    #[turbo_tasks(unsafe_ignore)]
     assets: Option<Vec<EmittedAsset>>,
 }
 

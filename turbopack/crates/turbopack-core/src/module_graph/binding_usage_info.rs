@@ -39,7 +39,6 @@ pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
     unused_references: ResolvedVc<UnusedReferences>,
-    #[turbo_tasks(unsafe_ignore)]
     unused_references_edges: FxHashSet<GraphEdgeIndex>,
 
     used_exports: ResolvedVc<UsedExportsMap>,

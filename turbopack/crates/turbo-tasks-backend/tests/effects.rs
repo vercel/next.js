@@ -27,14 +27,11 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 /// same path contend on the same per-key state entry.
 #[derive(NonLocalValue)]
 struct SharedState {
-    #[turbo_tasks(unsafe_ignore)]
     applies_by_key: Mutex<FxHashMap<RcStr, u64>>,
-    #[turbo_tasks(unsafe_ignore)]
     total_applies: AtomicU64,
     /// Counts captures that materialized content (i.e. those where
     /// `EffectStateStorage::matches_applied` returned false). Lets tests
     /// assert that capture skipped content materialization on re-runs.
-    #[turbo_tasks(unsafe_ignore)]
     captures_with_content: AtomicU64,
     /// Shared `EffectStateStorage` used by both `matches_applied` (in `capture`)
     /// and `run_apply` (in `apply`).
@@ -71,7 +68,7 @@ impl SharedState {
 struct TestEffect {
     key: RcStr,
     value_hash: u128,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     shared: Arc<SharedState>,
 }
 
@@ -172,14 +169,14 @@ struct EmitSpec {
 #[turbo_tasks::value(eq = "manual", serialization = "skip")]
 #[derive(Clone)]
 struct TestInput {
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     shared: Arc<SharedState>,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     spec: Arc<State<EmitSpec>>,
     /// Side-channel `State` for invalidating the producer without changing
     /// `spec`. Lets tests simulate upstream input changes that don't affect
     /// emitted hashes (e.g. a comment edit that recompiles to identical bytes).
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     tick: Arc<State<u64>>,
 }
 

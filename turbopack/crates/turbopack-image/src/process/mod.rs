@@ -55,7 +55,7 @@ impl BlurPlaceholder {
 pub struct ImageMetaData {
     pub width: u32,
     pub height: u32,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(with = "turbo_bincode::mime_option")]
     pub mime_type: Option<Mime>,
     pub blur_placeholder: Option<BlurPlaceholder>,

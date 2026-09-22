@@ -25,11 +25,7 @@ use crate::{
 
 #[derive(Clone, Debug, Default, PartialEq, ValueDebugFormat, Encode, Decode)]
 #[repr(transparent)]
-pub struct RoaringBitmapWrapper(
-    #[turbo_tasks(unsafe_ignore)]
-    #[bincode(with_serde)]
-    pub RoaringBitmap,
-);
+pub struct RoaringBitmapWrapper(#[bincode(with_serde)] pub RoaringBitmap);
 
 impl TaskInput for RoaringBitmapWrapper {
     fn is_transient(&self) -> bool {
@@ -89,7 +85,6 @@ pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBit
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
-    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
     #[turbo_tasks(unsafe_ignore)]
@@ -114,7 +109,6 @@ pub struct ChunkingHeuristicsInfo {
     ///
     /// Example: `priority_routes = {3, 7}` — chunk groups 3 and 7 are served by a priority
     /// route; any group not in the set (e.g. 4) is not.
-    #[turbo_tasks(unsafe_ignore)]
     pub priority_routes: RoaringBitmapWrapper,
 }
 

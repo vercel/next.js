@@ -2292,11 +2292,7 @@ mod cell_data_tracking_tests {
     struct PersistableV(#[allow(dead_code)] u32);
 
     #[turbo_tasks::value(serialization = "skip")]
-    struct SkipCheapV(
-        #[turbo_tasks(unsafe_ignore)]
-        #[allow(dead_code)]
-        u32,
-    );
+    struct SkipCheapV(#[allow(dead_code)] u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SkipNeverV;

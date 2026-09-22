@@ -20,13 +20,11 @@ type VersionTraitRef = TraitRef<Box<dyn Version>>;
 pub struct ChunkListVersion {
     pub id: RcStr,
     /// A map from chunk path to its version.
-    #[turbo_tasks(unsafe_ignore)]
     pub by_path: FxIndexMap<String, VersionTraitRef>,
     /// A map from chunk merger to the version of the merged contents of chunks.
     //
     // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
     // `turbopack_core::version::TotalUpdate` relies on that guarantee.
-    #[turbo_tasks(unsafe_ignore)]
     pub by_merger: FxIndexMap<ResolvedVc<Box<dyn VersionedContentMerger>>, VersionTraitRef>,
 }
 

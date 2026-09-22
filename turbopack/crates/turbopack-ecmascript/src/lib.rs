@@ -359,7 +359,7 @@ impl EcmascriptModuleAssetBuilder {
 #[turbo_tasks::value(eq = "manual")]
 struct LastSuccessfulSource {
     #[bincode(with = "parking_lot_mutex_bincode")]
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     source: parking_lot::Mutex<Option<Rope>>,
     /// Notifies the backend when the in-memory `source` changes so that the
     /// serialized task state is written back to the persistence layer.

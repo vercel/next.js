@@ -74,7 +74,7 @@ enum EvalJavaScriptIncomingMessage {
     shared
 )]
 pub struct EvaluatePool {
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     pool: Box<dyn EvaluateOperation>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,

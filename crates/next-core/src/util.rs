@@ -31,9 +31,7 @@ const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 /// should be replace with undefined.
 #[turbo_tasks::value(transparent)]
 pub struct OptionEnvMap(
-    #[turbo_tasks(unsafe_ignore)]
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<RcStr, Option<RcStr>>,
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Option<RcStr>>,
 );
 
 pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefines {

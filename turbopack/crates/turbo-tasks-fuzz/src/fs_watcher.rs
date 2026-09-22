@@ -88,7 +88,7 @@ impl SymlinkMode {
 }
 
 #[derive(Default, NonLocalValue)]
-struct PathInvalidations(#[turbo_tasks(unsafe_ignore)] Arc<Mutex<FxHashSet<RcStr>>>);
+struct PathInvalidations(Arc<Mutex<FxHashSet<RcStr>>>);
 
 #[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {

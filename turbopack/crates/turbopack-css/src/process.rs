@@ -159,14 +159,12 @@ pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference
 pub enum ParseCssResult {
     Ok {
         code: ResolvedVc<FileContent>,
-
         #[turbo_tasks(unsafe_ignore)]
         stylesheet: StyleSheet<'static>,
 
         references: ResolvedVc<ModuleReferences>,
 
         url_references: ResolvedVc<UnresolvedUrlReferences>,
-
         #[turbo_tasks(unsafe_ignore)]
         options: ParserOptions<'static>,
     },
@@ -182,10 +180,8 @@ pub enum CssWithPlaceholderResult {
         references: ResolvedVc<ModuleReferences>,
 
         url_references: ResolvedVc<UnresolvedUrlReferences>,
-
         #[turbo_tasks(unsafe_ignore)]
         exports: Option<FxIndexMap<String, CssModuleExport>>,
-
         #[turbo_tasks(unsafe_ignore)]
         placeholders: FxHashMap<String, Url<'static>>,
     },
@@ -197,7 +193,6 @@ pub enum CssWithPlaceholderResult {
 #[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum FinalCssResult {
     Ok {
-        #[turbo_tasks(unsafe_ignore)]
         output_code: String,
 
         source_map: Option<StructuredSourceMap>,

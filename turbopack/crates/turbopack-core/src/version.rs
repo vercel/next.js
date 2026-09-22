@@ -197,7 +197,6 @@ pub struct TotalUpdate {
     //
     // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
     // `EcmascriptDevChunkListVersion` currently violates that assumption.
-    #[turbo_tasks(unsafe_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
 }
 
@@ -206,7 +205,6 @@ pub struct TotalUpdate {
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
     // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
-    #[turbo_tasks(unsafe_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
     /// The instructions to be passed to a remote system in order to update the
     /// versioned object.

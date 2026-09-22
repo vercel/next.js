@@ -99,7 +99,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(unsafe_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
@@ -113,7 +112,6 @@ pub enum ModuleType {
         tsx: bool,
         // follow references to imported types.
         analyze_types: bool,
-        #[turbo_tasks(unsafe_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
@@ -123,7 +121,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(unsafe_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     EcmascriptExtensionless {
@@ -133,7 +130,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(unsafe_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Raw,
