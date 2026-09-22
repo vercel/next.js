@@ -2983,6 +2983,15 @@ export async function cache(
           'joined invocation is prerender-dynamic',
           serializedCacheKey
         )
+        if (resumeDataCache?.mutable) {
+          // A nested-cache leader has no RDC. This consumer must carry the
+          // omission reason into the final prerender instead of leaving an
+          // unexplained miss that loses the fallback's prefetch hint.
+          resumeDataCache.cache.set(
+            serializedCacheKey,
+            sharedCacheResult.reason
+          )
+        }
         cacheSignal?.endRead()
         return sharedCacheResult.hangingPromise
       }
