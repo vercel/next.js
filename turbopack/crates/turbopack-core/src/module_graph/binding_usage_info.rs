@@ -15,7 +15,7 @@ use crate::{
         async_module_info::AsyncModulesInfo,
         side_effect_module_info::{SideEffectFreeModules, compute_side_effect_free_module_info},
     },
-    resolve::{ExportUsage, ImportUsage},
+    resolve::{ExportUsage, ImportUsage, ModuleEvaluationTiming},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -349,8 +349,12 @@ pub async fn compute_binding_usage_info(
         let mut export_circuit_breakers = FxHashSet::default();
 
         graph_ref.traverse_cycles(
-            // No need to traverse edges that are unused.
-            |e| e.chunking_type.is_parallel() && !unused_references.contains_key(&e.reference),
+            // Deferred and unused edges can't participate in an evaluation cycle.
+            |e| {
+                e.chunking_type.is_parallel()
+                    && e.binding_usage.evaluation_timing != ModuleEvaluationTiming::Deferred
+                    && !unused_references.contains_key(&e.reference)
+            },
             |cycle| {
                 // We could compute this based on the module graph via a DFS from each entry point
                 // to the cycle.  Whatever node is hit first is an entry point to the cycle.
