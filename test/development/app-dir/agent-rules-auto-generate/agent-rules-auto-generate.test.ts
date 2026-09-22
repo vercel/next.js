@@ -51,7 +51,7 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
     env: { CLAUDECODE: '1' },
   })
 
-  it('creates AGENTS.md and CLAUDE.md at the project root when neither exists', async () => {
+  it('creates only AGENTS.md at the project root when neither exists', async () => {
     // A request is required to synchronize the test with the auto-gen
     // hook — `✓ Ready in X` is logged before the config load that runs
     // the hook, so `next.start()` resolves too early. `next.fetch` blocks
@@ -65,12 +65,6 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
     expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
-
-    const claudeContent = fs.readFileSync(
-      path.join(next.testDir, 'CLAUDE.md'),
-      'utf-8'
-    )
-    expect(claudeContent).toBe('@AGENTS.md\n')
   })
 })
 
@@ -83,10 +77,9 @@ describe('agent-rules auto-generate on next dev (no agent)', () => {
     env: NO_AGENT_ENV,
   })
 
-  it('does not create AGENTS.md or CLAUDE.md when no agent is detected', async () => {
+  it('does not create AGENTS.md when no agent is detected', async () => {
     await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })
 
@@ -102,7 +95,6 @@ describe('agent-rules auto-generate on next dev (agentRules: false)', () => {
   it('does not generate files when agentRules is disabled in next.config', async () => {
     await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })
 
@@ -142,7 +134,6 @@ Stale body from an older Next.js.
     expect(content).toContain(currentAgentRulesBlock())
     // Exactly one managed block — upgraded, not duplicated.
     expect(content.split(AGENT_RULES_MARKER).length - 1).toBe(1)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 
   it('is idempotent across dev server restarts', async () => {
@@ -181,32 +172,6 @@ describe('agent-rules auto-generate on next dev (AGENTS.md exists without marker
     )
     expect(content).toContain('Use tabs, not spaces.')
     expect(content).toContain(AGENT_RULES_MARKER)
-    // CLAUDE.md must stay alone when AGENTS.md already exists.
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
-  })
-})
-
-describe('agent-rules auto-generate on next dev (CLAUDE.md exists, no AGENTS.md)', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    env: { CLAUDECODE: '1' },
-    skipStart: true,
-  })
-
-  beforeAll(async () => {
-    await next.patchFile('CLAUDE.md', '# My rules\n\nBe concise.\n')
-    await next.start()
-  })
-
-  it('upserts into CLAUDE.md and does not create AGENTS.md', async () => {
-    await next.fetch('/')
-    const claudeContent = fs.readFileSync(
-      path.join(next.testDir, 'CLAUDE.md'),
-      'utf-8'
-    )
-    expect(claudeContent).toContain('Be concise.')
-    expect(claudeContent).toContain(AGENT_RULES_MARKER)
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
   })
 })
 
@@ -236,7 +201,10 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
-    expect(content).toContain('once per task')
+    expect(content).toContain('Immediately before the final response')
+    expect(content).toContain(
+      'Keep unresolved feedback candidates for a later final response'
+    )
     expect(content).not.toContain('"schemaVersion":3')
   })
 
@@ -275,46 +243,6 @@ describe('agent-feedback auto-generate on next dev (agentRules: false)', () => {
     )
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).not.toContain(AGENT_RULES_MARKER)
-    expect(fs.readFileSync(path.join(next.testDir, 'CLAUDE.md'), 'utf-8')).toBe(
-      '@AGENTS.md\n'
-    )
-  })
-})
-
-describe('agent-feedback auto-generate on next dev (stale CLAUDE.md block)', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    env: { CLAUDECODE: '1' },
-    nextConfig: {
-      agentRules: false,
-      experimental: {
-        agentFeedback: true,
-      },
-    },
-    skipStart: true,
-  })
-
-  beforeAll(async () => {
-    await next.patchFile(
-      'CLAUDE.md',
-      '# Team rules\r\n\r\n<!-- BEGIN:nextjs-agent-feedback -->\r\nstale\r\n<!-- END:nextjs-agent-feedback -->\r\n'
-    )
-    await next.start()
-  })
-
-  it('refreshes CLAUDE.md in place and preserves CRLF line endings', async () => {
-    await next.fetch('/')
-    const content = fs.readFileSync(
-      path.join(next.testDir, 'CLAUDE.md'),
-      'utf-8'
-    )
-    expect(content).toContain('# Team rules\r\n')
-    expect(content).toContain(
-      'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
-    )
-    expect(content).not.toContain('stale')
-    expect(content).not.toMatch(/(?<!\r)\n/)
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
   })
 })
 
@@ -333,7 +261,6 @@ describe('agent-feedback auto-generate on next dev (no agent)', () => {
   it('does not create feedback instructions without a detected agent', async () => {
     await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })
 
@@ -382,11 +309,10 @@ describe('agent-rules auto-generate on next dev (disabled with existing blocks)'
       'AGENTS.md',
       `# Team rules\n\nKeep this content.\n\n${currentAgentRulesBlock()}\n\n${staleAgentFeedbackBlock()}\n`
     )
-    await next.patchFile('CLAUDE.md', `${currentAgentRulesBlock()}\n`)
     await next.start()
   })
 
-  it('removes the managed rules block without a detected agent and drops an emptied file', async () => {
+  it('removes the managed rules block without a detected agent', async () => {
     await next.fetch('/')
     const content = fs.readFileSync(
       path.join(next.testDir, 'AGENTS.md'),
@@ -395,8 +321,5 @@ describe('agent-rules auto-generate on next dev (disabled with existing blocks)'
     expect(content).toContain('Keep this content.')
     expect(content).not.toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
-    // CLAUDE.md held nothing but the managed block, so it is removed instead
-    // of being left as an empty file.
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })

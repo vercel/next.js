@@ -27,10 +27,9 @@ use turbopack_core::{
 };
 use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions,
-    SpecifiedModuleType, bytes_source_transform::BytesSourceTransform,
-    json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
-    transform::PresetEnvConfig,
+    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
+    bytes_source_transform::BytesSourceTransform, json_source_transform::JsonSourceTransform,
+    text_source_transform::TextSourceTransform, transform::PresetEnvConfig,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -405,7 +404,7 @@ impl ModuleOptions {
         // which produces virtual paths that don't exist on disk. This breaks NFT file tracing
         // and standalone build file copying. Use Raw module type instead so the original
         // filesystem path is preserved in the trace.
-        let is_tracing = analyze_mode == AnalyzeMode::Tracing;
+        let is_only_tracing = !analyze_mode.is_codegen;
 
         // Import attribute rules (bytes/text) must come BEFORE config rules.
         // Import attributes have a stronger API contract - they're explicit in the source code
@@ -415,7 +414,7 @@ impl ModuleOptions {
                 RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
                 ))),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -429,7 +428,7 @@ impl ModuleOptions {
             RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                 EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
             ))),
-            if is_tracing {
+            if is_only_tracing {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
             } else {
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -507,6 +506,7 @@ impl ModuleOptions {
                                     rule.rename_as.clone(),
                                     resolve_options_context,
                                     matches!(ecmascript_source_maps, SourceMapsType::Full),
+                                    config_tracing_module_context(*execution_context),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -611,7 +611,7 @@ impl ModuleOptions {
                 RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
                 ))),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -629,7 +629,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".json".to_string()),
                     RuleCondition::ContentTypeStartsWith("application/json".to_string()),
                 ]),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
@@ -705,7 +705,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".wasm".to_string()),
                     RuleCondition::ContentTypeStartsWith("application/wasm".to_string()),
                 ]),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
@@ -717,7 +717,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".wat".to_string(),
                 )]),
-                if is_tracing {
+                if is_only_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {

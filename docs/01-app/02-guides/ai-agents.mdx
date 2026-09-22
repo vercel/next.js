@@ -1,23 +1,26 @@
 ---
 title: How Next.js supports AI coding agents
 nav_title: AI Coding Agents
-description: Learn how Next.js provides AI coding agents with version-matched documentation, runtime tools, reusable workflows, and automatic feedback.
+description: Learn how Next.js helps AI coding agents use current framework guidance, inspect applications, verify changes, and report issues.
 related:
   title: Next Steps
+  description: Learn more about the APIs and tools described in this guide.
   links:
     - app/guides/mcp
     - app/getting-started/upgrading
-    - app/api-reference/cli/create-next-app
-    - app/api-reference/cli/next
+    - app/api-reference/config/next-config-js/agentRules
+    - app/api-reference/config/next-config-js/agentFeedback
 ---
 
-Next.js provides AI coding agents with version-matched documentation, runtime visibility, structured errors, reusable workflows, and automatic feedback. These capabilities help agents use the APIs and patterns supported by your installed Next.js version, verify their work, and report framework friction for your review.
+AI coding agents may rely on training data that predates the Next.js version installed in a project. To help agents use current APIs and verify their work, Next.js provides and evaluates version-matched documentation, managed project instructions, runtime tools, structured errors, reusable Skills, and optional agent feedback. See the results in the [Next.js agent evaluations](https://nextjs.org/evals).
 
-Point agents at the bundled docs, give them [runtime visibility](#step-2-give-agents-runtime-visibility) into the dev server, let [errors drive the fixes](#step-3-let-errors-drive-the-fixes), and hand multi-step workflows to [skills](#step-4-hand-multi-step-workflows-to-skills).
+For more background, read about the AI tooling introduced in [Next.js 16.2](/blog/next-16-2-ai) and [Next.js 16.3](/blog/next-16-3-ai-improvements).
 
-## Step 1: Point agents at the bundled docs
+<span id="step-1-point-agents-at-the-bundled-docs" />
 
-Make sure `AGENTS.md` exists at your project root and directs agents to the bundled docs. When you install `next`, the Next.js documentation is bundled at `node_modules/next/dist/docs/`, mirroring the structure of the [Next.js documentation site](https://nextjs.org/docs):
+## Version-matched documentation
+
+Next.js 16.2 and later include documentation that matches the installed framework version. The documentation is available at `node_modules/next/dist/docs/` and mirrors the structure of the [Next.js documentation site](https://nextjs.org/docs):
 
 ```txt
 node_modules/next/dist/docs/
@@ -30,37 +33,13 @@ node_modules/next/dist/docs/
 └── index.mdx
 ```
 
-Agents always have access to docs that match your installed version, with no network request or external lookup required. [Upgrading Next.js](/docs/app/getting-started/upgrading) also upgrades the bundled docs, including new guidance for existing features. Most AI coding agents, including Claude Code, Codex, Cursor, and GitHub Copilot, automatically read `AGENTS.md` when they start a session.
+The bundled copy gives coding agents access to the APIs and patterns supported by the project without a network request or external lookup. [Upgrading Next.js](/docs/app/getting-started/upgrading) also updates the bundled documentation.
 
-### New projects
+### Managed documentation instructions
 
-[`create-next-app`](/docs/app/api-reference/cli/create-next-app) generates `AGENTS.md` and `CLAUDE.md` automatically. No additional setup is needed:
+Next.js makes the bundled documentation discoverable through managed instructions in `AGENTS.md` at the project root. Coding agents such as Claude Code, Codex, Cursor, and GitHub Copilot read this file when they start a session.
 
-```bash package="pnpm"
-pnpm create next-app@canary
-```
-
-```bash package="npm"
-npx create-next-app@canary
-```
-
-```bash package="yarn"
-yarn create next-app@canary
-```
-
-```bash package="bun"
-bun create next-app@canary
-```
-
-If you don't want the agent files, pass `--no-agents-md`:
-
-```bash
-npx create-next-app@canary --no-agents-md
-```
-
-### Version-matched documentation
-
-Next.js keeps AI coding agents aligned with your installed framework version by adding managed instructions that direct them to the bundled docs. The instructions appear in `AGENTS.md` or `CLAUDE.md` at the project root:
+[`create-next-app`](/docs/app/api-reference/cli/create-next-app) creates the agent files for new projects. When `next dev` detects a coding agent, it creates or updates the managed instructions for existing projects. The block directs the agent to the documentation installed with the project:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -74,17 +53,31 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 ```
 
-```md filename="CLAUDE.md"
-@AGENTS.md
+Next.js updates only the content between the agent rules markers and preserves the rest of `AGENTS.md`.
+
+[Research comparing `AGENTS.md` with knowledge Skills](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals) found a 100% pass rate with bundled documentation, compared with up to 79% for Skill-based approaches. See the current [Next.js agent evaluation results](https://nextjs.org/evals).
+
+Managed documentation instructions are enabled by default in Next.js 16.3 and later. See the [`agentRules` API reference](/docs/app/api-reference/config/next-config-js/agentRules) to configure or disable them.
+
+### Version support
+
+Next.js 16.3 and later include bundled documentation and support managed agent instructions. Next.js 16.2 includes the bundled documentation but does not generate instructions automatically.
+
+Next.js 16.1 and earlier do not include the bundled documentation. The legacy `agents-md` command downloads a version-matched copy to `.next-docs/` and indexes it in `AGENTS.md`:
+
+```bash
+npx @next/codemod@canary agents-md
 ```
 
-Next.js updates only the content between the agent rules markers and preserves the rest of the file.
+### Docs over the network
 
-[Benchmark results on nextjs.org/evals](https://nextjs.org/evals) show that agents perform better when they read the bundled docs. See the [`agentRules` API reference](/docs/app/api-reference/config/next-config-js/agentRules) to configure the managed instructions.
+The Next.js documentation is also available as Markdown over the network for agents that fetch pages instead of reading `node_modules`. Every page on [nextjs.org/docs](https://nextjs.org/docs) has a plain Markdown version at its `.md` URL, and clients that send an `Accept: text/markdown` header receive Markdown. This includes the per-error pages under `/docs/messages`, which are not bundled.
 
-### Automatic agent feedback
+The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single-file [`/docs/llms-full.txt`](https://nextjs.org/docs/llms-full.txt) follow the [`llms.txt` convention](https://llmstxt.org/), so agents that already read `llms.txt` for other tools can discover the Next.js docs the same way.
 
-Automatic agent feedback is experimental and disabled by default. Enable it with [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) in `next.config`. When enabled, coding agents keep track of potential Next.js issues without interrupting an active task. At a natural stopping point, each qualifying issue opens as a separate review form in your default browser.
+## Automatic agent feedback
+
+Automatic agent feedback lets coding agents keep track of potential Next.js issues without interrupting the current user request. Before the final response, the agent evaluates those issues and opens each qualifying report in a separate review form in your default browser.
 
 Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. Nothing is sent until you select **Send feedback**, and agent feedback is separate from [Next.js Telemetry](/telemetry).
 
@@ -95,41 +88,29 @@ With the option enabled, `next dev` adds the following managed feedback instruct
 
 ## Report Next.js feedback
 
-During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the current user request, retain anonymized facts as feedback candidates for Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior, repeated failures, or non-obvious workarounds
 
-Continue the task without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
-At the final stopping point, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once per task and follow any instructions returned. If it returns nothing, continue without reporting.
+Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass. If the feedback candidate queue is not empty, from the directory containing this file, run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once and follow any instructions returned. If the command succeeds with no output, finish the final response without retrying or investigating. If it fails, follow its error guidance; retrying with network access is allowed. Keep unresolved feedback candidates for a later final response, and never create a duplicate report draft or reopen a review form already presented to the user.
 
 <!-- END:nextjs-agent-feedback -->
 ```
 
-Next.js updates only the content between the agent feedback markers and preserves the rest of the file. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to configure automatic agent feedback.
+Next.js updates only the content between the agent feedback markers and preserves the rest of the file.
 
-### For earlier versions
+Automatic agent feedback is experimental and disabled by default. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to enable it.
 
-On version 16.2, the docs are bundled but `AGENTS.md` is not auto-generated. Add the file yourself with an instruction to read the bundled docs at `node_modules/next/dist/docs/` before writing code.
+<span id="step-2-give-agents-runtime-visibility" />
 
-On version 16.1 and earlier, the docs are not bundled either. Use the legacy `agents-md` command, which downloads a version-matched copy to `.next-docs/` in the project root and indexes it in `AGENTS.md`:
+## Runtime visibility
 
-```bash
-npx @next/codemod@canary agents-md
-```
-
-### Docs over the network
-
-The Next.js docs are also available as Markdown over the network, for agents that fetch pages instead of reading `node_modules`. Append `.md` to any page URL on [nextjs.org/docs](https://nextjs.org/docs) for a plain Markdown version, and clients that send an `Accept: text/markdown` header get Markdown too. This includes the per-error pages under `/docs/messages`, which are not bundled.
-
-The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single-file [`/docs/llms-full.txt`](https://nextjs.org/docs/llms-full.txt) follow the [`llms.txt` convention](https://llmstxt.org/), so agents that already read `llms.txt` for other tools can discover the Next.js docs the same way.
-
-## Step 2: Give agents runtime visibility
-
-Run `next dev` and let the agent work against the running server. Runtime errors, client-side warnings, and rendered output live in the browser, where agents can't look. Next.js surfaces two complementary views that an agent can read from the terminal.
+Agents need both framework and browser state to verify a running application. Next.js and its supporting tools expose these complementary views as structured text.
 
 First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
 
@@ -137,13 +118,13 @@ First, `next dev` forwards browser console errors and warnings to the terminal (
 
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
-The **browser's view** comes from [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. With React DevTools enabled (pass `--enable react-devtools` to `agent-browser open`, which the `next-dev-loop` skill does for you), it also reports the component tree and which Suspense boundaries are still pending. An agent runs a command like `react tree`, reads the output, and decides what to inspect next, instead of looking at a DevTools panel it can't see.
+The [`next-dev-loop` skill](#next-dev-loop) adds the **browser's view** through [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. The Skill opens `agent-browser` with React DevTools enabled, which also exposes the component tree and pending Suspense boundaries. An agent can run a command such as `react tree` and use the structured output to decide what to inspect next.
 
-The [`next-dev-loop` skill](#next-dev-loop) builds on both views, combining the framework's and the browser's perspective into a single edit-and-verify loop.
+Together with the Next.js MCP server, `next-dev-loop` combines the framework's and the browser's perspectives into one edit-and-verify loop.
 
-> **Good to know:** For the story behind this tooling, see the [Next.js 16.2](https://nextjs.org/blog/next-16-2-ai) and [Next.js 16.3](https://nextjs.org/blog/next-16-3-ai-improvements) AI blog posts.
+<span id="step-3-let-errors-drive-the-fixes" />
 
-## Step 3: Let errors drive the fixes
+## Built-in guidance for errors
 
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, a blocking error presents labeled fixes, each making a different trade-off. The dev overlay adds a **Copy prompt** button that packages the chosen fix into a paste-ready prompt. The prompt walks the agent through reading the matching error page, applying the canonical pattern, and verifying the result at runtime.
 
@@ -169,9 +150,11 @@ In `next dev` the stack frame resolves to your source, in both the dev overlay a
 
 The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) walks through the full loop an agent runs on these errors, from reading the insight to writing an `instant()` test that fails before the fix and passes once it's in place.
 
-## Step 4: Hand multi-step workflows to Skills
+<span id="step-4-hand-multi-step-workflows-to-skills" />
 
-Framework knowledge comes from the bundled docs, not from Skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. Next.js Skills package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#step-2-give-agents-runtime-visibility) along the way.
+## Skills for multi-step workflows
+
+Framework knowledge comes from the bundled docs, not from Skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. Next.js Skills package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#runtime-visibility) along the way.
 
 You can [browse the source for these Skills](https://github.com/vercel/next.js/tree/canary/skills) in the Next.js repository and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
 
@@ -203,7 +186,7 @@ The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next
 2. Fixes them one feature at a time, checking in with you before moving on.
 3. Confirms a feature against `next dev` and `next build` before leaving it.
 
-You choose whether the work lands as a series of PRs or stays on one branch.
+The Skill supports both a series of pull requests and a single-branch migration.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption

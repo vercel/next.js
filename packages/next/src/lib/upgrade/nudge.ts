@@ -8,6 +8,7 @@ import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
 import { futureDefaults } from './future-defaults'
+import type { UpgradeAssessment } from './prepare-upgrade'
 
 type SecurityNudgeOptions = {
   directory: string
@@ -128,77 +129,40 @@ async function showNudge(
   throw error
 }
 
-async function getLatestUpgrade(
-  installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
-): Promise<{ installedVersion: string; latestVersion: string } | null> {
-  try {
-    if (!(await getAgentName())) {
-      return null
-    }
-
-    const { getLatestUpgradeVersion } =
-      require('./prepare-upgrade') as typeof import('./prepare-upgrade')
-    const latestVersion = await getLatestUpgradeVersion(installedVersion)
-
-    if (!latestVersion) {
-      return null
-    }
-
-    return { installedVersion, latestVersion }
-  } catch {
-    // A release reminder is best-effort; lookup failures should stay quiet.
-    return null
-  }
-}
-
 async function nudgeForSecurity(
   options: SecurityNudgeOptions,
-  policy: 'security' | 'latest' | 'future'
+  policy: 'security' | 'latest' | 'future',
+  assessment: UpgradeAssessment
 ): Promise<boolean> {
-  let advisory
+  if (!assessment.affected) {
+    return false
+  }
   const version = process.env.__NEXT_VERSION || 'unknown'
+  const { reference, upgrade } = assessment
+  const action =
+    upgrade.status === 'ready'
+      ? `At the end of the task, ask the user whether they want you to run the upgrade using the configured '${policy}' policy in the background from this app's directory:
 
-  try {
-    if (!(await getAgentName())) {
-      return false
-    }
-
-    // Reuse upgrade's advisory readers only after detecting an agent.
-    const { getSecurityAdvisory } =
-      require('./prepare-upgrade') as typeof import('./prepare-upgrade')
-    advisory = await getSecurityAdvisory(version)
-  } catch {
-    Log.warn(
-      'Could not check Next.js security advisories. Continuing without an upgrade assessment.'
-    )
-    return false
-  }
-
-  if (!advisory) {
-    return false
-  }
-
-  const { reference } = advisory
+\`\`\`
+next upgrade --ai
+\`\`\``
+      : `${upgrade.status === 'unknown' ? 'Upgrade availability could not be checked.' : 'No safe newer target is available for the configured upgrade policy.'} ${upgrade.reason}`
   await showNudge(
     options,
     version,
     'security',
-    `Your version of Next.js is affected by a published security advisory and can be automatically upgraded.
+    `Your version of Next.js is affected by a published security advisory.
 
 **We strongly recommend you upgrade Next.js.**
 
 This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
 
-At the end of the task, ask the user whether they want you to run the security upgrade in the background from this app's directory:
-
-\`\`\`
-next upgrade --ai
-\`\`\`
+${action}
 
 Reference: ${reference}
 
 Note: This security gate is enabled by \`experimental.agenticAutoUpgrade: '${policy}'\`.`,
-    `Your version of Next.js is affected by a published security advisory. This command is continuing after the reminder you configured.\nReference: ${reference}`,
+    `Your version of Next.js is affected by a published security advisory. This command is continuing after the reminder you configured.${upgrade.status === 'ready' ? '' : `\n${action}`}\nReference: ${reference}`,
     'SecurityFatalError'
   )
   return true
@@ -206,14 +170,23 @@ Note: This security gate is enabled by \`experimental.agenticAutoUpgrade: '${pol
 
 async function nudgeForLatest(
   options: SecurityNudgeOptions,
-  policy: 'latest' | 'future'
+  policy: 'latest' | 'future',
+  assessment: UpgradeAssessment
 ): Promise<boolean> {
+  if (assessment.upgrade.status !== 'ready') {
+    return false
+  }
   const version = process.env.__NEXT_VERSION || 'unknown'
-  const latest = await getLatestUpgrade(version)
-  if (!latest) return false
-
-  const { installedVersion, latestVersion } = latest
-  const reference = 'https://registry.npmjs.org/next/latest'
+  const { getLatestUpgradeVersion } =
+    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+  const { installedVersion, targetVersion } = assessment.upgrade
+  const latestVersion = getLatestUpgradeVersion(installedVersion, targetVersion)
+  if (!latestVersion) {
+    return false
+  }
+  const distTag =
+    semver.prerelease(latestVersion)?.[0] === 'canary' ? 'canary' : 'latest'
+  const reference = `https://registry.npmjs.org/next/${distTag}`
   await showNudge(
     options,
     version,
@@ -247,7 +220,8 @@ export async function getFutureUpgrade(
     if (
       !(await getAgentName()) ||
       !semver.valid(installedVersion) ||
-      semver.prerelease(installedVersion)
+      (semver.prerelease(installedVersion) &&
+        semver.prerelease(installedVersion)?.[0] !== 'canary')
     ) {
       return null
     }
@@ -315,13 +289,39 @@ export async function nudgeForUpgrade(
     return
   }
 
-  const options = { directory, distDir: config.distDir, command }
-  if (await nudgeForSecurity(options, policy)) return
-
-  if (policy === 'latest' || policy === 'future') {
-    if (await nudgeForLatest(options, policy)) return
+  const version = process.env.__NEXT_VERSION || 'unknown'
+  let assessment: UpgradeAssessment
+  try {
+    if (
+      !(await getAgentName()) ||
+      !semver.valid(version) ||
+      (semver.prerelease(version) &&
+        semver.prerelease(version)?.[0] !== 'canary')
+    ) {
+      return
+    }
+    const { getUpgradeAssessment } =
+      require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+    assessment = await getUpgradeAssessment(version, policy)
+  } catch {
+    Log.warn(
+      'Could not check Next.js security advisories. Continuing without an upgrade assessment.'
+    )
+    return
   }
 
+  const options = { directory, distDir: config.distDir, command }
+  if (await nudgeForSecurity(options, policy, assessment)) {
+    return
+  }
+  if (assessment.upgrade.status !== 'ready') {
+    return
+  }
+  if (policy === 'latest' || policy === 'future') {
+    if (await nudgeForLatest(options, policy, assessment)) {
+      return
+    }
+  }
   if (policy === 'future') {
     await nudgeForFuture(options, config)
   }

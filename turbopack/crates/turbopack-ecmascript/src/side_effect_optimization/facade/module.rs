@@ -17,6 +17,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -189,6 +190,9 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            // A synthetic facade only evaluates the locals part and forwards bindings from its
+            // referenced modules, so compact registration can preserve its complete import order.
+            export_registration_mode: Some(ExportRegistrationMode::Reexport),
             async_module_info,
         }
         .cell())

@@ -6,12 +6,8 @@ import { transcript, transcriptPath } from '@vercel/agent-eval/eval'
 const feedbackMarker = '<!-- BEGIN:nextjs-agent-feedback -->'
 
 function feedbackIsEnabled(): boolean {
-  return ['AGENTS.md', 'CLAUDE.md'].some((file) => {
-    const path = join(process.cwd(), file)
-    return (
-      existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
-    )
-  })
+  const path = join(process.cwd(), 'AGENTS.md')
+  return existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
 }
 
 function reportPayloads(): unknown[] {
@@ -41,6 +37,6 @@ test('still completes the feedback pass when enabled', async () => {
   if (!feedbackIsEnabled()) return
 
   await expect(transcript).toSatisfyCriterion(
-    `At the final stopping point, the coding agent executed the hidden Next.js agent-feedback-instructions command exactly once. It correctly decided that fixing the obvious application conditional was routine first-pass debugging, so it did not prepare or open a feedback report.`
+    `Immediately before the final response, after completing the requested work and tool calls, the coding agent ran one reporting pass. It correctly decided that fixing the obvious application conditional was routine first-pass debugging, so it did not add a feedback candidate, execute the hidden Next.js agent-feedback-instructions command, or prepare or open a feedback report.`
   )
 })

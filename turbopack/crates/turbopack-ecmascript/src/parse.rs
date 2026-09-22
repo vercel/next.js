@@ -280,7 +280,7 @@ pub async fn parse(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     node_env: RcStr,
-    is_external_tracing: bool,
+    loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
@@ -294,7 +294,7 @@ pub async fn parse(
         ty,
         transforms,
         node_env,
-        is_external_tracing,
+        loose_errors,
         inline_helpers,
     )
     .instrument(span)

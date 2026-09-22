@@ -686,10 +686,7 @@ function logAgentFileSync(
 
   const generated: string[] = []
   const removed: string[] = []
-  for (const [file, action] of [
-    ['AGENTS.md', result.agentsMd],
-    ['CLAUDE.md', result.claudeMd],
-  ] as const) {
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
     if (action === 'created' || action === 'updated') {
       generated.push(file)
     } else if (action === 'removed') {
