@@ -388,14 +388,6 @@ impl TurboTasksBackend {
         ))
     }
 
-    fn operation_suspend_point(
-        &self,
-        operation_guard: &mut OperationGuard<'_, AnyOperation>,
-        suspend: impl FnOnce() -> AnyOperation,
-    ) {
-        operation_guard.suspend_point(suspend);
-    }
-
     pub(crate) fn start_operation(&self) -> Option<OperationGuard<'_, AnyOperation>> {
         if !self.should_persist() {
             return None;
