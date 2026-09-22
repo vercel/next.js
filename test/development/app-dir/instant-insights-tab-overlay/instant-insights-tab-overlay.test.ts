@@ -57,10 +57,14 @@ describe('instant insights tab overlay', () => {
 
       return {
         leftTop: leftContent.getBoundingClientRect().top,
+        leftBottom: leftContent.getBoundingClientRect().bottom,
         rightTop: rightContent.getBoundingClientRect().top,
+        rightBottom: rightContent.getBoundingClientRect().bottom,
         rightEdge: rightContent.getBoundingClientRect().right,
         navRightEdge: nav.getBoundingClientRect().right,
+        navBottomEdge: nav.getBoundingClientRect().bottom,
         navPaddingRight: parseFloat(getComputedStyle(nav).paddingRight),
+        navPaddingBottom: parseFloat(getComputedStyle(nav).paddingBottom),
         clientWidth: nav.clientWidth,
         scrollWidth: nav.scrollWidth,
       }
@@ -182,6 +186,16 @@ describe('instant insights tab overlay', () => {
       expect(
         Math.abs(
           layout!.navRightEdge - layout!.rightEdge - layout!.navPaddingRight
+        )
+      ).toBeLessThan(2)
+      expect(
+        Math.abs(
+          layout!.rightTop - layout!.leftBottom - layout!.navPaddingBottom
+        )
+      ).toBeLessThan(2)
+      expect(
+        Math.abs(
+          layout!.navBottomEdge - layout!.rightBottom - layout!.navPaddingBottom
         )
       ).toBeLessThan(2)
       expect(layout!.scrollWidth).toBe(layout!.clientWidth)
