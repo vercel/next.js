@@ -1033,13 +1033,13 @@ pub struct ServerChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
+    pub lazy_dynamic_imports: Vc<bool>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
     options: ServerChunkingContextOptions,
-    lazy_dynamic_imports: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let ServerChunkingContextOptions {
         mode,
@@ -1063,6 +1063,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1112,15 +1113,14 @@ pub async fn get_server_chunking_context_with_client_assets(
     // Per-page graphs each see only one page, so none of them can decide what the shared runtime
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .manifest_chunks(*lazy_dynamic_imports.await?);
 
-    if next_mode.is_development() {
-        builder = builder
-            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
-            .manifest_chunks(*lazy_dynamic_imports.await?);
+    builder = builder.source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
     } else {
-        builder = builder.source_map_source_type(SourceMapSourceType::RelativeUri);
-    }
+        SourceMapSourceType::RelativeUri
+    });
     if next_mode.is_production() {
         builder = builder
             .chunking_config(
@@ -1173,6 +1173,7 @@ pub async fn get_server_chunking_context(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports: _,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
