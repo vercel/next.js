@@ -68,9 +68,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           throw error
         case 'unstable-cache':
           throw createCookiesInUnstableCacheError(workStore.route)
-        case 'generate-static-params':
+        case 'build-time-generator':
           throw new Error(
-            `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+            `Route ${workStore.route} used \`cookies()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)

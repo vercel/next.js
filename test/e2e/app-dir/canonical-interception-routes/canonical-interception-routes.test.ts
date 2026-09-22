@@ -42,6 +42,8 @@ describe('canonical-interception-routes', () => {
          }
         `)
       }
+
+      expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).toBe(1)
@@ -53,9 +55,16 @@ describe('canonical-interception-routes', () => {
 
        Every interception route must have a matching non-interception route so the URL can be loaded directly or refreshed."
       `)
+      expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
   })
 })
+
+function expectDefaultStrictRouteMatchingWarning(output: string): void {
+  expect(stripAnsi(output)).toContain(
+    'you can temporarily restore loose route matching by setting `deprecated.looseRouteMatching` to `true`'
+  )
+}
 
 function extractMissingCanonicalRoutesError(output: string): string {
   const normalizedOutput = stripAnsi(output)

@@ -296,7 +296,7 @@ function trackRuntimeDataAccessedImpl(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       // Only the modern server prerender tracks this; see the field docs on
       // PrerenderStoreModernServer.
       break
@@ -524,7 +524,7 @@ export function applyOwnerStack(error: Error): Error {
       case 'prerender-runtime':
       case 'prerender-client':
       case 'validation-client':
-      case 'generate-static-params':
+      case 'build-time-generator':
       case undefined:
         ownerStack = innerOwnerStack
         break

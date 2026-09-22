@@ -116,6 +116,7 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
+import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
@@ -1140,7 +1141,10 @@ export async function createHotReloaderTurbopack(
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints.value)) {
-        printBuildErrors(entrypoints, true)
+        printBuildErrors(entrypoints, true, {
+          strictRouteMatchingDefaultWarning:
+            getStrictRouteMatchingDefaultWarning(nextConfig),
+        })
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined

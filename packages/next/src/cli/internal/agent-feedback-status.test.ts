@@ -23,15 +23,17 @@ describe('isAgentFeedbackEnabled', () => {
     await expect(isAgentFeedbackEnabled(fetchImpl)).resolves.toBe(false)
   })
 
-  it('fails closed when the request rejects', async () => {
+  it('rejects when the request fails', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('network unavailable')
     }
 
-    await expect(isAgentFeedbackEnabled(fetchImpl)).resolves.toBe(false)
+    await expect(isAgentFeedbackEnabled(fetchImpl)).rejects.toThrow(
+      'network unavailable'
+    )
   })
 
-  it('fails closed when the request times out', async () => {
+  it('rejects when the request times out', async () => {
     const fetchImpl: typeof fetch = (_input, init) => {
       return new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => {
@@ -40,6 +42,8 @@ describe('isAgentFeedbackEnabled', () => {
       })
     }
 
-    await expect(isAgentFeedbackEnabled(fetchImpl, 1)).resolves.toBe(false)
+    await expect(isAgentFeedbackEnabled(fetchImpl, 1)).rejects.toThrow(
+      'aborted'
+    )
   })
 })
