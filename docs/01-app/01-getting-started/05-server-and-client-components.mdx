@@ -141,6 +141,8 @@ On subsequent navigations:
 
 You can create a Client Component by adding the [`"use client"`](https://react.dev/reference/rsc/use-client) directive at the top of the file, above your imports.
 
+When adding interactivity to an existing component, keep database access in modules marked with `import 'server-only'` so accidental client imports fail at build time. Import shared values and validators directly from modules that can run in either environment. See [Preventing environment poisoning](#preventing-environment-poisoning) for an example.
+
 ```tsx filename="app/ui/counter.tsx" highlight={1} switcher
 'use client'
 
