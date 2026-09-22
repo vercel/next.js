@@ -44,6 +44,7 @@ declare module 'private-next-rsc-cache-wrapper' {
     kind: string,
     id: string,
     boundArgsLength: number,
+    displayName: string | null,
     fn: TFn,
     args: unknown[]
   ): Promise<any>

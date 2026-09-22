@@ -37,6 +37,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'AppRender.initializeRender',
   'AppRender.getBodyResult',
   'AppRender.executeServerAction',
+  'UseCache.execute',
   'NextNodeServer.createComponentTree',
   'AppRender.startRSCStream',
   'AppRender.renderRSCResponse',
@@ -347,7 +348,11 @@ function getSpanLabel(span: RequestInsightSpan): string {
     typeof explicitName === 'string' && explicitName.trim().length > 0
       ? explicitName
       : span.name
-  if (span.attributes?.['next.span_type'] === 'AppRender.executeServerAction') {
+  const spanType = span.attributes?.['next.span_type']
+  if (
+    spanType === 'AppRender.executeServerAction' ||
+    spanType === 'UseCache.execute'
+  ) {
     return name
   }
   const displayName = name
