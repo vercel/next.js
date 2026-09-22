@@ -98,6 +98,38 @@ describe('deploy runtime logs', () => {
     stdout.destroy()
     stderr.destroy()
     jest.clearAllMocks()
+    jest.useRealTimers()
+  })
+
+  it('waits for an application message rather than CLI diagnostics', async () => {
+    const ready = jest.fn()
+    const waiting = collector.waitForFirstMessage().then(ready)
+    stderr.write('Connected to logs')
+    await Promise.resolve()
+    expect(ready).not.toHaveBeenCalled()
+    stdout.write(JSON.stringify({ message: 'first runtime message' }) + '\n')
+    await waiting
+    expect(ready).toHaveBeenCalledTimes(1)
+  })
+
+  it('times out after 15 seconds without an application message', async () => {
+    jest.useFakeTimers()
+    const waiting = collector.waitForFirstMessage().catch((error) => error)
+    await jest.advanceTimersByTimeAsync(15_000)
+    expect(await waiting).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          'No Vercel runtime log received within 15000ms'
+        ),
+      })
+    )
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('fails startup immediately when the collector exits', async () => {
+    const waiting = collector.waitForFirstMessage()
+    fail()
+    await expect(waiting).rejects.toThrow('collection failed')
   })
 
   it('preserves build output and decodes chunked Unicode JSON records', () => {

@@ -8,6 +8,10 @@ export class DeployRuntimeLogs {
   private stopping = false
   private error: Error | undefined
   private seenRows = new Set<string>()
+  private markFirstMessage!: () => void
+  private firstMessage = new Promise<void>((resolve) => {
+    this.markFirstMessage = resolve
+  })
 
   constructor(
     url: string,
@@ -54,6 +58,7 @@ export class DeployRuntimeLogs {
           event.level
         )
         append(message, isErrorStream ? 'stderr' : 'stdout')
+        this.markFirstMessage()
       } catch {
         // Do not include raw records: they may contain application secrets.
         this.error = new Error('Failed to read complete Vercel runtime logs')
@@ -83,6 +88,33 @@ export class DeployRuntimeLogs {
 
   assertHealthy() {
     if (this.error) throw this.error
+  }
+
+  async waitForFirstMessage() {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        this.firstMessage,
+        this.completion.then(() => {
+          this.assertHealthy()
+          throw new Error(
+            'Vercel runtime log stream stopped before its first message'
+          )
+        }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              new Error(
+                'No Vercel runtime log received within 15000ms. A quiet deployment may emit no logs before test requests.'
+              )
+            )
+          }, 15_000)
+        }),
+      ])
+      this.assertHealthy()
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   async stop() {
