@@ -96,11 +96,9 @@ export default async function Page() {
 }
 ```
 
-Add `import 'server-only'` to your database client and schema modules, such as `lib/db` above. Next.js reports a build error if a Client Component imports one of these modules, including through another module. Keep shared values and validators in separate modules that Client Components can import without pulling in database code. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example.
+Add `import 'server-only'` to database modules such as `lib/db` to catch accidental Client Component imports at build time. Learn more about [keeping server code out of Client Components](/docs/app/guides/server-and-client-boundary#crossing-the-boundary).
 
-Data passed as props to Client Components is sent to the browser, even when it comes from a `server-only` module. Select only the fields the current user is allowed to see, and keep secrets out of those props. React's experimental [taint APIs](/docs/app/api-reference/config/next-config-js/taint) can help catch accidental exposure of marked objects or values, but do not replace filtering the data you return.
-
-You should still ensure requests are properly authenticated and authorized. For best practices on securing server-side data access, see the [data security guide](/docs/app/guides/data-security).
+Authenticate and authorize requests, and only pass data the user is allowed to see to Client Components. Props are sent to the browser. See the [data security guide](/docs/app/guides/data-security) for best practices.
 
 ### Streaming
 

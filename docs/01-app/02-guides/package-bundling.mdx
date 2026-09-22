@@ -157,9 +157,9 @@ Once you've identified a large module, the solution will depend on your use case
 
 ### Server modules in client bundles
 
-A Client Component can pull database code into its bundle by importing a shared value from a module that also defines database tables. Use the import trace to find that dependency, then move the shared value to a separate module that can run in either environment. If that module already exists, import from it directly.
+If an import trace reaches database code through a shared value, move that value to a separate module and import it directly from the Client Component. If a shared module already exists, update the import to use it.
 
-Add `import 'server-only'` to the module containing the database code to prevent future client imports. Changing the import removes the database dependency from the client bundle; `server-only` makes accidental imports a build error. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example.
+Add `import 'server-only'` to the database module to catch future client imports at build time. The import change removes the database dependency from the bundle; `server-only` prevents it from returning. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example.
 
 </AppOnly>
 

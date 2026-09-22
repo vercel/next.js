@@ -116,9 +116,9 @@ export default async function Page() {
 
 With RSC, a Server Component can fetch data while rendering. A separate data-loading step does not need to pass initial props to the component tree.
 
-> **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components.
+> **Good to know:** Props passed to Client Components are serialized and sent to the browser, even when the data comes from a `server-only` module. Only pass fields the current user is allowed to see, and keep secrets out of those props.
 >
-> Props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
+> React's experimental [taint APIs](/docs/app/api-reference/config/next-config-js/taint) can catch accidental exposure of marked objects or values, but do not replace filtering the data you return. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
 Server Components do not have to await all data before returning UI. To stream server-fetched data into a Client Component, start the request in a Server Component and pass the pending promise as a prop.
 
