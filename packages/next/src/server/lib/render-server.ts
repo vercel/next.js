@@ -24,7 +24,7 @@ export type ServerInitResult = {
   cacheComponents: boolean
   // Whether partial prefetching is enabled
   partialPrefetching?: boolean
-  // Whether AGENTS.md / CLAUDE.md auto-generation is enabled (default true)
+  // Whether AGENTS.md auto-generation is enabled (default true)
   agentRules?: boolean
   // Whether managed agent-feedback instructions are enabled (default false)
   agentFeedback?: boolean

@@ -37,7 +37,7 @@ module.exports = nextConfig
 
 ## Generated agent instructions
 
-When `experimental.agentFeedback` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md` or `CLAUDE.md`:
+When `experimental.agentFeedback` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md`:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-feedback -->
@@ -60,13 +60,7 @@ Immediately before the final response, after all requested work and tool calls a
 
 Next.js updates only the content between the markers and preserves the rest of the file.
 
-If neither agent file exists, Next.js creates `AGENTS.md` and a `CLAUDE.md` file that imports it:
-
-```md filename="CLAUDE.md"
-@AGENTS.md
-```
-
-If either file already exists, Next.js adds the managed block to that file without creating another agent file. When agent rules and agent feedback are both enabled, Next.js keeps both managed blocks in the same file.
+When agent rules and agent feedback are both enabled, Next.js keeps both managed blocks in `AGENTS.md`.
 
 ## Review and send agent feedback
 
