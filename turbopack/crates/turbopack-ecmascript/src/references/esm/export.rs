@@ -706,6 +706,7 @@ async fn build_compact_reexports(
                 continue;
             }
 
+            let evaluation_only = reference.await?.is_evaluation_only();
             if let Some((key, asset)) = compact_reference_target(
                 ResolvedVc::upcast(*reference),
                 chunking_context,
@@ -713,6 +714,12 @@ async fn build_compact_reexports(
             )
             .await?
             {
+                // A merged evaluation reference only contributes the in-factory ordering
+                // placeholder; it intentionally creates no namespace variable for `a.S` to read.
+                if evaluation_only && scope_hoisting_context.get_module_index(asset).is_some() {
+                    continue;
+                }
+
                 synthetic_order.entry(key.clone()).or_insert(order);
                 groups.entry(key.clone()).or_insert_with(|| ReexportGroup {
                     order,

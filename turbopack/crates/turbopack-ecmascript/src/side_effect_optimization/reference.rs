@@ -144,6 +144,10 @@ impl ModuleReference for EcmascriptModulePartReference {
 }
 
 impl EcmascriptModulePartReference {
+    pub(crate) fn is_evaluation_only(&self) -> bool {
+        matches!(self.export_usage, ExportUsage::Evaluation)
+    }
+
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
