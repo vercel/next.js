@@ -208,14 +208,14 @@ mod tests {
 
     #[turbo_tasks::value(serialization = "skip")]
     struct SkipCheapV(
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         #[allow(dead_code)]
         u32,
     );
 
     #[turbo_tasks::value(serialization = "skip", evict = "last")]
     struct SkipExpensiveV(
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         #[allow(dead_code)]
         u32,
     );

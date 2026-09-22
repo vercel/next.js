@@ -5,7 +5,7 @@ use swc_core::ecma::{
     visit::fields::{CalleeField, PropField},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,

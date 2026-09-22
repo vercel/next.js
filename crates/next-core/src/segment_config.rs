@@ -17,9 +17,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs, util::WrapFuture,
-};
+use turbo_tasks::{JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, util::WrapFuture};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -43,17 +41,7 @@ use crate::{
 };
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
@@ -65,17 +53,7 @@ pub enum NextSegmentDynamic {
 }
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
@@ -89,9 +67,7 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
-#[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
 pub enum NextRevalidate {
     #[default]
     Never,
@@ -115,13 +91,13 @@ pub struct NextSegmentConfig {
     /// Whether these exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub instant: Option<Span>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub prefetch: Option<Span>,
     #[turbo_tasks(trace_ignore)]
@@ -293,7 +269,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`

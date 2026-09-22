@@ -18,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
@@ -484,9 +484,7 @@ impl ModuleResolveResult {
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum ExternalTraced {
     Untraced,
     Traced,
@@ -502,9 +500,7 @@ impl Display for ExternalTraced {
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum ExternalType {
     Url,
     CommonJs,
@@ -1195,7 +1191,7 @@ async fn realpath_if_exists(
 
 #[turbo_tasks::value(shared)]
 enum ExportsFieldResult {
-    Some(#[turbo_tasks(debug_ignore, trace_ignore)] ExportsField),
+    Some(#[turbo_tasks(debug_ignore, unsafe_ignore)] ExportsField),
     None,
 }
 
@@ -1232,7 +1228,7 @@ async fn exports_field(
 #[turbo_tasks::value(shared)]
 enum ImportsFieldResult {
     Some(
-        #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
+        #[turbo_tasks(debug_ignore, unsafe_ignore)] ImportsField,
         FileSystemPath,
     ),
     None,
@@ -1365,7 +1361,7 @@ pub async fn find_context_file_or_package_key(
     Ok(find_context_file(lookup_path.parent(), names, false))
 }
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 enum FindPackageItem {
     PackageDirectory { name: RcStr, dir: FileSystemPath },
     PackageFile { name: RcStr, file: FileSystemPath },
@@ -3419,9 +3415,7 @@ async fn resolve_package_internal_with_imports_field(
 ///
 /// Currently this is used only for ESMs.
 #[turbo_tasks::task_input]
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
     /// all exports are unused.

@@ -16,7 +16,7 @@ use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, NonLocalValue, OperationVc, ResolvedVc, TransientInstance, Vc,
-    read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
+    read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
@@ -87,8 +87,8 @@ impl SymlinkMode {
     }
 }
 
-#[derive(Default, NonLocalValue, TraceRawVcs)]
-struct PathInvalidations(#[turbo_tasks(trace_ignore)] Arc<Mutex<FxHashSet<RcStr>>>);
+#[derive(Default, NonLocalValue)]
+struct PathInvalidations(#[turbo_tasks(unsafe_ignore)] Arc<Mutex<FxHashSet<RcStr>>>);
 
 #[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {

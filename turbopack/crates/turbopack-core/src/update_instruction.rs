@@ -1,23 +1,18 @@
 use std::{any::Any, fmt::Debug, sync::Arc};
 
 use serde::Serialize;
-use turbo_tasks::{
-    NonLocalValue,
-    debug::ValueDebugFormat,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use turbo_tasks::{NonLocalValue, debug::ValueDebugFormat};
 
 trait ErasedUpdateInstruction:
     erased_serde::Serialize + Debug + Send + Sync + NonLocalValue + 'static
 {
     fn as_any(&self) -> &dyn Any;
     fn dyn_eq(&self, other: &dyn Any) -> bool;
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext);
 }
 
 impl<T> ErasedUpdateInstruction for T
 where
-    T: Serialize + Eq + Debug + Send + Sync + NonLocalValue + TraceRawVcs + 'static,
+    T: Serialize + Eq + Debug + Send + Sync + NonLocalValue + 'static,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -25,10 +20,6 @@ where
 
     fn dyn_eq(&self, other: &dyn Any) -> bool {
         other.downcast_ref::<Self>() == Some(self)
-    }
-
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(self, trace_context);
     }
 }
 
@@ -49,7 +40,7 @@ impl Eq for UpdateInstruction {}
 impl UpdateInstruction {
     pub fn new<T>(instruction: T) -> Self
     where
-        T: Serialize + Eq + Debug + Send + Sync + NonLocalValue + TraceRawVcs + 'static,
+        T: Serialize + Eq + Debug + Send + Sync + NonLocalValue + 'static,
     {
         Self(Arc::new(instruction))
     }
@@ -59,20 +50,14 @@ impl UpdateInstruction {
     }
 }
 
-impl TraceRawVcs for UpdateInstruction {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        ErasedUpdateInstruction::trace_raw_vcs(self.0.as_ref(), trace_context);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use serde::Serialize;
-    use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+    use turbo_tasks::NonLocalValue;
 
     use super::UpdateInstruction;
 
-    #[derive(Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue)]
+    #[derive(Debug, PartialEq, Eq, Serialize, NonLocalValue)]
     struct TestInstruction {
         value: u32,
     }

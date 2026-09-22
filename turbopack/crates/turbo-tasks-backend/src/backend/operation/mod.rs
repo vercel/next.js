@@ -2293,7 +2293,7 @@ mod cell_data_tracking_tests {
 
     #[turbo_tasks::value(serialization = "skip")]
     struct SkipCheapV(
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         #[allow(dead_code)]
         u32,
     );

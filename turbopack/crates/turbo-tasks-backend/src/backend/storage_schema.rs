@@ -1703,7 +1703,7 @@ mod tests {
 
         #[turbo_tasks::value(serialization = "skip", evict = "last")]
         struct KeepMe(
-            #[turbo_tasks(trace_ignore)]
+            #[turbo_tasks(unsafe_ignore)]
             #[allow(dead_code)]
             u32,
         );
