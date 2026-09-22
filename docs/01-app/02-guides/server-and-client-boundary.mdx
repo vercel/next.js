@@ -209,7 +209,7 @@ import 'server-only'
 import 'server-only'
 ```
 
-The guard prevents client imports of server code; selecting props controls which data reaches the browser. A successful build alone does not verify that props contain no private data.
+Next.js handles `server-only` imports internally, so [installing the package is optional](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning). The guard prevents client imports of server code; selecting props controls which data reaches the browser. A successful build alone does not verify that props contain no private data.
 
 ### Passing functions and rendered elements
 
