@@ -97,13 +97,46 @@ export const styles = `
 
   @media (max-width: 767px) {
     [data-nextjs-error-overlay-nav] {
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
 
-      &::-webkit-scrollbar {
-        display: none;
+      .error-overlay-nav-item {
+        max-width: 100%;
+
+        &[data-side='left'] {
+          padding-right: 12px;
+        }
+
+        &[data-side='right'] {
+          padding-left: 12px;
+          padding-top: 0;
+        }
+      }
+
+      .error-overlay-tab {
+        white-space: nowrap;
+
+        &:disabled {
+          display: none;
+        }
+      }
+
+      .nextjs-container-build-error-version-status {
+        height: auto;
+        min-height: var(--size-24);
+        border-radius: var(--rounded-md);
+        font-size: var(--size-11);
+      }
+
+      [data-nextjs-version-checker] {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      .version-staleness-indicator {
+        flex-shrink: 0;
       }
     }
   }
