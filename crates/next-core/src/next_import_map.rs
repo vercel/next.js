@@ -67,7 +67,7 @@ pub async fn get_next_client_import_map(
 
     import_map.insert_exact_alias(
         rcstr!("next/image"),
-        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image.js")),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
     );
 
     insert_next_shared_aliases(
@@ -289,7 +289,7 @@ pub async fn get_next_server_import_map(
 
     import_map.insert_exact_alias(
         rcstr!("next/image"),
-        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image.js")),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
     );
 
     insert_next_shared_aliases(
@@ -426,7 +426,7 @@ pub async fn get_next_edge_import_map(
         rcstr!("next/form") => rcstr!("next/dist/api/form"),
         rcstr!("next/head") => rcstr!("next/dist/api/head"),
         rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
-        rcstr!("next/image") => rcstr!("next/dist/api/image.js"),
+        rcstr!("next/image") => rcstr!("next/dist/api/image"),
         rcstr!("next/link") => rcstr!("next/dist/api/link"),
         rcstr!("next/navigation") => rcstr!("next/dist/api/navigation"),
         rcstr!("next/router") => rcstr!("next/dist/api/router"),
