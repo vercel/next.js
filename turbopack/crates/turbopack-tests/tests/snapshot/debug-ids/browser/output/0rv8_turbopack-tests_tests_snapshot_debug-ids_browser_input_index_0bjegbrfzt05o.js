@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="8a9c9872-aef7-5237-2377-0de32b6e5e53")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="30bdd4b9-98f8-d92c-1735-98906e239378")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -250,9 +250,7 @@ contextPrototype.s = esmExport;
         // notably, interop with a CommonJS function export produces a callable namespace function.
         // `esmImport` may return a promise for an async module, but re-exports of async modules keep
         // going through `context.s`, so the producer never routes them here and this stays synchronous.
-        const namespace = typeof head === 'string' || typeof head === 'number' ? // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
-        // argument. Passed here only to satisfy the declared type.
-        this.i(head, false) : head;
+        const namespace = typeof head === 'string' || typeof head === 'number' ? esmImport.call(this, head) : head;
         if (end - start === 1) {
             const pairs = list[start].split(',');
             for(let j = 0; j < pairs.length; j += 2){
@@ -2612,5 +2610,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=8a9c9872-aef7-5237-2377-0de32b6e5e53
+//# debugId=30bdd4b9-98f8-d92c-1735-98906e239378
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

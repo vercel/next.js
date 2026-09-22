@@ -2,10 +2,11 @@ use std::collections::hash_map::Entry;
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, OperationVc, ResolvedVc, Vc, trace::TraceRawVcs};
 
 use crate::{
     chunk::chunking_context::UnusedReferences,
@@ -50,14 +51,35 @@ pub struct BindingUsageInfo {
 #[turbo_tasks::value(transparent)]
 pub struct OptionBindingUsageInfo(Option<ResolvedVc<BindingUsageInfo>>);
 
+/// Whether export-usage analysis selected a module to break an import cycle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum CircuitBreakerState {
+    /// Export-usage analysis did not run. Consumers that control export ordering must
+    /// conservatively treat this like a circuit breaker, while optimizations may distinguish it
+    /// from a known cycle.
+    Unknown,
+    /// Analysis ran and did not select this module as a circuit breaker.
+    NotCircuitBreaker,
+    /// Analysis ran and selected this module as a circuit breaker.
+    CircuitBreaker,
+}
+
+impl CircuitBreakerState {
+    /// Whether export ordering must conservatively follow the circuit-breaker path.
+    pub fn is_circuit_breaker(self) -> bool {
+        !matches!(self, Self::NotCircuitBreaker)
+    }
+
+    /// Whether analysis positively identified this module as a circuit breaker.
+    pub fn is_known_circuit_breaker(self) -> bool {
+        matches!(self, Self::CircuitBreaker)
+    }
+}
+
 #[turbo_tasks::value]
 pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
-    // Whether this module exists in an import cycle and has been selected to break the cycle.
-    pub is_circuit_breaker: bool,
-    /// Whether `is_circuit_breaker` reflects a cycle actually found, rather than the conservative
-    /// answer used when no export-usage analysis ran.
-    pub export_usage_known: bool,
+    pub circuit_breaker: CircuitBreakerState,
     /// Whether this module is read through a namespace value somewhere, which means one of those
     /// reads may still use an original export name. See [`PartialNamespaceModules`].
     pub namespace_object_may_escape: bool,
@@ -68,8 +90,7 @@ impl ModuleExportUsage {
     pub async fn all() -> Result<Vc<Self>> {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
-            is_circuit_breaker: true,
-            export_usage_known: false,
+            circuit_breaker: CircuitBreakerState::Unknown,
             namespace_object_may_escape: true,
         }
         .cell())
@@ -85,7 +106,11 @@ impl BindingUsageInfo {
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
+        let circuit_breaker = if self.export_circuit_breakers.contains_key(&module).await? {
+            CircuitBreakerState::CircuitBreaker
+        } else {
+            CircuitBreakerState::NotCircuitBreaker
+        };
         let Some(exports) = self.used_exports.get(&module).await? else {
             // There are some module that are codegened, but not referenced in the module graph,
             let ident = module.ident_string().await?;
@@ -103,8 +128,7 @@ impl BindingUsageInfo {
             self.partial_namespace_modules.contains_key(&module).await?;
         Ok(ModuleExportUsage {
             export_usage: (*exports).clone().resolved_cell(),
-            is_circuit_breaker,
-            export_usage_known: true,
+            circuit_breaker,
             namespace_object_may_escape,
         }
         .cell())

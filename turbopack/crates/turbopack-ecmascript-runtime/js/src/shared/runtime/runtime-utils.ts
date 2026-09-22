@@ -319,10 +319,7 @@ function esmReexport(
     // going through `context.s`, so the producer never routes them here and this stays synchronous.
     const namespace = (
       typeof head === 'string' || typeof head === 'number'
-        ? // `EsmImport` declares an `allowExportDefault` parameter that `esmImport` itself does not
-          // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
-          // argument. Passed here only to satisfy the declared type.
-          this.i(head, false)
+        ? esmImport.call(this, head)
         : head
     ) as Record<string, unknown>
     if (end - start === 1) {

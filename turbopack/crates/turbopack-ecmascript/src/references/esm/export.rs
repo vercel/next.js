@@ -22,7 +22,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
-    module_graph::binding_usage_info::ModuleExportUsageInfo,
+    module_graph::binding_usage_info::{CircuitBreakerState, ModuleExportUsageInfo},
     reference::ModuleReference,
     resolve::ModulePart,
 };
@@ -959,17 +959,18 @@ type SyntheticReexportReferences<'a> = (
     &'a [ResolvedVc<EsmAssetReference>],
 );
 
-fn compact_registration_is_safe(
+struct CompactRegistrationSafety {
     mode: ExportRegistrationMode,
-    is_circuit_breaker: bool,
-    export_usage_known: bool,
+    circuit_breaker: CircuitBreakerState,
     is_async_module: bool,
-) -> bool {
+}
+
+fn compact_registration_is_safe(options: CompactRegistrationSafety) -> bool {
     matches!(
-        mode,
+        options.mode,
         ExportRegistrationMode::Mixed | ExportRegistrationMode::Reexport
-    ) && !(is_circuit_breaker && export_usage_known)
-        && !is_async_module
+    ) && !options.circuit_breaker.is_known_circuit_breaker()
+        && !options.is_async_module
 }
 
 /// Imports performed by one compact registration. Binding references are identified by namespace;
@@ -1067,12 +1068,11 @@ impl EsmExports {
         // modules may yield a promise from `i()`, and a known circuit breaker must expose its
         // getters before importing the other side of the cycle, so both stay on the general
         // registration.
-        let compact = if compact_registration_is_safe(
-            export_registration_mode,
-            export_usage_info.is_circuit_breaker,
-            export_usage_info.export_usage_known,
+        let compact = if compact_registration_is_safe(CompactRegistrationSafety {
+            mode: export_registration_mode,
+            circuit_breaker: export_usage_info.circuit_breaker,
             is_async_module,
-        ) && expanded.dynamic_exports.is_empty()
+        }) && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
             build_compact_reexports(
@@ -1129,7 +1129,10 @@ impl EsmExports {
                     });
 
                     let local = Ident::new(local, DUMMY_SP, ctxt);
-                    match (liveness, export_usage_info.is_circuit_breaker) {
+                    match (
+                        liveness,
+                        export_usage_info.circuit_breaker.is_circuit_breaker(),
+                    ) {
                         (Liveness::Constant, false) => ExportBinding::Value(Expr::Ident(local)),
                         // If the value might change or we are a circuit breaker we must bind a
                         // getter to avoid capturing the value at the wrong time.
@@ -1160,7 +1163,7 @@ impl EsmExports {
                                 ReferencedAssetIdent::LocalBinding {ctxt, liveness,.. } => {
                                     debug_assert!(*mutable == (*liveness == Liveness::Mutable), "If the re-export is mutable, the merged local must be too");
                                     // If we are re-exporting something but got merged with it we can treat it like a local export
-                                     match (liveness, export_usage_info.is_circuit_breaker) {
+                                     match (liveness, export_usage_info.circuit_breaker.is_circuit_breaker()) {
                                         (Liveness::Constant, false) => {
                                             ExportBinding::Value(read_expr)
                                         }
@@ -1219,7 +1222,7 @@ impl EsmExports {
                         .await?
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);
-                            if export_usage_info.is_circuit_breaker {
+                            if export_usage_info.circuit_breaker.is_circuit_breaker() {
                                 ExportBinding::Getter(quote!(
                                     "(() => $imported)" as Expr,
                                     imported: Expr = imported
@@ -1317,7 +1320,7 @@ impl EsmExports {
         )];
         // If we are a circuit breaker module we need to expose exports first so they are available
         // to a cyclic importer otherwise we put them at the bottom of the module factory.
-        Ok(if export_usage_info.is_circuit_breaker {
+        Ok(if export_usage_info.circuit_breaker.is_circuit_breaker() {
             (
                 CodeGeneration::new(vec![], dynamic_stmt, esm_exports, vec![], vec![]),
                 Default::default(),
@@ -1333,41 +1336,45 @@ impl EsmExports {
 
 #[cfg(test)]
 mod tests {
-    use super::{ExportRegistrationMode, compact_registration_is_safe};
+    use turbopack_core::module_graph::binding_usage_info::CircuitBreakerState;
+
+    use super::{CompactRegistrationSafety, ExportRegistrationMode, compact_registration_is_safe};
 
     #[test]
     fn compact_registration_rejects_async_modules_and_known_cycle_breakers() {
-        assert!(compact_registration_is_safe(
-            ExportRegistrationMode::Reexport,
-            false,
-            true,
-            false
-        ));
-        assert!(!compact_registration_is_safe(
-            ExportRegistrationMode::Reexport,
-            false,
-            true,
-            true
-        ));
-        assert!(!compact_registration_is_safe(
-            ExportRegistrationMode::Reexport,
-            true,
-            true,
-            false
-        ));
-        // Without export-usage analysis, `is_circuit_breaker` is conservatively true rather than
+        assert!(CircuitBreakerState::Unknown.is_circuit_breaker());
+        assert!(!CircuitBreakerState::Unknown.is_known_circuit_breaker());
+        assert!(!CircuitBreakerState::NotCircuitBreaker.is_circuit_breaker());
+        assert!(!CircuitBreakerState::NotCircuitBreaker.is_known_circuit_breaker());
+        assert!(CircuitBreakerState::CircuitBreaker.is_circuit_breaker());
+        assert!(CircuitBreakerState::CircuitBreaker.is_known_circuit_breaker());
+
+        assert!(compact_registration_is_safe(CompactRegistrationSafety {
+            mode: ExportRegistrationMode::Reexport,
+            circuit_breaker: CircuitBreakerState::NotCircuitBreaker,
+            is_async_module: false,
+        }));
+        assert!(!compact_registration_is_safe(CompactRegistrationSafety {
+            mode: ExportRegistrationMode::Reexport,
+            circuit_breaker: CircuitBreakerState::NotCircuitBreaker,
+            is_async_module: true,
+        }));
+        assert!(!compact_registration_is_safe(CompactRegistrationSafety {
+            mode: ExportRegistrationMode::Reexport,
+            circuit_breaker: CircuitBreakerState::CircuitBreaker,
+            is_async_module: false,
+        }));
+        // Without export-usage analysis, the state is conservative for export ordering rather than
         // evidence of an actual cycle, so the compact form remains available.
-        assert!(compact_registration_is_safe(
-            ExportRegistrationMode::Reexport,
-            true,
-            false,
-            false
-        ));
-        assert!(!compact_registration_is_safe(
-            ExportRegistrationMode::Normal,
-            false,
-            true,
-            false
-        ));
+        assert!(compact_registration_is_safe(CompactRegistrationSafety {
+            mode: ExportRegistrationMode::Reexport,
+            circuit_breaker: CircuitBreakerState::Unknown,
+            is_async_module: false,
+        }));
+        assert!(!compact_registration_is_safe(CompactRegistrationSafety {
+            mode: ExportRegistrationMode::Normal,
+            circuit_breaker: CircuitBreakerState::NotCircuitBreaker,
+            is_async_module: false,
+        }));
     }
 }

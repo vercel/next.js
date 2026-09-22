@@ -249,9 +249,7 @@ contextPrototype.s = esmExport;
         // notably, interop with a CommonJS function export produces a callable namespace function.
         // `esmImport` may return a promise for an async module, but re-exports of async modules keep
         // going through `context.s`, so the producer never routes them here and this stays synchronous.
-        const namespace = typeof head === 'string' || typeof head === 'number' ? // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
-        // argument. Passed here only to satisfy the declared type.
-        this.i(head, false) : head;
+        const namespace = typeof head === 'string' || typeof head === 'number' ? esmImport.call(this, head) : head;
         if (end - start === 1) {
             const pairs = list[start].split(',');
             for(let j = 0; j < pairs.length; j += 2){
