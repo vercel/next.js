@@ -693,9 +693,19 @@ async fn build_compact_reexports(
     let mut positions_known = true;
 
     if let Some((part_references, esm_references)) = synthetic_references {
-        // Structural part references run first. A facade's locals reference may have no forwarded
-        // names at all, but the empty group still imports it for evaluation.
+        // Structural part references run first. A retained facade locals reference may have no
+        // forwarded names at all, but the empty group still imports it for evaluation. Do not add
+        // a group for a reference the usage graph pruned: its target may not exist in this chunk,
+        // and its code generation deliberately emits no namespace binding either.
         for (order, reference) in part_references.iter().enumerate() {
+            if chunking_context
+                .unused_references()
+                .contains_key(&ResolvedVc::upcast(*reference))
+                .await?
+            {
+                continue;
+            }
+
             if let Some((key, asset)) = compact_reference_target(
                 ResolvedVc::upcast(*reference),
                 chunking_context,
