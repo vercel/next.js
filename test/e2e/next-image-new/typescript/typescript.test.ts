@@ -47,7 +47,6 @@ describe('TypeScript Image Component Dev', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should have image types when enabled', async () => {

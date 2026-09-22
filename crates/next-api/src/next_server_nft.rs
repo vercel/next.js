@@ -73,12 +73,10 @@ pub(crate) async fn require_hook_modules(
 /// graph. Include the renderer as an explicit Pages trace entry so that its runtime closure is
 /// available when the endpoint initializes.
 #[turbo_tasks::function]
-pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
-    let asset_context = Vc::upcast(externals_tracing_module_context(
-        get_tracing_compile_time_info(),
-        false,
-        None,
-    ));
+pub(crate) async fn pages_renderer_modules(
+    project_path: FileSystemPath,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
         get_next_package(project_path).await?.join("_")?,
@@ -365,8 +363,9 @@ impl ServerNftJsonAsset {
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
-            false,
-            Some((self.project.project_root_path().owned().await?, prune)),
+            /* resolve_typescript */ false,
+            /* prune */ Some((self.project.project_root_path().owned().await?, prune)),
+            /* trace_file_references */ true,
         ));
 
         let project_path = self.project.project_path().owned().await?;
