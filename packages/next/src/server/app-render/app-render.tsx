@@ -276,6 +276,7 @@ import {
   type RenderResumeDataCache,
   type ResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import { FALLBACK_PARAMS, RUNTIME_DATA } from '../resume-data-cache/cache-store'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
@@ -8872,12 +8873,18 @@ async function prerenderToStream(
         Object.keys(rootParams).some((name) => fallbackRouteParams.has(name))
       ) {
         // This seed came from a more specific prerender. Its cache keys don't
-        // include root params, so remove entries that read roots this shell
-        // doesn't know. A miss in the read-only seed becomes a dynamic hole.
+        // include root params, so replace entries that read roots this shell
+        // doesn't know with markers explaining why they must become holes.
         // Keep the original seed intact for shells where those roots are known.
         const cache = new Map(resumeDataCache.cache)
-        const dynamicCacheReasons = new Map(resumeDataCache.dynamicCacheReasons)
         for (const [key, pendingEntry] of cache) {
+          if (
+            pendingEntry === FALLBACK_PARAMS ||
+            pendingEntry === RUNTIME_DATA
+          ) {
+            continue
+          }
+
           const {
             readRootParamNames,
             entry: { revalidate, expire },
@@ -8885,22 +8892,21 @@ async function prerenderToStream(
           if (readRootParamNames) {
             for (const name of readRootParamNames) {
               if (fallbackRouteParams.has(name)) {
-                cache.delete(key)
                 // Unlike an unexplained miss, this entry can become static
                 // once its root params are known. Preserve that distinction
                 // for the final pass's static-prefetch hint. Short-lived
                 // entries still need runtime data even with concrete params.
                 if (revalidate === 0 || expire < MIN_PRERENDERABLE_EXPIRE) {
-                  dynamicCacheReasons.set(key, 'runtime')
-                } else if (!dynamicCacheReasons.has(key)) {
-                  dynamicCacheReasons.set(key, 'fallback-params')
+                  cache.set(key, RUNTIME_DATA)
+                } else {
+                  cache.set(key, FALLBACK_PARAMS)
                 }
                 break
               }
             }
           }
         }
-        resumeDataCache = { ...resumeDataCache, cache, dynamicCacheReasons }
+        resumeDataCache = { ...resumeDataCache, cache }
       }
       reactServerPrerenderResultIsDynamic = null
       reactServerResumeDataCache = resumeDataCache

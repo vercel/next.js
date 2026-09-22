@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import {
   createPrerenderResumeDataCache,
   deflateResumeDataCache,
@@ -94,9 +95,9 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const value = await parsed.renderResumeDataCache.cache.get('1')
 
-    expect(value).toBeDefined()
+    assert(value !== undefined && typeof value !== 'symbol')
 
-    await expect(streamToString(value!.entry.value)).resolves.toEqual('hello')
+    await expect(streamToString(value.entry.value)).resolves.toEqual('hello')
   })
 
   it('serializes a HTML postponed state without fallback params', async () => {
@@ -349,8 +350,8 @@ describe('parseResumeDataCacheFromPostponedState', () => {
     )
     const value = await resumeDataCache.cache.get('cache-key')
 
-    expect(value).toBeDefined()
-    await expect(streamToString(value!.entry.value)).resolves.toBe(
+    assert(value !== undefined && typeof value !== 'symbol')
+    await expect(streamToString(value.entry.value)).resolves.toBe(
       'cached value'
     )
   })

@@ -122,6 +122,7 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import { FALLBACK_PARAMS, RUNTIME_DATA } from '../resume-data-cache/cache-store'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import {
   abortOnDynamicAccess,
@@ -551,9 +552,9 @@ function saveToResumeDataCache(
  * resume from the entry. Constructs a `CollectedCacheResult` from a forked
  * stream branch of the shared entry and the awaited metadata.
  *
- * The `cache.has()` guard avoids redundant saves when the intra-request leader
- * already saved to the same RDC. Without it, this would needlessly tee the
- * stream and overwrite an equivalent RDC entry.
+ * An existing entry avoids redundant saves when the intra-request leader
+ * already saved to the same RDC. A marker, however, can be replaced by a
+ * successful fill.
  */
 function saveSharedCacheEntryToResumeDataCache(
   serializedCacheKey: string,
@@ -561,9 +562,15 @@ function saveSharedCacheEntryToResumeDataCache(
   resumeDataCache: ResumeDataCache | null,
   logPrefix: string
 ): void {
+  if (!resumeDataCache?.mutable) {
+    return
+  }
+
+  const existingEntry = resumeDataCache.cache.get(serializedCacheKey)
   if (
-    !resumeDataCache?.mutable ||
-    resumeDataCache.cache.has(serializedCacheKey)
+    existingEntry !== undefined &&
+    existingEntry !== FALLBACK_PARAMS &&
+    existingEntry !== RUNTIME_DATA
   ) {
     return
   }
@@ -2441,14 +2448,13 @@ export async function cache(
     // prospective prerender (e.g. because it accessed fallback params), we
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
-    const dynamicReason =
-      resumeDataCache.dynamicCacheReasons?.get(serializedCacheKey)
-    if (dynamicReason !== undefined) {
+    let rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
+    if (rdcEntry === FALLBACK_PARAMS || rdcEntry === RUNTIME_DATA) {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime': {
           const makeHangingPromise =
-            dynamicReason === 'fallback-params'
+            rdcEntry === FALLBACK_PARAMS
               ? makeFallbackParamsHangingPromise
               : makeURLDataHangingPromise
           return makeHangingPromise(
@@ -2468,6 +2474,9 @@ export async function cache(
         default:
           workUnitStore satisfies never
       }
+      // Requests may receive the in-memory cache too. Unlike a prerender, they
+      // can resolve these holes, so treat a marker as an ordinary cache miss.
+      rdcEntry = undefined
     }
 
     const cacheSignal = getCacheSignal(workUnitStore)
@@ -2475,7 +2484,6 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
     if (rdcEntry !== undefined) {
       let rdcResult: CollectedCacheResult | undefined = await rdcEntry
 
@@ -3167,9 +3175,11 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheReasons.set(
+              resumeDataCache.cache.set(
                 serializedCacheKey,
-                sharedCacheResult.reason
+                sharedCacheResult.reason === 'fallback-params'
+                  ? FALLBACK_PARAMS
+                  : RUNTIME_DATA
               )
             }
             cacheSignal?.endRead()
@@ -3510,9 +3520,11 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheReasons.set(
+              resumeDataCache.cache.set(
                 serializedCacheKey,
-                result.reason
+                result.reason === 'fallback-params'
+                  ? FALLBACK_PARAMS
+                  : RUNTIME_DATA
               )
             }
             resolvableSharedCacheResult.resolve(result)
