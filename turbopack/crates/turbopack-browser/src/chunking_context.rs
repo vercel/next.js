@@ -1320,6 +1320,15 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn is_pure_import_target(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(if let Some(export_usage) = self.export_usage {
+            export_usage.await?.is_pure_import_target(module).await?
+        } else {
+            false
+        }))
+    }
+
+    #[turbo_tasks::function]
     async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.debug_ids))
     }
