@@ -28,7 +28,7 @@ describe('prepare latest upgrade', () => {
     return directory
   }
 
-  function mockLatestVersion(version: string) {
+  function mockLatestVersion(version: string | null) {
     global.fetch = jest.fn(
       async () =>
         new Response(
@@ -98,6 +98,124 @@ describe('prepare latest upgrade', () => {
         .map((directory) => rm(directory, { recursive: true, force: true }))
     )
   })
+
+  describe.each(['latest', 'future'] as const)(
+    '%s canary upgrades',
+    (policy) => {
+      it.each([
+        '17.2.0-canary.5',
+        '17.2.1-canary.0',
+        '17.3.0-canary.0',
+        '18.0.0-canary.0',
+      ])(
+        'selects the exact canary tag %s for an explicit upgrade',
+        async (target) => {
+          const directory = await createApp('17.2.0-canary.4')
+          mockLatestVersion(target)
+          await expect(prepareUpgrade(directory, policy)).resolves.toEqual(
+            expect.objectContaining({
+              status: 'ready',
+              targetVersion: target,
+              references: ['https://registry.npmjs.org/next/canary'],
+            })
+          )
+          expect(global.fetch).toHaveBeenCalledWith(
+            'https://registry.npmjs.org/next/canary',
+            expect.any(Object)
+          )
+        }
+      )
+
+      it.each(['17.2.0-canary.4', '17.2.0-canary.3'])(
+        'does not change versions when the tag is equal or older: %s',
+        async (target) => {
+          const directory = await createApp('17.2.0-canary.4')
+          jest
+            .mocked(loadConfig)
+            .mockResolvedValue({ cacheComponents: true } as never)
+          mockLatestVersion(target)
+          await expect(prepareUpgrade(directory, policy)).resolves.toEqual(
+            expect.objectContaining({ status: 'unaffected' })
+          )
+        }
+      )
+
+      it.each([null, 'invalid', '17.3.0', '17.3.0-rc.1'])(
+        'rejects invalid or wrong-channel tag metadata: %s',
+        async (target) => {
+          const directory = await createApp('17.2.0-canary.4')
+          mockLatestVersion(target)
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            'Could not determine the latest Next.js version on the canary dist-tag.'
+          )
+        }
+      )
+
+      it.each(['17.2.0-rc.1', '17.2.0-beta.1', '17.2.0-preview.1'])(
+        'keeps other prereleases unsupported: %s',
+        async (installed) => {
+          const directory = await createApp(installed)
+          mockLatestVersion('17.2.0-canary.5')
+          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
+            'AI upgrades are not available for prerelease versions'
+          )
+          expect(global.fetch).toHaveBeenCalledTimes(0)
+        }
+      )
+    }
+  )
+
+  it.each(['17.2.0-canary.4', '17.2.0-canary.3'])(
+    'adopts available defaults without a version change when the tag is %s',
+    async (target) => {
+      const directory = await createApp('17.2.0-canary.4')
+      mockLatestVersion(target)
+      await expect(prepareUpgrade(directory, 'future')).resolves.toEqual(
+        expect.objectContaining({
+          status: 'ready',
+          targetVersion: '17.2.0-canary.4',
+          futureDefaults: [
+            expect.objectContaining({ name: 'Cache Components' }),
+          ],
+        })
+      )
+    }
+  )
+
+  it('keeps the stable Future availability boundary for a same-base canary', async () => {
+    const directory = await createApp('16.3.0-canary.1')
+    mockLatestVersion('16.3.0-canary.1')
+    await expect(prepareUpgrade(directory, 'future')).resolves.toEqual(
+      expect.objectContaining({ status: 'unaffected' })
+    )
+  })
+
+  it('rejects canary security upgrades without querying metadata', async () => {
+    const directory = await createApp('17.2.0-canary.4')
+    global.fetch = jest.fn()
+    await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
+      'Security upgrades are not supported for canary'
+    )
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+  })
+
+  it.each(['latest', 'future'] as const)(
+    'runs canary %s without querying advisory providers',
+    async (policy) => {
+      const directory = await createApp('17.2.0-canary.4')
+      global.fetch = jest.fn(async (input) => {
+        if (String(input) === 'https://registry.npmjs.org/next/canary') {
+          return Response.json({ version: '17.2.0-canary.5' })
+        }
+        throw new Error('Advisory lookup should not run for canaries')
+      })
+      await expect(prepareUpgrade(directory, policy)).resolves.toMatchObject({
+        status: 'ready',
+        targetVersion: '17.2.0-canary.5',
+      })
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+    }
+  )
 
   it('selects the exact latest stable release', async () => {
     const directory = await createApp('16.2.1')

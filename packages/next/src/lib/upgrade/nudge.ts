@@ -213,7 +213,9 @@ async function nudgeForLatest(
   if (!latest) return false
 
   const { installedVersion, latestVersion } = latest
-  const reference = 'https://registry.npmjs.org/next/latest'
+  const distTag =
+    semver.prerelease(latestVersion)?.[0] === 'canary' ? 'canary' : 'latest'
+  const reference = `https://registry.npmjs.org/next/${distTag}`
   await showNudge(
     options,
     version,
@@ -247,7 +249,8 @@ export async function getFutureUpgrade(
     if (
       !(await getAgentName()) ||
       !semver.valid(installedVersion) ||
-      semver.prerelease(installedVersion)
+      (semver.prerelease(installedVersion) &&
+        semver.prerelease(installedVersion)?.[0] !== 'canary')
     ) {
       return null
     }
