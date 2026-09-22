@@ -204,7 +204,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
     expect(content).toContain(
-      'Before the final response, run one reporting pass'
+      'Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass'
     )
     expect(content).toContain(
       'In a network sandbox, retry it with network access'
