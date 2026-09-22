@@ -7,6 +7,7 @@ describe('loadAgentFeedbackInstructions', () => {
   it('returns the protocol when feedback is enabled', async () => {
     await expect(
       loadAgentFeedbackInstructions(
+        {},
         async () => true,
         async () => '# Agent feedback protocol\n'
       )
@@ -17,14 +18,30 @@ describe('loadAgentFeedbackInstructions', () => {
     const readProtocol = jest.fn(async () => '# Agent feedback protocol\n')
 
     await expect(
-      loadAgentFeedbackInstructions(async () => false, readProtocol)
+      loadAgentFeedbackInstructions({}, async () => false, readProtocol)
     ).resolves.toBeNull()
     expect(readProtocol).not.toHaveBeenCalled()
+  })
+
+  it('returns dry-run instructions without checking the remote gate', async () => {
+    const isEnabled = jest.fn(async () => false)
+
+    await expect(
+      loadAgentFeedbackInstructions(
+        { dryRun: true },
+        isEnabled,
+        async () => '# Agent feedback protocol\n'
+      )
+    ).resolves.toBe(
+      '# Dry run\n\nUse the protocol below to prepare each qualifying report draft and encode its review URL, but do not open a browser tab. Print each review URL for inspection instead. Do not clear the feedback candidate queue or mark the reporting pass complete.\n\n# Agent feedback protocol\n'
+    )
+    expect(isEnabled).not.toHaveBeenCalled()
   })
 
   it('fails closed when the protocol cannot be read', async () => {
     await expect(
       loadAgentFeedbackInstructions(
+        {},
         async () => true,
         async () => {
           throw new Error('protocol unavailable')
@@ -35,7 +52,7 @@ describe('loadAgentFeedbackInstructions', () => {
 
   it('propagates feedback status errors', async () => {
     await expect(
-      loadAgentFeedbackInstructions(async () => {
+      loadAgentFeedbackInstructions({}, async () => {
         throw new Error('network unavailable')
       })
     ).rejects.toThrow('network unavailable')
@@ -55,7 +72,7 @@ describe('agentFeedbackInstructionsCli', () => {
       .spyOn(process.stderr, 'write')
       .mockImplementation(() => true)
 
-    await agentFeedbackInstructionsCli(async () => {
+    await agentFeedbackInstructionsCli({}, async () => {
       throw new Error('network unavailable')
     })
 

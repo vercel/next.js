@@ -77,11 +77,22 @@ impl EsmBinding {
         enum ImportedIdent {
             Module(ReferencedAssetIdent),
             None,
+            /// Empty module (alias set to `false`): namespace imports resolve to `{}`.
+            Empty,
             Unresolvable,
         }
 
         let imported_ident = match &imported_module {
             ReferencedAsset::None => ImportedIdent::None,
+            ReferencedAsset::Empty => {
+                if export.is_some() {
+                    // Named/default binding from an empty module → `undefined`
+                    ImportedIdent::None
+                } else {
+                    // Namespace import from an empty module → `{}`
+                    ImportedIdent::Empty
+                }
+            }
             imported_module => imported_module
                 .get_ident(chunking_context, export, scope_hoisting_context)
                 .await?
@@ -119,6 +130,13 @@ impl EsmBinding {
                                             value: Expr::undefined(ident.span),
                                         });
                                     }
+                                    ImportedIdent::Empty => {
+                                        use swc_core::quote;
+                                        *prop = Prop::KeyValue(KeyValueProp {
+                                            key: PropName::Ident(ident.clone().into()),
+                                            value: Box::new(quote!("{}" as Expr)),
+                                        });
+                                    }
                                     ImportedIdent::Unresolvable => {
                                         // Do nothing, the reference will insert a throw
                                     }
@@ -153,6 +171,10 @@ impl EsmBinding {
                                 ImportedIdent::None => {
                                     *expr = *Expr::undefined(expr.span());
                                 }
+                                ImportedIdent::Empty => {
+                                    use swc_core::quote;
+                                    *expr = quote!("{}" as Expr);
+                                }
                                 ImportedIdent::Unresolvable => {
                                     // Do nothing, the reference will insert a throw
                                 }
@@ -183,8 +205,8 @@ impl EsmBinding {
                                         )
                                         .into_inner();
                                 }
-                                ImportedIdent::None => {
-                                    // Do nothing, cannot assign to `undefined`
+                                ImportedIdent::None | ImportedIdent::Empty => {
+                                    // Do nothing, cannot assign to `undefined` or `{}`
                                 }
                                 ImportedIdent::Unresolvable => {
                                     // Do nothing, the reference will insert a throw
