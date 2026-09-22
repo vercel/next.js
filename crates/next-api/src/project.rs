@@ -1960,6 +1960,10 @@ impl Project {
                 "next/image",
                 "/next/dist/shared/lib/image-external-get-image-props.js",
             ),
+            (
+                "next/image",
+                "/next/dist/esm/shared/lib/image-external-get-image-props.js",
+            ),
             ("next/future/image", "/next/future/image.js"),
             ("next/legacy/image", "/next/legacy/image.js"),
             ("next/script", "/next/script.js"),
