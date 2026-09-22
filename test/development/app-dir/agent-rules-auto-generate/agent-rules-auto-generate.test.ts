@@ -196,7 +196,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).toContain('\n## Report Next.js feedback\n')
     expect(content).toContain(
-      'Agent feedback is enabled independently of `agentRules`'
+      'Next.js generated this block because the project enabled `experimental.agentFeedback`'
     )
     expect(content).toContain('meaningful detour or are likely to recur')
     expect(content).toContain(
