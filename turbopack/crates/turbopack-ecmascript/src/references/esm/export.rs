@@ -664,7 +664,7 @@ async fn build_compact_reexports(
 
     // Keyed by the namespace variable, which names the resolved module: two exports forwarded from
     // the same module share a group even when they came from different `export ... from` clauses.
-    let mut groups: FxIndexMap<String, ReexportGroup> = FxIndexMap::default();
+    let mut groups: FxIndexMap<NamespaceKey, ReexportGroup> = FxIndexMap::default();
 
     for (exported, local) in exports {
         let EsmExport::ImportedBinding(esm_ref, imported_name, mutable) = local else {
@@ -708,7 +708,7 @@ async fn build_compact_reexports(
             .clone();
 
         let group = groups
-            .entry(namespace_ident.clone())
+            .entry((namespace_ident.clone(), ctxt))
             .or_insert_with(|| ReexportGroup {
                 order: *idx,
                 namespace_ident,
@@ -746,7 +746,7 @@ async fn emit_compact_reexports(
     compact: CompactReexports,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
-) -> Result<(CodeGeneration, FxHashSet<String>)> {
+) -> Result<(CodeGeneration, FxHashSet<NamespaceKey>)> {
     // Both names of every pair are recovered by splitting on commas in the compact spelling, so it
     // is only available when no name contains one.
     let comma_free = compact.groups.iter().all(|group| {
@@ -768,7 +768,7 @@ async fn emit_compact_reexports(
         if compact.subsume_imports {
             let id = group.asset.chunk_item_id(chunking_context).await?;
             elems.push(Some(module_id_to_lit(&id).into()));
-            subsumed.insert(group.namespace_ident.clone());
+            subsumed.insert((group.namespace_ident.clone(), group.ctxt));
         } else {
             elems.push(Some(
                 Expr::Ident(Ident::new(
@@ -841,6 +841,12 @@ struct ReexportGroup {
     pairs: Vec<(RcStr, RcStr)>,
 }
 
+/// Identifies the namespace variable a group reads from. The syntax context is part of the key
+/// because two merged modules can import the same target under the same generated name in
+/// different hygiene contexts, which the import code generation also keys on -- merging those into
+/// one group would read the wrong variable and suppress both declarations.
+type NamespaceKey = (String, Option<SyntaxContext>);
+
 /// A compact registration, ready to emit.
 struct CompactReexports {
     groups: Vec<ReexportGroup>,
@@ -857,7 +863,7 @@ impl EsmExports {
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         export_registration_mode: ExportRegistrationMode,
-    ) -> Result<(CodeGeneration, FxHashSet<String>)> {
+    ) -> Result<(CodeGeneration, FxHashSet<NamespaceKey>)> {
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
