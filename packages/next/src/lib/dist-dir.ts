@@ -3,41 +3,14 @@ import * as path from 'node:path'
 import isError from './is-error'
 import { recursiveDeleteSyncWithAsyncRetries } from './recursive-delete'
 
-/**
- * Terminology, because "project" is ambiguous in a monorepo. For an app at
- * `<repo>/web/site`:
- *
- * - **application directory** (`dir` elsewhere): `<repo>/web/site`, holding
- *   `next.config.js`.
- * - **workspace root** (`repoRoot` elsewhere): `<repo>`.
- *
- * `distDir` resolves relative to the application directory but may point
- * anywhere in the workspace: an Nx-style monorepo builds `apps/web` into
- * `../.next`.
- */
-
-/**
- * An empty file Next.js writes into `distDir` to mark the directory as its
- * own. Cleaning is destructive and recursive, so we require this evidence
- * before deleting anything.
- */
+/** Marks a directory as owned by Next.js. */
 export const DIST_DIR_MARKER = '.next-build-dir'
 
-/**
- * Entries that show a directory was created by a Next.js version predating
- * {@link DIST_DIR_MARKER}, so an existing `.next` is not rejected on upgrade.
- * Every entry must be a name only Next.js creates.
- */
+/** Markers written by Next.js versions predating {@link DIST_DIR_MARKER}. */
 const LEGACY_DIST_DIR_MARKERS: ReadonlyArray<string> = [
   'BUILD_ID',
   'trace',
   'trace-build',
-  // Not generic names such as `cache`, `dev`, or `diagnostics`: unrelated
-  // directories may contain them, so they are not sufficient ownership proof.
-  // Not `package.json`: every JS project has one, so accepting it would let
-  // `distDir: '.'` delete an application's own source.
-  // Not `lock`: `experimental.lockDistDir` writes it on startup, so accepting
-  // it would make every directory look like ours.
 ]
 
 export class DistDirOutsideWorkspaceError extends Error {
@@ -58,7 +31,7 @@ export class UnrecognizedDistDirError extends Error {
   constructor(distDir: string) {
     super(
       `The configured distDir does not appear to have been created by Next.js. ` +
-        `Please confirm it is correct. A distDir should be empty, missing, or ` +
+        `Please confirm it is correct. A distDir should be empty, absent, or ` +
         `created by Next.js:\n\n` +
         `  distDir: ${distDir}\n\n` +
         `Read more: https://nextjs.org/docs/messages/invalid-dist-dir`
@@ -68,6 +41,7 @@ export class UnrecognizedDistDirError extends Error {
 }
 
 /** Whether `descendant` is strictly inside `ancestor`. */
+// TODO: Account for symlinks when validating containment.
 function isStrictlyInside(ancestor: string, descendant: string): boolean {
   const relative = path.relative(path.resolve(ancestor), descendant)
   return (
@@ -75,19 +49,7 @@ function isStrictlyInside(ancestor: string, descendant: string): boolean {
   )
 }
 
-/**
- * Throws unless `distDir` resolves strictly inside the application directory
- * or the workspace root.
- *
- * This is the primary defense against a `distDir` that would destroy user
- * data, and the only one that catches a directory legitimately holding a
- * `package.json`. Either boundary is enough, so an in-app `distDir` remains
- * valid even if the inferred workspace root is unrelated.
- *
- * Runs during config validation, so it applies to every command.
- *
- * @param distDir Absolute path to the resolved `distDir`.
- */
+/** Throws unless `distDir` is inside the application or workspace. */
 export function verifyDistDirIsInsideWorkspace(
   distDir: string,
   appDir: string,
@@ -110,12 +72,8 @@ export function verifyDistDirIsInsideWorkspace(
 }
 
 /**
- * Throws unless the contents of `distDir` are safe to recursively delete: the
- * directory must be missing, empty, or carry a marker showing Next.js created
- * it.
- *
- * Call this before telemetry, caching, locking, or anything else writes into
- * `distDir`, which could otherwise make an unrelated directory look owned.
+ * Throws unless `distDir` is absent, empty, or owned by Next.js. Call before
+ * anything writes into the directory.
  */
 export function verifyDistDir(distDir: string): void {
   const resolvedDistDir = path.resolve(distDir)
@@ -145,15 +103,8 @@ export function verifyDistDir(distDir: string): void {
 }
 
 /**
- * Marks `distDir` as owned by Next.js, then deletes its other contents. The
- * marker is retained so a run interrupted partway remains safe to resume.
- *
- * `distDir` must already have passed {@link verifyDistDir}. Verification is a
- * separate call so it can run before telemetry, caching, and locking write into
- * the directory.
- *
- * @param retain Entries to keep, relative to `distDir`. Which ones survive
- * differs per caller, so each passes its own set.
+ * Cleans `distDir`, writes an ownership marker, and retains specified entries.
+ * `distDir` must already have passed {@code verifyDistDir}.
  */
 export async function cleanDistDir(
   distDir: string,

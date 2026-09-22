@@ -894,14 +894,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     await this.clean(startSpan)
 
-    // Ensure commonjs handling is used for files in the distDir (generally
-    // .next). Files outside of the distDir can be "type": "module".
-    await fs.writeFile(
-      join(this.distDir, 'package.json'),
-      '{"type": "commonjs"}'
-    )
-
     const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
+
+    const distPackageJsonPath = join(this.distDir, 'package.json')
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
 
     this.activeWebpackConfigs = await this.getWebpackConfig(startSpan)
 

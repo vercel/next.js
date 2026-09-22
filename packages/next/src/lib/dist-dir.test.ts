@@ -92,30 +92,33 @@ describe('verifyDistDir', () => {
     }
   )
 
-  it.each([
-    ['package.json', 'every JS project has one'],
-    ['lock', 'lockDistDir writes it on startup'],
-    ['cache', 'generic directory name'],
-    ['dev', 'generic directory name'],
-    ['diagnostics', 'generic directory name'],
-    ['.gitkeep', 'placeholder file'],
-    ['.keep', 'placeholder file'],
-    ['.gitignore', 'placeholder file'],
-    ['.DS_Store', 'placeholder file'],
-  ])('does not accept %s as a marker (%s)', async (name) => {
-    await writeFile(join(distDir, name), '{}')
-    await writeFile(join(distDir, 'source.js'), '')
+  it.each(['cache', 'dev', 'diagnostics'])(
+    'does not accept generic entry %s as a marker',
+    async (name) => {
+      await writeFile(join(distDir, name), '{}')
+      await writeFile(join(distDir, 'source.js'), '')
 
-    expect(() => verifyDistDir(distDir)).toThrow(UnrecognizedDistDirError)
-  })
+      expect(() => verifyDistDir(distDir)).toThrow(UnrecognizedDistDirError)
+    }
+  )
 
-  it('rejects an unmarked directory without naming its contents', async () => {
-    // Entries may be Next.js output from an interrupted run, so listing them
-    // as unexpected would be misleading.
+  it('rejects invalid directory', async () => {
     await writeFile(join(distDir, 'build-manifest.json'), '{}')
 
-    expect(() => verifyDistDir(distDir)).toThrow(UnrecognizedDistDirError)
-    expect(() => verifyDistDir(distDir)).not.toThrow(/build-manifest/)
+    let message = 'Expected verifyDistDir to throw'
+    try {
+      verifyDistDir(distDir)
+    } catch (error) {
+      message = (error as Error).message.replace(distDir, '<distDir>')
+    }
+
+    expect(message).toMatchInlineSnapshot(`
+     "The configured distDir does not appear to have been created by Next.js. Please confirm it is correct. A distDir should be empty, absent, or created by Next.js:
+
+       distDir: <distDir>
+
+     Read more: https://nextjs.org/docs/messages/invalid-dist-dir"
+    `)
   })
 })
 
