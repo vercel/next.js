@@ -163,6 +163,46 @@ Importing a module from a Server Component doesn't prevent Client Components fro
 
 Keep shared values and validators in separate modules that can run in either environment. Client Components can import these modules directly without importing the server code. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example of using `server-only`.
 
+### Adding interactivity to an existing component
+
+Adding `'use client'` changes how a component receives data. A record passed between Server Components stays on the server. Passing that same record to a Client Component sends all its fields to the browser, including fields the component never renders.
+
+Review the component's callers when moving this boundary. Select the fields needed by the UI on the server, after checking that the user may access them. For example, a product record may include an internal supplier cost. Pass the public name and price to an interactive product card instead of the complete record:
+
+```tsx filename="app/products/[id]/page.tsx" switcher
+import { getProduct } from '@/lib/products'
+import { ProductCard } from '@/app/ui/product-card'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const product = await getProduct(id)
+
+  return <ProductCard name={product.name} price={product.price} />
+}
+```
+
+```jsx filename="app/products/[id]/page.js" switcher
+import { getProduct } from '@/lib/products'
+import { ProductCard } from '@/app/ui/product-card'
+
+export default async function Page({ params }) {
+  const { id } = await params
+  const product = await getProduct(id)
+
+  return <ProductCard name={product.name} price={product.price} />
+}
+```
+
+`ProductCard` is a Client Component. Passing `product={product}` would also send the supplier cost, even if its prop type omitted that field. TypeScript types and hidden UI do not remove fields from the serialized data.
+
+Protect the database module with `import 'server-only'` as well. The guard prevents client imports of server code; selecting props controls which data reaches the browser. A successful build alone does not verify that props contain no private data.
+
+### Passing functions and rendered elements
+
 > **Good to know:**
 >
 > Passing a function as a prop from a Server Component to a Client Component throws. An event handler like `onClick` cannot cross. A [Server Function](/docs/app/guides/server-actions) marked with `'use server'` crosses as a reference.
