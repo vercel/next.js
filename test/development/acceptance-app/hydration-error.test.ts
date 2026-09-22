@@ -126,9 +126,10 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "<html
-       - className="server-html"
-       >",
+         "componentStack": "<RootLayout params={Promise}>
+         <html
+       -   className="server-html"
+         >",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
