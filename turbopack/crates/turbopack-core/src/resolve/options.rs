@@ -29,9 +29,8 @@ pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub F
     TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ResolveModules {
-    /// when inside of path, use the list of directories to
-    /// resolve inside these
-    Nested(FileSystemPath, Vec<RcStr>),
+    /// Starting from the lookup path, look for modules in these directories at each parent.
+    Nested(Vec<RcStr>),
     /// look into that directory, unless the request has an excluded extension
     Path {
         dir: FileSystemPath,

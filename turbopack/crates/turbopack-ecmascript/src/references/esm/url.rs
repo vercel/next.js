@@ -20,9 +20,10 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{AstPath, esm::base::ReferencedAsset},
+    references::esm::base::ReferencedAsset,
     runtime_functions::{
         TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
@@ -112,9 +113,14 @@ impl ModuleReference for UrlAssetReference {
 }
 
 impl IntoCodeGenReference for UrlAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -129,7 +135,7 @@ impl IntoCodeGenReference for UrlAssetReference {
 )]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl UrlAssetReferenceCodeGen {
@@ -152,6 +158,7 @@ impl UrlAssetReferenceCodeGen {
     */
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
@@ -174,7 +181,7 @@ impl UrlAssetReferenceCodeGen {
                         // item, which exports the static asset path to the linked file.
                         let id = asset.chunk_item_id(chunking_context).await?;
 
-                        visitors.push(create_visitor!(self.path, visit_mut_expr, |new_expr: &mut Expr| {
+                        visitors.push(create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -193,7 +200,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(self.path, visit_mut_expr, |new_expr: &mut Expr| {
+                        visitors.push(create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -218,6 +225,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => {}
                 }
             }
@@ -264,6 +272,7 @@ impl UrlAssetReferenceCodeGen {
                         };
 
                         visitors.push(create_visitor!(
+                            trie,
                             self.path,
                             visit_mut_expr,
                             |new_expr: &mut Expr| {
@@ -297,6 +306,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(
+                            trie,
                             self.path,
                             visit_mut_expr,
                             |new_expr: &mut Expr| {
@@ -329,6 +339,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => {}
                 }
             }

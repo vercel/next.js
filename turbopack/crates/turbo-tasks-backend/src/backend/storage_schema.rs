@@ -418,15 +418,6 @@ impl TaskFlags {
         }
     }
 
-    /// Check if the category's restoration is currently in progress by another thread
-    pub fn is_restoring(&self, category: TaskDataCategory) -> bool {
-        match category {
-            TaskDataCategory::Meta => self.meta_restoring(),
-            TaskDataCategory::Data => self.data_restoring(),
-            TaskDataCategory::All => self.meta_restoring() || self.data_restoring(),
-        }
-    }
-
     /// Set or clear the restoring bits for the given category
     pub fn set_restoring(&mut self, category: TaskDataCategory, value: bool) {
         match category {
@@ -856,6 +847,24 @@ impl TaskStorage {
     /// `transient_ref_count` field for what counts as one.
     pub fn gc_transient_ref_count(&self) -> u32 {
         self.get_transient_ref_count().copied().unwrap_or(0)
+    }
+
+    /// Pins a newly initialized task until its construction operation connects it to the graph.
+    pub fn gc_pin_for_construction(&mut self) {
+        debug_assert_eq!(self.gc_transient_ref_count(), 0);
+        self.set_transient_ref_count(1);
+    }
+
+    /// Adjust the transient in-session reference count and return the new value.
+    ///
+    /// Panics on underflow or overflow.
+    pub fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
+        let current = self.gc_transient_ref_count();
+        let new_value = current
+            .checked_add_signed(delta)
+            .expect("transient_ref_count underflow");
+        self.set_transient_ref_count(new_value);
+        new_value
     }
 
     /// Whether a GC pass may collect this task: nothing references it, via parents, transient

@@ -21,7 +21,7 @@ use turbo_tasks::{
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, WriteLinkContent,
-    WriteLinkTarget, WriteLinkTargetType,
+    WriteLinkTargetType,
 };
 
 // `read_or_write_all_paths_operation` always writes the sentinel values to files/symlinks. We can
@@ -349,7 +349,7 @@ async fn write_link(
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
     let link_content = WriteLinkContent {
-        target: WriteLinkTarget::Relative(target),
+        target: path.parent().join(&target)?,
         target_type: if is_directory {
             WriteLinkTargetType::DirectoryOrJunctionPoint
         } else {

@@ -93,7 +93,7 @@ describe('create-next-app', () => {
       }
     })
   })
-  it('should create AGENTS.md and CLAUDE.md with --agents-md flag', async () => {
+  it('should create AGENTS.md with --agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'with-agents-md'
 
@@ -120,12 +120,12 @@ describe('create-next-app', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: ['AGENTS.md', 'CLAUDE.md'],
+        files: ['AGENTS.md'],
       })
     })
   })
 
-  it('should not create AGENTS.md and CLAUDE.md with --no-agents-md flag', async () => {
+  it('should not create AGENTS.md with --no-agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'without-agents-md'
 
@@ -152,7 +152,7 @@ describe('create-next-app', () => {
       projectFilesShouldNotExist({
         cwd,
         projectName,
-        files: ['AGENTS.md', 'CLAUDE.md'],
+        files: ['AGENTS.md'],
       })
     })
   })

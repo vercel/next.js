@@ -14,7 +14,7 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lz4_flex"]
 print_cache_item_size = []
 no_fast_stale = []
 aggregation_update_no_batch = []
@@ -47,7 +47,7 @@ fs-err = { workspace = true }
 hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
-lzzzz = { workspace = true, optional = true }
+lz4_flex = { workspace = true, optional = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }
@@ -59,12 +59,17 @@ smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
-turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 thread_local = { workspace = true }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+turbo-persistence = { workspace = true }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+turbo-persistence = { workspace = true, default-features = false }
 
 [dev-dependencies]
 async-trait = { workspace = true }

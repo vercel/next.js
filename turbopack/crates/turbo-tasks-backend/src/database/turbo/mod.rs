@@ -37,6 +37,7 @@ const MB: u64 = 1024 * 1024;
 pub fn db_config() -> DbConfig<FAMILIES> {
     DbConfig {
         family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+        ..DbConfig::new()
     }
 }
 
@@ -182,16 +183,10 @@ fn do_compact(
             turbo_tasks()
                 .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
         }
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new(
+        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-compaction",
-            wall_start_ms,
-            wall_end_ms,
+            wall_start,
+            elapsed,
             serde_json::json!([
                 ["bytes_written", stats.bytes_written],
                 ["bytes_deleted", stats.bytes_deleted],

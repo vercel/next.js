@@ -38,14 +38,10 @@ function createExpectError(cliOutput: string) {
 
 describe(`Request Promises`, () => {
   describe('On Prerender Completion', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-static',
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextDev) {
       it('does not run in dev', () => {})
@@ -78,16 +74,14 @@ describe(`Request Promises`, () => {
       )
     })
   })
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('On Prerender Interruption', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-dynamic',
       skipStart: true,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextDev) {
       it('does not run in dev', () => {})

@@ -28,9 +28,9 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   makeDevtoolsIOAwarePromise,
-  makeRuntimeHangingPromise,
+  makeURLDataHangingPromise,
   makePromiseFromTrigger,
-  trackRuntimeDataAccessed,
+  trackURLDataAccessed,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -70,9 +70,9 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createSearchParamsFromClient should not be called inside generateStaticParams.'
+          `createSearchParamsFromClient should not be called inside ${workUnitStore.functionName}.`
         )
       case 'validation-client': {
         if (workUnitStore.validationSamples) {
@@ -133,9 +133,9 @@ export function createServerSearchParamsForServerPage(
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerSearchParamsForServerPage should not be called inside generateStaticParams.'
+          `createServerSearchParamsForServerPage should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
@@ -175,7 +175,7 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeRuntimeHangingPromise(
+        return makeURLDataHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
           '`searchParams`',
@@ -195,9 +195,9 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
+          `createPrerenderSearchParamsForClientPage should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-legacy':
       case 'request':
@@ -221,9 +221,10 @@ function createStaticPrerenderSearchParams(
 
   switch (prerenderStore.type) {
     case 'prerender':
-    case 'prerender-client':
+    case 'prerender-client': {
       // We are in a cacheComponents (PPR or otherwise) prerender
       return makeHangingSearchParams(workStore, prerenderStore)
+    }
     case 'prerender-legacy':
       // We are in a legacy static generation and need to interrupt the
       // prerender when search params are accessed.
@@ -382,7 +383,7 @@ function makeHangingSearchParams(
     return cachedSearchParams
   }
 
-  const promise = makeRuntimeHangingPromise<SearchParams>(
+  const promise = makeURLDataHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
     workStore.route,
     '`searchParams`',
@@ -397,7 +398,7 @@ function makeHangingSearchParams(
     // created while the RSC payload is constructed, but typically accessed
     // later, during the render, under a different store.
     const workUnitStore = workUnitAsyncStorage.getStore()
-    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore, '`searchParams`')
+    trackURLDataAccessed(workUnitStore ?? prerenderStore, '`searchParams`')
   }
 
   const proxyHandler: ProxyHandler<Promise<SearchParams>> = {

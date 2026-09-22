@@ -1,21 +1,36 @@
-use std::{fs, path::Path, time::Instant};
+#[cfg(not(miri))]
+use std::time::Instant;
+use std::{fs, path::Path};
 
 use anyhow::Result;
+#[cfg(not(miri))]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rstest::rstest;
 
+// Miri rejects a process that exits while rayon's global worker threads are still parked, so
+// run the same tests on the serial scheduler there. The alias keeps the test bodies identical.
+#[cfg(miri)]
+use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
-    Compression, DbConfig, FamilyConfig, FamilyKind,
-    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
+    AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
+    constants::MAX_INLINE_VALUE_SIZE,
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
-    parallel_scheduler::ParallelScheduler,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
+};
+#[cfg(not(miri))]
+use crate::{
+    constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
+    meta_file::MetaFile,
+    parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
 
+#[cfg(not(miri))]
 #[derive(Clone, Copy)]
 struct RayonParallelScheduler;
 
+#[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
@@ -106,6 +121,7 @@ impl ParallelScheduler for RayonParallelScheduler {
     }
 }
 
+#[cfg(not(miri))]
 fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
     let mut key = Vec::with_capacity(1 + suffix.len());
     key.push(prefix);
@@ -113,8 +129,64 @@ fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
     key.into_boxed_slice()
 }
 
-#[test]
-fn full_cycle() -> Result<()> {
+fn config_with_mmap<const F: usize>(mmap: bool) -> DbConfig<F> {
+    DbConfig {
+        access_mode: if mmap {
+            crate::mmap_access_mode()
+        } else {
+            AccessMode::File
+        },
+        ..DbConfig::new()
+    }
+}
+
+fn open_db<const F: usize>(
+    path: &std::path::Path,
+    mmap: bool,
+) -> Result<TurboPersistence<RayonParallelScheduler, F>> {
+    open_db_with_config(path, config_with_mmap(mmap))
+}
+
+fn open_db_with_config<const F: usize>(
+    path: &std::path::Path,
+    config: DbConfig<F>,
+) -> Result<TurboPersistence<RayonParallelScheduler, F>> {
+    TurboPersistence::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        config,
+        RayonParallelScheduler,
+    )
+}
+
+fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
+    DbConfig {
+        family_configs: [FamilyConfig {
+            name: "test",
+            kind: FamilyKind::MultiValue,
+            compression: Compression::Lz4,
+        }],
+        access_mode: if mmap {
+            crate::mmap_access_mode()
+        } else {
+            AccessMode::File
+        },
+    }
+}
+
+fn open_multi_value_db(
+    path: &std::path::Path,
+    mmap: bool,
+) -> Result<TurboPersistence<RayonParallelScheduler, 1>> {
+    open_db_with_config(path, multi_value_config_with_mmap(mmap))
+}
+
+// This stress test writes more than ten million entries and uses Rayon directly, so it is too slow
+// to run under Miri and depends on concurrency that Miri cannot provide efficiently.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn full_cycle(#[case] mmap: bool) -> Result<()> {
     let mut test_cases = Vec::new();
     type TestCases = Vec<(
         &'static str,
@@ -335,10 +407,7 @@ fn full_cycle() -> Result<()> {
 
         {
             let start = Instant::now();
-            let db = TurboPersistence::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<16>(path, mmap)?;
             let mut batch = db.write_batch()?;
             write(&mut batch)?;
             db.commit_write_batch(batch)?;
@@ -354,10 +423,7 @@ fn full_cycle() -> Result<()> {
         }
         {
             let start = Instant::now();
-            let db = TurboPersistence::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<16>(path, mmap)?;
             println!("{name} restore time: {:?}", start.elapsed());
             let start = Instant::now();
             read(&db)?;
@@ -383,10 +449,7 @@ fn full_cycle() -> Result<()> {
         }
         {
             let start = Instant::now();
-            let db = TurboPersistence::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<16>(path, mmap)?;
             println!("{name} restore time after compact: {:?}", start.elapsed());
             let start = Instant::now();
             read(&db)?;
@@ -420,10 +483,7 @@ fn full_cycle() -> Result<()> {
 
         {
             let start = Instant::now();
-            let db = TurboPersistence::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<16>(path, mmap)?;
             let mut batch = db.write_batch()?;
             for (_, write, _) in test_cases.iter() {
                 write(&mut batch)?;
@@ -443,10 +503,7 @@ fn full_cycle() -> Result<()> {
         }
         {
             let start = Instant::now();
-            let db = TurboPersistence::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<16>(path, mmap)?;
             println!("All restore time: {:?}", start.elapsed());
             for (name, _, read) in test_cases.iter() {
                 let start = Instant::now();
@@ -478,10 +535,7 @@ fn full_cycle() -> Result<()> {
 
         {
             let start = Instant::now();
-            let db = TurboPersistence::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<16>(path, mmap)?;
             println!("All restore time after compact: {:?}", start.elapsed());
 
             for (name, _, read) in test_cases.iter() {
@@ -515,8 +569,13 @@ fn full_cycle() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn persist_changes() -> Result<()> {
+// This test exceeded 20 minutes under Miri because it writes and repeatedly reads tens of
+// thousands of entries across multiple reopen/compaction cycles.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn persist_changes(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
@@ -540,10 +599,7 @@ fn persist_changes() -> Result<()> {
     }
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
         let b = db.write_batch()?;
         put(&b, 1, 11)?;
         put(&b, 2, 21)?;
@@ -559,10 +615,7 @@ fn persist_changes() -> Result<()> {
 
     println!("---");
     {
-        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
         let b = db.write_batch()?;
         put(&b, 1, 12)?;
         put(&b, 2, 22)?;
@@ -576,10 +629,7 @@ fn persist_changes() -> Result<()> {
     }
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
         let b = db.write_batch()?;
         put(&b, 1, 13)?;
         db.commit_write_batch(b)?;
@@ -593,10 +643,7 @@ fn persist_changes() -> Result<()> {
 
     println!("---");
     {
-        let db = TurboPersistence::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;
@@ -607,10 +654,7 @@ fn persist_changes() -> Result<()> {
 
     println!("---");
     {
-        let db = TurboPersistence::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
 
         db.compact(&CompactConfig {
             optimal_merge_count: 4,
@@ -628,10 +672,7 @@ fn persist_changes() -> Result<()> {
 
     println!("---");
     {
-        let db = TurboPersistence::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;
@@ -643,8 +684,12 @@ fn persist_changes() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn partial_compaction() -> Result<()> {
+// This 50-iteration compaction/restore stress test exceeded 20 minutes under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn partial_compaction(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
@@ -672,10 +717,7 @@ fn partial_compaction() -> Result<()> {
         println!("--- Iteration {i} ---");
         println!("Add more entries");
         {
-            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<1>(path, mmap)?;
             let b = db.write_batch()?;
             put(&b, i, i)?;
             put(&b, i + 1, i)?;
@@ -694,10 +736,7 @@ fn partial_compaction() -> Result<()> {
 
         println!("Compaction");
         {
-            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<1>(path, mmap)?;
 
             db.compact(&CompactConfig {
                 optimal_merge_count: 4,
@@ -718,10 +757,7 @@ fn partial_compaction() -> Result<()> {
 
         println!("Restore check");
         {
-            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<1>(path, mmap)?;
 
             for j in 0..i {
                 check(&db, j, j)?;
@@ -737,8 +773,12 @@ fn partial_compaction() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn merge_file_removal() -> Result<()> {
+// This repeated large-file merge/removal stress test exceeded 20 minutes under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn merge_file_removal(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
@@ -777,10 +817,7 @@ fn merge_file_removal() -> Result<()> {
 
     {
         println!("--- Init ---");
-        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<1>(path, mmap)?;
         let b = db.write_batch()?;
         for j in 0..=255 {
             put(&b, j, 0)?;
@@ -796,10 +833,7 @@ fn merge_file_removal() -> Result<()> {
         let i = i * 37;
         println!("Add more entries");
         {
-            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<1>(path, mmap)?;
             let b = db.write_batch()?;
             for j in iter_bits(i) {
                 println!("Put {j} = {i}");
@@ -817,10 +851,7 @@ fn merge_file_removal() -> Result<()> {
 
         println!("Compaction");
         {
-            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<1>(path, mmap)?;
 
             db.compact(&CompactConfig {
                 optimal_merge_count: 4,
@@ -838,10 +869,7 @@ fn merge_file_removal() -> Result<()> {
 
         println!("Restore check");
         {
-            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-                path.to_path_buf(),
-                RayonParallelScheduler,
-            )?;
+            let db = open_db::<1>(path, mmap)?;
 
             for j in 0..32 {
                 check(&db, j, expected_values[j as usize])?;
@@ -854,15 +882,14 @@ fn merge_file_removal() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_basic() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_basic(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write some test data
     let batch = db.write_batch()?;
@@ -886,15 +913,14 @@ fn batch_get_basic() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_all_existing() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_all_existing(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write test data
     let batch = db.write_batch()?;
@@ -916,15 +942,14 @@ fn batch_get_all_existing() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_none_existing() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_none_existing(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write some data but query different keys
     let batch = db.write_batch()?;
@@ -946,15 +971,14 @@ fn batch_get_none_existing() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_empty() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_empty(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write some data
     let batch = db.write_batch()?;
@@ -971,15 +995,14 @@ fn batch_get_empty() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_duplicate_keys() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_duplicate_keys(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write test data
     let batch = db.write_batch()?;
@@ -1008,15 +1031,14 @@ fn batch_get_duplicate_keys() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_large_batch() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write many entries
     let batch = db.write_batch()?;
@@ -1049,18 +1071,18 @@ fn batch_get_large_batch() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_different_sizes() -> Result<()> {
+// Crossing the real blob-size boundary makes this test exceed 20 minutes under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_different_sizes(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let mut config = DbConfig::default();
+    let mut config = config_with_mmap(mmap);
     config.family_configs[0].compression = Compression::Zstd3;
-    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
-        path.to_path_buf(),
-        config,
-        RayonParallelScheduler,
-    )?;
+    let db = open_db_with_config::<16>(path, config)?;
 
     // Write values of different sizes
     let batch = db.write_batch()?;
@@ -1106,19 +1128,17 @@ fn batch_get_different_sizes() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_across_families() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let mut config = DbConfig::default();
-    // set zstd on an arbitrary family, lz4 is used by default
+    let mut config = config_with_mmap(mmap);
+    // Set zstd on an arbitrary family; lz4 is used by default.
     config.family_configs[2].compression = Compression::Zstd3;
-    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
-        path.to_path_buf(),
-        config.clone(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db_with_config::<16>(path, config.clone())?;
 
     // Write compressible values to multiple families so every configured codec is exercised.
     let batch = db.write_batch()?;
@@ -1187,18 +1207,16 @@ fn batch_get_across_families() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_after_compaction() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_after_compaction(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let mut config = DbConfig::default();
+    let mut config = config_with_mmap(mmap);
     config.family_configs[0].compression = Compression::Zstd3;
-    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
-        path.to_path_buf(),
-        config,
-        RayonParallelScheduler,
-    )?;
+    let db = open_db_with_config::<16>(path, config)?;
 
     // Write data across multiple batches to create multiple SST files
     for batch_num in 0..5u8 {
@@ -1235,15 +1253,14 @@ fn batch_get_after_compaction() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_with_overwrites() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write initial data
     let batch = db.write_batch()?;
@@ -1285,15 +1302,14 @@ fn batch_get_with_overwrites() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_comparison_with_get() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_comparison_with_get(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<16>(path, mmap)?;
 
     // Write test data
     let batch = db.write_batch()?;
@@ -1339,17 +1355,16 @@ fn batch_get_comparison_with_get() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn batch_get_after_restore() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
     // Write data and close
     {
-        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<16>(path, mmap)?;
 
         let batch = db.write_batch()?;
         for i in 0..100u8 {
@@ -1361,10 +1376,7 @@ fn batch_get_after_restore() -> Result<()> {
 
     // Reopen and test batch_get
     {
-        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
-            path.to_path_buf(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_db::<16>(path, mmap)?;
 
         let keys_to_fetch: Vec<Vec<u8>> = (0..100u8).step_by(5).map(|i| vec![i]).collect();
         let results = db.batch_get(0, &keys_to_fetch)?;
@@ -1386,8 +1398,12 @@ fn batch_get_after_restore() -> Result<()> {
 
 /// Test that compaction works with many small values without overflowing block indices.
 /// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
-#[test]
-fn many_small_values_compaction() -> Result<()> {
+// Miri was killed while processing this production-scale, two-million-entry workload.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn many_small_values_compaction(#[case] mmap: bool) -> Result<()> {
     use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
     use crate::parallel_scheduler::SerialScheduler;
@@ -1395,7 +1411,10 @@ fn many_small_values_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+        path.to_path_buf(),
+        config_with_mmap(mmap),
+    )?;
 
     let mut rng = SmallRng::seed_from_u64(42);
 
@@ -1427,8 +1446,12 @@ fn many_small_values_compaction() -> Result<()> {
 
 /// Test compaction with MAX_SMALL_VALUE_SIZE (4096-byte) values.
 /// Worst case for small value blocks: fewest entries per block.
-#[test]
-fn many_max_small_values_compaction() -> Result<()> {
+// This production-scale 512K-entry workload exceeded 20 minutes under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn many_max_small_values_compaction(#[case] mmap: bool) -> Result<()> {
     use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
     use crate::{constants::MAX_SMALL_VALUE_SIZE, parallel_scheduler::SerialScheduler};
@@ -1436,7 +1459,10 @@ fn many_max_small_values_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+        path.to_path_buf(),
+        config_with_mmap(mmap),
+    )?;
 
     let mut rng = SmallRng::seed_from_u64(43);
 
@@ -1467,8 +1493,12 @@ fn many_max_small_values_compaction() -> Result<()> {
 
 /// Test compaction with 4097-byte values (minimum medium size).
 /// Each medium value gets its own dedicated block, so this is the worst case for block count.
-#[test]
-fn many_medium_values_compaction() -> Result<()> {
+// This production-scale 128K-entry workload exceeded 20 minutes under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn many_medium_values_compaction(#[case] mmap: bool) -> Result<()> {
     use rand::{RngExt, SeedableRng, rngs::SmallRng};
 
     use crate::{constants::MAX_SMALL_VALUE_SIZE, parallel_scheduler::SerialScheduler};
@@ -1476,7 +1506,10 @@ fn many_medium_values_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+        path.to_path_buf(),
+        config_with_mmap(mmap),
+    )?;
 
     let mut rng = SmallRng::seed_from_u64(44);
 
@@ -1506,21 +1539,17 @@ fn many_medium_values_compaction() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn compaction_multi_value_preserves_different_values() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn compaction_multi_value_preserves_different_values(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-
-    let config = multi_value_config();
 
     let key = vec![42u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config,
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // Write same key with different values in separate batches
         let batch = db.write_batch()?;
@@ -1570,21 +1599,17 @@ fn multi_value_config() -> DbConfig<1> {
     config
 }
 
-#[test]
-fn compaction_multi_value_multiple_compactions() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-
-    let config = multi_value_config();
 
     let key = vec![42u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // Write initial values
         for value in [1u8, 2, 3] {
@@ -1634,11 +1659,7 @@ fn compaction_multi_value_multiple_compactions() -> Result<()> {
 
     // Reopen and verify persistence
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config,
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         let results = db.get_multiple(0, &key.as_slice())?;
         assert_eq!(results.len(), 6, "Should still have 6 values after reopen");
@@ -1649,20 +1670,17 @@ fn compaction_multi_value_multiple_compactions() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn multi_value_delete_key() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let config = multi_value_config();
     let key = vec![42u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // Write multiple values for the same key across separate batches
         for value in [1u8, 2, 3] {
@@ -1701,11 +1719,7 @@ fn multi_value_delete_key() -> Result<()> {
 
     // Reopen and verify deletion persists
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config,
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         let results = db.get_multiple(0, &key.as_slice())?;
         assert!(
@@ -1719,20 +1733,17 @@ fn multi_value_delete_key() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn multi_value_delete_then_rewrite() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let config = multi_value_config();
     let key = vec![42u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // Write initial values
         for value in [1u8, 2, 3] {
@@ -1785,11 +1796,7 @@ fn multi_value_delete_then_rewrite() -> Result<()> {
 
     // Reopen and verify
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config,
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         let results = db.get_multiple(0, &key.as_slice())?;
         assert_eq!(results.len(), 2, "Should have 2 values after reopen");
@@ -1807,20 +1814,17 @@ fn multi_value_delete_then_rewrite() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn multi_value_delete_with_compaction_interleaved() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let config = multi_value_config();
     let key = vec![42u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // Write values 1, 2
         for value in [1u8, 2] {
@@ -1877,11 +1881,7 @@ fn multi_value_delete_with_compaction_interleaved() -> Result<()> {
 
     // Reopen and verify
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config,
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         let results = db.get_multiple(0, &key.as_slice())?;
         assert_eq!(results.len(), 1, "Should have only value 4 after reopen");
@@ -1919,23 +1919,19 @@ fn single_value_duplicate_key_panics() {
     db.commit_write_batch(batch).unwrap(); // panics during commit
 }
 
-#[test]
-fn multi_value_tombstone_only_shadows_older_ssts() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_tombstone_only_shadows_older_ssts(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-
-    let config = multi_value_config();
 
     // For MultiValue, a tombstone only shadows entries from older SSTs.
     // Entries in the same batch are NOT shadowed by the tombstone.
     let key = vec![3u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // First write an older value in a separate batch (separate SST)
         let batch = db.write_batch()?;
@@ -1968,22 +1964,18 @@ fn multi_value_tombstone_only_shadows_older_ssts() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn multi_value_tombstone_shadows_older_sst_only() -> Result<()> {
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_tombstone_shadows_older_sst_only(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-
-    let config = multi_value_config();
 
     // For MultiValue, tombstone in a batch shadows only entries from older SSTs.
     let key = vec![4u8];
 
     {
-        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-            path.to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
+        let db = open_multi_value_db(path, mmap)?;
 
         // Write an older value in a separate batch
         let batch = db.write_batch()?;
@@ -2014,6 +2006,7 @@ fn multi_value_tombstone_shadows_older_sst_only() -> Result<()> {
 }
 
 /// Returns the number of `.blob` files in the given directory.
+#[cfg(not(miri))]
 fn count_blob_files(dir: &Path) -> usize {
     fs::read_dir(dir)
         .unwrap()
@@ -2024,15 +2017,17 @@ fn count_blob_files(dir: &Path) -> usize {
 
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
-#[test]
-fn compaction_deletes_superseded_blob() -> Result<()> {
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn compaction_deletes_superseded_blob(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<1>(path, mmap)?;
 
     let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
 
@@ -2084,15 +2079,17 @@ fn compaction_deletes_superseded_blob() -> Result<()> {
 
 /// Test that compaction deletes blob files when a key is deleted via tombstone
 /// (SingleValue family).
-#[test]
-fn compaction_deletes_blob_on_tombstone() -> Result<()> {
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn compaction_deletes_blob_on_tombstone(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<1>(path, mmap)?;
 
     let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
 
@@ -2136,24 +2133,17 @@ fn compaction_deletes_blob_on_tombstone() -> Result<()> {
 
 /// Test that compaction deletes blob files for MultiValue families when a
 /// tombstone prunes older blob entries.
-#[test]
-fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn compaction_deletes_blob_multi_value_tombstone(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let config = DbConfig {
-        family_configs: [FamilyConfig {
-            name: "test",
-            kind: FamilyKind::MultiValue,
-            compression: Compression::Lz4,
-        }],
-    };
-
-    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
-        path.to_path_buf(),
-        config,
-        RayonParallelScheduler,
-    )?;
+    let db = open_multi_value_db(path, mmap)?;
 
     let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
 
@@ -2195,15 +2185,17 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
 
 /// Test that compaction preserves blob files that are still referenced
 /// (not superseded).
-#[test]
-fn compaction_preserves_active_blob() -> Result<()> {
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn compaction_preserves_active_blob(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )?;
+    let db = open_db::<1>(path, mmap)?;
 
     let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
 
@@ -2347,6 +2339,8 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
 /// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
 /// matching value, and dropping the tombstone would resurrect it.
+// This test takes about 16 minutes under Miri and is too slow for the Miri CI job.
+#[cfg(not(miri))]
 #[test]
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2510,7 +2504,9 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4)? {
+            for item in
+                StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
+            {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
@@ -2687,6 +2683,8 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 ///
 /// This is the case a sequence-number threshold gets wrong — it would treat the skipped SST as
 /// part of the job and drop a tombstone that is still load-bearing.
+// This multi-SST partial-compaction scenario exceeded 20 minutes under Miri.
+#[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2864,5 +2862,103 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     );
 
     db.shutdown()?;
+    Ok(())
+}
+
+// This 8,000-key meta-sharding compaction test exceeded 20 minutes under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let access_mode = if mmap {
+        crate::mmap_access_mode()
+    } else {
+        AccessMode::File
+    };
+    let db = open_db::<1>(path, mmap)?;
+
+    const KEYS: u32 = 2_000;
+    for generation in 0..4u32 {
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                generation.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+        if generation == 0 {
+            // Flush this access into the following commit's used-key-hash AMQF.
+            assert!(db.get(0, &0u32.to_be_bytes())?.is_some());
+        }
+    }
+    let before_meta_sequences = db
+        .meta_info()?
+        .into_iter()
+        .map(|meta| meta.sequence_number)
+        .collect::<Vec<_>>();
+    assert_eq!(before_meta_sequences.len(), 4);
+    assert!(before_meta_sequences.iter().any(|&seq| {
+        MetaFile::open(path, seq, None, access_mode)
+            .unwrap()
+            .deserialize_used_key_hashes_amqf()
+            .unwrap()
+            .is_some()
+    }));
+
+    let partial = CompactConfig {
+        min_merge_count: 2,
+        optimal_merge_count: 2,
+        max_merge_count: 2,
+        max_merge_bytes: u64::MAX,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: 0,
+        max_merge_segment_count: 1,
+    };
+    assert!(db.compact(&partial)?.is_some());
+    let after_partial = db.meta_info()?;
+    assert_eq!(
+        after_partial.len(),
+        3,
+        "two fully consumed meta files should retire while two untouched metas remain"
+    );
+    assert_eq!(
+        after_partial
+            .iter()
+            .filter(|meta| before_meta_sequences.contains(&meta.sequence_number))
+            .count(),
+        2,
+        "untouched SST metadata should stay in its two existing meta files"
+    );
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
+
+    db.full_compact()?;
+    let fully_compacted = db.meta_info()?;
+    assert_eq!(fully_compacted.len(), 1);
+    let compacted_meta =
+        MetaFile::open(path, fully_compacted[0].sequence_number, None, access_mode)?;
+    assert!(
+        compacted_meta.deserialize_used_key_hashes_amqf()?.is_none(),
+        "used-key marks should expire instead of being copied into compaction output"
+    );
+    drop(db);
+
+    let reopened = open_db::<1>(path, mmap)?;
+    assert_eq!(reopened.meta_info()?.len(), 1);
+    for key in 0..KEYS {
+        assert_eq!(
+            &*reopened.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
     Ok(())
 }

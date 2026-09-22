@@ -25,7 +25,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
-pub use gc::TtlCounter;
+pub use gc::{GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
@@ -96,6 +96,11 @@ use crate::{
 /// the operation will be parallelized.
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 
+/// The minimum useful quantum of GC work: how much a pass always does before it will honour an
+/// interrupt.  GC holds an operation lock and so we can block concurrent operations.  Interruption
+/// ensures we are responsive and this ensures a minimum amount of progress.
+const GC_MIN_PROGRESS: Duration = Duration::from_millis(100);
+
 /// Priority used to re-schedule a task that became stale during execution.
 ///
 /// Stale tasks must run again, but at a priority that reflects why they're being re-run rather
@@ -152,14 +157,18 @@ pub struct BackendOptions {
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     pub eviction_mode: EvictionMode,
 
-    /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
-    /// it from the `TURBO_ENGINE_GC` env var;
+    /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
+    ///
+    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
-    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
+
+    /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
+    /// [`GC_MIN_PROGRESS`].
+    pub gc_min_progress: Option<Duration>,
 }
 
 impl Default for BackendOptions {
@@ -173,6 +182,7 @@ impl Default for BackendOptions {
             eviction_mode: EvictionMode::Off,
             gc: None,
             gc_root_ttl: None,
+            gc_min_progress: None,
         }
     }
 }
@@ -200,6 +210,11 @@ impl SnapshotReason {
             SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
             SnapshotReason::IdleTimeout => "idle timeout",
         }
+    }
+
+    /// Whether a GC pass run for this reason may wind down early when an operation is waiting.
+    fn gc_is_interruptible(self) -> bool {
+        matches!(self, SnapshotReason::IdleTimeout | SnapshotReason::Test)
     }
 
     /// True only for `Stop`: at shutdown the whole map is dropped right after, so each task
@@ -245,8 +260,40 @@ pub struct TurboTasksBackend {
     /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
+    /// How long a GC pass runs before it will honour an interrupt
+    gc_min_progress: Duration,
+
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
+}
+
+/// What [`TurboTasksBackend::snapshot_and_evict_for_testing`] observed.
+#[doc(hidden)]
+#[derive(Debug, Default)]
+pub struct TestSnapshotOutcome {
+    /// Whether the snapshot found modifications to persist.
+    pub had_new_data: bool,
+    /// Tasks evicted from memory at each level.
+    pub eviction_counts: EvictionCounts,
+    /// The [`GcStats`] of the GC pass this snapshot ran, or `None` when GC is disabled for the
+    /// backend.
+    pub gc: Option<GcStats>,
+}
+
+impl TestSnapshotOutcome {
+    /// The [`GcStats`] for the GC pass, panicking if GC is disabled. For tests whose whole point
+    /// is the pass, so a misconfigured backend fails loudly rather than silently asserting
+    /// nothing.
+    pub fn gc_stats(&self) -> &GcStats {
+        self.gc
+            .as_ref()
+            .expect("no GC pass ran: the backend needs `BackendOptions::gc = Some(true)`")
+    }
+
+    /// Whether the GC pass wound down early. `false` when GC is disabled.
+    pub fn gc_interrupted(&self) -> bool {
+        self.gc.as_ref().is_some_and(|stats| stats.interrupted)
+    }
 }
 
 impl TurboTasksBackend {
@@ -265,41 +312,24 @@ impl TurboTasksBackend {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
+        let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
 
-        let mut gc_enabled = options.gc.unwrap_or_else(|| {
-            std::env::var_os("TURBO_ENGINE_GC")
-                .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
-        });
+        let mut gc_enabled = options.gc.unwrap_or(false);
         if gc_enabled
             && options.storage_mode == Some(StorageMode::ReadWrite)
             && options.eviction_mode == EvictionMode::Off
         {
             eprintln!(
-                "warning: GC is enabled but eviction is disabled on a ReadWrite backend; GC would \
-                 leave collected tasks resident forever. Forcing GC off. Enable eviction \
-                 ('auto'/'full') to use GC in this mode."
+                "warning: GC is enabled but eviction is disabled; GC would leave collected tasks \
+                 resident forever. Forcing GC off. Enable eviction ('auto'/'full') to use GC in \
+                 this mode."
             );
             gc_enabled = false;
         }
-
-        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
-                             Using the default instead."
-                        );
-                        DEFAULT_GC_ROOT_TTL
-                    }
-                },
-                Err(_) => DEFAULT_GC_ROOT_TTL,
-            }
-        });
 
         Self {
             options,
@@ -325,6 +355,7 @@ impl TurboTasksBackend {
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
+            gc_min_progress,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
         }
@@ -384,28 +415,34 @@ impl TurboTasksBackend {
     /// This is exposed for integration tests that need to verify the
     /// snapshot → evict → restore cycle works correctly.
     ///
-    /// Returns `(snapshot_had_new_data, eviction_counts)`.
+    /// Returns [`TestSnapshotOutcome`], which carries the GC pass's own [`GcStats`] alongside the
+    /// eviction counts. A test needs the pass's numbers because the resident task count can't
+    /// distinguish "GC collected it" from "GC skipped it and eviction dropped it to disk".
     #[doc(hidden)]
     pub fn snapshot_and_evict_for_testing(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> (bool, EvictionCounts) {
+    ) -> TestSnapshotOutcome {
         assert!(
             self.should_persist(),
             "snapshot_and_evict requires persistence"
         );
         let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
-        let had_new_data = match snapshot_result {
-            Ok((_, new_data)) => new_data,
+        let (had_new_data, gc_stats) = match snapshot_result {
+            Ok((_, new_data, gc_stats)) => (new_data, gc_stats),
             Err(_) => {
                 // Snapshot/persist failed — skip eviction since the data may not
                 // be on disk yet. Evicting now could lose in-memory state that
                 // can't be restored.
-                return (false, EvictionCounts::default());
+                return TestSnapshotOutcome::default();
             }
         };
-        let counts = self.storage.evict_after_snapshot(None);
-        (had_new_data, counts)
+        let eviction_counts = self.storage.evict_after_snapshot(None);
+        TestSnapshotOutcome {
+            had_new_data,
+            eviction_counts,
+            gc: gc_stats,
+        }
     }
 
     /// The number of persistent (non-transient) tasks resident in the map. Test-only hook; see
@@ -1101,12 +1138,18 @@ impl TurboTasksBackend {
         (listener, true)
     }
 
+    /// Runs a persistence cycle
+    ///
+    /// Returns `(snapshot_start, had_new_data, gc_stats)`. `gc_stats` is `None` when GC is
+    /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
+    /// just triggered without the backend carrying test-only state. Production reads the same
+    /// numbers off the `gc` span.
     fn snapshot_and_persist(
         &self,
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<(Instant, bool), anyhow::Error> {
+    ) -> Result<(Instant, bool, Option<GcStats>), anyhow::Error> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
@@ -1124,18 +1167,26 @@ impl TurboTasksBackend {
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
         let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
-        let (gc_elapsed, gc_roots_to_persist) = if self.gc_enabled {
+        let (gc_elapsed, gc_roots_to_persist, gc_stats) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
             )
             .entered();
-            let (stats, roots) = self.gc_collect(turbo_tasks, &snapshot_phase);
-            gc_span.record("stats", display(stats));
-            (Some(start.elapsed()), roots)
+            let (stats, roots) =
+                self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
+            gc_span.record("stats", display(&stats));
+            if stats.interrupted {
+                // If we were interrupted also abandon the persistence loop.
+                // This ensures that we don't persist roots that were not completely validated.
+                drop(snapshot_phase);
+                drop(gc_span);
+                return Ok((start, false, Some(stats)));
+            }
+            (Some(start.elapsed()), roots, Some(stats))
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         debug_assert!(self.should_persist());
@@ -1152,7 +1203,7 @@ impl TurboTasksBackend {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
-            return Ok((start, false));
+            return Ok((start, false, gc_stats));
         }
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1205,19 +1256,15 @@ impl TurboTasksBackend {
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
-            fn compressed_size(data: &[u8]) -> Result<usize> {
-                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-                    data,
-                    &mut Vec::new(),
-                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
-                )?)
+            fn compressed_size(data: &[u8]) -> usize {
+                lz4_flex::block::compress(data).len()
             }
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.data_compressed += Self::compressed_size(data);
                 }
                 self.data_count += 1;
             }
@@ -1226,7 +1273,7 @@ impl TurboTasksBackend {
                 self.meta += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.meta_compressed += Self::compressed_size(data);
                 }
                 self.meta_count += 1;
             }
@@ -1447,7 +1494,7 @@ impl TurboTasksBackend {
             // was present, and every modification that increments the count also failed
             // during encoding.
             std::hint::cold_path();
-            return Ok((snapshot_time, false));
+            return Ok((snapshot_time, false, gc_stats));
         }
 
         let persist_start = Instant::now();
@@ -1552,29 +1599,21 @@ impl TurboTasksBackend {
             )));
         }
 
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            // as_millis_f64 is not stable yet
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms: f64 = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        let (persist_start_ms, persist_end_ms) = if let Some(gc_elapsed) = gc_elapsed {
-            let persist_begin_ms = wall_start_ms + gc_elapsed.as_secs_f64() * 1000.0;
-            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        let (persist_wall_start, persist_wall_duration) = if let Some(gc_elapsed) = gc_elapsed {
+            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
                 "turbopack-gc",
-                wall_start_ms,
-                persist_begin_ms,
+                wall_start,
+                gc_elapsed,
                 serde_json::json!([]),
             )));
-            (persist_begin_ms, wall_end_ms)
+            (wall_start + gc_elapsed, elapsed.saturating_sub(gc_elapsed))
         } else {
-            (wall_start_ms, wall_end_ms)
+            (wall_start, elapsed)
         };
-        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-persistence",
-            persist_start_ms,
-            persist_end_ms,
+            persist_wall_start,
+            persist_wall_duration,
             serde_json::json!([
                 ["reason", reason.as_str()],
                 [
@@ -1591,7 +1630,7 @@ impl TurboTasksBackend {
             ]),
         )));
 
-        Ok((snapshot_time, true))
+        Ok((snapshot_time, true, gc_stats))
     }
 
     fn startup(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
@@ -1728,6 +1767,7 @@ impl TurboTasksBackend {
         let shard = get_shard(&self.storage.task_cache, hash);
 
         let mut ctx = self.execute_context(turbo_tasks);
+        let mut created_new = false;
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
@@ -1735,7 +1775,12 @@ impl TurboTasksBackend {
             get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
-            operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+            operation::ConnectChildOperation::run(
+                parent_task,
+                task_id,
+                /* release_construction_ref */ false,
+                ctx,
+            );
             return task_id;
         }
 
@@ -1802,6 +1847,7 @@ impl TurboTasksBackend {
 
             // The entry closure has returned, so the task_cache shard lock is released before
             // cache tracking or aggregation updates can re-enter the backend.
+            created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
                 // Update the aggregation number before connecting the child. We don't need this on
@@ -1833,7 +1879,9 @@ impl TurboTasksBackend {
             task_id
         };
 
-        operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+        // New tasks carry a transient ref so they survive construction. Release it while
+        // connecting the task to the graph.
+        operation::ConnectChildOperation::run(parent_task, task_id, created_new, ctx);
 
         task_id
     }
@@ -3156,7 +3204,7 @@ impl TurboTasksBackend {
                                 Self::log_unrecoverable_persist_error();
                                 return;
                             }
-                            Ok((snapshot_start, new_data)) => {
+                            Ok((snapshot_start, new_data, _gc_stats)) => {
                                 // if we see 'new_data' then the next idle transition is 'fresh'
                                 fresh_idle = new_data;
                                 is_first = false;
@@ -3449,7 +3497,12 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+        ConnectChildOperation::run(
+            parent_task,
+            task,
+            /* release_construction_ref */ false,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {

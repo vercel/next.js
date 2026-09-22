@@ -153,6 +153,7 @@ impl AsyncModule {
                     ReferencedAsset::External(..) => None,
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => None,
                 })
             })
