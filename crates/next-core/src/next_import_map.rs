@@ -65,6 +65,11 @@ pub async fn get_next_client_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -281,6 +286,11 @@ pub async fn get_next_server_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
 
     insert_next_shared_aliases(
         &mut import_map,
