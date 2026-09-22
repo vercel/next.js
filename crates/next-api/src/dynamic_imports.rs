@@ -27,7 +27,7 @@ use next_core::{
 };
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
@@ -112,7 +112,7 @@ pub struct DynamicImportedChunks(
     >,
 );
 
-#[derive(Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum DynamicImportEntriesMapType {
     DynamicEntry(ResolvedVc<NextDynamicEntryModule>),
     ClientReference(ResolvedVc<EcmascriptClientReferenceModule>),

@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -100,7 +100,7 @@ pub(crate) async fn pages_renderer_modules(
 }
 
 #[turbo_tasks::task_input]
-#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Hash, Encode, Decode)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Encode, Decode)]
 enum ServerNftType {
     Minimal,
     Full,

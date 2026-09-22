@@ -148,21 +148,21 @@ impl Visit for IdentCollector {
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     Ok {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         program: Program,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         comments: Arc<ImmutableComments>,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         eval_context: EvalContext,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         globals: Arc<Globals>,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
         source_mapping_url: Option<RcStr>,
         /// Raw bytes of the source that produced this parse, captured atomically
         /// with the AST. `failsafe_parse` uses this to recover good parses in development on
         /// error.
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         program_source: Rope,
     },
     Unparsable {

@@ -86,7 +86,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
     TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    parking_lot_mutex_bincode, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -144,9 +144,7 @@ pub use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(
-    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
-)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy, Default, Deserialize, Encode, Decode)]
 pub enum SpecifiedModuleType {
     #[default]
     Automatic,
@@ -155,20 +153,7 @@ pub enum SpecifiedModuleType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Hash, Debug, Clone, Copy, Deserialize, Encode, Decode)]
 pub struct AnalyzeMode {
     /// Whether code generation will be performed after analyzing.
     pub is_codegen: bool,
@@ -214,7 +199,7 @@ impl AnalyzeMode {
 
 /// The constant to replace `typeof window` with.
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -374,7 +359,7 @@ impl EcmascriptModuleAssetBuilder {
 #[turbo_tasks::value(eq = "manual")]
 struct LastSuccessfulSource {
     #[bincode(with = "parking_lot_mutex_bincode")]
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     source: parking_lot::Mutex<Option<Rope>>,
     /// Notifies the backend when the in-memory `source` changes so that the
     /// serialized task state is written back to the persistence layer.
@@ -463,7 +448,7 @@ pub struct EnvVarInfo {
     // pub runtime_all: Option<IssueSource>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum EnvVarAccessMode {
     /// The value is read.
     Read,

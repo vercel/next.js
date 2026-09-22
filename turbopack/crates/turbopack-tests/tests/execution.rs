@@ -15,7 +15,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
     debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -80,7 +79,7 @@ struct RunTestResult {
 struct JsResult {
     uncaught_exceptions: Vec<String>,
     unhandled_rejections: Vec<String>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     jest_result: JestRunResult,
 }
 
@@ -261,9 +260,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     .await
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, Debug, Deserialize, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     #[serde(default = "default_true")]

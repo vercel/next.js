@@ -28,7 +28,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, NonLocalValue,
     OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat,
-    parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
+    parallel, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -203,7 +203,7 @@ fn create_write_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
 
-#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub(crate) struct DiskFileSystemInner {
     pub name: RcStr,
     /// A system path in utf-8 representation. This simplifies serialization/deserialization.
@@ -214,44 +214,44 @@ pub(crate) struct DiskFileSystemInner {
     /// In the future, we should consider using `Path`/`PathBuf` here. Paths inside of the
     /// `DiskFileSystem` must be valid unicode, but the root path doesn't need to be.
     root: RcStr,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     mutex_map: MutexMap<Arc<PathBuf>>,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) invalidator_map: InvalidatorMap,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) dir_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "create_read_semaphore")]
     read_semaphore: tokio::sync::Semaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "create_write_semaphore")]
     write_semaphore: tokio::sync::Semaphore,
 
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     pub(crate) watcher: DiskWatcher,
     /// Root paths that we do not allow access to from this filesystem.
     /// Useful for things like output directories to prevent accidental ouroboros situations.
     denied_paths: Vec<RcStr>,
     /// Used by invalidators when called from a non-turbo-tasks thread, specifically in the fs
     /// watcher.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "turbo_tasks_weak")]
     pub(crate) turbo_tasks: Weak<dyn TurboTasksApi>,
     /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "Handle::current")]
     pub(crate) tokio_handle: Handle,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
     map: OperationVc<DiskFileSystemMap>,
@@ -1210,7 +1210,7 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
-        #[derive(TraceRawVcs, NonLocalValue, Clone)]
+        #[derive(NonLocalValue, Clone)]
         struct CapturedWriteEffect {
             full_path: Arc<PathBuf>,
             inner: Arc<DiskFileSystemInner>,
@@ -1441,7 +1441,7 @@ impl FileSystem for DiskFileSystem {
         }
 
         // Post-capture effect — session-only plain struct.
-        #[derive(TraceRawVcs, NonLocalValue, Clone)]
+        #[derive(NonLocalValue, Clone)]
         struct CapturedWriteLinkEffect {
             full_path: Arc<PathBuf>,
             inner: Arc<DiskFileSystemInner>,

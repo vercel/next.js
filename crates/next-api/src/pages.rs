@@ -31,10 +31,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
@@ -611,7 +608,7 @@ struct PageEndpoint {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 enum PageEndpointType {
     Api,
     Html,
@@ -623,7 +620,7 @@ enum PageEndpointType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
@@ -631,7 +628,7 @@ enum SsrChunkType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,

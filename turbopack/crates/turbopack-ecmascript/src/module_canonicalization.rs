@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::resolve::ModulePart;
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum EcmascriptModuleCanonicalization {
     None,
     ModuleFragments(ModulePart),

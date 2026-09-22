@@ -6,7 +6,7 @@ use swc_core::{
     ecma::ast::{Ident, Lit},
     quote,
 };
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     module::Module,
@@ -27,7 +27,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, Encode, Decode)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,

@@ -13,8 +13,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbobail,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbobail,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -469,17 +468,7 @@ pub struct EsmAssetReferenceOptions {
 /// extracted from `ImportAnnotations` (the full `ImportAnnotations` — a `BTreeMap` plus several
 /// `Option`s — is not retained) plus a `resolve_override` from matched inner assets.
 #[derive(
-    Clone,
-    Default,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Default, PartialEq, Eq, Hash, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 struct EsmReferenceExtras {
     /// `turbopackLoader` configuration (drives `ImportWithTurbopackUse`).
