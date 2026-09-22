@@ -120,7 +120,6 @@ export const styles = `
       .nextjs-container-build-error-version-status {
         height: auto;
         min-height: var(--size-24);
-        border-radius: var(--rounded-md);
         font-size: var(--size-11);
       }
 
