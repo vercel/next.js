@@ -196,15 +196,15 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).toContain('\n## Report Next.js feedback\n')
     expect(content).toContain('meaningful detour or are likely to recur')
-    expect(content).toContain('Crashes, hangs, OOMs, or unexpected slowness')
-    expect(content).toContain('CLI, codemod, Skill, or upgrade behavior')
+    expect(content).toContain(
+      'crashes, unexpected slowness, incorrect behavior'
+    )
+    expect(content).toContain('CLI or upgrade failures')
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
-    expect(content).toContain('Immediately before the final response')
-    expect(content).toContain(
-      'Keep unresolved feedback candidates for a later final response'
-    )
+    expect(content).toContain('Before the final response')
+    expect(content).toContain('If it produces no output, continue normally')
     expect(content).not.toContain('"schemaVersion":3')
   })
 
