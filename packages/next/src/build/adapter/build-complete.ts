@@ -1145,8 +1145,10 @@ export async function handleBuildComplete({
           const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
           const staticMetadataPrerenderPathname =
             getStaticMetadataPrerenderPathname(normalizedPage) ?? normalizedPage
+          const metadataPrerenderRoute =
+            prerenderManifest.routes[staticMetadataPrerenderPathname]
           const isPrerenderedMetadataRoute =
-            prerenderManifest.routes[staticMetadataPrerenderPathname] ||
+            metadataPrerenderRoute ||
             config.i18n?.locales?.some((locale) => {
               const localePathname = path.posix.join(
                 '/',
@@ -1155,8 +1157,16 @@ export async function handleBuildComplete({
               )
               return prerenderManifest.routes[localePathname]
             })
+          // Prerendered metadata routes that revalidate (e.g. sitemap.ts with
+          // `export const revalidate`) are ISR and need their app route.
+          const isRevalidatingMetadataRoute =
+            typeof metadataPrerenderRoute?.initialRevalidateSeconds === 'number'
 
-          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
+          if (
+            isStaticMetadataRoute &&
+            isPrerenderedMetadataRoute &&
+            !isRevalidatingMetadataRoute
+          ) {
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1453,8 +1463,12 @@ export async function handleBuildComplete({
         )
 
         // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
-        // These should be output as static files, not prerenders.
-        if (isStaticMetadataFile(route)) {
+        // These should be output as static files, not prerenders. Metadata
+        // routes that revalidate stay prerenders so they can be regenerated.
+        if (
+          isStaticMetadataFile(route) &&
+          typeof initialRevalidate !== 'number'
+        ) {
           // For static metadata from app router, check if the .body file exists
           const staticMetadataFilePath = path.join(
             appDistDir,
