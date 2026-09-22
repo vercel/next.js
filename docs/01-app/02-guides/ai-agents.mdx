@@ -79,7 +79,7 @@ The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single
 
 Automatic agent feedback lets coding agents keep track of potential Next.js issues without interrupting the current user request. Before the final response, the agent evaluates those issues and opens each qualifying report in a separate review form in your default browser.
 
-Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. Nothing is sent until you select **Send feedback**, and agent feedback is separate from [Next.js Telemetry](/telemetry).
+Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. Nothing is sent until you select **Send feedback**.
 
 With the option enabled, `next dev` adds the following managed feedback instructions to the agent file when it detects an AI coding agent:
 
@@ -104,7 +104,7 @@ Immediately before the final response, after all requested work and tool calls a
 
 Next.js updates only the content between the agent feedback markers and preserves the rest of the file.
 
-Automatic agent feedback is experimental and disabled by default. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to enable it.
+Automatic agent feedback is experimental, disabled by default, and available only when [Next.js Telemetry](/telemetry) is enabled. It does not run in CI. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to enable it.
 
 <span id="step-2-give-agents-runtime-visibility" />
 

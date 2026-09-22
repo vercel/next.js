@@ -8,7 +8,7 @@ related:
     - app/api-reference/config/next-config-js/agentRules
 ---
 
-The `experimental.agentFeedback` option controls whether `next dev` creates and updates instructions that let detected AI coding agents prepare Next.js issue reports for your review. It is disabled by default and works independently from [Next.js Telemetry](/telemetry).
+The `experimental.agentFeedback` option controls whether `next dev` creates and updates instructions that let detected AI coding agents prepare Next.js issue reports for your review. It is disabled by default and requires [Next.js Telemetry](/telemetry) to be enabled. Agent feedback does not run in CI.
 
 Set `experimental.agentFeedback` to `true` to enable this behavior:
 
@@ -77,6 +77,8 @@ Submitting the form sends the content you reviewed, the agent name, and the Next
 ## Disable agent feedback
 
 Set `experimental.agentFeedback` to `false` or remove the option to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent feedback block and preserves all other content. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
+
+Disabling Next.js Telemetry also removes the managed feedback block the next time you run `next dev`. The feedback command does not return reporting instructions while telemetry is disabled.
 
 `experimental.agentFeedback` and top-level [`agentRules`](/docs/app/api-reference/config/next-config-js/agentRules) work independently. Changing one option does not affect the other.
 

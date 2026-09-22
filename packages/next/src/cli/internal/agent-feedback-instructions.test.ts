@@ -23,19 +23,33 @@ describe('loadAgentFeedbackInstructions', () => {
     expect(readProtocol).not.toHaveBeenCalled()
   })
 
+  it('does not check the remote gate when feedback is locally disabled', async () => {
+    const isEnabled = jest.fn(async () => true)
+    const readProtocol = jest.fn(async () => '# Agent feedback protocol\n')
+
+    await expect(
+      loadAgentFeedbackInstructions({}, isEnabled, readProtocol, () => false)
+    ).resolves.toBeNull()
+    expect(isEnabled).not.toHaveBeenCalled()
+    expect(readProtocol).not.toHaveBeenCalled()
+  })
+
   it('returns dry-run instructions without checking the remote gate', async () => {
     const isEnabled = jest.fn(async () => false)
+    const isLocallyEnabled = jest.fn(() => false)
 
     await expect(
       loadAgentFeedbackInstructions(
         { dryRun: true },
         isEnabled,
-        async () => '# Agent feedback protocol\n'
+        async () => '# Agent feedback protocol\n',
+        isLocallyEnabled
       )
     ).resolves.toBe(
       '# Dry run\n\nUse the protocol below to prepare each qualifying report draft and encode its review URL, but do not open a browser tab. Print each review URL for inspection instead. Do not clear the feedback candidate queue or mark the reporting pass complete.\n\n# Agent feedback protocol\n'
     )
     expect(isEnabled).not.toHaveBeenCalled()
+    expect(isLocallyEnabled).not.toHaveBeenCalled()
   })
 
   it('fails closed when the protocol cannot be read', async () => {
