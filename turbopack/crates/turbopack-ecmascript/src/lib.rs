@@ -866,7 +866,9 @@ impl EcmascriptModuleAsset {
             self.ty,
             *self.transforms,
             node_env,
-            !options.analyze_mode.is_codegen && options.analyze_mode.trace_file_references,
+            // When not codegen-ing at all, turn string encoding and AST parsing issues into
+            // warnings instead.
+            !options.analyze_mode.is_codegen,
             options.inline_helpers,
         ))
     }
