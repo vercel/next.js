@@ -126,6 +126,7 @@ impl ModuleReference for EmitReference {
         BindingUsage {
             import: Default::default(),
             export: self.export_usage.clone(),
+            evaluation_timing: Default::default(),
         }
     }
 }

@@ -176,6 +176,7 @@
                         span: 108..120,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -425,6 +426,7 @@
         span: 201..213,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -566,6 +568,7 @@
         span: 222..234,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

@@ -5,6 +5,7 @@ use turbo_tasks::{JoinIterExt, ResolvedVc, Vc};
 use crate::{
     module::{Module, ModuleSideEffects},
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode},
+    resolve::ModuleEvaluationTiming,
 };
 
 /// This lists all the modules that are side effect free
@@ -18,10 +19,8 @@ pub struct SideEffectFreeModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 /// This leverages the module graph to compute if modules with `ModuleEvaluationIsSideEffectFree`
 /// status are actually side effectful or not.
 ///
-/// A current limitation is that the module graph doesn't contain information on how 'late' imports
-/// are used.  e.g. if there is a dynamic import with side effects in an event handler, we will mark
-/// the module as side effectful even though it isn't.  To fix this the module graph would need to
-/// record more information about the nature of the edges.
+/// Dependencies that are known to execute only after module evaluation don't affect this result.
+/// They remain in the module graph for reachability, chunking, and runtime loading.
 #[turbo_tasks::function]
 pub async fn compute_side_effect_free_module_info(
     graphs: ResolvedVc<ModuleGraph>,
@@ -82,7 +81,12 @@ async fn compute_side_effect_free_module_info_single(
         // child is a previously visited module that we know is side effectful
         // parent is a module that depends on it.
         |child, parent, _s| {
-            Ok(if child.is_some() {
+            Ok(if let Some((_, ref_data)) = child {
+                // if the parent imports this module in a 'deferred' mechanism our side effects
+                // don't flow to it.
+                if ref_data.binding_usage.evaluation_timing == ModuleEvaluationTiming::Deferred {
+                    return Ok(GraphTraversalAction::Exclude);
+                }
                 match module_side_effects.get(&parent) {
                     Some(ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree) => {
                         // We have either already seen this or don't want to follow it

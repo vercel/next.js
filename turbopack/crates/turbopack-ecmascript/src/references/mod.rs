@@ -83,8 +83,8 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
-        ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
-        find_context_file,
+        ExportUsage, FindContextFileResult, ImportUsage, ModuleEvaluationTiming, ModulePart,
+        ResolveErrorMode, find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
         pattern::Pattern,
@@ -1139,6 +1139,7 @@ async fn analyze_ecmascript_module_internal(
                     span,
                     in_try,
                     new,
+                    evaluation_timing,
                 } => {
                     let func = analysis_state
                         .link_value(take(&mut *func), eval_context.imports.get_attributes(span))
@@ -1161,6 +1162,7 @@ async fn analyze_ecmascript_module_internal(
                         new,
                         eval_context.imports.get_attributes(span),
                         call_usage,
+                        evaluation_timing,
                     )
                     .await?;
                 }
@@ -1169,6 +1171,7 @@ async fn analyze_ecmascript_module_internal(
                     ast_path,
                     span,
                     in_try,
+                    evaluation_timing,
                     export_usage,
                 } => {
                     let args = process_effect_args(args, &mut queue_stack);
@@ -1182,6 +1185,7 @@ async fn analyze_ecmascript_module_internal(
                         eval_context.imports.get_attributes(span),
                         export_usage,
                         ValueLinkContext::Default,
+                        evaluation_timing,
                     )
                     .await?;
                 }
@@ -1193,6 +1197,7 @@ async fn analyze_ecmascript_module_internal(
                     span,
                     in_try,
                     new,
+                    evaluation_timing,
                 } => {
                     let func = analysis_state
                         .link_value(
@@ -1261,6 +1266,7 @@ async fn analyze_ecmascript_module_internal(
                         // A member call (`obj.method(...)`) result isn't narrowed
                         // for require export usage.
                         ExportUsage::All,
+                        evaluation_timing,
                     )
                     .await?;
                 }
@@ -1725,6 +1731,7 @@ async fn handle_call<'a>(
     new: bool,
     attributes: &ImportAttributes,
     call_usage: ExportUsage,
+    evaluation_timing: ModuleEvaluationTiming,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1785,6 +1792,7 @@ async fn handle_call<'a>(
                         tracing_only,
                         attributes,
                         call_usage.clone(),
+                        evaluation_timing,
                     )
                     .await?;
                 }
@@ -1812,6 +1820,7 @@ async fn handle_call<'a>(
                 tracing_only,
                 attributes,
                 call_usage,
+                evaluation_timing,
             )
             .await?;
         }
@@ -1831,6 +1840,7 @@ async fn handle_dynamic_import<'a>(
     attributes: &ImportAttributes,
     export_usage: ExportUsage,
     link_context: ValueLinkContext,
+    evaluation_timing: ModuleEvaluationTiming,
 ) -> Result<()> {
     // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
     // so the import expression is preserved as-is in the output.
@@ -1877,6 +1887,7 @@ async fn handle_dynamic_import<'a>(
         export_usage,
         link_context,
         lazy_compilation,
+        evaluation_timing,
     )
     .await
 }
@@ -1896,6 +1907,7 @@ async fn handle_dynamic_import_with_linked_args(
     export_usage: ExportUsage,
     link_context: ValueLinkContext,
     lazy_compilation: bool,
+    evaluation_timing: ModuleEvaluationTiming,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1959,6 +1971,7 @@ async fn handle_dynamic_import_with_linked_args(
                 export_usage,
                 resolve_override,
                 lazy_compilation,
+                evaluation_timing,
             )
             .await?,
             analysis.intern_path(ast_path),
@@ -2005,6 +2018,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     tracing_only: bool,
     attributes: &ImportAttributes,
     call_usage: ExportUsage,
+    evaluation_timing: ModuleEvaluationTiming,
 ) -> Result<()>
 where
     'a: 'l,
@@ -2289,6 +2303,7 @@ where
                 export_usage,
                 link_context,
                 state.lazy_compilation,
+                evaluation_timing,
             )
             .await?;
         }
@@ -2334,6 +2349,7 @@ where
                         resolve_override,
                         call_usage.clone(),
                         state.cjs_tree_shaking,
+                        evaluation_timing,
                     ),
                     analysis.intern_path(ast_path),
                     link_context,
@@ -2393,6 +2409,7 @@ where
                         None,
                         call_usage.clone(),
                         state.cjs_tree_shaking,
+                        evaluation_timing,
                     ),
                     analysis.intern_path(ast_path),
                     link_context,

@@ -92,6 +92,7 @@
         span: 18..22,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -246,6 +247,7 @@
         span: 82..86,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -386,6 +388,7 @@
         span: 116..120,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "c1",
@@ -508,6 +511,7 @@
         span: 151..155,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -648,6 +652,7 @@
         span: 200..204,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "d1",
@@ -770,6 +775,7 @@
         span: 241..245,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -910,6 +916,7 @@
         span: 275..279,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "e1",
@@ -1032,6 +1039,7 @@
         span: 325..329,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -1172,6 +1180,7 @@
         span: 359..363,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "f1",
@@ -1294,6 +1303,7 @@
         span: 409..413,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -1434,6 +1444,7 @@
         span: 443..447,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "g1",
@@ -1550,6 +1561,7 @@
         span: 479..483,
         in_try: true,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -1715,6 +1727,7 @@
         span: 527..531,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "h1",
@@ -1865,6 +1878,7 @@
         span: 579..583,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [
@@ -2019,6 +2033,7 @@
         span: 614..618,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     FreeVar {
         var: "i1",
@@ -2129,6 +2144,7 @@
         span: 645..649,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Unreachable {
         start_ast_path: [

@@ -47,6 +47,7 @@
         span: 295..305,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [
@@ -189,6 +190,7 @@
         span: 77..81,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Call(
@@ -250,6 +252,7 @@
         span: 77..84,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Conditional {
         condition: Binary(
@@ -414,6 +417,7 @@
                         span: 159..167,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Evaluation,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -584,6 +588,7 @@
         span: 190..194,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -642,6 +647,7 @@
         span: 271..281,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Unreachable {
         start_ast_path: [

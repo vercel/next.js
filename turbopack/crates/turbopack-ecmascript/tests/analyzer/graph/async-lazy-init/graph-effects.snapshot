@@ -120,6 +120,7 @@
                         span: 383..402,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: Exact(
@@ -392,6 +393,7 @@
         span: 555..594,
         in_try: false,
         new: false,
+        evaluation_timing: Deferred,
     },
     Conditional {
         condition: Not(
@@ -479,6 +481,7 @@
                         span: 703..729,
                         in_try: false,
                         new: false,
+                        evaluation_timing: Deferred,
                     },
                 ],
                 range: Exact(

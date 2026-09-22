@@ -4,7 +4,7 @@ use std::{
 };
 
 use bumpalo::boxed::Box as BumpBox;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     common::{BytePos, Mark, Span, Spanned, SyntaxContext, pass::AstNodePath},
@@ -16,7 +16,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, ModuleEvaluationTiming};
 
 use crate::{
     AnalyzeMode,
@@ -96,6 +96,9 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) supports_block_scoping: bool,
 
     pub(super) eval_context: &'eval EvalContext,
+
+    /// Function-like bodies reachable from the referencing module's own evaluation path.
+    pub(super) evaluation_reachable_functions: FxHashSet<BytePos>,
 }
 
 /// Collects a static CommonJS module's droppable named exports during the main
@@ -799,6 +802,417 @@ pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstPa
     ast_path.kinds().to_vec()
 }
 
+#[derive(Default)]
+struct FunctionBindings {
+    by_binding: FxHashMap<Id, Vec<BytePos>>,
+}
+
+impl FunctionBindings {
+    fn insert(&mut self, binding: Id, boundaries: Vec<BytePos>) {
+        if !boundaries.is_empty() {
+            self.by_binding
+                .entry(binding)
+                .or_default()
+                .extend(boundaries);
+        }
+    }
+
+    fn all_boundaries(&self) -> impl Iterator<Item = BytePos> + '_ {
+        self.by_binding
+            .values()
+            .flat_map(|boundaries| boundaries.iter().copied())
+    }
+}
+
+fn class_boundaries(class: &Class) -> Vec<BytePos> {
+    let mut boundaries = Vec::new();
+    for member in &class.body {
+        match member {
+            ClassMember::Constructor(constructor) => boundaries.push(constructor.span.lo),
+            ClassMember::Method(method) => boundaries.push(method.function.span.lo),
+            ClassMember::PrivateMethod(method) => boundaries.push(method.function.span.lo),
+            ClassMember::ClassProp(prop) if !prop.is_static => boundaries.push(prop.span.lo),
+            ClassMember::PrivateProp(prop) if !prop.is_static => boundaries.push(prop.span.lo),
+            ClassMember::AutoAccessor(accessor) if !accessor.is_static => {
+                boundaries.push(accessor.span.lo)
+            }
+            _ => {}
+        }
+    }
+    boundaries
+}
+
+fn definition_boundaries(expr: &Expr) -> Vec<BytePos> {
+    match unparen(expr) {
+        Expr::Fn(expr) => vec![expr.function.span.lo],
+        Expr::Arrow(expr) => vec![expr.span.lo],
+        Expr::Class(expr) => class_boundaries(&expr.class),
+        _ => Vec::new(),
+    }
+}
+
+#[derive(Default)]
+struct FunctionBindingCollector {
+    bindings: FunctionBindings,
+}
+
+impl Visit for FunctionBindingCollector {
+    fn visit_fn_decl(&mut self, decl: &FnDecl) {
+        self.bindings
+            .insert(decl.ident.to_id(), vec![decl.function.span.lo]);
+        decl.visit_children_with(self);
+    }
+
+    fn visit_fn_expr(&mut self, expr: &FnExpr) {
+        if let Some(ident) = &expr.ident {
+            self.bindings
+                .insert(ident.to_id(), vec![expr.function.span.lo]);
+        }
+        expr.visit_children_with(self);
+    }
+
+    fn visit_class_decl(&mut self, decl: &ClassDecl) {
+        self.bindings
+            .insert(decl.ident.to_id(), class_boundaries(&decl.class));
+        decl.visit_children_with(self);
+    }
+
+    fn visit_class_expr(&mut self, expr: &ClassExpr) {
+        if let Some(ident) = &expr.ident {
+            self.bindings
+                .insert(ident.to_id(), class_boundaries(&expr.class));
+        }
+        expr.visit_children_with(self);
+    }
+
+    fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
+        if let Pat::Ident(binding) = &declarator.name
+            && let Some(init) = &declarator.init
+        {
+            self.bindings
+                .insert(binding.id.to_id(), definition_boundaries(init));
+        }
+        declarator.visit_children_with(self);
+    }
+}
+
+struct EvaluationReachabilityCollector<'a> {
+    bindings: &'a FunctionBindings,
+    current_function: Vec<BytePos>,
+    roots: FxHashSet<BytePos>,
+    calls: FxHashMap<BytePos, FxHashSet<BytePos>>,
+}
+
+impl<'a> EvaluationReachabilityCollector<'a> {
+    fn new(bindings: &'a FunctionBindings) -> Self {
+        Self {
+            bindings,
+            current_function: Vec::new(),
+            roots: FxHashSet::default(),
+            calls: FxHashMap::default(),
+        }
+    }
+
+    fn add_targets(&mut self, targets: impl IntoIterator<Item = BytePos>) {
+        if let Some(&owner) = self.current_function.last() {
+            self.calls.entry(owner).or_default().extend(targets);
+        } else {
+            self.roots.extend(targets);
+        }
+    }
+
+    fn value_boundaries(&self, expr: &Expr, boundaries: &mut Vec<BytePos>) {
+        match unparen(expr) {
+            Expr::Ident(ident) => {
+                if let Some(found) = self.bindings.by_binding.get(&ident.to_id()) {
+                    boundaries.extend(found.iter().copied());
+                }
+            }
+            Expr::Fn(expr) => boundaries.push(expr.function.span.lo),
+            Expr::Arrow(expr) => boundaries.push(expr.span.lo),
+            Expr::Class(expr) => boundaries.extend(class_boundaries(&expr.class)),
+            Expr::Member(member) => self.value_boundaries(&member.obj, boundaries),
+            Expr::Cond(cond) => {
+                self.value_boundaries(&cond.cons, boundaries);
+                self.value_boundaries(&cond.alt, boundaries);
+            }
+            Expr::Seq(seq) => {
+                for expr in &seq.exprs {
+                    self.value_boundaries(expr, boundaries);
+                }
+            }
+            Expr::Array(array) => {
+                for element in array.elems.iter().flatten() {
+                    self.value_boundaries(&element.expr, boundaries);
+                }
+            }
+            Expr::Object(object) => {
+                for prop in &object.props {
+                    let PropOrSpread::Prop(prop) = prop else {
+                        continue;
+                    };
+                    match &**prop {
+                        Prop::Shorthand(ident) => {
+                            if let Some(found) = self.bindings.by_binding.get(&ident.to_id()) {
+                                boundaries.extend(found.iter().copied());
+                            }
+                        }
+                        Prop::KeyValue(prop) => self.value_boundaries(&prop.value, boundaries),
+                        Prop::Assign(prop) => self.value_boundaries(&prop.value, boundaries),
+                        Prop::Method(prop) => boundaries.push(prop.function.span.lo),
+                        Prop::Getter(prop) => boundaries.push(prop.span.lo),
+                        Prop::Setter(prop) => boundaries.push(prop.span.lo),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn add_value(&mut self, expr: &Expr) {
+        let mut boundaries = Vec::new();
+        self.value_boundaries(expr, &mut boundaries);
+        self.add_targets(boundaries);
+    }
+
+    fn with_function(&mut self, boundary: BytePos, visit: impl FnOnce(&mut Self)) {
+        self.current_function.push(boundary);
+        visit(self);
+        self.current_function.pop();
+    }
+}
+
+impl Visit for EvaluationReachabilityCollector<'_> {
+    fn visit_function(&mut self, function: &Function) {
+        self.with_function(function.span.lo, |this| function.visit_children_with(this));
+    }
+
+    fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
+        self.with_function(expr.span.lo, |this| expr.visit_children_with(this));
+    }
+
+    fn visit_constructor(&mut self, constructor: &Constructor) {
+        self.with_function(constructor.span.lo, |this| {
+            constructor.visit_children_with(this)
+        });
+    }
+
+    fn visit_class_prop(&mut self, prop: &ClassProp) {
+        // Computed keys and decorators run when the class is defined. Only an instance value is
+        // deferred until construction.
+        prop.key.visit_with(self);
+        prop.decorators.visit_with(self);
+        prop.type_ann.visit_with(self);
+        if let Some(value) = &prop.value {
+            if prop.is_static {
+                value.visit_with(self);
+            } else {
+                self.with_function(prop.span.lo, |this| value.visit_with(this));
+            }
+        }
+    }
+
+    fn visit_private_prop(&mut self, prop: &PrivateProp) {
+        prop.key.visit_with(self);
+        prop.decorators.visit_with(self);
+        prop.type_ann.visit_with(self);
+        if let Some(value) = &prop.value {
+            if prop.is_static {
+                value.visit_with(self);
+            } else {
+                self.with_function(prop.span.lo, |this| value.visit_with(this));
+            }
+        }
+    }
+
+    fn visit_auto_accessor(&mut self, accessor: &AutoAccessor) {
+        accessor.key.visit_with(self);
+        accessor.decorators.visit_with(self);
+        accessor.type_ann.visit_with(self);
+        if let Some(value) = &accessor.value {
+            if accessor.is_static {
+                value.visit_with(self);
+            } else {
+                self.with_function(accessor.span.lo, |this| value.visit_with(this));
+            }
+        }
+    }
+
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if let Callee::Expr(callee) = &call.callee {
+            if matches!(&**callee, Expr::Ident(ident) if ident.sym == "eval") {
+                // Direct eval can reach any local binding by name.
+                self.add_targets(self.bindings.all_boundaries());
+            } else {
+                self.add_value(callee);
+            }
+        }
+        for arg in &call.args {
+            self.add_value(&arg.expr);
+        }
+        call.visit_children_with(self);
+    }
+
+    fn visit_new_expr(&mut self, call: &NewExpr) {
+        self.add_value(&call.callee);
+        if let Some(args) = &call.args {
+            for arg in args {
+                self.add_value(&arg.expr);
+            }
+        }
+        call.visit_children_with(self);
+    }
+
+    fn visit_opt_call(&mut self, call: &OptCall) {
+        self.add_value(&call.callee);
+        for arg in &call.args {
+            self.add_value(&arg.expr);
+        }
+        call.visit_children_with(self);
+    }
+
+    fn visit_tagged_tpl(&mut self, tagged: &TaggedTpl) {
+        self.add_value(&tagged.tag);
+        tagged.visit_children_with(self);
+    }
+
+    fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
+        if let Some(init) = &declarator.init
+            && definition_boundaries(init).is_empty()
+        {
+            // Aliasing or storing a callable in an unsupported container fails eager.
+            self.add_value(init);
+        }
+        declarator.visit_children_with(self);
+    }
+
+    fn visit_assign_expr(&mut self, assignment: &AssignExpr) {
+        self.add_value(&assignment.right);
+        assignment.visit_children_with(self);
+    }
+
+    fn visit_return_stmt(&mut self, statement: &ReturnStmt) {
+        if let Some(arg) = &statement.arg {
+            self.add_value(arg);
+        }
+        statement.visit_children_with(self);
+    }
+}
+
+pub(super) fn evaluation_reachable_functions(program: &Program) -> FxHashSet<BytePos> {
+    let mut binding_collector = FunctionBindingCollector::default();
+    program.visit_with(&mut binding_collector);
+
+    let mut reachability = EvaluationReachabilityCollector::new(&binding_collector.bindings);
+    program.visit_with(&mut reachability);
+
+    let mut reachable = reachability.roots;
+    let mut pending: Vec<_> = reachable.iter().copied().collect();
+    while let Some(function) = pending.pop() {
+        if let Some(callees) = reachability.calls.get(&function) {
+            for &callee in callees {
+                if reachable.insert(callee) {
+                    pending.push(callee);
+                }
+            }
+        }
+    }
+    reachable
+}
+
+/// Whether a function body might execute immediately where the function is defined.
+fn function_may_execute_at_definition(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    function_boundary: usize,
+) -> bool {
+    for parent in ast_path.iter().take(function_boundary).rev() {
+        match parent {
+            // Transparent wrappers between a function value and its consumer.
+            AstParentNodeRef::FnExpr(_, FnExprField::Function)
+            | AstParentNodeRef::DefaultDecl(_, DefaultDeclField::Fn)
+            | AstParentNodeRef::Expr(_, ExprField::Fn | ExprField::Arrow | ExprField::Paren)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+            | AstParentNodeRef::Callee(_, CalleeField::Expr)
+            | AstParentNodeRef::ExprOrSpread(_, ExprOrSpreadField::Expr) => {}
+            // These contexts store or declare the function without invoking it.
+            AstParentNodeRef::FnDecl(..)
+            | AstParentNodeRef::ClassMethod(..)
+            | AstParentNodeRef::PrivateMethod(..)
+            | AstParentNodeRef::MethodProp(..)
+            | AstParentNodeRef::GetterProp(..)
+            | AstParentNodeRef::SetterProp(..)
+            | AstParentNodeRef::VarDeclarator(_, VarDeclaratorField::Init)
+            | AstParentNodeRef::ReturnStmt(_, ReturnStmtField::Arg)
+            | AstParentNodeRef::ClassProp(_, ClassPropField::Value)
+            | AstParentNodeRef::PrivateProp(_, PrivatePropField::Value)
+            | AstParentNodeRef::AutoAccessor(_, AutoAccessorField::Value)
+            | AstParentNodeRef::ExportDefaultDecl(..)
+            | AstParentNodeRef::ExportDefaultExpr(..) => return false,
+            // Direct calls and callback arguments may execute the function synchronously.
+            AstParentNodeRef::CallExpr(_, CallExprField::Callee | CallExprField::Args(_))
+            | AstParentNodeRef::NewExpr(_, NewExprField::Callee | NewExprField::Args(_))
+            | AstParentNodeRef::TaggedTpl(_, TaggedTplField::Tag | TaggedTplField::Tpl) => {
+                return true;
+            }
+            // Unknown consumers are conservatively treated as potentially eager.
+            _ => return true,
+        }
+    }
+    true
+}
+
+/// Classifies when a call-based module load can execute relative to module evaluation.
+fn module_evaluation_timing(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    evaluation_reachable_functions: &FxHashSet<BytePos>,
+) -> ModuleEvaluationTiming {
+    for (index, parent) in ast_path.iter().enumerate().rev() {
+        match parent {
+            AstParentNodeRef::Function(function, FunctionField::Body) => {
+                if !evaluation_reachable_functions.contains(&function.span.lo)
+                    && !function_may_execute_at_definition(ast_path, index)
+                {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body) => {
+                if !evaluation_reachable_functions.contains(&expr.span.lo)
+                    && !function_may_execute_at_definition(ast_path, index)
+                {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::Constructor(constructor, ConstructorField::Body) => {
+                if !evaluation_reachable_functions.contains(&constructor.span.lo) {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::ClassProp(prop, ClassPropField::Value) => {
+                if !prop.is_static && !evaluation_reachable_functions.contains(&prop.span.lo) {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::PrivateProp(prop, PrivatePropField::Value) => {
+                if !prop.is_static && !evaluation_reachable_functions.contains(&prop.span.lo) {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::AutoAccessor(accessor, AutoAccessorField::Value) => {
+                if !accessor.is_static
+                    && !evaluation_reachable_functions.contains(&accessor.span.lo)
+                {
+                    return ModuleEvaluationTiming::Deferred;
+                }
+            }
+            AstParentNodeRef::StaticBlock(_, StaticBlockField::Body) => {
+                return ModuleEvaluationTiming::Evaluation;
+            }
+            _ => {}
+        }
+    }
+    ModuleEvaluationTiming::Evaluation
+}
+
 /// Like [`as_parent_path`], but freezes the path into an arena-allocated boxed slice.
 pub fn as_parent_path_in<'a>(
     arena: &'a Bump,
@@ -1278,6 +1692,8 @@ impl<'a> Analyzer<'a, '_> {
         cjs_export_target_arg: Option<usize>,
     ) {
         let new = n.as_new().is_some();
+        let evaluation_timing =
+            module_evaluation_timing(ast_path, &self.evaluation_reachable_functions);
         let args = BumpVec::from_iter_in(
             self.arena,
             args.enumerate().map(|(i, arg)| {
@@ -1384,6 +1800,7 @@ impl<'a> Analyzer<'a, '_> {
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span,
                     in_try: self.is_in_try(),
+                    evaluation_timing,
                     export_usage,
                 });
             }
@@ -1413,6 +1830,7 @@ impl<'a> Analyzer<'a, '_> {
                         span,
                         in_try: self.is_in_try(),
                         new,
+                        evaluation_timing,
                     });
                 } else {
                     let fn_value =
@@ -1424,6 +1842,7 @@ impl<'a> Analyzer<'a, '_> {
                         span,
                         in_try: self.is_in_try(),
                         new,
+                        evaluation_timing,
                     });
                 }
             }
@@ -1439,6 +1858,7 @@ impl<'a> Analyzer<'a, '_> {
                 span,
                 in_try: self.is_in_try(),
                 new,
+                evaluation_timing,
             }),
         }
     }
@@ -3247,4 +3667,236 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
     }
 
     None
+}
+
+#[cfg(test)]
+mod module_evaluation_timing_tests {
+    use rustc_hash::FxHashSet;
+    use swc_core::{
+        common::{BytePos, FileName, SourceMap},
+        ecma::{
+            ast::{CallExpr, Callee, EsVersion, Expr, Lit, Program},
+            parser::{Parser, StringInput, Syntax, lexer::Lexer},
+            visit::{AstNodePath, VisitAstPath, VisitWithAstPath},
+        },
+    };
+
+    use super::{ModuleEvaluationTiming, evaluation_reachable_functions, module_evaluation_timing};
+
+    struct TimingCollector {
+        evaluation_reachable_functions: FxHashSet<BytePos>,
+        timings: Vec<(String, ModuleEvaluationTiming)>,
+    }
+
+    impl VisitAstPath for TimingCollector {
+        fn visit_call_expr<'ast: 'r, 'r>(
+            &mut self,
+            node: &'ast CallExpr,
+            ast_path: &mut AstNodePath<'r>,
+        ) {
+            if matches!(&node.callee, Callee::Import(_))
+                || matches!(
+                    &node.callee,
+                    Callee::Expr(callee)
+                        if matches!(&**callee, Expr::Ident(ident) if ident.sym == "require")
+                )
+            {
+                let target = node
+                    .args
+                    .first()
+                    .and_then(|arg| match &*arg.expr {
+                        Expr::Lit(Lit::Str(value)) => {
+                            Some(value.value.to_string_lossy().into_owned())
+                        }
+                        _ => None,
+                    })
+                    .expect("timing test imports should use string literals");
+                self.timings.push((
+                    target,
+                    module_evaluation_timing(ast_path, &self.evaluation_reachable_functions),
+                ));
+            }
+            node.visit_children_with_ast_path(self, ast_path);
+        }
+    }
+
+    fn parse(code: &str) -> Program {
+        let cm = SourceMap::default();
+        let file = cm.new_source_file(FileName::Anon.into(), code.to_owned());
+        let lexer = Lexer::new(
+            Syntax::default(),
+            EsVersion::latest(),
+            StringInput::from(&*file),
+            None,
+        );
+        Parser::new_from(lexer)
+            .parse_program()
+            .expect("test input should parse")
+    }
+
+    fn collect(code: &str) -> Vec<(String, ModuleEvaluationTiming)> {
+        let program = parse(code);
+        let mut collector = TimingCollector {
+            evaluation_reachable_functions: evaluation_reachable_functions(&program),
+            timings: Vec::new(),
+        };
+        program.visit_with_ast_path(&mut collector, &mut Default::default());
+        collector.timings
+    }
+
+    fn expected(
+        timings: &[(&str, ModuleEvaluationTiming)],
+    ) -> Vec<(String, ModuleEvaluationTiming)> {
+        timings
+            .iter()
+            .map(|(target, timing)| ((*target).to_owned(), *timing))
+            .collect()
+    }
+
+    #[test]
+    fn deferred_function_and_instance_contexts() {
+        let timings = collect(
+            r#"
+            function declaration() { import('declaration') }
+            export default function () { import('default') }
+            const arrow = () => import('arrow')
+            const expression = function () { require('expression') }
+            export class Contexts {
+                field = import('field')
+                constructor() { require('constructor') }
+                method() { import('method') }
+                get loaded() { return require('getter') }
+                set loaded(value) { if (value) import('setter') }
+            }
+            "#,
+        );
+        assert_eq!(
+            timings,
+            expected(&[
+                ("declaration", ModuleEvaluationTiming::Deferred),
+                ("default", ModuleEvaluationTiming::Deferred),
+                ("arrow", ModuleEvaluationTiming::Deferred),
+                ("expression", ModuleEvaluationTiming::Deferred),
+                ("field", ModuleEvaluationTiming::Deferred),
+                ("constructor", ModuleEvaluationTiming::Deferred),
+                ("method", ModuleEvaluationTiming::Deferred),
+                ("getter", ModuleEvaluationTiming::Deferred),
+                ("setter", ModuleEvaluationTiming::Deferred),
+            ])
+        );
+    }
+
+    #[test]
+    fn evaluation_and_immediate_contexts() {
+        let timings = collect(
+            r#"
+            import('top-level-import');
+            require('top-level-require');
+            (() => import('arrow-iife'))();
+            (function () { require('function-iife') })();
+            consume(() => import('callback'));
+            new Consumer(() => require('constructor-callback'));
+            ((value) => import('tagged'))`value`;
+            consume({ callback: () => import('object') });
+            consume([() => require('array')]);
+            class Contexts {
+                static field = import('static-field')
+                static { require('static-block') }
+            }
+            "#,
+        );
+        assert_eq!(
+            timings,
+            expected(&[
+                ("top-level-import", ModuleEvaluationTiming::Evaluation),
+                ("top-level-require", ModuleEvaluationTiming::Evaluation),
+                ("arrow-iife", ModuleEvaluationTiming::Evaluation),
+                ("function-iife", ModuleEvaluationTiming::Evaluation),
+                ("callback", ModuleEvaluationTiming::Evaluation),
+                ("constructor-callback", ModuleEvaluationTiming::Evaluation),
+                ("tagged", ModuleEvaluationTiming::Evaluation),
+                ("object", ModuleEvaluationTiming::Evaluation),
+                ("array", ModuleEvaluationTiming::Evaluation),
+                ("static-field", ModuleEvaluationTiming::Evaluation),
+                ("static-block", ModuleEvaluationTiming::Evaluation),
+            ])
+        );
+    }
+
+    #[test]
+    fn locally_reachable_functions_are_evaluation_time() {
+        let timings = collect(
+            r#"
+            const arrow = () => import('arrow')
+            arrow()
+
+            declaration()
+            function declaration() { require('declaration') }
+
+            function first() { second() }
+            function second() { import('transitive') }
+            first()
+
+            const escaped = () => require('escaped')
+            consume(escaped)
+
+            const aliased = () => import('aliased')
+            const holder = { aliased }
+
+            const optional = () => require('optional')
+            optional?.()
+
+            const reflected = () => import('reflected')
+            eval('reflected()')
+
+            const computedKey = () => require('computed-key')
+            class UsesComputedKey { [computedKey()] = true }
+
+            class Eager {
+                field = import('field')
+                constructor() { require('constructor') }
+                method() { import('method') }
+            }
+            new Eager().method()
+            "#,
+        );
+        assert_eq!(
+            timings,
+            expected(&[
+                ("arrow", ModuleEvaluationTiming::Evaluation),
+                ("declaration", ModuleEvaluationTiming::Evaluation),
+                ("transitive", ModuleEvaluationTiming::Evaluation),
+                ("escaped", ModuleEvaluationTiming::Evaluation),
+                ("aliased", ModuleEvaluationTiming::Evaluation),
+                ("optional", ModuleEvaluationTiming::Evaluation),
+                ("reflected", ModuleEvaluationTiming::Evaluation),
+                ("computed-key", ModuleEvaluationTiming::Evaluation),
+                ("field", ModuleEvaluationTiming::Evaluation),
+                ("constructor", ModuleEvaluationTiming::Evaluation),
+                ("method", ModuleEvaluationTiming::Evaluation),
+            ])
+        );
+    }
+
+    #[test]
+    fn an_outer_deferred_function_keeps_reachable_inner_calls_deferred() {
+        let timings = collect(
+            r#"
+            export function later() {
+                const inner = () => import('inner')
+                inner()
+                (() => import('iife'))()
+                consume(() => require('callback'))
+            }
+            "#,
+        );
+        assert_eq!(
+            timings,
+            expected(&[
+                ("inner", ModuleEvaluationTiming::Deferred),
+                ("iife", ModuleEvaluationTiming::Deferred),
+                ("callback", ModuleEvaluationTiming::Deferred),
+            ])
+        );
+    }
 }

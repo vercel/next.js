@@ -47,6 +47,7 @@ impl ModuleReference for NextServerUtilityModuleReference {
             export: ExportUsage::Passthrough {
                 namespace_object_may_escape: true,
             },
+            evaluation_timing: Default::default(),
         }
     }
 }

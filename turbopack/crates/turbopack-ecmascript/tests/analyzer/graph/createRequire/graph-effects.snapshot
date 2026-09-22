@@ -90,6 +90,7 @@
         span: 64..81,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Module(
@@ -377,6 +378,7 @@
         span: 99..139,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -421,6 +423,7 @@
         span: 140..158,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -647,6 +650,7 @@
         span: 176..220,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -691,6 +695,7 @@
         span: 221..239,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -847,6 +852,7 @@
         span: 257..296,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -891,6 +897,7 @@
         span: 297..315,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Member {
         obj: Variable(
@@ -1118,6 +1125,7 @@
         span: 335..378,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
     Call {
         func: Variable(
@@ -1162,5 +1170,6 @@
         span: 379..399,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

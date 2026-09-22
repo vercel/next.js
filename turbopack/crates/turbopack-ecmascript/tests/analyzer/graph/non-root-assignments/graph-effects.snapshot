@@ -176,5 +176,6 @@
         span: 896..964,
         in_try: false,
         new: false,
+        evaluation_timing: Evaluation,
     },
 ]

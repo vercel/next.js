@@ -22,8 +22,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, ResolveErrorMode,
-        origin::ResolveOrigin, parse::Request,
+        BindingUsage, ExportUsage, ImportUsage, ModuleEvaluationTiming, ModuleResolveResult,
+        ResolveErrorMode, origin::ResolveOrigin, parse::Request,
     },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -106,6 +106,7 @@ pub struct CjsRequireAssetReference {
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     usage: ExportUsage,
     cjs_tree_shaking: bool,
+    evaluation_timing: ModuleEvaluationTiming,
 }
 
 impl CjsRequireAssetReference {
@@ -118,6 +119,7 @@ impl CjsRequireAssetReference {
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         usage: ExportUsage,
         cjs_tree_shaking: bool,
+        evaluation_timing: ModuleEvaluationTiming,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
@@ -128,6 +130,7 @@ impl CjsRequireAssetReference {
             resolve_override,
             usage,
             cjs_tree_shaking,
+            evaluation_timing,
         }
     }
 }
@@ -165,6 +168,7 @@ impl ModuleReference for CjsRequireAssetReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: self.usage.clone(),
+            evaluation_timing: self.evaluation_timing,
         }
     }
 

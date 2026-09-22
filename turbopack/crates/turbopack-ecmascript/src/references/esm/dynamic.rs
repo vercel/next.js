@@ -15,7 +15,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModuleEvaluationTiming, ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -48,6 +48,7 @@ pub struct EsmAsyncAssetReference {
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     /// Whether the target is compiled only after its runtime proxy is activated.
     pub lazy_compilation: bool,
+    pub evaluation_timing: ModuleEvaluationTiming,
 }
 
 impl EsmAsyncAssetReference {
@@ -62,6 +63,7 @@ impl EsmAsyncAssetReference {
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         lazy_compilation: bool,
+        evaluation_timing: ModuleEvaluationTiming,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -83,6 +85,7 @@ impl EsmAsyncAssetReference {
             export_usage,
             resolve_override,
             lazy_compilation,
+            evaluation_timing,
         })
     }
 }
@@ -126,6 +129,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         BindingUsage {
             import: Default::default(),
             export: self.export_usage.clone(),
+            evaluation_timing: self.evaluation_timing,
         }
     }
 

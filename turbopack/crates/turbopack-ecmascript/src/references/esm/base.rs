@@ -786,6 +786,7 @@ impl ModuleReference for EsmAssetReference {
                 }
                 _ => ExportUsage::All,
             },
+            evaluation_timing: Default::default(),
         }
     }
 

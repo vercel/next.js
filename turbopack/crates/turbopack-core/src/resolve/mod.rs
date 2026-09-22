@@ -138,6 +138,7 @@ impl ModuleResolveResultItem {
 pub struct BindingUsage {
     pub import: ImportUsage,
     pub export: ExportUsage,
+    pub evaluation_timing: ModuleEvaluationTiming,
 }
 
 #[turbo_tasks::value_impl]
@@ -146,6 +147,23 @@ impl BindingUsage {
     pub fn all() -> Vc<Self> {
         Self::default().cell()
     }
+}
+
+/// Defines whether following a module reference is reachable from the referencing module's own
+/// evaluation path.
+///
+/// A cyclic importer can invoke an exported function before the exporting module has completed,
+/// but that invocation belongs to the importer's evaluation path. The eager static cycle already
+/// represents that dependency for module-evaluation ordering.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Copy, Default, Hash, Serialize, Deserialize)]
+pub enum ModuleEvaluationTiming {
+    /// The reference may be followed from the referencing module's own evaluation path.
+    #[default]
+    Evaluation,
+    /// The reference is only reachable through a function-like body that the referencing module
+    /// does not invoke while evaluating.
+    Deferred,
 }
 
 /// Defines where an import is used in a module
