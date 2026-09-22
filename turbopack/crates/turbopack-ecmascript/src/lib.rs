@@ -164,35 +164,50 @@ pub enum SpecifiedModuleType {
     Debug,
     Clone,
     Copy,
-    Default,
     Deserialize,
     TraceRawVcs,
     Encode,
     Decode,
 )]
-pub enum AnalyzeMode {
-    /// For bundling only, no tracing of referenced files.
-    #[default]
-    CodeGeneration,
-    /// For bundling and finding references to external referenced files
-    CodeGenerationAndTracing,
-    /// For tracing transitive external references (i.e. no codegen).
-    Tracing,
+pub struct AnalyzeMode {
+    /// Whether code generation will be performed after analyzing.
+    pub is_codegen: bool,
+    /// Whether references to external files should be traced.
+    pub trace_file_references: bool,
+}
+
+impl Default for AnalyzeMode {
+    fn default() -> Self {
+        Self::code_generation()
+    }
 }
 
 impl AnalyzeMode {
-    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
-    pub fn is_tracing_assets(self) -> bool {
-        match self {
-            AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
-            AnalyzeMode::CodeGeneration => false,
+    pub const fn code_generation() -> Self {
+        Self {
+            is_codegen: true,
+            trace_file_references: false,
         }
     }
 
-    pub fn is_code_gen(self) -> bool {
-        match self {
-            AnalyzeMode::CodeGeneration | AnalyzeMode::CodeGenerationAndTracing => true,
-            AnalyzeMode::Tracing => false,
+    pub const fn code_generation_and_tracing() -> Self {
+        Self {
+            is_codegen: true,
+            trace_file_references: true,
+        }
+    }
+
+    pub const fn tracing_import_only() -> Self {
+        Self {
+            is_codegen: false,
+            trace_file_references: false,
+        }
+    }
+
+    pub const fn tracing() -> Self {
+        Self {
+            is_codegen: false,
+            trace_file_references: true,
         }
     }
 }
@@ -856,7 +871,9 @@ impl EcmascriptModuleAsset {
             self.ty,
             *self.transforms,
             node_env,
-            options.analyze_mode == AnalyzeMode::Tracing,
+            // When not codegen-ing at all, turn string encoding and AST parsing issues into
+            // warnings instead.
+            !options.analyze_mode.is_codegen,
             options.inline_helpers,
         ))
     }

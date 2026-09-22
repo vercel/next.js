@@ -573,9 +573,9 @@ pub async fn get_server_module_options_context(
                 .await?,
         ),
         analyze_mode: if enable_tracing {
-            AnalyzeMode::CodeGenerationAndTracing
+            AnalyzeMode::code_generation_and_tracing()
         } else {
-            AnalyzeMode::CodeGeneration
+            AnalyzeMode::code_generation()
         },
         enable_externals_tracing: if enable_tracing {
             Some(

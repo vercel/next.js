@@ -924,7 +924,7 @@ pub async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode::tracing(),
             module_rules: prune_rules,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.

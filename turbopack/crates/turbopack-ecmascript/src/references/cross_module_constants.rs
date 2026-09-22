@@ -228,7 +228,7 @@ pub async fn get_constants(
                 arena.get_or_default(),
                 program,
                 eval_context,
-                AnalyzeMode::Tracing,
+                AnalyzeMode::tracing(),
                 supports_block_scoping,
                 // This is currently ignored with cjs_tree_shaking:false
                 SpecifiedModuleType::Automatic,
