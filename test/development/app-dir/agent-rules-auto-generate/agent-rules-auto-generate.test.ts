@@ -203,7 +203,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
-    expect(content).toContain('Before the final response')
+    expect(content).toContain(
+      'Before the final response, run one reporting pass'
+    )
     expect(content).toContain(
       'In a network sandbox, retry it with network access'
     )
