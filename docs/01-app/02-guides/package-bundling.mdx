@@ -153,6 +153,14 @@ The report will open three new tabs in your browser, which you can inspect.
 
 Once you've identified a large module, the solution will depend on your use case. Below are common causes and how to fix them:
 
+<AppOnly>
+
+### Server modules in client bundles
+
+If an import trace reaches a shared value through a server-owned module, such as a database schema, move the value to an environment-neutral module and import it directly from Client Components. Then [guard the server-owned module with `server-only`](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) so later Client Component imports fail at build time. The import change removes the server module from the current client graph; the guard prevents new paths to it.
+
+</AppOnly>
+
 ### Packages with many exports
 
 If you're using a package that exports hundreds of modules (such as icon and utility libraries), you can optimize how those imports are resolved using the [`optimizePackageImports`](/docs/app/api-reference/config/next-config-js/optimizePackageImports) option in your `next.config.js` file. This option will only load the modules you _actually_ use, while still giving you the convenience of writing import statements with many named exports.
