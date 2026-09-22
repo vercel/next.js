@@ -116,22 +116,6 @@ export const styles = `
       .error-overlay-tab {
         white-space: nowrap;
       }
-
-      .nextjs-container-build-error-version-status {
-        height: auto;
-        min-height: var(--size-24);
-        font-size: var(--size-11);
-      }
-
-      [data-nextjs-version-checker] {
-        min-width: 0;
-        white-space: normal;
-        overflow-wrap: anywhere;
-      }
-
-      .version-staleness-indicator {
-        flex-shrink: 0;
-      }
     }
   }
 
