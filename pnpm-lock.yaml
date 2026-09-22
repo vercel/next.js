@@ -38,6 +38,9 @@ patchedDependencies:
   '@vercel/blob':
     hash: cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
     path: patches/@vercel__blob.patch
+  '@vercel/og@0.11.1':
+    hash: 926f99827c446e447d2120c65bdcb7c90815eb2a41c8e8dcba5357e44661141c
+    path: patches/@vercel__og@0.11.1.patch
   minizlib@3.1.0:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
     path: patches/minizlib@3.1.0.patch
@@ -255,7 +258,7 @@ importers:
         version: 3.0.0
       '@vercel/og':
         specifier: 0.11.1
-        version: 0.11.1
+        version: 0.11.1(patch_hash=926f99827c446e447d2120c65bdcb7c90815eb2a41c8e8dcba5357e44661141c)
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -24029,7 +24032,7 @@ snapshots:
       - rollup
       - supports-color
 
-  '@vercel/og@0.11.1':
+  '@vercel/og@0.11.1(patch_hash=926f99827c446e447d2120c65bdcb7c90815eb2a41c8e8dcba5357e44661141c)':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
       satori: 0.25.0
