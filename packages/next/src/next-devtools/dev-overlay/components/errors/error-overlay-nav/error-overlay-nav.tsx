@@ -107,6 +107,10 @@ export const styles = `
       .error-overlay-nav-item {
         max-width: 100%;
         padding: 0;
+
+        &[data-side='right'] {
+          margin-left: auto;
+        }
       }
 
       .error-overlay-tab {

@@ -58,6 +58,9 @@ describe('instant insights tab overlay', () => {
       return {
         leftTop: leftContent.getBoundingClientRect().top,
         rightTop: rightContent.getBoundingClientRect().top,
+        rightEdge: rightContent.getBoundingClientRect().right,
+        navRightEdge: nav.getBoundingClientRect().right,
+        navPaddingRight: parseFloat(getComputedStyle(nav).paddingRight),
         clientWidth: nav.clientWidth,
         scrollWidth: nav.scrollWidth,
       }
@@ -162,6 +165,11 @@ describe('instant insights tab overlay', () => {
       const layout = await getErrorOverlayNavLayout(browser)
       expect(layout).not.toBeNull()
       expect(Math.abs(layout!.rightTop - layout!.leftTop)).toBeLessThan(4)
+      expect(
+        Math.abs(
+          layout!.navRightEdge - layout!.rightEdge - layout!.navPaddingRight
+        )
+      ).toBeLessThan(2)
       expect(layout!.scrollWidth).toBe(layout!.clientWidth)
     })
 
@@ -171,6 +179,11 @@ describe('instant insights tab overlay', () => {
       const layout = await getErrorOverlayNavLayout(browser)
       expect(layout).not.toBeNull()
       expect(layout!.rightTop - layout!.leftTop).toBeGreaterThan(4)
+      expect(
+        Math.abs(
+          layout!.navRightEdge - layout!.rightEdge - layout!.navPaddingRight
+        )
+      ).toBeLessThan(2)
       expect(layout!.scrollWidth).toBe(layout!.clientWidth)
     })
   })
