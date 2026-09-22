@@ -76,15 +76,21 @@ describe('hydration-error-count', () => {
       `)
     }
 
+    await browser.elementByCss('[data-nextjs-dialog-error-previous]').click()
+
     expect(
       await browser.elementsByCss('[data-nextjs-hydration-diff-badge]')
     ).toHaveLength(0)
 
     expect(
+      await browser.elementByCss('[data-nextjs-hydration-diff-title]').text()
+    ).toBe('Rendered tree')
+
+    expect(
       await browser.elementsByCss(
         '[data-nextjs-container-errors-pseudo-html-collapse-button]'
       )
-    ).toHaveLength(0)
+    ).toHaveLength(1)
   })
 
   it('should have correct hydration error count for html diff', async () => {
@@ -136,13 +142,26 @@ describe('hydration-error-count', () => {
 
     expect(
       await browser.elementByCss('[data-nextjs-hydration-diff-title]').text()
-    ).toBe('Rendered tree')
+    ).toBe('client/server diff')
 
+    const collapseButton = browser.elementByCss(
+      '[data-nextjs-container-errors-pseudo-html-collapse-button]'
+    )
+    expect(await collapseButton.getAttribute('aria-expanded')).toBe('false')
     expect(
-      await browser.elementsByCss(
-        '[data-nextjs-container-errors-pseudo-html-collapse-button]'
-      )
-    ).toHaveLength(0)
+      await browser
+        .elementByCss('.nextjs__container_errors__component-stack')
+        .text()
+    ).not.toContain('RenderFromTemplateContext')
+
+    await collapseButton.click()
+
+    expect(await collapseButton.getAttribute('aria-expanded')).toBe('true')
+    expect(
+      await browser
+        .elementByCss('.nextjs__container_errors__component-stack')
+        .text()
+    ).toContain('RenderFromTemplateContext')
   })
 
   it('should display correct hydration info in each hydration error view', async () => {

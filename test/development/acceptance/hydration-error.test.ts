@@ -100,9 +100,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<main className="child">
-       + client
-       - server",
+         "componentStack": "<Mismatch>
+         <div className="parent">
+           <main className="child">
+       +     client
+       -     server",
          "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -195,8 +197,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<div className="parent">
-       + <main className="only">",
+         "componentStack": "<Mismatch>
+         <div className="parent">
+       +   <main className="only">",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -276,9 +279,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<header>
-       +second
-       -<footer className="3">",
+         "componentStack": "<Mismatch>
+         <div className="parent">
+           <header>
+       +   second
+       -   <footer className="3">",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -339,8 +344,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<div className="parent">
-       - <main className="only">",
+         "componentStack": "<Mismatch>
+         <div className="parent">
+       -   <main className="only">",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -399,8 +405,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<div className="parent">
-       - only",
+         "componentStack": "<Mismatch>
+         <div className="parent">
+       -   only",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -642,9 +649,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<header>
-       +<main className="second">
-       -<footer className="3">",
+         "componentStack": "<Suspense fallback={<p>}>
+         <header>
+       + <main className="second">
+       - <footer className="3">",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",

@@ -1,5 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
+import { CollapseIcon } from '../../icons/collapse-icon'
+
+// Keep the nearest relevant user component, the affected rows, and a closing
+// delimiter. Unrelated ancestors and internal framework frames are omitted.
 function getRenderedTreeExcerpt(lines: string[], signs: Set<string>) {
   const isRelevantLine = (line: string) =>
     !line.includes('<Next.js Internal Component>')
@@ -71,6 +75,57 @@ function getRenderedTreeExcerpt(lines: string[], signs: Set<string>) {
     return line.slice(minimumIndent)
   })
 }
+
+function renderDiffLines(lines: string[]) {
+  return lines.map((line, index) => {
+    const isDiffLine = line[0] === '+' || line[0] === '-'
+    const isHighlightedLine = line[0] === '>'
+    const hasSign = isDiffLine || isHighlightedLine
+    const sign = hasSign ? line[0] : ''
+    const signIndex = hasSign ? line.indexOf(sign) : -1
+    const [prefix, suffix] = hasSign
+      ? [line.slice(0, signIndex), line.slice(signIndex + 1)]
+      : [line, '']
+
+    if (isDiffLine) {
+      return (
+        <span
+          key={'comp-diff' + index}
+          data-nextjs-container-errors-pseudo-html-line
+          data-nextjs-container-errors-pseudo-html--diff={
+            sign === '+' ? 'add' : 'remove'
+          }
+        >
+          <span>
+            {prefix}
+            <span data-nextjs-container-errors-pseudo-html-line-sign>
+              {sign}
+            </span>
+            {suffix}
+            {'\n'}
+          </span>
+        </span>
+      )
+    }
+
+    return (
+      <span
+        data-nextjs-container-errors-pseudo-html-line
+        key={'comp-diff' + index}
+        {...(isHighlightedLine
+          ? {
+              'data-nextjs-container-errors-pseudo-html--diff': 'error',
+            }
+          : undefined)}
+      >
+        {prefix}
+        <span data-nextjs-container-errors-pseudo-html-line-sign>{sign}</span>
+        {suffix}
+        {'\n'}
+      </span>
+    )
+  })
+}
 /**
  *
  * Format component stack into pseudo HTML
@@ -124,74 +179,30 @@ export function PseudoHtmlDiff({
 }: {
   reactOutputComponentDiff: string
 }) {
-  const { hasClientServerDiff, htmlComponents } = useMemo(() => {
-    const componentStacks: React.ReactNode[] = []
-    const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
-    const containsClientServerDiff = reactComponentDiffLines.some(
-      (line) => line[0] === '+' || line[0] === '-'
-    )
-    const displayedLines = getRenderedTreeExcerpt(
-      reactComponentDiffLines,
-      new Set(containsClientServerDiff ? ['+', '-'] : ['>'])
-    )
-
-    displayedLines.forEach((line, index) => {
-      const isDiffLine = line[0] === '+' || line[0] === '-'
-      const isHighlightedLine = line[0] === '>'
-      const hasSign = isDiffLine || isHighlightedLine
-      const sign = hasSign ? line[0] : ''
-      const signIndex = hasSign ? line.indexOf(sign) : -1
-      const [prefix, suffix] = hasSign
-        ? [line.slice(0, signIndex), line.slice(signIndex + 1)]
-        : [line, '']
-
-      if (isDiffLine) {
-        componentStacks.push(
-          <span
-            key={'comp-diff' + index}
-            data-nextjs-container-errors-pseudo-html-line
-            data-nextjs-container-errors-pseudo-html--diff={
-              sign === '+' ? 'add' : 'remove'
-            }
-          >
-            <span>
-              {/* Slice 2 spaces for the icon */}
-              {prefix}
-              <span data-nextjs-container-errors-pseudo-html-line-sign>
-                {sign}
-              </span>
-              {suffix}
-              {'\n'}
-            </span>
-          </span>
-        )
-      } else {
-        // In general, if it's not collapsed, show the whole diff
-        componentStacks.push(
-          <span
-            data-nextjs-container-errors-pseudo-html-line
-            key={'comp-diff' + index}
-            {...(isHighlightedLine
-              ? {
-                  'data-nextjs-container-errors-pseudo-html--diff': 'error',
-                }
-              : undefined)}
-          >
-            {prefix}
-            <span data-nextjs-container-errors-pseudo-html-line-sign>
-              {sign}
-            </span>
-            {suffix}
-            {'\n'}
-          </span>
-        )
+  const [isExpanded, setIsExpanded] = useState(false)
+  const { hasClientServerDiff, excerptComponents, fullComponents } =
+    useMemo(() => {
+      const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
+      let containsClientServerDiff = false
+      for (const line of reactComponentDiffLines) {
+        if (line[0] === '+' || line[0] === '-') {
+          containsClientServerDiff = true
+          break
+        }
       }
-    })
-    return {
-      hasClientServerDiff: containsClientServerDiff,
-      htmlComponents: componentStacks,
-    }
-  }, [reactOutputComponentDiff])
+      const displayedLines = getRenderedTreeExcerpt(
+        reactComponentDiffLines,
+        new Set(containsClientServerDiff ? ['+', '-'] : ['>'])
+      )
+
+      return {
+        hasClientServerDiff: containsClientServerDiff,
+        excerptComponents: renderDiffLines(displayedLines),
+        fullComponents: renderDiffLines(reactComponentDiffLines),
+      }
+    }, [reactOutputComponentDiff])
+
+  const title = hasClientServerDiff ? 'client/server diff' : 'Rendered tree'
 
   return (
     <div
@@ -201,7 +212,16 @@ export function PseudoHtmlDiff({
       }
     >
       <div data-nextjs-hydration-diff-header>
-        <div data-nextjs-hydration-diff-title>Rendered tree</div>
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${title}`}
+          data-nextjs-container-errors-pseudo-html-collapse-button
+          onClick={() => setIsExpanded((expanded) => !expanded)}
+        >
+          <CollapseIcon collapsed={!isExpanded} />
+          <span data-nextjs-hydration-diff-title>{title}</span>
+        </button>
         {hasClientServerDiff && (
           <div data-nextjs-hydration-diff-badge>
             <span data-nextjs-hydration-diff-badge-item="client">
@@ -214,7 +234,7 @@ export function PseudoHtmlDiff({
         )}
       </div>
       <pre className="nextjs__container_errors__component-stack">
-        <code>{htmlComponents}</code>
+        <code>{isExpanded ? fullComponents : excerptComponents}</code>
       </pre>
     </div>
   )

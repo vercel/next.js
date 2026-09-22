@@ -99,6 +99,18 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     font-family: var(--font-stack-sans);
     font-size: var(--size-12);
   }
+  [data-nextjs-container-errors-pseudo-html-collapse-button] {
+    all: unset;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border-radius: var(--rounded-md);
+  }
+  [data-nextjs-container-errors-pseudo-html-collapse-button]:focus-visible {
+    outline: 2px solid var(--color-blue-600);
+    outline-offset: 2px;
+  }
   [data-nextjs-container-errors-pseudo-html--diff] {
     scroll-snap-align: center;
   }
