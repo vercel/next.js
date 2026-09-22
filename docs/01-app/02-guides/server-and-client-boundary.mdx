@@ -159,9 +159,9 @@ You mark a Client Component with the [`'use client'`](/docs/app/api-reference/di
 - **Code** crosses through imports. Whatever a Client Component imports is pulled into the [client bundle](/docs/app/glossary#client-bundles).
 - **Data** crosses through props, and it must be [serializable](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so functions like event handlers cannot cross.
 
-Keep database clients, database schemas, and other server implementation behind an `import 'server-only'` in the module that owns that code. Importing a module from a Server Component does not prevent a Client Component from importing it later. The guard makes that accidental client import a build error, even when the module contains no private environment variables.
+Importing a module from a Server Component doesn't prevent Client Components from importing it. To keep database clients, database schemas, and other server implementation on the server, add `import 'server-only'` to the module containing that code. Next.js reports a build error if a Client Component imports it, directly or through another module.
 
-Keep shared values and validators in environment-neutral modules that Client Components can import directly. If a client imports a shared value through a server module, fix that import and guard the server module. The import change removes the server dependency from the client graph; the guard prevents future client imports. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example.
+Keep shared values and validators in separate modules that can run in either environment. Client Components can import these modules directly without importing the server code. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example of using `server-only`.
 
 > **Good to know:**
 >
