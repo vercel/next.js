@@ -6,7 +6,7 @@ jest.mock('execa', () => jest.fn())
 
 it('shuts down a real subprocess after collecting output', async () => {
   const realExeca = jest.requireActual<typeof execa>('execa')
-  let child: ReturnType<typeof execa> | undefined
+  let child: execa.ExecaChildProcess<string> | undefined
   jest.mocked(execa).mockImplementationOnce(() => {
     child = realExeca(
       process.execPath,
@@ -18,7 +18,9 @@ it('shuts down a real subprocess after collecting output', async () => {
       ],
       { buffer: false }
     )
-    return child
+    // Jest models the last execa overload (Buffer output), while this call
+    // uses its default string encoding.
+    return child as unknown as ReturnType<typeof execa>
   })
   let onMessage: (message: string) => void
   const message = new Promise<string>((resolve) => {
