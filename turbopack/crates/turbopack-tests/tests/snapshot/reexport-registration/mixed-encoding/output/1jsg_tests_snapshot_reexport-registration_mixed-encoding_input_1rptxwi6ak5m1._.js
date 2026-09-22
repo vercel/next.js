@@ -15,18 +15,18 @@ const b = 'b-value';
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
+__turbopack_context__.s([
+    "b",
+    ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$first$2e$js__$5b$test$5d$__$28$ecmascript$29$__["b"],
+    "c",
+    ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$second$2e$js__$5b$test$5d$__$28$ecmascript$29$__["c"],
+    "has,comma",
+    ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$first$2e$js__$5b$test$5d$__$28$ecmascript$29$__["has,comma"]
+]);
 // The first group contains a comma and needs pair encoding. The second is
 // comma-free and should still use compact encoding in the same registration.
-__turbopack_context__.S([
-    "[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/first.js [test] (ecmascript)",
-    "b",
-    "b",
-    "has,comma",
-    "has,comma",
-    0,
-    "[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/second.js [test] (ecmascript)",
-    "c,c"
-]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$first$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/first.js [test] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$mixed$2d$encoding$2f$input$2f$second$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/second.js [test] (ecmascript)");
 ;
 ;
 }),
