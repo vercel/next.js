@@ -97,21 +97,16 @@ export const styles = `
 
   @media (max-width: 767px) {
     [data-nextjs-error-overlay-nav] {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      column-gap: 8px;
+      row-gap: 12px;
+      box-sizing: border-box;
+      padding: 6px 12px;
 
       .error-overlay-nav-item {
         max-width: 100%;
-
-        &[data-side='left'] {
-          padding-right: 12px;
-        }
-
-        &[data-side='right'] {
-          padding-left: 12px;
-          padding-top: 0;
-        }
+        padding: 0;
       }
 
       .error-overlay-tab {
