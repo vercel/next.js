@@ -135,16 +135,20 @@ const requestedPackage = invocation?.requestedPackage
 const executable = invocation?.executable
 const invocationArgs = invocation?.args
 
+const skillDirectory = config.skillDirectories?.[invocationArgs?.[1]]
 if (
-  config.skillInstructions &&
+  skillDirectory &&
   invocationArgs?.[0] === 'use' &&
-  requestedPackage?.startsWith('skills@')
+  requestedPackage?.startsWith('skills@') &&
+  (!executable || executable === 'skills')
 ) {
   appendFileSync(
     join(tools, 'skill-runs.jsonl'),
     JSON.stringify({ requestedPackage, args: invocationArgs }) + '\n'
   )
-  process.stdout.write(readFileSync(config.skillInstructions, 'utf8'))
+  process.stdout.write(
+    `${readFileSync(join(skillDirectory, 'SKILL.md'), 'utf8')}\nSupporting files for this skill are in:\n${skillDirectory}\n\nWhen the SKILL.md references relative paths, read them from that directory.\n`
+  )
   process.exit(0)
 }
 
@@ -152,7 +156,7 @@ if (
   invocationArgs &&
   (requestedPackage === '@next/codemod@canary' ||
     requestedPackage === `@next/codemod@${config.codemodVersion}` ||
-    (config.skillInstructions &&
+    (Object.keys(config.skillDirectories ?? {}).length > 0 &&
       requestedPackage === '@next/codemod@latest')) &&
   (!executable || ['codemod', 'next-codemod'].includes(executable))
 ) {

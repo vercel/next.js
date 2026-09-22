@@ -5,15 +5,15 @@ import { setupUpgradeScenario } from '../security/setup'
 export async function setupFuture(sandbox: Sandbox) {
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
   const scenarios: Record<string, { source: string; target: string }> = {
-    'future-cache-components': {
+    future: {
       source: '13.5.11',
       target: '16.3.5',
     },
-    'future-cache-components-same-version': {
+    'future-same-version': {
       source: '16.3.5',
       target: '16.3.5',
     },
-    'future-cache-components-nudge': {
+    'future-nudge': {
       source: '16.3.5',
       target: '16.3.5',
     },
@@ -22,18 +22,22 @@ export async function setupFuture(sandbox: Sandbox) {
   if (!scenario) throw new Error('Unknown Future Defaults eval case')
 
   await setupUpgradeScenario(sandbox, {
-    fixturePrefix: 'future-',
+    fixturePrefix: 'future',
     assessmentPath: join(__dirname, 'assessment.mjs'),
     assessment: scenario,
     installedVersion: undefined,
-    candidateScripts:
-      fixture === 'future-cache-components-nudge' ? ['dev'] : undefined,
-    skillInstructionsPath:
-      fixture === 'future-cache-components-nudge'
+    candidateScripts: fixture === 'future-nudge' ? ['dev'] : undefined,
+    skillSources:
+      fixture === 'future-nudge'
         ? undefined
-        : join(
-            __dirname,
-            '../../../skills/next-cache-components-adoption/SKILL.md'
+        : Object.fromEntries(
+            [
+              'next-cache-components-adoption',
+              'next-partial-prefetching-adoption',
+            ].map((skill) => [
+              `https://github.com/vercel/next.js/tree/v${scenario.target}/skills/${skill}`,
+              join(__dirname, '../../../skills', skill),
+            ])
           ),
   })
 }
