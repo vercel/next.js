@@ -47,6 +47,8 @@ function buildAgentFeedbackBlock(): string {
 
 ## Report Next.js feedback
 
+Agent feedback is enabled independently of \`agentRules\`; follow this block even when agent rules are disabled.
+
 During the current user request, retain anonymized facts about Next.js issues that cause a meaningful detour or are likely to recur, including crashes, unexpected slowness, incorrect behavior, misleading diagnostics, documentation gaps, CLI or upgrade failures, and non-obvious workarounds. Ignore routine debugging and unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
 Continue the current user request without reporting immediately.
