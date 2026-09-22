@@ -199,7 +199,17 @@ export default async function Page({ params }) {
 
 `ProductCard` is a Client Component. Passing `product={product}` would also send the supplier cost, even if its prop type omitted that field. TypeScript types and hidden UI do not remove fields from the serialized data.
 
-Protect the database module with `import 'server-only'` as well. The guard prevents client imports of server code; selecting props controls which data reaches the browser. A successful build alone does not verify that props contain no private data.
+Also add this import to the existing module that owns your database client or queries. It protects against future client imports, even when the current client imports are safe:
+
+```ts filename="lib/db.ts" switcher
+import 'server-only'
+```
+
+```js filename="lib/db.js" switcher
+import 'server-only'
+```
+
+The guard prevents client imports of server code; selecting props controls which data reaches the browser. A successful build alone does not verify that props contain no private data.
 
 ### Passing functions and rendered elements
 
