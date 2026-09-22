@@ -20,7 +20,13 @@ function getRenderedTreeExcerpt(lines: string[], signs: Set<string>) {
     }
   }
 
-  const lastHighlightedLine = lines.findLastIndex((line) => signs.has(line[0]))
+  let lastHighlightedLine = -1
+  for (let index = lines.length - 1; index >= 0; index--) {
+    if (signs.has(lines[index][0])) {
+      lastHighlightedLine = index
+      break
+    }
+  }
   const possibleClosingLine = lines[lastHighlightedLine + 1]
   const closingLine = /^\s*\/?>(?:\s*)$/.test(possibleClosingLine ?? '')
     ? possibleClosingLine
