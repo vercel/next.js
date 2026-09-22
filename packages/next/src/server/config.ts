@@ -1265,7 +1265,7 @@ function assignDefaultsAndValidate(
 
   // Next.js takes full ownership of distDir and deletes its contents, so it
   // must stay within the application directory or the workspace containing it.
-  verifyDistDirIsInsideWorkspace(resolve(dir, result.distDir), dir, rootDir)
+  verifyDistDirIsInsideWorkspace(resolve(dir, result.distDir), dir, repoRoot)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 

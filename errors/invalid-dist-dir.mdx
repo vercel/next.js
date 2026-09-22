@@ -5,8 +5,9 @@ title: Invalid distDir
 ## Why This Error Occurred
 
 Next.js takes full ownership of the directory configured as `distDir` (`.next` by
-default) and deletes its contents on every build and dev session. To protect against
-data loss, it refuses to clean the directory when either of the following is true:
+default). Builds and development sessions write output there and normally delete stale
+contents. To protect against data loss, Next.js refuses to use the directory when either
+of the following is true:
 
 - `distDir` resolves outside both the application directory (the one holding
   `next.config.js`) and the workspace root containing it. This is usually a relative

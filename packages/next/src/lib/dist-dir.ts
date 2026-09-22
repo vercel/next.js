@@ -9,7 +9,7 @@ import { recursiveDeleteSyncWithAsyncRetries } from './recursive-delete'
  *
  * - **application directory** (`dir` elsewhere): `<repo>/web/site`, holding
  *   `next.config.js`.
- * - **workspace root** (`rootDir` / `repoRoot` elsewhere): `<repo>`.
+ * - **workspace root** (`repoRoot` elsewhere): `<repo>`.
  *
  * `distDir` resolves relative to the application directory but may point
  * anywhere in the workspace: an Nx-style monorepo builds `apps/web` into
@@ -32,22 +32,13 @@ const LEGACY_DIST_DIR_MARKERS: ReadonlyArray<string> = [
   'BUILD_ID',
   'trace',
   'trace-build',
-  'cache',
-  'dev',
-  'diagnostics',
+  // Not generic names such as `cache`, `dev`, or `diagnostics`: unrelated
+  // directories may contain them, so they are not sufficient ownership proof.
   // Not `package.json`: every JS project has one, so accepting it would let
   // `distDir: '.'` delete an application's own source.
   // Not `lock`: `experimental.lockDistDir` writes it on startup, so accepting
   // it would make every directory look like ours.
 ]
-
-/** Files that can be present in an otherwise-empty directory. */
-const PLACEHOLDER_ENTRIES: ReadonlySet<string> = new Set([
-  '.gitkeep',
-  '.keep',
-  '.gitignore',
-  '.DS_Store',
-])
 
 export class DistDirOutsideWorkspaceError extends Error {
   constructor(distDir: string, appDir: string, workspaceRoot: string) {
@@ -90,9 +81,8 @@ function isStrictlyInside(ancestor: string, descendant: string): boolean {
  *
  * This is the primary defense against a `distDir` that would destroy user
  * data, and the only one that catches a directory legitimately holding a
- * `package.json`. Either boundary is enough, so a `workspaceRoot` unrelated to
- * `appDir` — as `outputFileTracingRoot` may be — cannot reject a valid
- * `distDir`.
+ * `package.json`. Either boundary is enough, so an in-app `distDir` remains
+ * valid even if the inferred workspace root is unrelated.
  *
  * Runs during config validation, so it applies to every command.
  *
@@ -124,8 +114,8 @@ export function verifyDistDirIsInsideWorkspace(
  * directory must be missing, empty, or carry a marker showing Next.js created
  * it.
  *
- * Call this before acquiring the `distDir` lock, which would otherwise make
- * any directory look owned.
+ * Call this before telemetry, caching, locking, or anything else writes into
+ * `distDir`, which could otherwise make an unrelated directory look owned.
  */
 export function verifyDistDir(distDir: string): void {
   const resolvedDistDir = path.resolve(distDir)
@@ -149,21 +139,18 @@ export function verifyDistDir(distDir: string): void {
     return
   }
 
-  // An empty distDir is safe. `.gitkeep` and friends are how an empty build
-  // directory gets committed, so they still count as empty.
-  const isEmpty = entries.every((entry) => PLACEHOLDER_ENTRIES.has(entry))
-  if (!isEmpty) {
+  if (entries.length !== 0) {
     throw new UnrecognizedDistDirError(resolvedDistDir)
   }
 }
 
 /**
- * Deletes the contents of `distDir` and marks it as owned by Next.js, so a
- * run interrupted partway still leaves a directory we can clean next time.
+ * Marks `distDir` as owned by Next.js, then deletes its other contents. The
+ * marker is retained so a run interrupted partway remains safe to resume.
  *
- * `distDir` must already have passed {@link verifyDistDir}. The two are
- * separate calls because `experimental.lockDistDir` writes into `distDir`
- * between them, and that write would otherwise make any directory look owned.
+ * `distDir` must already have passed {@link verifyDistDir}. Verification is a
+ * separate call so it can run before telemetry, caching, and locking write into
+ * the directory.
  *
  * @param retain Entries to keep, relative to `distDir`. Which ones survive
  * differs per caller, so each passes its own set.
@@ -172,8 +159,10 @@ export async function cleanDistDir(
   distDir: string,
   retain: Iterable<string>
 ): Promise<void> {
-  await recursiveDeleteSyncWithAsyncRetries(distDir, new Set(retain))
-
   await fs.promises.mkdir(distDir, { recursive: true })
   await fs.promises.writeFile(path.join(distDir, DIST_DIR_MARKER), '')
+
+  const retained = new Set(retain)
+  retained.add(DIST_DIR_MARKER)
+  await recursiveDeleteSyncWithAsyncRetries(distDir, retained)
 }

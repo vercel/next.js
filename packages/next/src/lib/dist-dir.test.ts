@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'fs/promises'
 import * as os from 'os'
 import { join, resolve } from 'path'
+import { recursiveDeleteSyncWithAsyncRetries } from './recursive-delete'
 import {
   verifyDistDirIsInsideWorkspace,
   verifyDistDir,
@@ -9,6 +10,16 @@ import {
   UnrecognizedDistDirError,
   DIST_DIR_MARKER,
 } from './dist-dir'
+
+jest.mock('./recursive-delete', () => {
+  const actual = jest.requireActual('./recursive-delete')
+  return {
+    ...actual,
+    recursiveDeleteSyncWithAsyncRetries: jest.fn(
+      actual.recursiveDeleteSyncWithAsyncRetries
+    ),
+  }
+})
 
 describe('verifyDistDirIsInsideWorkspace', () => {
   // An app at <repo>/web/site, inside a monorepo rooted at <repo>.
@@ -45,8 +56,7 @@ describe('verifyDistDirIsInsideWorkspace', () => {
     ).toThrow(DistDirOutsideWorkspaceError)
   })
 
-  it('allows an in-app distDir when the workspace root is unrelated', () => {
-    // `outputFileTracingRoot` may point outside the app entirely.
+  it('allows an in-app distDir when the inferred workspace root is unrelated', () => {
     expect(() =>
       verifyDistDirIsInsideWorkspace(`${appDir}/.next`, appDir, '/custom/root')
     ).not.toThrow()
@@ -72,14 +82,7 @@ describe('verifyDistDir', () => {
     expect(() => verifyDistDir(distDir)).not.toThrow()
   })
 
-  it('allows a directory holding only a placeholder', async () => {
-    // How an empty build directory gets committed to git.
-    await writeFile(join(distDir, '.gitkeep'), '')
-
-    expect(() => verifyDistDir(distDir)).not.toThrow()
-  })
-
-  it.each([DIST_DIR_MARKER, 'BUILD_ID', 'cache'])(
+  it.each([DIST_DIR_MARKER, 'BUILD_ID', 'trace', 'trace-build'])(
     'allows a directory marked by %s',
     async (marker) => {
       await writeFile(join(distDir, marker), '')
@@ -91,7 +94,14 @@ describe('verifyDistDir', () => {
 
   it.each([
     ['package.json', 'every JS project has one'],
-    ['lock', 'lockDistDir writes it before this check runs'],
+    ['lock', 'lockDistDir writes it on startup'],
+    ['cache', 'generic directory name'],
+    ['dev', 'generic directory name'],
+    ['diagnostics', 'generic directory name'],
+    ['.gitkeep', 'placeholder file'],
+    ['.keep', 'placeholder file'],
+    ['.gitignore', 'placeholder file'],
+    ['.DS_Store', 'placeholder file'],
   ])('does not accept %s as a marker (%s)', async (name) => {
     await writeFile(join(distDir, name), '{}')
     await writeFile(join(distDir, 'source.js'), '')
@@ -137,5 +147,21 @@ describe('cleanDistDir', () => {
     await cleanDistDir(missing, [])
 
     expect(await readdir(missing)).toEqual([DIST_DIR_MARKER])
+  })
+
+  it('retains the marker when cleanup fails partway', async () => {
+    const cleanupError = new Error('cleanup failed')
+    await writeFile(join(distDir, 'stale.js'), '')
+    jest
+      .mocked(recursiveDeleteSyncWithAsyncRetries)
+      .mockImplementationOnce(async (_dir, retain) => {
+        expect(await readdir(distDir)).toContain(DIST_DIR_MARKER)
+        expect(retain?.has(DIST_DIR_MARKER)).toBe(true)
+        await rm(join(distDir, 'stale.js'))
+        throw cleanupError
+      })
+
+    await expect(cleanDistDir(distDir, [])).rejects.toBe(cleanupError)
+    expect(await readdir(distDir)).toEqual([DIST_DIR_MARKER])
   })
 })

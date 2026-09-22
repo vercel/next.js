@@ -1202,6 +1202,11 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
+      // `distDir` must be a directory Next.js owns regardless of what we go on
+      // to do with it, so this is not conditional on cleaning. This must run
+      // before telemetry or anything else writes into the directory.
+      verifyDistDir(distDir)
+
       // Check for build cache before initializing telemetry, because the
       // Telemetry constructor creates the cache directory in CI environments.
       const cacheDir = getCacheDir(distDir)
@@ -1221,11 +1226,6 @@ export default async function build(
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
-
-      // `distDir` must be a directory Next.js owns regardless of what we go on
-      // to do with it, so this is not conditional on cleaning. Must run before
-      // the lock file is written, which would make any directory look ours.
-      verifyDistDir(distDir)
 
       const buildId = await getBuildId(
         isGenerateMode,

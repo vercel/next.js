@@ -23,7 +23,7 @@ describe('invalid distDir', () => {
   it('refuses a distDir outside the application and workspace', async () => {
     await next.patchFile(
       'next.config.js',
-      `module.exports = { distDir: '../..' }`,
+      `module.exports = { distDir: '../..', outputFileTracingRoot: '/' }`,
       async () => {
         const { cliOutput } = await next.build()
 
@@ -77,8 +77,25 @@ describe('invalid distDir', () => {
     )
   })
 
-  // `cleanDistDir: false` is a legacy escape hatch from Next 11, when cleaning
-  // became the default. It skips cleaning entirely, so the guard never runs.
+  it('refuses an unrecognized distDir before telemetry writes in CI', async () => {
+    await next.patchFile('not-a-build-dir/important.txt', 'user data')
+
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = { distDir: 'not-a-build-dir' }`,
+      async () => {
+        const { cliOutput } = await next.build({ env: { CI: '1' } })
+
+        expect(cliOutput).toContain(
+          'does not appear to have been created by Next.js'
+        )
+        expect(await next.readFile('not-a-build-dir/important.txt')).toBe(
+          'user data'
+        )
+      }
+    )
+  })
+
   it('refuses an unrecognized distDir in generate mode', async () => {
     // Generate mode resumes from a distDir a previous compile produced, so it
     // never cleans. It should still report a misconfigured distDir rather than
@@ -149,9 +166,7 @@ describe('invalid distDir', () => {
     )
   })
 
-  it('cleans an empty distDir', async () => {
-    await next.patchFile('not-a-build-dir/.gitkeep', '')
-
+  it('builds into a missing distDir', async () => {
     await next.patchFile(
       'next.config.js',
       `module.exports = { distDir: 'not-a-build-dir' }`,
