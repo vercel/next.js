@@ -1,0 +1,10 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/node_modules/package-intermediate-ambiguous-dynamic-side-effect/commonjs.js  unexpected export *
+  
+  export * used with module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/node_modules/package-intermediate-ambiguous-dynamic-side-effect/commonjs.js [test] (ecmascript) which is a CommonJS module with exports only available at runtime
+  List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/node_modules/package-intermediate-ambiguous-dynamic-side-effect/commonjs.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/reexport-side-effects/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/reexport-side-effects/input/index.js
