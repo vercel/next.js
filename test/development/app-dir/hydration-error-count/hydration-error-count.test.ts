@@ -93,9 +93,10 @@ describe('hydration-error-count', () => {
     if (process.env.__NEXT_CACHE_COMPONENTS) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "<p>
-       + client
-       - server",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+         <p>
+       +   client
+       -   server",
          "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -111,9 +112,10 @@ describe('hydration-error-count', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "<p>
-       + client
-       - server",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+         <p>
+       +   client
+       -   server",
          "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -166,10 +168,11 @@ describe('hydration-error-count', () => {
            ],
          },
          {
-           "componentStack": "<p
-       + className="client"
-       - className="server"
-       >",
+           "componentStack": "<Page params={Promise} searchParams={Promise}>
+         <p
+       +   className="client"
+       -   className="server"
+         >",
            "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -203,10 +206,11 @@ describe('hydration-error-count', () => {
            ],
          },
          {
-           "componentStack": "<p
-       + className="client"
-       - className="server"
-       >",
+           "componentStack": "<Page params={Promise} searchParams={Promise}>
+         <p
+       +   className="client"
+       -   className="server"
+         >",
            "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
            "environmentLabel": null,
            "label": "Recoverable Error",

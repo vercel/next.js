@@ -1,45 +1,67 @@
 import { useMemo } from 'react'
 
 function getRenderedTreeExcerpt(lines: string[], signs: Set<string>) {
-  const firstHighlightedLine = lines.findIndex((line) => signs.has(line[0]))
+  const isRelevantLine = (line: string) =>
+    !line.includes('<Next.js Internal Component>')
+  const isHighlightedLine = (line: string) =>
+    signs.has(line[0]) && isRelevantLine(line)
+  const contextLineLimit = signs.has('+') ? 3 : 1
+  const contextLines: string[] = []
+  const excerpt: string[] = []
+  let foundHighlightedLine = false
+  let lastHighlightedLine = -1
 
-  if (firstHighlightedLine === -1) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+
+    if (isHighlightedLine(line)) {
+      if (!foundHighlightedLine) {
+        for (const contextLine of contextLines) {
+          excerpt.push(contextLine)
+        }
+        foundHighlightedLine = true
+      }
+
+      excerpt.push(line)
+      lastHighlightedLine = index
+      continue
+    }
+
+    if (foundHighlightedLine) {
+      continue
+    }
+
+    const trimmedLine = line.trim()
+
+    if (trimmedLine !== '' && trimmedLine !== '...' && isRelevantLine(line)) {
+      if (/^\s*<[A-Z]/.test(line)) {
+        contextLines.length = 0
+      }
+
+      contextLines.push(line)
+      if (contextLines.length > contextLineLimit) {
+        contextLines.shift()
+      }
+    }
+  }
+
+  if (!foundHighlightedLine) {
     return lines
   }
 
-  const highlightedLines = lines.filter((line) => signs.has(line[0]))
-  let parentLine: string | undefined
-
-  for (let index = firstHighlightedLine - 1; index >= 0; index--) {
-    const line = lines[index]
-    const trimmedLine = line.trim()
-
-    if (trimmedLine !== '' && trimmedLine !== '...') {
-      parentLine = line
-      break
-    }
-  }
-
-  let lastHighlightedLine = -1
-  for (let index = lines.length - 1; index >= 0; index--) {
-    if (signs.has(lines[index][0])) {
-      lastHighlightedLine = index
-      break
-    }
-  }
   const possibleClosingLine = lines[lastHighlightedLine + 1]
-  const closingLine = /^\s*\/?>(?:\s*)$/.test(possibleClosingLine ?? '')
-    ? possibleClosingLine
-    : undefined
-  const excerpt = [parentLine, ...highlightedLines, closingLine].filter(
-    (line): line is string => line !== undefined
-  )
-  const minimumIndent = Math.min(
-    ...excerpt.map((line) => {
-      const content = signs.has(line[0]) ? line.slice(1) : line
-      return content.length - content.trimStart().length
-    })
-  )
+  if (/^\s*\/?>(?:\s*)$/.test(possibleClosingLine ?? '')) {
+    excerpt.push(possibleClosingLine)
+  }
+
+  let minimumIndent = Infinity
+  for (const line of excerpt) {
+    const content = signs.has(line[0]) ? line.slice(1) : line
+    const indent = content.length - content.trimStart().length
+    if (indent < minimumIndent) {
+      minimumIndent = indent
+    }
+  }
 
   return excerpt.map((line) => {
     if (signs.has(line[0])) {
