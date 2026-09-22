@@ -165,9 +165,13 @@ Keep shared values and validators in separate modules that can run in either env
 
 ### Adding interactivity to an existing component
 
-Adding `'use client'` changes how a component receives data. A record passed between Server Components stays on the server. Passing that same record to a Client Component sends all its fields to the browser, including fields the component never renders.
+Before adding `'use client'` to an existing component, review both its imports and the data its callers pass to it:
 
-Review the component's callers when moving this boundary. Select the fields needed by the UI on the server, after checking that the user may access them. For example, a product record may include an internal supplier cost. Pass the public name and price to an interactive product card instead of the complete record:
+1. **Protect database modules.** Add `import 'server-only'` to the existing module that owns the database client or queries, even if no Client Component currently imports it. This makes future accidental client imports fail at build time. Next.js handles this import internally; [installing the package is optional](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning).
+2. **Separate shared code.** Import constants, types, and validators from modules that do not import database or session code. Marking a shared validator `server-only` would prevent using it in the browser.
+3. **Select safe props on the server.** Review every caller of the component. A record passed between Server Components stays on the server, but passing it to a Client Component sends all its fields to the browser. Check access and select only the fields the UI needs before passing them.
+
+For example, a product record may include an internal supplier cost. Pass the public name and price to an interactive product card instead of the complete record:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 import { getProduct } from '@/lib/products'
@@ -199,17 +203,7 @@ export default async function Page({ params }) {
 
 `ProductCard` is a Client Component. Passing `product={product}` would also send the supplier cost, even if its prop type omitted that field. TypeScript types and hidden UI do not remove fields from the serialized data.
 
-Also add this import to the existing module that owns your database client or queries. It protects against future client imports, even when the current client imports are safe:
-
-```ts filename="lib/db.ts" switcher
-import 'server-only'
-```
-
-```js filename="lib/db.js" switcher
-import 'server-only'
-```
-
-Next.js handles `server-only` imports internally, so [installing the package is optional](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning). The guard prevents client imports of server code; selecting props controls which data reaches the browser. A successful build alone does not verify that props contain no private data.
+The `server-only` guard protects code imports; it does not filter props. A successful build alone does not verify that props contain no private data.
 
 ### Passing functions and rendered elements
 
