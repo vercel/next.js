@@ -156,7 +156,11 @@ async function judge(
   } catch {
     throw new Error('[grader infrastructure] Invalid JSON verdict')
   }
-  if (typeof verdict.pass !== 'boolean' || typeof verdict.reason !== 'string') {
+  if (
+    !verdict ||
+    typeof verdict.pass !== 'boolean' ||
+    typeof verdict.reason !== 'string'
+  ) {
     throw new Error('[grader infrastructure] Invalid verdict schema')
   }
   expect(verdict.pass, verdict.reason).toBe(true)
