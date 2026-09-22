@@ -699,6 +699,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_cpu_bound_tasks() {
         struct ExecutorImpl;
 
@@ -751,6 +752,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_cpu_bound_with_yield_tasks() {
         struct ExecutorImpl;
 
@@ -804,6 +806,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_waiting_tasks() {
         struct ExecutorImpl;
 
@@ -855,6 +858,7 @@ mod tests {
     /// Each task waits on two barriers (start, finish). The release sequence
     /// controls execution order deterministically.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn test_mixed_cpu_bound_and_waiting_tasks() {
         tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
