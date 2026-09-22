@@ -8,13 +8,11 @@ import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
+import { loadUpgradeConfig, UpgradeTelemetry } from '../lib/upgrade/telemetry'
+import { UpgradePreparationError } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
-import loadConfig from '../server/config'
-import { normalizeConfig } from '../server/config-shared'
-import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 
 type NextUpgradeOptions = {
   revision: string
@@ -128,15 +126,7 @@ async function resolveAIUpgradeType(
     return option
   }
 
-  // Read and normalize the app's config without validating legacy options
-  // against the current Next.js schema.
-  const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
-    rawConfig: true,
-  })
-  const config = await normalizeConfig(
-    PHASE_PRODUCTION_BUILD,
-    interopDefault(rawConfig)
-  )
+  const config = await loadUpgradeConfig(directory)
   const policy = config.experimental?.agenticAutoUpgrade
 
   return policy === 'security' || policy === 'latest' || policy === 'future'
@@ -171,15 +161,33 @@ async function resolveCanaryVersion(): Promise<string> {
 
 export async function spawnNextUpgrade(
   directory: string | undefined,
-  options: NextUpgradeOptions
+  options: NextUpgradeOptions,
+  reminder: string | undefined = undefined
 ) {
   const baseDir = getProjectDir(directory)
 
   if (options.ai) {
+    let telemetry: UpgradeTelemetry | null = null
+    let installedVersion: string | null = null
+    let targetVersion: string | null = null
     try {
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+
+      const upgradeType = await resolveAIUpgradeType(baseDir, options.ai)
+
+      if (
+        upgradeType !== 'security' &&
+        upgradeType !== 'latest' &&
+        upgradeType !== 'future'
+      ) {
+        throw new Error(
+          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "future".`
+        )
+      }
+
+      telemetry = await UpgradeTelemetry.start(baseDir, upgradeType, reminder)
 
       if (expectedVersion !== undefined) {
         // Delegated upgrades and evals use their pinned CLI without another lookup.
@@ -207,6 +215,8 @@ export async function spawnNextUpgrade(
             args.push('--verbose')
           }
 
+          // Flush the logical start before handing ownership to the canary CLI.
+          await telemetry?.flush()
           process.exitCode = await runChildProcess(command, args, {
             cwd: baseDir,
             stdio: 'inherit',
@@ -215,6 +225,7 @@ export async function spawnNextUpgrade(
               __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
               // Older canaries recognize only this recursion guard.
               __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+              __NEXT_UPGRADE_TELEMETRY: telemetry?.serialize(),
             },
           })
           return
@@ -228,18 +239,6 @@ export async function spawnNextUpgrade(
         )
       }
 
-      const upgradeType = await resolveAIUpgradeType(baseDir, options.ai)
-
-      if (
-        upgradeType !== 'security' &&
-        upgradeType !== 'latest' &&
-        upgradeType !== 'future'
-      ) {
-        throw new Error(
-          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "future".`
-        )
-      }
-
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
         require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
@@ -248,10 +247,14 @@ export async function spawnNextUpgrade(
         assessmentSpinner?.stop()
       )
 
+      installedVersion = result.installedVersion
       if (result.status !== 'ready') {
+        telemetry?.recordPrepared('unaffected', installedVersion, null)
         Log.info(result.reason)
         return
       }
+
+      targetVersion = result.targetVersion
 
       const needsVersionMigration =
         result.installedVersion !== result.targetVersion
@@ -386,13 +389,35 @@ ${references}`
 
       const { handoffUpgrade } =
         require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
-      await handoffUpgrade(prompt, baseDir)
+      telemetry?.recordPrepared('ready', installedVersion, targetVersion)
+      try {
+        await handoffUpgrade(prompt, baseDir, async (state) => {
+          telemetry?.recordHandoff(state)
+          // In particular, submit the launch event while the agent is running.
+          await telemetry?.flush()
+        })
+      } catch (error) {
+        telemetry?.recordHandoff('failed')
+        throw error
+      }
     } catch (error) {
+      telemetry?.recordPrepared(
+        error instanceof UpgradePreparationError
+          ? error.prepareState
+          : 'unknown',
+        error instanceof UpgradePreparationError
+          ? error.installedVersion
+          : installedVersion,
+        targetVersion
+      )
+      telemetry?.recordFailure()
       Log.error(
         'Could not prepare the upgrade:',
         error instanceof Error ? error.message : error
       )
       process.exitCode = 1
+    } finally {
+      await telemetry?.flush()
     }
 
     return

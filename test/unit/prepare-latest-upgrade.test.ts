@@ -610,6 +610,7 @@ describe('prepare latest upgrade', () => {
 
     await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
       status: 'unaffected',
+      installedVersion: '17.1.0',
       reason: 'Next.js 17.1.0 is already the latest stable release.',
     })
   })
@@ -620,6 +621,7 @@ describe('prepare latest upgrade', () => {
 
     await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
       status: 'unaffected',
+      installedVersion: '18.0.0',
       reason: 'Next.js 18.0.0 is newer than the latest stable release 17.1.0.',
     })
   })
@@ -643,6 +645,7 @@ describe('prepare latest upgrade', () => {
       })
       await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
         status: 'unaffected',
+        installedVersion: '17.3.0',
         reason:
           'Next.js 17.3.0 is newer than the latest stable release 17.2.0.',
       })
@@ -703,6 +706,7 @@ describe('prepare latest upgrade', () => {
 
     await expect(prepareUpgrade(directory, 'future')).resolves.toEqual({
       status: 'unaffected',
+      installedVersion: '16.4.0',
       reason:
         'Next.js 16.4.0 is current and all available Future Defaults are enabled.',
     })

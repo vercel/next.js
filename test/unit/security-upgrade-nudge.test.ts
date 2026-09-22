@@ -5,8 +5,16 @@ import { join } from 'path'
 import { getFutureUpgrade, nudgeForUpgrade } from 'next/dist/lib/upgrade/nudge'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { Telemetry } from 'next/dist/telemetry/storage'
+import { recordUpgradeReminder } from 'next/dist/lib/upgrade/reminder-telemetry'
 import { warn } from 'next/dist/build/output/log'
 
+jest.mock('next/dist/telemetry/storage', () => ({
+  Telemetry: jest.fn().mockImplementation(() => ({
+    record: jest.fn(),
+    flush: jest.fn(),
+  })),
+}))
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
@@ -100,10 +108,59 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'security' policy in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```/
+        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'security' policy in the background from this app's directory:[\s\S]*```\nnext upgrade --ai --upgrade-reminder (dev|build):[0-9a-f-]+\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('reports actual displays, including retry warnings, without counting assessment or propagation', async () => {
+    const record = jest.fn()
+    const flush = jest.fn()
+    jest
+      .mocked(Telemetry)
+      .mockImplementation(() => ({ record, flush }) as never)
+    jest.mocked(getUpgradeAssessment).mockResolvedValue({
+      affected: true,
+      reference: 'https://example.com/advisory',
+      upgrade: {
+        status: 'ready',
+        installedVersion: '13.0.0',
+        targetVersion: '17.0.0',
+        references: [],
+        futureDefaults: [],
+      },
+    })
+    let reminder: unknown
+    try {
+      await run()
+    } catch (error) {
+      reminder = error
+    }
+    expect(record).toHaveBeenCalledTimes(0)
+    expect(reminder).toBeInstanceOf(Error)
+    await recordUpgradeReminder(reminder)
+    await recordUpgradeReminder(reminder)
+    expect(record).toHaveBeenCalledTimes(1)
+    await run()
+    expect(record).toHaveBeenCalledTimes(2)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(record.mock.calls[1][0].payload).toMatchObject({
+      audience: 'agent',
+      trigger: 'build',
+      upgradeType: 'security',
+      reminderKind: 'security',
+    })
+  })
+
+  it('does not record a suppressed reminder', async () => {
+    const record = jest.fn()
+    jest
+      .mocked(Telemetry)
+      .mockImplementation(() => ({ record, flush: jest.fn() }) as never)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    await run()
+    expect(record).toHaveBeenCalledTimes(0)
   })
 
   it('shows the npm fallback reference', async () => {
@@ -338,7 +395,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the latest upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the latest upgrade in the background from this app's directory:[\s\S]*```\nnext upgrade --ai --upgrade-reminder (dev|build):[0-9a-f-]+\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
       ),
     })
     await expect(
@@ -430,7 +487,9 @@ describe('composed latest nudge', () => {
       await expect(nudge).rejects.toMatchObject({
         name: 'SecurityFatalError',
         exitCode: 1,
-        message: expect.stringContaining('```\nnext upgrade --ai\n```'),
+        message: expect.stringMatching(
+          /```\nnext upgrade --ai --upgrade-reminder (dev|build):[0-9a-f-]+\n```/
+        ),
       })
       await expect(nudge).rejects.toMatchObject({
         message: expect.stringContaining(
@@ -530,7 +589,7 @@ describe('composed future nudge', () => {
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available[\s\S]*next upgrade --ai\n```[\s\S]*agenticAutoUpgrade: 'future'/
+        /Next\.js 17\.0\.0 is available[\s\S]*next upgrade --ai --upgrade-reminder (dev|build):[0-9a-f-]+\n```[\s\S]*agenticAutoUpgrade: 'future'/
       ),
     })
   })

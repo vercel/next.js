@@ -227,17 +227,16 @@ export async function initialize(opts: {
       const { nudgeForUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
       void nudgeForUpgrade(opts.dir, developmentConfig, 'dev').catch(
-        (error) => {
-          const { printAndExit } =
-            require('./utils') as typeof import('./utils')
+        async (error) => {
+          const { recordUpgradeReminder } =
+            require('../../lib/upgrade/reminder-telemetry') as typeof import('../../lib/upgrade/reminder-telemetry')
           const exitCode =
             error && typeof error === 'object'
               ? Reflect.get(error, 'exitCode')
               : undefined
-          printAndExit(
-            error instanceof Error ? error.message : String(error),
-            typeof exitCode === 'number' ? exitCode : 1
-          )
+          console.error(error instanceof Error ? error.message : String(error))
+          await recordUpgradeReminder(error)
+          process.exit(typeof exitCode === 'number' ? exitCode : 1)
         }
       )
     }

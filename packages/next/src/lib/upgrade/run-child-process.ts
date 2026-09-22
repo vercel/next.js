@@ -6,9 +6,13 @@ import spawn from 'next/dist/compiled/cross-spawn'
 export function runChildProcess(
   command: string,
   args: string[],
-  options: SpawnOptions
+  options: SpawnOptions,
+  onSpawn: (() => void) | undefined = undefined
 ): Promise<number> {
   const child = spawn(command, args, options)
+  if (onSpawn) {
+    child.once('spawn', onSpawn)
+  }
 
   return new Promise((resolve, reject) => {
     const onInterrupt = () => child.kill('SIGINT')

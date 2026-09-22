@@ -134,7 +134,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     debugBuildPathsPatterns,
     enabledFeatures
   )
-    .catch((err) => {
+    .catch(async (err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
       }
@@ -151,7 +151,11 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
         printAndExit(`> ${err.message}`)
       } else {
         console.error('> Build error occurred')
-        printAndExit(err)
+        console.error(err)
+        const { recordUpgradeReminder } =
+          require('../lib/upgrade/reminder-telemetry') as typeof import('../lib/upgrade/reminder-telemetry')
+        await recordUpgradeReminder(err)
+        process.exit(1)
       }
     })
     .finally(() => {

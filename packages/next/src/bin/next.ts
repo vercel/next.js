@@ -591,12 +591,17 @@ program
       'Upgrade with AI to security, latest, or future. Defaults to security.'
     ).conflicts('revision')
   )
+  .addOption(new Option('--upgrade-reminder <source>').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    await mod.spawnNextUpgrade(directory, {
-      ...options,
-      ai: options.experimentalAi,
-    })
+    await mod.spawnNextUpgrade(
+      directory,
+      {
+        ...options,
+        ai: options.experimentalAi,
+      },
+      options.upgradeReminder
+    )
   })
 
 program

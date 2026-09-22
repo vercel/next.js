@@ -26,6 +26,24 @@ describe('config', () => {
     expect((config as any).customConfig).toBe(true)
   })
 
+  it.each([true, false])(
+    'keeps raw and resolved config caches separate with raw first: %s',
+    async (rawFirst) => {
+      const load = (rawConfig: boolean) =>
+        loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn, { rawConfig })
+      const first = await load(rawFirst)
+      const second = await load(!rawFirst)
+      const raw = rawFirst ? first : second
+      const resolved = rawFirst ? second : first
+
+      expect(typeof raw).toBe('function')
+      expect(resolved.distDir.replace(/\\/g, '/')).toBe('.next/dev')
+      expect((resolved as any).phase).toBe(PHASE_DEVELOPMENT_SERVER)
+      expect(await load(rawFirst)).toBe(first)
+      expect(await load(!rawFirst)).toBe(second)
+    }
+  )
+
   it('Should pass the phase correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
     expect((config as any).phase).toBe(PHASE_DEVELOPMENT_SERVER)
