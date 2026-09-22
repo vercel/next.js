@@ -40,8 +40,5 @@
   },
   "agent-059-server-only-bundle-boundary": {
     "timeout": 1200
-  },
-  "agent-060-server-only-feature-boundary": {
-    "timeout": 1200
   }
 }

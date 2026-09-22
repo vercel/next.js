@@ -1,1 +1,0 @@
-Add an interactive status filter to the invoices page at `/`. Users should be able to choose All, Open, or Paid and see the matching invoices immediately, without a full page reload. Keep the existing invoice numbers, amounts, and status labels, and show "No invoices" when nothing matches. Use the existing data layer and verify the production build.

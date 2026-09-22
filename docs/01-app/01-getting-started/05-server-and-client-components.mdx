@@ -559,7 +559,7 @@ In Next.js, only environment variables prefixed with `NEXT_PUBLIC_` are included
 
 As a result, even though `getData()` can be imported and executed on the client, it won't work as expected.
 
-To prevent accidental usage in Client Components, add the [`server-only` package](https://www.npmjs.com/package/server-only) import to modules that own database clients, database schemas, or other server implementation. Do this when adding client interactivity or fixing a client import, even if the server module contains no private environment variables. Place the guard in the module that owns the server code so other entry points cannot bypass it.
+To prevent accidental usage in Client Components, you can use the [`server-only` package](https://www.npmjs.com/package/server-only).
 
 Then, import the package into a file that contains server-only code:
 
@@ -578,8 +578,6 @@ export async function getData() {
 ```
 
 Now, if you try to import the module into a Client Component, there will be a build-time error.
-
-Keep shared values, validators, and formatting utilities in environment-neutral modules that Client Components can import directly. Importing a shared value through a server module can pull that module's dependencies into the client graph. Fix that import before adding `server-only`: the import change removes the server dependency, while the guard prevents future client imports.
 
 The corresponding [`client-only` package](https://www.npmjs.com/package/client-only) can be used to mark modules that contain client-only logic like code that accesses the `window` object.
 
