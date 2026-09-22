@@ -45,6 +45,7 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { isCI } from '../ci-info'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -518,16 +519,28 @@ export async function startServer(
               `Removed agent rules from ${files} because \`agentRules\` is disabled.`
           )
 
-          logAgentFileSync(
-            await syncAgentFeedbackForDev(
-              dir,
-              initResult.agentFeedback === true
-            ),
-            (files) =>
-              `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
-            (files) =>
-              `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
-          )
+          if (!isCI) {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            const agentFeedbackConfigured = initResult.agentFeedback === true
+            const telemetryEnabled = telemetry?.isEnabled === true
+
+            logAgentFileSync(
+              await syncAgentFeedbackForDev(
+                dir,
+                agentFeedbackConfigured && telemetryEnabled
+              ),
+              (files) =>
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              (files) =>
+                agentFeedbackConfigured
+                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+            )
+          }
         }
 
         handlersReady()
@@ -686,10 +699,7 @@ function logAgentFileSync(
 
   const generated: string[] = []
   const removed: string[] = []
-  for (const [file, action] of [
-    ['AGENTS.md', result.agentsMd],
-    ['CLAUDE.md', result.claudeMd],
-  ] as const) {
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
     if (action === 'created' || action === 'updated') {
       generated.push(file)
     } else if (action === 'removed') {

@@ -97,7 +97,7 @@ program
     '--version <version>',
     'Next.js version (auto-detected if not provided)'
   )
-  .option('--output <file>', 'Target file path (e.g., CLAUDE.md, AGENTS.md)')
+  .option('--output <file>', 'Target file path (e.g., AGENTS.md)')
   .action(async (options) => {
     try {
       await runAgentsMd(options)

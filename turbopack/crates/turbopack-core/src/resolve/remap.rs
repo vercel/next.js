@@ -58,6 +58,11 @@ pub enum SubpathValue {
     /// An excluded subpath, defined with `"path": null`, prevents importing
     /// this subpath.
     Excluded,
+
+    /// An empty subpath, defined with `"path": false`, resolves to an empty
+    /// module (empty object for namespace/CJS imports, `undefined` for named
+    /// bindings).
+    Empty,
 }
 
 /// A `SubpathValue` that was applied to a pattern. See `SubpathValue` for
@@ -68,6 +73,7 @@ pub enum ReplacedSubpathValue {
     Conditional(Vec<(RcStr, ReplacedSubpathValue)>),
     Result(Pattern),
     Excluded,
+    Empty,
 }
 
 impl AliasTemplate for SubpathValue {
@@ -90,6 +96,7 @@ impl AliasTemplate for SubpathValue {
             ),
             SubpathValue::Result(value) => ReplacedSubpathValue::Result(value.clone().into()),
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
+            SubpathValue::Empty => ReplacedSubpathValue::Empty,
         }
     }
 
@@ -109,6 +116,7 @@ impl AliasTemplate for SubpathValue {
                 ReplacedSubpathValue::Result(capture.spread_into_star(value))
             }
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
+            SubpathValue::Empty => ReplacedSubpathValue::Empty,
         }
     }
 }
@@ -119,94 +127,13 @@ impl SubpathValue {
         ResultsIterMut { stack: vec![self] }
     }
 
-    /// Walks the [SubpathValue] and adds results to the `target` vector. It
-    /// uses the `conditions` to skip or enter conditional results.
-    /// The state of conditions is stored within `condition_overrides`, which is
-    /// also exposed to the consumer.
-    pub fn add_results<'a>(
-        &'a self,
-        conditions: &BTreeMap<RcStr, ConditionValue>,
-        unspecified_condition: &ConditionValue,
-        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
-        target: &mut Vec<(&'a str, Vec<(&'a str, bool)>)>,
-    ) -> bool {
-        match self {
-            SubpathValue::Alternatives(list) => {
-                for value in list {
-                    if value.add_results(
-                        conditions,
-                        unspecified_condition,
-                        condition_overrides,
-                        target,
-                    ) {
-                        return true;
-                    }
-                }
-                false
-            }
-            SubpathValue::Conditional(list) => {
-                for (condition, value) in list {
-                    let condition_value = if condition == "default" {
-                        &ConditionValue::Set
-                    } else {
-                        condition_overrides
-                            .get(condition.as_str())
-                            .or_else(|| conditions.get(condition))
-                            .unwrap_or(unspecified_condition)
-                    };
-                    match condition_value {
-                        ConditionValue::Set => {
-                            if value.add_results(
-                                conditions,
-                                unspecified_condition,
-                                condition_overrides,
-                                target,
-                            ) {
-                                return true;
-                            }
-                        }
-                        ConditionValue::Unset => {}
-                        ConditionValue::Unknown => {
-                            condition_overrides.insert(condition, ConditionValue::Set);
-                            if value.add_results(
-                                conditions,
-                                unspecified_condition,
-                                condition_overrides,
-                                target,
-                            ) {
-                                condition_overrides.insert(condition, ConditionValue::Unset);
-                            } else {
-                                condition_overrides.remove(condition.as_str());
-                            }
-                        }
-                    }
-                }
-                false
-            }
-            SubpathValue::Result(r) => {
-                target.push((
-                    r,
-                    condition_overrides
-                        .iter()
-                        .filter_map(|(k, v)| match v {
-                            ConditionValue::Set => Some((*k, true)),
-                            ConditionValue::Unset => Some((*k, false)),
-                            ConditionValue::Unknown => None,
-                        })
-                        .collect(),
-                ));
-                true
-            }
-            SubpathValue::Excluded => true,
-        }
-    }
-
     fn try_new(value: &Value, ty: ExportImport) -> Result<Self> {
         match value {
             Value::Null => Ok(SubpathValue::Excluded),
             Value::String(s) => Ok(SubpathValue::Result(s.as_str().into())),
             Value::Number(_) => bail!("numeric values are invalid in {ty}s field entries"),
-            Value::Bool(_) => bail!("boolean values are invalid in {ty}s field entries"),
+            Value::Bool(false) => Ok(SubpathValue::Empty),
+            Value::Bool(true) => bail!("boolean true is invalid in {ty}s field entries"),
             Value::Object(object) => Ok(SubpathValue::Conditional(
                 object
                     .iter()
@@ -233,20 +160,56 @@ impl SubpathValue {
     }
 }
 
+/// The type of a resolved subpath result.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ReplacedSubpathValueResultType {
+    /// A resolved path (`"path": "./some/file.js"`).
+    Path(Pattern),
+    /// An empty module (`"path": false`).
+    Empty,
+}
+
 pub struct ReplacedSubpathValueResult<'a, 'b> {
-    pub result_path: Pattern,
+    pub ty: ReplacedSubpathValueResultType,
     pub conditions: Vec<(RcStr, bool)>,
     pub map_prefix: Cow<'a, str>,
     pub map_key: &'b AliasKey,
 }
 
+/// Describes how definitively `add_results` resolved the value.
+///
+/// Used to decide whether callers should continue trying further alternatives.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TerminalState {
+    /// No definitive result was produced; keep trying alternatives.
+    Unset,
+    /// A concrete path result was added to `target`. The path might not exist
+    /// at runtime, so outer alternatives may still be collected for fallback.
+    Result,
+    /// A definitive terminal match was found. Stop immediately — do not try
+    /// further alternatives. This is returned by both [`ReplacedSubpathValue::Excluded`]
+    /// (no result added) and [`ReplacedSubpathValue::Empty`] (empty-module result added).
+    Stop,
+}
+
 impl ReplacedSubpathValue {
-    // TODO
-    #[allow(clippy::type_complexity)]
-    /// Walks the [ReplacedSubpathValue] and adds results to the `target`
-    /// vector. It uses the `conditions` to skip or enter conditional
-    /// results. The state of conditions is stored within
-    /// `condition_overrides`, which is also exposed to the consumer.
+    /// Walks the [ReplacedSubpathValue] and appends results to `target`.
+    ///
+    /// It uses `conditions` to skip or enter conditional results, storing any
+    /// runtime-unknown condition overrides in `condition_overrides` so that
+    /// callers can attach them to the resolved request key.
+    ///
+    /// Returns a [`TerminalState`] indicating what happened:
+    /// - [`TerminalState::Stop`] — a definitive terminal match was found ([`Excluded`]: import
+    ///   blocked, no result added; or [`Empty`]: empty-module result added). Callers must stop
+    ///   immediately and not try further alternatives.
+    /// - [`TerminalState::Result`] — a concrete path result was added. The path might not exist at
+    ///   runtime, so [`Alternatives`] continues collecting fallbacks but returns `Result`.
+    /// - [`TerminalState::Unset`] — no definitive result was produced; keep trying.
+    ///
+    /// [`Excluded`]: ReplacedSubpathValue::Excluded
+    /// [`Empty`]: ReplacedSubpathValue::Empty
+    /// [`Alternatives`]: ReplacedSubpathValue::Alternatives
     pub fn add_results<'a, 'b>(
         self,
         prefix: Cow<'a, str>,
@@ -255,7 +218,7 @@ impl ReplacedSubpathValue {
         unspecified_condition: &ConditionValue,
         condition_overrides: &mut FxHashMap<RcStr, ConditionValue>,
         target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
-    ) -> bool {
+    ) -> TerminalState {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
                 for value in list {
@@ -266,11 +229,14 @@ impl ReplacedSubpathValue {
                         unspecified_condition,
                         condition_overrides,
                         target,
-                    ) {
-                        return true;
+                    ) == TerminalState::Stop
+                    {
+                        return TerminalState::Stop;
                     }
                 }
-                false
+                // Alternatives always resolves to Result — even if every inner value
+                // returned Unset, the alternatives node itself is a terminal match.
+                TerminalState::Result
             }
             ReplacedSubpathValue::Conditional(list) => {
                 for (condition, value) in list {
@@ -284,7 +250,7 @@ impl ReplacedSubpathValue {
                     };
                     match condition_value {
                         ConditionValue::Set => {
-                            if value.add_results(
+                            match value.add_results(
                                 prefix.clone(),
                                 key,
                                 conditions,
@@ -292,48 +258,77 @@ impl ReplacedSubpathValue {
                                 condition_overrides,
                                 target,
                             ) {
-                                return true;
+                                TerminalState::Stop => return TerminalState::Stop,
+                                TerminalState::Result => return TerminalState::Result,
+                                TerminalState::Unset => {}
                             }
                         }
                         ConditionValue::Unset => {}
                         ConditionValue::Unknown => {
+                            // The condition's value is unknown at compile time. We explore both
+                            // branches: try the condition as Set, collect results for that case,
+                            // then mark it as Unset in overrides and continue to the next
+                            // condition to collect results for the opposite case. This ensures
+                            // all possible runtime values are represented in `target`.
                             condition_overrides.insert(condition.clone(), ConditionValue::Set);
-                            if value.add_results(
+                            let inner = value.add_results(
                                 prefix.clone(),
                                 key,
                                 conditions,
                                 unspecified_condition,
                                 condition_overrides,
                                 target,
-                            ) {
+                            );
+                            if inner != TerminalState::Unset {
                                 condition_overrides.insert(condition, ConditionValue::Unset);
                             } else {
                                 condition_overrides.remove(condition.as_str());
                             }
+                            // Don't break; always continue to explore other conditions.
                         }
                     }
                 }
-                false
+                TerminalState::Unset
             }
             ReplacedSubpathValue::Result(r) => {
                 target.push(ReplacedSubpathValueResult {
-                    result_path: r,
-                    conditions: condition_overrides
-                        .iter()
-                        .filter_map(|(k, v)| match v {
-                            ConditionValue::Set => Some((k.clone(), true)),
-                            ConditionValue::Unset => Some((k.clone(), false)),
-                            ConditionValue::Unknown => None,
-                        })
-                        .collect(),
+                    ty: ReplacedSubpathValueResultType::Path(r),
+                    conditions: collect_active_conditions(condition_overrides),
                     map_prefix: prefix,
                     map_key: key,
                 });
-                true
+                TerminalState::Result
             }
-            ReplacedSubpathValue::Excluded => true,
+            // The import is blocked (null). Don't add a result; stop immediately.
+            ReplacedSubpathValue::Excluded => TerminalState::Stop,
+            ReplacedSubpathValue::Empty => {
+                // Empty already resolves to an empty module; push the result and stop —
+                // no fallback alternatives are needed.
+                target.push(ReplacedSubpathValueResult {
+                    ty: ReplacedSubpathValueResultType::Empty,
+                    conditions: collect_active_conditions(condition_overrides),
+                    map_prefix: prefix,
+                    map_key: key,
+                });
+                TerminalState::Stop
+            }
         }
     }
+}
+
+/// Collects the currently active condition overrides into a `(key, bool)` list
+/// for attaching to a [ReplacedSubpathValueResult].
+fn collect_active_conditions(
+    condition_overrides: &FxHashMap<RcStr, ConditionValue>,
+) -> Vec<(RcStr, bool)> {
+    condition_overrides
+        .iter()
+        .filter_map(|(k, v)| match v {
+            ConditionValue::Set => Some((k.clone(), true)),
+            ConditionValue::Unset => Some((k.clone(), false)),
+            ConditionValue::Unknown => None,
+        })
+        .collect()
 }
 
 struct ResultsIterMut<'a> {
@@ -357,7 +352,7 @@ impl<'a> Iterator for ResultsIterMut<'a> {
                     }
                 }
                 SubpathValue::Result(r) => return Some(r),
-                SubpathValue::Excluded => {}
+                SubpathValue::Excluded | SubpathValue::Empty => {}
             }
         }
         None

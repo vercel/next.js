@@ -1,6 +1,6 @@
 /**
- * Auto-generate AGENTS.md / CLAUDE.md with the managed Next.js agent-rules
- * block when `next dev` detects an AI coding agent but the block is missing.
+ * Create or update AGENTS.md with managed Next.js instructions when `next dev`
+ * detects an AI coding agent.
  *
  * Keep the marker and block content in sync with:
  *   - packages/create-next-app/helpers/generate-agent-files.ts
@@ -47,21 +47,19 @@ function buildAgentFeedbackBlock(): string {
 
 ## Report Next.js feedback
 
-During the task, queue anonymized Next.js issues that cause a meaningful detour or are likely to recur, such as:
+During the current user request, retain anonymized facts as feedback candidates for Next.js issues that cause a meaningful detour or are likely to recur, such as:
 
 - Crashes, hangs, OOMs, or unexpected slowness in development, builds, or runtime
 - Incorrect behavior or output, misleading errors, or missing diagnostics
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior, repeated failures, or non-obvious workarounds
 
-Continue the task without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Ignore routine debugging and issues caused by unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
-At the final stopping point, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once per task and follow any instructions returned. If it returns nothing, continue without reporting.
+Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass. If the feedback candidate queue is not empty, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once and follow any instructions returned. If the command succeeds with no output, finish the final response without retrying or investigating. If it fails, follow its error guidance; retrying with network access is allowed. Keep unresolved feedback candidates for a later final response, and never create a duplicate report draft or reopen a review form already presented to the user.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }
-
-const CLAUDE_MD_CONTENT = `@AGENTS.md\n`
 
 export type AgentFileAction =
   | 'created'
@@ -72,7 +70,6 @@ export type AgentFileAction =
 
 export interface AgentFilesResult {
   agentsMd: AgentFileAction
-  claudeMd: AgentFileAction
 }
 
 /**
@@ -100,135 +97,63 @@ function extractManagedBlock(
 }
 
 /**
- * Returns true when `AGENTS.md` or `CLAUDE.md` at `dir` already
- * contains the current agent-rules block. A block from an earlier
+ * Returns true when `AGENTS.md` at `dir` already contains the current
+ * agent-rules block. A block from an earlier
  * Next.js version (older wording, legacy markers) returns false so
  * callers know to upsert the current one over it.
  */
 export function hasCurrentAgentRules(dir: string): boolean {
   const block = buildAgentRulesBlock()
-  for (const file of ['AGENTS.md', 'CLAUDE.md']) {
-    const content = tryReadFile(path.join(dir, file))
-    if (!content) continue
-    const installed = extractAgentRulesBlock(content)
-    if (installed !== null && normalizeEol(installed, '\n') === block) {
-      return true
-    }
-  }
-  return false
+  const content = tryReadFile(path.join(dir, 'AGENTS.md'))
+  if (!content) return false
+  const installed = extractAgentRulesBlock(content)
+  return installed !== null && normalizeEol(installed, '\n') === block
 }
 
 export function hasCurrentAgentFeedback(dir: string): boolean {
   const block = buildAgentFeedbackBlock()
-  for (const file of ['AGENTS.md', 'CLAUDE.md']) {
-    const content = tryReadFile(path.join(dir, file))
-    if (!content) continue
-    const installed = extractManagedBlock(
-      content,
-      AGENT_FEEDBACK_START_MARKER,
-      AGENT_FEEDBACK_END_MARKER
-    )
-    if (installed !== null && normalizeEol(installed, '\n') === block) {
-      return true
-    }
-  }
-  return false
+  const content = tryReadFile(path.join(dir, 'AGENTS.md'))
+  if (!content) return false
+  const installed = extractManagedBlock(
+    content,
+    AGENT_FEEDBACK_START_MARKER,
+    AGENT_FEEDBACK_END_MARKER
+  )
+  return installed !== null && normalizeEol(installed, '\n') === block
 }
 
 /**
- * Write the agent-rules block into `projectDir`, respecting whichever
- * file the user already uses:
- *
- *   - A file already hosting the managed block → upsert into it, so
- *     upgrades rewrite the block in place instead of adding a copy.
- *   - `AGENTS.md` exists → upsert into it, leave `CLAUDE.md` alone.
- *   - `CLAUDE.md` exists (but not `AGENTS.md`) → upsert into it.
- *   - Neither exists → create both (`AGENTS.md` + `CLAUDE.md` with
- *     `@AGENTS.md` import), matching `create-next-app`.
+ * Write the agent-rules block into `AGENTS.md` in `projectDir`.
  *
  * Idempotent: a file already containing the canonical block is
  * reported as `unchanged`.
  */
 export function writeAgentFiles(projectDir: string): AgentFilesResult {
   const agentsMdPath = path.join(projectDir, 'AGENTS.md')
-  const claudeMdPath = path.join(projectDir, 'CLAUDE.md')
   const block = buildAgentRulesBlock()
 
-  const agentsMdExists = fs.existsSync(agentsMdPath)
-  const claudeMdExists = fs.existsSync(claudeMdPath)
-
-  const claudeMdHostsBlock =
-    claudeMdExists &&
-    (tryReadFile(claudeMdPath)?.includes(AGENT_RULES_START_MARKER) ?? false)
-  const agentsMdHostsBlock =
-    agentsMdExists &&
-    (tryReadFile(agentsMdPath)?.includes(AGENT_RULES_START_MARKER) ?? false)
-
-  if (agentsMdExists && (agentsMdHostsBlock || !claudeMdHostsBlock)) {
-    return {
-      agentsMd: upsertFile(agentsMdPath, block),
-      claudeMd: 'skipped',
-    }
+  if (fs.existsSync(agentsMdPath)) {
+    return { agentsMd: upsertFile(agentsMdPath, block) }
   }
 
-  if (claudeMdExists) {
-    return {
-      agentsMd: 'skipped',
-      claudeMd: upsertFile(claudeMdPath, block),
-    }
-  }
-
-  // Neither file exists — scaffold both, matching create-next-app.
   fs.writeFileSync(agentsMdPath, block + '\n', 'utf-8')
-  fs.writeFileSync(claudeMdPath, CLAUDE_MD_CONTENT, 'utf-8')
-  return { agentsMd: 'created', claudeMd: 'created' }
+  return { agentsMd: 'created' }
 }
 
 /**
- * Write the opt-in agent-feedback block using the same managed-file convention
- * as the agent-rules block. If the rules already have a host file, keep both
- * Next.js blocks together.
+ * Write the opt-in agent-feedback block into AGENTS.md, alongside the managed
+ * agent-rules block when both are enabled.
  */
 export function writeAgentFeedbackFiles(projectDir: string): AgentFilesResult {
   const agentsMdPath = path.join(projectDir, 'AGENTS.md')
-  const claudeMdPath = path.join(projectDir, 'CLAUDE.md')
   const block = buildAgentFeedbackBlock()
 
-  const agentsContent = tryReadFile(agentsMdPath)
-  const claudeContent = tryReadFile(claudeMdPath)
-  const agentsMdExists = agentsContent !== null
-  const claudeMdExists = claudeContent !== null
-
-  const agentsMdHostsFeedback =
-    agentsContent?.includes(AGENT_FEEDBACK_START_MARKER) ?? false
-  const claudeMdHostsFeedback =
-    claudeContent?.includes(AGENT_FEEDBACK_START_MARKER) ?? false
-  const agentsMdHostsRules =
-    agentsContent?.includes(AGENT_RULES_START_MARKER) ?? false
-  const claudeMdHostsRules =
-    claudeContent?.includes(AGENT_RULES_START_MARKER) ?? false
-
-  if (
-    agentsMdExists &&
-    (agentsMdHostsFeedback ||
-      (!claudeMdHostsFeedback && (agentsMdHostsRules || !claudeMdHostsRules)))
-  ) {
-    return {
-      agentsMd: upsertFeedbackFile(agentsMdPath, block),
-      claudeMd: 'skipped',
-    }
-  }
-
-  if (claudeMdExists) {
-    return {
-      agentsMd: 'skipped',
-      claudeMd: upsertFeedbackFile(claudeMdPath, block),
-    }
+  if (fs.existsSync(agentsMdPath)) {
+    return { agentsMd: upsertFeedbackFile(agentsMdPath, block) }
   }
 
   fs.writeFileSync(agentsMdPath, block + '\n', 'utf-8')
-  fs.writeFileSync(claudeMdPath, CLAUDE_MD_CONTENT, 'utf-8')
-  return { agentsMd: 'created', claudeMd: 'created' }
+  return { agentsMd: 'created' }
 }
 
 /**
@@ -239,11 +164,6 @@ export function removeAgentFeedbackFiles(projectDir: string): AgentFilesResult {
   return {
     agentsMd: removeManagedBlockFromFile(
       path.join(projectDir, 'AGENTS.md'),
-      AGENT_FEEDBACK_START_MARKER,
-      AGENT_FEEDBACK_END_MARKER
-    ),
-    claudeMd: removeManagedBlockFromFile(
-      path.join(projectDir, 'CLAUDE.md'),
       AGENT_FEEDBACK_START_MARKER,
       AGENT_FEEDBACK_END_MARKER
     ),
@@ -258,11 +178,6 @@ export function removeAgentRulesFiles(projectDir: string): AgentFilesResult {
   return {
     agentsMd: removeManagedBlockFromFile(
       path.join(projectDir, 'AGENTS.md'),
-      AGENT_RULES_START_MARKER,
-      AGENT_RULES_END_MARKER
-    ),
-    claudeMd: removeManagedBlockFromFile(
-      path.join(projectDir, 'CLAUDE.md'),
       AGENT_RULES_START_MARKER,
       AGENT_RULES_END_MARKER
     ),
@@ -313,8 +228,8 @@ function removeManagedBlockFromFile(
   if (updated === existing) return 'unchanged'
   if (updated.trim() === '') {
     // Nothing but the managed block lived here, so Next.js effectively owned
-    // the file. Leaving a zero-byte AGENTS.md or CLAUDE.md behind is more
-    // confusing than removing it.
+    // the file. Leaving a zero-byte AGENTS.md behind is more confusing than
+    // removing it.
     fs.unlinkSync(filePath)
   } else {
     fs.writeFileSync(filePath, updated, 'utf-8')

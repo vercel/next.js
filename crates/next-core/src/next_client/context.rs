@@ -404,7 +404,7 @@ pub async fn get_client_module_options_context(
                 .await?,
         ),
         keep_last_successful_parse: next_mode.is_development(),
-        analyze_mode: AnalyzeMode::CodeGeneration,
+        analyze_mode: AnalyzeMode::code_generation(),
         ..Default::default()
     };
 

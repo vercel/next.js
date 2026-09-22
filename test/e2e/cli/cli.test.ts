@@ -1221,14 +1221,13 @@ Next.js Config:
   })
 })
 
+// @force-gate dev
 describe('CLI Usage: duplicate sass dependencies', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'duplicate-sass'),
     skipStart: true,
     dependencies: reactDependencies,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // The original integration test relied on pre-existing fake `sass` and
   // `node-sass` modules in `duplicate-sass/node_modules/`. In e2e mode the
@@ -1236,7 +1235,6 @@ describe('CLI Usage: duplicate sass dependencies', () => {
   // `.ignored`, so we recreate the fake modules and reference them in
   // `package.json` after install, before running `next dev`.
   beforeAll(async () => {
-    if (!isNextStart) return
     const pkg = await next.readJSON('package.json')
     pkg.dependencies = {
       ...pkg.dependencies,
@@ -1255,7 +1253,7 @@ describe('CLI Usage: duplicate sass dependencies', () => {
       )
     }
   })
-  ;(isNextStart ? test : test.skip)('duplicate sass deps', async () => {
+  test('duplicate sass deps', async () => {
     const port = await findPort()
 
     let output = ''

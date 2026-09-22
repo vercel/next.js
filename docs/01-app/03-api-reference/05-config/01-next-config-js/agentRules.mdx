@@ -32,7 +32,7 @@ module.exports = nextConfig
 
 ## Generated agent instructions
 
-When `agentRules` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md` or `CLAUDE.md`:
+When `agentRules` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md`:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -47,14 +47,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ```
 
 The managed block directs agents to documentation bundled with the installed Next.js version. Next.js updates only the content between the markers and preserves the rest of the file.
-
-If neither agent file exists, Next.js creates `AGENTS.md` and a `CLAUDE.md` file that imports it:
-
-```md filename="CLAUDE.md"
-@AGENTS.md
-```
-
-If either file already exists, Next.js adds the managed block to that file without creating another agent file.
 
 ## Disable agent rules
 
