@@ -225,6 +225,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => {}
                 }
             }
@@ -338,6 +339,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => {}
                 }
             }

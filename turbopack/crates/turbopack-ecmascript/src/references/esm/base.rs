@@ -69,6 +69,8 @@ pub enum ReferencedAsset {
     /// it is not.
     NonPlaceable(ResolvedVc<Box<dyn Module>>),
     None,
+    /// The module was aliased to `false`, resolving to an empty module.
+    Empty,
     Unresolvable,
 }
 
@@ -362,7 +364,7 @@ impl ReferencedAsset {
                 .emit();
                 None
             }
-            ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+            ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => None,
         })
     }
 
@@ -399,6 +401,9 @@ impl ReferencedAsset {
                         return Ok(ReferencedAsset::Some(placeable));
                     }
                     non_placeable = non_placeable.or(Some(*module));
+                }
+                ModuleResolveResultItem::Empty => {
+                    return Ok(ReferencedAsset::Empty);
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
@@ -836,7 +841,9 @@ impl EsmAssetReference {
                 }
                 // A module without ECMAScript bindings (e.g. a stylesheet) may still
                 // be imported for its side effects, which needs no code generation.
-                ReferencedAsset::None | ReferencedAsset::NonPlaceable(_) => {}
+                ReferencedAsset::None
+                | ReferencedAsset::Empty
+                | ReferencedAsset::NonPlaceable(_) => {}
                 _ => {
                     let mut result = vec![];
 
