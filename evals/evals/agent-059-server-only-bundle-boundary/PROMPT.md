@@ -1,3 +1,3 @@
-The `/` route works, but the latest Turbopack bundle analysis shows that `lib/chat-db/schema.ts` is included in the initial client JavaScript through `app/Uploader.tsx`.
+The attachment picker on `/` works, but database table definitions are showing up in the JavaScript sent to the browser.
 
-Reduce the client JavaScript without changing the attachment validation or the rendered UI. Add a boundary guard so a future Client Component cannot import the database schema again. Verify the production build and explain which change removes the database schema from the client graph and which change prevents it from being imported there again.
+Find and fix the cause without changing the rendered UI, attachment validation, or database definitions. Verify the production build and explain your changes.
