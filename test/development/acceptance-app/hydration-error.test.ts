@@ -38,26 +38,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Mismatch params={Promise} searchParams={Promise}>
-                               <div className="parent">
-                                 <main className="child">
-     +                             client
-     -                             server
-                         ...
-                       ...
-             ...",
+       "componentStack": "<main className="child">
+     + client
+     - server",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -99,24 +82,8 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Mismatch params={Promise} searchParams={Promise}>
-                               <div className="parent">
-     +                           <main className="only">
-                         ...
-                       ...
-             ...",
+       "componentStack": "<div className="parent">
+     + <main className="only">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -137,25 +104,9 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <script>
-                             <Next.js Internal Component>
-                               <RootLayout params={Promise}>
-                                 <html
-       -                           className="server-html"
-                                 >
-                         ...
-             ...",
+         "componentStack": "<html
+       - className="server-html"
+       >",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
@@ -171,24 +122,9 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <RootLayout params={Promise}>
-                                 <html
-       -                           className="server-html"
-                                 >
-                         ...
-             ...",
+         "componentStack": "<html
+       - className="server-html"
+       >",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
@@ -209,27 +145,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Mismatch params={Promise} searchParams={Promise}>
-                               <div className="parent">
-                                 <header>
-     +                           second
-     -                           <footer className="3">
-                                 ...
-                         ...
-                       ...
-             ...",
+       "componentStack": "<header>
+     +second
+     -<footer className="3">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -249,25 +167,8 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     -                             <main className="only">
-                           ...
-                         ...
-               ...",
+       "componentStack": "<div className="parent">
+     - <main className="only">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -287,25 +188,8 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     -                             only
-                           ...
-                         ...
-               ...",
+       "componentStack": "<div className="parent">
+     - only",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -345,25 +229,9 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Page params={Promise} searchParams={Promise}>
-     +                           <table>
-     -                           test
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     + <table>
+     - test",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -407,26 +275,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <Next.js Internal Component>
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Mismatch params={Promise} searchParams={Promise}>
-                           <div className="parent">
-                             <Suspense fallback={<p>}>
-                               <header>
-     +                         <main className="second">
-     -                         <footer className="3">
-                               ...
-                     ...
-                   ...
-         ...",
+       "componentStack": "<header>
+     +<main className="second">
+     -<footer className="3">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",

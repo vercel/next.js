@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react'
-import { CollapseIcon } from '../../icons/collapse-icon'
+import { useMemo } from 'react'
 
-function getInvalidHtmlExcerpt(lines: string[]) {
-  const firstHighlightedLine = lines.findIndex((line) => line[0] === '>')
+function getRenderedTreeExcerpt(lines: string[], signs: Set<string>) {
+  const firstHighlightedLine = lines.findIndex((line) => signs.has(line[0]))
 
   if (firstHighlightedLine === -1) {
     return lines
   }
 
-  const highlightedLines = lines.filter((line) => line[0] === '>')
+  const highlightedLines = lines.filter((line) => signs.has(line[0]))
   let parentLine: string | undefined
 
   for (let index = firstHighlightedLine - 1; index >= 0; index--) {
@@ -21,19 +20,24 @@ function getInvalidHtmlExcerpt(lines: string[]) {
     }
   }
 
-  const excerpt = parentLine
-    ? [parentLine, ...highlightedLines]
-    : highlightedLines
+  const lastHighlightedLine = lines.findLastIndex((line) => signs.has(line[0]))
+  const possibleClosingLine = lines[lastHighlightedLine + 1]
+  const closingLine = /^\s*\/?>(?:\s*)$/.test(possibleClosingLine ?? '')
+    ? possibleClosingLine
+    : undefined
+  const excerpt = [parentLine, ...highlightedLines, closingLine].filter(
+    (line): line is string => line !== undefined
+  )
   const minimumIndent = Math.min(
     ...excerpt.map((line) => {
-      const content = line[0] === '>' ? line.slice(1) : line
+      const content = signs.has(line[0]) ? line.slice(1) : line
       return content.length - content.trimStart().length
     })
   )
 
   return excerpt.map((line) => {
-    if (line[0] === '>') {
-      return `>${line.slice(1 + minimumIndent)}`
+    if (signs.has(line[0])) {
+      return `${line[0]}${line.slice(1 + minimumIndent)}`
     }
 
     return line.slice(minimumIndent)
@@ -92,17 +96,16 @@ export function PseudoHtmlDiff({
 }: {
   reactOutputComponentDiff: string
 }) {
-  const [isDiffCollapsed, toggleCollapseHtml] = useState(true)
-
   const { hasClientServerDiff, htmlComponents } = useMemo(() => {
     const componentStacks: React.ReactNode[] = []
     const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
     const containsClientServerDiff = reactComponentDiffLines.some(
       (line) => line[0] === '+' || line[0] === '-'
     )
-    const displayedLines = containsClientServerDiff
-      ? reactComponentDiffLines
-      : getInvalidHtmlExcerpt(reactComponentDiffLines)
+    const displayedLines = getRenderedTreeExcerpt(
+      reactComponentDiffLines,
+      new Set(containsClientServerDiff ? ['+', '-'] : ['>'])
+    )
 
     displayedLines.forEach((line, index) => {
       const isDiffLine = line[0] === '+' || line[0] === '-'
@@ -165,36 +168,21 @@ export function PseudoHtmlDiff({
   return (
     <div
       data-nextjs-container-errors-pseudo-html
-      data-nextjs-container-errors-pseudo-html-collapse={
-        hasClientServerDiff && isDiffCollapsed
-      }
       data-nextjs-hydration-diff-type={
         hasClientServerDiff ? 'client-server' : 'invalid-html'
       }
     >
       <div data-nextjs-hydration-diff-header>
-        {hasClientServerDiff ? (
-          <>
-            <button
-              aria-expanded={!isDiffCollapsed}
-              aria-label={`${isDiffCollapsed ? 'Expand' : 'Collapse'} client/server diff`}
-              data-nextjs-container-errors-pseudo-html-collapse-button
-              onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
-            >
-              <CollapseIcon collapsed={isDiffCollapsed} />
-              <span data-nextjs-hydration-diff-title>Client/server diff</span>
-            </button>
-            <div data-nextjs-hydration-diff-badge>
-              <span data-nextjs-hydration-diff-badge-item="client">
-                <span>+</span> Client
-              </span>
-              <span data-nextjs-hydration-diff-badge-item="server">
-                <span>-</span> Server
-              </span>
-            </div>
-          </>
-        ) : (
-          <div data-nextjs-hydration-diff-title>Rendered hierarchy</div>
+        <div data-nextjs-hydration-diff-title>Rendered tree</div>
+        {hasClientServerDiff && (
+          <div data-nextjs-hydration-diff-badge>
+            <span data-nextjs-hydration-diff-badge-item="client">
+              <span>+</span> Client
+            </span>
+            <span data-nextjs-hydration-diff-badge-item="server">
+              <span>-</span> Server
+            </span>
+          </div>
         )}
       </div>
       <pre className="nextjs__container_errors__component-stack">

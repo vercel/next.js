@@ -82,7 +82,7 @@ describe('hydration-error-count', () => {
 
     expect(
       await browser.elementsByCss(
-        '[data-nextjs-hydration-diff-type="invalid-html"] [data-nextjs-container-errors-pseudo-html-collapse-button]'
+        '[data-nextjs-container-errors-pseudo-html-collapse-button]'
       )
     ).toHaveLength(0)
   })
@@ -93,26 +93,9 @@ describe('hydration-error-count', () => {
     if (process.env.__NEXT_CACHE_COMPONENTS) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-                                   <p>
-       +                             client
-       -                             server
-                             ...
-                           ...
-                 ...",
+         "componentStack": "<p>
+       + client
+       - server",
          "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -128,26 +111,9 @@ describe('hydration-error-count', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-                                   <p>
-       +                             client
-       -                             server
-                             ...
-                           ...
-                 ...",
+         "componentStack": "<p>
+       + client
+       - server",
          "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -165,6 +131,16 @@ describe('hydration-error-count', () => {
     expect(
       await browser.elementsByCss('[data-nextjs-hydration-diff-badge]')
     ).toHaveLength(1)
+
+    expect(
+      await browser.elementByCss('[data-nextjs-hydration-diff-title]').text()
+    ).toBe('Rendered tree')
+
+    expect(
+      await browser.elementsByCss(
+        '[data-nextjs-container-errors-pseudo-html-collapse-button]'
+      )
+    ).toHaveLength(0)
   })
 
   it('should display correct hydration info in each hydration error view', async () => {
@@ -190,27 +166,10 @@ describe('hydration-error-count', () => {
            ],
          },
          {
-           "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-                                   <p
-       +                             className="client"
-       -                             className="server"
-                                   >
-                             ...
-                           ...
-                 ...",
+           "componentStack": "<p
+       + className="client"
+       - className="server"
+       >",
            "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -244,27 +203,10 @@ describe('hydration-error-count', () => {
            ],
          },
          {
-           "componentStack": "...
-           <Next.js Internal Component>
-             <Next.js Internal Component>
-               <Next.js Internal Component>
-                 <Next.js Internal Component>
-                   <Next.js Internal Component>
-                     <Next.js Internal Component>
-                       <Next.js Internal Component>
-                         <Next.js Internal Component>
-                           <Next.js Internal Component>
-                             <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-                                   <p
-       +                             className="client"
-       -                             className="server"
-                                   >
-                             ...
-                           ...
-                 ...",
+           "componentStack": "<p
+       + className="client"
+       - className="server"
+       >",
            "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
            "environmentLabel": null,
            "label": "Recoverable Error",
