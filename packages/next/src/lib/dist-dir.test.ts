@@ -5,6 +5,7 @@ import { recursiveDeleteSyncWithAsyncRetries } from './recursive-delete'
 import {
   verifyDistDirIsInsideWorkspace,
   verifyDistDir,
+  verifyAndMarkDevDistDir,
   cleanDistDir,
   DistDirOutsideWorkspaceError,
   UnrecognizedDistDirError,
@@ -119,6 +120,75 @@ describe('verifyDistDir', () => {
 
      Read more: https://nextjs.org/docs/messages/invalid-dist-dir"
     `)
+  })
+})
+
+describe('verifyAndMarkDevDistDir', () => {
+  let testDir: string
+  let distDirRoot: string
+  let distDir: string
+
+  beforeEach(async () => {
+    testDir = await mkdtemp(join(os.tmpdir(), 'next-distdir-'))
+    distDirRoot = join(testDir, '.next')
+    distDir = join(distDirRoot, 'dev')
+  })
+
+  afterEach(async () => {
+    await rm(testDir, { recursive: true, force: true })
+  })
+
+  it('marks an absent root', async () => {
+    verifyAndMarkDevDistDir(distDir, distDirRoot)
+
+    expect(await readdir(distDirRoot)).toEqual([DIST_DIR_MARKER])
+  })
+
+  it('marks an empty root', async () => {
+    await mkdir(distDirRoot)
+
+    verifyAndMarkDevDistDir(distDir, distDirRoot)
+
+    expect(await readdir(distDirRoot)).toEqual([DIST_DIR_MARKER])
+  })
+
+  it('upgrades an already-owned root to the current marker', async () => {
+    await mkdir(distDirRoot)
+    await writeFile(join(distDirRoot, 'BUILD_ID'), '')
+    await writeFile(join(distDirRoot, 'output.js'), '')
+
+    verifyAndMarkDevDistDir(distDir, distDirRoot)
+
+    expect((await readdir(distDirRoot)).sort()).toEqual([
+      DIST_DIR_MARKER,
+      'BUILD_ID',
+      'output.js',
+    ])
+  })
+
+  it('marks a root containing only owned dev output', async () => {
+    await mkdir(distDir, { recursive: true })
+    await writeFile(join(distDir, DIST_DIR_MARKER), '')
+
+    verifyAndMarkDevDistDir(distDir, distDirRoot)
+
+    expect((await readdir(distDirRoot)).sort()).toEqual([
+      DIST_DIR_MARKER,
+      'dev',
+    ])
+  })
+
+  it('does not mark a root with unrelated siblings', async () => {
+    await mkdir(distDir, { recursive: true })
+    await writeFile(join(distDir, DIST_DIR_MARKER), '')
+    await writeFile(join(distDirRoot, 'important.txt'), 'user data')
+
+    verifyAndMarkDevDistDir(distDir, distDirRoot)
+
+    expect((await readdir(distDirRoot)).sort()).toEqual([
+      'dev',
+      'important.txt',
+    ])
   })
 })
 

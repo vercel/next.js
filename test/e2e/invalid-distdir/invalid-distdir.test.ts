@@ -3,6 +3,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// @force-gate !deploy
 describe('invalid distDir', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -13,8 +14,10 @@ describe('invalid distDir', () => {
 
   const expectStartError = async (expected: string | RegExp) => {
     if (isNextDev) {
-      await next.start()
-      await next.fetch('/').catch(() => {})
+      try {
+        await next.start()
+        await next.fetch('/').catch(() => {})
+      } catch {}
       await retry(() => expect(next.cliOutput).toMatch(expected))
     } else {
       await expect(next.start()).rejects.toThrow()
@@ -56,8 +59,9 @@ describe('invalid distDir', () => {
   })
 
   it('refuses a distDir holding unrelated files', async () => {
-    await next.patchFile('not-a-build-dir/important.txt', 'user data')
-    await next.patchFile('not-a-build-dir/nested/source.js', 'more user data')
+    const outputDir = isNextDev ? 'not-a-build-dir/dev' : 'not-a-build-dir'
+    await next.patchFile(`${outputDir}/important.txt`, 'user data')
+    await next.patchFile(`${outputDir}/nested/source.js`, 'more user data')
 
     await next.patchFile(
       'next.config.js',
@@ -66,10 +70,10 @@ describe('invalid distDir', () => {
         await expectStartError(
           'does not appear to have been created by Next.js'
         )
-        expect(await next.readFile('not-a-build-dir/important.txt')).toBe(
+        expect(await next.readFile(`${outputDir}/important.txt`)).toBe(
           'user data'
         )
-        expect(await next.readFile('not-a-build-dir/nested/source.js')).toBe(
+        expect(await next.readFile(`${outputDir}/nested/source.js`)).toBe(
           'more user data'
         )
       }

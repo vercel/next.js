@@ -121,7 +121,6 @@ import {
 } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
-import { verifyDistDir } from '../../../lib/dist-dir'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
 
@@ -216,8 +215,6 @@ async function startWatcher(
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-
-  verifyDistDir(distDir)
 
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {

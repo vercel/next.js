@@ -13,6 +13,13 @@ const LEGACY_DIST_DIR_MARKERS: ReadonlyArray<string> = [
   'trace-build',
 ]
 
+function hasDistDirMarker(entries: string[]): boolean {
+  return entries.some(
+    (entry) =>
+      entry === DIST_DIR_MARKER || LEGACY_DIST_DIR_MARKERS.includes(entry)
+  )
+}
+
 export class DistDirOutsideWorkspaceError extends Error {
   constructor(distDir: string, appDir: string, workspaceRoot: string) {
     super(
@@ -89,16 +96,50 @@ export function verifyDistDir(distDir: string): void {
     throw err
   }
 
-  const isOwned = entries.some(
-    (entry) =>
-      entry === DIST_DIR_MARKER || LEGACY_DIST_DIR_MARKERS.includes(entry)
-  )
-  if (isOwned) {
+  if (hasDistDirMarker(entries)) {
     return
   }
 
   if (entries.length !== 0) {
     throw new UnrecognizedDistDirError(resolvedDistDir)
+  }
+}
+
+/**
+ * Verifies the development output and marks its root when empty, already owned,
+ * or containing only the verified development output.
+ */
+export function verifyAndMarkDevDistDir(
+  distDir: string,
+  distDirRoot: string
+): void {
+  verifyDistDir(distDir)
+
+  const resolvedDistDir = path.resolve(distDir)
+  const resolvedDistDirRoot = path.resolve(distDirRoot)
+
+  let entries: string[]
+  try {
+    entries = fs.readdirSync(resolvedDistDirRoot)
+  } catch (err) {
+    if (isError(err) && err.code === 'ENOENT') {
+      entries = []
+    } else {
+      throw err
+    }
+  }
+
+  const containsOnlyDevOutput =
+    entries.length === 1 &&
+    path.resolve(resolvedDistDirRoot, entries[0]) === resolvedDistDir
+
+  if (
+    entries.length === 0 ||
+    hasDistDirMarker(entries) ||
+    containsOnlyDevOutput
+  ) {
+    fs.mkdirSync(resolvedDistDirRoot, { recursive: true })
+    fs.writeFileSync(path.join(resolvedDistDirRoot, DIST_DIR_MARKER), '')
   }
 }
 
