@@ -351,7 +351,8 @@ function getSpanLabel(span: RequestInsightSpan): string {
   const spanType = span.attributes?.['next.span_type']
   if (
     spanType === 'AppRender.executeServerAction' ||
-    spanType === 'UseCache.execute'
+    spanType === 'UseCache.execute' ||
+    spanType === 'UseCache.revalidate'
   ) {
     return name
   }
