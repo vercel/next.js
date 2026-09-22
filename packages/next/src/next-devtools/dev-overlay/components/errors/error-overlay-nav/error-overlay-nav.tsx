@@ -108,8 +108,8 @@ export const styles = `
         max-width: 100%;
         padding: 0;
 
-        &[data-side='right'] {
-          margin-left: auto;
+        &[data-side='left'] {
+          flex-grow: 1;
         }
       }
 
