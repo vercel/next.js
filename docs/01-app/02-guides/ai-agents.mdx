@@ -37,7 +37,7 @@ The bundled copy gives coding agents access to the APIs and patterns supported b
 
 ### Managed documentation instructions
 
-Next.js makes the bundled documentation discoverable through managed instructions in `AGENTS.md` or `CLAUDE.md` at the project root. Coding agents such as Claude Code, Codex, Cursor, and GitHub Copilot read these files when they start a session.
+Next.js makes the bundled documentation discoverable through managed instructions in `AGENTS.md` at the project root. Coding agents such as Claude Code, Codex, Cursor, and GitHub Copilot read this file when they start a session.
 
 [`create-next-app`](/docs/app/api-reference/cli/create-next-app) creates the agent files for new projects. When `next dev` detects a coding agent, it creates or updates the managed instructions for existing projects. The block directs the agent to the documentation installed with the project:
 
@@ -53,11 +53,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 ```
 
-```md filename="CLAUDE.md"
-@AGENTS.md
-```
-
-Next.js updates only the content between the agent rules markers and preserves the rest of the file.
+Next.js updates only the content between the agent rules markers and preserves the rest of `AGENTS.md`.
 
 [Research comparing `AGENTS.md` with knowledge Skills](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals) found a 100% pass rate with bundled documentation, compared with up to 79% for Skill-based approaches. See the current [Next.js agent evaluation results](https://nextjs.org/evals).
 

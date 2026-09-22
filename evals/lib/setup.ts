@@ -179,8 +179,8 @@ export async function prepareFixture(sandbox: Sandbox): Promise<void> {
 }
 
 /**
- * Write AGENTS.md (and aliases) to the sandbox root, directing agents to read
- * bundled docs from node_modules/next/dist/docs/.
+ * Write AGENTS.md to the sandbox root, directing agents to read bundled docs
+ * from node_modules/next/dist/docs/.
  *
  * Skipped for a fixture that is not already a Next.js app: the path it points at
  * does not exist yet, and naming the framework would give away the answer to the
@@ -202,7 +202,6 @@ Before any Next.js work, find and read the relevant doc in \`node_modules/next/d
 `
   await sandbox.writeFiles({
     'AGENTS.md': body,
-    'CLAUDE.md': '@AGENTS.md\n',
   })
 }
 

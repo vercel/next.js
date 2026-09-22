@@ -496,7 +496,7 @@ export async function runUpgrade(
   try {
     if (refreshAgentRulesBlock(cwd) === 'refreshed') {
       console.log(
-        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md to match the upgraded Next.js.`
       )
     }
   } catch {

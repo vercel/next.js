@@ -6,12 +6,8 @@ import { transcript, transcriptPath } from '@vercel/agent-eval/eval'
 const feedbackMarker = '<!-- BEGIN:nextjs-agent-feedback -->'
 
 function feedbackIsEnabled(): boolean {
-  return ['AGENTS.md', 'CLAUDE.md'].some((file) => {
-    const path = join(process.cwd(), file)
-    return (
-      existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
-    )
-  })
+  const path = join(process.cwd(), 'AGENTS.md')
+  return existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
 }
 
 function reportPayloads(): unknown[] {
