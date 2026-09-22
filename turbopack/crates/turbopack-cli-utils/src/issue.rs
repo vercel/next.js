@@ -353,7 +353,7 @@ impl SeenIssues {
 #[derive(Clone)]
 pub struct ConsoleUi {
     options: LogOptions,
-    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     seen: Arc<Mutex<SeenIssues>>,
 }
 

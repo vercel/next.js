@@ -28,7 +28,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 )]
 pub struct SwcPluginModule {
     pub name: RcStr,
-    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pub plugin: swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
 }
 
