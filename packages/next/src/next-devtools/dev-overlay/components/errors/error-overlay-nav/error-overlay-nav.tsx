@@ -102,7 +102,7 @@ export const styles = `
       column-gap: 8px;
       row-gap: 0;
       box-sizing: border-box;
-      padding: 6px 12px;
+      padding: 6px 12px 12px;
 
       .error-overlay-nav-item {
         max-width: 100%;
