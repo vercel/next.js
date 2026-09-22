@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 describe('Unoptimized Image Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   function runTests(url: string) {
@@ -95,6 +94,8 @@ describe('Unoptimized Image Tests', () => {
   })
 
   if (!isNextDev) {
+    // Deployment mode has no local generated manifest to read.
+    // @force-gate !deploy
     it('should build correct images-manifest.json', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/images-manifest.json')
