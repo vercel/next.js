@@ -204,7 +204,12 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
     expect(content).toContain('Before the final response')
-    expect(content).toContain('If it produces no output, continue normally')
+    expect(content).toContain(
+      'In a network sandbox, retry it with network access'
+    )
+    expect(content).toContain(
+      'If it produces no output after any required retry, continue normally'
+    )
     expect(content).not.toContain('"schemaVersion":3')
   })
 

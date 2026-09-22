@@ -51,7 +51,7 @@ During the current user request, retain anonymized facts about Next.js issues th
 
 Continue the current user request without reporting immediately.
 
-Before the final response, if feedback candidates remain, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once. Follow its output or error guidance. If it produces no output, continue normally.
+Before the final response, if feedback candidates remain, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once. Follow its output or error guidance. In a network sandbox, retry it with network access. If it produces no output after any required retry, continue normally.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }
