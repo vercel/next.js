@@ -355,7 +355,7 @@ export class NextDeployInstance extends NextInstance {
       }
 
       this.parseIdsFromCliOutput()
-      this.startRuntimeLogs(process.env, [])
+      await this.startRuntimeLogs(process.env, [])
       return
     }
 
@@ -596,10 +596,10 @@ export class NextDeployInstance extends NextInstance {
     )
 
     this.parseIdsFromCliOutput()
-    this.startRuntimeLogs(vercelEnv, vercelFlags)
+    await this.startRuntimeLogs(vercelEnv, vercelFlags)
   }
 
-  private startRuntimeLogs(env: NodeJS.ProcessEnv, flags: string[]) {
+  private async startRuntimeLogs(env: NodeJS.ProcessEnv, flags: string[]) {
     if (!this.captureRuntimeLogs) return
     this.runtimeLogs = new DeployRuntimeLogs(
       this._url,
@@ -613,6 +613,12 @@ export class NextDeployInstance extends NextInstance {
         this.emit(stream, [message])
       }
     )
+    try {
+      await this.runtimeLogs.waitForFirstMessage()
+    } catch (error) {
+      await this.runtimeLogs.stop().catch(() => {})
+      throw error
+    }
   }
 
   private async writeFixtureConfiguration(

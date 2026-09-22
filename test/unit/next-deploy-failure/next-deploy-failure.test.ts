@@ -154,10 +154,11 @@ describe('deployment lifecycle', () => {
   it('appends runtime messages to build output and stops collection on destroy', async () => {
     successfulDeployment()
     const next = await instance(true)
-    await next.start()
+    const starting = next.start()
     runtimeStdout.write(
       JSON.stringify({ message: 'register-log', level: 'info' }) + '\n'
     )
+    await starting
     expect(next.cliOutput).toBe(ids + '\nregister-log\n')
     await next.destroy()
     expect(stopRuntimeLogs).toHaveBeenCalled()
@@ -167,10 +168,11 @@ describe('deployment lifecycle', () => {
     successfulDeployment()
     process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
     const next = await instance(true)
-    await next.start()
+    const starting = next.start()
     runtimeStdout.write(
       JSON.stringify({ message: 'existing deployment' }) + '\n'
     )
+    await starting
     expect(next.cliOutput).toContain('existing deployment')
     await next.destroy()
   })
@@ -178,6 +180,7 @@ describe('deployment lifecycle', () => {
   it('stops the collector even if deployment cleanup fails', async () => {
     successfulDeployment()
     const next = await instance(true)
+    runtimeStdout.write(JSON.stringify({ message: 'ready' }) + '\n')
     await next.start()
     jest
       .spyOn(NextInstance.prototype, 'destroy')
