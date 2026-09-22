@@ -429,8 +429,8 @@ pub struct FileMeta {
     // Size of the file
     // len: u64,
     pub(crate) permissions: Permissions,
-    #[bincode(with = "turbo_bincode::mime_option")]
     #[turbo_tasks(unsafe_ignore)]
+    #[bincode(with = "turbo_bincode::mime_option")]
     content_type: Option<Mime>,
 }
 

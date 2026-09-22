@@ -162,7 +162,7 @@ pub enum ParseResult {
         /// Raw bytes of the source that produced this parse, captured atomically
         /// with the AST. `failsafe_parse` uses this to recover good parses in development on
         /// error.
-        #[turbo_tasks(debug_ignore, unsafe_ignore)]
+        #[turbo_tasks(debug_ignore)]
         program_source: Rope,
     },
     Unparsable {

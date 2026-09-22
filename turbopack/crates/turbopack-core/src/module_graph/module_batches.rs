@@ -66,7 +66,7 @@ pub struct ModuleBatchesGraph {
     // HashMaps have nondeterministic order, but this map is only used for lookups and not
     // iteration.
     //
-    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
+    // This contains Vcs, but they are already contained in the graph.
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,

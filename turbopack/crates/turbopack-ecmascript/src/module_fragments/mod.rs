@@ -446,12 +446,10 @@ pub(crate) enum SplitResult {
         #[turbo_tasks(unsafe_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
-        #[turbo_tasks(debug_ignore, unsafe_ignore)]
+        #[turbo_tasks(debug_ignore)]
         modules: Vec<ResolvedVc<ParseResult>>,
-
         #[turbo_tasks(unsafe_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
-
         #[turbo_tasks(debug_ignore, unsafe_ignore)]
         star_reexports: Vec<ExportAll>,
     },

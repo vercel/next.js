@@ -113,14 +113,14 @@ pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
     Number(
-        #[bincode(with = "turbo_bincode::serde_self_describing")]
         #[turbo_tasks(unsafe_ignore)]
+        #[bincode(with = "turbo_bincode::serde_self_describing")]
         serde_json::Number,
     ),
     String(RcStr),
     BigInt(
-        #[bincode(with_serde)]
         #[turbo_tasks(unsafe_ignore)]
+        #[bincode(with_serde)]
         Box<BigInt>,
     ),
     Array(Vec<CompileTimeDefineValue>),

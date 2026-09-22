@@ -54,7 +54,6 @@ impl ServerHmrChunkLists {
 #[turbo_tasks::value(serialization = "skip", shared)]
 #[derive(Debug)]
 pub struct ServerHmrChunkListVersion {
-    #[turbo_tasks(unsafe_ignore)]
     pub versions_by_chunk_list_path: FxIndexMap<RcStr, ReadRef<ChunkListVersion>>,
 }
 

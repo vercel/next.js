@@ -1702,11 +1702,7 @@ mod tests {
         struct Keepable(#[allow(dead_code)] u32);
 
         #[turbo_tasks::value(serialization = "skip", evict = "last")]
-        struct KeepMe(
-            #[turbo_tasks(unsafe_ignore)]
-            #[allow(dead_code)]
-            u32,
-        );
+        struct KeepMe(#[allow(dead_code)] u32);
 
         fn dummy_ref() -> SharedReference {
             SharedReference::new(triomphe::Arc::new(0u32))

@@ -383,16 +383,16 @@ pub struct Effects {
     /// Pre-resolved effects awaiting application. Lives for the lifetime of the cell — released
     /// when the producer reruns and `cell = "new"` overwrites the cell, which is when any
     /// upstream `ReadRef` strong-count cascades are naturally released.
-    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[turbo_tasks(debug_ignore)]
     captured: CapturedSlice,
     /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
-    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
     /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
     /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
     /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
     /// `apply()`.
-    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[turbo_tasks(debug_ignore)]
     unique_keys: Arc<UniqueKeys>,
 }
 

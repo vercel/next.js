@@ -30,7 +30,6 @@ use crate::{FileSystemPath, globset::parse};
 #[derive(Debug, Clone)]
 pub struct Glob {
     glob: RcStr,
-    #[turbo_tasks(unsafe_ignore)]
     opts: GlobOptions,
     #[turbo_tasks(unsafe_ignore)]
     regex: Regex,

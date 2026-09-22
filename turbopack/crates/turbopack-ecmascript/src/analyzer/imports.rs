@@ -57,7 +57,6 @@ pub struct ImportAnnotations {
 
     /// Parsed turbopack loader configuration from import attributes.
     /// e.g. `import "file" with { turbopackLoader: "raw-loader" }`
-    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     turbopack_loader: Option<WebpackLoaderItem>,
     turbopack_rename_as: Option<RcStr>,
