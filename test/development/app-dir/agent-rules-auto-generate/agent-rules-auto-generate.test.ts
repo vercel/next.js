@@ -35,6 +35,7 @@ const NON_CI_ENV = {
   GITHUB_ACTIONS: '',
   NOW_BUILDER: '',
   STACK: '',
+  NEXT_TELEMETRY_DISABLED: '',
 }
 
 /**

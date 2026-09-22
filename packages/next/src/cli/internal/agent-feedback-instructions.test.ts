@@ -9,7 +9,8 @@ describe('loadAgentFeedbackInstructions', () => {
       loadAgentFeedbackInstructions(
         {},
         async () => true,
-        async () => '# Agent feedback protocol\n'
+        async () => '# Agent feedback protocol\n',
+        () => true
       )
     ).resolves.toBe('# Agent feedback protocol\n')
   })
@@ -59,16 +60,22 @@ describe('loadAgentFeedbackInstructions', () => {
         async () => true,
         async () => {
           throw new Error('protocol unavailable')
-        }
+        },
+        () => true
       )
     ).resolves.toBeNull()
   })
 
   it('propagates feedback status errors', async () => {
     await expect(
-      loadAgentFeedbackInstructions({}, async () => {
-        throw new Error('network unavailable')
-      })
+      loadAgentFeedbackInstructions(
+        {},
+        async () => {
+          throw new Error('network unavailable')
+        },
+        undefined,
+        () => true
+      )
     ).rejects.toThrow('network unavailable')
   })
 })
