@@ -39,6 +39,7 @@ import * as ReactClient from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
+  type PrerenderResult,
   type RenderResultOptions,
 } from '../render-result'
 import {
@@ -276,7 +277,7 @@ import {
   type ResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
-import isError from '../../lib/is-error'
+import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
@@ -2874,7 +2875,7 @@ async function prerenderAppPage({
   ctx,
   metadata,
   loaderTree,
-}: PreparedAppPageRender) {
+}: PreparedAppPageRender): Promise<PrerenderResult> {
   const { res, pagePath, renderOpts, workStore, url, fallbackRouteParams } = ctx
 
   // We're either building or revalidating. In either case we need to
@@ -2913,22 +2914,36 @@ async function prerenderAppPage({
     }
   }
 
-  // If we encountered any unexpected errors during build we fail the
-  // prerendering phase and the build.
   if (workStore.invalidDynamicUsageError) {
     logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
     throw new StaticGenBailoutError()
   }
-  if (response.digestErrorsMap.size) {
-    const buildFailingError = response.digestErrorsMap.values().next().value
-    if (buildFailingError) throw buildFailingError
+  let renderError = response.error
+  const firstReactServerError = response.digestErrorsMap.values().next()
+  if (!firstReactServerError.done) {
+    renderError = { thrownValue: firstReactServerError.value }
   }
   // Pick first userland SSR error, which is also not a RSC error.
-  if (response.ssrErrors.length) {
-    const buildFailingError = response.ssrErrors.find((err) =>
-      isUserLandError(err, ctx.renderOpts.experimental.reactBrowserBailout)
-    )
-    if (buildFailingError) throw buildFailingError
+  if (renderError === undefined) {
+    for (const ssrError of response.ssrErrors) {
+      if (
+        isUserLandError(ssrError, renderOpts.experimental.reactBrowserBailout)
+      ) {
+        renderError = { thrownValue: ssrError }
+        break
+      }
+    }
+  }
+
+  // Keep the original failure for builds and incomplete prerender results.
+  //
+  // TODO: Preserve postponed state in on-demand failures and resume their
+  // recovery output during response delivery.
+  if (
+    renderError !== undefined &&
+    (renderOpts.isBuildTimePrerendering || metadata.postponed !== undefined)
+  ) {
+    throw renderError.thrownValue
   }
 
   const options: RenderResultOptions = {
@@ -2951,13 +2966,36 @@ async function prerenderAppPage({
     }
   }
 
-  applyMetadataFromPrerenderResult(response, metadata, workStore)
+  if (renderError !== undefined) {
+    res.statusCode = 500
+    metadata.statusCode = 500
+  } else {
+    applyMetadataFromPrerenderResult(response, metadata, workStore)
+  }
+
+  const streamString = await streamToString(response.stream)
+
+  // A completed failure is never resumed. Copy only the delivery metadata so
+  // the response cache does not retain the resume data cache assigned below.
+  if (renderError !== undefined) {
+    return {
+      error: getProperError(renderError.thrownValue),
+      result: new RenderResult(streamString, {
+        contentType: HTML_CONTENT_TYPE_HEADER,
+        waitUntil: options.waitUntil,
+        metadata: {
+          headers: metadata.headers,
+          flightData: metadata.flightData,
+          fetchMetrics: metadata.fetchMetrics,
+        },
+      }),
+    }
+  }
 
   if (response.renderResumeDataCache) {
     metadata.renderResumeDataCache = response.renderResumeDataCache
   }
 
-  const streamString = await streamToString(response.stream)
   const result = new RenderResult(streamString, options)
 
   // Run build-time instant validation if the page has instant configs
@@ -3304,6 +3342,10 @@ export type AppPageRender = (
   sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
+export type AppPagePrerender = (
+  ...args: Parameters<AppPageRender>
+) => Promise<PrerenderResult>
+
 type AppPagePreparation = {
   url: ReturnType<typeof parseRelativeUrl>
   parsedRequestHeaders: ParsedRequestHeaders
@@ -3429,7 +3471,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   )
 }
 
-export const prerenderToHTMLOrFlight: AppPageRender = (
+export const prerenderToHTMLOrFlight: AppPagePrerender = (
   req,
   res,
   pagePath,
@@ -8540,6 +8582,8 @@ async function validateInstantConfigInBuildWithSample(
 
 type PrerenderToStreamResult = {
   stream: AnyStream
+  // The wrapper distinguishes a thrown undefined from an absent error.
+  error: { thrownValue: unknown } | undefined
   digestErrorsMap: Map<string, DigestedError>
   ssrErrors: Array<unknown>
   dynamicAccess?: null | Array<DynamicAccess>
@@ -8788,6 +8832,7 @@ async function prerenderToStream(
 
   let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
   let reactServerPrerenderResultIsDynamic: null | boolean = null
+  let reactServerRenderChunks: Array<Uint8Array> | null = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
   const setMetadataHeader = (name: string) => {
@@ -9253,7 +9298,12 @@ async function prerenderToStream(
       }
 
       const streamState = createStreamPendingState()
-      const collectedChunks = createPrerenderChunksAccumulator()
+      // On-demand failures need the chunks emitted when React aborts to
+      // complete their Flight payload. Normal partial prerenders still use only
+      // the pre-abort chunks.
+      const collectedChunks = createPrerenderChunksAccumulator(
+        !isBuildTimePrerendering || process.env.NODE_ENV === 'development'
+      )
       const collectedChunksByStage = createStageChunksAccumulator()
       const collectChunk = (chunk: Uint8Array) => {
         collectPrerenderChunk(
@@ -9351,7 +9401,8 @@ async function prerenderToStream(
             stream,
             finalServerReactController.signal,
             collectChunk,
-            streamState
+            streamState,
+            collectedChunks.allChunks !== null
           )
         },
         () => {
@@ -9429,6 +9480,7 @@ async function prerenderToStream(
         new ReactServerPrerenderResult(collectedChunks.prerenderChunks))
       reactServerPrerenderResultIsDynamic = resultIsPartial
       reactServerPrerenderStore = finalServerPrerenderStore
+      reactServerRenderChunks = collectedChunks.allChunks
 
       metadata.flightData = Buffer.concat(
         cachedNavigations
@@ -9619,6 +9671,7 @@ async function prerenderToStream(
         }
         reactServerResult.consume()
         return {
+          error: undefined,
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(htmlStream, {
@@ -9691,6 +9744,7 @@ async function prerenderToStream(
       )
 
       return {
+        error: undefined,
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream,
@@ -9782,6 +9836,7 @@ async function prerenderToStream(
         tracingMetadata: tracingMetadata,
       })
       return {
+        error: undefined,
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
@@ -9804,7 +9859,7 @@ async function prerenderToStream(
     }
   } catch (err) {
     if (
-      isStaticGenBailoutError(err) ||
+      (isBuildTimePrerendering && isStaticGenBailoutError(err)) ||
       (typeof err === 'object' &&
         err !== null &&
         'message' in err &&
@@ -9813,13 +9868,13 @@ async function prerenderToStream(
           'https://nextjs.org/docs/advanced-features/static-html-export'
         ))
     ) {
-      // Ensure that "next dev" prints the red error overlay
+      // Preserve build-time bailouts and errors about features that cannot be
+      // used with output: 'export'.
       throw err
     }
 
-    // If this is a static generation error, we need to throw it so that it
-    // can be handled by the caller if we're in static generation mode.
-    if (isDynamicServerError(err)) {
+    // Let the build detect dynamic routes from legacy prerender bailouts.
+    if (isBuildTimePrerendering && isDynamicServerError(err)) {
       throw err
     }
 
@@ -9853,6 +9908,27 @@ async function prerenderToStream(
     if (reactServerPrerenderResult === null) {
       throw err
     }
+
+    if (
+      !isBuildTimePrerendering &&
+      isStaticGenBailoutError(err) &&
+      reactServerRenderChunks !== null
+    ) {
+      // The streaming renderer emits a shared error chunk and references to it
+      // for unfinished Flight tasks when aborted. Include these chunks so
+      // recovery does not leave the client waiting for a resume. Normal partial
+      // prerenders omit these chunks.
+      reactServerPrerenderResult = new ReactServerPrerenderResult(
+        reactServerRenderChunks
+      )
+      reactServerPrerenderResultIsDynamic = false
+      metadata.flightData = Buffer.concat(
+        cachedNavigations
+          ? prependIsPartialByteToChunks(reactServerRenderChunks, false)
+          : reactServerRenderChunks
+      )
+    }
+
     let errorType: MetadataErrorType | 'redirect' | undefined
     const isHTTPAccessFallback = isHTTPAccessFallbackError(err)
     const isRedirect = isRedirectError(err)
@@ -9874,8 +9950,15 @@ async function prerenderToStream(
       metadata.statusCode = res.statusCode
     }
 
-    if (cacheComponents && !isHTTPAccessFallback && !isRedirect) {
-      throw reactServerErrorsByDigest.get((err as any).digest) ?? err
+    // TODO: Recover partial Flight results on demand and resume the unfinished
+    // components. Keep throwing for builds and unknown Flight state.
+    if (
+      cacheComponents &&
+      !isHTTPAccessFallback &&
+      !isRedirect &&
+      (isBuildTimePrerendering || reactServerPrerenderResultIsDynamic !== false)
+    ) {
+      throw reactServerErrorsByDigest.get((err as any)?.digest) ?? err
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
@@ -9975,7 +10058,7 @@ async function prerenderToStream(
         getErrorRSCPayload,
         tree,
         ctx,
-        reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+        reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
         errorType,
         // The recovery shell only bootstraps the original Flight data. Avoid
         // blocking that shell on error-page metadata or viewport.
@@ -10160,6 +10243,7 @@ async function prerenderToStream(
           originalFlightPrerenderResult.consume()
           errorServerResult.consume()
           return {
+            error: undefined,
             digestErrorsMap: reactServerErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
@@ -10232,6 +10316,10 @@ async function prerenderToStream(
 
         errorServerResult.consume()
         return {
+          error:
+            isHTTPAccessFallback || isRedirect
+              ? undefined
+              : { thrownValue: err },
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream,
@@ -10285,7 +10373,7 @@ async function prerenderToStream(
       getErrorRSCPayload,
       tree,
       ctx,
-      reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+      reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
       errorType,
       // Legacy prerender recovery should include the error payload head.
       true
@@ -10338,6 +10426,7 @@ async function prerenderToStream(
       )
 
       return {
+        error: undefined,
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
@@ -10400,17 +10489,16 @@ function createStreamPendingState(): StreamPendingState {
   }
 }
 
-function createPrerenderChunksAccumulator(): PrerenderChunksAccumulator {
+function createPrerenderChunksAccumulator(
+  collectAllChunks = process.env.NODE_ENV === 'development'
+): PrerenderChunksAccumulator {
   return {
     // Chunks emitted before aborting the render.
     prerenderChunks: [],
-    // In dev, we also collect chunks that the render emits after aborting,
-    // because they can contain debug info for chunks that did not
-    // resolve during the prerender. However, unlike a prerender, a render
-    // will also error all the pending chunks (instead of halting),
-    // so have to use something like `createNodeStreamWithLateRelease`
-    // to make the errors unobservable.
-    allChunks: process.env.NODE_ENV === 'development' ? [] : null,
+    // The complete render includes abort errors for pending components.
+    // Recovery uses these errors; development validation delays them with
+    // createNodeStreamWithLateRelease to expose only debug information.
+    allChunks: collectAllChunks ? [] : null,
   }
 }
 
@@ -10428,8 +10516,7 @@ function collectPrerenderChunk(
   if (!signal.aborted) {
     chunks.prerenderChunks.push(chunk)
   }
-  // ...but if they contain debug info, we still want to collect them
-  // to improve error messages.
+  // Retain the complete stream when recovery or debug information needs it.
   chunks.allChunks?.push(chunk)
 }
 
@@ -10437,7 +10524,8 @@ async function iterateStreamingPrerenderChunks(
   stream: AnyStream,
   signal: AbortSignal,
   onChunk: (chunk: Uint8Array) => void,
-  streamState?: StreamPendingState
+  streamState?: StreamPendingState,
+  drainAfterAbort = process.env.NODE_ENV === 'development'
 ): Promise<void> {
   if (stream instanceof ReadableStream) {
     const reader = stream.getReader()
@@ -10445,9 +10533,7 @@ async function iterateStreamingPrerenderChunks(
       streamState.isPending = true
     }
 
-    // In production, there's no debug info, so we don't need to capture
-    // anything emitted after the abort and can cancel immediately.
-    if (process.env.NODE_ENV !== 'development') {
+    if (!drainAfterAbort) {
       signal.addEventListener(
         'abort',
         () => {
@@ -10475,9 +10561,7 @@ async function iterateStreamingPrerenderChunks(
 
     let cancelled = false
 
-    // In production, there's no debug info, so we don't need to capture
-    // anything emitted after the abort and can cancel immediately.
-    if (process.env.NODE_ENV !== 'development') {
+    if (!drainAfterAbort) {
       signal.addEventListener(
         'abort',
         () => {

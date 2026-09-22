@@ -65,7 +65,9 @@ import {
   FallbackMode,
   parseFallbackField,
 } from '../../lib/fallback' with { 'turbopack-transition': 'next-server-utility' }
-import RenderResult from '../../server/render-result' with { 'turbopack-transition': 'next-server-utility' }
+import RenderResult, {
+  type PrerenderFailure,
+} from '../../server/render-result' with { 'turbopack-transition': 'next-server-utility' }
 import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
@@ -851,7 +853,7 @@ export function createAppPageEntrypoint({
         fallbackRouteParams: OpaqueFallbackRouteParams | null
 
         renderOperation: AppPageRenderOperation
-      }): Promise<ResponseCacheEntry> => {
+      }): Promise<ResponseCacheEntry | PrerenderFailure> => {
         const context: AppPageRouteHandlerContext = {
           query,
           params,
@@ -1018,6 +1020,12 @@ export function createAppPageEntrypoint({
         }
 
         const result = await invokeRouteModule(span, context, renderOperation)
+
+        // Keep recovery output separate from successful response cache entries.
+        if ('error' in result) {
+          ;(req as any).fetchMetrics = result.result.metadata.fetchMetrics
+          return result
+        }
 
         const { metadata } = result
 
@@ -1282,8 +1290,9 @@ export function createAppPageEntrypoint({
                 isMinimalMode,
               })
 
-              // If the fallback response was set to null, then we should return null.
-              if (fallbackResponse === null) return null
+              if (fallbackResponse === null || 'error' in fallbackResponse) {
+                return fallbackResponse
+              }
 
               // Otherwise, if we did get a fallback response, we should return it.
               if (fallbackResponse) {
@@ -1318,7 +1327,7 @@ export function createAppPageEntrypoint({
                       // params stay deferred so the revalidated result is a more
                       // specific shell (e.g. `/prefix/c/[two]`), not a fully
                       // concrete route (`/prefix/c/foo`).
-                      await responseCache.revalidate(
+                      const result = await responseCache.revalidate(
                         ssgCacheKey,
                         incrementalCache,
                         isRoutePPREnabled,
@@ -1341,6 +1350,9 @@ export function createAppPageEntrypoint({
                         hasResolved,
                         ctx.waitUntil
                       )
+                      if (result !== null && 'error' in result) {
+                        throw result.error
+                      }
                     } catch (err) {
                       console.error(
                         'Error revalidating the page in the background',
@@ -1426,7 +1438,7 @@ export function createAppPageEntrypoint({
                   const responseCache = routeModule.getResponseCache(req)
 
                   try {
-                    await responseCache.revalidate(
+                    const result = await responseCache.revalidate(
                       incrementalCacheKey,
                       incrementalCache,
                       isRoutePPREnabled,
@@ -1446,6 +1458,9 @@ export function createAppPageEntrypoint({
                       hasResolved,
                       ctx.waitUntil
                     )
+                    if (result !== null && 'error' in result) {
+                      throw result.error
+                    }
                   } catch (err) {
                     console.error(
                       'Error revalidating the page in the background',
@@ -1654,6 +1669,79 @@ export function createAppPageEntrypoint({
           waitUntil: ctx.waitUntil,
           isMinimalMode,
         })
+
+        if (cacheEntry !== null && 'error' in cacheEntry) {
+          if (res.headersSent || res.writableEnded) {
+            // The outer catch reports the error when we cannot send recovery.
+            throw cacheEntry.error
+          }
+
+          // Returned failures bypass the outer catch's error reporting. Do not
+          // await async reporting before delivering recovery.
+          const errorReporting = routeModule
+            .onRequestError(
+              req,
+              cacheEntry.error,
+              {
+                routerKind: 'App Router',
+                routePath: srcPage,
+                routeType: 'render',
+                revalidateReason: getRevalidateReason({
+                  isStaticGeneration: isSSG,
+                  isOnDemandRevalidate,
+                }),
+              },
+              false,
+              routerServerContext
+            )
+            .catch((err) => {
+              console.error(err)
+            })
+          ctx.waitUntil?.(errorReporting)
+
+          const { result } = cacheEntry
+          for (const [name, value] of Object.entries(
+            result.metadata.headers ?? {}
+          )) {
+            if (value !== undefined) {
+              res.appendHeader(
+                name,
+                typeof value === 'number' ? value.toString() : value
+              )
+            }
+          }
+
+          // Each request needs the failure status, including callers that
+          // reused another request's render through the response cache.
+          res.statusCode = 500
+          span?.setAttributes({
+            'http.status_code': 500,
+            'next.rsc': isRSCRequest,
+            'error.type': '500',
+          })
+          span?.setStatus({ code: SpanStatusCode.ERROR })
+          res.removeHeader('x-nextjs-cache')
+          res.setHeader(
+            'Cache-Control',
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
+
+          let response = result
+          if (isRSCRequest) {
+            // The router discards failed prefetches and falls back to a
+            // document load when navigation receives a failed Flight response.
+            response = RenderResult.fromStatic('', RSC_CONTENT_TYPE_HEADER)
+          }
+
+          return sendRenderResult({
+            req,
+            res,
+            result: response,
+            generateEtags: false,
+            poweredByHeader: nextConfig.poweredByHeader,
+            cacheControl: undefined,
+          })
+        }
 
         if (isDraftMode) {
           res.setHeader(
@@ -2145,6 +2233,10 @@ export function createAppPageEntrypoint({
           .then(async (result) => {
             if (!result) {
               throw new Error('Invariant: expected a result to be returned')
+            }
+
+            if ('error' in result) {
+              throw result.error
             }
 
             if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
