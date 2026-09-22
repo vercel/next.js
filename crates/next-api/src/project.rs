@@ -2819,8 +2819,12 @@ impl Project {
             .cache_handlers(project_path.clone())
             .await?;
 
-        let asset_context =
-            externals_tracing_module_context(get_tracing_compile_time_info(), false, None);
+        let asset_context = externals_tracing_module_context(
+            get_tracing_compile_time_info(),
+            /* resolve_typescript */ false,
+            /* prune */ None,
+            /* trace_file_references */ true,
+        );
 
         Ok(Vc::cell(
             cache_handler
@@ -2847,15 +2851,17 @@ impl Project {
     pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
-            false,
-            None,
+            /* resolve_typescript */ false,
+            /* prune */ None,
+            /* trace_file_references */ true,
         ));
         let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
             .owned()
             .await?;
-        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
-            .owned()
-            .await?;
+        let renderer_modules =
+            pages_renderer_modules(self.project_path().owned().await?, asset_context)
+                .owned()
+                .await?;
 
         Ok(Vc::cell(
             self.additional_traced_modules()
