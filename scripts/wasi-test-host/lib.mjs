@@ -17,6 +17,17 @@ export const WASI_MEMORY_INITIAL_PAGES = 536_870_912 / WASM_PAGE_SIZE_BYTES
 // 4 GiB. Keep in sync with --max-memory in .cargo/config.toml.
 export const WASI_MEMORY_MAXIMUM_PAGES = 4_294_967_296 / WASM_PAGE_SIZE_BYTES
 
+/** Guest path mapped to the host's real temporary directory by the test runner. */
+export const WASI_TEST_TEMP_DIR = '/tmp'
+
+/** Build the environment and preopens shared by the main instance and all pthread instances. */
+export function createWasiTestEnvironment(env, cwd, hostTempDir) {
+  return {
+    env: { ...env, TMPDIR: WASI_TEST_TEMP_DIR },
+    preopens: { '/': cwd, [WASI_TEST_TEMP_DIR]: hostTempDir },
+  }
+}
+
 /** Create the imported shared memory configured by the wasm32-wasip1-threads linker flags. */
 export function createImportedMemory() {
   return new WebAssembly.Memory({

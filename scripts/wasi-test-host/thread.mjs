@@ -13,7 +13,7 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { createReadCustomSection } from './lib.mjs'
 import { createThreadRuntime } from './spawn.mjs'
 
-const { threadIds, args, env, cwd } = workerData
+const { threadIds, args, env, preopens } = workerData
 
 const handler = new ThreadMessageHandler({
   postMessage: (message) => parentPort.postMessage(message),
@@ -26,7 +26,7 @@ const handler = new ThreadMessageHandler({
       version: 'preview1',
       args,
       env,
-      preopens: { '/': cwd },
+      preopens,
       returnOnExit: true,
     })
 
@@ -38,7 +38,7 @@ const handler = new ThreadMessageHandler({
       threadIds,
       args,
       env,
-      cwd,
+      preopens,
       onError: (error, threadId) => {
         const suffix = threadId === undefined ? '' : ` ${threadId}`
         console.error(`wasi thread${suffix} failed:`, error)
