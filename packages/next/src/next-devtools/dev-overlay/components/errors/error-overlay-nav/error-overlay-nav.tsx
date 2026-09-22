@@ -100,7 +100,7 @@ export const styles = `
       flex-wrap: wrap;
       justify-content: flex-start;
       column-gap: 8px;
-      row-gap: 6px;
+      row-gap: 0;
       box-sizing: border-box;
       padding: 6px 12px;
 

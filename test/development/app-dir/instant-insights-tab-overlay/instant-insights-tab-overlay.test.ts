@@ -188,11 +188,7 @@ describe('instant insights tab overlay', () => {
           layout!.navRightEdge - layout!.rightEdge - layout!.navPaddingRight
         )
       ).toBeLessThan(2)
-      expect(
-        Math.abs(
-          layout!.rightTop - layout!.leftBottom - layout!.navPaddingBottom
-        )
-      ).toBeLessThan(2)
+      expect(Math.abs(layout!.rightTop - layout!.leftBottom)).toBeLessThan(2)
       expect(
         Math.abs(
           layout!.navBottomEdge - layout!.rightBottom - layout!.navPaddingBottom
