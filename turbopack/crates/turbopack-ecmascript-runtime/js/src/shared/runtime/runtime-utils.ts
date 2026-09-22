@@ -283,8 +283,8 @@ contextPrototype.s = esmExport
  * ])
  * ```
  *
- * The producer only picks that spelling when no name contains a comma, since the names are recovered
- * by splitting on it.
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
  *
  * Groups whose head is a module id are instantiated in list order, at the point where the call
  * appears, so the producer must not merge such a group across an import of another module.
@@ -303,7 +303,7 @@ function esmReexport(
     const head = list[i++]
     const start = i
     while (i < list.length && list[i] !== REEXPORT_GROUP_END) i++
-    const entries = list.slice(start, i) as string[]
+    const end = i
     // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
     i++
 
@@ -319,11 +319,17 @@ function esmReexport(
           // argument. Passed here only to satisfy the declared type.
           this.i(head as ModuleId, false)
     ) as Record<string, unknown>
-    const pairs =
-      entries.length === 1 ? entries[0].split(',') : (entries as string[])
-    for (let j = 0; j < pairs.length; j += 2) {
-      const importedName = pairs[j + 1]
-      bindings.push(pairs[j], () => namespace[importedName])
+    if (end - start === 1) {
+      const pairs = (list[start] as string).split(',')
+      for (let j = 0; j < pairs.length; j += 2) {
+        const importedName = pairs[j + 1]
+        bindings.push(pairs[j], () => namespace[importedName])
+      }
+    } else {
+      for (let j = start; j < end; j += 2) {
+        const importedName = list[j + 1] as string
+        bindings.push(list[j] as string, () => namespace[importedName])
+      }
     }
   }
   esmExport.call(this, bindings, id)
