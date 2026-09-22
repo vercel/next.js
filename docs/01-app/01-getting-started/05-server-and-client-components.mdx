@@ -143,6 +143,8 @@ You can create a Client Component by adding the [`"use client"`](https://react.d
 
 When adding interactivity to an existing component, keep database access in modules marked with `import 'server-only'` so accidental client imports fail at build time. Import shared values and validators directly from modules that can run in either environment. See [Preventing environment poisoning](#preventing-environment-poisoning) for an example.
 
+When converting an existing component to a Client Component, review its props. Every field passed from the server becomes available to the browser, even if the component never displays it. Select only the fields the user is allowed to see before passing them. Learn more about [protecting server data](/docs/app/guides/server-and-client-boundary#crossing-the-boundary).
+
 ```tsx filename="app/ui/counter.tsx" highlight={1} switcher
 'use client'
 
