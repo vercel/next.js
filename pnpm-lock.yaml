@@ -29,6 +29,9 @@ patchedDependencies:
   '@types/node@20.17.6':
     hash: rvl3vkomen3tospgr67bzubfyu
     path: patches/@types__node@20.17.6.patch
+  '@vercel/og@0.7.2':
+    hash: mr57r72kkumzpe37mqa6kgxdxu
+    path: patches/@vercel__og@0.7.2.patch
   http-proxy@1.18.1:
     hash: kzqzmw2zuo23hy3avffm6aqice
     path: patches/http-proxy@1.18.1.patch
@@ -231,7 +234,7 @@ importers:
         version: 3.0.0
       '@vercel/og':
         specifier: 0.7.2
-        version: 0.7.2
+        version: 0.7.2(patch_hash=mr57r72kkumzpe37mqa6kgxdxu)
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -22163,7 +22166,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/og@0.7.2':
+  '@vercel/og@0.7.2(patch_hash=mr57r72kkumzpe37mqa6kgxdxu)':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
       satori: 0.15.2
