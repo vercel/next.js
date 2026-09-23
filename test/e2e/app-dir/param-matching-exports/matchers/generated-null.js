@@ -1,0 +1,3 @@
+export async function experimental_generateParamMatching() {
+  return null
+}

@@ -350,6 +350,12 @@ export interface RequestMeta {
    */
   fallbackRouteParams?: OpaqueFallbackRouteParams | null
 
+  /** DEV only: parameter matching rejected this request as not found. */
+  devParamMatchingRejected?: boolean
+
+  /** DEV only: closed parameters, including for successful allowed values. */
+  devNotFoundParams?: readonly string[]
+
   /**
    * DEV only: Request timings in process.hrtime.bigint()
    */
