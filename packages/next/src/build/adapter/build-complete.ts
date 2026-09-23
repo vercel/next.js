@@ -63,6 +63,7 @@ import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-im
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import { mapNftFileEntries, type NftJson } from '../nft'
+import type { Span } from '../../trace'
 
 interface SharedRouteFields {
   /**
@@ -593,6 +594,7 @@ function normalizePathnames(
 }
 
 export async function handleBuildComplete({
+  buildSpan,
   dir,
   config,
   appType,
@@ -619,6 +621,7 @@ export async function handleBuildComplete({
   hasInstrumentationHook,
   functionsConfigManifest,
 }: {
+  buildSpan: Span
   /** The folder containing the next.config.js file */
   dir: string
   appType: 'app' | 'pages' | 'hybrid'
@@ -649,11 +652,16 @@ export async function handleBuildComplete({
   appPageKeys?: readonly string[] | undefined
   functionsConfigManifest: FunctionsConfigManifest
 }) {
-  const adapterMod = interopDefault(
-    await import(pathToFileURL(require.resolve(adapterPath)).href)
-  ) as NextAdapter
+  const adapterMod = (await buildSpan
+    .traceChild('adapter-load')
+    .traceAsyncFn(async () =>
+      interopDefault(
+        await import(pathToFileURL(require.resolve(adapterPath)).href)
+      )
+    )) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const collectOutputsSpan = buildSpan.traceChild('adapter-collect-outputs')
     const outputs: AdapterOutputs = {
       pages: [],
       pagesApi: [],
@@ -665,14 +673,21 @@ export async function handleBuildComplete({
 
     const clientHashes: Record<string, string> | undefined =
       bundler === Bundler.Turbopack && config.supportsImmutableAssets
-        ? JSON.parse(
-            await fs.readFile(
-              path.join(distDir, 'immutable-static-hashes.json'),
-              'utf8'
+        ? await collectOutputsSpan
+            .traceChild('adapter-load-immutable-static-hashes')
+            .traceAsyncFn(async () =>
+              JSON.parse(
+                await fs.readFile(
+                  path.join(distDir, 'immutable-static-hashes.json'),
+                  'utf8'
+                )
+              )
             )
-          )
         : undefined
 
+    const collectStaticFilesSpan = collectOutputsSpan.traceChild(
+      'adapter-collect-static-files'
+    )
     if (config.output === 'export') {
       // collect export assets and provide as static files
       const exportFiles = await recursiveReadDir(configOutDir)
@@ -693,6 +708,7 @@ export async function handleBuildComplete({
           immutableHash: clientHashes?.[immutableId],
         } satisfies AdapterOutput['STATIC_FILE'])
       }
+      collectStaticFilesSpan.stop()
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
@@ -708,6 +724,7 @@ export async function handleBuildComplete({
           immutableHash: clientHashes?.[id],
         })
       }
+      collectStaticFilesSpan.stop()
 
       const {
         sharedNodeAssets,
@@ -716,16 +733,20 @@ export async function handleBuildComplete({
         pagesSharedNodeAssetsHashes,
         appPagesSharedNodeAssets,
         appPagesSharedNodeAssetsHashes,
-      } = await getSharedNodeAssets({
-        distDir,
-        requiredServerFiles,
-        dir,
-        repoRoot,
-        outputFileTracingRoot,
-        bundler,
-        hasInstrumentationHook,
-        config,
-      })
+      } = await collectOutputsSpan
+        .traceChild('adapter-collect-shared-node-assets')
+        .traceAsyncFn(() =>
+          getSharedNodeAssets({
+            distDir,
+            requiredServerFiles,
+            dir,
+            repoRoot,
+            outputFileTracingRoot,
+            bundler,
+            hasInstrumentationHook,
+            config,
+          })
+        )
 
       async function handleTraceFiles(
         entryFilePath: string,
@@ -915,6 +936,9 @@ export async function handleBuildComplete({
         await fs.writeFile(rscFallbackPath, '{}')
       }
 
+      const collectPagesSpan = collectOutputsSpan.traceChild(
+        'adapter-collect-pages'
+      )
       for (const page of pageKeys) {
         if (page === '/_app' || page === '/_document') {
           continue
@@ -1086,7 +1110,11 @@ export async function handleBuildComplete({
           outputs.pagesApi.push(output)
         }
       }
+      collectPagesSpan.stop()
 
+      const collectMiddlewareSpan = collectOutputsSpan.traceChild(
+        'adapter-collect-middleware'
+      )
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
         const { assets, assetsHashes } = await handleTraceFiles(
@@ -1126,12 +1154,16 @@ export async function handleBuildComplete({
           },
         } satisfies AdapterOutput['MIDDLEWARE']
       }
+      collectMiddlewareSpan.stop()
       const appOutputMap: Record<
         string,
         AdapterOutput['APP_PAGE'] | AdapterOutput['APP_ROUTE']
       > = {}
       const appDistDir = path.join(distDir, 'server', 'app')
 
+      const collectAppPathsSpan = collectOutputsSpan.traceChild(
+        'adapter-collect-app-paths'
+      )
       if (appPageKeys) {
         for (const page of orderAppPageKeysByEntry(appPageKeys)) {
           if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1224,6 +1256,7 @@ export async function handleBuildComplete({
           }
         }
       }
+      collectAppPathsSpan.stop()
 
       const getParentOutput = (
         srcRoute: string,
@@ -1404,6 +1437,9 @@ export async function handleBuildComplete({
         return newCheck
       }
 
+      const collectPrerendersSpan = collectOutputsSpan.traceChild(
+        'adapter-collect-prerenders'
+      )
       for (const route in prerenderManifest.routes) {
         const {
           initialExpireSeconds: initialExpiration,
@@ -1695,7 +1731,11 @@ export async function handleBuildComplete({
         }
         prerenderGroupId += 1
       }
+      collectPrerendersSpan.stop()
 
+      const collectDynamicPrerendersSpan = collectOutputsSpan.traceChild(
+        'adapter-collect-dynamic-prerenders'
+      )
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
         if (isStaticMetadataFile(dynamicRoute)) {
           continue
@@ -2034,8 +2074,12 @@ export async function handleBuildComplete({
           }
         }
       }
+      collectDynamicPrerendersSpan.stop()
 
       // ensure 404
+      const collectErrorPagesSpan = collectOutputsSpan.traceChild(
+        'adapter-collect-error-pages'
+      )
       const staticErrorDocs = [
         ...(hasStatic404 ? ['/404'] : []),
         ...(hasStatic500 ? ['/500'] : []),
@@ -2077,10 +2121,14 @@ export async function handleBuildComplete({
           }
         }
       }
+      collectErrorPagesSpan.stop()
     }
 
     normalizePathnames(config, outputs)
 
+    collectOutputsSpan.stop()
+
+    const buildRoutingSpan = buildSpan.traceChild('adapter-build-routing')
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
@@ -2116,6 +2164,9 @@ export async function handleBuildComplete({
         ? escapeStringRegexp(path.posix.join('/', config.basePath))
         : ''
 
+    const buildDynamicRoutesSpan = buildRoutingSpan.traceChild(
+      'adapter-build-dynamic-routes'
+    )
     for (const route of routesManifest.dynamicRoutes) {
       // An earlier entry in this loop serves this shell.
       if (fallbackShellRuns?.replacedPages.has(route.page)) {
@@ -2288,6 +2339,7 @@ export async function handleBuildComplete({
         }
       }
     }
+    buildDynamicRoutesSpan.stop()
 
     const needsMiddlewareResolveRoutes =
       outputs.middleware && outputs.pages.length > 0
@@ -2305,6 +2357,9 @@ export async function handleBuildComplete({
       })),
     ])
 
+    const buildDataRoutesSpan = buildRoutingSpan.traceChild(
+      'adapter-build-data-routes'
+    )
     for (const { page } of sortedDataPages) {
       if (needsMiddlewareResolveRoutes || isDynamicRoute(page)) {
         const shouldLocalize = config.i18n
@@ -2358,6 +2413,7 @@ export async function handleBuildComplete({
         })
       }
     }
+    buildDataRoutesSpan.stop()
 
     const buildRewriteItem = (route: ManifestRewriteRoute): RewriteItem => {
       const converted = convertRewrites([route], ['nextInternalLocale'])[0]
@@ -2422,58 +2478,62 @@ export async function handleBuildComplete({
         buildRouteFromHeader(route)
       )
 
-      await adapterMod.onBuildComplete({
-        routing: {
-          beforeMiddleware: [...headers, ...redirects],
-          middlewareMatchers:
-            outputs.middleware?.config.matchers?.map((matcher) => ({
-              source: matcher.source,
-              sourceRegex: matcher.sourceRegex,
-              has: matcher.has,
-              missing: matcher.missing,
-            })) ?? [],
-          beforeFiles: rewrites.beforeFiles,
-          afterFiles: rewrites.afterFiles,
-          dynamicRoutes: combinedDynamicRoutes,
-          onMatch: [
-            {
-              // This ensures we only match known emitted-by-Next.js files and not
-              // user-emitted files which may be missing a hash in their filename.
-              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|immutable|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
-              // Next.js assets contain a hash or entropy in their filenames, so they
-              // are guaranteed to be unique and cacheable indefinitely.
-              headers: {
-                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
-              },
-            },
-            ...onMatchHeaders,
-          ],
-          fallback: rewrites.fallback,
-          shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
-          rsc: generateRoutesManifest({
-            appType,
-            pageKeys: {
-              pages: pageKeys as string[],
-              app: appPageKeys as string[],
-            },
-            config,
-            redirects: [],
-            headers: [],
-            onMatchHeaders: [],
-            rewrites,
-            restrictedRedirectPaths: [],
-            isAppPPREnabled: config.cacheComponents,
-          }).routesManifest.rsc,
-        },
-        outputs,
+      buildRoutingSpan.stop()
 
-        config,
-        distDir,
-        buildId,
-        nextVersion,
-        projectDir: dir,
-        repoRoot: repoRoot,
-      })
+      await buildSpan.traceChild('adapter-on-build-complete').traceAsyncFn(() =>
+        adapterMod.onBuildComplete!({
+          routing: {
+            beforeMiddleware: [...headers, ...redirects],
+            middlewareMatchers:
+              outputs.middleware?.config.matchers?.map((matcher) => ({
+                source: matcher.source,
+                sourceRegex: matcher.sourceRegex,
+                has: matcher.has,
+                missing: matcher.missing,
+              })) ?? [],
+            beforeFiles: rewrites.beforeFiles,
+            afterFiles: rewrites.afterFiles,
+            dynamicRoutes: combinedDynamicRoutes,
+            onMatch: [
+              {
+                // This ensures we only match known emitted-by-Next.js files and not
+                // user-emitted files which may be missing a hash in their filename.
+                sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|immutable|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
+                // Next.js assets contain a hash or entropy in their filenames, so they
+                // are guaranteed to be unique and cacheable indefinitely.
+                headers: {
+                  'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
+                },
+              },
+              ...onMatchHeaders,
+            ],
+            fallback: rewrites.fallback,
+            shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
+            rsc: generateRoutesManifest({
+              appType,
+              pageKeys: {
+                pages: pageKeys as string[],
+                app: appPageKeys as string[],
+              },
+              config,
+              redirects: [],
+              headers: [],
+              onMatchHeaders: [],
+              rewrites,
+              restrictedRedirectPaths: [],
+              isAppPPREnabled: config.cacheComponents,
+            }).routesManifest.rsc,
+          },
+          outputs,
+
+          config,
+          distDir,
+          buildId,
+          nextVersion,
+          projectDir: dir,
+          repoRoot: repoRoot,
+        })
+      )
     } catch (err) {
       Log.error(`Failed to run onBuildComplete from ${adapterMod.name}`)
       throw err
