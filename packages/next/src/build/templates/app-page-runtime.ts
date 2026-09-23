@@ -643,6 +643,9 @@ export function createAppPageEntrypoint({
     let shellCacheKey: string | null = null
     if (
       nextConfig.cacheComponents &&
+      // A closed matcher has no fallback shell. Its generated outputs must
+      // retain their concrete cache keys.
+      prerenderInfo?.fallback !== false &&
       // Never-prerenderable params must stay out of the key even when Partial
       // Prefetching is disabled.
       (nextConfig.partialPrefetching ||
@@ -941,10 +944,15 @@ export function createAppPageEntrypoint({
             // URLs. Read the current manifest here because dev updates it as
             // routes compile.
             notFoundParams:
-              prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
+              (routeModule.isDev
+                ? getRequestMeta(req, 'devNotFoundParams')
+                : undefined) ??
+              prerenderManifest.dynamicRoutes[normalizedSrcPage]
+                ?.notFoundParams ??
+              (prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
               false
                 ? routeParamNames
-                : undefined,
+                : undefined),
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
             staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
@@ -1186,6 +1194,7 @@ export function createAppPageEntrypoint({
             prerenderInfo?.fallback === null &&
             // TODO(ensure-static): express this in a cleaner way
             !isEnsureStaticPage &&
+            !prerenderInfo.isExplicitlyBlocking &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
             remainingPrerenderableParams.length > 0
@@ -1221,6 +1230,10 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            // Ordinary dev requests always use the request-specific render
+            // below. Only production, forced background work, and explicit
+            // shell debugging may enter fallback prerender handling.
+            (isProduction || forceStaticRender || isDebugPrerender) &&
             !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
@@ -1747,6 +1760,13 @@ export function createAppPageEntrypoint({
       }
 
       const handleResponse = async (span?: Span): Promise<null | void> => {
+        // Development evaluates the configured policy without emitting its
+        // production matchers. Use that outcome at the same admission boundary.
+        const devParamMatchingRejected =
+          routeModule.isDev &&
+          !isDebugPrerender &&
+          getRequestMeta(req, 'devParamMatchingRejected')
+
         // Decide whether this URL is allowed before consulting ISR. An exact
         // build path remains valid even when its cached result is missing, and
         // the most specific matched route controls whether other paths may be
@@ -1758,8 +1778,8 @@ export function createAppPageEntrypoint({
           !isDraftMode &&
           !isPossibleServerAction &&
           pageIsDynamic &&
-          prerenderInfo?.fallback === false &&
-          !isPrerendered
+          (devParamMatchingRejected ||
+            (prerenderInfo?.fallback === false && !isPrerendered))
         ) {
           if (nextConfig.adapterPath) {
             return await render404()

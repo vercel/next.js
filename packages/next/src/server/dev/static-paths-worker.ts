@@ -28,6 +28,7 @@ type RuntimeConfig = {
   configFileName: string
   cacheComponents: boolean
   partialPrefetching: boolean
+  paramMatching: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -114,7 +115,7 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const routeModule = components.routeModule
-    const segments = await collectSegments(
+    const { segments, segmentTree } = await collectSegments(
       // We know this is an app page or app route module because we checked
       // above that the page type is 'app'.
       routeModule as AppPageRouteModule | AppRouteRouteModule,
@@ -148,7 +149,9 @@ export async function loadStaticPaths({
       page: pathname,
       route,
       cacheComponents: config.cacheComponents,
+      experimentalParamMatching: config.paramMatching,
       segments,
+      segmentTree,
       distDir,
       requestHeaders,
       cacheHandler,
