@@ -2090,10 +2090,12 @@ describe('opentelemetry with disabled fetch tracing', () => {
   )
 })
 
+// These tests start a custom Next.js server (custom-server.ts),
+// which is not supported in deploy mode.
+// @force-gate !deploy
 describe('opentelemetry with custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
     packageJson: {
@@ -2108,10 +2110,6 @@ describe('opentelemetry with custom server', () => {
       NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   let collector: Collector
 
