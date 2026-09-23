@@ -41,14 +41,21 @@ In the application, use its package manager (substitute `npx next`, `yarn next`,
 pnpm exec next experimental-analyze --output --baseline-name initial-load-before
 ```
 
-This runs production analysis and exits without starting the UI server. Check
-that the installed version supports `--output`. If browser verification or
-interactive development requires a local port and the agent sandbox cannot bind
-one, prefer running that step in a local or other permitted environment that
-allows port binding. Do not try to bypass sandbox restrictions or claim a
-browser check passed when it could not run; finish only the offline analysis
-that remains valid and report the blocked verification. The files are in
-`.next/diagnostics/analyze/` (or the configured dist directory):
+Check that the installed version supports `--output`. That mode performs
+production analysis and exits without starting the analyzer UI server, but do
+**not** infer that it runs inside a sandbox without TCP port binding. In an
+agent sandbox that cannot bind TCP ports (for example, some Codex sandboxes),
+run **`experimental-analyze --output` itself outside the sandbox** in an
+environment that supports port binding. Ask for that environment or for its
+resulting data files when necessary. Continue analysis only once the artifacts
+are accessible; do not claim the analysis or browser verification ran if they
+did not. Do not bypass sandbox restrictions.
+
+Run without `--output` only if a human or browser-driving agent needs the
+optional interactive analyzer UI; that server remains open and needs a usable
+port. Output mode is the automated default, not a guarantee of sandbox
+compatibility. The files are in `.next/diagnostics/analyze/` (or the configured
+dist directory):
 
 - `data/routes.json`: array of route paths, e.g. `/`, `/dashboard`.
 - `data/modules.data`: one **whole-application** module graph.
@@ -195,6 +202,25 @@ printing entire headers to a model context.
    heuristic. An already-async edge is not a candidate for another dynamic
    split merely because its target appears in route data.
 
+### Rank a useful candidate
+
+Start with routes the user named. Otherwise rank meaningful application routes
+by measured client-output contributions, not framework or asset-like route
+names alone. For each candidate, consider estimated route share and repetition
+across routes, likely parse/execute cost, whether the feature is needed before
+interaction, and correctness risk (for example a duplicate runtime). The raw
+route outputs alone cannot establish *initial* reachability: confirm that
+separately before claiming an initial-load saving. There is no universal byte
+threshold; ignore trivial churn unless it recurs or poses a correctness risk.
+Do not invent work when no material candidate exists.
+
+Before choosing a lazy boundary, identify the exact importer and inspect
+application source. A large package name alone is not an actionable import.
+Verify alternate synchronous paths and cycles; estimate affected sources and
+outputs, but do not claim a cut's bytes are automatically removable. Source
+cleanup, including `import type` conversions, may already be eliminated by the
+bundler: only a measured artifact delta supports a bundle win.
+
 ### When a graph strategy helps
 
 - **Min cut:** For a known client entry set and a target heavy subgraph, start
@@ -251,31 +277,83 @@ optimization loop's judgment, not its CLI calls:
   avoid a universal byte threshold or a generic package blacklist.
 - For interaction-gated editors/charts/dialogs, confirm the code is genuinely
   needed only after interaction and is not already async. Introduce one
-  conditional lazy boundary while preserving loading/error states, focus,
-  keyboard access, and any intentional preloading behavior.
+  conditional lazy boundary, keeping the trigger and a stable placeholder in
+  initial UI; avoid layout shift. Use `ssr: false` only in a Client Component
+  when browser APIs require it, not automatically for every dynamic import.
+  Preserve loading/error states, direct visits, focus, keyboard access and the
+  feature's behavior. After the split works, consider preload on hover/focus
+  when intent strongly predicts use. Idle preloading is more speculative:
+  account for Save-Data, slow connections, battery/data cost and contention
+  with important requests. Do not eagerly preload the work you just deferred.
 - For duplicate packages, verify distinct versions in client artifacts and
-  the package-manager graph (`pnpm why`, `npm ls`, etc.). Distinct module
-  variants or server/client copies are not necessarily duplicate shipped JS.
-  Align compatible ranges or upgrade parents before considering overrides;
-  do not force incompatible peer/major versions, especially React.
-- For display-only Markdown, static data, broad registries, or oversized
-  Client Component boundaries, inspect whether work can move server-side or
-  become a smaller interactive island. Preserve sanitization, authorization,
-  offline/live-edit behavior, hydration, and trust boundaries.
-- Take a new named `experimental-analyze --output` snapshot after **one**
-  change. Compare the same route, output class and metric in the two snapshots
-  using the raw files. Byte removal/server migration should reduce relevant
-  client attribution; lazy loading may preserve total route bytes, so verify
-  the initial-to-async shift with source/chunk evidence **and** a cold browser
-  trace. Test the interaction and run targeted project checks. Revert an
-  ineffective or behavior-breaking change.
+  the package-manager graph (`pnpm why`, `npm ls`, etc.). Do not confuse module
+  variants, conditional exports or server/client copies with duplicate shipped
+  JS. Prioritize duplicate React, styling/state singletons (correctness risk),
+  then same-major or large repeated versions. Try aligning direct ranges,
+  upgrading the parent that pins an old version, correcting an owned package's
+  dependency-vs-peer declaration, then package-manager dedupe. Consider an
+  override only after API and peer compatibility checks; never force a
+  cross-major consolidation merely because names match. For React, confirm
+  framework compatibility and hooks/hydration behavior. Recheck client output
+  and inspect the lockfile diff for unrelated churn.
+- For server-capable work inside a Client Component, inspect display-only
+  Markdown/MDX and highlighting, locale/date registries, document/CSV/PDF
+  parsing, search indexing, schema validation, large static data and broad
+  registries. Move only work that does not require live editing, browser-only
+  data, offline operation or per-keystroke computation. Prefer a server-rendered
+  display with a smaller interactive island, a parser lazy-loaded for edit mode,
+  or a smaller client parser where needed. Keep the sanitizer policy on the
+  trusted side; never send unsafe HTML to eliminate client JavaScript. Verify
+  server rendering, sanitization, authorization, hydration and interaction.
+- Also inspect polyfills/shims, route-specific work imported by shared layouts,
+  side-effectful packages, static JSON, broad barrels, repeated route deps and
+  emitted CSS/fonts/images/media/WASM where evidence warrants it. Enumerate
+  actual output filenames and their parts; source-level asset attribution is
+  not proof of a requested file. Use a cold-browser trace for request facts.
+- Before editing, record route/snapshot, exact source and importer, candidate
+  boundary and evidence; add or identify behavior coverage. Make **one** small
+  change and take a named `experimental-analyze --output` snapshot after it.
+  Compare the same route, output class and metric in raw before/after files.
+  Byte removal/server migration/deduplication should reduce relevant client
+  attribution; lazy loading may preserve eventual route bytes, so corroborate
+  initial-to-async movement with source/chunk evidence **and** a cold browser
+  trace. Verify the trigger and behavior; run targeted tests and the narrowest
+  relevant type-check. Analysis already performed a production analysis: run
+  another full build only if project-specific or uncovered behavior requires
+  it. Revert ineffective or behavior-breaking edits. Use the accepted after
+  snapshot as the next baseline; never combine candidates before measuring.
 
-In either mode, report route and snapshot IDs, exact source/output/module
-identifiers, measured totals and scope of the measurement, inspected source
-reasons, uncertainties (especially inferred entry/scope and graph cuts), and
-checks run or blocked. In fix mode also report before/after results and behavior
-checks. Separate attributed compressed bytes from observed network transfer.
-If the artifact lacks enough evidence, say so rather than manufacturing a win.
+## 5. Report and stop
+
+In **audit**, report the ranked opportunities and evidence without edits. In
+**fix**, report only accepted changes and remaining material opportunities.
+For each accepted change include:
+
+```markdown
+### <route> — <feature>
+
+- Baseline / after: <snapshot IDs and measured client output scope>
+- Delta: <bytes and %, or separately corroborated initial → async>
+- Source / importer: <exact paths/idents and inspected source reason>
+- Change: <one behavior-preserving edit>
+- Checks: <targeted tests, type-check, browser verification or blocked checks>
+- Unrelated blockers: <if any>
+```
+
+Always distinguish **attribution measurements**, **source facts**, and
+**heuristics** (especially entry detection and cuts). Compressed source parts
+are estimates, not observed network transfer. Include exact output/module
+identifiers, assumptions and uncertainty; use a cold-browser trace/HAR for
+actual request timing and transfer bytes. If artifacts or ports are unavailable,
+report the blocked step instead of manufacturing a win.
+
+Checklist: verify named baseline and selected route; inspect reverse imports
+before any edit; do not re-defer async work; confirm duplicate versions in
+browser evidence and package graph; preserve live/offline behavior and trust
+boundaries; measure each fix independently and revert ineffective changes;
+verify behavior and report observed versus attributed measurements. When raw
+data cannot prove initial scope, label it unverified instead of substituting
+whole-route output membership.
 
 ## Related skills
 
