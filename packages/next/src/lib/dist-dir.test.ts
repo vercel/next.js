@@ -36,8 +36,10 @@ describe('verifyDistDirIsInsideWorkspace', () => {
   it.each([
     '.next', // inside the app
     '.next/dev',
+    '..next', // name starts with two dots, but is still inside the app
     '../.next', // beside the app, still in the workspace
     '../../.next', // at the workspace root, as Nx monorepos use
+    '../../..cache', // name starts with two dots, but is inside the workspace
     '.', // the app itself; left to verifyDistDir, which sees its source
   ])('allows %s', (distDir) => {
     expect(() => verify(distDir)).not.toThrow()
@@ -57,11 +59,18 @@ describe('verifyDistDirIsInsideWorkspace', () => {
     ).toThrow(DistDirOutsideWorkspaceError)
   })
 
-  it('allows an in-app distDir when the inferred workspace root is unrelated', () => {
-    expect(() =>
-      verifyDistDirIsInsideWorkspace(`${appDir}/.next`, appDir, '/custom/root')
-    ).not.toThrow()
-  })
+  it.each(['.next', '..next'])(
+    'allows an in-app %s distDir when the inferred workspace root is unrelated',
+    (distDir) => {
+      expect(() =>
+        verifyDistDirIsInsideWorkspace(
+          `${appDir}/${distDir}`,
+          appDir,
+          '/custom/root'
+        )
+      ).not.toThrow()
+    }
+  )
 })
 
 describe('verifyDistDir', () => {
@@ -83,7 +92,7 @@ describe('verifyDistDir', () => {
     expect(() => verifyDistDir(distDir)).not.toThrow()
   })
 
-  it.each([DIST_DIR_MARKER, 'BUILD_ID', 'trace', 'trace-build'])(
+  it.each([DIST_DIR_MARKER, 'BUILD_ID', 'trace', 'trace-build', 'turbopack'])(
     'allows a directory marked by %s',
     async (marker) => {
       await writeFile(join(distDir, marker), '')

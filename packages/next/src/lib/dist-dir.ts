@@ -11,6 +11,7 @@ const LEGACY_DIST_DIR_MARKERS: ReadonlyArray<string> = [
   'BUILD_ID',
   'trace',
   'trace-build',
+  'turbopack',
 ]
 
 function hasDistDirMarker(entries: string[]): boolean {
@@ -52,7 +53,10 @@ export class UnrecognizedDistDirError extends Error {
 function isStrictlyInside(ancestor: string, descendant: string): boolean {
   const relative = path.relative(path.resolve(ancestor), descendant)
   return (
-    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith('..' + path.sep) &&
+    !path.isAbsolute(relative)
   )
 }
 
