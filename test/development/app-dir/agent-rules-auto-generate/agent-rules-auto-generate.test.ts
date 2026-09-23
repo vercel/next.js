@@ -199,29 +199,25 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
       'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
     )
     expect(content).toContain(
-      '`next dev` writes and re-adds this block. Commit `AGENTS.md` with your work to keep the tree clean.'
+      '`next dev` re-adds this block, so commit `AGENTS.md` with your work.'
     )
-    expect(content).toContain('meaningful detour or are likely to recur')
+    expect(content).toContain('meaningful or recurring Next.js issues')
+    expect(content).toContain('- Crashes, hangs, OOMs')
+    expect(content).toContain('- Incorrect behavior, output, errors')
     expect(content).toContain(
-      'crashes, unexpected slowness, incorrect behavior'
+      '- Missing, unclear, or conflicting documentation'
     )
-    expect(content).toContain('CLI or upgrade failures')
+    expect(content).toContain('- Unexpected CLI, codemod, Skill')
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
     expect(content).toContain('without piping or truncating its output')
-    expect(content).toContain('it does not send retained facts or feedback')
     expect(content).toContain(
-      'remains in a browser URL fragment for user review and is not submitted until the user clicks **Send feedback**'
+      'Before the final response, run one reporting pass'
     )
+    expect(content).toContain('If a network sandbox blocks it')
     expect(content).toContain(
-      'Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass'
-    )
-    expect(content).toContain(
-      'In a network sandbox, retry it with network access'
-    )
-    expect(content).toContain(
-      'If it produces no output after any required retry, continue normally'
+      'if it still returns no output, continue normally'
     )
     expect(content).not.toContain('"schemaVersion":3')
   })
