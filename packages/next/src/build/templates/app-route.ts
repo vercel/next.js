@@ -416,6 +416,10 @@ export async function handler(
         isMinimalMode,
       })
 
+      if (cacheEntry !== null && 'error' in cacheEntry) {
+        throw cacheEntry.error
+      }
+
       // we don't create a cacheEntry for ISR
       if (!isIsr) {
         return
