@@ -32,6 +32,26 @@ describe('analyzer query discovery', () => {
       }
     }
   })
+
+  it('documents the effective environment default for each query', () => {
+    const queries = createAnalyzeQueryRegistry({} as AnalyzeRepository).list()
+    for (const [name, defaultEnvironment] of [
+      ['get_route_modules', 'total'],
+      ['get_initial_import_graph', 'client'],
+      ['analyze_import_edge', 'client'],
+    ]) {
+      const query = queries.find((item) => item.name === name)
+      expect(query?.inputSchema).toMatchObject({
+        properties: {
+          environment: {
+            type: 'string',
+            enum: ['total', 'client', 'server'],
+            description: `Attribution environment. Default: \`${defaultEnvironment}\`.`,
+          },
+        },
+      })
+    }
+  })
 })
 
 describe('analyzer SCC evidence', () => {

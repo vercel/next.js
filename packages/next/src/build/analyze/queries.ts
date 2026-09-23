@@ -1898,7 +1898,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         snapshot: snapshotSchema,
         moduleIdent: z.string().max(4096).optional(),
         routeEntryId: z.string().max(8192).optional(),
-        environment: environmentSchema,
+        environment: environmentSchema.describe(
+          'Attribution environment. Default: `client`.'
+        ),
       },
       example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
       caveats: [COMPRESSED_CAVEAT],
@@ -2006,7 +2008,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         snapshot: snapshotSchema,
         moduleIdent: z.string().max(4096).optional(),
         routeEntryId: z.string().max(8192).optional(),
-        environment: environmentSchema,
+        environment: environmentSchema.describe(
+          'Attribution environment. Default: `client`.'
+        ),
         granularity: z.enum(['module', 'source', 'package']).optional(),
         ...pagingSchema,
       },
