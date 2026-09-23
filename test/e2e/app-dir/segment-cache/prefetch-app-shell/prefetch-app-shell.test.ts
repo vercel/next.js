@@ -70,6 +70,33 @@ describe('App Shell prefetching', () => {
     )
   })
 
+  it('can navigate without extra requests if a runtime app shell is complete', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the link and fetch the shell. The route uses cookies, so this will be
+    // a runtime shell.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/runtime-shell-complete"]')
+        .click()
+    }, [{ includes: 'Cookie: none', kind: 'runtime' }])
+
+    // Navigate. The shell is complete, so this shouldn't require fetching anything else.
+    await act(async () => {
+      await browser.elementByCss('a[href="/runtime-shell-complete"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementById('cookie-value').text()).toEqual(
+      'Cookie: none'
+    )
+  })
+
   it('runtime-prefetches per-link content of a dynamic route whose static-attempt hint is unset', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
