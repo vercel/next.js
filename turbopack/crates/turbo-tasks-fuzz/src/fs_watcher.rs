@@ -2,7 +2,7 @@
 
 use std::{
     fs::OpenOptions,
-    io::Write,
+    io::{Read, Write},
     iter,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
@@ -19,15 +19,11 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, WriteLinkContent,
-    WriteLinkTargetType,
-};
+use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystem, FileSystemPath};
 
-// `read_or_write_all_paths_operation` always writes the sentinel values to files/symlinks. We can
-// check for these sentinel values to see if `write`/`write_link` was re-run.
-const FILE_SENTINEL_CONTENT: &[u8] = b"sentinel_value";
-const SYMLINK_SENTINEL_TARGET: &str = "../0";
+// Prefix read-derived writes so they are idempotent: reading our own output produces the same
+// effect value, while a subsequent external write produces a new one.
+const FILE_SENTINEL_PREFIX: &[u8] = b"sentinel_value:";
 
 #[derive(Args)]
 pub struct FsWatcher {
@@ -57,10 +53,10 @@ pub struct FsWatcher {
     /// Number of symlink modifications per iteration (only used when --symlinks is set).
     #[arg(long, default_value_t = 20, requires = "symlinks")]
     symlink_modifications: u32,
-    /// Track file writes instead of reads. When enabled, the fuzzer writes files via
-    /// turbo-tasks and verifies that external modifications trigger invalidations.
+    /// Track reads and derived writes for regular files. External modifications invalidate the
+    /// reads, and the changed input produces a new write effect.
     #[arg(long)]
-    track_writes: bool,
+    track_read_writes: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -74,17 +70,6 @@ enum SymlinkMode {
     /// Test junction points (Windows-only)
     #[cfg(windows)]
     Junction,
-}
-
-impl SymlinkMode {
-    fn is_directory(self) -> bool {
-        match self {
-            SymlinkMode::File => false,
-            SymlinkMode::Directory => true,
-            #[cfg(windows)]
-            SymlinkMode::Junction => true,
-        }
-    }
 }
 
 #[derive(Default, NonLocalValue)]
@@ -138,29 +123,24 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         } else {
             0
         };
-        let track_writes = args.track_writes;
-        let symlink_mode = args.symlinks;
-        let symlink_is_directory = symlink_mode.map(SymlinkMode::is_directory);
+        let track_read_writes = args.track_read_writes;
 
-        let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
+        let effects_op = extract_effects_operation(access_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
             args.width,
             symlink_count,
-            symlink_is_directory,
-            track_writes,
+            track_read_writes,
         ));
-        if track_writes {
+        if track_read_writes {
             read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-            let (total, mismatched) = verify_written_files(
-                &fs_root,
-                args.depth,
-                args.width,
-                symlink_count,
-                symlink_mode,
+            let (total, mismatched) = verify_read_written_files(&fs_root, args.depth, args.width);
+            println!(
+                "read and wrote all {} files, {} mismatches",
+                total,
+                mismatched.len()
             );
-            println!("wrote all {} paths, {} mismatches", total, mismatched.len());
             if args.print_missing_invalidations && !mismatched.is_empty() {
                 for path in &mismatched {
                     println!("  mismatch {path:?}");
@@ -228,31 +208,25 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
+            let effects_op = extract_effects_operation(access_all_paths_operation(
                 invalidations.clone(),
                 project_root.clone(),
                 args.depth,
                 args.width,
                 symlink_count,
-                symlink_is_directory,
-                track_writes,
+                track_read_writes,
             ));
             let symlink_info = if args.symlinks.is_some() {
                 " and symlinks"
             } else {
                 ""
             };
-            if track_writes {
+            if track_read_writes {
                 read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                let (total, mismatched) = verify_written_files(
-                    &fs_root,
-                    args.depth,
-                    args.width,
-                    symlink_count,
-                    symlink_mode,
-                );
+                let (total, mismatched) =
+                    verify_read_written_files(&fs_root, args.depth, args.width);
                 println!(
-                    "modified {} files{}. verified {} paths, {} mismatches",
+                    "modified {} files{}. verified {} files, {} mismatches",
                     modified_file_paths.len(),
                     symlink_info,
                     total,
@@ -327,65 +301,63 @@ async fn read_link(
     Ok(())
 }
 
-#[turbo_tasks::function]
-async fn write_path(
-    invalidations: TransientInstance<PathInvalidations>,
-    path: FileSystemPath,
-) -> anyhow::Result<()> {
-    let path_str = path.path.clone();
-    invalidations.0.lock().unwrap().insert(path_str);
-    let content = FileContent::Content(File::from(FILE_SENTINEL_CONTENT));
-    let _ = path.write(content.cell()).await?;
-    Ok(())
+fn read_derived_content(current: Option<&[u8]>) -> Vec<u8> {
+    let current = current.unwrap_or_default();
+    if current.starts_with(FILE_SENTINEL_PREFIX) {
+        return current.to_vec();
+    }
+
+    let mut content = Vec::with_capacity(FILE_SENTINEL_PREFIX.len() + current.len());
+    content.extend_from_slice(FILE_SENTINEL_PREFIX);
+    content.extend_from_slice(current);
+    content
 }
 
 #[turbo_tasks::function]
-async fn write_link(
+async fn read_write_path(
     invalidations: TransientInstance<PathInvalidations>,
     path: FileSystemPath,
-    target: RcStr,
-    is_directory: bool,
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
-    let link_content = WriteLinkContent {
-        target: path.parent().join(&target)?,
-        target_type: if is_directory {
-            WriteLinkTargetType::DirectoryOrJunctionPoint
-        } else {
-            WriteLinkTargetType::FileNonPortable
-        },
+
+    let current = path.read().await?;
+    let content = match &*current {
+        FileContent::Content(file) => {
+            let mut bytes = Vec::new();
+            file.read().read_to_end(&mut bytes)?;
+            read_derived_content(Some(&bytes))
+        }
+        FileContent::NotFound => read_derived_content(None),
     };
     let _ = path
-        .fs()
-        .write_link(path.clone(), link_content.cell())
+        .write(FileContent::Content(File::from(content)).cell())
         .await?;
     Ok(())
 }
 
 #[turbo_tasks::function(operation, root)]
-async fn read_or_write_all_paths_operation(
+async fn access_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
     root: FileSystemPath,
     depth: usize,
     width: usize,
     symlink_count: u32,
-    symlink_is_directory: Option<bool>,
-    write: bool,
+    track_read_writes: bool,
 ) -> anyhow::Result<()> {
     async fn process_paths_inner(
         invalidations: TransientInstance<PathInvalidations>,
         parent: FileSystemPath,
         depth: usize,
         width: usize,
-        write: bool,
+        track_read_writes: bool,
     ) -> anyhow::Result<()> {
         for child_id in 0..width {
             let child_name = child_id.to_string();
             let child_path = parent.join(&child_name)?;
             if depth == 1 {
-                if write {
-                    write_path(invalidations.clone(), child_path).await?;
+                if track_read_writes {
+                    read_write_path(invalidations.clone(), child_path).await?;
                 } else {
                     read_path(invalidations.clone(), child_path).await?;
                 }
@@ -395,49 +367,35 @@ async fn read_or_write_all_paths_operation(
                     child_path,
                     depth - 1,
                     width,
-                    write,
+                    track_read_writes,
                 ))
                 .await?;
             }
         }
         Ok(())
     }
-    process_paths_inner(invalidations.clone(), root.clone(), depth, width, write).await?;
+    process_paths_inner(
+        invalidations.clone(),
+        root.clone(),
+        depth,
+        width,
+        track_read_writes,
+    )
+    .await?;
 
+    // Symlinks remain read-tracked even when regular files use read-derived writes.
     if symlink_count > 0 {
         let symlinks_dir = root.join("_symlinks")?;
         for i in 0..symlink_count {
-            let symlink_path = symlinks_dir.join(&i.to_string())?;
-            if write {
-                write_link(
-                    invalidations.clone(),
-                    symlink_path,
-                    RcStr::from(SYMLINK_SENTINEL_TARGET),
-                    symlink_is_directory.unwrap_or(false),
-                )
-                .await?;
-            } else {
-                read_link(invalidations.clone(), symlink_path).await?;
-            }
+            read_link(invalidations.clone(), symlinks_dir.join(&i.to_string())?).await?;
         }
     }
 
     Ok(())
 }
 
-/// Verifies that all files and symlinks have the expected sentinel content. Returns (total_checked,
-/// mismatched_paths).
-///
-/// We use this when using `--track-writes`/`track_writes`. We can't use the same trick that reads
-/// do, because `write`/`write_link` will never invalidate their caller (their return value is
-/// `Vc<()>`).
-fn verify_written_files(
-    fs_root: &Path,
-    depth: usize,
-    width: usize,
-    symlink_count: u32,
-    symlink_mode: Option<SymlinkMode>,
-) -> (usize, Vec<PathBuf>) {
+/// Verifies that every regular file contains a read-derived sentinel value.
+fn verify_read_written_files(fs_root: &Path, depth: usize, width: usize) -> (usize, Vec<PathBuf>) {
     fn check_files_inner(
         parent: &Path,
         depth: usize,
@@ -450,7 +408,7 @@ fn verify_written_files(
             if depth == 1 {
                 *total += 1;
                 match std::fs::read(&child_path) {
-                    Ok(content) if content == FILE_SENTINEL_CONTENT => {}
+                    Ok(content) if content.starts_with(FILE_SENTINEL_PREFIX) => {}
                     _ => mismatched.push(child_path),
                 }
             } else {
@@ -461,53 +419,7 @@ fn verify_written_files(
 
     let mut total = 0;
     let mut mismatched = Vec::new();
-
     check_files_inner(fs_root, depth, width, &mut total, &mut mismatched);
-
-    if symlink_count > 0 {
-        let symlinks_dir = fs_root.join("_symlinks");
-
-        // Compute expected target based on mode. On Windows, junctions are stored with absolute
-        // paths by DiskFileSystem::write_link. We also need to canonicalize because read_link
-        // returns paths with the \\?\ extended-length prefix.
-        #[cfg(windows)]
-        let expected_target_canonicalized: Option<PathBuf> = match symlink_mode {
-            Some(SymlinkMode::Junction) => {
-                // Absolute path: fs_root/_symlinks/../0 resolves to fs_root/0
-                // Canonicalize to get the \\?\ prefixed form that read_link returns
-                std::fs::canonicalize(fs_root.join("0")).ok()
-            }
-            _ => None,
-        };
-
-        for i in 0..symlink_count {
-            total += 1;
-            let symlink_path = symlinks_dir.join(i.to_string());
-            let matches = match std::fs::read_link(&symlink_path) {
-                Ok(target) => {
-                    #[cfg(windows)]
-                    {
-                        if let Some(ref expected) = expected_target_canonicalized {
-                            // Canonicalize the target we read back for consistent comparison
-                            std::fs::canonicalize(&target).ok().as_ref() == Some(expected)
-                        } else {
-                            target == Path::new(SYMLINK_SENTINEL_TARGET)
-                        }
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        let _ = symlink_mode;
-                        target == Path::new(SYMLINK_SENTINEL_TARGET)
-                    }
-                }
-                Err(_) => false,
-            };
-            if !matches {
-                mismatched.push(symlink_path);
-            }
-        }
-    }
-
     (total, mismatched)
 }
 
@@ -655,5 +567,38 @@ struct FsCleanup<'a> {
 impl Drop for FsCleanup<'_> {
     fn drop(&mut self) {
         std::fs::remove_dir_all(self.path).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::fs_watcher::{FILE_SENTINEL_PREFIX, read_derived_content};
+
+    #[test]
+    fn prefixes_external_content() {
+        assert_eq!(
+            read_derived_content(Some(b"external")),
+            [FILE_SENTINEL_PREFIX, b"external"].concat()
+        );
+    }
+
+    #[test]
+    fn preserves_already_derived_content() {
+        let content = [FILE_SENTINEL_PREFIX, b"external"].concat();
+        assert_eq!(read_derived_content(Some(&content)), content);
+    }
+
+    #[test]
+    fn distinct_external_content_produces_distinct_writes() {
+        assert_ne!(
+            read_derived_content(Some(b"first")),
+            read_derived_content(Some(b"second"))
+        );
+    }
+
+    #[test]
+    fn handles_empty_and_missing_content_deterministically() {
+        assert_eq!(read_derived_content(Some(b"")), FILE_SENTINEL_PREFIX);
+        assert_eq!(read_derived_content(None), FILE_SENTINEL_PREFIX);
     }
 }
