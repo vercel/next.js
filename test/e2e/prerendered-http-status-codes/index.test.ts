@@ -36,10 +36,15 @@ describe('prerendered-http-status-codes', () => {
       }
     )
 
-    it('prerenders the not-found UI in the HTML response', async () => {
-      const $ = await next.render$(`/${variant}/not-found`)
-
-      expect($('#not-found').text()).toBe('This page could not be found.')
+    it('shows the custom not-found UI in the browser', async () => {
+      const browser = await next.browser(`/${variant}/not-found`)
+      try {
+        expect(await browser.elementByCss('#not-found').text()).toBe(
+          'This page could not be found.'
+        )
+      } finally {
+        await browser.close()
+      }
     })
 
     it.each([
