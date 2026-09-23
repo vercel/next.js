@@ -7,7 +7,9 @@ related:
 version: experimental
 ---
 
-The **unauthorized** file is used to render UI when the [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function is invoked during authentication. Along with allowing you to customize the UI, Next.js will return a `401` status code.
+The **unauthorized** file renders UI when the [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function is invoked.
+
+Before streaming starts, Next.js returns a `401` status code. After streaming starts, the status code remains `200` and the unauthorized UI renders in the response. Next.js injects a `<meta name="robots" content="noindex" />` tag in both cases. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details.
 
 ```tsx filename="app/unauthorized.tsx" switcher
 import Login from '@/app/components/Login'
