@@ -25,6 +25,7 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
+    global_module_ids::get_global_module_id_strategy,
     module_options::{
         EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
         side_effect_free_packages_glob,
@@ -287,6 +288,8 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    global_module_ids: bool,
     /// Packages that are assumed to be side effect free, unless they declare otherwise in their
     /// package.json.
     #[serde(default)]
@@ -317,6 +320,7 @@ impl Default for TestOptions {
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            global_module_ids: false,
             side_effect_free_packages: Vec::new(),
             server_relative_root: default_true(),
         }
@@ -602,6 +606,14 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         None
     });
+
+    if options.global_module_ids {
+        builder = builder.module_id_strategy(
+            get_global_module_id_strategy(module_graph)
+                .to_resolved()
+                .await?,
+        );
+    }
 
     if options.remove_unused_imports {
         builder = builder.unused_references(
