@@ -224,22 +224,19 @@ export async function initialize(opts: {
       developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
       developmentConfig.experimental.agenticAutoUpgrade === 'future'
     ) {
-      const { nudgeForUpgrade } =
+      const { nudgeUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
-      void nudgeForUpgrade(opts.dir, developmentConfig, 'dev').catch(
-        (error) => {
-          const { printAndExit } =
-            require('./utils') as typeof import('./utils')
-          const exitCode =
-            error && typeof error === 'object'
-              ? Reflect.get(error, 'exitCode')
-              : undefined
-          printAndExit(
-            error instanceof Error ? error.message : String(error),
-            typeof exitCode === 'number' ? exitCode : 1
-          )
-        }
-      )
+      void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+        const { printAndExit } = require('./utils') as typeof import('./utils')
+        const exitCode =
+          error && typeof error === 'object'
+            ? Reflect.get(error, 'exitCode')
+            : undefined
+        printAndExit(
+          error instanceof Error ? error.message : String(error),
+          typeof exitCode === 'number' ? exitCode : 1
+        )
+      })
     }
 
     // Resolve the effective serverFastRefresh value.

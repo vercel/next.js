@@ -13,12 +13,15 @@ export function runChildProcess(
   return new Promise((resolve, reject) => {
     const onInterrupt = () => child.kill('SIGINT')
     const onTerminate = () => child.kill('SIGTERM')
+    const onHangup = () => child.kill('SIGHUP')
     process.on('SIGINT', onInterrupt)
     process.on('SIGTERM', onTerminate)
+    process.on('SIGHUP', onHangup)
 
     const cleanup = () => {
       process.removeListener('SIGINT', onInterrupt)
       process.removeListener('SIGTERM', onTerminate)
+      process.removeListener('SIGHUP', onHangup)
     }
 
     child.once('error', (error: Error) => {

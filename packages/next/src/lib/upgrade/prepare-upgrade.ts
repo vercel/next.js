@@ -98,7 +98,8 @@ export type UpgradeAssessment = {
 // target, so expire cached results and refresh metadata before execution.
 export async function getUpgradeAssessment(
   installedVersion: string,
-  policy: 'security' | 'latest' | 'future'
+  policy: 'security' | 'latest' | 'future',
+  onlyIfAffected: boolean = false
 ): Promise<UpgradeAssessment> {
   if (!semver.valid(installedVersion)) {
     throw new Error('The running Next.js version is not valid semver.')
@@ -109,7 +110,7 @@ export async function getUpgradeAssessment(
     )
   }
   const canary = isCanary(installedVersion)
-  if (canary && policy === 'security') {
+  if (canary && (policy === 'security' || onlyIfAffected)) {
     return {
       affected: null,
       reference: null,
@@ -135,7 +136,9 @@ export async function getUpgradeAssessment(
     }
   }
 
-  if (policy === 'security' && !affected) {
+  // A dismissed release reminder still checks advisories, but does not need
+  // target metadata unless an advisory applies.
+  if ((policy === 'security' || onlyIfAffected) && !affected) {
     return {
       ...assessment,
       upgrade: {

@@ -201,6 +201,27 @@ describe('prepare latest upgrade', () => {
     }
   )
 
+  it('does not request canary target metadata after a release dismissal', async () => {
+    global.fetch = jest.fn()
+    await expect(
+      getUpgradeAssessment('16.4.0-canary.1', 'future', true)
+    ).resolves.toMatchObject({ affected: null, upgrade: { status: 'blocked' } })
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+  })
+
+  it('checks advisories without target metadata after a release dismissal', async () => {
+    mockLatestVersion('17.0.0')
+    await expect(
+      getUpgradeAssessment('16.4.0', 'future', true)
+    ).resolves.toMatchObject({
+      affected: false,
+      upgrade: { status: 'unaffected' },
+    })
+    expect(
+      jest.mocked(global.fetch).mock.calls.map(([url]) => String(url))
+    ).toEqual([expect.stringContaining('https://api.github.com/advisories?')])
+  })
+
   describe('shared stable eligibility', () => {
     const installed = '17.2.0'
     it.each(['security', 'latest', 'future'] as const)(
