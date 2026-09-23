@@ -54,10 +54,29 @@ export default defineRule({
             type: 'string',
           },
           {
-            type: 'array',
-            uniqueItems: true,
-            items: {
-              type: 'string',
+            type: 'object',
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                type: 'array',
+                uniqueItems: true,
+                items: {
+                  type: 'string',
+                },
+              },
             },
           },
         ],
@@ -69,14 +88,30 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: (string | { pagesDir?: string | string[]; pageExtensions?: string[] })[] =
+      context.options
+    const [firstOption] = ruleOptions
+
+    // Support both old format (string|string[]) and new format (object)
+    let customPagesDirectory: string | string[] | undefined
+    let pageExtensions: string[] | undefined
+
+    if (typeof firstOption === 'string') {
+      customPagesDirectory = firstOption
+    } else if (Array.isArray(firstOption)) {
+      customPagesDirectory = firstOption
+    } else if (typeof firstOption === 'object' && firstOption !== null) {
+      customPagesDirectory = firstOption.pagesDir
+      pageExtensions = firstOption.pageExtensions
+    }
 
     const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
       customPagesDirectory
-        ? [customPagesDirectory]
+        ? Array.isArray(customPagesDirectory)
+          ? customPagesDirectory
+          : [customPagesDirectory]
         : rootDirs.map((dir) => [
             path.join(dir, 'pages'),
             path.join(dir, 'src', 'pages'),
@@ -107,8 +142,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, pageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
