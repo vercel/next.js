@@ -76,6 +76,52 @@ describe('next analyze', () => {
     expect(stderr).not.toContain('unknown command')
     expect(stdout).toContain('Analyze production bundle output')
   })
+  it('advertises --analyze for next build', async () => {
+    const { exitCode, stdout } = await next.runCommand(['build', '--help'])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('--analyze')
+    expect(stdout).not.toContain('--experimental-analyze')
+  })
+
+  for (const flags of [
+    ['--analyze'],
+    ['--experimental-analyze'],
+    ['--analyze', '--experimental-analyze'],
+  ]) {
+    it(`writes a build and analysis output with ${flags.join(' ')}`, async () => {
+      const { exitCode, stderr } = await next.runCommand(['build', ...flags])
+
+      expect(exitCode).toBe(0)
+      expect(stderr).not.toContain('Error')
+      expect(existsSync(path.join(next.testDir, '.next/BUILD_ID'))).toBe(true)
+      expect(
+        existsSync(
+          path.join(next.testDir, '.next/diagnostics/analyze/index.html')
+        )
+      ).toBe(true)
+      expect(
+        existsSync(
+          path.join(next.testDir, '.next/diagnostics/analyze/data/routes.json')
+        )
+      ).toBe(true)
+    })
+  }
+
+  for (const flag of ['--analyze', '--experimental-analyze']) {
+    it(`rejects ${flag} with webpack`, async () => {
+      const { exitCode, stderr } = await next.runCommand(
+        ['build', flag, '--webpack'],
+        { env: { IS_TURBOPACK_TEST: '', TURBOPACK: '' } }
+      )
+
+      expect(exitCode).not.toBe(0)
+      expect(stderr).toContain(
+        '--analyze is only compatible with the Turbopack bundler.'
+      )
+    })
+  }
+
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {

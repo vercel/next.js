@@ -14,6 +14,7 @@ import { Bundler, parseBundlerArgs } from '../lib/bundler'
 import { parseBuildPathsInput } from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
+  analyze?: boolean
   experimentalAnalyze?: boolean
   debug?: boolean
   debugPrerender?: boolean
@@ -52,6 +53,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.on('SIGINT', onInterrupt)
 
   const {
+    analyze,
     experimentalAnalyze,
     debug,
     debugPrerender,
@@ -71,10 +73,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   const bundler = parseBundlerArgs(options)
 
-  if (experimentalAnalyze && bundler !== Bundler.Turbopack) {
-    printAndExit(
-      '--experimental-analyze is only compatible with the Turbopack bundler.'
-    )
+  if ((analyze || experimentalAnalyze) && bundler !== Bundler.Turbopack) {
+    printAndExit('--analyze is only compatible with the Turbopack bundler.')
   }
 
   if (!mangling) {
@@ -137,7 +137,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   return build(
     dir,
-    experimentalAnalyze,
+    analyze || experimentalAnalyze,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     debugPrerender,

@@ -194,10 +194,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
