@@ -12,6 +12,9 @@ import * as jsxA11yPlugin from 'eslint-plugin-jsx-a11y'
 // utils
 import globals from 'globals'
 import eslintParser from './parser'
+import { getPageExtensionsFromConfig } from './utils/get-page-extensions'
+
+const detectedPageExtensions = getPageExtensionsFromConfig(process.cwd())
 
 const config: Linter.Config[] = [
   {
@@ -60,6 +63,9 @@ const config: Linter.Config[] = [
           alwaysTryTypes: true,
         },
       },
+      ...(detectedPageExtensions
+        ? { next: { pageExtensions: detectedPageExtensions } }
+        : {}),
     },
     rules: {
       ...react.configs.recommended.rules,
