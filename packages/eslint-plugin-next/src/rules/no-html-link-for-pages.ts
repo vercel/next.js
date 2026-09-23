@@ -2,6 +2,7 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
+import { getPageExtensions } from '../utils/get-page-extensions'
 
 import {
   getUrlFromPagesDirectories,
@@ -21,9 +22,11 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
+// Memoize function that supports pageExtensions parameter
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
   return (...args: any[]): T => {
+    // Include pageExtensions in cache key if provided
     const key = JSON.stringify(args)
     if (cache[key] === undefined) {
       cache[key] = fn(...args)
@@ -107,8 +110,19 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    // Get pageExtensions from next.config.js
+    const pageExtensions = getPageExtensions(rootDirs[0])
+
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
