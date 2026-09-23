@@ -34,6 +34,23 @@ function validateStringArray(value: unknown, label: string): string[] {
   return value
 }
 
+function validFingerprint(value: unknown): boolean {
+  if (value === undefined) return true
+  const fingerprint = value as {
+    algorithm?: unknown
+    version?: unknown
+    digest?: unknown
+  }
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    fingerprint.algorithm === 'sha256' &&
+    fingerprint.version === 1 &&
+    typeof fingerprint.digest === 'string' &&
+    /^[0-9a-f]{64}$/.test(fingerprint.digest)
+  )
+}
+
 function validateMetadata(value: unknown, label: string): SnapshotMetadata {
   const metadata = value as SnapshotMetadata
   if (
@@ -44,7 +61,9 @@ function validateMetadata(value: unknown, label: string): SnapshotMetadata {
     typeof metadata.createdAt !== 'string' ||
     !Number.isFinite(Date.parse(metadata.createdAt)) ||
     !Number.isSafeInteger(metadata.routeCount) ||
-    metadata.routeCount < 0
+    metadata.routeCount < 0 ||
+    !validFingerprint(metadata.worktreeFingerprint) ||
+    !validFingerprint(metadata.analysisFingerprint)
   ) {
     throw new Error(`Invalid ${label}`)
   }

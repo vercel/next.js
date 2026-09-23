@@ -1,4 +1,5 @@
 import * as path from 'node:path'
+import { createHash } from 'node:crypto'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 
 import {
@@ -6,6 +7,7 @@ import {
   getGitCommit,
   getGitDirty,
   getGitMessage,
+  getGitWorktreeFingerprint,
 } from '../../lib/helpers/git'
 /**
  * Maximum number of historical snapshots to keep on disk by default. When the
@@ -18,6 +20,12 @@ const MAX_HISTORY = 20
  * side so the comparison picker can render branch / sha / timestamp labels
  * without re-fetching.
  */
+export interface ContentFingerprint {
+  algorithm: 'sha256'
+  version: 1
+  digest: string
+}
+
 export interface SnapshotMetadata {
   /** Snapshot identifier (also the directory name under `history/`). */
   id: string
@@ -33,6 +41,10 @@ export interface SnapshotMetadata {
   gitShortSha?: string
   /** Whether the working tree had uncommitted changes when the build ran. */
   gitDirty?: boolean
+  /** Content-sensitive identity for tracked and non-ignored untracked changes. */
+  worktreeFingerprint?: ContentFingerprint
+  /** Identity for emitted analyzer artifacts and analysis-affecting options. */
+  analysisFingerprint?: ContentFingerprint
   /** First line of the HEAD commit message when available. */
   gitMessage?: string
   /** `true` when built with `--app-dir-only`. */
@@ -109,6 +121,12 @@ export async function writeAnalyzeSnapshot({
   const gitBranch = getGitBranch(projectDir)
   const gitDirty = getGitDirty(projectDir)
   const gitMessage = getGitMessage(projectDir)
+  const worktreeDigest = getGitWorktreeFingerprint(projectDir)
+  const analysisDigest = await fingerprintAnalysisData(dataDir, {
+    appDirOnly,
+    noMangling,
+    nextVersion: process.env.__NEXT_VERSION,
+  })
 
   const createdAt = new Date()
   const id = makeSnapshotId(createdAt, gitSha)
@@ -121,6 +139,12 @@ export async function writeAnalyzeSnapshot({
     gitSha,
     gitShortSha: gitSha ? gitSha.slice(0, 7) : undefined,
     gitDirty,
+    worktreeFingerprint: worktreeDigest
+      ? { algorithm: 'sha256', version: 1, digest: worktreeDigest }
+      : undefined,
+    analysisFingerprint: analysisDigest
+      ? { algorithm: 'sha256', version: 1, digest: analysisDigest }
+      : undefined,
     gitMessage,
     appDirOnly,
     noMangling,
@@ -146,6 +170,48 @@ export async function writeAnalyzeSnapshot({
   await rewriteHistoryIndex(historyDir, maxHistory)
 
   return metadata
+}
+
+async function fingerprintAnalysisData(
+  dataDir: string,
+  options: {
+    appDirOnly?: boolean
+    noMangling?: boolean
+    nextVersion?: string
+  }
+): Promise<string | undefined> {
+  try {
+    const files: string[] = []
+    async function visit(directory: string): Promise<void> {
+      const entries = await readdir(directory, { withFileTypes: true })
+      entries.sort((a, b) => a.name.localeCompare(b.name))
+      for (const entry of entries) {
+        const filename = path.join(directory, entry.name)
+        if (entry.isDirectory()) {
+          await visit(filename)
+        } else if (
+          entry.isFile() &&
+          path.relative(dataDir, filename) !== METADATA_FILENAME
+        ) {
+          files.push(filename)
+        }
+      }
+    }
+    await visit(dataDir)
+
+    const hash = createHash('sha256')
+    hash.update('next-analyze-data-v1\0')
+    hash.update(JSON.stringify(options))
+    for (const filename of files) {
+      hash.update('\0')
+      hash.update(path.relative(dataDir, filename).split(path.sep).join('/'))
+      hash.update('\0')
+      hash.update(await readFile(filename))
+    }
+    return hash.digest('hex')
+  } catch {
+    return undefined
+  }
 }
 
 /**

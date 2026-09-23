@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 
-function gitExec(args: string[], cwd: string): string {
+function gitExec(args: string[], cwd: string, timeout = 2000): string {
   const result = spawnSync('git', args, {
     cwd,
-    timeout: 2000,
+    timeout,
     stdio: ['ignore', 'pipe', 'ignore'],
     encoding: 'utf8',
   })
@@ -57,6 +58,52 @@ export function getGitCommit(cwd: string): string | undefined {
 export function getGitDirty(cwd: string): boolean | undefined {
   try {
     return gitExec(['status', '--porcelain'], cwd).length > 0
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Returns a content-sensitive fingerprint for the current working tree.
+ * Only the final digest is exposed; paths and file hashes remain inside the
+ * digest input. Non-ignored untracked files are included explicitly because
+ * `git diff HEAD` does not report them.
+ */
+export function getGitWorktreeFingerprint(cwd: string): string | undefined {
+  try {
+    const status = gitExec(
+      ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      cwd,
+      30_000
+    )
+    const diff = gitExec(
+      ['diff', '--binary', '--no-ext-diff', 'HEAD', '--'],
+      cwd,
+      30_000
+    )
+    const untracked = gitExec(
+      ['ls-files', '--others', '--exclude-standard', '-z'],
+      cwd,
+      30_000
+    )
+      .split('\0')
+      .filter(Boolean)
+      .sort()
+
+    const hash = createHash('sha256')
+    hash.update('next-worktree-v1\0')
+    hash.update(status)
+    hash.update('\0')
+    hash.update(diff)
+    for (const filename of untracked) {
+      hash.update('\0untracked\0')
+      hash.update(filename)
+      hash.update('\0')
+      hash.update(
+        gitExec(['hash-object', '--no-filters', '--', filename], cwd, 30_000)
+      )
+    }
+    return hash.digest('hex')
   } catch {
     return undefined
   }

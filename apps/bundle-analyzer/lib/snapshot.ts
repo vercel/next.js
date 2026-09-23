@@ -3,6 +3,12 @@
  * `packages/next/src/build/analyze/snapshot.ts`). Field semantics must stay in
  * sync.
  */
+export interface ContentFingerprint {
+  algorithm: 'sha256'
+  version: 1
+  digest: string
+}
+
 export interface SnapshotMetadata {
   id: string
   createdAt: string
@@ -11,6 +17,8 @@ export interface SnapshotMetadata {
   gitSha?: string
   gitShortSha?: string
   gitDirty?: boolean
+  worktreeFingerprint?: ContentFingerprint
+  analysisFingerprint?: ContentFingerprint
   /** First line of the HEAD commit message when available. */
   gitMessage?: string
   appDirOnly?: boolean
