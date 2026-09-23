@@ -597,6 +597,7 @@ describe('agentic upgrade prompts', () => {
             'skills/next-cache-components-adoption/SKILL.md',
           ],
           optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+          isApplicable: jest.fn(() => true),
         },
       ],
     })
@@ -683,6 +684,7 @@ describe('agentic upgrade prompts', () => {
             'skills/next-cache-components-adoption/SKILL.md',
           ],
           optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+          isApplicable: jest.fn(() => true),
         },
       ],
     })

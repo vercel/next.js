@@ -10,7 +10,7 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
-import { futureDefaults } from './future-defaults'
+import { futureDefaults, getPendingFutureDefaults } from './future-defaults'
 import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
@@ -23,7 +23,9 @@ export type NudgeKind = 'security' | 'latest' | 'future'
 
 function getRequestedUpgrade() {
   const policy = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
-  return policy === 'security' || policy === 'latest' ? policy : null
+  return policy === 'security' || policy === 'latest' || policy === 'future'
+    ? policy
+    : null
 }
 
 const RETRY_TTL = 5 * 60 * 1000
@@ -126,8 +128,8 @@ type UpgradeReminder = {
       targetVersion: string | null
       unavailableReason: string | null
     }
-  | { kind: 'latest'; latestVersion: string | null }
-  | { kind: 'future'; names: string[] }
+  | { kind: 'latest'; latestVersion: string | null; names: string[] }
+  | { kind: 'future'; targetVersion: string; names: string[] }
 )
 
 export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
@@ -142,7 +144,7 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
 }
 
 export async function assessUpgrade(
-  _directory: string,
+  directory: string,
   config: UpgradeContext,
   installedVersion: string = process.env.__NEXT_VERSION || 'unknown',
   stopBefore: NudgeKind | null = null,
@@ -212,17 +214,21 @@ export async function assessUpgrade(
       policy,
       installedVersion,
       latestVersion: upgrade.targetVersion,
+      names:
+        policy === 'future'
+          ? getPendingFutureDefaults(
+              directory,
+              config,
+              upgrade.targetVersion
+            ).map((entry) => entry.name)
+          : [],
     }
   }
 
   if (policy !== 'future' || stopBefore === 'future') {
     return null
   }
-  const pending = futureDefaults.filter(
-    (entry) =>
-      semver.gte(installedVersion, entry.availableSince) &&
-      !entry.isAdopted(config)
-  )
+  const pending = getPendingFutureDefaults(directory, config, installedVersion)
   if (pending.length === 0) {
     return null
   }
@@ -230,6 +236,7 @@ export async function assessUpgrade(
     kind: 'future',
     policy,
     installedVersion,
+    targetVersion: upgrade.targetVersion,
     names: pending.map((entry) => entry.name),
   }
 }
@@ -387,6 +394,19 @@ async function nudgeUpgradeForHuman(
     message = `⚠ Installed Next.js version ${reminder.installedVersion} is affected by a known security vulnerability.`
     canUpgrade = reminder.unavailableReason === null
     message += `\n\n${reminder.unavailableReason ?? `Next.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion ?? '[target version]'}`}`
+  } else if (reminder.policy === 'future') {
+    const targetVersion =
+      reminder.kind === 'latest'
+        ? reminder.latestVersion
+        : reminder.targetVersion
+    const versions =
+      targetVersion !== reminder.installedVersion
+        ? ` ${reminder.installedVersion} -> ${targetVersion ?? '[target version]'}`
+        : ''
+    message = `Next.js Future Default upgrade available:${versions}`
+    if (reminder.names.length > 0) {
+      message += `\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`
+    }
   } else if (reminder.kind === 'latest') {
     message = `Next.js latest version upgrade available: ${reminder.installedVersion} -> ${reminder.latestVersion ?? '[target version]'}`
   } else {
@@ -463,7 +483,6 @@ export async function nudgeUpgrade(
         installedVersion,
         policy
       )
-      stopBefore ??= 'future'
     }
     if (signal.aborted) {
       return
@@ -496,6 +515,15 @@ export async function nudgeUpgrade(
           ...context,
           kind: 'latest',
           latestVersion: null,
+          names: [],
+        }
+        break
+      case 'future':
+        reminder = {
+          ...context,
+          kind: 'future',
+          targetVersion: installedVersion,
+          names: futureDefaults.map((entry) => entry.name),
         }
         break
     }

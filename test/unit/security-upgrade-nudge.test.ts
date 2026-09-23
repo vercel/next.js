@@ -541,6 +541,7 @@ describe('composed future nudge', () => {
       kind: 'future',
       policy: 'future',
       installedVersion: '16.4.0-canary.1',
+      targetVersion: '16.4.0',
       names: ['Cache Components'],
     })
   })
@@ -584,8 +585,21 @@ describe('composed future nudge', () => {
       kind: 'future',
       policy: 'future',
       installedVersion: '16.4.0',
+      targetVersion: '16.4.0',
       names: ['Cache Components'],
     })
+  })
+
+  it('does not offer Cache Components to a Pages-only app', async () => {
+    await rm(join(directory, 'app'), { recursive: true })
+    await mkdir(join(directory, 'pages'))
+    await expect(
+      assessUpgrade(
+        directory,
+        config('future', { cacheComponents: false }),
+        '16.4.0'
+      )
+    ).resolves.toBeNull()
   })
 
   it('stays silent when all available Future Defaults are adopted', async () => {
@@ -682,6 +696,21 @@ describe('human upgrade nudge', () => {
       '17.0.0',
       'Next.js latest version upgrade available: 16.4.0 -> 17.0.0',
     ],
+    [
+      'future',
+      '17.0.0',
+      'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0\n\n- Cache Components',
+    ],
+    [
+      'future',
+      '16.4.1',
+      'Next.js Future Default upgrade available: 16.4.0 -> 16.4.1\n\n- Cache Components',
+    ],
+    [
+      'future',
+      '16.4.0',
+      'Next.js Future Default upgrade available:\n\n- Cache Components',
+    ],
   ] as const)(
     'renders concise %s copy for target %s',
     async (policy, targetVersion, message) => {
@@ -701,6 +730,21 @@ describe('human upgrade nudge', () => {
     }
   )
 
+  it('omits already adopted defaults from a future version upgrade', async () => {
+    mockUpgrade('17.0.0')
+    await nudgeUpgrade(
+      directory,
+      config('future', { cacheComponents: true }),
+      'build',
+      new AbortController().signal
+    )
+    expect(promptUpgrade).toHaveBeenCalledWith(
+      'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0',
+      expect.any(AbortSignal),
+      true
+    )
+  })
+
   it.each(['update', 'skip', 'interrupt'] as const)(
     'returns %s without saving a dismissal',
     async (action) => {
@@ -716,7 +760,7 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it.each(['security', 'latest'] as const)(
+  it.each(['security', 'latest', 'future'] as const)(
     'forces a %s request without changing installed-version eligibility',
     async (policy) => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
@@ -940,6 +984,25 @@ describe('human upgrade nudge', () => {
       expect(promptUpgrade).toHaveBeenCalledTimes(affected ? 1 : 0)
     }
   )
+
+  it('suppresses dismissed Future Defaults but still offers a newer release', async () => {
+    mockUpgrade()
+    jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
+    await expect(run()).resolves.toBe('dismiss')
+    jest.clearAllMocks()
+    await run()
+    expect(promptUpgrade).toHaveBeenCalledTimes(0)
+    mockUpgrade('17.0.0')
+    jest.mocked(promptUpgrade).mockResolvedValue('skip')
+    await expect(run()).resolves.toBe('skip')
+    expect(promptUpgrade).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0'
+      ),
+      expect.any(AbortSignal),
+      true
+    )
+  })
 
   it.each(['blocked', 'unknown'] as const)(
     'omits Update when security target availability is %s',

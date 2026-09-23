@@ -21,6 +21,7 @@ describe('prepare latest upgrade', () => {
   async function createApp(version: string): Promise<string> {
     const directory = await mkdtemp(join(tmpdir(), 'next-latest-upgrade-'))
     directories.push(directory)
+    await mkdir(join(directory, 'app'))
     await mkdir(join(directory, 'node_modules/next'), { recursive: true })
     await writeFile(join(directory, 'package.json'), '{}')
     await writeFile(
@@ -725,7 +726,18 @@ describe('prepare latest upgrade', () => {
     await expect(prepareUpgrade(directory, 'future')).resolves.toEqual({
       status: 'unaffected',
       reason:
-        'Next.js 16.4.0 is current and all available Future Defaults are enabled.',
+        'Next.js 16.4.0 is current and no applicable Future Defaults are pending.',
+    })
+  })
+  it('keeps version upgrades but excludes adoption for a Pages-only app', async () => {
+    const directory = await createApp('16.2.0')
+    await rm(join(directory, 'app'), { recursive: true })
+    await mkdir(join(directory, 'pages'))
+    mockFutureMetadata('<16.3.0')
+    await expect(prepareUpgrade(directory, 'future')).resolves.toMatchObject({
+      status: 'ready',
+      targetVersion: '16.4.0',
+      futureDefaults: [],
     })
   })
 })
