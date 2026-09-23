@@ -57,6 +57,11 @@ jobs:
               return check.conclusion === 'success' ? 'success' : 'unsuccessful'
             }
 
+            function isTransientApiError(error) {
+              const status = error.status ?? error.response?.status
+              return status === 429 || (status >= 500 && status < 600)
+            }
+
             function gateDecision(candidates) {
               if (candidates.some((candidate) => candidate.state === 'success')) {
                 return 'open'
@@ -182,20 +187,19 @@ jobs:
 
             async function latestRequiredCheck(pull) {
               const livePull = await getPull(pull.number)
-              const mergeSha = livePull.merge_commit_sha
-              if (!mergeSha) {
-                return {
-                  pull: livePull,
-                  mergeSha: null,
-                  check: null,
-                  state: 'waiting',
-                }
+              const headSha = livePull.head?.sha
+              const baseSha = livePull.base?.sha
+              if (!headSha || !baseSha) {
+                throw new Error(`Missing head/base SHA for PR #${pull.number}`)
               }
 
+              // Actions attaches this PR's required check to its head commit. A
+              // head SHA can outlive a base update, so also match the check's
+              // pull-request association to the current base commit.
               const { data } = await github.rest.checks.listForRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                ref: mergeSha,
+                ref: headSha,
                 check_name: REQUIRED_CHECK,
                 filter: 'latest',
                 per_page: 100,
@@ -204,13 +208,20 @@ jobs:
                 .filter(
                   (candidate) =>
                     candidate.name === REQUIRED_CHECK &&
-                    candidate.app?.slug === 'github-actions'
+                    candidate.app?.slug === 'github-actions' &&
+                    candidate.head_sha === headSha &&
+                    candidate.pull_requests?.some(
+                      (associated) =>
+                        associated.number === livePull.number &&
+                        associated.head?.sha === headSha &&
+                        associated.base?.ref === livePull.base.ref &&
+                        associated.base?.sha === baseSha
+                    )
                 )
                 .sort((a, b) => b.id - a.id)[0]
 
               return {
                 pull: livePull,
-                mergeSha,
                 check: check ?? null,
                 state: checkState(check),
               }
@@ -223,7 +234,7 @@ jobs:
                 candidates: snapshot.candidates?.map((candidate) => ({
                   number: candidate.pull.number,
                   head: candidate.pull.head.sha,
-                  merge: candidate.mergeSha,
+                  base: candidate.pull.base.sha,
                   status: candidate.check?.status,
                   conclusion: candidate.check?.conclusion,
                 })),
@@ -248,7 +259,7 @@ jobs:
                 if (snapshot.candidates?.length) {
                   lines.push(
                     '',
-                    '| PR | Base ← Head | Head SHA | Test-merge SHA | Check | State |',
+                    '| PR | Base ← Head | Head SHA | Base SHA | Check | State |',
                     '|---:|---|---|---|---|---|'
                   )
                   for (const candidate of snapshot.candidates) {
@@ -256,7 +267,7 @@ jobs:
                       ? `[${candidate.check.status}/${candidate.check.conclusion ?? ''}](${candidate.check.html_url})`
                       : 'not reported'
                     lines.push(
-                      `| #${candidate.pull.number} | \`${escapeCell(candidate.pull.base.ref)}\` ← \`${escapeCell(candidate.pull.head.ref)}\` | \`${escapeCell(candidate.pull.head.sha?.slice(0, 12))}\` | \`${escapeCell(candidate.mergeSha?.slice(0, 12))}\` | ${checkText} | ${candidate.state} |`
+                      `| #${candidate.pull.number} | \`${escapeCell(candidate.pull.base.ref)}\` ← \`${escapeCell(candidate.pull.head.ref)}\` | \`${escapeCell(candidate.pull.head.sha?.slice(0, 12))}\` | \`${escapeCell(candidate.pull.base.sha?.slice(0, 12))}\` | ${checkText} | ${candidate.state} |`
                     )
                   }
                 }
@@ -279,15 +290,37 @@ jobs:
               }
 
               while (true) {
-                const topology = await discoverTopology()
+                let topology
+                const candidates = []
+                try {
+                  topology = await discoverTopology()
+                  if (topology.role === 'middle') {
+                    for (const predecessor of topology.predecessors) {
+                      candidates.push(await latestRequiredCheck(predecessor))
+                    }
+                  }
+                } catch (error) {
+                  if (!isTransientApiError(error)) throw error
+                  if (Date.now() - startedAt >= WAIT_DEADLINE_MS) {
+                    await writeSummary(
+                      {
+                        current: context.payload.pull_request,
+                        role: 'error',
+                        reason: error.message,
+                      },
+                      'open',
+                      'Five-hour transient API error deadline reached; starting full CI'
+                    )
+                    return
+                  }
+                  core.warning(`Transient GitHub API error (${error.status ?? error.response?.status}); retrying in five minutes: ${error.message}`)
+                  await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+                  continue
+                }
+
                 if (topology.role !== 'middle') {
                   await writeSummary(topology, 'open', topology.reason)
                   return
-                }
-
-                const candidates = []
-                for (const predecessor of topology.predecessors) {
-                  candidates.push(await latestRequiredCheck(predecessor))
                 }
                 const snapshot = { ...topology, candidates }
                 const decision = gateDecision(candidates)

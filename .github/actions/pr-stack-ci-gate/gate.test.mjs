@@ -32,7 +32,11 @@ function pull(number, base, head, options = {}) {
   return {
     number,
     state: 'open',
-    base: { ref: base, repo: { full_name: 'vercel/next.js' } },
+    base: {
+      ref: base,
+      sha: options.baseSha ?? `base-${base}`,
+      repo: { full_name: 'vercel/next.js' },
+    },
     head: {
       ref: head,
       sha: options.headSha ?? `head-${number}`,
@@ -104,7 +108,11 @@ function createGithub(pulls, checks = {}, options = {}) {
       pulls: {
         list: listRoute,
         async get({ pull_number }) {
-          if (options.getError) throw options.getError
+          const error =
+            typeof options.getError === 'function'
+              ? options.getError(pull_number)
+              : options.getError
+          if (error) throw error
           const item = byNumber.get(pull_number)
           assert.ok(item, `missing mocked PR #${pull_number}`)
           return { data: structuredClone(item) }
@@ -117,7 +125,22 @@ function createGithub(pulls, checks = {}, options = {}) {
             typeof checks === 'function'
               ? checks(ref, checkCall++)
               : checks[ref]
-          return { data: { check_runs: value ? [structuredClone(value)] : [] } }
+          const candidates = (
+            Array.isArray(value) ? value : value ? [value] : []
+          ).map((item) => structuredClone(item))
+          for (const candidate of candidates) {
+            if (!('head_sha' in candidate)) candidate.head_sha = ref
+            if (!('pull_requests' in candidate)) {
+              candidate.pull_requests = pulls
+                .filter((item) => item.head.sha === ref)
+                .map((item) => ({
+                  number: item.number,
+                  head: { sha: item.head.sha },
+                  base: { ref: item.base.ref, sha: item.base.sha },
+                }))
+            }
+          }
+          return { data: { check_runs: candidates } }
         },
       },
     },
@@ -254,14 +277,14 @@ test(
 )
 
 test(
-  'middle PR uses test-merge checks and opens on any success',
+  'middle PR uses current-head checks and opens on any success',
   { concurrency: false },
   async () => {
     const stack = linearStack(5)
     const checks = {
-      'merge-3': check(3, null, 'in_progress'),
-      'merge-2': check(2, 'success'),
-      'merge-1': check(1, 'failure'),
+      'head-3': check(3, null, 'in_progress'),
+      'head-2': check(2, 'success'),
+      'head-1': check(1, 'failure'),
     }
     const { core, checkRefs } = await runGate({
       pulls: stack,
@@ -269,8 +292,8 @@ test(
       checks,
     })
     assert.deepEqual(core.failures, [])
-    assert.deepEqual(checkRefs, ['merge-3', 'merge-2', 'merge-1'])
-    assert.ok(!checkRefs.some((ref) => ref.startsWith('head-')))
+    assert.deepEqual(checkRefs, ['head-3', 'head-2', 'head-1'])
+    assert.ok(!checkRefs.some((ref) => ref.startsWith('merge-')))
     assert.match(core.summaries.join('\n'), /PR #2 passed thank you, next/)
   }
 )
@@ -281,14 +304,85 @@ test(
   async () => {
     const stack = linearStack(5)
     const checks = {
-      'merge-3': check(3, 'failure'),
-      'merge-2': check(2, 'cancelled'),
-      'merge-1': check(1, 'skipped'),
+      'head-3': check(3, 'failure'),
+      'head-2': check(2, 'cancelled'),
+      'head-1': check(1, 'skipped'),
     }
     const { core } = await runGate({ pulls: stack, current: 4, checks })
     assert.equal(core.failures.length, 1)
     assert.match(core.failures[0], /All three predecessor PRs/)
     assert.match(core.summaries.join('\n'), /Result: \*\*failed\*\*/)
+  }
+)
+
+test(
+  'old-base success cannot release CI and latest associated failure is terminal',
+  { concurrency: false },
+  async () => {
+    const stack = linearStack(5)
+    const staleSuccess = {
+      ...check(200, 'success'),
+      pull_requests: [
+        {
+          number: 3,
+          head: { sha: 'head-3' },
+          base: { ref: 'branch-2', sha: 'old-base-sha' },
+        },
+      ],
+    }
+    const checks = {
+      'head-3': [staleSuccess, check(100, 'failure')],
+      'head-2': check(2, 'cancelled'),
+      'head-1': check(1, 'failure'),
+    }
+    const { core } = await runGate({ pulls: stack, current: 4, checks })
+    assert.equal(core.failures.length, 1)
+    assert.match(core.failures[0], /All three predecessor PRs/)
+    assert.doesNotMatch(core.summaries.join('\n'), /PR #3 passed/)
+  }
+)
+
+test(
+  'old head, other PR, missing association, and other app never release',
+  { concurrency: false },
+  async () => {
+    const stack = linearStack(5)
+    const staleVariants = [
+      { ...check(3, 'success'), head_sha: 'old-head-sha' },
+      {
+        ...check(3, 'success'),
+        pull_requests: [
+          {
+            number: 99,
+            head: { sha: 'head-3' },
+            base: { ref: 'branch-2', sha: stack[2].base.sha },
+          },
+        ],
+      },
+      { ...check(3, 'success'), pull_requests: [] },
+      { ...check(3, 'success'), app: { slug: 'untrusted-app' } },
+    ]
+    for (const candidate of staleVariants) {
+      const { core, checkRefs } = await runGate({
+        pulls: stack,
+        current: 4,
+        checks: { 'head-3': candidate },
+        advanceOnSleep: 5 * 60 * 60 * 1000,
+      })
+      assert.deepEqual(core.failures, [])
+      assert.match(
+        core.summaries.join('\n'),
+        /Five-hour waiting deadline reached/
+      )
+      assert.deepEqual(checkRefs, [
+        'head-3',
+        'head-2',
+        'head-1',
+        'head-3',
+        'head-2',
+        'head-1',
+      ])
+    }
   }
 )
 
@@ -301,14 +395,14 @@ test(
     const checks = (ref) => {
       const count = calls.get(ref) ?? 0
       calls.set(ref, count + 1)
-      if (ref === 'merge-3' && count > 0) return check(30, 'success')
-      if (ref === 'merge-2') return check(20, 'failure')
-      if (ref === 'merge-1') return check(10, 'cancelled')
+      if (ref === 'head-3' && count > 0) return check(30, 'success')
+      if (ref === 'head-2') return check(20, 'failure')
+      if (ref === 'head-1') return check(10, 'cancelled')
       return null
     }
     const { core } = await runGate({ pulls: stack, current: 4, checks })
     assert.deepEqual(core.failures, [])
-    assert.ok(calls.get('merge-3') >= 2)
+    assert.ok(calls.get('head-3') >= 2)
     assert.match(core.summaries.join('\n'), /PR #3 passed thank you, next/)
   }
 )
@@ -333,6 +427,50 @@ test(
 )
 
 test(
+  'transient GitHub errors retry, then observe current-head success',
+  { concurrency: false },
+  async () => {
+    const stack = linearStack(5)
+    let getCalls = 0
+    const error = Object.assign(new Error('GitHub temporarily unavailable'), {
+      status: 500,
+    })
+    const { core, checkRefs } = await runGate({
+      pulls: stack,
+      current: 4,
+      checks: { 'head-2': check(2, 'success') },
+      getError: () => (getCalls++ === 0 ? error : null),
+    })
+    assert.deepEqual(core.failures, [])
+    assert.match(core.warnings.join('\n'), /Transient GitHub API error/)
+    assert.match(core.summaries.join('\n'), /PR #2 passed thank you, next/)
+    assert.match(core.summaries.join('\n'), /Elapsed: 5 minute/)
+    assert.deepEqual(checkRefs, ['head-3', 'head-2', 'head-1'])
+  }
+)
+
+test(
+  'persistent 429 opens only at the five-hour deadline',
+  { concurrency: false },
+  async () => {
+    const error = Object.assign(new Error('rate limited'), { status: 429 })
+    const { core, checkRefs } = await runGate({
+      pulls: linearStack(5),
+      current: 4,
+      getError: error,
+      advanceOnSleep: 5 * 60 * 60 * 1000,
+    })
+    assert.deepEqual(core.failures, [])
+    assert.deepEqual(checkRefs, [])
+    assert.match(core.warnings.join('\n'), /Transient GitHub API error/)
+    assert.match(
+      core.summaries.join('\n'),
+      /Five-hour transient API error deadline reached/
+    )
+  }
+)
+
+test(
   'API and ambiguous-chain errors fail open',
   { concurrency: false },
   async () => {
@@ -344,6 +482,15 @@ test(
     })
     assert.deepEqual(apiResult.core.failures, [])
     assert.match(apiResult.core.warnings.join('\n'), /failing open/)
+
+    const unauthorized = await runGate({
+      pulls: stack,
+      current: 4,
+      getError: Object.assign(new Error('not authorized'), { status: 403 }),
+    })
+    assert.deepEqual(unauthorized.core.failures, [])
+    assert.match(unauthorized.core.warnings.join('\n'), /failing open/)
+    assert.match(unauthorized.core.summaries.join('\n'), /Elapsed: 0 minute/)
 
     const duplicate = pull(30, 'other', 'branch-3')
     const ambiguousResult = await runGate({
