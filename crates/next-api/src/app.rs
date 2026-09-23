@@ -17,7 +17,7 @@ use next_core::{
         get_client_runtime_entries,
     },
     next_client_reference::{
-        ClientReferenceGraphResult, NextCssClientReferenceTransition,
+        ClientReferenceGraphResult, ClientReferenceType, NextCssClientReferenceTransition,
         NextEcmascriptClientReferenceTransition, ServerEntries, find_server_entries,
     },
     next_config::NextConfig,
@@ -84,7 +84,8 @@ use crate::{
     },
     project::{BaseAndFullModuleGraph, Project},
     route::{
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        AnalyzeClientEntries, AnalyzeClientReference, AppPageRoute, Endpoint, EndpointOutput,
+        EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -2228,6 +2229,69 @@ impl Endpoint for AppEndpoint {
             .app_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn analyze_client_entries(self: Vc<Self>) -> Result<Vc<AnalyzeClientEntries>> {
+        let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        if !matches!(this.ty, AppEndpointType::Page { .. }) {
+            return Ok(AnalyzeClientEntries {
+                server_modules: vec![app_entry.rsc_entry],
+                ..Default::default()
+            }
+            .cell());
+        }
+        let project = this.app_project.project();
+        let module_graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *app_entry.rsc_entry,
+                Some(this.app_project.client_runtime_entries()),
+            )
+            .await?;
+        let references = ClientReferencesGraphs::new(
+            *module_graphs.base,
+            *project.per_page_module_graph().await?,
+        )
+        .get_client_references_for_endpoint(
+            *app_entry.rsc_entry,
+            true,
+            *project.should_write_nft_manifests().await?,
+            project.next_mode().await?.is_production(),
+        )
+        .await?;
+        let references = references
+            .client_references
+            .iter()
+            .map(async |reference| {
+                let (module, kind) = match reference.ty {
+                    ClientReferenceType::EcmascriptClientReference(reference) => (
+                        ResolvedVc::upcast(reference.await?.client_module),
+                        rcstr!("ecmascript"),
+                    ),
+                    ClientReferenceType::CssClientReference(reference) => {
+                        (ResolvedVc::upcast(reference), rcstr!("css"))
+                    }
+                };
+                Ok(AnalyzeClientReference { module, kind })
+            })
+            .try_join()
+            .await?;
+
+        Ok(AnalyzeClientEntries {
+            server_modules: vec![app_entry.rsc_entry],
+            bootstrap_modules: this
+                .app_project
+                .client_runtime_entries()
+                .await?
+                .iter()
+                .map(|module| ResolvedVc::upcast(*module))
+                .collect(),
+            references,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
