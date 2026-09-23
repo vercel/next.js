@@ -13031,7 +13031,7 @@
     "runtimeError": false
   },
   "test/e2e/next-analyze/next-analyze.test.ts": {
-    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
+    "passed": ["next analyze skips in non-Turbopack tests"],
     "failed": [],
     "pending": [],
     "flakey": [],

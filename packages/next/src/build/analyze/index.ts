@@ -105,7 +105,7 @@ export default async function analyze({
 
     let logMessage = `Analyze completed in ${durationString}.`
     if (output) {
-      logMessage += ` Results written to ${analyzeDir}.\nTo explore the analyze results interactively, run \`next experimental-analyze\` without \`--output\`.`
+      logMessage += ` Results written to ${analyzeDir}.\nTo explore the analyze results interactively, run \`next analyze\` without \`--output\`.`
     }
     Log.event(logMessage)
 

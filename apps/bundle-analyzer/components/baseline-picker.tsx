@@ -157,7 +157,7 @@ export function BaselinePicker({
                   <div className="mt-1">
                     Run{' '}
                     <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                      next experimental-analyze
+                      next analyze
                     </code>{' '}
                     again to capture a baseline you can compare against.
                   </div>

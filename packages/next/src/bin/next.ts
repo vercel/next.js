@@ -284,7 +284,8 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-analyze')
+  .command('analyze')
+  .alias('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
