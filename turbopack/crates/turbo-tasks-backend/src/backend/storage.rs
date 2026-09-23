@@ -1,6 +1,6 @@
 use std::{
     cell::Cell,
-    fmt::{Display, Formatter, Write as _},
+    fmt::{Display, Formatter},
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
     sync::{
@@ -610,6 +610,7 @@ impl Storage {
 
         #[cfg(debug_assertions)]
         {
+            use std::fmt::Write as _;
             let unexpected = unexpected.into_inner().unwrap();
             if !unexpected.is_empty() {
                 let mut report = String::new();

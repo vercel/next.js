@@ -279,10 +279,8 @@ pub struct TestSnapshotOutcome {
 }
 
 impl TestSnapshotOutcome {
-    /// The [`GcStats`] for the GC pass, panicking if GC is disabled. For tests whose whole
-    /// point is the pass, so a misconfigured backend fails loudly rather than silently
-    /// asserting nothing.
-    pub fn gc_outcome(&self) -> &GcStats {
+    /// The [`GcStats`] for the GC pass
+    pub fn gc_stats(&self) -> &GcStats {
         &self
             .gc
             .as_ref()
@@ -408,13 +406,8 @@ impl TurboTasksBackend {
 
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
-    /// This is exposed for integration tests that need to verify the
-    /// snapshot → evict → restore cycle works correctly.
-    ///
-    /// Returns [`TestSnapshotOutcome`], which carries the GC pass's own [`GcPassOutcome`] alongside
-    /// the eviction counts. A test needs the pass's numbers because the resident task count
-    /// can't distinguish "GC collected it" from "GC skipped it and eviction dropped it to
-    /// disk".
+    /// This is exposed for integration tests that need to verify the snapshot → evict → restore
+    /// cycle works correctly.
     #[doc(hidden)]
     pub fn snapshot_and_evict_for_testing(
         &self,
@@ -1141,6 +1134,7 @@ impl TurboTasksBackend {
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
     /// just triggered without the backend carrying test-only state. Production reads the same
     /// numbers off the `gc` span.
+    #[allow(clippy::type_complexity, reason = "only used for tests")]
     fn snapshot_and_persist(
         &self,
         parent_span: Option<tracing::Id>,

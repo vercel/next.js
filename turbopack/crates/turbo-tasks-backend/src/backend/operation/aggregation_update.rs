@@ -1235,9 +1235,12 @@ impl AggregationUpdateQueue {
         ctx: &mut impl ExecuteContext<'_>,
     ) {
         for (upper_id, task_id) in edges {
-            if ctx.task(upper_id, TaskDataCategory::Meta).deleted()
-                || ctx.task(task_id, TaskDataCategory::Meta).deleted()
-            {
+            // structure as 2 if statements to ensure the first guard is dropped before the second
+            // one is fetched.
+            if ctx.task(upper_id, TaskDataCategory::Meta).deleted() {
+                continue;
+            }
+            if ctx.task(task_id, TaskDataCategory::Meta).deleted() {
                 continue;
             }
             self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
