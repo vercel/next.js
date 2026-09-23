@@ -398,99 +398,96 @@ impl<'e> ExecuteContextImpl<'e> {
                     task.flags.set_meta_restoring(true);
                 }
 
-                if do_data || do_meta || data_restoring || meta_restoring {
-                    let waiting_for_restore = data_restoring || meta_restoring;
-                    if waiting_for_restore {
-                        // The caller holds the task id outside the graph while waiting, so pin it
-                        // against GC until the restored guard reaches the use boundary. Eviction is
-                        // still allowed; the wait loop restores the category again if needed.
-                        task.update_and_get_transient_ref_count(1);
-                    }
-                    // Drop lock while doing I/O (our I/O can overlap with the other thread).
+                // `!is_restored(category)` above already implies this: for a single category
+                // it is the same predicate, and for `All` both are the disjunction
+                // `!data_restored || !meta_restored`. Asserted so that a future change to
+                // `is_restored` or `TaskDataCategory` surfaces here instead of silently
+                // skipping the restore.
+                debug_assert!(
+                    needs_data || needs_meta,
+                    "task({task_id}, {category:?}): not restored, yet neither category needs \
+                     restoring"
+                );
+
+                let waiting_for_restore = data_restoring || meta_restoring;
+                if waiting_for_restore {
+                    // The caller holds the task id outside the graph while waiting, so pin it
+                    // against GC until the restored guard reaches the use boundary. Eviction is
+                    // still allowed; the wait loop restores the category again if needed.
+                    task.update_and_get_transient_ref_count(1);
+                }
+                // Drop lock while doing I/O (our I/O can overlap with the other thread).
+                drop(task);
+
+                // Perform I/O for categories we claimed.
+                let storage_data = do_data
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
+                let storage_meta = do_meta
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+
+                // Whether our own I/O found the task on disk (in any restored category).
+                // Another thread restoring it concurrently (`*_restoring`)
+                // also proves existence: it only sets the restoring bit
+                // after finding the task.
+                let found_on_disk = restored_from_disk(&storage_data)
+                    || restored_from_disk(&storage_meta)
+                    || data_restoring
+                    || meta_restoring;
+
+                // Wait for categories claimed by another thread (after our I/O).
+                // Reuse the returned write guard to avoid a second lock acquisition.
+                // Reuse the guard the waiter already holds; only our own-I/O path can come
+                // up empty and need to discard the entry.
+                task = if let Some(cat) = wait_category(data_restoring, meta_restoring) {
+                    OpenedTask::Restored(self.wait_for_restore_or_panic(task_id, cat))
+                } else {
+                    OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id))
+                };
+                if waiting_for_restore {
+                    // This caller owns the pin and releases it only after acquiring the task
+                    // guard it is about to use.
+                    task.update_and_get_transient_ref_count(-1);
+                }
+
+                // Apply results and clear restoring bits.
+                if let Some(result) = storage_data
+                    && let Err(e) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data)
+                {
                     drop(task);
+                    self.backend.storage.restored.notify(usize::MAX);
+                    panic!("Failed to restore data for task {task_id}: {e:?}");
+                }
+                if let Some(result) = storage_meta
+                    && let Err(e) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
+                {
+                    drop(task);
+                    self.backend.storage.restored.notify(usize::MAX);
+                    panic!("Failed to restore meta for task {task_id}: {e:?}");
+                }
 
-                    // Perform I/O for categories we claimed.
-                    let storage_data = do_data
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-                    let storage_meta = do_meta
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+                if do_data || do_meta {
+                    // Keep the guard through return. Once the restoring bit is clear, eviction
+                    // may otherwise drop the category before this caller can use it.
+                    self.backend.storage.restored.notify(usize::MAX);
+                }
 
-                    // Whether our own I/O found the task on disk (in any restored category).
-                    // Another thread restoring it concurrently (`*_restoring`)
-                    // also proves existence: it only sets the restoring bit
-                    // after finding the task.
-                    let found_on_disk = restored_from_disk(&storage_data)
-                        || restored_from_disk(&storage_meta)
-                        || data_restoring
-                        || meta_restoring;
-
-                    // Wait for categories claimed by another thread (after our I/O).
-                    // Reuse the returned write guard to avoid a second lock acquisition.
-                    // Reuse the guard the waiter already holds; only our own-I/O path can come
-                    // up empty and need to discard the entry.
-                    task = if let Some(cat) = wait_category(data_restoring, meta_restoring) {
-                        OpenedTask::Restored(self.wait_for_restore_or_panic(task_id, cat))
-                    } else {
-                        OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id))
-                    };
-                    if waiting_for_restore {
-                        // This caller owns the pin and releases it only after acquiring the task
-                        // guard it is about to use.
-                        task.update_and_get_transient_ref_count(-1);
-                    }
-
-                    // Apply results and clear restoring bits.
-                    if let Some(result) = storage_data
-                        && let Err(e) =
-                            apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data)
-                    {
-                        drop(task);
-                        self.backend.storage.restored.notify(usize::MAX);
-                        panic!("Failed to restore data for task {task_id}: {e:?}");
-                    }
-                    if let Some(result) = storage_meta
-                        && let Err(e) =
-                            apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
-                    {
-                        drop(task);
-                        self.backend.storage.restored.notify(usize::MAX);
-                        panic!("Failed to restore meta for task {task_id}: {e:?}");
-                    }
-
-                    if do_data || do_meta {
-                        // Keep the guard through return. Once the restoring bit is clear, eviction
-                        // may otherwise drop the category before this caller can use it.
-                        self.backend.storage.restored.notify(usize::MAX);
-                    }
-
-                    // It looked like a fresh blank and restore found nothing on disk (and no one
-                    // else was restoring it): it exists nowhere. An `AllowMissing` open reports
-                    // that; a `MustExist` open fails loudly rather than hand
-                    // back a fabricated task, which would silently corrupt the
-                    // graph. (The leftover blank entry is inert; the
-                    // panic tears the process down.)
-                    //
-                    // For `MustExist` this also fires if the on-disk cache is corrupt or truncated.
-                    // That is the intended behavior: there is no recovery path for reading a cell
-                    // on a task that is missing from disk, and the panic is self-healing — the
-                    // cache is discarded and rebuilt on the next run.
-                    if needs_existence_check && !found_on_disk {
-                        if access == TaskAccess::AllowMissing {
-                            task.discard();
-                            self.task_lock_counter.release();
-                            return None;
-                        }
-                        panic!(
-                            "task({task_id}, MustExist): task exists in neither memory nor \
-                             persistent storage — a stale reference to an already-collected or \
-                             never-created task"
-                        );
-                    }
-                } else if needs_existence_check {
-                    // Nothing to restore (no categories claimed, none in progress) yet the entry
-                    // looked like a fresh blank for a task expected to exist: it does not exist.
+                // It looked like a fresh blank and restore found nothing on disk (and no one
+                // else was restoring it): it exists nowhere. An `AllowMissing` open reports
+                // that; a `MustExist` open fails loudly rather than hand
+                // back a fabricated task, which would silently corrupt the
+                // graph. (The leftover blank entry is inert; the
+                // panic tears the process down.)
+                if needs_existence_check && !found_on_disk {
                     if access == TaskAccess::AllowMissing {
-                        task.discard();
+                        // If the count is non-zero that means another thread is mid-restore or
+                        // otherwise connecting to it.  If they are waiting with AllowMissing they
+                        // will perform the discard and if not then they want the blank and that is
+                        // also fine.
+                        if task.gc_transient_ref_count() == 0 {
+                            task.discard();
+                        }
                         self.task_lock_counter.release();
                         return None;
                     }
