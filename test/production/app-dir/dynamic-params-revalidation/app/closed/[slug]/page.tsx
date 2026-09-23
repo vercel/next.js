@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { notFound } from 'next/navigation'
@@ -26,5 +27,5 @@ export default async function Page({
     await readFile(join(process.cwd(), 'content.json'), 'utf8')
   )
   if (content[slug] === null) notFound()
-  return <p id="generation">{Date.now()}</p>
+  return <p id="generation">{randomUUID()}</p>
 }

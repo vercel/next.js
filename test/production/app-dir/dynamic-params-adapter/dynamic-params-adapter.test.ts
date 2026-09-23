@@ -1,5 +1,12 @@
 import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
+import {
+  fetchViaHTTP,
+  findPort,
+  initNextServerScript,
+  killApp,
+} from 'next-test-utils'
+import { join } from 'node:path'
 
 describe('dynamicParams: false with adapterPath', () => {
   const { next } = nextTestSetup({ files: __dirname })
@@ -31,6 +38,45 @@ describe('dynamicParams: false with adapterPath', () => {
       expect(output).not.toContain('cache entry required but not generated')
       expect(output).not.toContain('ERR_HTTP_HEADERS_SENT')
       expect(output).not.toContain('NoFallbackError')
+    }
+  )
+
+  it.each(['GET', 'HEAD'])(
+    'returns a 404 for an unlisted %s request without an adapter 404 renderer',
+    async (method) => {
+      const port = await findPort()
+      const server = await initNextServerScript(
+        join(next.testDir, 'server.cjs'),
+        /Adapter ready/,
+        {
+          ...process.env,
+          NODE_ENV: 'production',
+          PORT: String(port),
+          TURBOPACK: process.env.IS_TURBOPACK_TEST ? '1' : '',
+        },
+        undefined,
+        { cwd: next.testDir, shouldRejectOnError: true }
+      )
+
+      try {
+        const known = await fetchViaHTTP(port, '/products/known', undefined, {
+          method,
+        })
+        expect(known.status).toBe(200)
+
+        const response = await fetchViaHTTP(
+          port,
+          '/products/unlisted',
+          undefined,
+          { method }
+        )
+        expect(response.status).toBe(404)
+        expect(await response.text()).toBe(
+          method === 'HEAD' ? '' : 'This page could not be found'
+        )
+      } finally {
+        await killApp(server)
+      }
     }
   )
 

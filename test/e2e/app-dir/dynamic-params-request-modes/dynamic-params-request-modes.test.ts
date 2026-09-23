@@ -50,6 +50,9 @@ describe('dynamicParams: false request modes', () => {
     return cookie
   }
 
+  // Existing adapter routing requires legacy preview cookies and rejects App
+  // Router draft requests to unlisted closed URLs before Next.js handles them.
+  // @force-gate !deploy
   it('previews an unlisted path without admitting it for ordinary requests', async () => {
     expect((await next.fetch('/products/unpublished')).status).toBe(404)
     const cookie = await enableDraftMode()

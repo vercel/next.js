@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 export const revalidate = 3600
 
 export function generateStaticParams() {
@@ -5,5 +7,5 @@ export function generateStaticParams() {
 }
 
 export default function Page() {
-  return <p id="generation">{Date.now()}</p>
+  return <p id="generation">{randomUUID()}</p>
 }

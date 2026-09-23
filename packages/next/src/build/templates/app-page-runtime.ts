@@ -733,6 +733,7 @@ export function createAppPageEntrypoint({
       if (routerServerContext?.render404) {
         await routerServerContext.render404(req, res, parsedUrl, false)
       } else {
+        res.statusCode = 404
         res.end('This page could not be found')
       }
       return null
