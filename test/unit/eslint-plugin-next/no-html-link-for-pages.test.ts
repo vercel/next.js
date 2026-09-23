@@ -359,6 +359,38 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
+  it('invalid static route with pageExtensions (.page.tsx)', function () {
+    const code = `
+    import Link from 'next/link';
+
+    export default function Test() {
+      return (
+        <div>
+          <a href='/test'>Test</a>
+        </div>
+      );
+    }
+  `
+
+    const [report] = linters.withCustomPages.verify(
+      code,
+      linterConfigWithCustomDirectory,
+      {
+        filename: path.join(
+          withCustomPagesDir,
+          'custom-pages',
+          'test.page.tsx'
+        ),
+      }
+    )
+
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/test/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
   it('invalid dynamic route', function () {
     const [report] = linters.withCustomPages.verify(
       invalidDynamicCode,
