@@ -104,8 +104,6 @@ fn main() {
 
             let json_map = serde_json::to_string(&v).expect("Failed to serialize");
 
-            // println!("{:}", json_map);
-
             send_json_to_zipkin(&zipkin_api, json_map);
         }
     }
