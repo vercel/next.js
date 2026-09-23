@@ -22,11 +22,14 @@ env:
 
 jobs:
   optimize-ci:
+    permissions:
+      checks: read
+      pull-requests: read
     uses: ./.github/workflows/pr_stack_optimizer.yml
-    secrets: inherit
 
   changes:
     name: Determine changes
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,6 +160,7 @@ jobs:
 
   build-next:
     name: build-next
+    needs: ['optimize-ci']
     permissions:
       contents: read
       id-token: write
@@ -244,6 +248,7 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
+        node --test .github/actions/pr-stack-ci-gate/gate.test.mjs
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
@@ -256,6 +261,7 @@ jobs:
     secrets: inherit
 
   validate-docs-links:
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

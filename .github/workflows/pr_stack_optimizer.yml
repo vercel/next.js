@@ -1,84 +1,357 @@
-# Avoid running the full CI on mid-stack PRs: https://graphite.dev/docs/stacking-and-ci
+# Avoid running the full CI concurrently on every PR in a branch-based stack.
 #
-# This supports both Graphite stacks and GitHub's native stacked PRs. For either kind of stack, we
-# only run the full CI on the very top and very bottom of the stack.
-#
-# We still run some high-signal low-cost jobs (e.g. lint, unit tests) on mid-stack PRs, just not
-# anything slow (e.g. integration tests).
-#
-# Because we don't use Graphite's CI batching, full CI will still run on every PR individually
-# before it merges. The goal is just to avoid wasting CI capacity when frequently rebasing large
-# stacks.
-#
-# This can by bypassed by labeling a PR with 'CI Bypass PR Stack Optimization' (or the legacy
-# 'CI Bypass Graphite Optimization' label), and manually re-running CI.
+# A stack is inferred from ordinary PR branch relationships (the next PR's base
+# branch is the previous PR's head branch). The first three PRs and every top
+# PR run immediately. A middle PR waits until any of its previous three PRs has
+# passed `thank you, next`, while a five-hour deadline fails open.
 
-name: PR Stack Optimizer
+name: PR Stack CI Gate
 on:
   workflow_call:
     outputs:
       skip:
-        description: "'true' if expensive CI checks should be skipped, 'false' otherwise."
+        description: 'Kept for compatibility; expensive CI is never skipped after the gate opens.'
         value: ${{ jobs.optimize-ci.outputs.skip }}
-    secrets:
-      GRAPHITE_CI_OPTIMIZER_TOKEN:
-        description: 'The Graphite CI optimization secret'
-        # secrets are not available in forks, check-skip will just fail-open with a warning
-        required: false
+
+permissions: {}
+
 env:
-  # FYI, if you add this label, you must *push* to the repository again to trigger a new event. Just
-  # re-running in the GitHub actions UI won't work, as it will re-use the old event with the old
-  # labels.
-  HAS_BYPASS_LABEL: |-
-    ${{
-      github.event_name == 'pull_request' &&
-      (
-        contains(github.event.pull_request.labels.*.name, 'CI Bypass PR Stack Optimization') ||
-        contains(github.event.pull_request.labels.*.name, 'CI Bypass Graphite Optimization')
-      )
-    }}
-  # GitHub's native stacked PRs expose the PR's position within the stack. We skip expensive CI on
-  # mid-stack PRs. Fail open if we don't have `stack.size`.
-  IS_MID_STACK_NATIVE: |-
-    ${{
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.stack.size != '' &&
-      github.event.pull_request.stack.position != 1 &&
-      github.event.pull_request.stack.position != github.event.pull_request.stack.size
-    }}
+  BYPASS_LABEL: CI Bypass PR Stack Optimization
+
 jobs:
   optimize-ci:
-    name: PR Stack Optimizer
+    name: PR Stack CI Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      checks: read
+      pull-requests: read
     outputs:
-      # `== 'true'` comparison: If `step.check-skip` fails (`continue-on-error`), that output will
-      # be an empty string, which sets our `skip` output to `'false'`.
-      #
-      # We skip if either Graphite's optimizer says to skip, or the PR is a mid-stack PR in a
-      # GitHub native stack. The bypass label overrides both.
-      skip: ${{ env.HAS_BYPASS_LABEL == 'false' && steps.check-skip.outputs.skip == 'true' }}
-      # Note: IS_MID_STACK_NATIVE is disabled for now because it doesn't
-      # understand if we're not on the bottom of the stack, but all the PRs
-      # below us are merged.
-      # <https://vercel.slack.com/archives/C04KC8A53T7/p1783018076576349>
-      #  || env.IS_MID_STACK_NATIVE == 'true'
+      skip: ${{ steps.gate.outputs.skip }}
     steps:
-      - name: Optimize CI
-        id: check-skip
-        # Graphite's action is designed to fail open, but still sometimes fails if GH's infra flakes
-        continue-on-error: true
-        uses: withgraphite/graphite-ci-action@402a89bc8aa6db18ae1f9c61953d001d5f9d828f # main
+      - name: Wait for previous stack CI
+        id: gate
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         with:
-          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
-      - name: Debug Output
-        run: |
-          echo 'github.event_name: ${{ github.event_name }}'
-          echo "secrets.GRAPHITE_CI_OPTIMIZER_TOKEN != '': ${GRAPHITE_CI_OPTIMIZER_TOKEN_NON_EMPTY}"
-          echo 'env.HAS_BYPASS_LABEL: ${{ env.HAS_BYPASS_LABEL }}'
-          echo 'env.IS_MID_STACK_NATIVE: ${{ env.IS_MID_STACK_NATIVE }}'
-          echo 'github.event.pull_request.stack.position: ${{ github.event.pull_request.stack.position }}'
-          echo 'github.event.pull_request.stack.size: ${{ github.event.pull_request.stack.size }}'
-          echo 'steps.check-skip.outputs.skip: ${{ steps.check-skip.outputs.skip }}'
+          github-token: ${{ github.token }}
+          script: |
+            const POLL_INTERVAL_MS = 5 * 60 * 1000
+            const WAIT_DEADLINE_MS = 5 * 60 * 60 * 1000
+            const REQUIRED_CHECK = 'thank you, next'
 
-        env:
-          GRAPHITE_CI_OPTIMIZER_TOKEN_NON_EMPTY: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN != '' }}
+            // Keep the existing caller contract. A failed gate still prevents
+            // dependents from running because the job itself fails.
+            core.setOutput('skip', 'false')
+
+            const startedAt = Date.now()
+            let lastFingerprint = ''
+
+            function escapeCell(value) {
+              return String(value ?? '')
+                .replaceAll('|', '\\|')
+                .replaceAll('\n', ' ')
+            }
+
+            function checkState(check) {
+              if (!check || check.status !== 'completed') return 'waiting'
+              return check.conclusion === 'success' ? 'success' : 'unsuccessful'
+            }
+
+            function gateDecision(candidates) {
+              if (candidates.some((candidate) => candidate.state === 'success')) {
+                return 'open'
+              }
+              if (
+                candidates.length === 3 &&
+                candidates.every((candidate) => candidate.state === 'unsuccessful')
+              ) {
+                return 'fail'
+              }
+              return 'wait'
+            }
+
+            function sameRepository(pull, repository) {
+              return pull?.head?.repo?.full_name === repository
+            }
+
+            async function listOpenPulls(parameters) {
+              return await github.paginate(github.rest.pulls.list, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100,
+                ...parameters,
+              })
+            }
+
+            async function getPull(number) {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: number,
+              })
+              return data
+            }
+
+            async function findPredecessor(pull) {
+              const matches = (
+                await listOpenPulls({
+                  head: `${context.repo.owner}:${pull.base.ref}`,
+                })
+              ).filter(
+                (candidate) =>
+                  candidate.number !== pull.number &&
+                  candidate.head.ref === pull.base.ref &&
+                  sameRepository(candidate, context.payload.repository.full_name)
+              )
+
+              if (matches.length > 1) {
+                return { ambiguous: true, matches }
+              }
+              return { ambiguous: false, pull: matches[0] ?? null }
+            }
+
+            async function findSuccessors(pull) {
+              return (
+                await listOpenPulls({ base: pull.head.ref })
+              ).filter(
+                (candidate) =>
+                  candidate.number !== pull.number &&
+                  candidate.base.ref === pull.head.ref &&
+                  sameRepository(candidate, context.payload.repository.full_name)
+              )
+            }
+
+            async function discoverTopology() {
+              const current = await getPull(context.payload.pull_request.number)
+              const repository = context.payload.repository.full_name
+
+              if (!sameRepository(current, repository)) {
+                return { current, role: 'fork', reason: 'fork PRs always run immediately' }
+              }
+
+              if (
+                current.labels.some(
+                  (label) => label.name === process.env.BYPASS_LABEL
+                )
+              ) {
+                return { current, role: 'bypass', reason: 'bypass label is present' }
+              }
+
+              const successors = await findSuccessors(current)
+              if (successors.length === 0) {
+                return { current, role: 'top', reason: 'no open PR is based on this head branch' }
+              }
+
+              const predecessors = []
+              const seen = new Set([current.number])
+              let cursor = current
+
+              while (predecessors.length < 3) {
+                const result = await findPredecessor(cursor)
+                if (result.ambiguous) {
+                  return {
+                    current,
+                    role: 'ambiguous',
+                    reason: `multiple open PRs have head branch ${cursor.base.ref}`,
+                  }
+                }
+                if (!result.pull) break
+                if (seen.has(result.pull.number)) {
+                  return {
+                    current,
+                    role: 'ambiguous',
+                    reason: 'cycle detected in PR base branches',
+                  }
+                }
+                seen.add(result.pull.number)
+                predecessors.push(result.pull)
+                cursor = result.pull
+              }
+
+              if (predecessors.length < 3) {
+                return {
+                  current,
+                  role: 'first-three',
+                  reason: `only ${predecessors.length} open predecessor PR(s) are reachable`,
+                }
+              }
+
+              return { current, role: 'middle', predecessors }
+            }
+
+            async function latestRequiredCheck(pull) {
+              const livePull = await getPull(pull.number)
+              const mergeSha = livePull.merge_commit_sha
+              if (!mergeSha) {
+                return {
+                  pull: livePull,
+                  mergeSha: null,
+                  check: null,
+                  state: 'waiting',
+                }
+              }
+
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: mergeSha,
+                check_name: REQUIRED_CHECK,
+                filter: 'latest',
+                per_page: 100,
+              })
+              const check = data.check_runs
+                .filter(
+                  (candidate) =>
+                    candidate.name === REQUIRED_CHECK &&
+                    candidate.app?.slug === 'github-actions'
+                )
+                .sort((a, b) => b.id - a.id)[0]
+
+              return {
+                pull: livePull,
+                mergeSha,
+                check: check ?? null,
+                state: checkState(check),
+              }
+            }
+
+            function fingerprint(snapshot) {
+              return JSON.stringify({
+                role: snapshot.role,
+                reason: snapshot.reason,
+                candidates: snapshot.candidates?.map((candidate) => ({
+                  number: candidate.pull.number,
+                  head: candidate.pull.head.sha,
+                  merge: candidate.mergeSha,
+                  status: candidate.check?.status,
+                  conclusion: candidate.check?.conclusion,
+                })),
+              })
+            }
+
+            async function writeSummary(snapshot, outcome, reason) {
+              try {
+                const current = snapshot.current
+                const elapsedMinutes = Math.floor((Date.now() - startedAt) / 60000)
+                const lines = [
+                  '# PR Stack CI Gate',
+                  '',
+                  `- PR: #${current?.number ?? context.payload.pull_request.number}`,
+                  `- Branches: \`${escapeCell(current?.base?.ref)}\` ← \`${escapeCell(current?.head?.ref)}\``,
+                  `- Role: **${escapeCell(snapshot.role)}**`,
+                  `- Result: **${escapeCell(outcome)}**`,
+                  `- Reason: ${escapeCell(reason)}`,
+                  `- Elapsed: ${elapsedMinutes} minute(s)`,
+                ]
+
+                if (snapshot.candidates?.length) {
+                  lines.push(
+                    '',
+                    '| PR | Base ← Head | Head SHA | Test-merge SHA | Check | State |',
+                    '|---:|---|---|---|---|---|'
+                  )
+                  for (const candidate of snapshot.candidates) {
+                    const checkText = candidate.check
+                      ? `[${candidate.check.status}/${candidate.check.conclusion ?? ''}](${candidate.check.html_url})`
+                      : 'not reported'
+                    lines.push(
+                      `| #${candidate.pull.number} | \`${escapeCell(candidate.pull.base.ref)}\` ← \`${escapeCell(candidate.pull.head.ref)}\` | \`${escapeCell(candidate.pull.head.sha?.slice(0, 12))}\` | \`${escapeCell(candidate.mergeSha?.slice(0, 12))}\` | ${checkText} | ${candidate.state} |`
+                    )
+                  }
+                }
+
+                await core.summary.addRaw(`${lines.join('\n')}\n`).write()
+              } catch (error) {
+                core.warning(`Could not write PR Stack CI Gate summary: ${error.message}`)
+              }
+            }
+
+            async function runGate() {
+              if (context.eventName !== 'pull_request') {
+                const snapshot = {
+                  current: null,
+                  role: 'non-pr',
+                  reason: `${context.eventName} runs immediately`,
+                }
+                await writeSummary(snapshot, 'open', snapshot.reason)
+                return
+              }
+
+              while (true) {
+                const topology = await discoverTopology()
+                if (topology.role !== 'middle') {
+                  await writeSummary(topology, 'open', topology.reason)
+                  return
+                }
+
+                const candidates = []
+                for (const predecessor of topology.predecessors) {
+                  candidates.push(await latestRequiredCheck(predecessor))
+                }
+                const snapshot = { ...topology, candidates }
+                const decision = gateDecision(candidates)
+                const currentFingerprint = fingerprint(snapshot)
+
+                if (currentFingerprint !== lastFingerprint) {
+                  core.info(
+                    `PR #${topology.current.number}: ${candidates
+                      .map((candidate) => `#${candidate.pull.number}=${candidate.state}`)
+                      .join(', ')}`
+                  )
+                  lastFingerprint = currentFingerprint
+                }
+
+                if (decision === 'open') {
+                  const successful = candidates.find(
+                    (candidate) => candidate.state === 'success'
+                  )
+                  await writeSummary(
+                    snapshot,
+                    'open',
+                    `PR #${successful.pull.number} passed ${REQUIRED_CHECK}`
+                  )
+                  return
+                }
+
+                if (decision === 'fail') {
+                  const reason = `All three predecessor PRs completed ${REQUIRED_CHECK} without success. Rerun this workflow after a predecessor passes, or apply the ${process.env.BYPASS_LABEL} label.`
+                  await writeSummary(snapshot, 'failed', reason)
+                  core.setFailed(reason)
+                  return
+                }
+
+                const elapsed = Date.now() - startedAt
+                if (elapsed >= WAIT_DEADLINE_MS) {
+                  await writeSummary(
+                    snapshot,
+                    'open',
+                    'Five-hour waiting deadline reached; failing open and starting full CI'
+                  )
+                  return
+                }
+
+                const nextPoll = new Date(Date.now() + POLL_INTERVAL_MS)
+                core.info(
+                  `No predecessor has passed yet; polling again at ${nextPoll.toISOString()}`
+                )
+                await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+              }
+            }
+
+            try {
+              await runGate()
+            } catch (error) {
+              core.warning(
+                `PR stack classification failed; failing open and starting full CI: ${error.stack ?? error.message}`
+              )
+              await writeSummary(
+                {
+                  current: context.payload.pull_request ?? null,
+                  role: 'error',
+                  reason: error.message,
+                },
+                'open',
+                `Classification/API error; failing open: ${error.message}`
+              )
+            }
