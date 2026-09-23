@@ -28,18 +28,6 @@ __turbopack_context__.s([
     "string",
     0,
     string
-], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/external.js [test] (ecmascript) <locals>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/external.js [test] (ecmascript) <locals>");
-__turbopack_context__.s([
-    "defaultLocale",
-    0,
-    defaultLocale,
-    "object",
-    0,
-    object,
-    "string",
-    0,
-    string
 ], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/external.js [test] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/external.js [test] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__;
