@@ -8,7 +8,7 @@ The point: find places where agents get Next.js wrong because their training dat
 
 The runner is [`@vercel/agent-eval`](https://github.com/vercel-labs/agent-eval). It spins up a sandbox (Vercel or local Docker), copies the fixture in, runs the coding agent against `PROMPT.md`, then executes `EVAL.ts` as a vitest file against whatever the agent wrote. The `PROMPT.md` / `EVAL.ts` / fixture-dir convention you'll see below is that package's convention — see its README for the full spec.
 
-`run-evals.js` is a thin wrapper around it: pack the local `next` build into a tarball, generate the configured experiments, then invoke `agent-eval`. The two default experiments (`baseline` and `agents-md`) differ only in whether they add `AGENTS.md` instructions that point at the bundled docs. The treatment also adds a `CLAUDE.md` file that imports `AGENTS.md` for Claude Code sessions where native `AGENTS.md` support is unavailable. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
+`run-evals.js` is a thin wrapper around it: pack the local `next` build into a tarball, generate the configured experiments, then invoke `agent-eval`. The two default experiments (`baseline` and `agents-md`) differ only in whether they drop an `AGENTS.md` pointing at the bundled docs. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
 
 ## One-time setup
 
@@ -67,7 +67,7 @@ This runs the two default variants in parallel and prints pass/fail for each:
 ✓ agents-md/agent-042-your-thing  (200s)
 ```
 
-`agents-md` adds `AGENTS.md` instructions to the sandbox telling the agent to check `node_modules/next/dist/docs/` first. It also adds a `CLAUDE.md` compatibility import for Claude Code. `baseline` adds neither file. The prompt and model remain the same. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
+`agents-md` drops an AGENTS.md into the sandbox telling the agent to check `node_modules/next/dist/docs/` first. `baseline` doesn't. That's the whole difference — same prompt, same model, one extra file. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
 
 ### Evaluating a local skill
 
@@ -137,7 +137,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 evals/
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
-├── lib/setup.ts     # uploads tarball, writes agent instructions (shared by all evals)
+├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored
 ├── .tarballs/       # packed next, gitignored
 └── results/         # transcripts + outputs, gitignored

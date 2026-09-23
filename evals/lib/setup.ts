@@ -179,9 +179,8 @@ export async function prepareFixture(sandbox: Sandbox): Promise<void> {
 }
 
 /**
- * Write AGENTS.md to the sandbox root, directing agents to read bundled docs
- * from node_modules/next/dist/docs/. CLAUDE.md imports the same instructions
- * for Claude Code sessions where native AGENTS.md support is unavailable.
+ * Write AGENTS.md (and aliases) to the sandbox root, directing agents to read
+ * bundled docs from node_modules/next/dist/docs/.
  *
  * Skipped for a fixture that is not already a Next.js app: the path it points at
  * does not exist yet, and naming the framework would give away the answer to the
