@@ -147,9 +147,8 @@ pnpm exec next experimental-analyze \
 
 Run reverse-edge analysis **before editing**. `explain_route_module` walks from
 an attributed source back toward the route entry and can reveal that the right
-fix is an indirect application import rather than the named package itself. For
-example, this workflow exposed a `chat-db` re-export as the edge responsible for
-a measured win.
+fix is an intermediate re-export or application import rather than the named
+package itself.
 
 Use `nearestProjectImporter`, `nearestClientBoundary`, `firstAsyncBoundary`,
 `importerChain`, and both chain orientations to find the application source to
