@@ -342,7 +342,7 @@ function ImagePreload({
     ...getDynamicProps(imgAttributes.fetchPriority),
   }
 
-  if (isAppRouter && ReactDOM.preload) {
+  if (ReactDOM.preload) {
     ReactDOM.preload(imgAttributes.src, opts)
     return null
   }
