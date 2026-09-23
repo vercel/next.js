@@ -144,7 +144,7 @@ Each key identifies one root. `path` can be absolute or relative to the director
 >
 > - The symbolic link and its target must both be available on the build machine before `next dev` or `next build` starts.
 > - Deployment tools and CI systems may copy your repository to a separate build machine. These tools may be unaware of the additional roots, and they may fail to copy required files.
-> - On Windows, builds [require Developer Mode or elevated permissions to create symbolic links](https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/). In some cases, Turbopack can fall back to [directory junctions](https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions#junctions) when symlink creation is not permitted, but these junctions use absolute paths, so the resulting output may not be relocatable.
+> - On Windows, builds [require Developer Mode or elevated permissions to create symbolic links](https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/). Creating output artifacts may require creating symbolic links. In some cases, Turbopack can fall back to [directory junctions](https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions#junctions) when symlink creation is not permitted, but these junctions use absolute paths, so the resulting output may not be relocatable.
 
 If a root path is not found when `next build` or `next dev` starts, a warning will be issued, unless `ignoreIfMissing` is set to `true` (defaults to `false`).
 

@@ -2796,7 +2796,7 @@ async function loadNFT(
         path.relative(path.dirname(entry.destination), entry.symlinkTarget) ||
         '.'
       hash = hashLinkTarget(salt, linkTarget)
-      source = syntheticSymlinks.stage(entry.source, linkTarget, hash)
+      source = syntheticSymlinks.createLink(entry.source, linkTarget, hash)
     }
 
     assets[entry.destination] = source

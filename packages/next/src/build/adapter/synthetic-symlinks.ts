@@ -19,13 +19,12 @@ type SymlinkTargetType = 'file' | 'dir'
  * That would avoid a lot of small filesystem operations.
  */
 export class SyntheticSymlinkManager {
-  private readonly stagedLinkKeys = new Set<string>()
+  private readonly stagedLinkNames = new Set<string>()
 
   constructor(private readonly stagingRoot: string) {}
 
-  stage(source: string, linkTarget: string, targetHash: string): string {
+  createLink(source: string, linkTarget: string, targetHash: string): string {
     let targetType: SymlinkTargetType = 'file'
-    let cacheKey = targetHash
     // Keep 128 bits of entropy while shortening the path to avoid Windows'
     // 260-character path limit.
     let stagedName = targetHash.slice(0, 32)
@@ -39,30 +38,22 @@ export class SyntheticSymlinkManager {
           throw error
         }
       }
-      cacheKey = `${targetType}\0${targetHash}`
       stagedName += `_${targetType}`
     }
 
     const stagedPath = path.join(this.stagingRoot, stagedName)
-    if (!this.stagedLinkKeys.has(cacheKey)) {
-      this.createLink(linkTarget, stagedPath, targetType)
-      this.stagedLinkKeys.add(cacheKey)
+    if (!this.stagedLinkNames.has(stagedName)) {
+      try {
+        fs.symlinkSync(linkTarget, stagedPath, targetType)
+      } catch (error) {
+        // Another build may have created this deterministic path after cleanup.
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+          throw error
+        }
+      }
+      this.stagedLinkNames.add(stagedName)
     }
     return stagedPath
-  }
-
-  private createLink(
-    relativeTarget: string,
-    stagedPath: string,
-    targetType: SymlinkTargetType
-  ): void {
-    try {
-      fs.symlinkSync(relativeTarget, stagedPath, targetType)
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw error
-      }
-    }
   }
 }
 

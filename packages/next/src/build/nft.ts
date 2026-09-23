@@ -119,7 +119,7 @@ export interface MappedNftFileEntry {
    */
   symlinkTarget?: string
   /** Whether the symlink target is stored relative to a different NFT root. */
-  symlinkCrossesRoot?: boolean
+  symlinkCrossesRoot: boolean
 }
 
 function invalid(message: string): never {
@@ -250,10 +250,11 @@ export function mapNftFileEntries(
       }
 
       result.push({
-        ...mapped,
+        source: mapped.source,
+        destination: mapped.destination,
         hash: fileHashes?.[fileIndex],
         symlinkTarget,
-        ...(symlinkCrossesRoot && { symlinkCrossesRoot: true }),
+        symlinkCrossesRoot,
       })
     }
   }

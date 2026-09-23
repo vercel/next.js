@@ -47,7 +47,7 @@ describe('adapter synthetic symlinks', () => {
           symlinkTarget: path.join('.next', 'server', 'same-root-target'),
         })
       )
-      expect(sameRoot).not.toHaveProperty('symlinkCrossesRoot')
+      expect(sameRoot.symlinkCrossesRoot).toBe(false)
 
       expect(rootZero).toEqual(
         expect.objectContaining({
@@ -104,8 +104,8 @@ describe('adapter synthetic symlinks', () => {
         path.join('next_additional_roots', 'packages', 'pkg')
       )
       const targetHash = 'a'.repeat(64)
-      const first = manager.stage(source, linkTarget, targetHash)
-      const second = manager.stage(
+      const first = manager.createLink(source, linkTarget, targetHash)
+      const second = manager.createLink(
         path.join(testDirectory, 'equivalent-source-link'),
         linkTarget,
         targetHash
