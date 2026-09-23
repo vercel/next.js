@@ -771,7 +771,7 @@ async fn validate_pages_css_imports_individual(
     graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
-    app_module: ResolvedVc<Box<dyn Module>>,
+    app_module_path: FileSystemPath,
 ) -> Result<()> {
     let graph = graph.await?;
     let entry = entry.to_resolved().await?;
@@ -801,11 +801,6 @@ async fn validate_pages_css_imports_individual(
             };
             let parent_module = parent_node;
 
-            // Importing CSS from _app.js is always allowed.
-            if parent_module == app_module {
-                return Ok(GraphTraversalAction::Continue);
-            }
-
             // If the module being imported isn't a global css module, there is nothing to
             // validate.
             let module_is_global_css = ResolvedVc::try_downcast_type::<CssModule>(module).is_some();
@@ -824,12 +819,7 @@ async fn validate_pages_css_imports_individual(
                 return Ok(GraphTraversalAction::Continue);
             }
 
-            // If all of the above invariants have been checked, we look to see if the parent
-            // module is the same as the app module. If it isn't we know it
-            // isn't a valid place to import global css.
-            if parent_module != app_module {
-                candidates.push(CssGlobalImportIssue::new(parent_module, module))
-            }
+            candidates.push(CssGlobalImportIssue::new(parent_module, module));
 
             Ok(GraphTraversalAction::Continue)
         },
@@ -837,22 +827,12 @@ async fn validate_pages_css_imports_individual(
         false,
     )?;
 
-    // The `_app` module can reach this traversal under more than one module identity: the
-    // `app_module` above is produced by its own `process()` call (see the comment at that call
-    // site), and export-name mangling / reexport tree shaking additionally split a module into
-    // facade and locals submodules, so the module that actually *contains* the CSS import may be
-    // `_app.js <locals>` rather than `_app.js` itself. Comparing by identity therefore
-    // under-matches, and the rule here is about the *file* anyway — global CSS is allowed from
-    // `pages/_app`, whichever submodule of it the import ends up in. So candidates whose parent
-    // shares the app module's path are dropped. Note every submodule keeps the original file path
-    // in its ident (only the `part` differs), which is what makes this comparison work.
-    let app_module_path = app_module.ident().await?.path.clone();
-
     candidates
         .into_iter()
         .map(async |issue| {
-            let parent_ident = issue.parent_module.ident().await?;
-            if parent_ident.path == app_module_path {
+            // We allow the app module to import global CSS, but it may be split into multiple
+            // modules, so exempt references by path.
+            if issue.parent_module.ident().await?.path == app_module_path {
                 return Ok(None);
             }
 
@@ -890,7 +870,7 @@ pub async fn validate_pages_css_imports(
     graph: Vc<ModuleGraph>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
-    app_module: Vc<Box<dyn Module>>,
+    app_module_path: FileSystemPath,
 ) -> Result<()> {
     let graphs = graph.iter_graphs().await?;
     graphs
@@ -900,7 +880,7 @@ pub async fn validate_pages_css_imports(
                 graph.connect(),
                 is_single_page,
                 entry,
-                app_module,
+                app_module_path.clone(),
             )
             .as_side_effect()
         })

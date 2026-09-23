@@ -100,7 +100,6 @@ import { nextTestSetup } from 'e2e-utils'
       expect(modules).toMatchInlineSnapshot(`
          [
            "[project]/src/app/client/a/lib.js [app-rsc] (client reference proxy)",
-           "[project]/src/app/client/a/lib.js [app-rsc] (client reference proxy) <module evaluation>",
            "[project]/src/app/client/a/lib.js [app-rsc] (ecmascript)",
            "[project]/src/app/client/a/unique.js [app-client] (ecmascript)",
            "[project]/src/app/client/a/unique.js [app-ssr] (ecmascript)",
@@ -163,7 +162,6 @@ import { nextTestSetup } from 'e2e-utils'
       expect(modules).toMatchInlineSnapshot(`
          [
            "[project]/src/app/client/b/lib.js [app-rsc] (client reference proxy)",
-           "[project]/src/app/client/b/lib.js [app-rsc] (client reference proxy) <module evaluation>",
            "[project]/src/app/client/b/lib.js [app-rsc] (ecmascript)",
            "[project]/src/app/client/b/unique.js [app-client] (ecmascript)",
            "[project]/src/app/client/b/unique.js [app-ssr] (ecmascript)",
