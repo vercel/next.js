@@ -75,6 +75,22 @@ importers:
         specifier: 0.38.4
         version: 0.38.4
 
+  actions/pr-stack-ci-gate:
+    dependencies:
+      '@actions/core':
+        specifier: 1.11.1
+        version: 1.11.1
+      '@actions/github':
+        specifier: 6.0.0
+        version: 6.0.0
+    devDependencies:
+      '@vercel/ncc':
+        specifier: 0.38.4
+        version: 0.38.4
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+
   actions/validate-docs-links:
     dependencies:
       '@actions/core':

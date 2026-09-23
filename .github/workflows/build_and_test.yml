@@ -249,7 +249,10 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
-        node --test .github/actions/pr-stack-ci-gate/gate.test.mjs
+        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
+        pnpm --dir .github/actions/pr-stack-ci-gate types
+        pnpm --dir .github/actions/pr-stack-ci-gate build
+        pnpm --dir .github/actions/pr-stack-ci-gate test
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc

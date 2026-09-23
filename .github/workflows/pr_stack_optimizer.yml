@@ -48,22 +48,21 @@ jobs:
             echo '- Reason: fork PRs always run immediately'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Fetch only the gate script, from the exact commit this CI run tests.
+      # Fetch the compiled action from the exact commit this CI run tests.
       - name: Check out stack gate from this CI commit
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.sha }}
-          sparse-checkout: .github/actions/pr-stack-ci-gate/gate.cjs
+          sparse-checkout: |
+            .github/actions/pr-stack-ci-gate/action.yml
+            .github/actions/pr-stack-ci-gate/dist/index.js
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
       - name: Wait for previous stack CI
         id: gate
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const gate = require('./.github/actions/pr-stack-ci-gate/gate.cjs')
-            await gate({ github, context, core })
+        uses: ./.github/actions/pr-stack-ci-gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
