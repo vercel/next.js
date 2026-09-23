@@ -1,7 +1,9 @@
 import { join } from 'path'
+import { copyFile } from 'fs/promises'
 import type { Server } from 'http'
+import type { AddressInfo } from 'net'
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
-import { findPort, retry, startStaticServer } from 'next-test-utils'
+import { retry, startStaticServer } from 'next-test-utils'
 
 const webpack = require('next/dist/compiled/webpack/webpack')
   .webpack as typeof import('webpack')
@@ -63,60 +65,112 @@ const describeTurbopack =
     ? describe
     : describe.skip
 
-describeTurbopack('turbopack module federation with a webpack remote', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    // The separately launched webpack server is not reachable from a deployed fixture.
-    skipDeployment: true,
-  })
-  let remoteServer: Server
-
-  beforeAll(async () => {
-    const remotePort = await findPort()
-    const remoteOrigin = `http://localhost:${remotePort}`
-    const remoteOutput = join(next.testDir, 'remote-dist')
-    const remoteContext = join(next.testDir, 'remote')
-    await buildRemote(
-      remoteContext,
-      join(remoteOutput, 'browser'),
-      remoteOrigin
-    )
-    await buildRemote(
-      remoteContext,
-      join(remoteOutput, 'worker'),
-      remoteOrigin,
-      true
-    )
-    remoteServer = await startStaticServer(remoteOutput, undefined, remotePort)
-    process.env.MF_REMOTE_ORIGIN = remoteOrigin
-    process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN = remoteOrigin
-    await next.start()
-  })
-
-  afterAll(async () => {
-    await new Promise<void>((resolve, reject) => {
-      remoteServer.close((error) => (error ? reject(error) : resolve()))
+describeTurbopack.each([
+  ['native', ''],
+  ['runtime-tools package', '@module-federation/runtime-tools'],
+  ['runtime-tools resolved entry', 'resolved'],
+])(
+  'turbopack module federation with a webpack remote using %s',
+  (_, implementation) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      // The separately launched webpack server is not reachable from a deployed fixture.
+      skipDeployment: true,
+      dependencies: {
+        '@module-federation/runtime-tools': '2.9.0',
+      },
     })
-    delete process.env.MF_REMOTE_ORIGIN
-    delete process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN
-  })
+    let remoteServer: Server
 
-  it('loads a module exposed by webpack', async () => {
-    const browser = await next.browser('/')
-    await retry(async () => {
-      expect(await browser.elementByCss('#remote-message').text()).toBe(
-        'hello from Turbopack host sharing'
+    beforeAll(async () => {
+      const remoteOutput = join(next.testDir, 'remote-dist')
+      remoteServer = await startStaticServer(remoteOutput)
+      const remotePort = (remoteServer.address() as AddressInfo).port
+      const remoteOrigin = `http://localhost:${remotePort}`
+      const remoteContext = join(next.testDir, 'remote')
+      await buildRemote(
+        remoteContext,
+        join(remoteOutput, 'browser'),
+        remoteOrigin
       )
-      expect(await browser.elementByCss('#remote-react-component').text()).toBe(
-        'next/dynamic from webpack remote'
+      await buildRemote(
+        remoteContext,
+        join(remoteOutput, 'worker'),
+        remoteOrigin,
+        true
       )
-      expect(await browser.elementByCss('#worker-message').text()).toBe(
-        'hello from Turbopack host sharing'
+      await copyFile(
+        join(remoteContext, 'fallback.js'),
+        join(remoteOutput, 'fallback.js')
       )
-      expect(await browser.elementByCss('#remote-script-count').text()).toBe(
-        '1'
-      )
+      process.env.MF_REMOTE_ORIGIN = remoteOrigin
+      process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN = remoteOrigin
+      process.env.MF_IMPLEMENTATION = implementation
+      process.env.NEXT_PUBLIC_MF_IMPLEMENTATION = implementation
+      await next.start()
     })
-  })
-})
+
+    afterAll(async () => {
+      if (remoteServer) {
+        await new Promise<void>((resolve, reject) => {
+          remoteServer.close((error) => (error ? reject(error) : resolve()))
+          remoteServer.closeAllConnections()
+        })
+      }
+      delete process.env.MF_REMOTE_ORIGIN
+      delete process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN
+      delete process.env.MF_IMPLEMENTATION
+      delete process.env.NEXT_PUBLIC_MF_IMPLEMENTATION
+    })
+
+    it('loads a module exposed by webpack', async () => {
+      const browser = await next.browser('/')
+      await retry(async () => {
+        expect(await browser.elementByCss('#remote-message').text()).toBe(
+          'hello from Turbopack host sharing'
+        )
+        expect(
+          await browser.elementByCss('#remote-react-component').text()
+        ).toBe('next/dynamic from webpack remote')
+        expect(await browser.elementByCss('#worker-message').text()).toBe(
+          'hello from Turbopack host sharing'
+        )
+        expect(await browser.elementByCss('#remote-script-count').text()).toBe(
+          '1'
+        )
+        expect(await browser.elementByCss('#fallback-message').text()).toBe(
+          'hello from Turbopack host sharing'
+        )
+        if (implementation) {
+          expect(await browser.elementByCss('#async-message').text()).toBe(
+            'async factory result'
+          )
+        }
+      })
+      if (implementation) {
+        expect(
+          await browser.eval(() => {
+            const global = window as any
+            const instances = global.__FEDERATION__.__INSTANCES__
+            return {
+              names: instances.map((instance) => instance.options.name),
+              sameShareScope:
+                instances[0].shareScopeMap.default ===
+                global.fallbackShareScope,
+              asyncFactoryCalls: global.asyncFactoryCalls,
+              sharedVersions: Object.keys(
+                instances[0].shareScopeMap.default['shared-value']
+              ).sort(),
+            }
+          })
+        ).toEqual({
+          names: ['nextHost'],
+          sameShareScope: true,
+          asyncFactoryCalls: 1,
+          sharedVersions: ['1.0.0', '1.2.0'],
+        })
+      }
+    })
+  }
+)

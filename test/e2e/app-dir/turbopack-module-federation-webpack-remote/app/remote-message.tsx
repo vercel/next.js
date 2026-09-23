@@ -13,6 +13,8 @@ export function RemoteMessage() {
   const [message, setMessage] = useState('loading')
   const [workerMessage, setWorkerMessage] = useState('loading')
   const [scriptCount, setScriptCount] = useState('loading')
+  const [fallbackMessage, setFallbackMessage] = useState('loading')
+  const [asyncMessage, setAsyncMessage] = useState('loading')
 
   useEffect(() => {
     const remoteEntry = `${process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN}/browser/remoteEntry.js`
@@ -36,6 +38,16 @@ export function RemoteMessage() {
         )
       )
     })
+    // @ts-expect-error -- provided by Module Federation at runtime
+    import('fallbackCatalog/message').then((module) => {
+      setFallbackMessage(module.message)
+    })
+    if (process.env.NEXT_PUBLIC_MF_IMPLEMENTATION) {
+      // @ts-expect-error -- provided by Module Federation at runtime
+      import('fallbackCatalog/async').then((module) => {
+        setAsyncMessage(module.message)
+      })
+    }
 
     const worker = new Worker(
       new URL('./federation-worker.ts', import.meta.url),
@@ -54,6 +66,8 @@ export function RemoteMessage() {
       <RemoteComponent />
       <p id="worker-message">{workerMessage}</p>
       <p id="remote-script-count">{scriptCount}</p>
+      <p id="fallback-message">{fallbackMessage}</p>
+      <p id="async-message">{asyncMessage}</p>
     </>
   )
 }
