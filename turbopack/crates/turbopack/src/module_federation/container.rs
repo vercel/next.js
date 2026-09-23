@@ -104,6 +104,8 @@ const runtime = createInstance({{
   shareStrategy: "loaded-first",
   shared: {{ {shared} }}
 }});
+const initToken = {{ from: {name} }};
+let pending;
 function init(shareScope, initScope, remoteEntryInitOptions) {{
   if (initializedScope && initializedScope !== shareScope) {{
     throw new Error("Container initialization failed because it has already been initialized with a different share scope");
@@ -123,7 +125,14 @@ function init(shareScope, initScope, remoteEntryInitOptions) {{
   }} else {{
     runtime.initShareScopeMap({scope}, shareScope, {{ hostShareScopeMap: hostShareScopeMap || {{}} }});
   }}
-  return Promise.all(runtime.initializeSharing({scope}, {{ initScope }}));
+  initScope ||= [];
+  if (initScope.includes(initToken)) return;
+  initScope.push(initToken);
+  if (pending) return pending;
+  pending = Promise.all(runtime.initializeSharing({scope}, {{ initScope, from: "build" }})).finally(() => {{
+    pending = undefined;
+  }});
+  return pending;
 }}
 "#,
             implementation = StringifyJs(&implementation),

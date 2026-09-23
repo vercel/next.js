@@ -240,56 +240,84 @@ describeTurbopack.each([
       }
     )
 
-    it('retries failed initialization and terminates a share-scope cycle', async () => {
+    it('waits for concurrent initialization and retries a share-scope cycle', async () => {
       const browser = await next.browser('/protocol')
-      expect(
-        await browser.eval(async (remoteUrl) => {
-          const global = window as any
-          await new Promise<void>((resolve, reject) => {
-            const script = document.createElement('script')
-            script.src = remoteUrl
-            script.onload = () => resolve()
-            script.onerror = reject
-            document.head.appendChild(script)
-          })
-          const producer = global.__FEDERATION__.__INSTANCES__.find(
-            (instance) => instance.name === 'nextRemote'
-          )
-          const container = global.nextRemote
-          const scope = {}
-          let attempts = 0
-          let cycleTokens
-          global.cycleRemote = {
-            async init(shareScope, initScope, options) {
-              attempts++
-              if (attempts === 1) throw new Error('retry initialization')
-              cycleTokens = initScope.length
-              await container.init(shareScope, initScope, options)
+      await browser.eval(async (remoteUrl) => {
+        const global = window as any
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = remoteUrl
+          script.onload = () => resolve()
+          script.onerror = reject
+          document.head.appendChild(script)
+        })
+        const producer = global.__FEDERATION__.__INSTANCES__.find(
+          (instance) => instance.name === 'nextRemote'
+        )
+        const container = global.nextRemote
+        const scope = {}
+        let attempts = 0
+        let cycleTokens
+        let release!: () => void
+        let entered!: () => void
+        const gate = new Promise<void>((resolve) => {
+          release = resolve
+        })
+        const entry = new Promise<void>((resolve) => {
+          entered = resolve
+        })
+        global.cycleRemote = {
+          async init(shareScope, initScope, options) {
+            attempts++
+            if (attempts === 1) throw new Error('retry initialization')
+            cycleTokens = initScope.length
+            await container.init(shareScope, initScope, options)
+            entered()
+            await gate
+          },
+          get() {
+            return Promise.resolve(() => ({ value: 'cycle remote' }))
+          },
+        }
+        producer.initOptions({
+          name: 'nextRemote',
+          shareStrategy: 'version-first',
+          remotes: [
+            {
+              name: 'cycleRemote',
+              entry: remoteUrl,
+              entryGlobalName: 'cycleRemote',
+              type: 'global',
+              shareScope: 'catalog',
             },
-            get() {
-              return Promise.resolve(() => ({ value: 'cycle remote' }))
-            },
-          }
-          producer.initOptions({
-            name: 'nextRemote',
-            shareStrategy: 'version-first',
-            remotes: [
-              {
-                name: 'cycleRemote',
-                entry: remoteUrl,
-                entryGlobalName: 'cycleRemote',
-                type: 'global',
-                shareScope: 'catalog',
-              },
-            ],
-          })
-          let firstError
-          try {
-            await container.init(scope, [])
-          } catch (error) {
-            firstError = error.message.includes('retry initialization')
-          }
+          ],
+        })
+        let firstError
+        try {
           await container.init(scope, [])
+        } catch (error) {
+          firstError = error.message.includes('retry initialization')
+        }
+        let firstReady = false
+        let secondReady = false
+        const first = container.init(scope, []).then(() => {
+          firstReady = true
+        })
+        await entry
+        const map = { catalog: scope }
+        const options = { shareScopeKeys: ['catalog', 'other'] }
+        Object.defineProperty(options, 'shareScopeMap', { value: map })
+        const second = container.init(scope, [], options).then(() => {
+          secondReady = true
+        })
+        global.finishFederationInitialization = async () => {
+          const beforeRelease = {
+            firstReady,
+            secondReady,
+            mapAttached: producer.shareScopeMap.other === (map as any).other,
+          }
+          release()
+          await Promise.all([first, second])
           await container.init(scope, [])
           let differentScope
           try {
@@ -303,13 +331,12 @@ describeTurbopack.each([
           } catch (error) {
             missingMap = error.message
           }
-          const map = { catalog: scope }
-          const options = { shareScopeKeys: ['catalog', 'other'] }
-          Object.defineProperty(options, 'shareScopeMap', { value: map })
           await container.init(scope, [], options)
           await Promise.all(producer.initializeSharing('other'))
           return {
             firstError,
+            beforeRelease,
+            afterRelease: { firstReady, secondReady },
             attempts,
             cycleTokens,
             differentScope,
@@ -325,9 +352,20 @@ describeTurbopack.each([
               await producer.shareScopeMap.other['other-value']['2.0.0'].get()
             )().value,
           }
-        }, `http://localhost:${remotePort}/_next/static/nextRemote.js`)
+        }
+      }, `http://localhost:${remotePort}/_next/static/nextRemote.js`)
+      expect(
+        await browser.eval(() =>
+          (window as any).finishFederationInitialization()
+        )
       ).toEqual({
         firstError: true,
+        beforeRelease: {
+          firstReady: false,
+          secondReady: false,
+          mapAttached: true,
+        },
+        afterRelease: { firstReady: true, secondReady: true },
         attempts: 2,
         cycleTokens: 1,
         differentScope:
