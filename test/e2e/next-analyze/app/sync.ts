@@ -1,1 +1,1 @@
-export const syncValue = 'initial'
+export const syncValue = globalThis.location?.pathname ?? 'initial'

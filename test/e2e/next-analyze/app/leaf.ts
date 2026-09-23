@@ -1,1 +1,1 @@
-export const reExportedValue = 're-exported'
+export const reExportedValue = globalThis.navigator?.language ?? 're-exported'
