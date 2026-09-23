@@ -48,6 +48,7 @@ wasi-sdk setup.
 | `wasi.thread-spawn` | `@emnapi/wasi-threads` over `node:worker_threads` (`spawn.mjs`) |
 | `env.memory` | a shared `WebAssembly.Memory` matching the explicit linker limits in `.cargo/config.toml` |
 | `env.read_custom_section` | `WebAssembly.Module.customSections` (`lib.mjs`) |
+| filesystem | working directory at `/`; the system `os.tmpdir()` at `/tmp`, also exported as `TMPDIR` |
 
 `@emnapi/wasi-threads` owns Worker lifecycle, compiled-module transfer, load/start ordering, and
 cleanup. A small local adapter remains because Rust imports the original one-argument
@@ -71,6 +72,14 @@ A two-phase contract, per the
 Returning `0` unconditionally is not a shortcut: the registries then come up empty. `link-section`'s
 pre-main constructor notices and aborts, which is at least loud, but the correct sections are what
 make the module usable. `registry::tests::registries_are_populated` guards this from the Rust side.
+
+### Temporary files
+
+WASI preview1's `std::env::temp_dir()` is unsupported, so Rust tests cannot use
+`tempfile::tempdir()` directly. The runner pre-opens the system's actual temporary directory as
+`/tmp` for the main instance and every pthread, and exports that guest path through `TMPDIR`.
+`turbo-tasks-backend`'s `test_temp_dir()` helper reads it explicitly, keeping fixtures out of the
+checkout and Cargo `target` tree.
 
 ### Threads
 
@@ -98,7 +107,6 @@ workaround for this host:
 |---|---|
 | `no unwinding on wasm` | wasm is `panic = abort`, so `catch_unwind` never catches and a panic takes the whole instance down. Affects `#[should_panic]` tests and tests asserting panic isolation. |
 | `parking_lot cannot block on wasm` | `parking_lot_core` only has a working thread parker behind its `nightly` feature, and the pinned version cannot compile it on current nightly. Blocking on a contended lock panics with "Parking not supported on this platform". |
-| `no temp directory on WASI` | `std::env::temp_dir()` is unsupported on WASI preview1, so anything using `TempDir` panics. |
 
 The `parking_lot` limitation is worth calling out: it is not only a test problem. Until it is fixed,
 any contended lock panics on wasm, which Turbopack itself would hit. The no-unwinding limitation is

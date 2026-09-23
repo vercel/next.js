@@ -11,9 +11,14 @@
 
 import { WASI } from 'node:wasi'
 import { readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import process from 'node:process'
 
-import { createImportedMemory, createReadCustomSection } from './lib.mjs'
+import {
+  createImportedMemory,
+  createReadCustomSection,
+  createWasiTestEnvironment,
+} from './lib.mjs'
 import { createThreadRuntime } from './spawn.mjs'
 
 const [wasmPath, ...testArgs] = process.argv.slice(2)
@@ -29,13 +34,18 @@ const memory = createImportedMemory()
 
 // argv[0] is the program name, as a C `main` expects.
 const args = [wasmPath, ...testArgs]
+const { env, preopens } = createWasiTestEnvironment(
+  process.env,
+  process.cwd(),
+  tmpdir()
+)
 
 const wasi = new WASI({
   version: 'preview1',
   args,
-  env: process.env,
-  // Tests may touch the filesystem (tempfiles, fixtures); expose the working directory only.
-  preopens: { '/': process.cwd() },
+  env,
+  // The checkout remains available at `/`; `/tmp` maps to the host's actual temp directory.
+  preopens,
   returnOnExit: true,
 })
 
@@ -50,8 +60,8 @@ const { threadSpawn } = createThreadRuntime({
   memory,
   threadIds,
   args,
-  env: process.env,
-  cwd: process.cwd(),
+  env,
+  preopens,
   onError: (error, threadId) => {
     // A thread that dies takes the process with it, like a real aborted thread would.
     const suffix = threadId === undefined ? '' : ` ${threadId}`

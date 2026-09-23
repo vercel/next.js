@@ -52,7 +52,7 @@ export function nextThreadId(threadIds) {
  * main wasm thread is parked in `Atomics.wait`. All managers allocate IDs from the same shared
  * counter.
  *
- * @param {{ module: WebAssembly.Module, memory: WebAssembly.Memory, threadIds: Int32Array, args: string[], env: Record<string, string>, cwd: string, onError: (error: Error, threadId: number | undefined) => void, workerPath?: string, WorkerClass?: typeof Worker, ThreadManagerClass?: typeof ThreadManager }} context
+ * @param {{ module: WebAssembly.Module, memory: WebAssembly.Memory, threadIds: Int32Array, args: string[], env: Record<string, string>, preopens: Record<string, string>, onError: (error: Error, threadId: number | undefined) => void, workerPath?: string, WorkerClass?: typeof Worker, ThreadManagerClass?: typeof ThreadManager }} context
  */
 export function createThreadRuntime(context) {
   const {
@@ -61,7 +61,7 @@ export function createThreadRuntime(context) {
     threadIds,
     args,
     env,
-    cwd,
+    preopens,
     onError,
     workerPath = THREAD_WORKER,
     WorkerClass = Worker,
@@ -82,7 +82,7 @@ export function createThreadRuntime(context) {
     reuseWorker: false,
     onCreateWorker: () =>
       new WorkerClass(workerPath, {
-        workerData: { threadIds, args, env, cwd },
+        workerData: { threadIds, args, env, preopens },
         // Inherit stdio so panics and test output from threads reach the terminal.
         stdout: false,
         stderr: false,
