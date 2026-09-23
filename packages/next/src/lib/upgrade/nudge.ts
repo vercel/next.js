@@ -280,6 +280,8 @@ async function nudgeUpgradeForAgent(
 
 This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
 
+When you report back to the user, include this upgrade recommendation even if the retry succeeds.
+
 ${
   command
     ? `At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background in a separate Git worktree unless they request otherwise. Run this command from this app's directory:
