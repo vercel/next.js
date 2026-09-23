@@ -16,6 +16,7 @@ export function RemoteMessage() {
   const [scriptCount, setScriptCount] = useState('loading')
   const [fallbackMessage, setFallbackMessage] = useState('loading')
   const [asyncMessage, setAsyncMessage] = useState('loading')
+  const [isolatedMessage, setIsolatedMessage] = useState('loading')
 
   useEffect(() => {
     const remoteEntry = `${process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN}/browser/remoteEntry.js`
@@ -29,7 +30,7 @@ export function RemoteMessage() {
       document.head.appendChild(script)
     }
     // @ts-expect-error -- provided by Module Federation at runtime
-    import('catalog/message').then((module) => {
+    import('catalog/message').then(async (module) => {
       setMessage(module.message ?? `missing export: ${JSON.stringify(module)}`)
       setScriptCount(
         String(
@@ -38,6 +39,10 @@ export function RemoteMessage() {
           ).length
         )
       )
+      if (process.env.NEXT_PUBLIC_MF_IMPLEMENTATION) {
+        const isolated = await import('./isolated-host')
+        setIsolatedMessage(await isolated.message)
+      }
     })
     // @ts-expect-error -- provided by Module Federation at runtime
     import('fallbackCatalog/message').then((module) => {
@@ -71,6 +76,7 @@ export function RemoteMessage() {
       <p id="remote-script-count">{scriptCount}</p>
       <p id="fallback-message">{fallbackMessage}</p>
       <p id="async-message">{asyncMessage}</p>
+      <p id="isolated-message">{isolatedMessage}</p>
     </>
   )
 }

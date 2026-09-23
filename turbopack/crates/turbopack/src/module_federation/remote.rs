@@ -165,7 +165,7 @@ impl ImportMappingReplacement for ModuleFederationHostReplacer {
         for (remote_index, remote) in this.config.remotes.iter().enumerate() {
             for (candidate_index, external) in remote.external.iter().enumerate() {
                 remotes.push(serde_json::json!({
-                    "name": format!("__turbopack_remote_{remote_index}_{candidate_index}"),
+                    "name": format!("__turbopack_remote_{remote_index}_{candidate_index}_{}", external.global),
                     "entry": external.url,
                     "entryGlobalName": external.global,
                     "type": "global",
@@ -234,7 +234,10 @@ fn implementation_remote_source(remote_index: usize, remote: &ModuleFederationRe
         .enumerate()
         .map(|(index, external)| {
             (
-                format!("__turbopack_remote_{remote_index}_{index}"),
+                format!(
+                    "__turbopack_remote_{remote_index}_{index}_{}",
+                    external.global
+                ),
                 &external.global,
                 &external.url,
             )

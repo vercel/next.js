@@ -94,6 +94,9 @@ describeTurbopack.each([
           expect(await browser.elementByCss('#async-message').text()).toBe(
             'async factory result'
           )
+          expect(await browser.elementByCss('#isolated-message').text()).toBe(
+            'hello from isolated SDK host'
+          )
         }
       })
       if (implementation) {
