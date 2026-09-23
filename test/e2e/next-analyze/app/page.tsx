@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import './styles.css'
+import { reExportedValue } from './barrel'
 import { syncValue } from './sync'
 
 export default function Page() {
-  const [value, setValue] = useState(syncValue)
+  const [value, setValue] = useState(`${syncValue}:${reExportedValue}`)
 
   async function loadDeferred() {
     const [{ lazyValue }, { workerValue }, { default: Image }] =
