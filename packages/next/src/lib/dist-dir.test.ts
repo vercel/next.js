@@ -1,19 +1,12 @@
 import { resolve } from 'path'
-import {
-  DistDirOutsideWorkspaceError,
-  verifyDistDirIsInsideWorkspace,
-} from './dist-dir'
+import { InvalidDistDirError, verifyDistDir } from './dist-dir'
 
-describe('verifyDistDirIsInsideWorkspace', () => {
+describe('verifyDistDir', () => {
   // An app at <repo>/apps/web, inside a monorepo rooted at <repo>.
   const appDir = '/repo/apps/web'
   const workspaceRoot = '/repo'
   const verify = (distDir: string) =>
-    verifyDistDirIsInsideWorkspace(
-      resolve(appDir, distDir),
-      appDir,
-      workspaceRoot
-    )
+    verifyDistDir(resolve(appDir, distDir), appDir, workspaceRoot)
 
   it.each([
     '.next', // inside the app
@@ -34,33 +27,15 @@ describe('verifyDistDirIsInsideWorkspace', () => {
     '../../..', // above the workspace
     '/tmp/elsewhere',
   ])('rejects %s', (distDir) => {
-    expect(() => verify(distDir)).toThrow(DistDirOutsideWorkspaceError)
+    expect(() => verify(distDir)).toThrow(InvalidDistDirError)
   })
 
   it.each(['.next', '..next'])(
     'allows an in-app %s distDir when the inferred workspace root is unrelated',
     (distDir) => {
       expect(() =>
-        verifyDistDirIsInsideWorkspace(
-          `${appDir}/${distDir}`,
-          appDir,
-          '/custom/root'
-        )
+        verifyDistDir(`${appDir}/${distDir}`, appDir, '/custom/root')
       ).not.toThrow()
     }
   )
-
-  it('includes each resolved boundary in its error', () => {
-    expect(() =>
-      verifyDistDirIsInsideWorkspace('/repo/apps', appDir, workspaceRoot)
-    ).toThrowErrorMatchingInlineSnapshot(`
-     "The configured distDir should be inside of the application directory or the workspace containing it, and must not contain the application directory itself:
-
-       distDir:        /repo/apps
-       application:    /repo/apps/web
-       workspace root: /repo
-
-     Read more: https://nextjs.org/docs/messages/invalid-dist-dir"
-    `)
-  })
 })

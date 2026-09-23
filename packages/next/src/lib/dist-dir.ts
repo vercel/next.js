@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 
-export class DistDirOutsideWorkspaceError extends Error {
+export class InvalidDistDirError extends Error {
   constructor(distDir: string, appDir: string, workspaceRoot: string) {
     super(
       `The configured distDir should be inside of the application directory ` +
@@ -11,7 +11,7 @@ export class DistDirOutsideWorkspaceError extends Error {
         `  workspace root: ${workspaceRoot}\n\n` +
         `Read more: https://nextjs.org/docs/messages/invalid-dist-dir`
     )
-    this.name = 'DistDirOutsideWorkspaceError'
+    this.name = 'InvalidDistDirError'
   }
 }
 
@@ -31,7 +31,7 @@ function isStrictlyInside(ancestor: string, descendant: string): boolean {
  * Throws unless `distDir` is inside the application or workspace, without
  * containing the application itself.
  */
-export function verifyDistDirIsInsideWorkspace(
+export function verifyDistDir(
   distDir: string,
   appDir: string,
   workspaceRoot: string
@@ -51,7 +51,7 @@ export function verifyDistDirIsInsideWorkspace(
     return
   }
 
-  throw new DistDirOutsideWorkspaceError(
+  throw new InvalidDistDirError(
     resolvedDistDir,
     resolvedAppDir,
     resolvedWorkspaceRoot

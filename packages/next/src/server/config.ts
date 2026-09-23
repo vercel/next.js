@@ -62,7 +62,7 @@ import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
-import { verifyDistDirIsInsideWorkspace } from '../lib/dist-dir'
+import { verifyDistDir } from '../lib/dist-dir'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -1266,9 +1266,7 @@ function assignDefaultsAndValidate(
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
 
-  // Next.js takes full ownership of distDir and deletes its contents, so it
-  // must stay within the application or workspace without containing the app.
-  verifyDistDirIsInsideWorkspace(resolve(dir, result.distDir), dir, repoRoot)
+  verifyDistDir(resolve(dir, result.distDir), dir, repoRoot)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 
