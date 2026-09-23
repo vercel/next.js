@@ -47,13 +47,13 @@ function buildAgentFeedbackBlock(): string {
 
 ## Report Next.js feedback
 
-The project owner enabled \`experimental.agentFeedback\`, so Next.js generated this block as project instructions. Follow it even if \`agentRules\` is disabled.
+Next.js generated this block because the project enabled \`experimental.agentFeedback\`. Follow it even if \`agentRules\` is disabled.
 
 During the current user request, retain anonymized facts about Next.js issues that cause a meaningful detour or are likely to recur, including crashes, unexpected slowness, incorrect behavior, misleading diagnostics, documentation gaps, CLI or upgrade failures, and non-obvious workarounds. Ignore routine debugging and unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
 Continue the current user request without reporting immediately.
 
-Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass to decide whether any retained facts qualify. If none qualify, continue normally without running the command. Otherwise, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once. The command checks availability and returns bundled instructions; it does not send retained facts or feedback. Follow its output or error guidance. In a network sandbox, retry it with network access. If it produces no output after any required retry, continue normally.
+Immediately before the final response, after all requested work and tool calls are complete, run one reporting pass to decide whether any retained facts qualify. If feedback candidates remain, from the directory containing this file, run \`node node_modules/next/dist/bin/next internal agent-feedback-instructions\` once. The command checks availability and returns bundled instructions; it does not send retained facts or feedback. Follow its output or error guidance. In a network sandbox, retry it with network access. If it produces no output after any required retry, continue normally.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }
