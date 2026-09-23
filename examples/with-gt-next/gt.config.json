@@ -1,0 +1,31 @@
+{
+  "locales": [
+    "cs",
+    "fr",
+    "de",
+    "es",
+    "ja",
+    "zh",
+    "ko",
+    "nl",
+    "da",
+    "sv",
+    "el",
+    "ru",
+    "hi",
+    "he",
+    "ar-EG",
+    "it-IT",
+    "pl",
+    "sw-TZ",
+    "uk",
+    "tr"
+  ],
+  "defaultLocale": "en",
+  "_versionId": "18eea773f6e13444f043e03548e6578889ce7034633fb73b9d866374c82bedee",
+  "files": {
+    "gt": {
+      "output": "public/locales/[locale].json"
+    }
+  }
+}
