@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import gateScript from './gate.cjs'
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -16,16 +17,6 @@ const buildWorkflowPath = path.join(
   root,
   '.github/workflows/build_and_test.yml'
 )
-
-function extractGateScript() {
-  const lines = fs.readFileSync(gateWorkflowPath, 'utf8').split('\n')
-  const marker = lines.findIndex((line) => line.trim() === 'script: |')
-  assert.notEqual(marker, -1, 'gate github-script block should exist')
-  return lines
-    .slice(marker + 1)
-    .map((line) => (line.startsWith('            ') ? line.slice(12) : line))
-    .join('\n')
-}
 
 function pull(number, base, head, options = {}) {
   const repository = options.repository ?? 'vercel/next.js'
@@ -186,9 +177,6 @@ async function runGate({
   getError,
   advanceOnSleep = 5 * 60 * 1000,
 } = {}) {
-  const script = extractGateScript()
-  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-  const fn = new AsyncFunction('github', 'context', 'core', script)
   const core = createCore()
   const { github, checkRefs } = createGithub(pulls, checks, { getError })
   const context = {
@@ -219,7 +207,7 @@ async function runGate({
   }
 
   try {
-    await fn(github, context, core)
+    await gateScript({ github, context, core })
   } finally {
     Date.now = realNow
     globalThis.setTimeout = realTimeout
@@ -504,6 +492,10 @@ test(
 
 test('workflow structure keeps expensive roots behind the gate', () => {
   const gate = fs.readFileSync(gateWorkflowPath, 'utf8')
+  const script = fs.readFileSync(
+    path.join(root, '.github/actions/pr-stack-ci-gate/gate.cjs'),
+    'utf8'
+  )
   const build = fs.readFileSync(buildWorkflowPath, 'utf8')
 
   for (const forbidden of [
@@ -518,11 +510,58 @@ test('workflow structure keeps expensive roots behind the gate', () => {
 
   assert.match(gate, /permissions: \{\}/)
   assert.match(gate, /timeout-minutes: 360/)
-  assert.match(gate, /POLL_INTERVAL_MS = 5 \* 60 \* 1000/)
-  assert.match(gate, /WAIT_DEADLINE_MS = 5 \* 60 \* 60 \* 1000/)
+  assert.match(script, /POLL_INTERVAL_MS = 5 \* 60 \* 1000/)
+  assert.match(script, /WAIT_DEADLINE_MS = 5 \* 60 \* 60 \* 1000/)
   assert.match(gate, /checks: read/)
+  assert.match(gate, /contents: read/)
   assert.match(gate, /pull-requests: read/)
   assert.ok(!gate.includes('secrets:'))
+
+  const step = (name) => {
+    const block = gate.match(
+      new RegExp(
+        `^      - name: ${name}\\n([\\s\\S]*?)(?=^      - name: |(?![\\s\\S]))`,
+        'm'
+      )
+    )
+    assert.ok(block, `missing ${name} step`)
+    return block[0]
+  }
+  const fork = step('Run full CI for fork PRs')
+  assert.match(fork, /id: fork/)
+  assert.match(fork, /head\.repo\.full_name != github\.repository/)
+  assert.match(fork, /skip=false/)
+  assert.doesNotMatch(fork, /checkout@|require\(/)
+
+  for (const name of [
+    'Check out stack gate from this CI commit',
+    'Wait for previous stack CI',
+  ]) {
+    assert.match(
+      step(name),
+      /github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/
+    )
+  }
+  const checkout = step('Check out stack gate from this CI commit')
+  assert.match(
+    checkout,
+    /actions\/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd/
+  )
+  assert.match(checkout, /ref: \$\{\{ github\.sha \}\}/)
+  assert.match(
+    checkout,
+    /sparse-checkout: \.github\/actions\/pr-stack-ci-gate\/gate\.cjs/
+  )
+  assert.match(checkout, /sparse-checkout-cone-mode: false/)
+  assert.match(checkout, /persist-credentials: false/)
+  assert.match(
+    step('Wait for previous stack CI'),
+    /require\('\.\/\.github\/actions\/pr-stack-ci-gate\/gate\.cjs'\)/
+  )
+  assert.match(
+    gate,
+    /steps\.gate\.outputs\.skip \|\| steps\.fork\.outputs\.skip/
+  )
 
   for (const job of ['changes', 'build-next', 'validate-docs-links']) {
     const block = build.match(
@@ -551,6 +590,9 @@ test('workflow structure keeps expensive roots behind the gate', () => {
     /^  optimize-ci:\n([\s\S]*?)(?=^  [a-zA-Z0-9_-]+:|(?![\s\S]))/m
   )
   assert.ok(optimizeCall)
+  assert.match(optimizeCall[0], /checks: read/)
+  assert.match(optimizeCall[0], /contents: read/)
+  assert.match(optimizeCall[0], /pull-requests: read/)
   assert.ok(!optimizeCall[0].includes('secrets: inherit'))
 
   const aggregate = build.match(

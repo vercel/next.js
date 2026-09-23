@@ -1,0 +1,363 @@
+// The workflow checks out this module from github.sha only for same-repository
+// PRs and canary pushes. Fork PRs bypass the checkout and this module entirely.
+module.exports = async function gate({ github, context, core }) {
+  const POLL_INTERVAL_MS = 5 * 60 * 1000
+  const WAIT_DEADLINE_MS = 5 * 60 * 60 * 1000
+  const REQUIRED_CHECK = 'thank you, next'
+
+  // Keep the existing caller contract. A failed gate still prevents
+  // dependents from running because the job itself fails.
+  core.setOutput('skip', 'false')
+
+  const startedAt = Date.now()
+  let lastFingerprint = ''
+
+  function escapeCell(value) {
+    return String(value ?? '')
+      .replaceAll('|', '\\|')
+      .replaceAll('\n', ' ')
+  }
+
+  function checkState(check) {
+    if (!check || check.status !== 'completed') return 'waiting'
+    return check.conclusion === 'success' ? 'success' : 'unsuccessful'
+  }
+
+  function isTransientApiError(error) {
+    const status = error.status ?? error.response?.status
+    return status === 429 || (status >= 500 && status < 600)
+  }
+
+  function gateDecision(candidates) {
+    if (candidates.some((candidate) => candidate.state === 'success')) {
+      return 'open'
+    }
+    if (
+      candidates.length === 3 &&
+      candidates.every((candidate) => candidate.state === 'unsuccessful')
+    ) {
+      return 'fail'
+    }
+    return 'wait'
+  }
+
+  function sameRepository(pull, repository) {
+    return pull?.head?.repo?.full_name === repository
+  }
+
+  async function listOpenPulls(parameters) {
+    return await github.paginate(github.rest.pulls.list, {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      state: 'open',
+      per_page: 100,
+      ...parameters,
+    })
+  }
+
+  async function getPull(number) {
+    const { data } = await github.rest.pulls.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: number,
+    })
+    return data
+  }
+
+  async function findPredecessor(pull) {
+    const matches = (
+      await listOpenPulls({
+        head: `${context.repo.owner}:${pull.base.ref}`,
+      })
+    ).filter(
+      (candidate) =>
+        candidate.number !== pull.number &&
+        candidate.head.ref === pull.base.ref &&
+        sameRepository(candidate, context.payload.repository.full_name)
+    )
+
+    if (matches.length > 1) {
+      return { ambiguous: true, matches }
+    }
+    return { ambiguous: false, pull: matches[0] ?? null }
+  }
+
+  async function findSuccessors(pull) {
+    return (await listOpenPulls({ base: pull.head.ref })).filter(
+      (candidate) =>
+        candidate.number !== pull.number &&
+        candidate.base.ref === pull.head.ref &&
+        sameRepository(candidate, context.payload.repository.full_name)
+    )
+  }
+
+  async function discoverTopology() {
+    const current = await getPull(context.payload.pull_request.number)
+    const repository = context.payload.repository.full_name
+
+    if (!sameRepository(current, repository)) {
+      return {
+        current,
+        role: 'fork',
+        reason: 'fork PRs always run immediately',
+      }
+    }
+
+    if (
+      current.labels.some((label) => label.name === process.env.BYPASS_LABEL)
+    ) {
+      return { current, role: 'bypass', reason: 'bypass label is present' }
+    }
+
+    const successors = await findSuccessors(current)
+    if (successors.length === 0) {
+      return {
+        current,
+        role: 'top',
+        reason: 'no open PR is based on this head branch',
+      }
+    }
+
+    const predecessors = []
+    const seen = new Set([current.number])
+    let cursor = current
+
+    while (predecessors.length < 3) {
+      const result = await findPredecessor(cursor)
+      if (result.ambiguous) {
+        return {
+          current,
+          role: 'ambiguous',
+          reason: `multiple open PRs have head branch ${cursor.base.ref}`,
+        }
+      }
+      if (!result.pull) break
+      if (seen.has(result.pull.number)) {
+        return {
+          current,
+          role: 'ambiguous',
+          reason: 'cycle detected in PR base branches',
+        }
+      }
+      seen.add(result.pull.number)
+      predecessors.push(result.pull)
+      cursor = result.pull
+    }
+
+    if (predecessors.length < 3) {
+      return {
+        current,
+        role: 'first-three',
+        reason: `only ${predecessors.length} open predecessor PR(s) are reachable`,
+      }
+    }
+
+    return { current, role: 'middle', predecessors }
+  }
+
+  async function latestRequiredCheck(pull) {
+    const livePull = await getPull(pull.number)
+    const headSha = livePull.head?.sha
+    const baseSha = livePull.base?.sha
+    if (!headSha || !baseSha) {
+      throw new Error(`Missing head/base SHA for PR #${pull.number}`)
+    }
+
+    // Actions attaches this PR's required check to its head commit. A
+    // head SHA can outlive a base update, so also match the check's
+    // pull-request association to the current base commit.
+    const { data } = await github.rest.checks.listForRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: headSha,
+      check_name: REQUIRED_CHECK,
+      filter: 'latest',
+      per_page: 100,
+    })
+    const check = data.check_runs
+      .filter(
+        (candidate) =>
+          candidate.name === REQUIRED_CHECK &&
+          candidate.app?.slug === 'github-actions' &&
+          candidate.head_sha === headSha &&
+          candidate.pull_requests?.some(
+            (associated) =>
+              associated.number === livePull.number &&
+              associated.head?.sha === headSha &&
+              associated.base?.ref === livePull.base.ref &&
+              associated.base?.sha === baseSha
+          )
+      )
+      .sort((a, b) => b.id - a.id)[0]
+
+    return {
+      pull: livePull,
+      check: check ?? null,
+      state: checkState(check),
+    }
+  }
+
+  function fingerprint(snapshot) {
+    return JSON.stringify({
+      role: snapshot.role,
+      reason: snapshot.reason,
+      candidates: snapshot.candidates?.map((candidate) => ({
+        number: candidate.pull.number,
+        head: candidate.pull.head.sha,
+        base: candidate.pull.base.sha,
+        status: candidate.check?.status,
+        conclusion: candidate.check?.conclusion,
+      })),
+    })
+  }
+
+  async function writeSummary(snapshot, outcome, reason) {
+    try {
+      const current = snapshot.current
+      const elapsedMinutes = Math.floor((Date.now() - startedAt) / 60000)
+      const lines = [
+        '# PR Stack CI Gate',
+        '',
+        `- PR: #${current?.number ?? context.payload.pull_request?.number ?? 'n/a'}`,
+        `- Branches: \`${escapeCell(current?.base?.ref)}\` ← \`${escapeCell(current?.head?.ref)}\``,
+        `- Role: **${escapeCell(snapshot.role)}**`,
+        `- Result: **${escapeCell(outcome)}**`,
+        `- Reason: ${escapeCell(reason)}`,
+        `- Elapsed: ${elapsedMinutes} minute(s)`,
+      ]
+
+      if (snapshot.candidates?.length) {
+        lines.push(
+          '',
+          '| PR | Base ← Head | Head SHA | Base SHA | Check | State |',
+          '|---:|---|---|---|---|---|'
+        )
+        for (const candidate of snapshot.candidates) {
+          const checkText = candidate.check
+            ? `[${candidate.check.status}/${candidate.check.conclusion ?? ''}](${candidate.check.html_url})`
+            : 'not reported'
+          lines.push(
+            `| #${candidate.pull.number} | \`${escapeCell(candidate.pull.base.ref)}\` ← \`${escapeCell(candidate.pull.head.ref)}\` | \`${escapeCell(candidate.pull.head.sha?.slice(0, 12))}\` | \`${escapeCell(candidate.pull.base.sha?.slice(0, 12))}\` | ${checkText} | ${candidate.state} |`
+          )
+        }
+      }
+
+      await core.summary.addRaw(`${lines.join('\n')}\n`).write()
+    } catch (error) {
+      core.warning(`Could not write PR Stack CI Gate summary: ${error.message}`)
+    }
+  }
+
+  async function runGate() {
+    if (context.eventName !== 'pull_request') {
+      const snapshot = {
+        current: null,
+        role: 'non-pr',
+        reason: `${context.eventName} runs immediately`,
+      }
+      await writeSummary(snapshot, 'open', snapshot.reason)
+      return
+    }
+
+    while (true) {
+      let topology
+      const candidates = []
+      try {
+        topology = await discoverTopology()
+        if (topology.role === 'middle') {
+          for (const predecessor of topology.predecessors) {
+            candidates.push(await latestRequiredCheck(predecessor))
+          }
+        }
+      } catch (error) {
+        if (!isTransientApiError(error)) throw error
+        if (Date.now() - startedAt >= WAIT_DEADLINE_MS) {
+          await writeSummary(
+            {
+              current: context.payload.pull_request,
+              role: 'error',
+              reason: error.message,
+            },
+            'open',
+            'Five-hour transient API error deadline reached; starting full CI'
+          )
+          return
+        }
+        core.warning(
+          `Transient GitHub API error (${error.status ?? error.response?.status}); retrying in five minutes: ${error.message}`
+        )
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+        continue
+      }
+
+      if (topology.role !== 'middle') {
+        await writeSummary(topology, 'open', topology.reason)
+        return
+      }
+      const snapshot = { ...topology, candidates }
+      const decision = gateDecision(candidates)
+      const currentFingerprint = fingerprint(snapshot)
+
+      if (currentFingerprint !== lastFingerprint) {
+        core.info(
+          `PR #${topology.current.number}: ${candidates
+            .map((candidate) => `#${candidate.pull.number}=${candidate.state}`)
+            .join(', ')}`
+        )
+        lastFingerprint = currentFingerprint
+      }
+
+      if (decision === 'open') {
+        const successful = candidates.find(
+          (candidate) => candidate.state === 'success'
+        )
+        await writeSummary(
+          snapshot,
+          'open',
+          `PR #${successful.pull.number} passed ${REQUIRED_CHECK}`
+        )
+        return
+      }
+
+      if (decision === 'fail') {
+        const reason = `All three predecessor PRs completed ${REQUIRED_CHECK} without success. Rerun this workflow after a predecessor passes, or apply the ${process.env.BYPASS_LABEL} label.`
+        await writeSummary(snapshot, 'failed', reason)
+        core.setFailed(reason)
+        return
+      }
+
+      const elapsed = Date.now() - startedAt
+      if (elapsed >= WAIT_DEADLINE_MS) {
+        await writeSummary(
+          snapshot,
+          'open',
+          'Five-hour waiting deadline reached; failing open and starting full CI'
+        )
+        return
+      }
+
+      const nextPoll = new Date(Date.now() + POLL_INTERVAL_MS)
+      core.info(
+        `No predecessor has passed yet; polling again at ${nextPoll.toISOString()}`
+      )
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+    }
+  }
+
+  try {
+    await runGate()
+  } catch (error) {
+    core.warning(
+      `PR stack classification failed; failing open and starting full CI: ${error.stack ?? error.message}`
+    )
+    await writeSummary(
+      {
+        current: context.payload.pull_request ?? null,
+        role: 'error',
+        reason: error.message,
+      },
+      'open',
+      `Classification/API error; failing open: ${error.message}`
+    )
+  }
+}

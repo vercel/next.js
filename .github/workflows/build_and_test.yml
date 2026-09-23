@@ -24,6 +24,7 @@ jobs:
   optimize-ci:
     permissions:
       checks: read
+      contents: read
       pull-requests: read
     uses: ./.github/workflows/pr_stack_optimizer.yml
 
