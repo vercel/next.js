@@ -139,6 +139,7 @@ describe('analyzer data parser', () => {
     ])
     expect(analyze.hasOutputFileReferences()).toBe(true)
     expect(analyze.outputFileReferences(0)).toEqual([1])
+
     const modules = new ModulesData(modulesBuffer())
     expect(
       modules.getModuleIndiciesFromPath('[project]/src/a.ts')
