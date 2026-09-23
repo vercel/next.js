@@ -290,10 +290,9 @@ export function makeExternalHandler({
       return
     }
 
-    const isOptOutBundling = optOutBundlingPackageRegex.test(res)
     // Apply bundling rules to all app layers.
     // Since handleExternals only handle the server layers, we don't need to exclude client here
-    if (!isOptOutBundling && isAppLayer) {
+    if (isAppLayer) {
       return
     }
 
@@ -344,6 +343,7 @@ export function makeExternalHandler({
       }
     }
 
+    const isOptOutBundling = optOutBundlingPackageRegex.test(res)
     const resolvedBundlingOptOutRes = resolveBundlingOptOutPackages({
       resolvedRes: res,
       config,
