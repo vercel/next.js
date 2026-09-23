@@ -100,7 +100,7 @@ pub struct NextSegmentConfig {
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub prefetch: Option<Span>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub unstable_ensure_static: Option<Span>,
 }
