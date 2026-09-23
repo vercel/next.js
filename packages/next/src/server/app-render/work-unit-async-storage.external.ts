@@ -177,7 +177,7 @@ export interface PrerenderStoreModernServer
     StaticPrerenderStoreCommon {
   readonly type: 'prerender'
 
-  readonly stagedRendering: StagedRenderingController | null
+  stagedRendering: StagedRenderingController | null
 
   ensureStaticLevel: EnsureStaticLevel | null
   /*
@@ -189,7 +189,7 @@ export interface PrerenderStoreModernServer
    *
    * Only intended to be used during the final prerender of a page.
    * */
-  readonly prerenderDataTracking: PrerenderDataTracking | null
+  prerenderDataTracking: PrerenderDataTracking | null
 
   /**
    * Whether a fallback shell produced by this prerender could later be
@@ -210,12 +210,12 @@ export interface PrerenderStoreModernRuntime
    * transitions (Before → Static → Runtime → Dynamic). Null for prospective
    * renders where all stages run without sequencing.
    */
-  readonly stagedRendering: StagedRenderingController | null
+  stagedRendering: StagedRenderingController | null
   readonly finalStage: AdvanceableRenderStage
 
-  readonly headers: RequestStore['headers']
-  readonly cookies: RequestStore['cookies']
-  readonly draftMode: RequestStore['draftMode']
+  headers: RequestStore['headers']
+  cookies: RequestStore['cookies']
+  draftMode: RequestStore['draftMode']
 }
 
 export interface RevalidateStore {
@@ -241,7 +241,7 @@ interface PrerenderStoreModernCommon
    * allows React to properly track the async I/O in dev mode, which yields
    * better owner stacks for dynamic validation errors.
    */
-  readonly renderSignal: AbortSignal
+  renderSignal: AbortSignal
 
   /**
    * This is the AbortController which represents the boundary between Prerender
@@ -251,18 +251,18 @@ interface PrerenderStoreModernCommon
    * one task, or when you call a sync API which requires the prerender to end
    * immediately.
    */
-  readonly controller: AbortController
+  controller: AbortController
 
   /**
    * When not null, this signal is used to track cache reads during prerendering
    * and to await all cache reads completing, before aborting the prerender.
    */
-  readonly cacheSignal: null | CacheSignal
+  cacheSignal: null | CacheSignal
 
   /**
    * During some prerenders we want to track dynamic access.
    */
-  readonly dynamicTracking: null | DynamicTrackingState
+  dynamicTracking: null | DynamicTrackingState
 
   readonly rootParams: Params
 
@@ -288,7 +288,7 @@ interface PrerenderStoreModernCommon
    * which route params each segment actually accesses, allowing the client
    * cache to re-key entries for better sharing across different param values.
    */
-  readonly varyParamsAccumulator: ResponseVaryParamsAccumulator | null
+  varyParamsAccumulator: ResponseVaryParamsAccumulator | null
 }
 
 interface StaticPrerenderStoreCommon {
@@ -457,6 +457,53 @@ export function willConsumerServerCache(
 export type WorkUnitAsyncStorage = AsyncLocalStorage<WorkUnitStore>
 
 export { workUnitAsyncStorageInstance as workUnitAsyncStorage }
+
+/**
+ * Release references to heavy render objects (resumeDataCache, abort controllers,
+ * stage controllers, tracking state) from a prerender store once the render has
+ * settled. This ensures that any user or library timers (e.g. TanStack Query gcTime)
+ * scheduled during render that capture the AsyncLocalStorage store via Node.js
+ * AsyncContextFrame do not retain render state and buffers until the timers fire.
+ */
+export function releasePrerenderStore(
+  store: PrerenderStore | null | undefined
+): void {
+  if (!store) return
+  switch (store.type) {
+    case 'prerender':
+      store.resumeDataCache = null
+      ;(store as any).controller = null
+      ;(store as any).renderSignal = null
+      store.cacheSignal = null
+      store.stagedRendering = null
+      store.varyParamsAccumulator = null
+      ;(store as any).dynamicTracking = null
+      store.prerenderDataTracking = null
+      break
+    case 'prerender-runtime':
+      store.resumeDataCache = null
+      ;(store as any).controller = null
+      ;(store as any).renderSignal = null
+      store.cacheSignal = null
+      store.stagedRendering = null
+      store.varyParamsAccumulator = null
+      ;(store as any).dynamicTracking = null
+      ;(store as any).headers = null
+      ;(store as any).cookies = null
+      ;(store as any).draftMode = null
+      break
+    case 'prerender-client':
+      store.resumeDataCache = null
+      ;(store as any).controller = null
+      ;(store as any).renderSignal = null
+      store.cacheSignal = null
+      ;(store as any).dynamicTracking = null
+      store.varyParamsAccumulator = null
+      break
+    default:
+      break
+  }
+}
 
 export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
