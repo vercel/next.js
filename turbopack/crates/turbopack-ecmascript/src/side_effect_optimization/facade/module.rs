@@ -87,7 +87,6 @@ impl EcmascriptModuleFacadeModule {
         // reference is what guarantees. `evaluation()` rather than `all()`: the latter would also
         // claim every export is used, widening the locals module's usage to `All` unconditionally
         // and defeating both export mangling and tree shaking of its unused exports.
-        // TODO skip if side effect free and no local exports
         let mut part_references = vec![
             EcmascriptModulePartReference::new_part(
                 *self.module,
