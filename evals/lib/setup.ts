@@ -202,6 +202,7 @@ Before any Next.js work, find and read the relevant doc in \`node_modules/next/d
 `
   await sandbox.writeFiles({
     'AGENTS.md': body,
+    'CLAUDE.md': '@AGENTS.md\n',
   })
 }
 
