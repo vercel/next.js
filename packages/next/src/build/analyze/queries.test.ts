@@ -1,0 +1,118 @@
+import type { ModulesData } from '../../shared/lib/analyze-data'
+import { analyzeQueryTestHelpers } from './queries'
+
+const {
+  edgeDominatedModules,
+  stronglyConnectedComponents,
+  synchronousComponents,
+} = analyzeQueryTestHelpers
+
+describe('analyzer SCC evidence', () => {
+  it('uses stable producer SCC IDs when modules.data provides them', () => {
+    const modules = {
+      hasExactSyncSccs: () => true,
+      syncSccId: (index: number) => [7, 7, 11][index],
+    } as unknown as ModulesData
+    expect(
+      synchronousComponents(
+        modules,
+        [0, 1, 2],
+        [
+          { from: 0, to: 1 },
+          { from: 1, to: 0 },
+        ]
+      )
+    ).toEqual({
+      evidence: 'producer-petgraph',
+      sccs: [
+        { id: 7, members: [0, 1] },
+        { id: 11, members: [2] },
+      ],
+    })
+  })
+
+  it('labels query-time SCC calculation for old artifacts', () => {
+    const modules = {
+      hasExactSyncSccs: () => false,
+    } as unknown as ModulesData
+    expect(
+      synchronousComponents(
+        modules,
+        [0, 1],
+        [
+          { from: 0, to: 1 },
+          { from: 1, to: 0 },
+        ]
+      )
+    ).toEqual({
+      evidence: 'query-fallback',
+      sccs: [{ id: 0, members: [0, 1] }],
+    })
+  })
+})
+
+describe('analyzer initial graph facts', () => {
+  it('finds edge-exclusive modules without assigning merged diamond nodes', () => {
+    const nodes = [0, 1, 2, 3]
+    const edges = [
+      { from: 0, to: 1 },
+      { from: 0, to: 2 },
+      { from: 1, to: 3 },
+      { from: 2, to: 3 },
+    ]
+
+    const dominated = edgeDominatedModules(nodes, edges, new Set([0]))
+    expect(dominated.get(0)).toEqual([1])
+    expect(dominated.get(1)).toEqual([2])
+    expect(dominated.get(2)).toEqual([])
+    expect(dominated.get(3)).toEqual([])
+  })
+
+  it('handles cycles while retaining edge-specific facts', () => {
+    const nodes = [0, 1, 2, 3]
+    const edges = [
+      { from: 0, to: 1 },
+      { from: 1, to: 2 },
+      { from: 2, to: 1 },
+      { from: 2, to: 3 },
+    ]
+
+    expect(stronglyConnectedComponents(nodes, edges)).toEqual([
+      [0],
+      [1, 2],
+      [3],
+    ])
+    const dominated = edgeDominatedModules(nodes, edges, new Set([0]))
+    expect(dominated.get(0)).toEqual([1, 2, 3])
+    expect(dominated.get(1)).toEqual([2, 3])
+    expect(dominated.get(2)).toEqual([])
+    expect(dominated.get(3)).toEqual([3])
+  })
+
+  it('supports multiple route entries', () => {
+    const nodes = [0, 1, 2]
+    const edges = [
+      { from: 0, to: 2 },
+      { from: 1, to: 2 },
+    ]
+    const dominated = edgeDominatedModules(nodes, edges, new Set([0, 1]))
+    expect(dominated.get(0)).toEqual([])
+    expect(dominated.get(1)).toEqual([])
+  })
+
+  it('handles graphs above the former quadratic-set bound', () => {
+    const nodes = Array.from({ length: 2000 }, (_, index) => index)
+    const edges = nodes.slice(1).map((node) => ({
+      from: node - 1,
+      to: node,
+    }))
+    const dominated = edgeDominatedModules(
+      nodes,
+      edges,
+      new Set([0]),
+      new Set([0, edges.length - 1])
+    )
+    expect(dominated.get(0)).toHaveLength(1999)
+    expect(dominated.get(edges.length - 1)).toEqual([1999])
+  })
+})

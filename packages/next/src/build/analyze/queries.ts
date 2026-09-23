@@ -8,6 +8,7 @@ const MAX_LIMIT = 100
 const MAX_CHUNKS = 100
 const MAX_MODULE_CANDIDATES = 100
 const MAX_GRAPH_NODES = 10_000
+const MAX_COUNTERFACTUAL_GRAPH_ITEMS = 50_000
 const COMPRESSED_CAVEAT =
   'Compressed source sizes are estimates because attributed parts are compressed independently.'
 const ENTRY_HEURISTIC_CAVEAT =
@@ -94,8 +95,35 @@ interface ExplainArgs {
   sourcePath: string
   snapshot?: string
   moduleIdent?: string
+  routeEntryId?: string
+  importerModuleIdent?: string
   environment?: Environment
   maxDepth?: number
+}
+
+interface InitialGraphArgs {
+  route: string
+  sourcePath: string
+  snapshot?: string
+  moduleIdent?: string
+  routeEntryId?: string
+  environment?: Environment
+}
+
+interface ImportEdgeArgs extends InitialGraphArgs {
+  edgeId: string
+  granularity?: 'module' | 'source' | 'package'
+  offset?: number
+  limit?: number
+}
+
+class DetailedToolError extends Error {
+  constructor(
+    message: string,
+    readonly details: Record<string, unknown>
+  ) {
+    super(message)
+  }
 }
 
 export class AnalyzeQueryError extends Error {
@@ -107,6 +135,9 @@ export class AnalyzeQueryError extends Error {
 }
 
 function publicError(error: unknown): Record<string, unknown> {
+  if (error instanceof DetailedToolError) {
+    return { error: error.message, ...error.details }
+  }
   if (!(error instanceof Error))
     return { error: 'Unable to query analyzer data' }
   if (error.message.startsWith('Unknown snapshot')) {
@@ -376,6 +407,70 @@ function activeEntries(modules: ModulesData, data: AnalyzeData): Set<number> {
   return result
 }
 
+type ResolvedRouteEntry = {
+  routeEntryId: string
+  moduleIdent: string
+  modulePath: string
+  role: 'route' | 'shared'
+  runtime?: string
+  index: number
+}
+
+function resolveRouteEntries(
+  modules: ModulesData,
+  data: AnalyzeData,
+  routeEntryId?: string
+): {
+  entries: Set<number>
+  candidates: ResolvedRouteEntry[]
+  heuristic: boolean
+} {
+  if (data.hasExactRouteEntries()) {
+    const candidates = data
+      .routeEntries()
+      .map((entry) => {
+        const index = modules.getModuleIndexFromIdent(entry.module_ident)
+        if (index === undefined) {
+          throw new Error(
+            `Invalid analyzer data: unknown route entry module ${entry.module_ident}`
+          )
+        }
+        return {
+          routeEntryId: entry.route_entry_id,
+          moduleIdent: entry.module_ident,
+          modulePath: entry.module_path,
+          role: entry.role,
+          ...(entry.runtime ? { runtime: entry.runtime } : {}),
+          index,
+        }
+      })
+      .sort((a, b) => compareText(a.routeEntryId, b.routeEntryId))
+    const selected = routeEntryId
+      ? candidates.filter((entry) => entry.routeEntryId === routeEntryId)
+      : candidates
+    if (routeEntryId && selected.length === 0) {
+      throw new DetailedToolError('Unknown routeEntryId', {
+        routeEntries: candidates.map(({ index: _index, ...entry }) => entry),
+      })
+    }
+    return {
+      entries: new Set(selected.map((entry) => entry.index)),
+      candidates,
+      heuristic: false,
+    }
+  }
+  if (routeEntryId) {
+    throw new Error(
+      'routeEntryId requires analyzer data with exact route entries'
+    )
+  }
+  return {
+    entries: activeEntries(modules, data),
+    candidates: [],
+    heuristic: true,
+  }
+}
+
 function routeModules(
   modules: ModulesData,
   entries: Set<number>
@@ -425,7 +520,8 @@ function findImporterChain(
   entries: Set<number>,
   reachable: Set<number>,
   maxDepth: number,
-  graphTruncated: boolean
+  graphTruncated: boolean,
+  firstImporter?: number
 ): {
   chain: Array<{
     module: { ident: string; path: string }
@@ -437,8 +533,26 @@ function findImporterChain(
     index: number
     chain: Array<{ index: number; edgeKind?: 'sync' | 'async' | 'traced' }>
   }
-  const queue: Node[] = [{ index: start, chain: [{ index: start }] }]
+  let initial: Node = { index: start, chain: [{ index: start }] }
   const visited = new Set([start])
+  if (firstImporter !== undefined) {
+    let edgeKind: 'sync' | 'async' | 'traced' | undefined
+    if (modules.moduleDependents(start).includes(firstImporter))
+      edgeKind = 'sync'
+    else if (modules.asyncModuleDependents(start).includes(firstImporter))
+      edgeKind = 'async'
+    else if (modules.tracedModuleDependents(start).includes(firstImporter))
+      edgeKind = 'traced'
+    if (!edgeKind || !reachable.has(firstImporter)) {
+      return { chain: [], truncated: graphTruncated }
+    }
+    initial = {
+      index: firstImporter,
+      chain: [{ index: start }, { index: firstImporter, edgeKind }],
+    }
+    visited.add(firstImporter)
+  }
+  const queue: Node[] = [initial]
   let truncated = graphTruncated
   while (queue.length) {
     const current = queue.shift()!
@@ -496,6 +610,453 @@ function findImporterChain(
     }
   }
   return { chain: [], truncated }
+}
+
+type ImporterChain = ReturnType<typeof findImporterChain>
+
+function isProjectModule(module: { ident: string; path: string }): boolean {
+  return (
+    module.path.startsWith('[project]/') &&
+    !module.path.includes('/node_modules/')
+  )
+}
+
+function loadPathEvidence(importerChain: ImporterChain) {
+  const chain = [...importerChain.chain]
+    .reverse()
+    .map((item, index, reversed) => ({
+      module: item.module,
+      ...(index < reversed.length - 1 && item.edgeKind
+        ? { edgeKindToNext: item.edgeKind }
+        : {}),
+    }))
+  const asyncIndex = chain.findIndex((item) => item.edgeKindToNext === 'async')
+  return {
+    entryToSourceChain: {
+      chain,
+      truncated: importerChain.truncated,
+    },
+    firstAsyncBoundary:
+      asyncIndex === -1
+        ? undefined
+        : {
+            importer: chain[asyncIndex].module,
+            dependency: chain[asyncIndex + 1].module,
+          },
+    nearestProjectImporter: importerChain.chain
+      .slice(1)
+      .find((item) => isProjectModule(item.module))?.module,
+    nearestClientBoundary: importerChain.chain.find(
+      (item) =>
+        isProjectModule(item.module) &&
+        item.module.ident.includes('client reference proxy')
+    )?.module,
+  }
+}
+
+type InitialGraphSource = {
+  key: string
+  sourcePath: string
+  packageName?: string
+  rawSize: number
+  compressedSize: number
+}
+
+type InitialGraphEdge = {
+  edgeId: string
+  from: number
+  to: number
+  leavingModules: number[]
+  leavingSources: InitialGraphSource[]
+}
+
+type InitialGraphAnalysis = {
+  nodes: number[]
+  predecessorNodes: Set<number>
+  sccs: Array<{ id: number; members: number[] }>
+  sccEvidence: 'producer-petgraph' | 'query-fallback'
+  edges: InitialGraphEdge[]
+  targetIndex: number
+}
+
+function reachableSync(
+  modules: ModulesData,
+  entries: Set<number>
+): Set<number> {
+  const seen = new Set<number>()
+  const queue = [...entries].sort((a, b) => a - b)
+  while (queue.length) {
+    const index = queue.shift()!
+    if (seen.has(index)) continue
+    if (seen.size >= MAX_GRAPH_NODES) {
+      throw new DetailedToolError(
+        'Initial module graph exceeds analysis bound',
+        {
+          maxGraphNodes: MAX_GRAPH_NODES,
+        }
+      )
+    }
+    seen.add(index)
+    for (const dependency of modules.moduleDependencies(index)) {
+      if (!seen.has(dependency)) queue.push(dependency)
+    }
+  }
+  return seen
+}
+
+function reverseSyncToTarget(
+  modules: ModulesData,
+  target: number,
+  allowed: Set<number>
+): Set<number> {
+  const seen = new Set<number>()
+  const queue = [target]
+  while (queue.length) {
+    const index = queue.shift()!
+    if (seen.has(index) || !allowed.has(index)) continue
+    seen.add(index)
+    for (const importer of modules.moduleDependents(index)) {
+      if (!seen.has(importer) && allowed.has(importer)) queue.push(importer)
+    }
+  }
+  return seen
+}
+
+function stronglyConnectedComponents(
+  nodes: number[],
+  edges: Array<{ from: number; to: number }>
+): number[][] {
+  const adjacency = new Map<number, number[]>()
+  for (const node of nodes) adjacency.set(node, [])
+  for (const edge of edges) adjacency.get(edge.from)?.push(edge.to)
+  for (const values of adjacency.values()) values.sort((a, b) => a - b)
+
+  let nextIndex = 0
+  const indexes = new Map<number, number>()
+  const lowLinks = new Map<number, number>()
+  const stack: number[] = []
+  const onStack = new Set<number>()
+  const result: number[][] = []
+
+  function visit(node: number): void {
+    indexes.set(node, nextIndex)
+    lowLinks.set(node, nextIndex++)
+    stack.push(node)
+    onStack.add(node)
+    for (const dependency of adjacency.get(node) ?? []) {
+      if (!indexes.has(dependency)) {
+        visit(dependency)
+        lowLinks.set(
+          node,
+          Math.min(lowLinks.get(node)!, lowLinks.get(dependency)!)
+        )
+      } else if (onStack.has(dependency)) {
+        lowLinks.set(
+          node,
+          Math.min(lowLinks.get(node)!, indexes.get(dependency)!)
+        )
+      }
+    }
+    if (lowLinks.get(node) !== indexes.get(node)) return
+    const component: number[] = []
+    while (stack.length) {
+      const member = stack.pop()!
+      onStack.delete(member)
+      component.push(member)
+      if (member === node) break
+    }
+    component.sort((a, b) => a - b)
+    result.push(component)
+  }
+
+  for (const node of nodes) if (!indexes.has(node)) visit(node)
+  return result.sort((a, b) => a[0] - b[0])
+}
+
+function synchronousComponents(
+  modules: ModulesData,
+  nodes: number[],
+  edges: Array<{ from: number; to: number }>
+): {
+  sccs: Array<{ id: number; members: number[] }>
+  evidence: 'producer-petgraph' | 'query-fallback'
+} {
+  if (modules.hasExactSyncSccs()) {
+    const byId = new Map<number, number[]>()
+    for (const node of nodes) {
+      const id = modules.syncSccId(node)!
+      const members = byId.get(id)
+      if (members) members.push(node)
+      else byId.set(id, [node])
+    }
+    return {
+      sccs: [...byId]
+        .map(([id, members]) => ({
+          id,
+          members: members.sort((a, b) => a - b),
+        }))
+        .sort((a, b) => a.id - b.id),
+      evidence: 'producer-petgraph',
+    }
+  }
+  return {
+    sccs: stronglyConnectedComponents(nodes, edges).map((members, id) => ({
+      id,
+      members,
+    })),
+    evidence: 'query-fallback',
+  }
+}
+
+/**
+ * Compute edge dominators by splitting every edge into a synthetic graph node,
+ * then finding immediate dominators with the Cooper-Harvey-Kennedy algorithm.
+ * A synthetic node dominates an original module iff every synchronous path to
+ * that module crosses the represented import edge.
+ */
+function edgeDominatedModules(
+  nodes: number[],
+  edges: Array<{ from: number; to: number }>,
+  entries: Set<number>,
+  includedEdgeIndexes?: Set<number>
+): Map<number, number[]> {
+  const local = new Map(nodes.map((node, index) => [node, index]))
+  const originalCount = nodes.length
+  const edgeOffset = originalCount
+  const root = originalCount + edges.length
+  const total = root + 1
+  if (total > MAX_COUNTERFACTUAL_GRAPH_ITEMS) {
+    throw new DetailedToolError(
+      'Initial graph is complete but too large for edge counterfactual analysis',
+      {
+        moduleCount: nodes.length,
+        edgeCount: edges.length,
+        maxCounterfactualGraphItems: MAX_COUNTERFACTUAL_GRAPH_ITEMS,
+      }
+    )
+  }
+
+  const predecessors = Array.from({ length: total }, () => [] as number[])
+  const successors = Array.from({ length: total }, () => [] as number[])
+  const addEdge = (from: number, to: number) => {
+    successors[from].push(to)
+    predecessors[to].push(from)
+  }
+  for (const entry of entries) {
+    const index = local.get(entry)
+    if (index !== undefined) addEdge(root, index)
+  }
+  edges.forEach((edge, edgeIndex) => {
+    const edgeNode = edgeOffset + edgeIndex
+    addEdge(local.get(edge.from)!, edgeNode)
+    addEdge(edgeNode, local.get(edge.to)!)
+  })
+
+  // Reverse postorder without recursive DFS, so very deep import chains cannot
+  // overflow the JavaScript stack.
+  const visited = new Uint8Array(total)
+  const postorder: number[] = []
+  const stack: Array<{ node: number; next: number }> = [{ node: root, next: 0 }]
+  visited[root] = 1
+  while (stack.length) {
+    const frame = stack[stack.length - 1]
+    const next = successors[frame.node][frame.next++]
+    if (next !== undefined) {
+      if (!visited[next]) {
+        visited[next] = 1
+        stack.push({ node: next, next: 0 })
+      }
+      continue
+    }
+    postorder.push(frame.node)
+    stack.pop()
+  }
+  if (postorder.length !== total) {
+    throw new Error(
+      'Initial graph contains nodes unreachable from route entries'
+    )
+  }
+  const reversePostorder = postorder.reverse()
+  const position = new Int32Array(total)
+  reversePostorder.forEach((node, index) => {
+    position[node] = index
+  })
+
+  const immediateDominator = new Int32Array(total).fill(-1)
+  immediateDominator[root] = root
+  const intersect = (left: number, right: number): number => {
+    while (left !== right) {
+      while (position[left] > position[right]) {
+        left = immediateDominator[left]
+      }
+      while (position[right] > position[left]) {
+        right = immediateDominator[right]
+      }
+    }
+    return left
+  }
+
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const node of reversePostorder.slice(1)) {
+      const knownPredecessors = predecessors[node].filter(
+        (predecessor) => immediateDominator[predecessor] !== -1
+      )
+      if (knownPredecessors.length === 0) continue
+      let dominator = knownPredecessors[0]
+      for (const predecessor of knownPredecessors.slice(1)) {
+        dominator = intersect(predecessor, dominator)
+      }
+      if (immediateDominator[node] !== dominator) {
+        immediateDominator[node] = dominator
+        changed = true
+      }
+    }
+  }
+  if (immediateDominator.some((dominator) => dominator === -1)) {
+    throw new Error('Unable to compute initial graph dominators')
+  }
+
+  const selected =
+    includedEdgeIndexes ?? new Set(edges.map((_edge, index) => index))
+  const result = new Map<number, number[]>()
+  for (const edgeIndex of selected) result.set(edgeIndex, [])
+  for (let nodeIndex = 0; nodeIndex < originalCount; nodeIndex++) {
+    let dominator = immediateDominator[nodeIndex]
+    while (dominator !== root) {
+      if (dominator >= edgeOffset) {
+        const edgeIndex = dominator - edgeOffset
+        result.get(edgeIndex)?.push(nodes[nodeIndex])
+      }
+      dominator = immediateDominator[dominator]
+    }
+  }
+  return result
+}
+
+function analyzeInitialGraph(
+  data: AnalyzeData,
+  modules: ModulesData,
+  entries: Set<number>,
+  targetIndex: number,
+  environment: Environment
+): InitialGraphAnalysis {
+  const initiallyReachable = reachableSync(modules, entries)
+  if (!initiallyReachable.has(targetIndex)) {
+    throw new Error(
+      'Selected module is not synchronously reachable from route entries'
+    )
+  }
+  const nodes = [...initiallyReachable].sort((a, b) => a - b)
+  const edges = nodes.flatMap((from) =>
+    modules
+      .moduleDependencies(from)
+      .filter((to) => initiallyReachable.has(to))
+      .map((to) => ({ from, to }))
+  )
+  edges.sort((a, b) => a.from - b.from || a.to - b.to)
+  const predecessorNodes = reverseSyncToTarget(
+    modules,
+    targetIndex,
+    initiallyReachable
+  )
+  const edgeIndexById = new Map(
+    edges.map((edge, index) => [`${edge.from}:${edge.to}`, index])
+  )
+  const predecessorEdges = edges.filter(
+    (edge) => predecessorNodes.has(edge.from) && predecessorNodes.has(edge.to)
+  )
+  const predecessorEdgeIndexes = new Set(
+    predecessorEdges.map(
+      (edge) => edgeIndexById.get(`${edge.from}:${edge.to}`)!
+    )
+  )
+  const dominated = edgeDominatedModules(
+    nodes,
+    edges,
+    entries,
+    predecessorEdgeIndexes
+  )
+  const components = synchronousComponents(
+    modules,
+    [...predecessorNodes].sort((a, b) => a - b),
+    predecessorEdges
+  )
+
+  const graphEdges = predecessorEdges.map((edge) => {
+    const edgeIndex = edgeIndexById.get(`${edge.from}:${edge.to}`)!
+    const leavingModules = dominated.get(edgeIndex) ?? []
+    const leavingModuleSet = new Set(leavingModules)
+    const leavingSources: InitialGraphSource[] = []
+    for (let sourceIndex = 0; sourceIndex < data.sourceCount(); sourceIndex++) {
+      const sourcePath = data.getFullSourcePath(sourceIndex)
+      const candidates = modules
+        .getModuleIndiciesFromPath(sourcePath)
+        .filter((index) => initiallyReachable.has(index))
+      if (
+        candidates.length === 0 ||
+        candidates.some((index) => !leavingModuleSet.has(index))
+      ) {
+        continue
+      }
+      const sizes = sourceSizes(data, sourceIndex, environment)
+      if (sizes.rawSize === 0 && sizes.compressedSize === 0) continue
+      leavingSources.push({
+        key: sourcePath,
+        sourcePath,
+        packageName: packageNameFromPath(sourcePath),
+        ...sizes,
+      })
+    }
+    leavingSources.sort((a, b) => compareText(a.sourcePath, b.sourcePath))
+    return {
+      edgeId: `${edge.from}:${edge.to}`,
+      from: edge.from,
+      to: edge.to,
+      leavingModules,
+      leavingSources,
+    }
+  })
+
+  return {
+    nodes,
+    predecessorNodes,
+    sccs: components.sccs,
+    sccEvidence: components.evidence,
+    edges: graphEdges,
+    targetIndex,
+  }
+}
+
+function selectModuleCandidate(
+  modules: ModulesData,
+  sourcePath: string,
+  moduleIdent: string | undefined,
+  environment: Environment
+): { index: number; module: { ident: string; path: string } } {
+  const candidates = modules
+    .getModuleIndiciesFromPath(sourcePath)
+    .filter((index) => {
+      const module = modules.module(index)
+      return module && moduleMatchesEnvironment(module.ident, environment)
+    })
+    .map((index) => ({ index, module: moduleIdentity(modules, index)! }))
+    .sort((a, b) => compareText(a.module.ident, b.module.ident))
+  const selected = moduleIdent
+    ? candidates.find(({ module }) => module.ident === moduleIdent)
+    : candidates.length === 1
+      ? candidates[0]
+      : undefined
+  if (!selected) {
+    throw new DetailedToolError(
+      moduleIdent
+        ? 'moduleIdent does not match a module candidate for this source'
+        : 'Source has multiple module identities; select moduleIdent',
+      { moduleCandidates: candidates.map(({ module }) => module) }
+    )
+  }
+  return selected
 }
 
 function provenance(metadata: SnapshotMetadata) {
@@ -886,8 +1447,16 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       sourcePath: z.string().max(4096),
       snapshot: snapshotSchema,
       moduleIdent: z.string().max(4096).optional(),
+      routeEntryId: z.string().max(8192).optional(),
+      importerModuleIdent: z.string().max(4096).optional(),
       environment: environmentSchema,
-      maxDepth: z.number().int().min(1).max(100).optional(),
+      maxDepth: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Maximum importer-chain depth. Default: 25.'),
     },
     safeQuery(async (args: ExplainArgs) => {
       const environment = args.environment ?? 'total'
@@ -924,9 +1493,60 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       const sizes = sourceSizes(data, sourceIndex, environment)
       const flags = data.getSourceFlags(sourceIndex)
       const chunks = data.sourceChunks(sourceIndex)
-      const entries = activeEntries(modules, data)
+      const entryResolution = resolveRouteEntries(
+        modules,
+        data,
+        args.routeEntryId
+      )
+      const entries = entryResolution.entries
       const routeGraph = routeModules(modules, entries)
-      return {
+      const reachable = routeGraph.modules
+      const importerCandidates = selected
+        ? [
+            ...modules.moduleDependents(selected.index),
+            ...modules.asyncModuleDependents(selected.index),
+            ...modules.tracedModuleDependents(selected.index),
+          ]
+            .filter(
+              (index, position, values) =>
+                reachable.has(index) && values.indexOf(index) === position
+            )
+            .map((index) => ({
+              index,
+              module: moduleIdentity(modules, index)!,
+            }))
+            .sort((a, b) => compareText(a.module.ident, b.module.ident))
+        : []
+      const selectedImporter = args.importerModuleIdent
+        ? importerCandidates.find(
+            ({ module }) => module.ident === args.importerModuleIdent
+          )
+        : undefined
+      if (args.importerModuleIdent && !selectedImporter) {
+        throw new DetailedToolError(
+          'importerModuleIdent is not an immediate importer candidate',
+          { importerCandidates: importerCandidates.map(({ module }) => module) }
+        )
+      }
+      const routeEntryAmbiguous =
+        !entryResolution.heuristic &&
+        entryResolution.candidates.length > 1 &&
+        !args.routeEntryId
+      const importerChain = selected
+        ? findImporterChain(
+            modules,
+            selected.index,
+            entries,
+            reachable,
+            args.maxDepth ?? 25,
+            routeGraph.truncated,
+            selectedImporter?.index
+          )
+        : undefined
+      const pathEvidence = importerChain
+        ? loadPathEvidence(importerChain)
+        : undefined
+      const response = {
         route: args.route,
         snapshot: provenance(
           (await repository.getSnapshot(args.snapshot)).metadata
@@ -938,29 +1558,262 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
           server: flags.server,
           traced: flags.traced,
         },
-        chunks: chunks.slice(0, MAX_CHUNKS),
         chunkCount: chunks.length,
-        chunksTruncated: chunks.length > MAX_CHUNKS,
         moduleCandidates: publicCandidates,
         moduleCandidateCount: candidates.length,
         moduleCandidatesTruncated: candidates.length > MAX_MODULE_CANDIDATES,
         ambiguous: candidates.length > 1 && !args.moduleIdent,
+        routeEntryAmbiguous,
         selectedModule: selected?.module,
-        importerChain: selected
-          ? findImporterChain(
-              modules,
-              selected.index,
-              entries,
-              routeGraph.modules,
-              args.maxDepth ?? 25,
-              routeGraph.truncated
-            )
-          : undefined,
-        routeEntryDetection: { heuristic: true },
+        importerCandidates: importerCandidates.map(({ module }) => module),
+        selectedImporter: selectedImporter?.module,
+        importerChain,
+        ...pathEvidence,
+        routeEntries: entryResolution.candidates.map(
+          ({ index: _index, ...entry }) => entry
+        ),
+        selectedRouteEntryId: args.routeEntryId,
+        routeEntryDetection: { heuristic: entryResolution.heuristic },
         caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT],
+      }
+      return response
+    })
+  )
+
+  registerQuery(
+    'get_initial_import_graph',
+    {
+      route: z.string().max(4096),
+      sourcePath: z.string().max(4096),
+      snapshot: snapshotSchema,
+      moduleIdent: z.string().max(4096).optional(),
+      routeEntryId: z.string().max(8192).optional(),
+      environment: environmentSchema,
+    },
+    safeQuery(async (args: InitialGraphArgs) => {
+      const environment = args.environment ?? 'client'
+      const data = await repository.loadRoute(args.snapshot, args.route)
+      if (data.getSourceIndexFromPath(args.sourcePath) === undefined) {
+        throw new Error(`Unknown source: ${args.sourcePath}`)
+      }
+      const modules = await repository.loadModules(args.snapshot)
+      const selected = selectModuleCandidate(
+        modules,
+        args.sourcePath,
+        args.moduleIdent,
+        environment
+      )
+      const entryResolution = resolveRouteEntries(
+        modules,
+        data,
+        args.routeEntryId
+      )
+      const analysis = analyzeInitialGraph(
+        data,
+        modules,
+        entryResolution.entries,
+        selected.index,
+        environment
+      )
+      const graphNodes = [...analysis.predecessorNodes]
+        .sort((a, b) => a - b)
+        .map((index) => ({ id: index, ...moduleIdentity(modules, index)! }))
+      const sccByNode = new Map<number, number>()
+      for (const component of analysis.sccs) {
+        for (const member of component.members) {
+          sccByNode.set(member, component.id)
+        }
+      }
+      const edges = analysis.edges.map((edge) => {
+        const rawSize = edge.leavingSources.reduce(
+          (total, source) => total + source.rawSize,
+          0
+        )
+        const compressedSize = edge.leavingSources.reduce(
+          (total, source) => total + source.compressedSize,
+          0
+        )
+        return {
+          edgeId: edge.edgeId,
+          from: { id: edge.from, ...moduleIdentity(modules, edge.from)! },
+          to: { id: edge.to, ...moduleIdentity(modules, edge.to)! },
+          fromSccId: sccByNode.get(edge.from),
+          toSccId: sccByNode.get(edge.to),
+          targetRemainsInitial: !edge.leavingModules.includes(
+            analysis.targetIndex
+          ),
+          leavingInitialModuleCount: edge.leavingModules.length,
+          leavingInitialSourceCount: edge.leavingSources.length,
+          leavingInitialPackageCount: new Set(
+            edge.leavingSources
+              .map((source) => source.packageName)
+              .filter(Boolean)
+          ).size,
+          leavingInitialRawSize: rawSize,
+          leavingInitialCompressedSize: compressedSize,
+        }
+      })
+      return {
+        route: args.route,
+        sourcePath: args.sourcePath,
+        selectedModule: selected.module,
+        selectedRouteEntryId: args.routeEntryId,
+        routeEntries: entryResolution.candidates.map(
+          ({ index: _index, ...entry }) => entry
+        ),
+        routeEntryDetection: { heuristic: entryResolution.heuristic },
+        environment,
+        snapshot: provenance(
+          (await repository.getSnapshot(args.snapshot)).metadata
+        ),
+        graph: {
+          complete: true,
+          nodes: graphNodes,
+          edges,
+          sccs: analysis.sccs,
+          sccEvidence: analysis.sccEvidence,
+        },
+        caveats: [COMPRESSED_CAVEAT],
+      }
+    })
+  )
+
+  registerQuery(
+    'analyze_import_edge',
+    {
+      route: z.string().max(4096),
+      sourcePath: z.string().max(4096),
+      edgeId: z
+        .string()
+        .max(100)
+        .regex(/^\d+:\d+$/),
+      snapshot: snapshotSchema,
+      moduleIdent: z.string().max(4096).optional(),
+      routeEntryId: z.string().max(8192).optional(),
+      environment: environmentSchema,
+      granularity: z.enum(['module', 'source', 'package']).optional(),
+      ...pagingSchema,
+    },
+    safeQuery(async (args: ImportEdgeArgs) => {
+      const environment = args.environment ?? 'client'
+      const granularity = args.granularity ?? 'source'
+      const data = await repository.loadRoute(args.snapshot, args.route)
+      const modules = await repository.loadModules(args.snapshot)
+      const selected = selectModuleCandidate(
+        modules,
+        args.sourcePath,
+        args.moduleIdent,
+        environment
+      )
+      const entryResolution = resolveRouteEntries(
+        modules,
+        data,
+        args.routeEntryId
+      )
+      const analysis = analyzeInitialGraph(
+        data,
+        modules,
+        entryResolution.entries,
+        selected.index,
+        environment
+      )
+      const edge = analysis.edges.find(
+        (candidate) => candidate.edgeId === args.edgeId
+      )
+      if (!edge) {
+        throw new DetailedToolError(
+          'Unknown synchronous edge for selected graph',
+          {
+            availableEdgeIds: analysis.edges.map(
+              (candidate) => candidate.edgeId
+            ),
+          }
+        )
+      }
+      let rows: Array<Record<string, unknown> & { key: string }>
+      if (granularity === 'module') {
+        rows = edge.leavingModules
+          .map((index) => ({
+            key: modules.module(index)!.ident,
+            moduleId: index,
+            ...moduleIdentity(modules, index)!,
+          }))
+          .sort((a, b) => compareText(a.key, b.key))
+      } else if (granularity === 'package') {
+        const packages = new Map<
+          string,
+          {
+            key: string
+            packageName: string
+            rawSize: number
+            compressedSize: number
+            sourceCount: number
+          }
+        >()
+        for (const source of edge.leavingSources) {
+          const key = source.packageName ?? '(project)'
+          const existing = packages.get(key) ?? {
+            key,
+            packageName: key,
+            rawSize: 0,
+            compressedSize: 0,
+            sourceCount: 0,
+          }
+          existing.rawSize += source.rawSize
+          existing.compressedSize += source.compressedSize
+          existing.sourceCount++
+          packages.set(key, existing)
+        }
+        rows = [...packages.values()].sort((a, b) => compareText(a.key, b.key))
+      } else {
+        rows = edge.leavingSources
+      }
+      const paged = page(rows, args.offset ?? 0, args.limit ?? DEFAULT_LIMIT)
+      return {
+        route: args.route,
+        sourcePath: args.sourcePath,
+        edgeId: edge.edgeId,
+        edge: {
+          from: { id: edge.from, ...moduleIdentity(modules, edge.from)! },
+          to: { id: edge.to, ...moduleIdentity(modules, edge.to)! },
+        },
+        granularity,
+        environment,
+        targetRemainsInitial: !edge.leavingModules.includes(
+          analysis.targetIndex
+        ),
+        totals: {
+          moduleCount: edge.leavingModules.length,
+          sourceCount: edge.leavingSources.length,
+          packageCount: new Set(
+            edge.leavingSources
+              .map((source) => source.packageName)
+              .filter(Boolean)
+          ).size,
+          rawSize: edge.leavingSources.reduce(
+            (total, source) => total + source.rawSize,
+            0
+          ),
+          compressedSize: edge.leavingSources.reduce(
+            (total, source) => total + source.compressedSize,
+            0
+          ),
+        },
+        rows: paged.values,
+        pagination: paged.pagination,
+        snapshot: provenance(
+          (await repository.getSnapshot(args.snapshot)).metadata
+        ),
+        caveats: [COMPRESSED_CAVEAT],
       }
     })
   )
 
   return new AnalyzeQueryRegistry(queries)
+}
+
+export const analyzeQueryTestHelpers = {
+  edgeDominatedModules,
+  stronglyConnectedComponents,
+  synchronousComponents,
 }

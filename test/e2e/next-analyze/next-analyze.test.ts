@@ -180,10 +180,35 @@ describe('next experimental-analyze', () => {
           }),
         ])
         expect(explanation.exitCode).toBe(0)
-        expect(JSON.parse(explanation.stdout)).toMatchObject({
+        const explanationResult = JSON.parse(explanation.stdout)
+        expect(explanationResult).toMatchObject({
           route: '/',
           sourcePath: sourceResult.sources[0].sourcePath,
-          routeEntryDetection: { heuristic: true },
+          routeEntryDetection: { heuristic: false },
+          selectedModule: { ident: expect.any(String) },
+        })
+
+        const graph = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'get_initial_import_graph',
+          '--input',
+          JSON.stringify({
+            route: '/',
+            sourcePath: sourceResult.sources[0].sourcePath,
+            moduleIdent: explanationResult.selectedModule.ident,
+            environment: 'total',
+          }),
+        ])
+        expect(graph.exitCode).toBe(0)
+        expect(JSON.parse(graph.stdout)).toMatchObject({
+          graph: {
+            complete: true,
+            nodes: expect.any(Array),
+            edges: expect.any(Array),
+            sccs: expect.any(Array),
+            sccEvidence: 'producer-petgraph',
+          },
         })
       })
     })
