@@ -8813,6 +8813,20 @@ async function prerenderToStream(
 
   let prerenderStore: PrerenderStore | null = null
 
+  // React can complete a prerender after an HTTP access fallback or redirect
+  // error is thrown inside a Suspense boundary. Rethrow the first captured
+  // error of either kind so prerenderToStream's error handling sets the
+  // response status and headers.
+  function maybeThrowHTTPAccessFallbackOrRedirectError() {
+    const capturedError = allCapturedErrors.find(
+      (err) => isHTTPAccessFallbackError(err) || isRedirectError(err)
+    )
+
+    if (capturedError !== undefined) {
+      throw capturedError
+    }
+  }
+
   try {
     if (cacheComponents) {
       /**
@@ -9586,6 +9600,8 @@ async function prerenderToStream(
           }
         )
 
+      maybeThrowHTTPAccessFallbackOrRedirectError()
+
       metadata.hasPendingUi = postponed != null
 
       const { prelude, preludeIsEmpty } =
@@ -9775,6 +9791,8 @@ async function prerenderToStream(
         },
         { waitForAllReady: true }
       )
+
+      maybeThrowHTTPAccessFallbackOrRedirectError()
 
       const flightData = await streamToBuffer(reactServerResult.asStream())
       metadata.flightData = flightData

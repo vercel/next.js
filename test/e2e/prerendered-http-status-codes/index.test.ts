@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// @force-gate TODO
 describe('prerendered-http-status-codes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
