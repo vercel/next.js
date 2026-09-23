@@ -1,11 +1,38 @@
 import type { ModulesData } from '../../shared/lib/analyze-data'
-import { analyzeQueryTestHelpers } from './queries'
+import type { AnalyzeRepository } from './repository'
+import { analyzeQueryTestHelpers, createAnalyzeQueryRegistry } from './queries'
 
 const {
   edgeDominatedModules,
   stronglyConnectedComponents,
   synchronousComponents,
 } = analyzeQueryTestHelpers
+
+describe('analyzer query discovery', () => {
+  it('documents every query with utility, caveats, schema, and an example', () => {
+    const queries = createAnalyzeQueryRegistry({} as AnalyzeRepository).list()
+    expect(queries.map((query) => query.name)).toEqual([
+      'get_app_overview',
+      'get_route_modules',
+      'get_source_chunks',
+      'get_route_outputs',
+      'get_css_assets',
+      'explain_route_module',
+      'get_initial_import_graph',
+      'analyze_import_edge',
+      'compare_bundles',
+    ])
+    for (const query of queries) {
+      expect(query.description.length).toBeGreaterThan(20)
+      expect(query.caveats.length).toBeGreaterThan(0)
+      expect(query.inputSchema).toMatchObject({ type: 'object' })
+      expect(query.example).toEqual(expect.any(Object))
+      if (query.collection) {
+        expect(query.selectableFields?.length).toBeGreaterThan(0)
+      }
+    }
+  })
+})
 
 describe('analyzer SCC evidence', () => {
   it('uses stable producer SCC IDs when modules.data provides them', () => {

@@ -3,8 +3,9 @@ import type { SnapshotMetadata } from './snapshot'
 import type { AnalyzeRepository } from './repository'
 import z from 'next/dist/compiled/zod'
 
-const DEFAULT_LIMIT = 50
-const MAX_LIMIT = 100
+export const DEFAULT_LIMIT = 500
+export const MAX_LIMIT = 2_000
+export const MAX_ALL_RESULTS = 10_000
 const MAX_MODULE_CANDIDATES = 100
 const MAX_GRAPH_NODES = 10_000
 const MAX_COUNTERFACTUAL_GRAPH_ITEMS = 50_000
@@ -194,6 +195,9 @@ export type AnalyzeQueryListing = {
   description: string
   inputSchema: Record<string, unknown>
   example: Record<string, unknown>
+  caveats: string[]
+  collection?: string
+  selectableFields?: string[]
 }
 
 type StoredQuery = AnalyzeQueryListing & {
@@ -1270,6 +1274,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       description: string
       inputSchema: T
       example: Record<string, unknown>
+      caveats: string[]
+      collection?: string
+      selectableFields?: string[]
     },
     callback: (args: z.infer<z.ZodObject<T>>) => Promise<unknown>
   ) {
@@ -1279,6 +1286,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       description: config.description,
       inputSchema: jsonSchema(config.inputSchema),
       example: config.example,
+      caveats: config.caveats,
+      collection: config.collection,
+      selectableFields: config.selectableFields,
       execute: (input) => callback(schema.parse(input)),
     })
   }
@@ -1299,6 +1309,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         ...pagingSchema,
       },
       example: { environment: 'client', limit: 10 },
+      collection: 'routes',
+      selectableFields: ['route', 'rawSize', 'compressedSize'],
+      caveats: [COMPRESSED_CAVEAT],
     },
     safeQuery(async (args: OverviewArgs) => {
       const snapshot = await repository.getSnapshot(args.snapshot)
@@ -1367,6 +1380,19 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         groupBy: 'package',
         limit: 20,
       },
+      collection: 'sources',
+      selectableFields: [
+        'key',
+        'sourcePath',
+        'packageName',
+        'rawSize',
+        'compressedSize',
+        'client',
+        'server',
+        'traced',
+        'chunkCount',
+      ],
+      caveats: [COMPRESSED_CAVEAT],
     },
     safeQuery(async (args: SourcesArgs) => {
       const environment = args.environment ?? 'total'
@@ -1399,10 +1425,30 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'get_source_chunks',
     {
-      route: z.string().max(4096),
-      sourcePath: z.string().max(4096),
-      snapshot: snapshotSchema,
-      ...pagingSchema,
+      description:
+        'Enumerate every emitted output that contains bytes attributed to one source. Use it after selecting a source from get_route_modules.',
+      inputSchema: {
+        route: z.string().max(4096),
+        sourcePath: z.string().max(4096),
+        snapshot: snapshotSchema,
+        ...pagingSchema,
+      },
+      example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
+      collection: 'chunks',
+      selectableFields: [
+        'key',
+        'filename',
+        'kind',
+        'environment',
+        'rawSize',
+        'compressedSize',
+        'emissionEvidence',
+        'requestEvidence',
+      ],
+      caveats: [
+        COMPRESSED_CAVEAT,
+        'Emitted outputs are not observed browser requests.',
+      ],
     },
     safeQuery(async (args: SourceChunksArgs) => {
       const data = await repository.loadRoute(args.snapshot, args.route)
@@ -1464,28 +1510,49 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'get_route_outputs',
     {
-      route: z.string().max(4096),
-      snapshot: snapshotSchema,
-      search: z.string().max(1000).optional(),
-      kinds: z
-        .array(
-          z.enum([
-            'js',
-            'css',
-            'json',
-            'font',
-            'image',
-            'media',
-            'wasm',
-            'other',
-          ])
-        )
-        .max(8)
-        .optional(),
-      environment: environmentSchema,
-      groupBy: z.enum(['file', 'kind', 'environment']).optional(),
-      metric: metricSchema,
-      ...pagingSchema,
+      description:
+        'List actual emitted files for a route and aggregate them by output kind or environment. This proves emission, not browser requests.',
+      inputSchema: {
+        route: z.string().max(4096),
+        snapshot: snapshotSchema,
+        search: z.string().max(1000).optional(),
+        kinds: z
+          .array(
+            z.enum([
+              'js',
+              'css',
+              'json',
+              'font',
+              'image',
+              'media',
+              'wasm',
+              'other',
+            ])
+          )
+          .max(8)
+          .optional(),
+        environment: environmentSchema,
+        groupBy: z.enum(['file', 'kind', 'environment']).optional(),
+        metric: metricSchema,
+        ...pagingSchema,
+      },
+      example: { route: '/', kinds: ['css', 'font', 'image'], groupBy: 'file' },
+      collection: 'outputs',
+      selectableFields: [
+        'key',
+        'filename',
+        'kind',
+        'environment',
+        'rawSize',
+        'compressedSize',
+        'outputCount',
+        'emissionEvidence',
+        'requestEvidence',
+      ],
+      caveats: [
+        COMPRESSED_CAVEAT,
+        'Emitted outputs are not observed browser requests.',
+      ],
     },
     safeQuery(async (args: RouteOutputsArgs) => {
       const data = await repository.loadRoute(args.snapshot, args.route)
@@ -1566,14 +1633,35 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'get_css_assets',
     {
-      route: z.string().max(4096),
-      snapshot: snapshotSchema,
-      cssSearch: z.string().max(1000).optional(),
-      assetKinds: z
-        .array(z.enum(['font', 'image', 'media']))
-        .max(3)
-        .optional(),
-      ...pagingSchema,
+      description:
+        'Report exact emitted CSS-to-font/image/media output references when producer evidence exists. It never infers browser requests.',
+      inputSchema: {
+        route: z.string().max(4096),
+        snapshot: snapshotSchema,
+        cssSearch: z.string().max(1000).optional(),
+        assetKinds: z
+          .array(z.enum(['font', 'image', 'media']))
+          .max(3)
+          .optional(),
+        ...pagingSchema,
+      },
+      example: { route: '/', assetKinds: ['font', 'image'] },
+      collection: 'assets',
+      selectableFields: [
+        'key',
+        'cssFilename',
+        'assetFilename',
+        'assetKind',
+        'rawSize',
+        'compressedSize',
+        'relationshipEvidence',
+        'emissionEvidence',
+        'requestEvidence',
+      ],
+      caveats: [
+        COMPRESSED_CAVEAT,
+        'Output references prove emitted relationships, not browser requests or timing.',
+      ],
     },
     safeQuery(async (args: CssAssetsArgs) => {
       const data = await repository.loadRoute(args.snapshot, args.route)
@@ -1802,12 +1890,18 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'get_initial_import_graph',
     {
-      route: z.string().max(4096),
-      sourcePath: z.string().max(4096),
-      snapshot: snapshotSchema,
-      moduleIdent: z.string().max(4096).optional(),
-      routeEntryId: z.string().max(8192).optional(),
-      environment: environmentSchema,
+      description:
+        'Return the complete synchronous predecessor graph keeping one route module initial, with SCCs and per-edge counterfactual byte totals.',
+      inputSchema: {
+        route: z.string().max(4096),
+        sourcePath: z.string().max(4096),
+        snapshot: snapshotSchema,
+        moduleIdent: z.string().max(4096).optional(),
+        routeEntryId: z.string().max(8192).optional(),
+        environment: environmentSchema,
+      },
+      example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
+      caveats: [COMPRESSED_CAVEAT],
     },
     safeQuery(async (args: InitialGraphArgs) => {
       const environment = args.environment ?? 'client'
@@ -1900,18 +1994,41 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'analyze_import_edge',
     {
-      route: z.string().max(4096),
-      sourcePath: z.string().max(4096),
-      edgeId: z
-        .string()
-        .max(100)
-        .regex(/^\d+:\d+$/),
-      snapshot: snapshotSchema,
-      moduleIdent: z.string().max(4096).optional(),
-      routeEntryId: z.string().max(8192).optional(),
-      environment: environmentSchema,
-      granularity: z.enum(['module', 'source', 'package']).optional(),
-      ...pagingSchema,
+      description:
+        'Expand one synchronous import-edge counterfactual into the modules, sources, or packages that would leave initial scope if that edge became async.',
+      inputSchema: {
+        route: z.string().max(4096),
+        sourcePath: z.string().max(4096),
+        edgeId: z
+          .string()
+          .max(100)
+          .regex(/^\d+:\d+$/),
+        snapshot: snapshotSchema,
+        moduleIdent: z.string().max(4096).optional(),
+        routeEntryId: z.string().max(8192).optional(),
+        environment: environmentSchema,
+        granularity: z.enum(['module', 'source', 'package']).optional(),
+        ...pagingSchema,
+      },
+      example: {
+        route: '/',
+        sourcePath: '[project]/src/app/page.tsx',
+        edgeId: '12:34',
+        granularity: 'source',
+      },
+      collection: 'rows',
+      selectableFields: [
+        'key',
+        'moduleId',
+        'ident',
+        'path',
+        'sourcePath',
+        'packageName',
+        'rawSize',
+        'compressedSize',
+        'sourceCount',
+      ],
+      caveats: [COMPRESSED_CAVEAT],
     },
     safeQuery(async (args: ImportEdgeArgs) => {
       const environment = args.environment ?? 'client'
@@ -2054,6 +2171,17 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         comparisonSnapshot: 'current',
         limit: 20,
       },
+      collection: 'rows',
+      selectableFields: [
+        'key',
+        'baselineRawSize',
+        'comparisonRawSize',
+        'baselineCompressedSize',
+        'comparisonCompressedSize',
+        'status',
+        'delta',
+      ],
+      caveats: [COMPRESSED_CAVEAT],
     },
     safeQuery(async (args: CompareArgs) => {
       const granularity = args.granularity ?? 'route'
