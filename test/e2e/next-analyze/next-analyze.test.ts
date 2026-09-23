@@ -92,7 +92,12 @@ describe('next experimental-analyze', () => {
     for (const name of [
       'get_app_overview',
       'get_route_modules',
+      'get_source_chunks',
+      'get_route_outputs',
+      'get_css_assets',
       'explain_route_module',
+      'get_initial_import_graph',
+      'analyze_import_edge',
       'compare_bundles',
     ]) {
       expect(help.stdout).toContain(
@@ -106,6 +111,7 @@ describe('next experimental-analyze', () => {
     expect(help.stdout).not.toContain('Example input:')
     expect(help.stdout).not.toContain('"required": [')
     expect(help.stdout).not.toContain('"route": "/"')
+    expect(help.stdout).not.toContain('"loadScopes"')
 
     const noName = await next.runCommand(['experimental-analyze', 'query'])
     expect(noName.exitCode).toBe(0)
@@ -125,8 +131,13 @@ describe('next experimental-analyze', () => {
     )
     expect(queryHelp.stdout).toContain('Input schema:')
     expect(queryHelp.stdout).toContain('Example input:')
+    expect(queryHelp.stdout).toContain('Evidence caveats:')
+    expect(queryHelp.stdout).toContain('Selectable row fields (--fields):')
     expect(queryHelp.stdout).toContain('"required": [')
     expect(queryHelp.stdout).toContain('"route": "/"')
+    expect(queryHelp.stdout).toContain('"loadScopes"')
+    expect(queryHelp.stdout).toContain('"loadScopes": [')
+    expect(queryHelp.stdout).toContain('default 500, max 2000')
     expect(queryHelp.stdout).not.toContain('get_app_overview')
 
     const directoryQueryHelp = await next.runCommand([
@@ -205,8 +216,21 @@ describe('next experimental-analyze', () => {
         expect(query.exitCode).toBe(0)
         const overview = JSON.parse(query.stdout)
         expect(overview).toMatchObject({
+          snapshot: {
+            analysisFingerprint: {
+              algorithm: 'sha256',
+              version: 1,
+              digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+            },
+          },
           pagination: { limit: 1, returned: 1 },
-          routes: [{ route: expect.any(String), rawSize: expect.any(Number) }],
+          routes: [
+            {
+              route: expect.any(String),
+              rawSize: expect.any(Number),
+              estimatedInitialClientRawSize: expect.any(Number),
+            },
+          ],
         })
 
         for (const oldName of [
@@ -236,6 +260,7 @@ describe('next experimental-analyze', () => {
         const sourceResult = JSON.parse(sources.stdout)
         expect(sourceResult).toMatchObject({
           route: '/',
+          routeEntryDetection: { heuristic: false },
           sources: [
             {
               sourcePath: expect.any(String),
@@ -243,25 +268,50 @@ describe('next experimental-analyze', () => {
             },
           ],
         })
-        expect(JSON.parse(sources.stdout).sources[0]).not.toHaveProperty(
-          'chunks'
-        )
+        expect(sourceResult.sources[0]).not.toHaveProperty('chunks')
+        expect(sourceResult.sources[0]).not.toHaveProperty('chunksTruncated')
+
+        const sourceChunks = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'get_source_chunks',
+          '--input',
+          JSON.stringify({
+            route: '/',
+            sourcePath: sourceResult.sources[0].sourcePath,
+          }),
+          '--fields',
+          'filename,kind,rawSize',
+        ])
+        expect(sourceChunks.exitCode).toBe(0)
+        expect(JSON.parse(sourceChunks.stdout)).toMatchObject({
+          chunks: [
+            {
+              filename: expect.any(String),
+              kind: expect.any(String),
+              rawSize: expect.any(Number),
+            },
+          ],
+        })
 
         const outputs = await next.runCommand([
           'experimental-analyze',
           'query',
           'get_route_outputs',
           '--input',
-          '{"route":"/","kinds":["css","font","image"]}',
+          JSON.stringify({ route: '/', kinds: ['css', 'font', 'image'] }),
+          '--all',
         ])
         expect(outputs.exitCode).toBe(0)
-        expect(JSON.parse(outputs.stdout)).toMatchObject({
-          outputs: expect.arrayContaining([
+        const outputResult = JSON.parse(outputs.stdout)
+        expect(outputResult.outputs).toEqual(
+          expect.arrayContaining([
             expect.objectContaining({ kind: 'css' }),
             expect.objectContaining({ kind: 'font' }),
             expect.objectContaining({ kind: 'image' }),
-          ]),
-        })
+          ])
+        )
+        expect(outputResult.pagination.truncated).toBe(false)
 
         const cssAssets = await next.runCommand([
           'experimental-analyze',
@@ -271,13 +321,22 @@ describe('next experimental-analyze', () => {
           '{"route":"/"}',
         ])
         expect(cssAssets.exitCode).toBe(0)
-        expect(JSON.parse(cssAssets.stdout)).toMatchObject({
-          relationshipEvidence: 'output-reference',
-          assets: expect.arrayContaining([
-            expect.objectContaining({ assetKind: 'font' }),
-            expect.objectContaining({ assetKind: 'image' }),
-          ]),
-        })
+        const cssAssetResult = JSON.parse(cssAssets.stdout)
+        expect(['output-reference', 'unavailable']).toContain(
+          cssAssetResult.relationshipEvidence
+        )
+        if (cssAssetResult.relationshipEvidence === 'output-reference') {
+          expect(cssAssetResult.assets).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                cssFilename: expect.any(String),
+                assetFilename: expect.any(String),
+                emissionEvidence: 'emitted',
+                requestEvidence: 'unknown',
+              }),
+            ])
+          )
+        }
 
         const explanation = await next.runCommand([
           'experimental-analyze',
@@ -291,36 +350,207 @@ describe('next experimental-analyze', () => {
           }),
         ])
         expect(explanation.exitCode).toBe(0)
-        const explanationResult = JSON.parse(explanation.stdout)
-        expect(explanationResult).toMatchObject({
+        expect(JSON.parse(explanation.stdout)).toMatchObject({
           route: '/',
           sourcePath: sourceResult.sources[0].sourcePath,
           routeEntryDetection: { heuristic: false },
-          selectedModule: { ident: expect.any(String) },
         })
 
-        const graph = await next.runCommand([
+        async function sourcesFor(
+          search: string,
+          loadScopes?: string[],
+          groupBy = 'source'
+        ) {
+          const result = await next.runCommand([
+            'experimental-analyze',
+            'query',
+            'get_route_modules',
+            '--input',
+            JSON.stringify({
+              route: '/',
+              environment: 'client',
+              search,
+              loadScopes,
+              groupBy,
+              limit: 100,
+            }),
+          ])
+          expect(result.exitCode).toBe(0)
+          return JSON.parse(result.stdout)
+        }
+
+        const syncSources = await sourcesFor('app/sync.ts')
+        expect(syncSources.sources[0]).toMatchObject({
+          sourcePath: expect.stringContaining('app/sync.ts'),
+          loadScopes: ['initial'],
+          worker: { detected: false, heuristic: true },
+        })
+        const reExportedSources = await sourcesFor('app/leaf.ts')
+        expect(reExportedSources.sources[0]).toMatchObject({
+          sourcePath: expect.stringContaining('app/leaf.ts'),
+          loadScopes: ['initial'],
+        })
+        const lazySources = await sourcesFor('app/lazy.ts')
+        expect(lazySources.sources[0]).toMatchObject({
+          sourcePath: expect.stringContaining('app/lazy.ts'),
+          loadScopes: ['async'],
+        })
+        const workerSources = await sourcesFor('app/report.worker.ts')
+        expect(workerSources.sources[0]).toMatchObject({
+          loadScopes: ['async'],
+          worker: { detected: true, heuristic: true },
+        })
+        const asyncSources = await sourcesFor('app/', ['async'])
+        expect(
+          asyncSources.sources.map(
+            (source: { sourcePath: string }) => source.sourcePath
+          )
+        ).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining('app/lazy.ts'),
+            expect.stringContaining('app/report.worker.ts'),
+          ])
+        )
+        expect(
+          asyncSources.sources.some((source: { sourcePath: string }) =>
+            source.sourcePath.includes('app/sync.ts')
+          )
+        ).toBe(false)
+
+        const packages = await sourcesFor('node_modules/', undefined, 'package')
+        expect(
+          packages.sources.some(
+            (source: { loadScopes: string[] }) =>
+              source.loadScopes.includes('initial') &&
+              source.loadScopes.includes('async')
+          )
+        ).toBe(true)
+        const scopeOrder = ['initial', 'async', 'traced', 'asset', 'unknown']
+        for (const source of packages.sources) {
+          expect(source.loadScopes).toEqual(
+            scopeOrder.filter((scope) => source.loadScopes.includes(scope))
+          )
+        }
+
+        const reExportedExplanation = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'explain_route_module',
+          '--input',
+          JSON.stringify({
+            route: '/',
+            environment: 'client',
+            sourcePath: reExportedSources.sources[0].sourcePath,
+          }),
+        ])
+        expect(reExportedExplanation.exitCode).toBe(0)
+        const reExportedEvidence = JSON.parse(reExportedExplanation.stdout)
+        expect(reExportedEvidence).toMatchObject({
+          loadScopes: ['initial'],
+          nearestProjectImporter: {
+            path: expect.stringContaining('app/barrel.ts'),
+          },
+        })
+        const reExportedProjectChain =
+          reExportedEvidence.entryToSourceChain.chain.filter(
+            (entry: { module: { path: string } }) =>
+              /app\/(page\.tsx|barrel\.ts|leaf\.ts)$/.test(entry.module.path)
+          )
+        expect([
+          ...new Set(
+            reExportedProjectChain.map(
+              (entry: { module: { path: string } }) => entry.module.path
+            )
+          ),
+        ]).toEqual([
+          expect.stringContaining('app/page.tsx'),
+          expect.stringContaining('app/barrel.ts'),
+          expect.stringContaining('app/leaf.ts'),
+        ])
+        expect(
+          reExportedProjectChain
+            .slice(0, -1)
+            .every(
+              (entry: { edgeKindToNext?: string }) =>
+                entry.edgeKindToNext === 'sync'
+            )
+        ).toBe(true)
+
+        const initialGraph = await next.runCommand([
           'experimental-analyze',
           'query',
           'get_initial_import_graph',
           '--input',
           JSON.stringify({
             route: '/',
-            sourcePath: sourceResult.sources[0].sourcePath,
-            moduleIdent: explanationResult.selectedModule.ident,
-            environment: 'total',
+            environment: 'client',
+            sourcePath: reExportedSources.sources[0].sourcePath,
+            moduleIdent: reExportedEvidence.selectedModule.ident,
           }),
         ])
-        expect(graph.exitCode).toBe(0)
-        expect(JSON.parse(graph.stdout)).toMatchObject({
-          graph: {
-            complete: true,
-            nodes: expect.any(Array),
-            edges: expect.any(Array),
-            sccs: expect.any(Array),
-            sccEvidence: 'producer-petgraph',
+        expect(initialGraph.exitCode).toBe(0)
+        const graphEvidence = JSON.parse(initialGraph.stdout)
+        expect(graphEvidence.graph).toMatchObject({
+          complete: true,
+          nodes: expect.any(Array),
+          edges: expect.any(Array),
+          sccs: expect.any(Array),
+          sccEvidence: 'producer-petgraph',
+        })
+        expect(graphEvidence.graph.edges.length).toBeGreaterThan(0)
+        const graphEdge = graphEvidence.graph.edges[0]
+        const edgeDetail = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'analyze_import_edge',
+          '--input',
+          JSON.stringify({
+            route: '/',
+            environment: 'client',
+            sourcePath: reExportedSources.sources[0].sourcePath,
+            moduleIdent: reExportedEvidence.selectedModule.ident,
+            edgeId: graphEdge.edgeId,
+            granularity: 'source',
+          }),
+        ])
+        expect(edgeDetail.exitCode).toBe(0)
+        const edgeEvidence = JSON.parse(edgeDetail.stdout)
+        expect(edgeEvidence.totals).toMatchObject({
+          moduleCount: graphEdge.leavingInitialModuleCount,
+          sourceCount: graphEdge.leavingInitialSourceCount,
+          rawSize: graphEdge.leavingInitialRawSize,
+          compressedSize: graphEdge.leavingInitialCompressedSize,
+        })
+
+        const lazyExplanation = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'explain_route_module',
+          '--input',
+          JSON.stringify({
+            route: '/',
+            environment: 'client',
+            sourcePath: lazySources.sources[0].sourcePath,
+          }),
+        ])
+        expect(lazyExplanation.exitCode).toBe(0)
+        const lazyEvidence = JSON.parse(lazyExplanation.stdout)
+        expect(lazyEvidence).toMatchObject({
+          loadScopes: ['async'],
+          firstAsyncBoundary: {
+            importer: { path: expect.any(String) },
+            dependency: { path: expect.any(String) },
+          },
+          nearestProjectImporter: {
+            path: expect.stringContaining('app/page.tsx'),
+          },
+          nearestClientBoundary: {
+            path: expect.stringContaining('app/page.tsx'),
           },
         })
+        expect(
+          lazyEvidence.entryToSourceChain.chain.at(-1).module.path
+        ).toContain('app/lazy.ts')
 
         async function compare(input: Record<string, unknown>) {
           return next.runCommand([

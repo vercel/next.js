@@ -13,6 +13,8 @@ const COMPRESSED_CAVEAT =
   'Compressed source sizes are estimates because attributed parts are compressed independently.'
 const ENTRY_HEURISTIC_CAVEAT =
   'Route entries are detected heuristically from internal Next.js module identifiers.'
+const LOAD_SCOPE_CAVEAT =
+  'Load scopes and worker detection are graph heuristics, not exact initial-transfer bytes or runtime trigger timing.'
 
 type Environment = 'total' | 'client' | 'server'
 type Metric = 'raw' | 'compressed'
@@ -26,6 +28,24 @@ type OutputKind =
   | 'media'
   | 'wasm'
   | 'other'
+type LoadScope = 'initial' | 'async' | 'traced' | 'asset' | 'unknown'
+
+const LOAD_SCOPE_ORDER: LoadScope[] = [
+  'initial',
+  'async',
+  'traced',
+  'asset',
+  'unknown',
+]
+
+type WorkerEvidence = { detected: boolean; heuristic: true }
+type Reachability = {
+  modules: Map<
+    number,
+    { scopes: Set<'initial' | 'async' | 'traced'>; worker: boolean }
+  >
+  truncated: boolean
+}
 
 interface Pagination {
   offset: number
@@ -46,6 +66,8 @@ interface SourceRow {
   traced: boolean
   chunkNames: string[]
   chunkCount: number
+  loadScopes: LoadScope[]
+  worker: WorkerEvidence
 }
 
 interface DiffRow {
@@ -61,6 +83,9 @@ interface DiffRow {
 interface DiffInput extends Omit<DiffRow, 'status' | 'delta'> {
   baselinePresent: boolean
   comparisonPresent: boolean
+  baselineLoadScopes?: LoadScope[]
+  comparisonLoadScopes?: LoadScope[]
+  scopeTransitions?: Array<'initial-to-async' | 'async-to-initial'>
 }
 
 interface OverviewArgs {
@@ -78,6 +103,7 @@ interface SourcesArgs {
   search?: string
   environment?: Environment
   fileTypes?: FileType[]
+  loadScopes?: LoadScope[]
   groupBy?: 'source' | 'package'
   metric?: Metric
   offset?: number
@@ -148,6 +174,7 @@ interface CompareArgs {
   environment?: Environment
   metric?: Metric
   search?: string
+  scopeTransition?: 'initial-to-async' | 'async-to-initial'
   offset?: number
   limit?: number
 }
@@ -158,14 +185,6 @@ class DetailedToolError extends Error {
     readonly details: Record<string, unknown>
   ) {
     super(message)
-  }
-}
-
-export class AnalyzeQueryError extends Error {
-  constructor(readonly output: Record<string, unknown>) {
-    super(
-      typeof output.error === 'string' ? output.error : 'Analyzer query failed'
-    )
   }
 }
 
@@ -180,8 +199,9 @@ function publicError(error: unknown): Record<string, unknown> {
   }
   if (error.message.startsWith('Unknown route'))
     return { error: 'Unknown route' }
-  if (error.message.startsWith('Unknown source'))
+  if (error.message.startsWith('Unknown source')) {
     return { error: 'Unknown source' }
+  }
   if (
     /^(?:Invalid |moduleIdent |route is required|Route comparisons)/.test(
       error.message
@@ -190,6 +210,14 @@ function publicError(error: unknown): Record<string, unknown> {
     return { error: error.message }
   }
   return { error: 'Unable to query analyzer data' }
+}
+
+export class AnalyzeQueryError extends Error {
+  constructor(readonly output: Record<string, unknown>) {
+    super(
+      typeof output.error === 'string' ? output.error : 'Analyzer query failed'
+    )
+  }
 }
 
 function safeTool<T, R>(fn: (args: T) => Promise<R>) {
@@ -293,6 +321,30 @@ function outputSizes(data: AnalyzeData, outputIndex: number) {
   return { rawSize, compressedSize }
 }
 
+function estimatedInitialClientSizes(
+  data: AnalyzeData,
+  modules: ModulesData,
+  reachability: Reachability
+) {
+  let rawSize = 0
+  let compressedSize = 0
+  for (let sourceIndex = 0; sourceIndex < data.sourceCount(); sourceIndex++) {
+    const flags = data.getSourceFlags(sourceIndex)
+    if (!flags.client) continue
+    const sourcePath = data.getFullSourcePath(sourceIndex)
+    const initiallyReachable = modules
+      .getModuleIndiciesFromPath(sourcePath)
+      .some((moduleIndex) =>
+        reachability.modules.get(moduleIndex)?.scopes.has('initial')
+      )
+    if (!initiallyReachable) continue
+    const sizes = sourceSizes(data, sourceIndex, 'client')
+    rawSize += sizes.rawSize
+    compressedSize += sizes.compressedSize
+  }
+  return { rawSize, compressedSize }
+}
+
 function packageNameFromPath(sourcePath: string): string | undefined {
   const marker = 'node_modules/'
   const start = sourcePath.lastIndexOf(marker)
@@ -317,7 +369,10 @@ function collectSources(
     search?: string
     environment: Environment
     fileTypes?: FileType[]
+    loadScopes?: LoadScope[]
     groupBy: 'source' | 'package'
+    modules?: ModulesData
+    reachability?: Reachability
   }
 ): SourceRow[] {
   const search = options.search?.toLocaleLowerCase()
@@ -339,6 +394,21 @@ function collectSources(
     ) {
       continue
     }
+    const loadEvidence =
+      options.modules && options.reachability
+        ? sourceLoadEvidence(data, index, options.modules, options.reachability)
+        : {
+            loadScopes: ['unknown'] as LoadScope[],
+            worker: { detected: false, heuristic: true as const },
+          }
+    if (
+      options.loadScopes?.length &&
+      !options.loadScopes.some((scope) =>
+        loadEvidence.loadScopes.includes(scope)
+      )
+    ) {
+      continue
+    }
     const sizes = sourceSizes(data, index, options.environment)
     if (sizes.rawSize === 0 && sizes.compressedSize === 0) continue
     const packageName = packageNameFromPath(sourcePath)
@@ -352,6 +422,12 @@ function collectSources(
       existing.server ||= flags.server
       existing.traced ||= flags.traced
       existing.chunkNames.push(...data.sourceChunks(index))
+      existing.loadScopes = LOAD_SCOPE_ORDER.filter(
+        (scope) =>
+          existing.loadScopes.includes(scope) ||
+          loadEvidence.loadScopes.includes(scope)
+      )
+      existing.worker.detected ||= loadEvidence.worker.detected
     } else {
       rows.set(key, {
         key,
@@ -364,6 +440,7 @@ function collectSources(
         traced: flags.traced,
         chunkNames: data.sourceChunks(index),
         chunkCount: 0,
+        ...loadEvidence,
       })
     }
   }
@@ -487,29 +564,118 @@ function resolveRouteEntries(
   }
 }
 
-function routeModules(
+function looksLikeWorker(value: string): boolean {
+  return /(?:^|[/_.-])worker(?:[/_.-]|$)/i.test(value)
+}
+
+function routeReachability(
   modules: ModulesData,
   entries: Set<number>
-): { modules: Set<number>; truncated: boolean } {
-  const reachable = new Set(entries)
-  const queue = [...entries]
-  while (queue.length) {
+): Reachability {
+  type State = {
+    index: number
+    async: boolean
+    traced: boolean
+    worker: boolean
+  }
+  const result: Reachability = { modules: new Map(), truncated: false }
+  const queue: State[] = []
+  const seen = new Set<string>()
+
+  function add(state: State): boolean {
+    const key = `${state.index}:${+state.async}:${+state.traced}:${+state.worker}`
+    if (seen.has(key)) return true
+    if (seen.size >= MAX_GRAPH_NODES) {
+      result.truncated = true
+      return false
+    }
+    seen.add(key)
+    queue.push(state)
+    const evidence = result.modules.get(state.index) ?? {
+      scopes: new Set<'initial' | 'async' | 'traced'>(),
+      worker: false,
+    }
+    if (!state.async && !state.traced) evidence.scopes.add('initial')
+    if (state.async) evidence.scopes.add('async')
+    if (state.traced) evidence.scopes.add('traced')
+    evidence.worker ||= state.worker
+    result.modules.set(state.index, evidence)
+    return true
+  }
+
+  for (const index of [...entries].sort((a, b) => a - b)) {
+    const module = modules.module(index)
+    add({
+      index,
+      async: false,
+      traced: false,
+      worker: module
+        ? looksLikeWorker(module.path) || looksLikeWorker(module.ident)
+        : false,
+    })
+  }
+
+  while (queue.length && !result.truncated) {
     const current = queue.shift()!
-    const dependencies = [
-      ...modules.moduleDependencies(current),
-      ...modules.asyncModuleDependencies(current),
-      ...modules.tracedModuleDependencies(current),
-    ]
-    for (const dependency of dependencies) {
-      if (reachable.has(dependency)) continue
-      if (reachable.size >= MAX_GRAPH_NODES) {
-        return { modules: reachable, truncated: true }
+    const edges: Array<[number, 'sync' | 'async' | 'traced']> = [
+      ...modules
+        .moduleDependencies(current.index)
+        .map((index) => [index, 'sync'] as [number, 'sync']),
+      ...modules
+        .asyncModuleDependencies(current.index)
+        .map((index) => [index, 'async'] as [number, 'async']),
+      ...modules
+        .tracedModuleDependencies(current.index)
+        .map((index) => [index, 'traced'] as [number, 'traced']),
+    ].sort((a, b) => a[0] - b[0] || compareText(a[1], b[1]))
+    for (const [index, edgeKind] of edges) {
+      const module = modules.module(index)
+      if (!module) continue
+      if (
+        !add({
+          index,
+          async: current.async || edgeKind === 'async',
+          traced: current.traced || edgeKind === 'traced',
+          worker:
+            current.worker ||
+            looksLikeWorker(module.path) ||
+            looksLikeWorker(module.ident),
+        })
+      ) {
+        break
       }
-      reachable.add(dependency)
-      queue.push(dependency)
     }
   }
-  return { modules: reachable, truncated: false }
+  return result
+}
+
+function sourceLoadEvidence(
+  data: AnalyzeData,
+  sourceIndex: number,
+  modules: ModulesData,
+  reachability: Reachability
+): { loadScopes: LoadScope[]; worker: WorkerEvidence } {
+  const scopes = new Set<LoadScope>()
+  const flags = data.getSourceFlags(sourceIndex)
+  if (flags.asset) scopes.add('asset')
+  let worker = false
+  const sourcePath = data.getFullSourcePath(sourceIndex)
+  if (sourcePath) {
+    const candidates = modules
+      .getModuleIndiciesFromPath(sourcePath)
+      .slice(0, MAX_MODULE_CANDIDATES)
+    for (const index of candidates) {
+      const evidence = reachability.modules.get(index)
+      if (!evidence) continue
+      for (const scope of evidence.scopes) scopes.add(scope)
+      worker ||= evidence.worker
+    }
+  }
+  if (scopes.size === 0) scopes.add('unknown')
+  return {
+    loadScopes: LOAD_SCOPE_ORDER.filter((scope) => scopes.has(scope)),
+    worker: { detected: worker, heuristic: true },
+  }
 }
 
 function moduleMatchesEnvironment(
@@ -1075,6 +1241,43 @@ function selectModuleCandidate(
   return selected
 }
 
+function provenance(metadata: SnapshotMetadata) {
+  return {
+    id: metadata.id,
+    createdAt: metadata.createdAt,
+    baselineName: metadata.baselineName,
+    nextVersion: metadata.nextVersion,
+    gitBranch: metadata.gitBranch,
+    gitSha: metadata.gitSha,
+    gitDirty: metadata.gitDirty,
+    worktreeFingerprint: metadata.worktreeFingerprint,
+    analysisFingerprint: metadata.analysisFingerprint,
+    routeCount: metadata.routeCount,
+  }
+}
+
+function loadScopeTransitions(
+  baseline: LoadScope[] | undefined,
+  comparison: LoadScope[] | undefined
+): Array<'initial-to-async' | 'async-to-initial'> {
+  const result: Array<'initial-to-async' | 'async-to-initial'> = []
+  if (
+    baseline?.includes('initial') &&
+    !comparison?.includes('initial') &&
+    comparison?.includes('async')
+  ) {
+    result.push('initial-to-async')
+  }
+  if (
+    baseline?.includes('async') &&
+    !baseline?.includes('initial') &&
+    comparison?.includes('initial')
+  ) {
+    result.push('async-to-initial')
+  }
+  return result
+}
+
 function diffStatus(
   inBaseline: boolean,
   inComparison: boolean,
@@ -1140,21 +1343,6 @@ function summarizeDiff(
   }
 }
 
-function provenance(metadata: SnapshotMetadata) {
-  return {
-    id: metadata.id,
-    createdAt: metadata.createdAt,
-    baselineName: metadata.baselineName,
-    nextVersion: metadata.nextVersion,
-    gitBranch: metadata.gitBranch,
-    gitSha: metadata.gitSha,
-    gitDirty: metadata.gitDirty,
-    worktreeFingerprint: metadata.worktreeFingerprint,
-    analysisFingerprint: metadata.analysisFingerprint,
-    routeCount: metadata.routeCount,
-  }
-}
-
 const pagingSchema = {
   offset: z
     .number()
@@ -1185,6 +1373,13 @@ const environmentSchema = z
   .enum(['total', 'client', 'server'])
   .optional()
   .describe('Attribution environment. Default: `total`.')
+const loadScopeSchema = z.enum([
+  'initial',
+  'async',
+  'traced',
+  'asset',
+  'unknown',
+])
 
 function jsonField(input: z.ZodTypeAny): {
   schema: Record<string, unknown>
@@ -1328,8 +1523,16 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       },
       example: { environment: 'client', limit: 10 },
       collection: 'routes',
-      selectableFields: ['route', 'rawSize', 'compressedSize'],
-      caveats: [COMPRESSED_CAVEAT],
+      selectableFields: [
+        'route',
+        'rawSize',
+        'compressedSize',
+        'estimatedInitialClientRawSize',
+        'estimatedInitialClientCompressedSize',
+        'routeEntryDetection',
+        'initialGraphTruncated',
+      ],
+      caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
     },
     safeTool(async (args: OverviewArgs) => {
       const snapshot = await repository.getSnapshot(args.snapshot)
@@ -1338,13 +1541,22 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       const metric = args.metric ?? 'raw'
       const filter = args.routeFilter?.toLocaleLowerCase()
       const rows = []
+      const modules = await repository.loadModules(args.snapshot)
       for (const route of snapshot.routes) {
         if (filter && !route.toLocaleLowerCase().includes(filter)) continue
-        const sizes = routeSizes(
-          await repository.loadRoute(args.snapshot, route),
-          environment
-        )
-        rows.push({ route, ...sizes })
+        const data = await repository.loadRoute(args.snapshot, route)
+        const sizes = routeSizes(data, environment)
+        const entryResolution = resolveRouteEntries(modules, data)
+        const reachability = routeReachability(modules, entryResolution.entries)
+        const initial = estimatedInitialClientSizes(data, modules, reachability)
+        rows.push({
+          route,
+          ...sizes,
+          estimatedInitialClientRawSize: initial.rawSize,
+          estimatedInitialClientCompressedSize: initial.compressedSize,
+          routeEntryDetection: { heuristic: entryResolution.heuristic },
+          initialGraphTruncated: reachability.truncated,
+        })
       }
       rows.sort(
         (a, b) =>
@@ -1366,7 +1578,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         },
         routes: paged.values,
         pagination: paged.pagination,
-        caveats: [COMPRESSED_CAVEAT],
+        caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
       }
     })
   )
@@ -1385,6 +1597,11 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
           .array(z.enum(['js', 'css', 'json', 'asset']))
           .max(4)
           .optional(),
+        loadScopes: z
+          .array(loadScopeSchema)
+          .max(5)
+          .optional()
+          .describe('Keep sources matching at least one heuristic load scope.'),
         groupBy: z
           .enum(['source', 'package'])
           .optional()
@@ -1395,6 +1612,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       example: {
         route: '/',
         environment: 'client',
+        loadScopes: ['initial'],
         groupBy: 'package',
         limit: 20,
       },
@@ -1409,18 +1627,27 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         'server',
         'traced',
         'chunkCount',
+        'loadScopes',
+        'worker',
       ],
-      caveats: [COMPRESSED_CAVEAT],
+      caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
     },
     safeTool(async (args: SourcesArgs) => {
       const environment = args.environment ?? 'total'
       const metric = args.metric ?? 'raw'
+      const data = await repository.loadRoute(args.snapshot, args.route)
+      const modules = await repository.loadModules(args.snapshot)
+      const entryResolution = resolveRouteEntries(modules, data)
+      const reachability = routeReachability(modules, entryResolution.entries)
       const rows = sortBySize(
-        collectSources(await repository.loadRoute(args.snapshot, args.route), {
+        collectSources(data, {
           search: args.search,
           environment,
           fileTypes: args.fileTypes,
+          loadScopes: args.loadScopes,
           groupBy: args.groupBy ?? 'source',
+          modules,
+          reachability,
         }),
         metric
       )
@@ -1435,7 +1662,12 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         groupBy: args.groupBy ?? 'source',
         sources: paged.values.map(({ chunkNames: _chunkNames, ...row }) => row),
         pagination: paged.pagination,
-        caveats: [COMPRESSED_CAVEAT],
+        routeEntryDetection: { heuristic: entryResolution.heuristic },
+        loadScopeDetection: {
+          heuristic: entryResolution.heuristic,
+          graphTruncated: reachability.truncated,
+        },
+        caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
       }
     })
   )
@@ -1471,9 +1703,8 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
     safeTool(async (args: SourceChunksArgs) => {
       const data = await repository.loadRoute(args.snapshot, args.route)
       const sourceIndex = data.getSourceIndexFromPath(args.sourcePath)
-      if (sourceIndex === undefined) {
+      if (sourceIndex === undefined)
         throw new Error(`Unknown source: ${args.sourcePath}`)
-      }
       const byOutput = new Map<
         number,
         { rawSize: number; compressedSize: number }
@@ -1710,8 +1941,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
             const asset = data.outputFile(assetIndex)
             if (!asset) continue
             const kind = outputKind(asset.filename)
-            if (kind !== 'font' && kind !== 'image' && kind !== 'media')
+            if (kind !== 'font' && kind !== 'image' && kind !== 'media') {
               continue
+            }
             if (!kinds.includes(kind)) continue
             rows.push({
               key: `${css.filename}\0${asset.filename}`,
@@ -1719,9 +1951,9 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
               assetFilename: asset.filename,
               assetKind: kind,
               ...outputSizes(data, assetIndex),
-              relationshipEvidence: 'output-reference',
-              emissionEvidence: 'emitted',
-              requestEvidence: 'unknown',
+              relationshipEvidence: 'output-reference' as const,
+              emissionEvidence: 'emitted' as const,
+              requestEvidence: 'unknown' as const,
             })
           }
         }
@@ -1763,7 +1995,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
     'explain_route_module',
     {
       description:
-        'Explain one source contribution and return a bounded importer chain toward an exact route entry.',
+        'Explain one source contribution and return a bounded importer chain toward a heuristic route entry.',
       inputSchema: {
         route: z.string().max(4096),
         sourcePath: z.string().max(4096),
@@ -1781,7 +2013,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
           .describe('Maximum importer-chain depth. Default: 25.'),
       },
       example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
-      caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT],
+      caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT, LOAD_SCOPE_CAVEAT],
     },
     safeTool(async (args: ExplainArgs) => {
       const environment = args.environment ?? 'total'
@@ -1824,8 +2056,14 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         args.routeEntryId
       )
       const entries = entryResolution.entries
-      const routeGraph = routeModules(modules, entries)
-      const reachable = routeGraph.modules
+      const reachability = routeReachability(modules, entries)
+      const loadEvidence = sourceLoadEvidence(
+        data,
+        sourceIndex,
+        modules,
+        reachability
+      )
+      const reachable = new Set(reachability.modules.keys())
       const importerCandidates = selected
         ? [
             ...modules.moduleDependents(selected.index),
@@ -1864,7 +2102,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
             entries,
             reachable,
             args.maxDepth ?? 25,
-            routeGraph.truncated,
+            reachability.truncated,
             selectedImporter?.index
           )
         : undefined
@@ -1894,12 +2132,17 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         selectedImporter: selectedImporter?.module,
         importerChain,
         ...pathEvidence,
+        ...loadEvidence,
+        loadScopeDetection: {
+          heuristic: entryResolution.heuristic,
+          graphTruncated: reachability.truncated,
+        },
         routeEntries: entryResolution.candidates.map(
           ({ index: _index, ...entry }) => entry
         ),
         selectedRouteEntryId: args.routeEntryId,
         routeEntryDetection: { heuristic: entryResolution.heuristic },
-        caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT],
+        caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT, LOAD_SCOPE_CAVEAT],
       }
       return response
     })
@@ -1921,7 +2164,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         ),
       },
       example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
-      caveats: [COMPRESSED_CAVEAT],
+      caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
     },
     safeTool(async (args: InitialGraphArgs) => {
       const environment = args.environment ?? 'client'
@@ -2006,7 +2249,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
           sccs: analysis.sccs,
           sccEvidence: analysis.sccEvidence,
         },
-        caveats: [COMPRESSED_CAVEAT],
+        caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
       }
     })
   )
@@ -2050,7 +2293,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         'compressedSize',
         'sourceCount',
       ],
-      caveats: [COMPRESSED_CAVEAT],
+      caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
     },
     safeTool(async (args: ImportEdgeArgs) => {
       const environment = args.environment ?? 'client'
@@ -2162,7 +2405,7 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         snapshot: provenance(
           (await repository.getSnapshot(args.snapshot)).metadata
         ),
-        caveats: [COMPRESSED_CAVEAT],
+        caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
       }
     })
   )
@@ -2188,6 +2431,10 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         environment: environmentSchema,
         metric: metricSchema,
         search: z.string().max(1000).optional(),
+        scopeTransition: z
+          .enum(['initial-to-async', 'async-to-initial'])
+          .optional()
+          .describe('Source-only load-scope movement filter.'),
         ...pagingSchema,
       },
       example: {
@@ -2202,10 +2449,13 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         'comparisonRawSize',
         'baselineCompressedSize',
         'comparisonCompressedSize',
+        'baselineLoadScopes',
+        'comparisonLoadScopes',
+        'scopeTransitions',
         'status',
         'delta',
       ],
-      caveats: [COMPRESSED_CAVEAT],
+      caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
     },
     safeTool(async (args: CompareArgs) => {
       const granularity = args.granularity ?? 'route'
@@ -2216,6 +2466,11 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
       if (granularity === 'route' && args.route) {
         throw new Error(
           'Invalid route: route is only supported for source/package comparisons'
+        )
+      }
+      if (args.scopeTransition && granularity !== 'source') {
+        throw new Error(
+          'scopeTransition is only supported at source granularity'
         )
       }
 
@@ -2300,21 +2555,53 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         if (!inBaseline && !inComparison) {
           throw new Error(`Unknown route: ${args.route}`)
         }
-        const baselineRows = new Map(
-          (inBaseline
-            ? collectSources(
-                await repository.loadRoute(args.baselineSnapshot, args.route),
-                { search: args.search, environment, groupBy }
+        const baselineData = inBaseline
+          ? await repository.loadRoute(args.baselineSnapshot, args.route)
+          : undefined
+        const comparisonData = inComparison
+          ? await repository.loadRoute(args.comparisonSnapshot, args.route)
+          : undefined
+        const baselineModules = inBaseline
+          ? await repository.loadModules(args.baselineSnapshot)
+          : undefined
+        const comparisonModules = inComparison
+          ? await repository.loadModules(args.comparisonSnapshot)
+          : undefined
+        const baselineReachability =
+          baselineData && baselineModules
+            ? routeReachability(
+                baselineModules,
+                resolveRouteEntries(baselineModules, baselineData).entries
               )
+            : undefined
+        const comparisonReachability =
+          comparisonData && comparisonModules
+            ? routeReachability(
+                comparisonModules,
+                resolveRouteEntries(comparisonModules, comparisonData).entries
+              )
+            : undefined
+        const baselineRows = new Map(
+          (baselineData
+            ? collectSources(baselineData, {
+                search: args.search,
+                environment,
+                groupBy,
+                modules: baselineModules,
+                reachability: baselineReachability,
+              })
             : []
           ).map((row) => [row.key, row])
         )
         const comparisonRows = new Map(
-          (inComparison
-            ? collectSources(
-                await repository.loadRoute(args.comparisonSnapshot, args.route),
-                { search: args.search, environment, groupBy }
-              )
+          (comparisonData
+            ? collectSources(comparisonData, {
+                search: args.search,
+                environment,
+                groupBy,
+                modules: comparisonModules,
+                reachability: comparisonReachability,
+              })
             : []
           ).map((row) => [row.key, row])
         )
@@ -2331,8 +2618,23 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
               comparisonRawSize: b?.rawSize ?? 0,
               baselineCompressedSize: a?.compressedSize ?? 0,
               comparisonCompressedSize: b?.compressedSize ?? 0,
+              ...(granularity === 'source'
+                ? {
+                    baselineLoadScopes: a?.loadScopes ?? [],
+                    comparisonLoadScopes: b?.loadScopes ?? [],
+                    scopeTransitions: loadScopeTransitions(
+                      a?.loadScopes,
+                      b?.loadScopes
+                    ),
+                  }
+                : {}),
             }
           })
+        if (args.scopeTransition) {
+          rows = rows.filter((row) =>
+            row.scopeTransitions?.includes(args.scopeTransition!)
+          )
+        }
       }
       const worktreeEvidenceAvailable =
         baseline.metadata.worktreeFingerprint !== undefined &&
@@ -2385,11 +2687,14 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
           environment,
           metric,
           ...(args.search ? { search: args.search } : {}),
+          ...(args.scopeTransition
+            ? { scopeTransition: args.scopeTransition }
+            : {}),
           offset,
           limit,
         },
         ...summarizeDiff(rows, metric, offset, limit),
-        caveats: [COMPRESSED_CAVEAT],
+        caveats: [COMPRESSED_CAVEAT, LOAD_SCOPE_CAVEAT],
       }
     })
   )
