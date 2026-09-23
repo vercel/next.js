@@ -198,6 +198,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
     )
+    expect(content).toContain(
+      '`next dev` writes and re-adds this block. Commit `AGENTS.md` with your work to keep the tree clean.'
+    )
     expect(content).toContain('meaningful detour or are likely to recur')
     expect(content).toContain(
       'crashes, unexpected slowness, incorrect behavior'

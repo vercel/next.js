@@ -49,6 +49,8 @@ function buildAgentFeedbackBlock(): string {
 
 The project owner enabled \`experimental.agentFeedback\`, authorizing this feedback pass.
 
+\`next dev\` writes and re-adds this block. Commit \`AGENTS.md\` with your work to keep the tree clean.
+
 During the current user request, retain anonymized facts about Next.js issues that cause a meaningful detour or are likely to recur, including crashes, unexpected slowness, incorrect behavior, misleading diagnostics, documentation gaps, CLI or upgrade failures, and non-obvious workarounds. Ignore routine debugging and unverified changes. Never retain source code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
 Continue the current user request without reporting immediately.
