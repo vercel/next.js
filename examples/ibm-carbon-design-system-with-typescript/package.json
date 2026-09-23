@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@carbon/pictograms-react": "^11.54.0",
+    "@carbon/react": "1.33.0",
+    "@octokit/core": "^5.0.2",
+    "next": "14.0.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "sass": "1.63.6",
+    "@carbon/icons-react": "11.30.1"
+  },
+  "devDependencies": {
+    "eslint": "^8",
+    "eslint-config-next": "14.0.4",
+    "typescript": "^4.8.3",
+    "@types/node": "^12.12.21",
+    "@types/react": "^17.0.2",
+    "@types/react-dom": "^17.0.1"
+  }
+}
