@@ -595,14 +595,18 @@ impl<'a> SideEffectVisitor<'a> {
         self.comments.has_flag(span.lo, "PURE")
     }
 
+    fn is_no_side_effects_expr(&self, expr: &Expr) -> bool {
+        let Expr::Ident(ident) = unparen(expr) else {
+            return false;
+        };
+        self.no_side_effects.contains(&ident.to_id())
+    }
+
     fn is_no_side_effects_callee(&self, callee: &Callee) -> bool {
         let Callee::Expr(callee) = callee else {
             return false;
         };
-        let Expr::Ident(ident) = unparen(callee) else {
-            return false;
-        };
-        self.no_side_effects.contains(&ident.to_id())
+        self.is_no_side_effects_expr(callee)
     }
 
     /// Check if a callee expression is a known pure built-in function.
@@ -1108,13 +1112,15 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 e.arg.visit_with(self);
             }
             Expr::TaggedTpl(tagged_tpl)
-                // Tagged template literals are function calls
-                // But some are known to be pure, like String.raw
-                if self.is_known_pure_builtin_function(&tagged_tpl.tag) => {
-                    for arg in &tagged_tpl.tpl.exprs {
-                        arg.visit_with(self);
-                    }
+                // Tagged template literals are function calls. Some are known to be pure, like
+                // String.raw, and NO_SIDE_EFFECTS applies to tags just like regular callees.
+                if self.is_known_pure_builtin_function(&tagged_tpl.tag)
+                    || self.is_no_side_effects_expr(&tagged_tpl.tag) =>
+            {
+                for arg in &tagged_tpl.tpl.exprs {
+                    arg.visit_with(self);
                 }
+            }
             Expr::OptChain(opt_chain) => {
                 // Optional chaining can be pure if it's just member access
                 // But if it's an optional call, it has side effects
@@ -1620,6 +1626,21 @@ mod tests {
         );
 
         side_effects!(test_unannotated_binding_call, "const fn = other; fn();");
+
+        no_side_effects!(
+            test_no_side_effects_annotation_tagged_template,
+            "const tag = /*#__NO_SIDE_EFFECTS__*/ other; tag`value`;"
+        );
+
+        side_effects!(
+            test_no_side_effects_annotation_tagged_template_substitution,
+            "const tag = /*#__NO_SIDE_EFFECTS__*/ other; tag`${sideEffect()}`;"
+        );
+
+        side_effects!(
+            test_unannotated_tagged_template,
+            "const tag = other; tag`value`;"
+        );
 
         no_side_effects!(
             test_pure_annotation_in_variable,

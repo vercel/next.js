@@ -1504,9 +1504,10 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new(
+                                analysis.add_code_gen(EsmBinding::new_with_namespace_member(
                                     narrowed_reference,
                                     export,
+                                    Some(member),
                                     analysis.intern_path(&ast_path),
                                 ));
                                 continue;
@@ -1514,9 +1515,10 @@ async fn analyze_ecmascript_module_internal(
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(
+                        analysis.add_code_gen(EsmBinding::new_with_namespace_member(
                             *r,
                             export,
+                            member,
                             analysis.intern_path(&ast_path),
                         ));
                     }
