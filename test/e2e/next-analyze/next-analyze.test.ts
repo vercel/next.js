@@ -2,7 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { shouldUseTurbopack } from 'next-test-utils'
 import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 
 describe('next experimental-analyze', () => {
   if (!shouldUseTurbopack()) {
@@ -160,6 +166,7 @@ describe('next experimental-analyze', () => {
           next.testDir,
           '.next/diagnostics/analyze'
         )
+        rmSync(defaultOutputPath, { recursive: true, force: true })
 
         const { exitCode, stderr, stdout } = await next.runCommand([
           'experimental-analyze',
@@ -315,18 +322,70 @@ describe('next experimental-analyze', () => {
           },
         })
 
-        const comparison = await next.runCommand([
-          'experimental-analyze',
-          'query',
-          'compare_bundles',
-          '--input',
-          JSON.stringify({ baselineSnapshot: overview.snapshot.id, limit: 1 }),
-        ])
-        expect(comparison.exitCode).toBe(0)
-        expect(JSON.parse(comparison.stdout)).toMatchObject({
-          counts: { identical: expect.any(Number) },
-          rows: [{ status: 'identical', delta: 0 }],
+        async function compare(input: Record<string, unknown>) {
+          return next.runCommand([
+            'experimental-analyze',
+            'query',
+            'compare_bundles',
+            '--input',
+            JSON.stringify(input),
+          ])
+        }
+
+        const unavailable = await compare({
+          baselineSnapshot: overview.snapshot.id,
         })
+        expect(unavailable.exitCode).toBe(1)
+        expect(JSON.parse(unavailable.stderr)).toMatchObject({
+          error: 'No distinct baseline snapshot is available',
+          availableSnapshots: [{ id: overview.snapshot.id }],
+        })
+
+        const baseline = {
+          ...overview.snapshot,
+          id: '20000101-000000-abcdef0',
+          createdAt: '2000-01-01T00:00:00.000Z',
+        }
+        const baselineDir = path.join(defaultOutputPath, 'history', baseline.id)
+        cpSync(path.join(defaultOutputPath, 'data'), baselineDir, {
+          recursive: true,
+        })
+        writeFileSync(
+          path.join(baselineDir, 'metadata.json'),
+          JSON.stringify(baseline)
+        )
+        writeFileSync(
+          path.join(defaultOutputPath, 'history/history.json'),
+          JSON.stringify({ snapshots: [overview.snapshot, baseline] })
+        )
+
+        const comparison = await compare({
+          baselineSnapshot: baseline.id,
+          granularity: 'package',
+          route: '/',
+          environment: 'client',
+          limit: 1,
+        })
+        expect(comparison.exitCode).toBe(0)
+        expect(JSON.parse(comparison.stdout).effectiveInputs).toMatchObject({
+          baselineSnapshot: baseline.id,
+          comparisonSnapshot: overview.snapshot.id,
+          granularity: 'package',
+          route: '/',
+          environment: 'client',
+          limit: 1,
+        })
+
+        for (const input of [
+          { baselineSnapshot: overview.snapshot.id },
+          { baselineSnapshot: baseline.id, route: '/' },
+          { baselineSnapshot: baseline.id, groupBy: 'package' },
+          { baselineSnapshot: '20010101-000000-abcdef0' },
+        ]) {
+          const invalid = await compare(input)
+          expect(invalid.exitCode).toBe(1)
+          expect(JSON.parse(invalid.stderr)).toHaveProperty('error')
+        }
       })
     })
   })
