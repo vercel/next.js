@@ -20,6 +20,58 @@ const nextConfig = {
 module.exports = withMDX(nextConfig)
 ```
 
+Changing these values affects App Router file conventions and other entrypoints that rely on extensions. Specifically, it applies to:
+
+- `app/**/page.*`
+- `app/**/route.*`
+- `app/**/layout.*`
+- `app/**/template.*`
+- `app/**/default.*`
+- `app/**/not-found.*`
+- `app/**/loading.*`
+- `app/**/error.*`
+- `app/global-not-found.*`
+- `middleware.*`
+- `instrumentation.*`
+
+Static asset extensions remain fixed , `.xml`, `.ico`, `.png`, while code-based variants use your configured extensions.
+
+- Metadata route like `robots.*`, `manifest.*`, `sitemap.*`
+- Static metadata assets `icon.*`, `apple-icon.*`, `opengraph-image.*`, `twitter-image.*`
+
+For example using this configuration:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+module.exports = {
+  // TS-only with custom extension suffix
+  pageExtensions: ['app.ts', 'app.tsx'],
+}
+```
+
+| Path                           | Recognized as    |
+| ------------------------------ | ---------------- |
+| `app/blog/page.app.tsx`        | page             |
+| `app/dashboard/layout.app.tsx` | layout           |
+| `app/dashboard/page.app.tsx`   | page             |
+| `app/sitemap/route.app.ts`     | route            |
+| `app/robots.app.ts`            | metadata route   |
+| `app/manifest.app.ts`          | metadata route   |
+| `app/favicon.ico`              | static asset     |
+| `app/sitemap.xml`              | static asset     |
+| `app/not-found.app.tsx`        | not-found        |
+| `app/global-not-found.app.tsx` | global-not-found |
+| `app/error.app.tsx`            | error            |
+| `app/loading.app.tsx`          | loading          |
+| `middleware.app.ts`            | middleware       |
+| `instrumentation.app.ts`       | instrumentation  |
+
+Note that for example `favicon.ico` and `sitemap.xml` are not affected.
+
+> **Good to know**:
+> This is an advanced feature, mostly used when [mdx support](/docs/app/guides/mdx) is needed.
+> For most applications setting `pageExtensions` is not necessary.
+
 </AppOnly>
 
 <PagesOnly>
