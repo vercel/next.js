@@ -842,7 +842,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
       const scriptValue = packageJson.scripts[scriptName]
       if (
         typeof scriptValue === 'string' &&
-        scriptValue.includes('next lint')
+        /\bnext\s+lint\b/.test(scriptValue)
       ) {
         // Replace "next lint" with "eslint" and handle special arguments
         const updatedScript = scriptValue.replace(
@@ -1066,6 +1066,18 @@ export default function transformer(
     return
   }
 
+  const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
+  const packageJson = JSON.parse(packageJsonContent)
+  const usesNextLint = Object.values(packageJson.scripts || {}).some(
+    (script) => typeof script === 'string' && /\bnext\s+lint\b/.test(script)
+  )
+  if (!usesNextLint) {
+    console.log(
+      'Skipping migration: no next lint script found in package.json.'
+    )
+    return
+  }
+
   const isTypeScript = detectTypeScript(projectRoot)
 
   console.log('Migrating from next lint to the ESLint CLI...')
@@ -1144,7 +1156,6 @@ export default function transformer(
     }
   }
 
-  const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
   const result = updatePackageJsonScripts(packageJsonContent)
 
   if (result.updated) {
