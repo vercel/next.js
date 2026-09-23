@@ -1,1 +1,1 @@
-export const experimental_generateParamMatching = { lang: 'blocking' }
+export const unstable_generateParamMatching = { lang: 'blocking' }

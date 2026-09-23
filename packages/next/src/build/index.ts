@@ -2396,9 +2396,6 @@ export default async function build(
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
               partialPrefetching: config.partialPrefetching,
-              experimentalParamMatching: Boolean(
-                config.experimental.paramMatching
-              ),
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
@@ -2635,9 +2632,6 @@ export default async function build(
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
                             partialPrefetching: config.partialPrefetching,
-                            experimentalParamMatching: Boolean(
-                              config.experimental.paramMatching
-                            ),
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
@@ -2666,7 +2660,7 @@ export default async function build(
 
                       if (pageType === 'app' && originalAppPath) {
                         if (
-                          config.experimental.paramMatching &&
+                          isAppCacheComponentsEnabled &&
                           !isAppRouteRoute(originalAppPath)
                         ) {
                           // Include pages without exports: an omitted policy
@@ -2920,7 +2914,7 @@ export default async function build(
             })
         )
 
-        if (config.experimental.paramMatching) {
+        if (isAppCacheComponentsEnabled) {
           validateParamMatchingCoherence(paramMatchingByRoute)
         }
 
@@ -4841,10 +4835,7 @@ export default async function build(
         })
       )
 
-      if (
-        config.experimental.paramMatching &&
-        process.env.NEXT_PRIVATE_DEBUG_PARAM_MATCHING
-      ) {
+      if (process.env.NEXT_PRIVATE_DEBUG_PARAM_MATCHING) {
         printPrerenderMatchers(prerenderManifest, routesManifest.dynamicRoutes)
       }
 

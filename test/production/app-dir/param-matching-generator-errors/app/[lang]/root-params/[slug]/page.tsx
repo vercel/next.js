@@ -1,6 +1,6 @@
 import { lang } from 'next/root-params'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   await lang()
   return { slug: 'blocking' }
 }

@@ -1,4 +1,4 @@
-export const experimental_paramMatching = {
+export const unstable_paramMatching = {
   lang: 'not-found',
   category: 'not-found',
 } as const

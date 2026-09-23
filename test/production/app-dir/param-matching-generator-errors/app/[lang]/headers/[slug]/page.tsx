@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   await headers()
   return { slug: 'blocking' }
 }

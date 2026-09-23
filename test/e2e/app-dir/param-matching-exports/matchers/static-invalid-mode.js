@@ -1,1 +1,1 @@
-export const experimental_paramMatching = { lang: 'unsupported' }
+export const unstable_paramMatching = { lang: 'unsupported' }

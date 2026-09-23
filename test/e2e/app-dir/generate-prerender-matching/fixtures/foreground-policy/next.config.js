@@ -3,9 +3,6 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    paramMatching: true,
-  },
 }
 
 module.exports = nextConfig

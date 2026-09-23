@@ -1,4 +1,4 @@
-export const experimental_paramMatching = { id: 'not-found' } as const
+export const unstable_paramMatching = { id: 'not-found' } as const
 
 export function generateStaticParams() {
   return [{ category: 'shoes', id: 'one' }]

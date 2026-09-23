@@ -3,7 +3,7 @@ async function getMatching() {
   return { slug: 'blocking' }
 }
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   return getMatching()
 }
 

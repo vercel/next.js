@@ -1,3 +1,1 @@
-module.exports = {
-  experimental: { paramMatching: true },
-}
+module.exports = {}

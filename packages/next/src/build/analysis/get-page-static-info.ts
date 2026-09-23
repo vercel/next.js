@@ -48,7 +48,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|experimental_paramMatching|experimental_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_paramMatching|unstable_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -191,8 +191,8 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
-    'experimental_paramMatching',
-    'experimental_generateParamMatching',
+    'unstable_paramMatching',
+    'unstable_generateParamMatching',
     'generateStaticParams',
   ])
   if (!Array.isArray(ast?.body)) {
@@ -250,8 +250,8 @@ function checkExports(
         getStaticProps = id === 'getStaticProps'
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
-        if (id === 'experimental_paramMatching') paramMatching = true
-        if (id === 'experimental_generateParamMatching') {
+        if (id === 'unstable_paramMatching') paramMatching = true
+        if (id === 'unstable_generateParamMatching') {
           generateParamMatching = true
         }
         generateStaticParams = id === 'generateStaticParams'
@@ -267,8 +267,8 @@ function checkExports(
           getStaticProps = id === 'getStaticProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
-          if (id === 'experimental_paramMatching') paramMatching = true
-          if (id === 'experimental_generateParamMatching') {
+          if (id === 'unstable_paramMatching') paramMatching = true
+          if (id === 'unstable_generateParamMatching') {
             generateParamMatching = true
           }
           generateStaticParams = id === 'generateStaticParams'
@@ -295,12 +295,12 @@ function checkExports(
             if (!generateSitemaps && value === 'generateSitemaps') {
               generateSitemaps = true
             }
-            if (!paramMatching && value === 'experimental_paramMatching') {
+            if (!paramMatching && value === 'unstable_paramMatching') {
               paramMatching = true
             }
             if (
               !generateParamMatching &&
-              value === 'experimental_generateParamMatching'
+              value === 'unstable_generateParamMatching'
             ) {
               generateParamMatching = true
             }
@@ -707,33 +707,27 @@ export async function getAppPageStaticInfo({
 
   const hasParamMatching = paramMatching || generateParamMatching
 
-  if (hasParamMatching && !nextConfig.experimental?.paramMatching) {
-    throw new Error(
-      `Page "${page}" exports experimental parameter matching, but the experimental \`paramMatching\` flag is not enabled in next.config.`
-    )
-  }
-
   if (paramMatching && generateParamMatching) {
     throw new Error(
-      `Page "${page}" cannot export both \`experimental_paramMatching\` and \`experimental_generateParamMatching\`.`
+      `Page "${page}" cannot export both \`unstable_paramMatching\` and \`unstable_generateParamMatching\`.`
     )
   }
 
   if (hasParamMatching && /\/route\.[^/]+$/.test(pageFilePath)) {
     throw new Error(
-      `Route "${page}" cannot export experimental parameter matching. It is only supported in layouts and pages.`
+      `Route "${page}" cannot export parameter matching. It is only supported in layouts and pages.`
     )
   }
 
   if (isEdgeRuntime(config.runtime) && hasParamMatching) {
     throw new Error(
-      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and experimental parameter matching.`
+      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and parameter matching.`
     )
   }
 
   if (directives?.has('client') && hasParamMatching) {
     throw new Error(
-      `Page "${page}" cannot use both "use client" and an experimental parameter matching export.`
+      `Page "${page}" cannot use both "use client" and a parameter matching export.`
     )
   }
 

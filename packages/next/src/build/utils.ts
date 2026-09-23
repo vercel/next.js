@@ -795,7 +795,6 @@ export async function isPageStatic({
   pageType,
   cacheComponents,
   partialPrefetching,
-  experimentalParamMatching,
   authInterrupts,
   useCacheTimeout,
   durableUseCacheEntries,
@@ -817,7 +816,6 @@ export async function isPageStatic({
   distDir: string
   cacheComponents: boolean
   partialPrefetching: boolean
-  experimentalParamMatching: boolean
   authInterrupts: boolean
   useCacheTimeout: number
   durableUseCacheEntries: boolean
@@ -1015,7 +1013,6 @@ export async function isPageStatic({
               page,
               route,
               cacheComponents,
-              experimentalParamMatching,
               authInterrupts,
               useCacheTimeout,
               durableUseCacheEntries,

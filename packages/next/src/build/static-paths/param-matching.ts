@@ -55,8 +55,8 @@ export async function resolveParamMatching(
         if (!routeParamNames.has(paramName)) {
           const exportName =
             typeof paramMatchingExport === 'function'
-              ? 'experimental_generateParamMatching'
-              : 'experimental_paramMatching'
+              ? 'unstable_generateParamMatching'
+              : 'unstable_paramMatching'
           throw new Error(
             `Invalid parameter "${paramName}" in \`${exportName}\` for "${page}". Parameter matching may only configure dynamic parameters in this route.`
           )
@@ -250,7 +250,7 @@ export function validateParamMatchingParams(
     }
     if (output === 'export' && mode !== 'not-found') {
       throw new Error(
-        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using experimental parameter matching with "output: export".`
+        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using parameter matching with "output: export".`
       )
     }
   }

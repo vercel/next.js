@@ -415,7 +415,7 @@ export type CacheStore = UseCacheStore | UnstableCacheStore
 
 export type BuildTimeGeneratorName =
   | 'generateStaticParams'
-  | 'experimental_generateParamMatching'
+  | 'unstable_generateParamMatching'
 
 export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
   readonly type: 'build-time-generator'

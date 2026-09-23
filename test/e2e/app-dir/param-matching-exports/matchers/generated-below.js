@@ -1,3 +1,3 @@
-export function experimental_generateParamMatching() {
+export function unstable_generateParamMatching() {
   return { top: 'blocking' }
 }

@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   revalidatePath('/')
   return { slug: 'blocking' }
 }

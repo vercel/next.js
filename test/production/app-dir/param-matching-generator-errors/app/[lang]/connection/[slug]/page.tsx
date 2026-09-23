@@ -1,6 +1,6 @@
 import { connection } from 'next/server'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   await connection()
   return { slug: 'blocking' }
 }

@@ -1,4 +1,4 @@
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   return { slug: 'fallback', missing: 'fallback' }
 }
 

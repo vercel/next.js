@@ -24,7 +24,7 @@ describe('param-matching-parallel-inheritance', () => {
     ]) {
       await next.patchFile(
         file,
-        `export const experimental_paramMatching = { lang: 'blocking' } as const\n${await next.readFile(file)}`
+        `export const unstable_paramMatching = { lang: 'blocking' } as const\n${await next.readFile(file)}`
       )
     }
 

@@ -521,12 +521,6 @@ export interface ExperimentalConfig {
   >
 
   /**
-   * Enables parameter matching segment configuration in App Router layouts
-   * and pages using Cache Components.
-   */
-  paramMatching?: boolean
-
-  /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
@@ -2371,7 +2365,6 @@ export const defaultConfig = Object.freeze({
   experimental: {
     agentUpgrade: 'security',
     agentFeedback: false,
-    paramMatching: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,

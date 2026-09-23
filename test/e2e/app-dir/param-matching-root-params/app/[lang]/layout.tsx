@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   return { lang: 'fallback' } as const
 }
 
