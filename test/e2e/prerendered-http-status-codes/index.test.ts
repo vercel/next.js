@@ -6,22 +6,32 @@ describe('prerendered-http-status-codes', () => {
   })
 
   describe.each(['with-suspense', 'without-suspense'])('%s', (variant) => {
-    it('returns a 404 status for the not-found HTML response', async () => {
-      const response = await next.fetch(`/${variant}/not-found`, {
-        headers: { Accept: 'text/html' },
-      })
+    it.each([
+      { route: 'unauthorized', status: 401 },
+      { route: 'forbidden', status: 403 },
+      { route: 'not-found', status: 404 },
+    ])(
+      'returns $status for the $route HTML response',
+      async ({ route, status }) => {
+        const response = await next.fetch(`/${variant}/${route}`, {
+          headers: { Accept: 'text/html' },
+        })
 
-      expect(response.headers.get('content-type')).toContain('text/html')
-      expect(response.status).toBe(404)
-    })
+        expect(response.headers.get('content-type')).toContain('text/html')
+        expect(response.status).toBe(status)
+      }
+    )
 
-    it('returns a 307 status and location for the redirect', async () => {
-      const response = await next.fetch(`/${variant}/redirect`, {
+    it.each([
+      { route: 'redirect', status: 307 },
+      { route: 'permanent-redirect', status: 308 },
+    ])('returns $status and location for $route', async ({ route, status }) => {
+      const response = await next.fetch(`/${variant}/${route}`, {
         headers: { Accept: 'text/html' },
         redirect: 'manual',
       })
 
-      expect(response.status).toBe(307)
+      expect(response.status).toBe(status)
       expect(response.headers.get('location')).toBe('/')
     })
   })
