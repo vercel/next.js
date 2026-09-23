@@ -677,6 +677,11 @@ describe('human upgrade nudge', () => {
       '17.0.0',
       '⚠ Installed Next.js version 16.4.0 is affected by a known security vulnerability.\n\nNext.js security version upgrade available: 16.4.0 -> 17.0.0',
     ],
+    [
+      'latest',
+      '17.0.0',
+      'Next.js latest version upgrade available: 16.4.0 -> 17.0.0',
+    ],
   ] as const)(
     'renders concise %s copy for target %s',
     async (policy, targetVersion, message) => {
@@ -711,7 +716,7 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it.each(['security'] as const)(
+  it.each(['security', 'latest'] as const)(
     'forces a %s request without changing installed-version eligibility',
     async (policy) => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
@@ -775,6 +780,29 @@ describe('human upgrade nudge', () => {
     )
   })
 
+  it('uses real release data for a forced latest nudge with config disabled', async () => {
+    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'latest'
+    mockUpgrade('16.4.1')
+    await nudgeUpgrade(
+      directory,
+      config(false),
+      'dev',
+      new AbortController().signal
+    )
+    const message = jest.mocked(promptUpgrade).mock.calls[0][0]
+    expect(message).toContain(
+      'Next.js latest version upgrade available: 16.4.0 -> 16.4.1'
+    )
+    expect(message).not.toContain('Forced preview:')
+    expect(getUpgradeAssessment).toHaveBeenCalledWith('16.4.0', 'latest', false)
+    jest.mocked(getAgentName).mockResolvedValue('codex')
+    await expect(
+      nudgeUpgrade(directory, config(false), 'dev')
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('next upgrade --ai=latest'),
+    })
+  })
+
   it('ignores invalid requests and retains the configured policy', async () => {
     process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'invalid'
     const context = getUpgradeContext(config(false))
@@ -787,7 +815,7 @@ describe('human upgrade nudge', () => {
     )
     expect(promptUpgrade).not.toHaveBeenCalled()
     await expect(run()).resolves.toBe('skip')
-    expect(getUpgradeAssessment).toHaveBeenCalledWith('16.4.0', 'future', true)
+    expect(getUpgradeAssessment).toHaveBeenCalledWith('16.4.0', 'future', false)
   })
 
   it('does not open an explicitly requested prompt after cancellation', async () => {
@@ -891,12 +919,27 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it('stops before release metadata for human reminders', async () => {
-    mockUpgrade('17.0.0')
-    await run()
-    expect(getUpgradeAssessment).toHaveBeenCalledWith('16.4.0', 'future', true)
-    expect(promptUpgrade).toHaveBeenCalledTimes(0)
-  })
+  it.each([false, true])(
+    'still checks security after a latest dismissal (affected: %s)',
+    async (affected) => {
+      mockUpgrade('17.0.0')
+      jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
+      await run()
+      jest.clearAllMocks()
+      jest.mocked(getUpgradeAssessment).mockResolvedValue({
+        ...securityAssessment,
+        affected,
+      })
+      jest.mocked(promptUpgrade).mockResolvedValue('skip')
+      await run()
+      expect(getUpgradeAssessment).toHaveBeenCalledWith(
+        '16.4.0',
+        'future',
+        true
+      )
+      expect(promptUpgrade).toHaveBeenCalledTimes(affected ? 1 : 0)
+    }
+  )
 
   it.each(['blocked', 'unknown'] as const)(
     'omits Update when security target availability is %s',
