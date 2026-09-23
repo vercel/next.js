@@ -334,6 +334,8 @@ export type TurbopackModuleFederationSharedConfig =
     }
 
 export interface TurbopackModuleFederationOptions {
+  /** Runtime package request or resolved entry path, such as `@module-federation/runtime-tools`. */
+  implementation?: string
   /** Name of this container. Required when exposing modules. */
   name?: string
   /** Remote entry filename, relative to Next.js' static chunks directory. */

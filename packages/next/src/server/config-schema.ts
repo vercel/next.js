@@ -216,6 +216,7 @@ const zTurbopackModuleFederationFilename = z
 const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationOptions> =
   z
     .strictObject({
+      implementation: z.string().min(1).optional(),
       name: z.string().min(1).optional(),
       filename: zTurbopackModuleFederationFilename.optional(),
       remotes: z

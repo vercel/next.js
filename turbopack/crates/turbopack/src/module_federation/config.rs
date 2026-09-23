@@ -306,6 +306,7 @@ pub enum ModuleFederationRemoteType {
 )]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UnnormalizedModuleFederationConfig {
+    pub implementation: Option<RcStr>,
     pub name: Option<RcStr>,
     pub filename: Option<RcStr>,
     pub remotes: Option<UnnormalizedModuleFederationRemotes>,
@@ -318,6 +319,7 @@ pub struct UnnormalizedModuleFederationConfig {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct ModuleFederationConfig {
+    pub implementation: Option<RcStr>,
     pub name: Option<RcStr>,
     pub filename: Option<RcStr>,
     pub remotes: Vec<ModuleFederationRemote>,
@@ -424,6 +426,7 @@ impl UnnormalizedModuleFederationConfig {
     pub fn normalize(self) -> Result<ModuleFederationConfig> {
         let share_scope = self.share_scope.unwrap_or_else(|| "default".into());
         let mut config = ModuleFederationConfig {
+            implementation: self.implementation,
             name: self.name,
             filename: self.filename,
             share_scope: share_scope.clone(),
@@ -513,6 +516,9 @@ impl UnnormalizedModuleFederationConfig {
 
 impl ModuleFederationConfig {
     pub fn validate(&self) -> Result<()> {
+        if self.implementation.as_deref().is_some_and(str::is_empty) {
+            bail!("Module Federation implementation must not be empty");
+        }
         if !self.exposes.is_empty() && self.name.as_deref().is_none_or(str::is_empty) {
             bail!("Module Federation exposes require a non-empty container name");
         }
@@ -601,11 +607,38 @@ mod tests {
         .unwrap();
         let config = config.normalize().unwrap();
         assert_eq!(config.name.as_deref(), Some("host"));
+        assert_eq!(config.implementation, None);
         assert_eq!(config.remotes[0].request, "catalog");
         assert_eq!(config.remotes[0].external[1].global, "fallback");
         assert_eq!(config.remotes[0].external[1].url, "/remote.js");
         assert_eq!(config.remotes[0].external[2].url, "file:///tmp/remote.js");
         assert_eq!(config.remotes[0].share_scope, "catalog");
+    }
+
+    #[test]
+    fn normalizes_runtime_implementation() {
+        for implementation in [
+            "@module-federation/runtime-tools",
+            "./runtime.js",
+            "/project/node_modules/@module-federation/runtime-tools/index.js",
+        ] {
+            let config: UnnormalizedModuleFederationConfig =
+                serde_json::from_value(serde_json::json!({ "implementation": implementation }))
+                    .unwrap();
+            assert_eq!(
+                config.normalize().unwrap().implementation.as_deref(),
+                Some(implementation)
+            );
+        }
+        let empty: UnnormalizedModuleFederationConfig =
+            serde_json::from_str(r#"{"implementation":""}"#).unwrap();
+        assert!(empty.normalize().is_err());
+        assert!(
+            serde_json::from_str::<UnnormalizedModuleFederationConfig>(
+                r#"{"implementation":true}"#
+            )
+            .is_err()
+        );
     }
 
     #[test]

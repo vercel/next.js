@@ -21,17 +21,31 @@ const describeTurbopack =
     ? describe
     : describe.skip
 
-describeTurbopack('turbopack module federation between Next.js apps', () => {
+describeTurbopack.each([
+  ['native', ''],
+  ['runtime-tools package', '@module-federation/runtime-tools'],
+  ['runtime-tools resolved entry', 'resolved'],
+])('turbopack module federation with a %s producer', (_, implementation) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // A second local Next.js server is not reachable from a deployed fixture.
     skipDeployment: true,
+    dependencies: implementation
+      ? { '@module-federation/runtime-tools': '2.9.0' }
+      : {},
   })
   let remoteServer: ChildProcess
   let remotePort: number
 
   beforeAll(async () => {
+    process.env.MF_IMPLEMENTATION = implementation
+    if (implementation) {
+      await next.patchFile(
+        'app/enhanced/page.js',
+        await next.readFile('enhanced-host/page.js')
+      )
+    }
     remotePort = await findPort()
     const remoteDir = join(next.testDir, 'remote')
     await symlink(
@@ -78,8 +92,9 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
   })
 
   afterAll(async () => {
-    await killApp(remoteServer)
+    if (remoteServer) await killApp(remoteServer)
     delete process.env.MF_REMOTE_URL
+    delete process.env.MF_IMPLEMENTATION
   })
 
   it('loads a tree-shaken module exposed by another Next.js app', async () => {
@@ -101,4 +116,229 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
       expect(entry).not.toContain('remote/lib/message.js')
     }
   })
+
+  it('keeps exposes lazy and rejects unknown modules', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'hello from Next.js'
+      )
+    })
+    expect(
+      await browser.eval(async () => {
+        const global = window as any
+        const before = global.federationLazyEvaluations || 0
+        const factory = await global.nextRemote.get('./lazy')
+        const first = factory().value
+        const second = (await global.nextRemote.get('./lazy'))().value
+        let missing
+        try {
+          await global.nextRemote.get('./missing')
+        } catch (error) {
+          missing = error.message
+        }
+        return {
+          before,
+          after: global.federationLazyEvaluations,
+          first,
+          second,
+          missing,
+        }
+      })
+    ).toEqual({
+      before: 0,
+      after: 1,
+      first: 'lazy expose from Next.js',
+      second: 'lazy expose from Next.js',
+      missing: 'Module ./missing does not exist in container nextRemote',
+    })
+  })
+
+  if (implementation) {
+    it.each(['', '?array'])(
+      'shares producer providers with the public runtime consumer %s',
+      async (query) => {
+        const browser = await next.browser(`/enhanced${query}`)
+        await retry(async () => {
+          expect(await browser.elementByCss('#enhanced-message').text()).toBe(
+            'hello from Next.js'
+          )
+        })
+        expect(
+          await browser.eval(async () => {
+            const global = window as any
+            const host = global.enhancedHost
+            const producer = global.__FEDERATION__.__INSTANCES__.find(
+              (instance) => instance.name === 'nextRemote'
+            )
+            const scope = host.shareScopeMap.catalog
+            const providers = scope['producer-value']
+            const options = global.federationInitOptions
+            const hasArrayScope = Array.isArray(options.shareScopeKeys)
+            if (hasArrayScope) {
+              await Promise.all(producer.initializeSharing('other'))
+            }
+            return {
+              providers: await Promise.all(
+                Object.keys(providers)
+                  .sort()
+                  .map(async (version) => ({
+                    version,
+                    from: providers[version].from,
+                    value: (await providers[version].get())().value,
+                    eager: providers[version].shareConfig.eager,
+                  }))
+              ),
+              sameScope: producer.shareScopeMap.catalog === scope,
+              sameHostMap: options.shareScopeMap === host.shareScopeMap,
+              enumerableMap: Object.getOwnPropertyDescriptor(
+                options,
+                'shareScopeMap'
+              ).enumerable,
+              defaultProvider:
+                producer.shareScopeMap.default?.['producer-value'] || null,
+              omittedProvider: scope['host-only'] || null,
+              otherProviderInCatalog: scope['other-value'] || null,
+              other: hasArrayScope
+                ? {
+                    sameScope:
+                      producer.shareScopeMap.other === host.shareScopeMap.other,
+                    value: (
+                      await host.shareScopeMap.other['other-value'][
+                        '2.0.0'
+                      ].get()
+                    )().value,
+                  }
+                : null,
+            }
+          })
+        ).toEqual({
+          providers: [
+            {
+              version: '1.0.0',
+              from: 'nextRemote',
+              value: 'shared value from Next.js',
+              eager: false,
+            },
+            {
+              version: '1.2.0',
+              from: 'nextRemote',
+              value: 'new shared value from Next.js',
+              eager: true,
+            },
+          ],
+          sameScope: true,
+          sameHostMap: true,
+          enumerableMap: false,
+          defaultProvider: null,
+          omittedProvider: null,
+          otherProviderInCatalog: null,
+          other: query
+            ? { sameScope: true, value: 'shared value from Next.js' }
+            : null,
+        })
+      }
+    )
+
+    it('retries failed initialization and terminates a share-scope cycle', async () => {
+      const browser = await next.browser('/protocol')
+      expect(
+        await browser.eval(async (remoteUrl) => {
+          const global = window as any
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script')
+            script.src = remoteUrl
+            script.onload = () => resolve()
+            script.onerror = reject
+            document.head.appendChild(script)
+          })
+          const producer = global.__FEDERATION__.__INSTANCES__.find(
+            (instance) => instance.name === 'nextRemote'
+          )
+          const container = global.nextRemote
+          const scope = {}
+          let attempts = 0
+          let cycleTokens
+          global.cycleRemote = {
+            async init(shareScope, initScope, options) {
+              attempts++
+              if (attempts === 1) throw new Error('retry initialization')
+              cycleTokens = initScope.length
+              await container.init(shareScope, initScope, options)
+            },
+            get() {
+              return Promise.resolve(() => ({ value: 'cycle remote' }))
+            },
+          }
+          producer.initOptions({
+            name: 'nextRemote',
+            shareStrategy: 'version-first',
+            remotes: [
+              {
+                name: 'cycleRemote',
+                entry: remoteUrl,
+                entryGlobalName: 'cycleRemote',
+                type: 'global',
+                shareScope: 'catalog',
+              },
+            ],
+          })
+          let firstError
+          try {
+            await container.init(scope, [])
+          } catch (error) {
+            firstError = error.message.includes('retry initialization')
+          }
+          await container.init(scope, [])
+          await container.init(scope, [])
+          let differentScope
+          try {
+            await container.init({}, [])
+          } catch (error) {
+            differentScope = error.message
+          }
+          let missingMap
+          try {
+            await container.init(scope, [], { shareScopeKeys: ['catalog'] })
+          } catch (error) {
+            missingMap = error.message
+          }
+          const map = { catalog: scope }
+          const options = { shareScopeKeys: ['catalog', 'other'] }
+          Object.defineProperty(options, 'shareScopeMap', { value: map })
+          await container.init(scope, [], options)
+          await Promise.all(producer.initializeSharing('other'))
+          return {
+            firstError,
+            attempts,
+            cycleTokens,
+            differentScope,
+            missingMap,
+            sameScope: producer.shareScopeMap.catalog === scope,
+            createdScope: producer.shareScopeMap.other === (map as any).other,
+            value: (
+              await producer.shareScopeMap.catalog['producer-value'][
+                '1.0.0'
+              ].get()
+            )().value,
+            otherValue: (
+              await producer.shareScopeMap.other['other-value']['2.0.0'].get()
+            )().value,
+          }
+        }, `http://localhost:${remotePort}/_next/static/nextRemote.js`)
+      ).toEqual({
+        firstError: true,
+        attempts: 2,
+        cycleTokens: 1,
+        differentScope:
+          'Container initialization failed because it has already been initialized with a different share scope',
+        missingMap:
+          'Container initialization with shareScopeKeys requires a shareScopeMap',
+        sameScope: true,
+        createdScope: true,
+        value: 'shared value from Next.js',
+        otherValue: 'shared value from Next.js',
+      })
+    })
+  }
 })

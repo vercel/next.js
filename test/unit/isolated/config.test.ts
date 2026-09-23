@@ -26,6 +26,34 @@ describe('config', () => {
     expect((config as any).customConfig).toBe(true)
   })
 
+  it('validates an optional Module Federation runtime implementation', async () => {
+    const { configSchema } = await import('next/dist/server/config-schema')
+    for (const implementation of [
+      undefined,
+      '@module-federation/runtime-tools',
+      './runtime.js',
+      '/project/node_modules/@module-federation/runtime-tools/index.js',
+    ]) {
+      const config = {
+        experimental: { turbopackModuleFederation: { implementation } },
+      }
+      expect(configSchema.parse(config)).toEqual(config)
+    }
+    for (const implementation of ['', true]) {
+      const result = configSchema.safeParse({
+        experimental: { turbopackModuleFederation: { implementation } },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues[0].path).toEqual([
+          'experimental',
+          'turbopackModuleFederation',
+          'implementation',
+        ])
+      }
+    }
+  })
+
   it('Should pass the phase correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
     expect((config as any).phase).toBe(PHASE_DEVELOPMENT_SERVER)
