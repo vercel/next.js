@@ -197,19 +197,15 @@ const immediateAsyncStorage =
     'immediate-async-storage'
   )
 
-export function trackPendingImmediates<TArgs extends any[], TResult>(
-  callback: (...args: TArgs) => TResult
-): (...args: TArgs) => TResult {
-  return (...args) =>
-    immediateAsyncStorage.run(new ImmediateTracker(), callback, ...args)
-}
-
-export function getImmediateTracker(): ImmediateTracker {
-  const tracker = immediateAsyncStorage.getStore()
-  if (tracker === undefined) {
-    throw new InvariantError('Expected a pending-immediate tracking scope')
-  }
-  return tracker
+/**
+ * Run a callback and its async work with this native-immediate tracker.
+ */
+export function runWithNativeImmediateTracking<TArgs extends any[], TResult>(
+  tracker: ImmediateTracker,
+  callback: (...args: TArgs) => TResult,
+  ...args: TArgs
+): TResult {
+  return immediateAsyncStorage.run(tracker, callback, ...args)
 }
 
 /**
@@ -225,7 +221,7 @@ export function getImmediateTracker(): ImmediateTracker {
  */
 export class ImmediateTracker {
   private sentinel: NodeJS.Immediate | null = null
-  private sentinelVersion = 0
+  private needsAnotherCheck = false
   private listeners = new Set<() => void>()
 
   hasPendingImmediates(): boolean {
@@ -234,19 +230,21 @@ export class ImmediateTracker {
 
   /**
    * Calls `callback` asynchronously in a native immediate, even when no
-   * immediates are pending. The returned function cancels the subscription
-   * without stopping tracking.
+   * immediates are pending. The callback runs in the subscriber's async
+   * context. The returned function cancels the subscription without stopping
+   * tracking.
    */
   onIdle(callback: () => void): () => void {
     const listeners = this.listeners
-    listeners.add(callback)
+    const listener = bindSnapshot(callback)
+    listeners.add(listener)
     if (this.sentinel === null) {
       this.scheduleIdleCheck()
     } else {
       this.sentinel.ref()
     }
     return () => {
-      listeners.delete(callback)
+      listeners.delete(listener)
       if (this.listeners.size === 0) {
         this.sentinel?.unref()
       }
@@ -254,28 +252,32 @@ export class ImmediateTracker {
   }
 
   scheduleIdleCheck(): void {
-    // Do not clear the previous sentinel here. Node 20.19.6 can reenter this
-    // patch during exception recovery with the sentinel still at its
-    // outstanding queue head. Clearing it breaks Node's queue traversal. We
-    // unref it and ignore its outdated version instead.
-    this.sentinel?.unref()
-    // The sentinel runs after the last native immediate and its microtasks and
-    // nextTicks. New immediates replace it, so outlined elements can schedule
-    // further rendering before we notify listeners.
-    this.sentinel = originalSetImmediate(
-      this.notifyListeners,
-      ++this.sentinelVersion
-    )
+    if (this.sentinel !== null) {
+      // A burst reuses the pending check and needs at most one successor, not
+      // another sentinel per call. Do not clear the pending handle: Node
+      // 20.19.6 can reenter this patch during exception recovery with that
+      // handle still at its outstanding queue head. Clearing it breaks queue
+      // traversal.
+      this.needsAnotherCheck = true
+      return
+    }
+
+    // The check repeats if more native immediates were scheduled after it. This
+    // lets outlined elements schedule further rendering before we notify idle
+    // subscribers.
+    this.sentinel = originalSetImmediate(this.checkForIdle)
     if (this.listeners.size === 0) {
       this.sentinel.unref()
     }
   }
 
-  private notifyListeners = (version: number) => {
-    if (version !== this.sentinelVersion) {
+  private checkForIdle = () => {
+    this.sentinel = null
+    if (this.needsAnotherCheck) {
+      this.needsAnotherCheck = false
+      this.scheduleIdleCheck()
       return
     }
-    this.sentinel = null
     const listeners = this.listeners
     this.listeners = new Set()
     for (const callback of listeners) {

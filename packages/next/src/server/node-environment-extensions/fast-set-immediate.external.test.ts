@@ -1,12 +1,12 @@
 import '../node-environment-baseline'
-import { AsyncLocalStorage } from 'node:async_hooks'
+import { AsyncLocalStorage, createHook } from 'node:async_hooks'
 import { execFile } from 'node:child_process'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
-  getImmediateTracker,
-  trackPendingImmediates,
+  ImmediateTracker,
+  runWithNativeImmediateTracking,
   unpatchedSetImmediate,
 } from './fast-set-immediate.external'
 import { createAtomicTimerGroup } from '../app-render/app-render-scheduling'
@@ -332,40 +332,134 @@ it('runs ticks and microtasks from immediates before moving onto the next task',
 })
 
 describe('native immediate tracking', () => {
-  it('creates a fresh scope per invocation and restores the parent scope', () => {
-    expect(getImmediateTracker).toThrow()
+  it('separates explicit trackers, forwards arguments and results, and restores the parent scope', async () => {
+    const first = new ImmediateTracker()
+    const second = new ImmediateTracker()
+    const render = (value: string, count: number) => {
+      setImmediate(() => {})
+      return { value, count }
+    }
 
-    const render = trackPendingImmediates((value: string, count: number) => {
-      const tracker = getImmediateTracker()
-      const nested = trackPendingImmediates(getImmediateTracker)()
-      expect(nested).not.toBe(tracker)
-      expect(getImmediateTracker()).toBe(tracker)
-      return { tracker, value, count }
+    runWithNativeImmediateTracking(first, () => {
+      expect(
+        runWithNativeImmediateTracking(second, render, 'second', 2)
+      ).toEqual({
+        value: 'second',
+        count: 2,
+      })
+      expect(first.hasPendingImmediates()).toBe(false)
+      expect(second.hasPendingImmediates()).toBe(true)
+      expect(render('first', 1)).toEqual({ value: 'first', count: 1 })
+      expect(first.hasPendingImmediates()).toBe(true)
     })
 
-    const first = render('first', 1)
-    const second = render('second', 2)
-    expect(first).toEqual({ tracker: first.tracker, value: 'first', count: 1 })
-    expect(second).toEqual({
-      tracker: second.tracker,
-      value: 'second',
-      count: 2,
-    })
-    expect(first.tracker).not.toBe(second.tracker)
-    expect(getImmediateTracker).toThrow()
+    await Promise.all([
+      new Promise<void>((resolve) => first.onIdle(resolve)),
+      new Promise<void>((resolve) => second.onIdle(resolve)),
+    ])
 
     const error = new Error('render failed')
-    expect(
-      trackPendingImmediates(() => {
-        throw error
+    runWithNativeImmediateTracking(first, () => {
+      expect(() =>
+        runWithNativeImmediateTracking(second, () => {
+          throw error
+        })
+      ).toThrow(error)
+      setImmediate(() => {})
+      expect(first.hasPendingImmediates()).toBe(true)
+      expect(second.hasPendingImmediates()).toBe(false)
+    })
+
+    await new Promise<void>((resolve) => first.onIdle(resolve))
+    setImmediate(() => {})
+    expect(first.hasPendingImmediates()).toBe(false)
+    expect(second.hasPendingImmediates()).toBe(false)
+    await new Promise<void>((resolve) => unpatchedSetImmediate(resolve))
+  })
+
+  it('coalesces a synchronous burst of native immediates into at most two checks', async () => {
+    const tracker = new ImmediateTracker()
+    const storage = new AsyncLocalStorage<symbol>()
+    const marker = Symbol('immediate burst')
+    const count = 32
+    const callback = jest.fn()
+    let nativeImmediates = 0
+    const hook = createHook({
+      init(_asyncId, type) {
+        if (type === 'Immediate' && storage.getStore() === marker) {
+          nativeImmediates++
+        }
+      },
+    })
+
+    hook.enable()
+    try {
+      await storage.run(marker, () =>
+        runWithNativeImmediateTracking(tracker, async () => {
+          for (let index = 0; index < count; index++) {
+            setImmediate(callback)
+          }
+          expect(nativeImmediates).toBe(count + 1)
+          expect(callback).not.toHaveBeenCalled()
+          await new Promise<void>((resolve) => tracker.onIdle(resolve))
+        })
+      )
+      expect(callback).toHaveBeenCalledTimes(count)
+      expect(nativeImmediates).toBeLessThanOrEqual(count + 2)
+      expect(tracker.hasPendingImmediates()).toBe(false)
+    } finally {
+      hook.disable()
+    }
+  })
+
+  it('waits for callback, microtask, and nextTick work queued after a successor check', async () => {
+    for (const source of ['callback', 'microtask', 'nextTick']) {
+      const tracker = new ImmediateTracker()
+      const events: string[] = []
+      const done = createPromiseWithResolvers<void>()
+
+      runWithNativeImmediateTracking(tracker, () => {
+        setImmediate(() => events.push('first'))
+        // The first sentinel queues its successor before this callback runs.
+        setImmediate(() => {
+          events.push('second')
+          const scheduleDescendant = () => {
+            setImmediate(() => {
+              events.push(source)
+              setImmediate(() => {
+                events.push('descendant')
+                done.resolve()
+              })
+            })
+          }
+          if (source === 'callback') {
+            scheduleDescendant()
+          } else if (source === 'microtask') {
+            queueMicrotask(scheduleDescendant)
+          } else {
+            process.nextTick(scheduleDescendant)
+          }
+        })
       })
-    ).toThrow(error)
-    expect(getImmediateTracker).toThrow()
+
+      await Promise.all([
+        done.promise,
+        new Promise<void>((resolve) => {
+          tracker.onIdle(() => {
+            events.push('idle')
+            resolve()
+          })
+        }),
+      ])
+      expect(events).toEqual(['first', 'second', source, 'descendant', 'idle'])
+      expect(tracker.hasPendingImmediates()).toBe(false)
+    }
   })
 
   it('tracks native descendants before a readiness subscription', async () => {
     const events: string[] = []
-    const tracker = trackPendingImmediates(() => {
+    const tracker = new ImmediateTracker()
+    runWithNativeImmediateTracking(tracker, () => {
       setImmediate(() => {
         events.push('root')
         setImmediate(() => events.push('callback'))
@@ -383,8 +477,7 @@ describe('native immediate tracking', () => {
           })
         })
       })
-      return getImmediateTracker()
-    })()
+    })
 
     await new Promise<void>((resolve) => unpatchedSetImmediate(resolve))
     expect(events).toEqual(['root'])
@@ -402,8 +495,8 @@ describe('native immediate tracking', () => {
   })
 
   it('waits for a native sentinel on every subscription and tracks later batches', async () => {
-    await trackPendingImmediates(async () => {
-      const tracker = getImmediateTracker()
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
       const events: string[] = []
       let previousReady: Promise<void> | undefined
 
@@ -424,8 +517,6 @@ describe('native immediate tracking', () => {
 
         await Promise.all([ready, otherReady])
         expect(events.at(-1)).toBe(`${batch} control`)
-        expect(getImmediateTracker()).toBe(tracker)
-
         setImmediate(() => {
           setImmediate(() => events.push(batch))
         })
@@ -435,12 +526,12 @@ describe('native immediate tracking', () => {
         expect(tracker.hasPendingImmediates()).toBe(false)
         previousReady = ready
       }
-    })()
+    })
   })
 
   it('cancels idle subscriptions independently and accepts later subscriptions', async () => {
-    await trackPendingImmediates(async () => {
-      const tracker = getImmediateTracker()
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
       const cancelled = jest.fn()
       const active = jest.fn()
       const cancel = tracker.onIdle(cancelled)
@@ -456,7 +547,102 @@ describe('native immediate tracking', () => {
       await new Promise<void>((resolve) => tracker.onIdle(resolve))
       expect(cancelled).toHaveBeenCalledTimes(1)
       expect(active).toHaveBeenCalledTimes(1)
-    })()
+    })
+  })
+
+  it('preserves subscriber context across cancellation, resubscription, and listener reentry', async () => {
+    const tracker = new ImmediateTracker()
+    const subscriberTracker = new ImmediateTracker()
+    const storage = new AsyncLocalStorage<string>()
+    const events: string[] = []
+    const cancelled = jest.fn()
+    const cancel = tracker.onIdle(cancelled)
+    cancel()
+    const notified = createPromiseWithResolvers<void>()
+    const reentered = createPromiseWithResolvers<void>()
+
+    storage.run('work', () =>
+      runWithNativeImmediateTracking(tracker, () => {
+        setImmediate(() => events.push(`work: ${storage.getStore()}`))
+      })
+    )
+    storage.run('subscriber', () =>
+      runWithNativeImmediateTracking(subscriberTracker, () => {
+        tracker.onIdle(() => {
+          events.push(`idle: ${storage.getStore()}`)
+          setImmediate(() =>
+            events.push(`listener work: ${storage.getStore()}`)
+          )
+          tracker.onIdle(() => {
+            events.push(`reentered: ${storage.getStore()}`)
+            reentered.resolve()
+          })
+          cancel()
+          notified.resolve()
+        })
+      })
+    )
+
+    await notified.promise
+    expect(subscriberTracker.hasPendingImmediates()).toBe(true)
+    await reentered.promise
+    expect(cancelled).not.toHaveBeenCalled()
+    expect(events).toEqual([
+      'work: work',
+      'idle: subscriber',
+      'listener work: subscriber',
+      'reentered: subscriber',
+    ])
+    expect(tracker.hasPendingImmediates()).toBe(false)
+    expect(subscriberTracker.hasPendingImmediates()).toBe(false)
+    expect(storage.getStore()).toBeUndefined()
+  })
+
+  it('exits after cancelling an idle subscription with recurring unreferenced immediates', async () => {
+    const { promisify } = require('node:util') as typeof import('node:util')
+    const subprocess = promisify(execFile)(
+      process.execPath,
+      [
+        '--require',
+        require.resolve('tsx/cjs'),
+        '--eval',
+        `
+          require(${JSON.stringify(require.resolve('../node-environment-baseline'))})
+          const { ImmediateTracker, runWithNativeImmediateTracking } =
+            require(${JSON.stringify(require.resolve('./fast-set-immediate.external'))})
+          const assert = require('node:assert/strict')
+          const tracker = new ImmediateTracker()
+          let callbacks = 0
+          process.on('exit', () => {
+            assert.ok(callbacks >= 5, 'The subscription must keep the process alive until cancellation')
+          })
+
+          runWithNativeImmediateTracking(tracker, () => {
+            const repeat = () => {
+              callbacks++
+              if (callbacks === 5) {
+                cancel()
+                cancel()
+                console.log('cancelled')
+              }
+              setImmediate(repeat).unref()
+            }
+            setImmediate(repeat).unref()
+            const cancel = tracker.onIdle(() => {
+              throw new Error('Recurring immediates must not report idle')
+            })
+          })
+        `,
+      ],
+      { timeout: 10_000, killSignal: 'SIGKILL' }
+    )
+    try {
+      const { stdout, stderr } = await subprocess
+      expect(stderr).toBe('')
+      expect(stdout.trim()).toBe('cancelled')
+    } finally {
+      subprocess.child.kill('SIGKILL')
+    }
   })
 
   it('keeps native scheduling unless fast scheduling is explicitly enabled', async () => {
@@ -464,8 +650,8 @@ describe('native immediate tracking', () => {
     const done = createPromiseWithResolvers<void>()
     const scheduleTimeout = createAtomicTimerGroup()
 
-    trackPendingImmediates(() => {
-      const tracker = getImmediateTracker()
+    const tracker = new ImmediateTracker()
+    runWithNativeImmediateTracking(tracker, () => {
       scheduleTimeout(() => {
         events.push('first timer')
         unpatchedSetImmediate(() => events.push('native control'))
@@ -485,7 +671,7 @@ describe('native immediate tracking', () => {
         )
       })
       scheduleTimeout(() => events.push('second timer'))
-    })()
+    })
 
     await done.promise
     expectNoPendingImmediates()
@@ -501,20 +687,22 @@ describe('native immediate tracking', () => {
   })
 
   it('isolates renders that resume from the same promise', async () => {
+    const first = new ImmediateTracker()
+    const second = new ImmediateTracker()
     const shared = createPromiseWithResolvers<void>()
     const outside = shared.promise.then(() => {
-      expect(getImmediateTracker).toThrow()
+      setImmediate(() => {})
+      expect(first.hasPendingImmediates()).toBe(false)
+      expect(second.hasPendingImmediates()).toBe(false)
     })
-    const observed: ReturnType<typeof getImmediateTracker>[] = []
-    const render = trackPendingImmediates((nested: boolean) => {
-      const tracker = getImmediateTracker()
+    const observed: string[] = []
+    const render = (nested: boolean) => {
       const resumed = shared.promise.then(() => {
-        expect(getImmediateTracker()).toBe(tracker)
         setImmediate(() => {
-          observed.push(getImmediateTracker())
+          observed.push(nested ? 'second' : 'first')
           if (nested) {
             setImmediate(() => {
-              setImmediate(() => observed.push(getImmediateTracker()))
+              setImmediate(() => observed.push('second descendant'))
             })
           }
         })
@@ -522,25 +710,26 @@ describe('native immediate tracking', () => {
       if (!nested) {
         unpatchedSetImmediate(shared.resolve)
       }
-      return { tracker, resumed }
-    })
+      return resumed
+    }
 
-    const first = render(false)
-    const second = render(true)
-    expect(first.tracker).not.toBe(second.tracker)
-    await Promise.all([first.resumed, second.resumed, outside])
+    const firstResumed = runWithNativeImmediateTracking(first, render, false)
+    const secondResumed = runWithNativeImmediateTracking(second, render, true)
+    await Promise.all([firstResumed, secondResumed, outside])
+    expect(first.hasPendingImmediates()).toBe(true)
+    expect(second.hasPendingImmediates()).toBe(true)
 
-    await new Promise<void>((resolve) => first.tracker.onIdle(resolve))
-    expect(first.tracker.hasPendingImmediates()).toBe(false)
-    expect(second.tracker.hasPendingImmediates()).toBe(true)
-    await new Promise<void>((resolve) => second.tracker.onIdle(resolve))
-    expect(observed).toEqual([first.tracker, second.tracker, second.tracker])
-    expect(getImmediateTracker).toThrow()
+    await new Promise<void>((resolve) => first.onIdle(resolve))
+    expect(first.hasPendingImmediates()).toBe(false)
+    expect(second.hasPendingImmediates()).toBe(true)
+    await new Promise<void>((resolve) => second.onIdle(resolve))
+    expect(observed).toEqual(['first', 'second', 'second descendant'])
+    expect(second.hasPendingImmediates()).toBe(false)
   })
 
   it('preserves native callback arguments, handles, cancellation, and disposal', async () => {
-    await trackPendingImmediates(async () => {
-      const tracker = getImmediateTracker()
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
       const timers = require('node:timers') as typeof import('node:timers')
       let receiver: NodeJS.Immediate | undefined
       const callback = jest.fn(function (
@@ -584,7 +773,7 @@ describe('native immediate tracking', () => {
       expect(receiver).toBe(immediate)
       expect(cancelled).not.toHaveBeenCalled()
       expect(tracker.hasPendingImmediates()).toBe(false)
-    })()
+    })
   })
 
   it('preserves native promisified values and AbortError semantics', async () => {
@@ -592,8 +781,8 @@ describe('native immediate tracking', () => {
     const timersPromises =
       require('node:timers/promises') as typeof import('node:timers/promises')
 
-    await trackPendingImmediates(async () => {
-      const tracker = getImmediateTracker()
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
       for (const immediate of [
         promisify(setImmediate),
         timersPromises.setImmediate,
@@ -626,7 +815,7 @@ describe('native immediate tracking', () => {
         await new Promise<void>((resolve) => tracker.onIdle(resolve))
         expect(tracker.hasPendingImmediates()).toBe(false)
       }
-    })()
+    })
   })
 })
 
@@ -1359,7 +1548,7 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
           '--eval',
           `
             require(${JSON.stringify(require.resolve('../node-environment-baseline'))})
-            const { trackPendingImmediates, getImmediateTracker } =
+            const { ImmediateTracker, runWithNativeImmediateTracking } =
               require(${JSON.stringify(require.resolve('./fast-set-immediate.external'))})
             const events = []
             const expectedError = new Error('expected native error')
@@ -1371,8 +1560,8 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
               events.push('uncaughtException')
             })
 
-            trackPendingImmediates(async () => {
-              const tracker = getImmediateTracker()
+            const tracker = new ImmediateTracker()
+            runWithNativeImmediateTracking(tracker, async () => {
               setImmediate(() => {
                 events.push('immediate')
                 if (${JSON.stringify(kind)} === 'nextTick') {
@@ -1389,7 +1578,7 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
               setImmediate(() => events.push('later immediate'))
               await new Promise((resolve) => tracker.onIdle(resolve))
               console.log(JSON.stringify(events))
-            })().catch((error) => {
+            }).catch((error) => {
               console.error(error)
               process.exit(1)
             })

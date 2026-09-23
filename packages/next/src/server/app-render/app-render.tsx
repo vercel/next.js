@@ -252,8 +252,8 @@ import {
 import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import {
-  getImmediateTracker,
-  trackPendingImmediates,
+  ImmediateTracker,
+  runWithNativeImmediateTracking,
 } from '../node-environment-extensions/fast-set-immediate.external'
 import {
   createResponseVaryParamsAccumulator,
@@ -1109,6 +1109,12 @@ async function generateStagedDynamicFlightRenderResultNode(
   const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+  // Partial prefetching waits for cacheReady() before starting an embedded
+  // runtime prefetch. Track React's native immediates so that this wait
+  // includes Flight work that can discover more cache reads. Other prefetch
+  // modes do not wait for cacheReady() here.
+  const immediateTracker =
+    prefetchMode === PrefetchingMode.Partial ? new ImmediateTracker() : null
 
   // Check if this route should runtime-cache its navigation. This happens when
   // Partial Prefetching is enabled for the route, either per segment (a
@@ -1122,7 +1128,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
     requestStore.resumeDataCache = prerenderResumeDataCache
 
-    const cacheSignal = new CacheSignal(getImmediateTracker())
+    const cacheSignal = new CacheSignal(immediateTracker)
     trackPendingModules(cacheSignal)
     requestStore.cacheSignal = cacheSignal
 
@@ -1150,7 +1156,13 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   const rscPayload = await workUnitAsyncStorage.run(
     requestStore,
-    generateDynamicRSCPayload,
+    immediateTracker === null
+      ? generateDynamicRSCPayload
+      : (runWithNativeImmediateTracking.bind(
+          null,
+          immediateTracker,
+          generateDynamicRSCPayload
+        ) as typeof generateDynamicRSCPayload),
     ctx,
     {
       staleTimeIterable,
@@ -1162,7 +1174,15 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   const { clientModules } = getClientReferenceManifest()
 
-  const flightStream = await runInSequentialTasks(
+  const runRenderTasks =
+    immediateTracker === null
+      ? runInSequentialTasks<Readable>
+      : (runWithNativeImmediateTracking.bind(
+          null,
+          immediateTracker,
+          runInSequentialTasks<Readable>
+        ) as typeof runInSequentialTasks<Readable>)
+  const flightStream = await runRenderTasks(
     () => {
       stageController.advanceStage(RenderStage.ShellStatic)
 
@@ -1686,7 +1706,8 @@ async function prospectiveRuntimeServerPrerender(
 
   // The cacheSignal helps us track whether caches are still filling or we are ready
   // to cut the render off.
-  const cacheSignal = new CacheSignal(getImmediateTracker())
+  const immediateTracker = new ImmediateTracker()
+  const cacheSignal = new CacheSignal(immediateTracker)
 
   const initialServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
@@ -1730,7 +1751,11 @@ async function prospectiveRuntimeServerPrerender(
   // is if it completes in a microtask and that's likely very rare for any non-trivial app
   const initialServerPayload = await workUnitAsyncStorage.run(
     initialServerPrerenderStore,
-    getPayload
+    runWithNativeImmediateTracking.bind(
+      null,
+      immediateTracker,
+      getPayload
+    ) as typeof getPayload
   )
 
   const prerenderOptions = {
@@ -1765,7 +1790,11 @@ async function prospectiveRuntimeServerPrerender(
 
   const pendingInitialServerResult = workUnitAsyncStorage.run(
     initialServerPrerenderStore,
-    getServerPrerender(ComponentMod),
+    runWithNativeImmediateTracking.bind(
+      null,
+      immediateTracker,
+      getServerPrerender(ComponentMod)
+    ) as ReturnType<typeof getServerPrerender>,
     initialServerPayload,
     clientModules,
     prerenderOptions
@@ -3389,10 +3418,6 @@ function prepareAppPage(
   }
 }
 
-const renderToHTMLOrFlightWithTrackedImmediates = trackPendingImmediates(
-  renderToHTMLOrFlightImpl
-)
-
 export const renderToHTMLOrFlight: AppPageRender = (
   req,
   res,
@@ -3420,9 +3445,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   return workAsyncStorage.run(
     workStore,
-    workStore.cacheComponentsEnabled
-      ? renderToHTMLOrFlightWithTrackedImmediates
-      : renderToHTMLOrFlightImpl,
+    renderToHTMLOrFlightImpl,
     req,
     res,
     url,
@@ -3438,10 +3461,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     fallbackRouteParams
   )
 }
-
-const prerenderToHTMLOrFlightWithTrackedImmediates = trackPendingImmediates(
-  prerenderToHTMLOrFlightImpl
-)
 
 export const prerenderToHTMLOrFlight: AppPageRender = (
   req,
@@ -3474,9 +3493,7 @@ export const prerenderToHTMLOrFlight: AppPageRender = (
 
   return workAsyncStorage.run(
     workStore,
-    workStore.cacheComponentsEnabled
-      ? prerenderToHTMLOrFlightWithTrackedImmediates
-      : prerenderToHTMLOrFlightImpl,
+    prerenderToHTMLOrFlightImpl,
     req,
     res,
     url,
@@ -3903,6 +3920,14 @@ async function renderToStream(
           createPromiseWithResolvers<number>()
 
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+        // Partial prefetching waits for cacheReady() before starting an
+        // embedded runtime prefetch. Track React's native immediates so that
+        // this wait includes Flight work that can discover more cache reads.
+        // Other prefetch modes do not wait for cacheReady() here.
+        const immediateTracker =
+          prefetchMode === PrefetchingMode.Partial
+            ? new ImmediateTracker()
+            : null
 
         // If the route should runtime-cache its navigation, spawn a runtime
         // prerender after the resume render fills caches. The result is
@@ -3915,7 +3940,7 @@ async function renderToStream(
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
 
-          const cacheSignal = new CacheSignal(getImmediateTracker())
+          const cacheSignal = new CacheSignal(immediateTracker)
           trackPendingModules(cacheSignal)
           requestStore.cacheSignal = cacheSignal
 
@@ -3937,7 +3962,13 @@ async function renderToStream(
 
         const RSCPayload = await workUnitAsyncStorage.run(
           requestStore,
-          getRSCPayload,
+          immediateTracker === null
+            ? getRSCPayload
+            : (runWithNativeImmediateTracking.bind(
+                null,
+                immediateTracker,
+                getRSCPayload
+              ) as typeof getRSCPayload),
           tree,
           ctx,
           {
@@ -3950,7 +3981,15 @@ async function renderToStream(
           }
         )
 
-        const flightStream = await runInSequentialTasks(
+        const runRenderTasks =
+          immediateTracker === null
+            ? runInSequentialTasks<Readable>
+            : (runWithNativeImmediateTracking.bind(
+                null,
+                immediateTracker,
+                runInSequentialTasks<Readable>
+              ) as typeof runInSequentialTasks<Readable>)
+        const flightStream = await runRenderTasks(
           () => {
             stageController.advanceStage(RenderStage.ShellStatic)
 
@@ -5399,7 +5438,7 @@ function setUpStagedDevRender(
 ): StagedDevRenderSetup {
   const shouldRenderWithAppShell = navigationHasAppShell(navigationKind)
 
-  const cacheSignal = new CacheSignal(getImmediateTracker())
+  const cacheSignal = new CacheSignal(null)
   trackPendingModules(cacheSignal)
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
   const stageController = new StagedRenderingController({
@@ -6715,9 +6754,6 @@ function toDevValidationInputs(
   }
 }
 
-const runValidationInDevWithTrackedImmediates =
-  trackPendingImmediates(runValidationInDev)
-
 /**
  * Worker entry point for Cached Components dev validation, reached from the
  * validation worker via `ComponentMod.routeModule.runValidationInDev`. The
@@ -6807,7 +6843,7 @@ export async function runValidationInDevFromSnapshot(
 
   return workAsyncStorage.run(
     workStore,
-    runValidationInDevWithTrackedImmediates,
+    runValidationInDev,
     message.prefetchMode,
     instantInputs,
     staticInputs,
@@ -7228,7 +7264,7 @@ async function warmupClientModulesForStagedValidation(
 
   // This is mostly needed for dynamic `import()`s in client components.
   // Promises passed to client were already awaited above (assuming that they came from cached functions)
-  const cacheSignal = new CacheSignal(getImmediateTracker())
+  const cacheSignal = new CacheSignal(null)
   trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
   workUnitAsyncStorage.run(
@@ -7929,7 +7965,8 @@ async function renderWithRestartOnCacheMissInValidation(
   // Initial render (prospective — may warm caches)
   //===============================================
 
-  const cacheSignal = new CacheSignal(getImmediateTracker())
+  const immediateTracker = new ImmediateTracker()
+  const cacheSignal = new CacheSignal(immediateTracker)
   trackPendingModules(cacheSignal)
 
   // The prerender we rean before the validation probably already filled some caches,
@@ -7966,7 +8003,11 @@ async function renderWithRestartOnCacheMissInValidation(
   requestStore.controller = undefined
   requestStore.renderSignal = undefined
 
-  const initialRscPayload = await getPayload(requestStore)
+  const initialRscPayload = await runWithNativeImmediateTracking(
+    immediateTracker,
+    getPayload,
+    requestStore
+  )
 
   const advanceStageIfNoCacheMiss = (
     stage: Parameters<StagedRenderingController['advanceStage']>[0]
@@ -7980,7 +8021,11 @@ async function renderWithRestartOnCacheMissInValidation(
     }
   }
 
-  const initialResult = await runInSequentialTasks(
+  const initialResult = await runWithNativeImmediateTracking(
+    immediateTracker,
+    runInSequentialTasks<{
+      accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
+    }>,
     () => {
       initialStageController.advanceStage(RenderStage.ShellStatic)
       startTime = performance.now() + performance.timeOrigin
@@ -8875,7 +8920,8 @@ async function prerenderToStream(
 
       // The cacheSignal helps us track whether caches are still filling or we are ready
       // to cut the render off.
-      const cacheSignal = new CacheSignal(getImmediateTracker())
+      const immediateTracker = new ImmediateTracker()
+      const cacheSignal = new CacheSignal(immediateTracker)
 
       // If a prefilled immutable render resume data cache is provided, e.g.
       // when prerendering an optional fallback shell after having prerendered
@@ -8922,7 +8968,11 @@ async function prerenderToStream(
       // is if it completes in a microtask and that's likely very rare for any non-trivial app
       const initialServerPayload = await workUnitAsyncStorage.run(
         initialServerPayloadPrerenderStore,
-        getRSCPayload,
+        runWithNativeImmediateTracking.bind(
+          null,
+          immediateTracker,
+          getRSCPayload
+        ) as typeof getRSCPayload,
         tree,
         ctx,
         { is404: res.statusCode === 404, isPrerendering: true }
@@ -8992,7 +9042,11 @@ async function prerenderToStream(
 
       const pendingInitialServerResult = workUnitAsyncStorage.run(
         initialServerPrerenderStore,
-        getServerPrerender(ComponentMod),
+        runWithNativeImmediateTracking.bind(
+          null,
+          immediateTracker,
+          getServerPrerender(ComponentMod)
+        ) as ReturnType<typeof getServerPrerender>,
         initialServerPayload,
         clientModules,
         initialPrerenderOptions
@@ -9156,8 +9210,9 @@ async function prerenderToStream(
 
         // This is mostly needed for dynamic `import()`s in client components.
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
-        trackPendingModules(cacheSignal)
-        await cacheSignal.cacheReady()
+        const clientCacheSignal = new CacheSignal(null)
+        trackPendingModules(clientCacheSignal)
+        await clientCacheSignal.cacheReady()
         workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           initialClientReactController.abort.bind(initialClientReactController)
