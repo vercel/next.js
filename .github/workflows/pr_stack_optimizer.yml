@@ -237,7 +237,7 @@ jobs:
                 const lines = [
                   '# PR Stack CI Gate',
                   '',
-                  `- PR: #${current?.number ?? context.payload.pull_request.number}`,
+                  `- PR: #${current?.number ?? context.payload.pull_request?.number ?? 'n/a'}`,
                   `- Branches: \`${escapeCell(current?.base?.ref)}\` ← \`${escapeCell(current?.head?.ref)}\``,
                   `- Role: **${escapeCell(snapshot.role)}**`,
                   `- Result: **${escapeCell(outcome)}**`,

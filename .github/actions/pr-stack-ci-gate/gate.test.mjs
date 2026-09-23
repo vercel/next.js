@@ -173,9 +173,13 @@ async function runGate({
     repo: { owner: 'vercel', repo: 'next.js' },
     payload: {
       repository: { full_name: 'vercel/next.js' },
-      pull_request: pulls.find((item) => item.number === current) ?? {
-        number: current,
-      },
+      ...(eventName === 'pull_request'
+        ? {
+            pull_request: pulls.find((item) => item.number === current) ?? {
+              number: current,
+            },
+          }
+        : {}),
     },
   }
 
@@ -208,6 +212,8 @@ test('non-PR runs open immediately', { concurrency: false }, async () => {
   const { core } = await runGate({ eventName: 'push' })
   assert.equal(core.outputs.get('skip'), 'false')
   assert.deepEqual(core.failures, [])
+  assert.deepEqual(core.warnings, [])
+  assert.match(core.summaries.join('\n'), /PR: #n\/a/)
   assert.match(core.summaries.join('\n'), /push runs immediately/)
 })
 
