@@ -44,13 +44,14 @@ describe.each([
     })
 
     expect(res.status).toBe(200)
-    if (
-      decodesAvif ||
-      // Vercel's Image Optimization pipeline uses a patched libheif i.e. doesn't use Next.js' pipeline.
-      isNextDeploy
-    ) {
+    if (!isNextDeploy && decodesAvif) {
       expect(res.headers.get('content-type')).toBe('image/webp')
     } else {
+      // The local pipeline passes AVIF input through when the bundled
+      // libheif is vulnerable. Vercel's image CDN serves `/_next/image`
+      // itself and currently passes AVIF input through unmodified
+      // regardless of the Accept header, so deployments take this branch
+      // too.
       expect(res.headers.get('content-type')).toBe('image/avif')
       const source = await fs.readFile(join(appDir, 'public/test.avif'))
       expect(Buffer.from(await res.arrayBuffer()).equals(source)).toBe(true)
