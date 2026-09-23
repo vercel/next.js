@@ -26,7 +26,7 @@ nodeContextPrototype.q = exportUrl
 nodeContextPrototype.M = moduleFactories
 // Cast moduleCache to ModuleWithDirection for production mode
 nodeContextPrototype.c = moduleCache as ModuleCache<ModuleWithDirection>
-nodeContextPrototype.R = resolvePathFromModule
+nodeContextPrototype.S = resolvePathFromModule
 nodeContextPrototype.C = clearChunkCache
 
 function instantiateModule(
