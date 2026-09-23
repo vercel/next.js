@@ -85,7 +85,15 @@ Both use the same envelope:
 3. The rest, starting at `4+n`, is the **binary section**. Each JSON
    `EdgesDataReference` has `{offset, length}` in **bytes relative to this
    section**, not to the beginning of the file. `length` is the serialized
-   section length, not the number of edges.
+   section length, not the number of edges. Both newer headers have
+   `schema_version: 1` and `module_index_hash`: require **both** fields to
+   match before joining a route's numeric module indices to `modules.data`.
+   The hash fingerprints the ordered module identities, **not** the entire
+   build or its outputs. It detects accidental mismatches, not malicious
+   artifact tampering; keep files from the same named snapshot together.
+   Missing versions are legacy files (decode their older fields without an
+   `output_file_modules` join). Unknown versions or mismatched hashes must
+   not be joined by index.
 4. At `binary_start + offset`, read a BE u32 `count` of cumulative offset
    entries. Read `count` BE u32 cumulative offsets, then the BE u32 edge-index
    array. For node index `i < count`, its edges are
@@ -103,6 +111,9 @@ The `analyze.data` JSON header contains:
 - `route_entries[]` (newer artifacts only): Endpoint graph roots with `route_entry_id`, exact `module_ident`, `module_path`, `role` (`route` or `shared`) and optional `runtime`. `entry_kind` is `server` or `client_bootstrap` only when verified from the endpoint's build inputs; if absent, the kind is unknown. An App RSC root can contain `client_references[]` with `module_ident`, `module_path` and `reference_kind` (`ecmascript` or `css`). These nested references are **not** endpoint graph roots or proven initial browser requests. Some API artifacts include shared Pages roots because output files are merged; unannotated shared roots do not imply browser work for that API.
 - `source_roots[]`: Indices of source-tree roots.
 - `output_file_chunk_parts`, `source_chunk_parts`, `source_children`: Edge references: output → part indices, source → part indices, source → child source indices.
+- `output_file_modules` (v1): binary adjacency with **one row per `output_files[]` item**, containing indices into that snapshot's `modules.data.modules[]`. `output_file_module_coverage[]` has the same length: `exact` means all enumerated JS/CSS chunk items joined; `unsupported` means the row might be partial or empty because the output wrapper or member cannot be enumerated/joined; `not_a_chunk` means it has no module-chunk membership. `unresolved_output_references[]` aligns with outputs and counts reference wrappers without an explicit target/load kind; positive counts prevent assuming the typed edge list is exhaustive. Check `unjoined_modules[]` for `{output_file_index, module_ident, reason}`; worker payloads compiled from separate graphs belong here, not in the whole-app index. These are **module contents of a chunk**, not source-part attribution or an initial-load verdict.
+- `chunk_groups[]` (v1): route-local `{id, kind, trigger_module_index?, unjoined_trigger_ident?, output_file_indices[]}`. `bootstrap` comes from direct App shared or Pages evaluated client group assets; `render_dependent` is App layout/client-reference group output whose load depends on rendering; `async` is a generated async loader/manifest's direct group output; `worker` is a separately compiled worker asset. An output can be in **multiple** groups. A layout group may be cumulative; its output list is not the exact modules contributed by one reference. A trigger index refers to the same `modules.data` as `output_file_modules` when the version/hash match.
+- `chunk_load_edges[]` (v1): `{source_output_file_index, target_output_file_index, kind, trigger_module_index?, unjoined_trigger_ident?}`. `async` / `async_manifest` come from emitted loader/manifest chunk items, `worker_registration` from a registration importer traced synchronously to an emitted browser chunk; `asset_reference` records only a generic output reference and **does not prove a request**. `unjoined_chunk_load_edges[]` gives uncertain/out-of-route targets with reasons. There is no observed `initial` or `prefetched` label; absence of an edge/role does not establish that an asset cannot load.
 
 `modules.data` contains `modules[]` with `{ident, path}` plus **six** edge
 references: `module_dependencies`, `async_module_dependencies`,
@@ -111,12 +122,16 @@ references: `module_dependencies`, `async_module_dependencies`,
 `*_dependencies[i]` points toward what it imports; `*_dependents[j]` points
 back to its importers. Ordinary dependency edges are synchronous; async edges
 mark async boundaries; traced edges describe file-tracing relationships and
-should not be treated as browser imports. Module indices are local to
-`modules.data`; source indices and chunk-part indices are local to one route's
-`analyze.data`. **Never join by index across files.** `ident` distinguishes
-module variants; `path` is not unique, and a source path is not necessarily an
-exact module identity. Where a path maps to multiple `ident`s, keep the
-ambiguity rather than guessing which importer owns a source contribution.
+should not be treated as browser imports. Before v1, module indices were local
+to `modules.data` and could **never** be joined to route indices; v1 alone
+explicitly permits the `output_file_modules` / trigger-index join after checking
+matching version and ordered-index hash. Numeric indices are not stable across
+builds. Source indices and chunk-part indices are local to one route's
+`analyze.data`. `ident` distinguishes module variants; `path` is not unique,
+and a source path is not necessarily an exact module identity. **The new
+output-file membership does not create a stable source-to-module ID.** Where a
+path maps to multiple `ident`s, keep the ambiguity rather than guessing which
+importer owns a source contribution.
 
 Sanity checks: the reference occupies `4 + 4*count + 4*offsets[-1]` bytes;
 `count` should match the owning array length for these files; each part's
@@ -162,6 +177,20 @@ modules, module_edges = open_data(root / 'modules.data')
 part_ids = neighbors(route_edges, route['source_chunk_parts'], 0)
 imports = neighbors(module_edges, modules['module_dependencies'], 0)
 print('source 0 part IDs:', part_ids, 'module 0 imports:', imports)
+version = route.get('schema_version')
+if version is None and modules.get('schema_version') is None:
+    print('Legacy files: no numeric route-output to module join')
+elif version == modules.get('schema_version') == 1 and (
+    route.get('module_index_hash') and
+    route['module_index_hash'] == modules.get('module_index_hash')
+):
+    assert len(route['output_file_module_coverage']) == len(route['output_files'])
+    row = neighbors(route_edges, route['output_file_modules'], 0)
+    assert all(0 <= index < len(modules['modules']) for index in row)
+    print('output 0 coverage:', route['output_file_module_coverage'][0])
+    print('output 0 module idents:', [modules['modules'][i]['ident'] for i in row])
+else:
+    raise ValueError('Unsupported version or mismatched module index snapshot')
 ```
 
 Use the exact `routes.json` entry and route file in your app (for `/`, use
@@ -194,15 +223,26 @@ printing entire headers to a model context.
    **not** additional synchronous roots of the server endpoint. The graph is
    whole-app; intersect candidate paths with route output sources and inspect
    application source. A source path can map to multiple module identities.
-4. **Initial load requires more evidence.** Older artifacts lack route entry
-   IDs. New `route_entries` records endpoint roots and verified client build
-   provenance, but neither `client_bootstrap` nor a nested client reference
-   proves a chunk was requested on cold navigation. The format still lacks
-   initial/async chunk load classifications, request timing, nearest client
-   boundaries and counterfactual cut answers. Inspect emitted chunks and, when
-   timing matters, a cold browser network trace. Label any inferred initial
-   classification as a heuristic. An already-async edge is not a candidate
-   for another dynamic split just because its target appears in route data.
+4. In v1, verify the **version and module-index hash** before reading
+   `output_file_modules` or a group/edge trigger index. Traverse the output →
+   module rows to find exact chunk membership; check coverage and unmatched
+   identities before using an empty row. Inspect `chunk_groups` and typed
+   `chunk_load_edges` to distinguish build-time bootstrap assets,
+   render-dependent references, async loader targets, workers and generic
+   references. A client reference is not itself an endpoint graph root; do
+   not assign all of a cumulative layout group's chunks to that reference.
+   Continue to use `chunk_parts` for size attribution; membership is **not**
+   a byte-saving estimate. Older artifacts have no route-output → module join.
+5. **Initial browser requests still require more evidence.** A `bootstrap`
+   group identifies a direct client build group, not every request on a cold
+   navigation; `render_dependent` chunks can load in the first render or
+   later, and `worker_registration` happens only when its code executes.
+   Prefetch policy and transfer bytes require runtime evidence. A group or
+   typed edge may support a **conditional build-time** cut for a chosen route
+   and render scenario, but it does not prove request timing or exact saved
+   bytes. Corroborate initial-load claims with a cold browser network trace.
+   An already-async edge is not a candidate for another dynamic split just
+   because its target appears in route data.
 
 ### Rank a useful candidate
 
@@ -226,11 +266,14 @@ bundler: only a measured artifact delta supports a bundle win.
 ### When a graph strategy helps
 
 - **Min cut:** For a known client entry set and a target heavy subgraph, start
-  with the directed _synchronous_ module dependency graph. Typed bootstrap
-  entries alone do not supply a verified _initial_ client entry set; without
-  chunk-load provenance, do not call such a cut an initial-load result. Add a
-  super-source
-  connecting **all** verified initial entries and a sink connecting targets;
+  with the directed _synchronous_ module dependency graph. Use matching v1
+  output→module rows, typed groups and load edges to scope the route's
+  build-time bootstrap and **explicitly selected** render-dependent groups;
+  inspect unsupported coverage, unresolved reference counts, and unjoined edges first. This supports a
+  _conditional build-time_ cut, not a verified cold browser-load claim. For a
+  cold-load cut, verify actual requested entry/chunk sets with a network trace;
+  refrain from a definitive result if roles are incomplete. Add a super-source
+  connecting **all** selected client entries and a sink connecting targets;
   find a separating set of import edges (or use node splitting if boundaries
   are modules). Define capacity deliberately: a unit cut minimizes edge count;
   a byte-weighted or source-edit cost answers a different question. Condense
@@ -260,8 +303,8 @@ These are _procedures_, not precomputed answers; run them against the selected
 route and report actual paths and values:
 
 - **What contributes most to `/dashboard` client output?** Decode that route's `analyze.data`; filter output filenames after verifying the client convention; group `chunk_parts` by reconstructed source path or package; sum each part once. Report the largest paths, uncompressed/compressed attribution and the selected output files. This ranks **route output**, not proven initial requests.
-- **Why is a large editor included?** Find its source path in route parts and matching `modules.data` paths; choose an exact `ident` if possible. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. A browser trace is needed before calling it initially loaded.
-- **Where might a lazy boundary isolate the editor?** Only after establishing real client entry nodes, search for **all** synchronous paths to the editor; run a min cut on that scoped graph. For instance, two independent entry→editor paths need both severed, not just the visually obvious import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
+- **Why is a large editor included?** Find it in v1 output→module rows (or use source paths as ambiguous leads in legacy artifacts); check the containing chunk's coverage and group roles. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. Browser requests remain unverified without a trace.
+- **Where might a lazy boundary isolate the editor?** Select client entry nodes and a conditional render scenario (or observe a real initial-request set), check the group/edge coverage, then search for **all** synchronous paths to the editor and run a cut only when the scope is defensible. For instance, two independent entry→editor paths need both severed, not just the visually obvious import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
 
 As a toy sanity check, imagine a folder source 0 with no direct parts and a
 child source 1 owning one 100-byte part (40 attributed compressed bytes). The

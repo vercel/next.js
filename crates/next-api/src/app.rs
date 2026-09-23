@@ -84,8 +84,8 @@ use crate::{
     },
     project::{BaseAndFullModuleGraph, Project},
     route::{
-        AnalyzeClientEntries, AnalyzeClientReference, AppPageRoute, Endpoint, EndpointOutput,
-        EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -2292,6 +2292,98 @@ impl Endpoint for AppEndpoint {
             references,
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn analyze_chunk_groups(self: Vc<Self>) -> Result<Vc<AnalyzeChunkGroups>> {
+        let this = self.await?;
+        if !matches!(this.ty, AppEndpointType::Page { .. }) {
+            return Ok(Vc::cell(vec![]));
+        }
+        let project = this.app_project.project();
+        let app_entry = self.app_endpoint_entry().await?;
+        let graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *app_entry.rsc_entry,
+                Some(this.app_project.client_runtime_entries()),
+            )
+            .await?;
+        let client_chunking_context = project.client_chunking_context();
+        let shared = get_app_client_shared_chunk_group(
+            AssetIdent::from_path(project.project_path().owned().await?)
+                .with_modifier(rcstr!("client-shared-chunks"))
+                .into_vc(),
+            this.app_project.client_runtime_entries(),
+            *graphs.full,
+            client_chunking_context,
+        )
+        .await?;
+        let mut groups = vec![AnalyzeChunkGroup {
+            kind: rcstr!("bootstrap"),
+            trigger: this
+                .app_project
+                .client_runtime_entries()
+                .await?
+                .first()
+                .map(|module| ResolvedVc::upcast(*module)),
+            assets: shared.assets,
+            pages_html: false,
+        }];
+        let references =
+            ClientReferencesGraphs::new(*graphs.base, *project.per_page_module_graph().await?)
+                .get_client_references_for_endpoint(
+                    *app_entry.rsc_entry,
+                    true,
+                    *project.should_write_nft_manifests().await?,
+                    project.next_mode().await?.is_production(),
+                )
+                .to_resolved()
+                .await?;
+        let chunks = get_app_client_references_chunks(
+            *references,
+            *graphs.full,
+            client_chunking_context,
+            shared.availability_info,
+            // Only client output groups are needed; SSR chunks are not browser assets.
+            None,
+        )
+        .await?;
+        for (&reference, &group) in &chunks.client_component_client_chunks {
+            let module = match reference {
+                ClientReferenceType::EcmascriptClientReference(reference) => {
+                    ResolvedVc::upcast(reference.await?.client_module)
+                }
+                ClientReferenceType::CssClientReference(reference) => ResolvedVc::upcast(reference),
+            };
+            groups.push(AnalyzeChunkGroup {
+                kind: rcstr!("render_dependent"),
+                trigger: Some(module),
+                assets: group.await?.assets,
+                pages_html: false,
+            });
+        }
+        for (&segment, &group) in &chunks.layout_segment_client_chunks {
+            groups.push(AnalyzeChunkGroup {
+                kind: rcstr!("render_dependent"),
+                trigger: Some(ResolvedVc::upcast(segment)),
+                assets: group.await?.assets,
+                pages_html: false,
+            });
+        }
+        let workers = service_worker_output_assets(project, *graphs.base)
+            .to_resolved()
+            .await?;
+        if !workers.await?.is_empty() {
+            groups.push(AnalyzeChunkGroup {
+                kind: rcstr!("worker"),
+                trigger: None,
+                assets: workers,
+                pages_html: false,
+            });
+        }
+        Ok(Vc::cell(groups))
     }
 
     #[turbo_tasks::function]
