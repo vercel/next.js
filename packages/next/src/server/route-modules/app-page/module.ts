@@ -1,6 +1,6 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
-import type { RenderOpts } from '../../app-render/types'
+import type { AppPageRenderOperation, RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
@@ -75,7 +75,7 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts & { renderOperation: AppPageRenderOperation }
   serverComponentsHmrCache?: ServerComponentsHmrCache
   sharedContext: AppSharedContext
 }
