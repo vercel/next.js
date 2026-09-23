@@ -113,6 +113,19 @@ describe('next experimental-analyze', () => {
           pagination: { limit: 1, returned: 1 },
           routes: [{ route: expect.any(String), rawSize: expect.any(Number) }],
         })
+
+        const sources = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'get_route_modules',
+          '--input',
+          '{"route":"/","limit":1}',
+        ])
+        expect(sources.exitCode).toBe(0)
+        expect(JSON.parse(sources.stdout)).toMatchObject({
+          route: '/',
+          sources: [{ sourcePath: expect.any(String) }],
+        })
       })
     })
   })
