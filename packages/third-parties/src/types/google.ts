@@ -1,3 +1,5 @@
+import type { ScriptProps } from 'next/script'
+
 declare global {
   interface Window {
     dataLayer?: Object[]
@@ -18,6 +20,7 @@ type GTMParamsBaseParams = {
   auth?: string
   preview?: string
   nonce?: string
+  strategy?: ScriptProps['strategy']
 }
 
 type GTMParamsWithId = GTMParamsBaseParams & {
