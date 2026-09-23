@@ -15,12 +15,24 @@ describe('validateLocalFontFunctionCall', () => {
     ).toThrowErrorMatchingInlineSnapshot(`"Missing required \`src\` property"`)
   })
 
+  test('Invalid src type', async () => {
+    expect(() =>
+      validateLocalFontFunctionCall('', { src: 123 })
+    ).toThrowErrorMatchingInlineSnapshot(`"Unexpected file \`123\`"`)
+  })
+
   test('Invalid file extension', async () => {
     expect(() =>
       validateLocalFontFunctionCall('', { src: './font/font-file.abc' })
     ).toThrowErrorMatchingInlineSnapshot(
       `"Unexpected file \`./font/font-file.abc\`"`
     )
+  })
+
+  test('File extension case insensitivity', async () => {
+    expect(() =>
+      validateLocalFontFunctionCall('', { src: './FONT/FONT-FILE.WOFF' })
+    ).not.toThrow()
   })
 
   test('Invalid display value', async () => {
