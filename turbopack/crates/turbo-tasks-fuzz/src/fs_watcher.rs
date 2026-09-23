@@ -162,6 +162,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         let mut rng = rand::rngs::SmallRng::from_rng(&mut rand::rng());
         loop {
             let mut modified_file_paths = FxHashSet::default();
+            let symlink_targets_before = symlink_targets.clone();
             for _ in 0..args.file_modifications {
                 let path = fs_root.join(pick_random_file(args.depth, args.width));
                 let mut f = OpenOptions::new().write(true).truncate(true).open(&path)?;
@@ -204,6 +205,16 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                     }
                 }
             }
+
+            // A symlink can be selected more than once per iteration. If later mutations restore
+            // its starting target, Turbo Tasks sees no net value change, so don't expect the parent
+            // operation to be invalidated.
+            remove_unchanged_symlink_paths(
+                &mut modified_file_paths,
+                &fs_root,
+                &symlink_targets_before,
+                &symlink_targets,
+            );
 
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
@@ -560,6 +571,21 @@ fn pick_random_link_target(depth: usize, width: usize, mode: SymlinkMode) -> Pat
     }
 }
 
+fn remove_unchanged_symlink_paths(
+    modified_file_paths: &mut FxHashSet<PathBuf>,
+    fs_root: &Path,
+    before: &[PathBuf],
+    after: &[PathBuf],
+) {
+    debug_assert_eq!(before.len(), after.len());
+    let symlinks_dir = fs_root.join("_symlinks");
+    for (index, (before, after)) in before.iter().zip(after).enumerate() {
+        if before == after {
+            modified_file_paths.remove(&symlinks_dir.join(index.to_string()));
+        }
+    }
+}
+
 struct FsCleanup<'a> {
     path: &'a Path,
 }
@@ -572,7 +598,13 @@ impl Drop for FsCleanup<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::fs_watcher::{FILE_SENTINEL_PREFIX, read_derived_content};
+    use std::path::{Path, PathBuf};
+
+    use rustc_hash::FxHashSet;
+
+    use crate::fs_watcher::{
+        FILE_SENTINEL_PREFIX, read_derived_content, remove_unchanged_symlink_paths,
+    };
 
     #[test]
     fn prefixes_external_content() {
@@ -600,5 +632,75 @@ mod tests {
     fn handles_empty_and_missing_content_deterministically() {
         assert_eq!(read_derived_content(Some(b"")), FILE_SENTINEL_PREFIX);
         assert_eq!(read_derived_content(None), FILE_SENTINEL_PREFIX);
+    }
+
+    #[test]
+    fn retains_symlinks_with_a_net_target_change() {
+        let root = Path::new("/root");
+        let symlink = root.join("_symlinks/0");
+        let mut modified = FxHashSet::from_iter([symlink.clone()]);
+
+        remove_unchanged_symlink_paths(
+            &mut modified,
+            root,
+            &[PathBuf::from("old")],
+            &[PathBuf::from("new")],
+        );
+
+        assert_eq!(modified, FxHashSet::from_iter([symlink]));
+    }
+
+    #[test]
+    fn retains_symlinks_changed_multiple_times_to_a_different_target() {
+        let root = Path::new("/root");
+        let symlink = root.join("_symlinks/0");
+        let mut modified = FxHashSet::from_iter([symlink.clone()]);
+
+        // Intermediate targets are intentionally absent: only the iteration boundaries determine
+        // whether the dependent operation observes a net value change.
+        remove_unchanged_symlink_paths(
+            &mut modified,
+            root,
+            &[PathBuf::from("start")],
+            &[PathBuf::from("final")],
+        );
+
+        assert_eq!(modified, FxHashSet::from_iter([symlink]));
+    }
+
+    #[test]
+    fn removes_symlinks_restored_to_their_starting_target() {
+        let root = Path::new("/root");
+        let symlink = root.join("_symlinks/0");
+        let unrelated = root.join("file");
+        let mut modified = FxHashSet::from_iter([symlink, unrelated.clone()]);
+
+        // The link may have taken any number of intermediate targets. Only its starting and final
+        // observable values matter to the dependent Turbo Tasks operation.
+        remove_unchanged_symlink_paths(
+            &mut modified,
+            root,
+            &[PathBuf::from("same")],
+            &[PathBuf::from("same")],
+        );
+
+        assert_eq!(modified, FxHashSet::from_iter([unrelated]));
+    }
+
+    #[test]
+    fn leaves_untouched_symlinks_and_unrelated_paths_alone() {
+        let root = Path::new("/root");
+        let unrelated = root.join("file");
+        let changed_symlink = root.join("_symlinks/1");
+        let mut modified = FxHashSet::from_iter([unrelated.clone(), changed_symlink.clone()]);
+
+        remove_unchanged_symlink_paths(
+            &mut modified,
+            root,
+            &[PathBuf::from("unchanged"), PathBuf::from("old")],
+            &[PathBuf::from("unchanged"), PathBuf::from("new")],
+        );
+
+        assert_eq!(modified, FxHashSet::from_iter([unrelated, changed_symlink]));
     }
 }
