@@ -66,8 +66,8 @@ function modulesBuffer(): ArrayBuffer {
   )
 }
 
-function analyzeBuffer(): ArrayBuffer {
-  const sections = [edges([[0]]), edges([[], [0]]), edges([[1], []])]
+function analyzeBuffer(exact = true): ArrayBuffer {
+  const sections = [edges([[0], []]), edges([[], [0]]), edges([[1], []])]
   let offset = 0
   const references = sections.map((section) => {
     const reference = { offset, length: section.byteLength }
@@ -88,7 +88,23 @@ function analyzeBuffer(): ArrayBuffer {
           compressed_size: 40,
         },
       ],
-      output_files: [{ filename: '[client-fs]/app.js' }],
+      output_files: [
+        { filename: '[client-fs]/app.js' },
+        { filename: '[client-fs]/font.woff2' },
+      ],
+      ...(exact
+        ? {
+            route_entries: [
+              {
+                route_entry_id: 'route|client|first',
+                module_ident: 'first',
+                module_path: '[project]/src/a.ts',
+                role: 'route',
+                runtime: 'client',
+              },
+            ],
+          }
+        : {}),
       output_file_chunk_parts: references[0],
       source_chunk_parts: references[1],
       source_children: references[2],
@@ -107,7 +123,10 @@ describe('analyzer data parser', () => {
     expect(analyze.getSourceFlags(1).client).toBe(true)
     expect(analyze.sourceChunks(1)).toEqual(['[client-fs]/app.js'])
     expect(analyze.sourceChildren(0)).toEqual([1])
-
+    expect(analyze.hasExactRouteEntries()).toBe(true)
+    expect(analyze.routeEntries()).toEqual([
+      expect.objectContaining({ route_entry_id: 'route|client|first' }),
+    ])
     const modules = new ModulesData(modulesBuffer())
     expect(
       modules.getModuleIndiciesFromPath('[project]/src/a.ts')
@@ -115,6 +134,26 @@ describe('analyzer data parser', () => {
     expect(modules.moduleDependents(0)).toEqual([1])
     expect(modules.asyncModuleDependents(1)).toEqual([0])
     expect(modules.moduleDependencies(1)).toEqual([0])
+    expect(modules.getModuleIndexFromIdent('second')).toBe(1)
+  })
+
+  it('keeps old artifacts readable with explicit unavailable evidence', () => {
+    const analyze = new AnalyzeData(analyzeBuffer(false))
+    expect(analyze.hasExactRouteEntries()).toBe(false)
+    expect(analyze.routeEntries()).toEqual([])
+  })
+
+  it('rejects duplicate exact route entry IDs', () => {
+    const valid = new Uint8Array(analyzeBuffer())
+    const jsonLength = new DataView(valid.buffer).getUint32(0, false)
+    const header = JSON.parse(
+      new TextDecoder().decode(valid.slice(4, 4 + jsonLength))
+    )
+    header.route_entries.push({ ...header.route_entries[0] })
+    const binary = valid.slice(4 + jsonLength)
+    expect(() => new AnalyzeData(frame(header, [binary]))).toThrow(
+      'Invalid analyze.data route entry'
+    )
   })
 
   it('rejects truncated and malformed framing', () => {

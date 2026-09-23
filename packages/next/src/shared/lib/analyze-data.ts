@@ -24,6 +24,14 @@ export interface AnalyzeOutputFile {
   filename: string
 }
 
+export interface AnalyzeRouteEntry {
+  route_entry_id: string
+  module_ident: string
+  module_path: string
+  role: 'route' | 'shared'
+  runtime: string | null
+}
+
 export interface AnalyzeLayer {
   name: string
 }
@@ -37,6 +45,8 @@ interface AnalyzeDataHeader {
   sources: AnalyzeSource[]
   chunk_parts: AnalyzeChunkPart[]
   output_files: AnalyzeOutputFile[]
+  /** Absent in analyzer artifacts produced before exact route-entry support. */
+  route_entries?: AnalyzeRouteEntry[]
   output_file_chunk_parts: EdgesDataReference
   source_chunk_parts: EdgesDataReference
   source_children: EdgesDataReference
@@ -127,6 +137,7 @@ export class ModulesData {
   private modulesHeader: ModulesDataHeader
   private modulesBinaryData: DataView
   private pathToModuleIndex: Map<string, ModuleIndex[]>
+  private identToModuleIndex: Map<string, ModuleIndex>
 
   constructor(modulesArrayBuffer: ArrayBuffer) {
     ;[this.modulesHeader, this.modulesBinaryData] =
@@ -144,6 +155,7 @@ export class ModulesData {
     }
 
     this.pathToModuleIndex = new Map()
+    this.identToModuleIndex = new Map()
     for (let i = 0; i < this.modulesHeader.modules.length; i++) {
       const module = this.modulesHeader.modules[i]
       if (
@@ -152,6 +164,10 @@ export class ModulesData {
       ) {
         throw new Error('Invalid modules.data module')
       }
+      if (this.identToModuleIndex.has(module.ident)) {
+        throw new Error('Invalid modules.data duplicate module identity')
+      }
+      this.identToModuleIndex.set(module.ident, i)
       const existing = this.pathToModuleIndex.get(module.path)
       if (existing) {
         existing.push(i)
@@ -171,6 +187,10 @@ export class ModulesData {
 
   getModuleIndiciesFromPath(path: string): ModuleIndex[] {
     return this.pathToModuleIndex.get(path) ?? []
+  }
+
+  getModuleIndexFromIdent(ident: string): ModuleIndex | undefined {
+    return this.identToModuleIndex.get(ident)
   }
 
   private readEdgesDataAtIndex(
@@ -281,6 +301,28 @@ export class AnalyzeData {
     requireArray(parts, 'analyze.data chunk parts')
     requireArray(outputs, 'analyze.data output files')
     requireArray(this.analyzeHeader.source_roots, 'analyze.data source roots')
+    if (this.analyzeHeader.route_entries !== undefined) {
+      requireArray(
+        this.analyzeHeader.route_entries,
+        'analyze.data route entries'
+      )
+      const ids = new Set<string>()
+      for (const entry of this.analyzeHeader.route_entries) {
+        if (
+          typeof entry?.route_entry_id !== 'string' ||
+          !entry.route_entry_id ||
+          typeof entry.module_ident !== 'string' ||
+          !entry.module_ident ||
+          typeof entry.module_path !== 'string' ||
+          (entry.role !== 'route' && entry.role !== 'shared') ||
+          (entry.runtime !== null && typeof entry.runtime !== 'string') ||
+          ids.has(entry.route_entry_id)
+        ) {
+          throw new Error('Invalid analyze.data route entry')
+        }
+        ids.add(entry.route_entry_id)
+      }
+    }
     validateEdges(
       this.analyzeBinaryData,
       this.analyzeHeader.output_file_chunk_parts,
@@ -429,6 +471,14 @@ export class AnalyzeData {
     }
 
     return edges
+  }
+
+  routeEntries(): AnalyzeRouteEntry[] {
+    return this.analyzeHeader.route_entries ?? []
+  }
+
+  hasExactRouteEntries(): boolean {
+    return this.analyzeHeader.route_entries !== undefined
   }
 
   outputFileChunkParts(index: number): number[] {

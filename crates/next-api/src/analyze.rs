@@ -86,6 +86,20 @@ pub struct AnalyzeOutputFile {
     pub filename: RcStr,
 }
 
+/// Exact module-graph entry associated with one route-specific analyzer dataset.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Serialize)]
+pub struct AnalyzeRouteEntry {
+    pub route_entry_id: RcStr,
+    pub module_ident: RcStr,
+    pub module_path: RcStr,
+    pub role: RcStr,
+    pub runtime: Option<RcStr>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
+
 #[derive(Serialize)]
 struct EdgesDataReference {
     pub offset: u32,
@@ -97,7 +111,9 @@ struct AnalyzeDataHeader {
     pub sources: Vec<AnalyzeSource>,
     pub chunk_parts: Vec<AnalyzeChunkPart>,
     pub output_files: Vec<AnalyzeOutputFile>,
-    /// Edges from chunks to chunk parts
+    /// Exact module-graph entries for this route dataset.
+    pub route_entries: Vec<AnalyzeRouteEntry>,
+    /// Edges from output files to chunk parts
     pub output_file_chunk_parts: EdgesDataReference,
     /// Edges from sources to chunk parts
     pub source_chunk_parts: EdgesDataReference,
@@ -150,6 +166,7 @@ struct AnalyzeDataBuilder {
     source_index_map: FxHashMap<RcStr, u32>,
     chunk_parts: Vec<AnalyzeChunkPart>,
     output_files: Vec<AnalyzeOutputFileBuilder>,
+    route_entries: Vec<AnalyzeRouteEntry>,
 }
 
 struct ModulesDataBuilder {
@@ -175,12 +192,13 @@ impl EdgesDataSectionBuilder {
 }
 
 impl AnalyzeDataBuilder {
-    fn new() -> Self {
+    fn new(route_entries: Vec<AnalyzeRouteEntry>) -> Self {
         Self {
             sources: vec![],
             source_index_map: FxHashMap::default(),
             chunk_parts: vec![],
             output_files: vec![],
+            route_entries,
         }
     }
 
@@ -251,7 +269,6 @@ impl AnalyzeDataBuilder {
 
         let output_file_chunk_parts =
             EdgesData::from_iterator(self.output_files.iter().map(|of| &of.chunk_part_indices));
-
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = AnalyzeDataHeader {
@@ -262,6 +279,7 @@ impl AnalyzeDataBuilder {
                 .into_iter()
                 .map(|of| of.output_file)
                 .collect(),
+            route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
@@ -405,17 +423,18 @@ pub async fn combine_traced_files(
 pub async fn analyze_output_assets(
     output_assets: Vc<OutputAssets>,
     traced_files: Vc<FileSystemPathVec>,
+    route_entries: Vc<AnalyzeRouteEntries>,
 ) -> Result<Vc<FileContent>> {
-    let output_assets = all_assets_from_entries(output_assets);
+    let output_assets = all_assets_from_entries(output_assets).await?;
+    let route_entries = route_entries.await?.iter().cloned().collect();
 
-    let mut builder = AnalyzeDataBuilder::new();
+    let mut builder = AnalyzeDataBuilder::new(route_entries);
 
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
     for asset in output_assets
-        .await?
         .iter()
         .copied()
         .map(Either::Left)
@@ -637,6 +656,7 @@ pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
     pub output_assets: ResolvedVc<OutputAssets>,
     pub traced_files: ResolvedVc<FileSystemPathVec>,
+    pub route_entries: ResolvedVc<AnalyzeRouteEntries>,
 }
 
 #[turbo_tasks::value_impl]
@@ -646,11 +666,13 @@ impl AnalyzeDataOutputAsset {
         path: FileSystemPath,
         output_assets: ResolvedVc<OutputAssets>,
         traced_files: ResolvedVc<FileSystemPathVec>,
+        route_entries: ResolvedVc<AnalyzeRouteEntries>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
             output_assets,
             traced_files,
+            route_entries,
         }
         .cell())
     }
@@ -660,7 +682,8 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets, *self.traced_files);
+        let file_content =
+            analyze_output_assets(*self.output_assets, *self.traced_files, *self.route_entries);
         AssetContent::file(file_content)
     }
 }

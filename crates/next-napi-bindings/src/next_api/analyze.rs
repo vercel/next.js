@@ -3,15 +3,19 @@ use std::{iter::once, sync::Arc};
 use anyhow::Result;
 use next_api::{
     analyze::{
-        AnalyzeDataOutputAsset, ModulesDataOutputAsset, combine_output_assets, combine_traced_files,
+        AnalyzeDataOutputAsset, AnalyzeRouteEntries, AnalyzeRouteEntry, ModulesDataOutputAsset,
+        combine_output_assets, combine_traced_files,
     },
     project::ProjectContainer,
-    route::EndpointGroupKey,
+    route::{Endpoint, EndpointGroup, EndpointGroupKey},
 };
-use turbo_tasks::{Effects, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    Effects, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     issue::PlainIssue,
+    module::Module,
     output::{OutputAsset, OutputAssets},
 };
 
@@ -53,6 +57,43 @@ async fn write_analyze_data_with_issues_operation_inner(
     Ok(())
 }
 
+async fn route_entries(
+    key: &EndpointGroupKey,
+    endpoint_group: &EndpointGroup,
+    role: &str,
+) -> Result<Vec<AnalyzeRouteEntry>> {
+    let mut seen = FxIndexSet::default();
+    let mut result = vec![];
+    for (endpoint_index, endpoint) in endpoint_group.primary.iter().enumerate() {
+        let entries = endpoint.endpoint.entries().await?;
+        for module in entries.all_modules() {
+            let module_ident = module.ident().to_string().owned().await?;
+            if !seen.insert(module_ident.clone()) {
+                continue;
+            }
+            let module_path = module.ident().await?.path.to_string_ref().await?;
+            let sub_name = endpoint.sub_name.as_deref().unwrap_or("");
+            result.push(AnalyzeRouteEntry {
+                route_entry_id: format!(
+                    "{}|{}|{}|{}|{}",
+                    key.as_str(),
+                    role,
+                    endpoint_index,
+                    sub_name,
+                    module_ident
+                )
+                .into(),
+                module_ident,
+                module_path,
+                role: role.into(),
+                runtime: None,
+            });
+        }
+    }
+    result.sort_by(|a, b| a.route_entry_id.cmp(&b.route_entry_id));
+    Ok(result)
+}
+
 #[turbo_tasks::function(operation)]
 async fn get_analyze_data_operation(
     container: ResolvedVc<ProjectContainer>,
@@ -87,6 +128,15 @@ async fn get_analyze_data_operation(
     let has_combined = !combined_output_assets.is_empty();
     let combined_assets_vc = Vc::cell(combined_output_assets);
     let combined_traced_vc = Vc::cell(combined_traced_files);
+    let mut shared_route_entries = vec![];
+    for (key, endpoint_group) in endpoint_groups.iter() {
+        if matches!(
+            key,
+            EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
+        ) {
+            shared_route_entries.extend(route_entries(key, endpoint_group, "shared").await?);
+        }
+    }
 
     let analyze_data = endpoint_groups
         .iter()
@@ -113,12 +163,25 @@ async fn get_analyze_data_operation(
             } else {
                 endpoint_group.traced_files()
             };
+            let mut entries = route_entries(key, endpoint_group, "route").await?;
+            if has_combined
+                && !matches!(
+                    key,
+                    EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
+                )
+            {
+                entries.extend(shared_route_entries.iter().cloned());
+                entries.sort_by(|a, b| a.route_entry_id.cmp(&b.route_entry_id));
+                entries.dedup_by(|a, b| a.route_entry_id == b.route_entry_id);
+            }
+            let route_entries: Vc<AnalyzeRouteEntries> = Vc::cell(entries);
             let analyze_data = AnalyzeDataOutputAsset::new(
                 analyze_output_root
                     .join(&key.to_string())?
                     .join("analyze.data")?,
                 output_assets,
                 traced_files,
+                route_entries,
             )
             .to_resolved()
             .await?;
