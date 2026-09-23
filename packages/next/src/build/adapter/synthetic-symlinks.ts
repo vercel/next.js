@@ -50,7 +50,9 @@ export class SyntheticSymlinkManager {
       try {
         fs.symlinkSync(linkTarget, stagedPath, targetType)
       } catch (error) {
-        // Another build may have created this deterministic path after cleanup.
+        // This link may exist if `rmSync` (with `force: true`) failed to delete
+        // some files (can happen on Windows), but it's content-addressed, so
+        // we can safely ignore EEXIST.
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
           throw error
         }
