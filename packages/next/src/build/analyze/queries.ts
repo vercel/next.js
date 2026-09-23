@@ -5,13 +5,21 @@ import z from 'next/dist/compiled/zod'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
-const MAX_CHUNKS = 100
 const COMPRESSED_CAVEAT =
   'Compressed source sizes are estimates because attributed parts are compressed independently.'
 
 type Environment = 'total' | 'client' | 'server'
 type Metric = 'raw' | 'compressed'
 type FileType = 'js' | 'css' | 'json' | 'asset'
+type OutputKind =
+  | 'js'
+  | 'css'
+  | 'json'
+  | 'font'
+  | 'image'
+  | 'media'
+  | 'wasm'
+  | 'other'
 
 interface SourceRow {
   key: string
@@ -22,9 +30,8 @@ interface SourceRow {
   client: boolean
   server: boolean
   traced: boolean
-  chunks: string[]
+  chunkNames: string[]
   chunkCount: number
-  chunksTruncated: boolean
 }
 
 interface OverviewArgs {
@@ -44,6 +51,14 @@ interface SourcesArgs {
   fileTypes?: FileType[]
   groupBy?: 'source' | 'package'
   metric?: Metric
+  offset?: number
+  limit?: number
+}
+
+interface SourceChunksArgs {
+  route: string
+  sourcePath: string
+  snapshot?: string
   offset?: number
   limit?: number
 }
@@ -130,6 +145,10 @@ function metricValue(
   return metric === 'compressed' ? value.compressedSize : value.rawSize
 }
 
+function outputEnvironment(filename: string): 'client' | 'server' {
+  return filename.startsWith('[client-fs]/') ? 'client' : 'server'
+}
+
 function sourceSizes(
   data: AnalyzeData,
   sourceIndex: number,
@@ -143,8 +162,7 @@ function sourceSizes(
     if (!part || !output) continue
     if (
       environment !== 'total' &&
-      (output.filename.startsWith('[client-fs]/') ? 'client' : 'server') !==
-        environment
+      outputEnvironment(output.filename) !== environment
     ) {
       continue
     }
@@ -163,6 +181,18 @@ function routeSizes(data: AnalyzeData, environment: Environment) {
     compressedSize += sizes.compressedSize
   }
   return { rawSize, compressedSize }
+}
+
+function outputKind(filename: string): OutputKind {
+  const pathname = filename.split(/[?#]/, 1)[0].toLocaleLowerCase()
+  if (/\.(?:js|mjs|cjs)$/.test(pathname)) return 'js'
+  if (pathname.endsWith('.css')) return 'css'
+  if (pathname.endsWith('.json')) return 'json'
+  if (/\.(?:woff2?|ttf|otf|eot)$/.test(pathname)) return 'font'
+  if (/\.(?:png|jpe?g|gif|webp|avif|svg|ico)$/.test(pathname)) return 'image'
+  if (/\.(?:mp4|webm|ogg|mp3|wav|flac|aac|mov)$/.test(pathname)) return 'media'
+  if (pathname.endsWith('.wasm')) return 'wasm'
+  return 'other'
 }
 
 function packageNameFromPath(sourcePath: string): string | undefined {
@@ -223,7 +253,7 @@ function collectSources(
       existing.client ||= flags.client
       existing.server ||= flags.server
       existing.traced ||= flags.traced
-      existing.chunks.push(...data.sourceChunks(index))
+      existing.chunkNames.push(...data.sourceChunks(index))
     } else {
       rows.set(key, {
         key,
@@ -234,20 +264,14 @@ function collectSources(
         client: flags.client,
         server: flags.server,
         traced: flags.traced,
-        chunks: data.sourceChunks(index),
+        chunkNames: data.sourceChunks(index),
         chunkCount: 0,
-        chunksTruncated: false,
       })
     }
   }
   return [...rows.values()].map((row) => {
-    const chunks = [...new Set(row.chunks)].sort(compareText)
-    return {
-      ...row,
-      chunks: chunks.slice(0, MAX_CHUNKS),
-      chunkCount: chunks.length,
-      chunksTruncated: chunks.length > MAX_CHUNKS,
-    }
+    const chunkCount = new Set(row.chunkNames).size
+    return { ...row, chunkCount }
   })
 }
 
@@ -376,7 +400,72 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         environment,
         metric,
         groupBy: args.groupBy ?? 'source',
-        sources: paged.values,
+        sources: paged.values.map(({ chunkNames: _chunkNames, ...row }) => row),
+        pagination: paged.pagination,
+        caveats: [COMPRESSED_CAVEAT],
+      }
+    })
+  )
+
+  registerQuery(
+    'get_source_chunks',
+    {
+      route: z.string().max(4096),
+      sourcePath: z.string().max(4096),
+      snapshot: snapshotSchema,
+      ...pagingSchema,
+    },
+    safeQuery(async (args: SourceChunksArgs) => {
+      const data = await repository.loadRoute(args.snapshot, args.route)
+      const sourceIndex = data.getSourceIndexFromPath(args.sourcePath)
+      if (sourceIndex === undefined) {
+        throw new Error(`Unknown source: ${args.sourcePath}`)
+      }
+      const byOutput = new Map<
+        number,
+        { rawSize: number; compressedSize: number }
+      >()
+      for (const partIndex of data.sourceChunkParts(sourceIndex)) {
+        const part = data.chunkPart(partIndex)
+        if (!part) continue
+        const sizes = byOutput.get(part.output_file_index) ?? {
+          rawSize: 0,
+          compressedSize: 0,
+        }
+        sizes.rawSize += part.size
+        sizes.compressedSize += part.compressed_size
+        byOutput.set(part.output_file_index, sizes)
+      }
+      const rows = [...byOutput]
+        .map(([index, sizes]) => {
+          const output = data.outputFile(index)!
+          return {
+            key: output.filename,
+            filename: output.filename,
+            kind: outputKind(output.filename),
+            environment: outputEnvironment(output.filename),
+            ...sizes,
+            emissionEvidence: 'emitted' as const,
+            requestEvidence: 'unknown' as const,
+          }
+        })
+        .sort((a, b) => compareText(a.filename, b.filename))
+      const paged = page(rows, args.offset ?? 0, args.limit ?? DEFAULT_LIMIT)
+      return {
+        route: args.route,
+        sourcePath: args.sourcePath,
+        snapshot: provenance(
+          (await repository.getSnapshot(args.snapshot)).metadata
+        ),
+        chunks: paged.values,
+        totals: rows.reduce(
+          (total, row) => ({
+            rawSize: total.rawSize + row.rawSize,
+            compressedSize: total.compressedSize + row.compressedSize,
+            outputCount: total.outputCount + 1,
+          }),
+          { rawSize: 0, compressedSize: 0, outputCount: 0 }
+        ),
         pagination: paged.pagination,
         caveats: [COMPRESSED_CAVEAT],
       }
