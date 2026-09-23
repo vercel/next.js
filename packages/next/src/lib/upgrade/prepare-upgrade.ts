@@ -5,7 +5,10 @@ import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import loadConfig from '../../server/config'
 import { PHASE_INFO } from '../../shared/lib/constants'
-import { futureDefaults, type FutureDefaultEntry } from './future-defaults'
+import {
+  getPendingFutureDefaults,
+  type FutureDefaultEntry,
+} from './future-defaults'
 
 type UpgradePreparation =
   | { status: 'unaffected'; reason: string }
@@ -64,10 +67,10 @@ export async function prepareUpgrade(
   const config = await loadConfig(PHASE_INFO, directory, {
     silent: true,
   }).finally(resetEnv)
-  const pendingFutureDefaults = futureDefaults.filter(
-    (futureDefault) =>
-      semver.gte(upgrade.targetVersion, futureDefault.availableSince) &&
-      !futureDefault.isAdopted(config)
+  const pendingFutureDefaults = getPendingFutureDefaults(
+    directory,
+    config,
+    upgrade.targetVersion
   )
 
   if (
@@ -76,7 +79,7 @@ export async function prepareUpgrade(
   ) {
     return {
       status: 'unaffected',
-      reason: `Next.js ${installedVersion} is current and all available Future Defaults are enabled.`,
+      reason: `Next.js ${installedVersion} is current and no applicable Future Defaults are pending.`,
     }
   }
 

@@ -1,4 +1,6 @@
 import type { NextConfigComplete } from '../../server/config-shared'
+import semver from 'next/dist/compiled/semver'
+import { findDir } from '../find-pages-dir'
 
 export type UpgradeDocument = `docs/${string}.md` | `skills/${string}/SKILL.md`
 
@@ -8,6 +10,7 @@ type FutureDefault = {
   isAdopted(config: Pick<NextConfigComplete, 'cacheComponents'>): boolean
   adoptionDoc: readonly UpgradeDocument[]
   optimizationDoc: readonly UpgradeDocument[]
+  isApplicable(directory: string): boolean
 }
 
 export const futureDefaults = [
@@ -22,7 +25,28 @@ export const futureDefaults = [
       'skills/next-cache-components-adoption/SKILL.md',
     ],
     optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+    // TODO: Support Pages -> App migration before offering adoption to Pages-only apps.
+    isApplicable: (directory) => findDir(directory, 'app') !== null,
   },
 ] as const satisfies readonly FutureDefault[]
 
 export type FutureDefaultEntry = (typeof futureDefaults)[number]
+
+export function getPendingFutureDefaults(
+  directory: string,
+  config: Pick<NextConfigComplete, 'cacheComponents'>,
+  version: string
+) {
+  if (
+    !semver.valid(version) ||
+    (semver.prerelease(version) && semver.prerelease(version)?.[0] !== 'canary')
+  ) {
+    return []
+  }
+  return futureDefaults.filter(
+    (entry) =>
+      semver.gte(version, entry.availableSince) &&
+      !entry.isAdopted(config) &&
+      entry.isApplicable(directory)
+  )
+}
