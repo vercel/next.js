@@ -146,18 +146,32 @@ function relativePathIfInside(
 function mapBasePath(
   traceFileDirectory: string,
   baseRoot: string,
+  baseRootPrefix: string,
   relativePath: string
 ): { source: string; destination: string } {
   const source = path.resolve(traceFileDirectory, relativePath)
-  return { source, destination: path.relative(baseRoot, source) }
+  const destination =
+    source === baseRoot
+      ? ''
+      : source[baseRootPrefix.length - 1] === path.sep &&
+          source.startsWith(baseRootPrefix)
+        ? source.slice(baseRootPrefix.length)
+        : path.relative(baseRoot, source)
+  return { source, destination }
 }
 
 function mapBasePathInsideRoot(
   traceFileDirectory: string,
   baseRoot: string,
+  baseRootPrefix: string,
   relativePath: string
 ): { source: string; destination: string } {
-  const mapped = mapBasePath(traceFileDirectory, baseRoot, relativePath)
+  const mapped = mapBasePath(
+    traceFileDirectory,
+    baseRoot,
+    baseRootPrefix,
+    relativePath
+  )
   if (!isRelativePathInside(mapped.destination)) {
     invalid(`path ${JSON.stringify(relativePath)} escapes the base root`)
   }
@@ -165,13 +179,17 @@ function mapBasePathInsideRoot(
 }
 
 function mapAdditionalRootPath(
-  traceFileDirectory: string,
+  rootPath: string,
+  rootPrefix: string,
   root: NftAdditionalRoot,
   relativePath: string
 ): { source: string; destination: string } {
-  const rootPath = path.resolve(traceFileDirectory, root.path)
   const source = path.resolve(rootPath, relativePath)
-  if (relativePathIfInside(rootPath, source) === undefined) {
+  if (
+    source !== rootPath &&
+    !source.startsWith(rootPrefix) &&
+    relativePathIfInside(rootPath, source) === undefined
+  ) {
     invalid(
       `path ${JSON.stringify(relativePath)} escapes additional root ${root.name}`
     )
@@ -192,7 +210,17 @@ export function mapNftFileEntries(
   }
 ): MappedNftFileEntry[] {
   const traceFileDirectory = path.dirname(traceFilePath)
+  const resolvedBaseRoot = path.resolve(baseRoot)
+  const baseRootPrefix = resolvedBaseRoot.endsWith(path.sep)
+    ? resolvedBaseRoot
+    : resolvedBaseRoot + path.sep
   const roots = nft.additionalRoots ?? []
+  const rootPaths = roots.map((root) =>
+    path.resolve(traceFileDirectory, root.path)
+  )
+  const rootPrefixes = rootPaths.map((rootPath) =>
+    rootPath.endsWith(path.sep) ? rootPath : rootPath + path.sep
+  )
   const result: MappedNftFileEntry[] = []
 
   const mapList = (list: NftFileList, currentRootIndex: number) => {
@@ -215,9 +243,15 @@ export function mapNftFileEntries(
       // (i.e. not an additional root)
       const mapped =
         currentRootIndex === -1
-          ? mapBasePath(traceFileDirectory, baseRoot, file)
-          : mapAdditionalRootPath(
+          ? mapBasePath(
               traceFileDirectory,
+              resolvedBaseRoot,
+              baseRootPrefix,
+              file
+            )
+          : mapAdditionalRootPath(
+              rootPaths[currentRootIndex],
+              rootPrefixes[currentRootIndex],
               roots[currentRootIndex],
               file
             )
@@ -239,11 +273,22 @@ export function mapNftFileEntries(
         symlinkTarget =
           targetRootIndex === -1
             ? (options?.skipBaseRootEscapes
-                ? mapBasePathInsideRoot(traceFileDirectory, baseRoot, target)
-                : mapBasePath(traceFileDirectory, baseRoot, target)
+                ? mapBasePathInsideRoot(
+                    traceFileDirectory,
+                    resolvedBaseRoot,
+                    baseRootPrefix,
+                    target
+                  )
+                : mapBasePath(
+                    traceFileDirectory,
+                    resolvedBaseRoot,
+                    baseRootPrefix,
+                    target
+                  )
               ).destination
             : mapAdditionalRootPath(
-                traceFileDirectory,
+                rootPaths[targetRootIndex],
+                rootPrefixes[targetRootIndex],
                 roots[targetRootIndex],
                 target
               ).destination
