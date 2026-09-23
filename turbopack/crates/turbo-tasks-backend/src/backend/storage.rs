@@ -870,14 +870,14 @@ impl<'a> TaskEntryGuard<'a> {
     }
 }
 
-impl std::ops::Deref for TaskEntryGuard<'_> {
+impl Deref for TaskEntryGuard<'_> {
     type Target = TaskStorage;
     fn deref(&self) -> &Self::Target {
         self.entry.get()
     }
 }
 
-impl std::ops::DerefMut for TaskEntryGuard<'_> {
+impl DerefMut for TaskEntryGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.entry.get_mut()
     }

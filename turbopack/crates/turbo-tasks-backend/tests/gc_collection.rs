@@ -137,7 +137,6 @@ async fn gc_collects_disconnected_subtree() {
     );
 
     // Flipping back must recompute branch_a fresh, since it was collected.
-    let tt3 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(true);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
@@ -146,7 +145,6 @@ async fn gc_collects_disconnected_subtree() {
         assert_eq!(*output.read_strongly_consistent().await?, 22);
         selector.set(false);
         assert_eq!(*output.read_strongly_consistent().await?, 11);
-        let _ = &tt3;
         anyhow::Ok(())
     })
     .await;
@@ -334,11 +332,9 @@ async fn mutating_a_state_read_by_a_collected_task_does_not_panic() {
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
 
     // Mutating the State now walks its invalidator list, which still names the collected reader.
-    let tt3 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let observed = create_constant().read_strongly_consistent().await?;
         observed.set(1);
-        let _ = &tt3;
         anyhow::Ok(())
     })
     .await;
