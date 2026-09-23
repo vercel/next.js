@@ -337,6 +337,11 @@ const experimentalAnalyzeQueryCommand = experimentalAnalyzeCommand
   .helpOption(false)
   .option('-h, --help', 'Display query help and available queries.')
   .option('--input <json>', 'Query arguments as a JSON object.', '{}')
+  .option('--all', 'Fetch every result page, up to the 10,000-row safety cap.')
+  .option(
+    '--fields <fields>',
+    'Return only selected row fields while preserving query evidence and totals.'
+  )
   .action(
     (
       name: string | undefined,
