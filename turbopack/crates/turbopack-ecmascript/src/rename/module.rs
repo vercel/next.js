@@ -207,7 +207,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
-            export_registration_mode: None,
             async_module_info,
         }
         .cell())

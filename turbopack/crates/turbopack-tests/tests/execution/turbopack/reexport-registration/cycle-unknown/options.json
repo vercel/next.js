@@ -1,5 +1,0 @@
-{
-  "followReexports": false,
-  "removeUnusedExports": false,
-  "scopeHoisting": false
-}

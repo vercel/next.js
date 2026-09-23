@@ -52,8 +52,7 @@ pub struct OptionBindingUsageInfo(Option<ResolvedVc<BindingUsageInfo>>);
 #[turbo_tasks::value]
 pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
-    /// Whether this module must expose exports before imports. This is conservative when export
-    /// usage analysis did not run, because a cycle cannot be ruled out.
+    // Whether this module exists in an import cycle and has been selected to break the cycle.
     pub is_circuit_breaker: bool,
     /// Whether this module is read through a namespace value somewhere, which means one of those
     /// reads may still use an original export name. See [`PartialNamespaceModules`].
@@ -62,7 +61,7 @@ pub struct ModuleExportUsage {
 #[turbo_tasks::value_impl]
 impl ModuleExportUsage {
     #[turbo_tasks::function]
-    pub async fn unknown() -> Result<Vc<Self>> {
+    pub async fn all() -> Result<Vc<Self>> {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
@@ -90,7 +89,7 @@ impl BindingUsageInfo {
                 // do `self.slightly_different_module().as_chunk_item()`, so the
                 // module that codegen sees isn't actually in the module graph.
                 // TODO fix these cases
-                return Ok(ModuleExportUsage::unknown());
+                return Ok(ModuleExportUsage::all());
             }
 
             bail!("export usage not found for module: {ident:?}");
