@@ -7,8 +7,9 @@ mod leaf_distance_update;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
+#[cfg(debug_assertions)]
+use std::cell::Cell;
 use std::{
-    cell::Cell,
     fmt::{Debug, Display, Formatter},
     sync::Arc,
 };
@@ -183,41 +184,59 @@ pub trait ChildExecuteContext<'e>: Send + Sized {
     fn create(self) -> impl ExecuteContext<'e>;
 }
 
-/// Same-context lock count used to reject unordered nested task locks.
+/// Debug-only same-context lock count used to reject unordered nested task locks.
 ///
 /// Task guards borrow this counter from their context and are `!Send`, so plain `Cell` access is
-/// sufficient. The guard's context lifetime — not this count — protects epoch admission.
-struct TaskLockCounter(Cell<u8>);
+/// sufficient. The guard's context lifetime — not this diagnostic count — protects epoch admission.
+/// In release builds the counter is zero-sized and every method is a no-op, matching canary.
+struct TaskLockCounter(#[cfg(debug_assertions)] Cell<u8>);
+
+#[cfg(not(debug_assertions))]
+const _: () = assert!(std::mem::size_of::<TaskLockCounter>() == 0);
 
 impl TaskLockCounter {
     fn new() -> Self {
-        Self(Cell::new(0))
+        Self(
+            #[cfg(debug_assertions)]
+            Cell::new(0),
+        )
     }
 
     fn acquire(&self) {
-        assert_eq!(
-            self.0.get(),
-            0,
-            "Concurrent task lock acquisition detected. This is not allowed and indicates a bug. \
-             It can lead to deadlocks."
-        );
-        self.0.set(1);
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(
+                self.0.get(),
+                0,
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+            self.0.set(1);
+        }
     }
 
     fn acquire_multiple(&self, n: u8) {
-        assert_eq!(
-            self.0.get(),
-            0,
-            "Concurrent task lock acquisition detected. This is not allowed and indicates a bug. \
-             It can lead to deadlocks."
-        );
-        self.0.set(n);
+        #[cfg(not(debug_assertions))]
+        let _ = n;
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(
+                self.0.get(),
+                0,
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+            self.0.set(n);
+        }
     }
 
     fn release(&self) {
-        let previous = self.0.get();
-        assert!(previous > 0, "task lock counter underflow");
-        self.0.set(previous - 1);
+        #[cfg(debug_assertions)]
+        {
+            let previous = self.0.get();
+            assert!(previous > 0, "task lock counter underflow");
+            self.0.set(previous - 1);
+        }
     }
 }
 
@@ -2432,13 +2451,17 @@ mod cell_data_tracking_tests {
 mod task_lock_counter_tests {
     use static_assertions::{assert_impl_all, assert_not_impl_any};
 
-    use super::{ChildExecuteContextImpl, ExecuteContextImpl, TaskGuardImpl, TaskLockCounter};
+    #[cfg(debug_assertions)]
+    use super::TaskLockCounter;
+    use super::{ChildExecuteContextImpl, ExecuteContextImpl, TaskGuardImpl};
 
     assert_not_impl_any!(TaskGuardImpl<'static>: Send, Sync);
+    #[cfg(debug_assertions)]
     assert_not_impl_any!(ExecuteContextImpl<'static>: Sync);
     assert_impl_all!(ExecuteContextImpl<'static>: Send);
     assert_impl_all!(ChildExecuteContextImpl<'static>: Send);
 
+    #[cfg(debug_assertions)]
     #[test]
     fn counter_rejects_nested_independent_locks_and_tracks_pairs() {
         let counter = TaskLockCounter::new();

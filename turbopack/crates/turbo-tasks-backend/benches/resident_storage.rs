@@ -1,5 +1,4 @@
 use std::{
-    cell::Cell,
     hint::black_box,
     mem::size_of,
     num::NonZeroU64,
@@ -362,16 +361,6 @@ pub fn resident_storage(c: &mut Criterion) {
             let previous = active_guards.load(Ordering::Relaxed);
             debug_assert_eq!(previous, 1);
             active_guards.store(0, Ordering::Relaxed);
-        })
-    });
-    let active_guards_cell = Cell::new(0_u8);
-    epoch_counter.bench_function("active_guard_cell_pair", |b| {
-        b.iter(|| {
-            let counter = black_box(&active_guards_cell);
-            debug_assert_eq!(counter.get(), 0);
-            counter.set(black_box(1));
-            debug_assert_eq!(black_box(counter.get()), 1);
-            counter.set(0);
         })
     });
     epoch_counter.bench_function("active_guard_acquire_load", |b| {
