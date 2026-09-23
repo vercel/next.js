@@ -537,7 +537,11 @@ describe('prefetch inlining', () => {
         '.next/server/prefetch-hints.json'
       )
 
-      // The page awaits fallback params (and no other runtime data), so:
+      // The page uses Cache Components (without partialPrefetching), so both the shell
+      // and prefetch hints are set -- in Cache Components, prefetches are always static.
+      //
+      // The page awaits fallback params (and no other runtime data), so if partialPrefetching
+      // were enabled, we'd get the following:
       // - the shell can be static (ShouldAttemptStaticShell hint set),
       // - the prefetch is runtime (ShouldAttemptStaticPrefetch hint is NOT set).
       expect(
@@ -546,19 +550,19 @@ describe('prefetch inlining', () => {
         )
       ).toMatchInlineSnapshot(`
        {
-         "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+         "hints": "InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
          "slots": {
            "children": {
-             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell",
+             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
              "slots": {
                "children": {
-                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell",
+                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                  "slots": {
                    "children": {
-                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                      "slots": {
                        "children": {
-                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell",
+                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                          "slots": null,
                        },
                      },
