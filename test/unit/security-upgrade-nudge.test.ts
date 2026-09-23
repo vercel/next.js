@@ -159,7 +159,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'security' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'security' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -397,7 +397,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'latest' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'latest' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
       ),
     })
     await expect(
@@ -567,8 +567,8 @@ describe('composed future nudge', () => {
       )
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
-      message: expect.stringContaining(
-        'We recommend you adopt these Future Defaults.'
+      message: expect.stringMatching(
+        /We recommend you adopt these Future Defaults\.[\s\S]*include this upgrade recommendation even if the retry succeeds\./
       ),
     })
     expect(getUpgradeAssessment).toHaveBeenCalledTimes(1)
@@ -624,7 +624,7 @@ describe('composed future nudge', () => {
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available[\s\S]*next upgrade --ai=(?:security|latest|future)\n```[\s\S]*agenticAutoUpgrade: 'future'/
+        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|future)\n```[\s\S]*agenticAutoUpgrade: 'future'/
       ),
     })
   })
