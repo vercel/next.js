@@ -12,6 +12,7 @@ const RemoteComponent = dynamic(
 export function RemoteMessage() {
   const [message, setMessage] = useState('loading')
   const [workerMessage, setWorkerMessage] = useState('loading')
+  const [workerRuntime, setWorkerRuntime] = useState('loading')
   const [scriptCount, setScriptCount] = useState('loading')
   const [fallbackMessage, setFallbackMessage] = useState('loading')
   const [asyncMessage, setAsyncMessage] = useState('loading')
@@ -55,6 +56,7 @@ export function RemoteMessage() {
     )
     worker.onmessage = ({ data }) => {
       setWorkerMessage(data.value ?? `error: ${data.error}`)
+      setWorkerRuntime(JSON.stringify(data.runtime))
     }
     worker.postMessage('load')
     return () => worker.terminate()
@@ -65,6 +67,7 @@ export function RemoteMessage() {
       <p id="remote-message">{message}</p>
       <RemoteComponent />
       <p id="worker-message">{workerMessage}</p>
+      <p id="worker-runtime">{workerRuntime}</p>
       <p id="remote-script-count">{scriptCount}</p>
       <p id="fallback-message">{fallbackMessage}</p>
       <p id="async-message">{asyncMessage}</p>
