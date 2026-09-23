@@ -102,4 +102,90 @@ describe('ResponseCache', () => {
       expect(followUp).not.toBeNull()
     })
   })
+
+  describe('background revalidation timeout', () => {
+    function makeStaleEntry() {
+      return {
+        ...makeCacheEntry('stale'),
+        isStale: true,
+      }
+    }
+
+    it('should abandon a background revalidation that never settles', async () => {
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+
+      try {
+        const cache = new ResponseCache(false)
+        const incrementalCache = {
+          get: jest.fn().mockResolvedValue(makeStaleEntry()),
+          set: jest.fn().mockResolvedValue(undefined),
+        }
+
+        // A generator that never settles, e.g. a fetch to a host that accepts
+        // the connection and then goes silent.
+        const responseGenerator = jest.fn(() => new Promise<never>(() => {}))
+
+        const first = await cache.get('/hangs', responseGenerator, {
+          routeKind: RouteKind.PAGES,
+          incrementalCache,
+          revalidationTimeout: 50,
+        })
+
+        // The stale entry is still served right away.
+        expect(first).not.toBeNull()
+
+        // Once the timeout passes, the failed revalidation re-sets the cached
+        // entry with a short revalidate so the next request retries.
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        expect(responseGenerator).toHaveBeenCalledTimes(1)
+        expect(incrementalCache.set).toHaveBeenCalledTimes(1)
+        expect(
+          incrementalCache.set.mock.calls[0][2].cacheControl.revalidate
+        ).toBeLessThanOrEqual(30)
+
+        // A later request is not stuck behind the abandoned revalidation.
+        const second = await cache.get('/hangs', responseGenerator, {
+          routeKind: RouteKind.PAGES,
+          incrementalCache,
+          revalidationTimeout: 50,
+        })
+
+        expect(second).not.toBeNull()
+
+        // The revalidation is scheduled on the next tick, so let it start.
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        expect(responseGenerator).toHaveBeenCalledTimes(2)
+      } finally {
+        consoleError.mockRestore()
+      }
+    })
+
+    it('should not time out a revalidation that finishes in time', async () => {
+      const cache = new ResponseCache(false)
+      const incrementalCache = {
+        get: jest.fn().mockResolvedValue(makeStaleEntry()),
+        set: jest.fn().mockResolvedValue(undefined),
+      }
+
+      const responseGenerator = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        return makeCacheEntry('fresh')
+      })
+
+      await cache.get('/fast', responseGenerator, {
+        routeKind: RouteKind.PAGES,
+        incrementalCache,
+        revalidationTimeout: 500,
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(incrementalCache.set).toHaveBeenCalledTimes(1)
+      expect(
+        incrementalCache.set.mock.calls[0][2].cacheControl.revalidate
+      ).toBe(60)
+    })
+  })
 })
