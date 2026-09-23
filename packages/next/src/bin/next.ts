@@ -324,26 +324,35 @@ const experimentalAnalyzeCommand = program
       })
   })
 
-experimentalAnalyzeCommand
+const experimentalAnalyzeQueryCommand = experimentalAnalyzeCommand
   .command('query')
   .description('Query previously generated analyzer data as JSON.')
-  .argument('<name>', 'Name of the analyzer query to run.')
+  .argument('[name]', 'Name of the analyzer query to run.')
   .argument(
     '[directory]',
     `The analyzed application directory. ${italic(
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .helpOption(false)
+  .option('-h, --help', 'Display query help and available queries.')
   .option('--input <json>', 'Query arguments as a JSON object.', '{}')
   .action(
     (
-      name: string,
+      name: string | undefined,
       directory: string | undefined,
       options: NextAnalyzeQueryOptions
     ) => {
-      return import('../cli/next-analyze-query.js').then((mod) =>
-        mod.nextAnalyzeQuery(name, directory, options)
-      )
+      return import('../cli/next-analyze-query.js').then((mod) => {
+        if (options.help || !name) {
+          return mod.nextAnalyzeQueryHelp(
+            experimentalAnalyzeQueryCommand.helpInformation(),
+            name,
+            directory
+          )
+        }
+        return mod.nextAnalyzeQuery(name, directory, options)
+      })
     }
   )
 

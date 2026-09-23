@@ -23,7 +23,7 @@ describe('next experimental-analyze', () => {
     return
   }
 
-  it('runs successfully without errors', async () => {
+  it('serves the UI and points agents to CLI discovery', async () => {
     let serveProcess: ChildProcess | undefined
     let stdoutBuffer = ''
     let resolveUrl!: (url: string) => void
@@ -42,7 +42,10 @@ describe('next experimental-analyze', () => {
         onStdout(msg) {
           stdoutBuffer += msg
           const urlMatch = stdoutBuffer.match(/http:\/\/[^\s]+/)
-          if (urlMatch) {
+          if (
+            urlMatch &&
+            stdoutBuffer.includes('next experimental-analyze query --help')
+          ) {
             resolveUrl(urlMatch[0])
           }
         },
@@ -61,9 +64,93 @@ describe('next experimental-analyze', () => {
       expect(await response.text()).toContain(
         '<title>Next.js Bundle Analyzer</title>'
       )
+      expect(stdoutBuffer).toContain(
+        'For agent-readable bundle queries, run: next experimental-analyze query --help'
+      )
+      expect(stdoutBuffer).not.toContain('MCP')
+      expect((await fetch(`${url}/mcp`)).status).toBe(404)
     } finally {
       serveProcess?.kill()
       await exit.catch(() => {})
+    }
+  })
+  it('shows concise discovery and detailed per-query help', async () => {
+    const help = await next.runCommand([
+      'experimental-analyze',
+      'query',
+      '--help',
+    ])
+    expect(help.exitCode).toBe(0)
+    expect(help.stderr).toBe('')
+    expect(help.stdout).toContain('Available queries:')
+    for (const name of [
+      'get_app_overview',
+      'get_route_modules',
+      'explain_route_module',
+      'compare_bundles',
+    ]) {
+      expect(help.stdout).toContain(
+        `next experimental-analyze query ${name} --help`
+      )
+    }
+    expect(help.stdout).toContain(
+      'List analyzer snapshots and rank routes by raw or estimated compressed bundle contribution.'
+    )
+    expect(help.stdout).not.toContain('Input schema:')
+    expect(help.stdout).not.toContain('Example input:')
+    expect(help.stdout).not.toContain('"required": [')
+    expect(help.stdout).not.toContain('"route": "/"')
+
+    const noName = await next.runCommand(['experimental-analyze', 'query'])
+    expect(noName.exitCode).toBe(0)
+    expect(noName.stdout).toBe(help.stdout)
+
+    const queryHelp = await next.runCommand([
+      'experimental-analyze',
+      'query',
+      'get_route_modules',
+      '--help',
+    ])
+    expect(queryHelp.exitCode).toBe(0)
+    expect(queryHelp.stderr).toBe('')
+    expect(queryHelp.stdout).toContain('Query: get_route_modules')
+    expect(queryHelp.stdout).toContain(
+      'Query and rank source or npm-package contributions for one analyzed route.'
+    )
+    expect(queryHelp.stdout).toContain('Input schema:')
+    expect(queryHelp.stdout).toContain('Example input:')
+    expect(queryHelp.stdout).toContain('"required": [')
+    expect(queryHelp.stdout).toContain('"route": "/"')
+    expect(queryHelp.stdout).not.toContain('get_app_overview')
+
+    const directoryQueryHelp = await next.runCommand([
+      'experimental-analyze',
+      'query',
+      'get_route_modules',
+      next.testDir,
+      '--help',
+    ])
+    expect(directoryQueryHelp.exitCode).toBe(0)
+    expect(directoryQueryHelp.stdout).toBe(queryHelp.stdout)
+
+    const unknownQueryHelp = await next.runCommand([
+      'experimental-analyze',
+      'query',
+      'unknown_query',
+      '--help',
+    ])
+    expect(unknownQueryHelp.exitCode).not.toBe(0)
+    expect(unknownQueryHelp.stderr).toContain(
+      'Unknown analyzer query: unknown_query'
+    )
+
+    for (const args of [
+      ['--query', 'get_app_overview'],
+      ['--list-queries'],
+      ['query', 'get_app_overview', '--analyze-dir', 'somewhere'],
+    ]) {
+      const legacy = await next.runCommand(['experimental-analyze', ...args])
+      expect(legacy.exitCode).not.toBe(0)
     }
   })
   ;['-o', '--output'].forEach((flag) => {
@@ -114,6 +201,22 @@ describe('next experimental-analyze', () => {
           pagination: { limit: 1, returned: 1 },
           routes: [{ route: expect.any(String), rawSize: expect.any(Number) }],
         })
+
+        for (const oldName of [
+          'get_bundle_overview',
+          'query_bundle_sources',
+          'explain_bundle_source',
+        ]) {
+          const oldQuery = await next.runCommand([
+            'experimental-analyze',
+            'query',
+            oldName,
+          ])
+          expect(oldQuery.exitCode).toBe(1)
+          expect(JSON.parse(oldQuery.stderr)).toEqual({
+            error: `Unknown analyzer query: ${oldName}`,
+          })
+        }
 
         const sources = await next.runCommand([
           'experimental-analyze',

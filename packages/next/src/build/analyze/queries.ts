@@ -189,13 +189,23 @@ function safeQuery<T, R>(fn: (args: T) => Promise<R>) {
   }
 }
 
-type StoredQuery = {
+export type AnalyzeQueryListing = {
   name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  example: Record<string, unknown>
+}
+
+type StoredQuery = AnalyzeQueryListing & {
   execute: (input: unknown) => Promise<unknown>
 }
 
 export class AnalyzeQueryRegistry {
   constructor(private readonly queries: StoredQuery[]) {}
+
+  list(): AnalyzeQueryListing[] {
+    return this.queries.map(({ execute: _execute, ...query }) => query)
+  }
 
   async execute(name: string, input: unknown): Promise<unknown> {
     const query = this.queries.find((item) => item.name === name)
@@ -209,6 +219,7 @@ export class AnalyzeQueryRegistry {
       if (error instanceof z.ZodError) {
         throw new AnalyzeQueryError({
           error: `Invalid arguments for query ${name}: ${error.message}`,
+          example: query.example,
         })
       }
       throw error
@@ -1165,33 +1176,129 @@ function provenance(metadata: SnapshotMetadata) {
   }
 }
 
-const pagingSchema = {
-  offset: z.number().int().nonnegative().optional(),
-  limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
+function jsonField(input: z.ZodTypeAny): {
+  schema: Record<string, unknown>
+  required: boolean
+} {
+  const description = input.description
+  let field = input
+  let required = true
+  if (field instanceof z.ZodOptional) {
+    required = false
+    field = field.unwrap()
+  }
+
+  const schema: Record<string, unknown> = {}
+  if (field instanceof z.ZodString) {
+    schema.type = 'string'
+    for (const check of field._def.checks) {
+      if (check.kind === 'min') schema.minLength = check.value
+      if (check.kind === 'max') schema.maxLength = check.value
+    }
+  } else if (field instanceof z.ZodNumber) {
+    schema.type = field._def.checks.some((check) => check.kind === 'int')
+      ? 'integer'
+      : 'number'
+    for (const check of field._def.checks) {
+      if (check.kind === 'min') schema.minimum = check.value
+      if (check.kind === 'max') schema.maximum = check.value
+    }
+  } else if (field instanceof z.ZodEnum) {
+    schema.type = 'string'
+    schema.enum = field.options
+  } else if (field instanceof z.ZodArray) {
+    schema.type = 'array'
+    schema.items = jsonField(field.element).schema
+    if (field._def.maxLength) schema.maxItems = field._def.maxLength.value
+  } else {
+    throw new Error(`Unsupported analyzer query schema: ${field._def.typeName}`)
+  }
+  if (description) schema.description = description
+  return { schema, required }
 }
-const snapshotSchema = z.string().max(100).optional()
-const metricSchema = z.enum(['raw', 'compressed']).optional()
-const environmentSchema = z.enum(['total', 'client', 'server']).optional()
+
+function jsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
+  const properties: Record<string, unknown> = {}
+  const required: string[] = []
+  for (const [name, field] of Object.entries(shape)) {
+    const result = jsonField(field)
+    properties[name] = result.schema
+    if (result.required) required.push(name)
+  }
+  return {
+    type: 'object',
+    properties,
+    ...(required.length ? { required } : {}),
+    additionalProperties: false,
+  }
+}
+
+const pagingSchema = {
+  offset: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Zero-based result offset. Default: 0.'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_LIMIT)
+    .optional()
+    .describe(`Maximum results. Default: ${DEFAULT_LIMIT}; max: ${MAX_LIMIT}.`),
+}
+const snapshotSchema = z
+  .string()
+  .max(100)
+  .optional()
+  .describe('Snapshot ID. Default: `current`.')
+const metricSchema = z
+  .enum(['raw', 'compressed'])
+  .optional()
+  .describe('Size metric. Default: `raw`.')
+const environmentSchema = z
+  .enum(['total', 'client', 'server'])
+  .optional()
+  .describe('Attribution environment. Default: `total`.')
 
 export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   const queries: StoredQuery[] = []
   function registerQuery<T extends z.ZodRawShape>(
     name: string,
-    inputSchema: T,
+    config: {
+      description: string
+      inputSchema: T
+      example: Record<string, unknown>
+    },
     callback: (args: z.infer<z.ZodObject<T>>) => Promise<unknown>
   ) {
-    const schema = z.object(inputSchema).strict()
-    queries.push({ name, execute: (input) => callback(schema.parse(input)) })
+    const schema = z.object(config.inputSchema).strict()
+    queries.push({
+      name,
+      description: config.description,
+      inputSchema: jsonSchema(config.inputSchema),
+      example: config.example,
+      execute: (input) => callback(schema.parse(input)),
+    })
   }
 
   registerQuery(
     'get_app_overview',
     {
-      snapshot: snapshotSchema,
-      environment: z.enum(['total', 'client']).optional(),
-      metric: metricSchema,
-      routeFilter: z.string().max(1000).optional(),
-      ...pagingSchema,
+      description:
+        'List analyzer snapshots and rank routes by raw or estimated compressed bundle contribution.',
+      inputSchema: {
+        snapshot: snapshotSchema,
+        environment: z
+          .enum(['total', 'client'])
+          .optional()
+          .describe('Attribution environment. Default: `total`.'),
+        metric: metricSchema,
+        routeFilter: z.string().max(1000).optional(),
+        ...pagingSchema,
+      },
+      example: { environment: 'client', limit: 10 },
     },
     safeQuery(async (args: OverviewArgs) => {
       const snapshot = await repository.getSnapshot(args.snapshot)
@@ -1236,17 +1343,30 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'get_route_modules',
     {
-      route: z.string().max(4096),
-      snapshot: snapshotSchema,
-      search: z.string().max(1000).optional(),
-      environment: environmentSchema,
-      fileTypes: z
-        .array(z.enum(['js', 'css', 'json', 'asset']))
-        .max(4)
-        .optional(),
-      groupBy: z.enum(['source', 'package']).optional(),
-      metric: metricSchema,
-      ...pagingSchema,
+      description:
+        'Query and rank source or npm-package contributions for one analyzed route.',
+      inputSchema: {
+        route: z.string().max(4096),
+        snapshot: snapshotSchema,
+        search: z.string().max(1000).optional(),
+        environment: environmentSchema,
+        fileTypes: z
+          .array(z.enum(['js', 'css', 'json', 'asset']))
+          .max(4)
+          .optional(),
+        groupBy: z
+          .enum(['source', 'package'])
+          .optional()
+          .describe('Result grouping. Default: `source`.'),
+        metric: metricSchema,
+        ...pagingSchema,
+      },
+      example: {
+        route: '/',
+        environment: 'client',
+        groupBy: 'package',
+        limit: 20,
+      },
     },
     safeQuery(async (args: SourcesArgs) => {
       const environment = args.environment ?? 'total'
@@ -1536,20 +1656,26 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'explain_route_module',
     {
-      route: z.string().max(4096),
-      sourcePath: z.string().max(4096),
-      snapshot: snapshotSchema,
-      moduleIdent: z.string().max(4096).optional(),
-      routeEntryId: z.string().max(8192).optional(),
-      importerModuleIdent: z.string().max(4096).optional(),
-      environment: environmentSchema,
-      maxDepth: z
-        .number()
-        .int()
-        .min(1)
-        .max(100)
-        .optional()
-        .describe('Maximum importer-chain depth. Default: 25.'),
+      description:
+        'Explain one source contribution and return a bounded importer chain toward an exact route entry.',
+      inputSchema: {
+        route: z.string().max(4096),
+        sourcePath: z.string().max(4096),
+        snapshot: snapshotSchema,
+        moduleIdent: z.string().max(4096).optional(),
+        routeEntryId: z.string().max(8192).optional(),
+        importerModuleIdent: z.string().max(4096).optional(),
+        environment: environmentSchema,
+        maxDepth: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Maximum importer-chain depth. Default: 25.'),
+      },
+      example: { route: '/', sourcePath: '[project]/src/app/page.tsx' },
+      caveats: [COMPRESSED_CAVEAT, ENTRY_HEURISTIC_CAVEAT],
     },
     safeQuery(async (args: ExplainArgs) => {
       const environment = args.environment ?? 'total'
@@ -1905,14 +2031,29 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
   registerQuery(
     'compare_bundles',
     {
-      baselineSnapshot: z.string().max(100),
-      comparisonSnapshot: snapshotSchema,
-      granularity: z.enum(['route', 'source', 'package']).optional(),
-      route: z.string().max(4096).optional(),
-      environment: environmentSchema,
-      metric: metricSchema,
-      search: z.string().max(1000).optional(),
-      ...pagingSchema,
+      description:
+        'Compare two analyzer snapshots at route, source, or npm-package granularity.',
+      inputSchema: {
+        baselineSnapshot: z
+          .string()
+          .max(100)
+          .describe('Required historical snapshot ID from get_app_overview.'),
+        comparisonSnapshot: snapshotSchema,
+        granularity: z
+          .enum(['route', 'source', 'package'])
+          .optional()
+          .describe('Comparison granularity. Default: `route`.'),
+        route: z.string().max(4096).optional(),
+        environment: environmentSchema,
+        metric: metricSchema,
+        search: z.string().max(1000).optional(),
+        ...pagingSchema,
+      },
+      example: {
+        baselineSnapshot: '20260917-201045-abcdef0',
+        comparisonSnapshot: 'current',
+        limit: 20,
+      },
     },
     safeQuery(async (args: CompareArgs) => {
       const granularity = args.granularity ?? 'route'
