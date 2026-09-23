@@ -14,7 +14,7 @@ createModuleWithDirectionFlag = true
 
 interface TurbopackNodeBuildContext
   extends TurbopackBaseContext<ModuleWithDirection> {
-  R: ResolvePathFromModule
+  S: ResolvePathFromModule
   x: ExternalRequire
   y: ExternalImport
   C: typeof clearChunkCache
