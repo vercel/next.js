@@ -198,7 +198,7 @@ pnpm exec next experimental-analyze \
   }'
 ```
 
-Use each edge's `targetRemainsInitial` and `leavingInitial*` fields to reject
+Use each edge's `targetRemainsInitial` and `leavingInitial*` fields to rule out
 false positives caused by alternate synchronous paths. Before editing a
 promising edge, request its full source/package impact:
 
