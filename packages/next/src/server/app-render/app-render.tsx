@@ -2988,14 +2988,8 @@ async function prerenderAppPage({
     }
   }
 
-  // Keep the original failure for builds and incomplete prerender results.
-  //
-  // TODO: Preserve postponed state in on-demand failures and resume their
-  // recovery output during response delivery.
-  if (
-    renderError !== undefined &&
-    (renderOpts.isBuildTimePrerendering || metadata.postponed !== undefined)
-  ) {
+  // Build failures still throw, even if recovery produced a usable response.
+  if (renderError !== undefined && renderOpts.isBuildTimePrerendering) {
     throw renderError.thrownValue
   }
 
@@ -3028,8 +3022,8 @@ async function prerenderAppPage({
 
   const streamString = await streamToString(response.stream)
 
-  // A completed failure is never resumed. Copy only the delivery metadata so
-  // the response cache does not retain the resume data cache assigned below.
+  // Copy only the delivery metadata. Partial recovery includes its resume data
+  // cache in the serialized postponed state, so it needs no live cache below.
   if (renderError !== undefined) {
     return {
       error: getProperError(renderError.thrownValue),
@@ -3040,6 +3034,7 @@ async function prerenderAppPage({
           headers: metadata.headers,
           flightData: metadata.flightData,
           fetchMetrics: metadata.fetchMetrics,
+          postponed: metadata.postponed,
         },
       }),
     }
@@ -10108,13 +10103,11 @@ async function prerenderToStream(
       metadata.statusCode = res.statusCode
     }
 
-    // TODO: Recover partial Flight results on demand and resume the unfinished
-    // components. Keep throwing for builds and unknown Flight state.
     if (
       cacheComponents &&
       !isHTTPAccessFallback &&
       !isRedirect &&
-      (isBuildTimePrerendering || reactServerPrerenderResultIsDynamic !== false)
+      (isBuildTimePrerendering || reactServerPrerenderResultIsDynamic === null)
     ) {
       throw reactServerErrorsByDigest.get((err as any)?.digest) ?? err
     }
@@ -10402,7 +10395,10 @@ async function prerenderToStream(
           originalFlightPrerenderResult.consume()
           errorServerResult.consume()
           return {
-            error: undefined,
+            error:
+              isHTTPAccessFallback || isRedirect
+                ? undefined
+                : { thrownValue: err },
             digestErrorsMap: reactServerErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
