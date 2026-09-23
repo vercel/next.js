@@ -976,29 +976,11 @@ impl PageEndpoint {
                 // We only validate the global css imports when there is not a `app` folder at the
                 // root of the project.
                 if project.app_project().await?.is_none() {
-                    // We recreate the app_module here because the one provided from the
-                    // `internal_ssr_chunk_module` is not the same as the one
-                    // provided from the `client_module_graph`. There can be cases where
-                    // the `app_module` is None, and we are processing the `pages/_app.js` file
-                    // as a page rather than the app module.
-                    let app_module = project
-                        .pages_project()
-                        .client_module_context()
-                        .process(
-                            Vc::upcast(FileSource::new(
-                                this.pages_structure.await?.app.file_path().owned().await?,
-                            )),
-                            ReferenceType::Entry(EntryReferenceSubType::Page),
-                        )
-                        .to_resolved()
-                        .await?
-                        .module();
-
                     validate_pages_css_imports(
                         client_module_graph,
                         per_page_module_graph,
                         self.client_module(),
-                        app_module,
+                        this.pages_structure.await?.app.file_path().owned().await?,
                     )
                     .await?;
                 }
