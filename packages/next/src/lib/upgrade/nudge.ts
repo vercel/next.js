@@ -7,7 +7,7 @@ import semver from 'next/dist/compiled/semver'
 import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
-import { futureDefaults } from './future-defaults'
+import { getPendingFutureDefaults } from './future-defaults'
 import type { UpgradeAssessment } from './prepare-upgrade'
 
 type SecurityNudgeOptions = {
@@ -213,6 +213,7 @@ Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${policy}'
 }
 
 export async function getFutureUpgrade(
+  directory: string,
   config: NextConfigComplete,
   installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
 ): Promise<{ installedVersion: string; names: string[] } | null> {
@@ -226,10 +227,10 @@ export async function getFutureUpgrade(
       return null
     }
 
-    const available = futureDefaults.filter(
-      (futureDefault) =>
-        semver.gte(installedVersion, futureDefault.availableSince) &&
-        !futureDefault.isAdopted(config)
+    const available = await getPendingFutureDefaults(
+      directory,
+      config,
+      installedVersion
     )
 
     if (available.length === 0) {
@@ -251,7 +252,7 @@ async function nudgeForFuture(
   config: NextConfigComplete
 ): Promise<void> {
   const version = process.env.__NEXT_VERSION || 'unknown'
-  const future = await getFutureUpgrade(config, version)
+  const future = await getFutureUpgrade(options.directory, config, version)
   if (!future) return
 
   const defaults = future.names.map((name) => `- ${name}`).join('\n')

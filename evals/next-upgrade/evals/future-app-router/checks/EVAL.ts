@@ -1,0 +1,1 @@
+../../../shared/app-router-checks.ts

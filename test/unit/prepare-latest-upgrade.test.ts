@@ -23,6 +23,11 @@ describe('prepare latest upgrade', () => {
     directories.push(directory)
     await mkdir(join(directory, 'node_modules/next'), { recursive: true })
     await writeFile(join(directory, 'package.json'), '{}')
+    await mkdir(join(directory, 'app'))
+    await writeFile(
+      join(directory, 'app/page.tsx'),
+      'export default function Page() {}'
+    )
     await writeFile(
       join(directory, 'node_modules/next/package.json'),
       JSON.stringify({ version, engines: { node: '>=18' } })
@@ -92,6 +97,7 @@ describe('prepare latest upgrade', () => {
 
   beforeEach(() => {
     jest.mocked(loadConfig).mockResolvedValue({
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       cacheComponents: false,
       partialPrefetching: false,
     } as never)
@@ -419,6 +425,7 @@ describe('prepare latest upgrade', () => {
         async (target) => {
           const directory = await createApp('17.2.0-canary.4')
           jest.mocked(loadConfig).mockResolvedValue({
+            pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
             cacheComponents: true,
             partialPrefetching: true,
           } as never)
@@ -703,6 +710,7 @@ describe('prepare latest upgrade', () => {
   it('selects only Partial Prefetching when Cache Components is adopted', async () => {
     const directory = await createApp('16.4.0')
     jest.mocked(loadConfig).mockResolvedValue({
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       cacheComponents: true,
       partialPrefetching: false,
     } as never)
@@ -739,6 +747,7 @@ describe('prepare latest upgrade', () => {
   it('does nothing when all available Future Defaults are adopted', async () => {
     const directory = await createApp('16.4.0')
     jest.mocked(loadConfig).mockResolvedValue({
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       cacheComponents: true,
       partialPrefetching: true,
     } as never)

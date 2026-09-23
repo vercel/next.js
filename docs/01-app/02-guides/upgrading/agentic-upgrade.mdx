@@ -75,6 +75,38 @@ references in the prompt instead of the codemod steps below.
       prompt, preserving unrelated configuration. If the target Next.js version
       does not support this option, skip the setting and report why.
 
+### Adopt Future Defaults
+
+When the prompt lists Future Defaults, complete and verify them in the supplied
+order after verifying the version migration. An unchanged version still needs
+any pending adoption. If a prerequisite is already enabled, verify its behavior
+before proceeding. Report a blocker and the remaining work if a stage cannot be
+verified; leave dependent stages pending.
+
+When **App Router** is listed, follow the supplied Pages-to-App migration guide
+with this scope:
+
+- [ ] Inventory the original UI URLs and their data freshness, redirects, error
+      handling, metadata, providers, authentication, and locale behavior. Record
+      the available build and runtime checks and any existing failures.
+- [ ] Migrate all Pages UI routes, including those in a hybrid application, one
+      feature at a time. Preserve their URLs and behavior. Verify direct requests
+      and client navigation for each feature before moving to the next.
+- [ ] Preserve Pages API routes, including `src/pages/api`, in place. Check their
+      behavior when shared modules or configuration change. API routes remaining
+      in `pages` do not make UI adoption incomplete.
+- [ ] Transfer styles, providers, document structure, scripts, and custom error
+      behavior before removing obsolete `_app`, `_document`, `_error`, `404`, and
+      `500` files. Keep infrastructure needed by UI routes still being migrated.
+- [ ] Reinspect the original route inventory. Every UI route must be accounted
+      for in App Router; creating an `app` directory or deleting Pages files is
+      not sufficient. Verify a production build and start, browser navigation,
+      and affected API endpoints before beginning Cache Components adoption.
+
+If Cache Components or Partial Prefetching is already enabled, preserve the
+configuration and verify newly migrated routes under it. A temporary hybrid
+checkpoint is progress, not completed App Router adoption.
+
 ## 4. Verify
 
 **This is the most important step.**

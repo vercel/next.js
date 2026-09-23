@@ -6,7 +6,7 @@ description: Learn how to upgrade your existing Next.js application from the Pag
 
 This guide will help you:
 
-- [Update your Next.js application from version 12 to version 13](#nextjs-version)
+- [Update your Next.js application](#nextjs-version)
 - [Upgrade features that work in both the `pages` and the `app` directories](#upgrading-new-features)
 - [Incrementally migrate your existing application from `pages` to `app`](#migrating-from-pages-to-app)
 
@@ -14,11 +14,11 @@ This guide will help you:
 
 ### Node.js Version
 
-The minimum Node.js version is now **v18.17**. See the [Node.js documentation](https://nodejs.org/docs/latest-v18.x/api/) for more information.
+Use the Node.js version required by your target Next.js release. Next.js 16 requires **Node.js 20.9 or later**. See the [version upgrade guides](/docs/app/guides/upgrading) for other releases.
 
 ### Next.js Version
 
-To update to Next.js version 13, run the following command using your preferred package manager:
+Follow the [version upgrade guide](/docs/app/guides/upgrading) for your target release before migrating routers. To install the latest release, use your preferred package manager:
 
 ```bash package="pnpm"
 pnpm add next@latest react@latest react-dom@latest
@@ -509,7 +509,7 @@ In addition, the new `useRouter` hook has the following changes:
 - The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [prerendering](/docs/app/glossary#prerendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed. On a prerendered route, [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) makes the Client Component tree up to the nearest `<Suspense>` boundary render on the client. Wrap the component that uses it in `<Suspense>`; a static route can appear to work in development but fail its production build without this boundary.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
@@ -520,6 +520,8 @@ To keep components compatible between the `pages` and `app` routers, refer to th
 This is the `useRouter` hook from the `pages` directory, but intended to be used while sharing components between routers. Once you are ready to use it only on the `app` router, update to the new [`useRouter` from `next/navigation`](/docs/app/api-reference/functions/use-router).
 
 ### Step 6: Migrating Data Fetching Methods
+
+In Next.js 15 and later, `cookies()`, `headers()`, `draftMode()`, and the page's `params` and `searchParams` props are asynchronous. Next.js 16 requires asynchronous access. Follow the [Async Request APIs guide](/docs/app/guides/upgrading/version-16#async-request-apis-breaking-change) for the target version when translating request-dependent data fetching.
 
 The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch data for pages. Inside the `app` directory, these previous data fetching functions are replaced with a [simpler API](/docs/app/getting-started/fetching-data) built on top of `fetch()` and `async` React Server Components.
 
@@ -532,7 +534,6 @@ export default async function Page() {
 
   // Opt out of caching for this request.
   // Next.js fetches this from the data source on every request.
-  // This is the default fetch behavior.
   // Similar to `getServerSideProps`.
   const uncachedData = await fetch('https://...', { cache: 'no-store' })
 
@@ -555,7 +556,6 @@ export default async function Page() {
 
   // Opt out of caching for this request.
   // Next.js fetches this from the data source on every request.
-  // This is the default fetch behavior.
   // Similar to `getServerSideProps`.
   const uncachedData = await fetch('https://...', { cache: 'no-store' })
 
@@ -729,14 +729,14 @@ export default function Index({ projects }) {
 }
 ```
 
-In the `app` directory, data fetching with [`fetch()`](/docs/app/api-reference/functions/fetch) will default to `cache: 'force-cache'`, which will cache the request data until manually invalidated. This is similar to `getStaticProps` in the `pages` directory.
+In Next.js 15 and later, [`fetch()`](/docs/app/api-reference/functions/fetch) responses are not cached by default. Set `cache: 'force-cache'` explicitly to reuse fetched data across requests. Data caching and route prerendering are separate: verify the production build to preserve the static behavior of the original `getStaticProps` page. If Cache Components is already enabled, follow the [caching guide](/docs/app/getting-started/caching) instead.
 
 ```jsx filename="app/page.js"
 // `app` directory
 
 // This function can be named anything
 async function getProjects() {
-  const res = await fetch(`https://...`)
+  const res = await fetch(`https://...`, { cache: 'force-cache' })
   const projects = await res.json()
 
   return projects

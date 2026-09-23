@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -44,6 +44,7 @@ const config = (
 ) =>
   ({
     ...values,
+    pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
     distDir: '.next',
     experimental: { agenticAutoUpgrade: policy },
   }) as never
@@ -51,6 +52,11 @@ const config = (
 beforeEach(async () => {
   process.env.__NEXT_VERSION = '16.4.0'
   directory = await mkdtemp(join(tmpdir(), 'security-upgrade-nudge-'))
+  await mkdir(join(directory, 'app'))
+  await writeFile(
+    join(directory, 'app/page.tsx'),
+    'export default function Page() {}'
+  )
 })
 
 afterEach(async () => {
@@ -459,7 +465,11 @@ describe('composed future nudge', () => {
     'does not offer defaults before stable availability or for another prerelease: %s',
     async (version) => {
       await expect(
-        getFutureUpgrade(config('future', { cacheComponents: false }), version)
+        getFutureUpgrade(
+          directory,
+          config('future', { cacheComponents: false }),
+          version
+        )
       ).resolves.toBeNull()
     }
   )
@@ -467,6 +477,7 @@ describe('composed future nudge', () => {
   it('offers available defaults on canary without a version reminder', async () => {
     await expect(
       getFutureUpgrade(
+        directory,
         config('future', { cacheComponents: false }),
         '16.4.0-canary.1'
       )
@@ -479,6 +490,7 @@ describe('composed future nudge', () => {
   it('does not remind about defaults already adopted on canary', async () => {
     await expect(
       getFutureUpgrade(
+        directory,
         config('future', {
           cacheComponents: true,
           partialPrefetching: true,
@@ -508,7 +520,11 @@ describe('composed future nudge', () => {
 
   it('names available Future Defaults using the adapter', async () => {
     await expect(
-      getFutureUpgrade(config('future', { cacheComponents: false }), '16.4.0')
+      getFutureUpgrade(
+        directory,
+        config('future', { cacheComponents: false }),
+        '16.4.0'
+      )
     ).resolves.toEqual({
       installedVersion: '16.4.0',
       names: ['Cache Components', 'Partial Prefetching'],
@@ -518,6 +534,7 @@ describe('composed future nudge', () => {
   it('stays silent when all available Future Defaults are adopted', async () => {
     await expect(
       getFutureUpgrade(
+        directory,
         config('future', { cacheComponents: true, partialPrefetching: true }),
         '16.4.0'
       )
