@@ -174,6 +174,7 @@ async function requestHandler(
           nextConfig.experimental.parallelRouteMetadata
         ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        inlineScriptHashes: nextConfig.experimental.inlineScriptHashes,
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         reactBrowserBailout: Boolean(

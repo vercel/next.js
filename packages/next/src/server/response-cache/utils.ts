@@ -32,6 +32,7 @@ export async function fromResponseCacheEntry(
               postponed: cacheEntry.value.postponed,
               rscData: cacheEntry.value.rscData,
               headers: cacheEntry.value.headers,
+              inlineScriptHashes: cacheEntry.value.inlineScriptHashes,
               status: cacheEntry.value.status,
               segmentData: cacheEntry.value.segmentData,
             }
@@ -70,6 +71,7 @@ export async function toResponseCacheEntry(
               ),
               rscData: response.value.rscData,
               headers: response.value.headers,
+              inlineScriptHashes: response.value.inlineScriptHashes,
               status: response.value.status,
               postponed: response.value.postponed,
               segmentData: response.value.segmentData,

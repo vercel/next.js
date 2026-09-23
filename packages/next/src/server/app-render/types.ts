@@ -165,6 +165,7 @@ export interface RenderOptsPartial {
     optimisticRouting: boolean
     parallelRouteMetadata: boolean
     inlineCss: boolean
+    inlineScriptHashes: ExperimentalConfig['inlineScriptHashes']
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     reactBrowserBailout: boolean
