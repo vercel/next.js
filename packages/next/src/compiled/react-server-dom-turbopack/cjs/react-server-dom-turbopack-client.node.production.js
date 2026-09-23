@@ -1528,6 +1528,8 @@ function parseModelString(response, parentObject, key, value) {
             loadServerReference
           )
         );
+      case "H":
+        return;
       case "T":
         parentObject = "$" + value.slice(2);
         response = response._tempRefs;

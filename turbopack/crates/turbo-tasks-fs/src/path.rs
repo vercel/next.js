@@ -8,10 +8,8 @@ use bincode::{Decode, Encode};
 use indexmap::IndexSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
-    turbobail, turbofmt,
+    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, turbobail, turbofmt,
 };
-use turbo_tasks_hash::HashAlgorithm;
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, get_relative_request_to, join_path, normalize_path,
 };
@@ -131,10 +129,7 @@ impl FileSystemPath {
             return None;
         }
 
-        Some(match get_relative_request_to(&self.path, &other.path) {
-            Cow::Borrowed(path) => path.into(),
-            Cow::Owned(path) => path.into(),
-        })
+        Some(get_relative_request_to(&self.path, &other.path).into())
     }
 
     /// Returns the final component of the FileSystemPath, or an empty string
@@ -433,15 +428,6 @@ impl FileSystemPath {
         self.fs().read(self.clone()).parse_json5()
     }
 
-    /// Hashes the file content (but not as a byte-exact content hash). This does NOT follow
-    /// symlinks, so use this when you only want the hash of the file itself, not whatever it
-    /// might point to.
-    ///
-    /// This is basically `isSymlink ? self.read_link().hash() : self.read().hash()`.
-    pub fn hash_file(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Vc<RcStr> {
-        hash_file(self.clone(), salt, algorithm)
-    }
-
     /// Reads content of a directory.
     ///
     /// DETERMINISM: Result is in random order. Either sort result or do not
@@ -535,13 +521,13 @@ pub struct RealPathWithLinksResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, Encode, Decode)]
 pub struct RealPathError {
     original_path: FileSystemPath,
     kind: RealPathErrorType,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, Encode, Decode)]
 pub enum RealPathErrorType {
     TooManySymlinks {
         symlinks: Box<[FileSystemPath]>,
@@ -665,7 +651,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLink
     let original_path = path.clone();
     let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
-    let mut visited: AutoSet<RcStr> = AutoSet::new();
+    let mut visited: AutoSet<FileSystemPath> = AutoSet::new();
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
     for _i in 0..40 {
@@ -678,7 +664,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLink
             .cell());
         }
 
-        if !visited.insert(current_path.path.clone()) {
+        if !visited.insert(current_path.clone()) {
             let symlinks: Box<[_]> = symlinks.into_iter().collect();
             return Ok(error_result(
                 original_path,
@@ -766,25 +752,6 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLink
     ))
 }
 
-#[turbo_tasks::function]
-async fn hash_file(
-    path: FileSystemPath,
-    salt: Vc<RcStr>,
-    algorithm: HashAlgorithm,
-) -> Result<Vc<RcStr>> {
-    match *path.get_type().await? {
-        FileSystemEntryType::File => Ok(path.read().hash(salt, algorithm)),
-        FileSystemEntryType::Symlink => Ok(path.read_link().hash(salt, algorithm)),
-        FileSystemEntryType::NotFound | FileSystemEntryType::Error => {
-            // Should this rather be `return None`?
-            turbobail!("Cannot hash content of missing path {path}")
-        }
-        FileSystemEntryType::Directory | FileSystemEntryType::Other => {
-            turbobail!("Cannot hash content of non-file path {path}")
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
@@ -794,20 +761,11 @@ mod tests {
     use super::*;
     use crate::VirtualFileSystem;
 
-    /// Builds two paths on the same filesystem and returns them.
-    fn paths_on_one_fs(
-        fs: ResolvedVc<Box<dyn FileSystem>>,
-        from: &str,
-        target: &str,
-    ) -> (FileSystemPath, FileSystemPath) {
-        (
-            FileSystemPath::new_normalized_unchecked(fs, from.into()),
-            FileSystemPath::new_normalized_unchecked(fs, target.into()),
-        )
-    }
-
+    /// `turbo-unix-path` covers how the relative path itself is computed, so this only pins what
+    /// this layer adds: that each method reaches for the form it names, and that neither crosses
+    /// between filesystems.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_get_relative_path_to() {
+    async fn get_relative_to() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
@@ -816,73 +774,21 @@ mod tests {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
                 .to_resolved()
                 .await?;
+            let dir = FileSystemPath::new_normalized_unchecked(fs, rcstr!("a/b"));
+            let file = FileSystemPath::new_normalized_unchecked(fs, rcstr!("a/b/c.js"));
 
-            for (from, target, expected) in [
-                ("a/b/c", "a/b/c", "."),
-                ("a/c/d", "a/b/c", "../../b/c"),
-                ("", "a/b/c", "a/b/c"),
-                ("a/b", "a/b/c", "c"),
-                ("a/b/c", "", "../../.."),
-                ("a/b/c", "c/b/a", "../../../c/b/a"),
-            ] {
-                let (from_path, target_path) = paths_on_one_fs(fs, from, target);
-                assert_eq!(
-                    from_path.get_relative_path_to(&target_path).as_deref(),
-                    Some(expected),
-                    "{from:?} -> {target:?}"
-                );
-            }
+            assert_eq!(dir.get_relative_path_to(&file).as_deref(), Some("c.js"));
+            assert_eq!(
+                dir.get_relative_request_to(&file).as_deref(),
+                Some("./c.js")
+            );
 
-            // A path on another filesystem is not reachable relatively.
-            let (from_path, _) = paths_on_one_fs(fs, "a/b", "a/b/c");
             let other_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
                 .to_resolved()
                 .await?;
-            let on_other_fs = FileSystemPath::new_normalized_unchecked(other_fs, rcstr!("a/b/c"));
-            assert_eq!(from_path.get_relative_path_to(&on_other_fs), None);
-
-            anyhow::Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    /// The cases this covers are the ones `get_relative_path_to` was asserted against before it
-    /// stopped prefixing `./`, so they pin that the request form still produces them.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_get_relative_request_to() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async move {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
-                .to_resolved()
-                .await?;
-
-            for (from, target, expected) in [
-                ("a/b/c", "a/b/c", "."),
-                ("a/c/d", "a/b/c", "../../b/c"),
-                ("", "a/b/c", "./a/b/c"),
-                ("a/b", "a/b/c", "./c"),
-                ("a/b/c", "", "../../.."),
-                ("a/b/c", "c/b/a", "../../../c/b/a"),
-            ] {
-                let (from_path, target_path) = paths_on_one_fs(fs, from, target);
-                assert_eq!(
-                    from_path.get_relative_request_to(&target_path).as_deref(),
-                    Some(expected),
-                    "{from:?} -> {target:?}"
-                );
-            }
-
-            // A path on another filesystem is not reachable relatively.
-            let (from_path, _) = paths_on_one_fs(fs, "a/b", "a/b/c");
-            let other_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
-                .to_resolved()
-                .await?;
-            let on_other_fs = FileSystemPath::new_normalized_unchecked(other_fs, rcstr!("a/b/c"));
-            assert_eq!(from_path.get_relative_request_to(&on_other_fs), None);
+            let elsewhere = FileSystemPath::new_normalized_unchecked(other_fs, rcstr!("a/b/c.js"));
+            assert_eq!(dir.get_relative_path_to(&elsewhere), None);
+            assert_eq!(dir.get_relative_request_to(&elsewhere), None);
 
             anyhow::Ok(())
         })
@@ -959,171 +865,5 @@ mod tests {
         })
         .await
         .unwrap()
-    }
-
-    mod hash_file {
-        use std::{
-            fs::{create_dir_all, write},
-            path::Path,
-        };
-
-        use turbo_tasks::OperationVc;
-
-        use super::*;
-        use crate::DiskFileSystem;
-
-        /// Creates a symbolic link, mirroring the platform handling of the `read_glob` tests. On
-        /// Windows a link to a directory is created as a junction point, which requires an
-        /// absolute target.
-        fn symlink(target: &Path, link: &Path) -> std::io::Result<()> {
-            #[cfg(unix)]
-            {
-                std::os::unix::fs::symlink(target, link)
-            }
-            #[cfg(windows)]
-            {
-                if std::fs::metadata(target).is_ok_and(|metadata| metadata.is_dir()) {
-                    assert!(
-                        target.is_absolute(),
-                        "a junction point needs an absolute target"
-                    );
-                    std::os::windows::fs::junction_point(target, link)
-                } else {
-                    std::os::windows::fs::symlink_file(target, link)
-                }
-            }
-        }
-
-        /// Two directories that hold a file of the *same name* but with *different content*, each
-        /// with a symlink pointing at it through the *same* relative target. Plus the entry types
-        /// that `hash_file` has to tell apart.
-        fn create_fixture(root: &Path, outside: &Path) {
-            write(outside.join("outside.txt"), b"outside").unwrap();
-
-            create_dir_all(root.join("data-a")).unwrap();
-            write(root.join("data-a/value.txt"), b"aaa").unwrap();
-            symlink(Path::new("value.txt"), &root.join("data-a/link")).unwrap();
-            symlink(
-                Path::new("../data-b/value.txt"),
-                &root.join("data-a/link-other"),
-            )
-            .unwrap();
-
-            create_dir_all(root.join("data-b")).unwrap();
-            write(root.join("data-b/value.txt"), b"bbbbbb").unwrap();
-            symlink(Path::new("value.txt"), &root.join("data-b/link")).unwrap();
-
-            create_dir_all(root.join("dir")).unwrap();
-            write(root.join("dir/inside.txt"), b"inside").unwrap();
-            // the regression from #97507: reading *through* this link hits the directory
-            symlink(&root.join("dir"), &root.join("link-dir")).unwrap();
-            // a link whose target doesn't exist
-            symlink(Path::new("nope.txt"), &root.join("dangling")).unwrap();
-            // a link whose target leaves the filesystem root
-            symlink(&outside.join("outside.txt"), &root.join("escaping")).unwrap();
-        }
-
-        #[turbo_tasks::function(operation, root)]
-        async fn hash_file_operation(disk_root: RcStr, entry: RcStr) -> Result<Vc<RcStr>> {
-            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(disk_root));
-            let path = fs.root().await?.join(&entry)?;
-            Ok(path.hash_file(Vc::cell(rcstr!("salt")), HashAlgorithm::Xxh3Hash128Hex))
-        }
-
-        /// `Ok` with the hash, or `Err` with the (flattened) error message.
-        async fn hash_of(disk_root: &RcStr, entry: RcStr) -> Result<RcStr, String> {
-            let operation: OperationVc<RcStr> = hash_file_operation(disk_root.clone(), entry);
-            match operation.read_strongly_consistent().await {
-                Ok(hash) => Ok((*hash).clone()),
-                Err(err) => Err(format!("{err:#}")),
-            }
-        }
-
-        /// `hash_file` hashes a symlink *itself* rather than what it points at, so that a link to a
-        /// directory can be hashed at all and so that the hash matches what consumers write out
-        /// (they recreate a symlink as a symlink). See #97507.
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn hashes_by_entry_type() {
-            let scratch = tempfile::tempdir().unwrap();
-            let outside = tempfile::tempdir().unwrap();
-            create_fixture(scratch.path(), outside.path());
-
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-            let disk_root: RcStr = scratch.path().to_str().unwrap().into();
-            tt.run_once(async move {
-                let file_a = hash_of(&disk_root, rcstr!("data-a/value.txt")).await;
-                let file_b = hash_of(&disk_root, rcstr!("data-b/value.txt")).await;
-                let link_a = hash_of(&disk_root, rcstr!("data-a/link")).await;
-                let link_b = hash_of(&disk_root, rcstr!("data-b/link")).await;
-                let link_other = hash_of(&disk_root, rcstr!("data-a/link-other")).await;
-                let link_dir = hash_of(&disk_root, rcstr!("link-dir")).await;
-                let dangling = hash_of(&disk_root, rcstr!("dangling")).await;
-                let escaping = hash_of(&disk_root, rcstr!("escaping")).await;
-                let dir = hash_of(&disk_root, rcstr!("dir")).await;
-                let missing = hash_of(&disk_root, rcstr!("gone.txt")).await;
-
-                // A regular file hashes its content.
-                let file_a = file_a.expect("a file is hashable");
-                let file_b = file_b.expect("a file is hashable");
-                assert_ne!(file_a, file_b, "the two files have different content");
-
-                // A symlink is hashable, including one that points at a directory - reading
-                // through that link would fail with `Is a directory (os error 21)`.
-                let link_a = link_a.expect("a symlink to a file is hashable");
-                let link_b = link_b.expect("a symlink to a file is hashable");
-                let link_other = link_other.expect("a symlink to a file is hashable");
-                let link_dir = link_dir.expect("a symlink to a directory is hashable");
-                // A dangling link is still a link, and so is one that leaves the root (it is
-                // reported as `LinkContent::Invalid`).
-                let dangling = dangling.expect("a dangling symlink is hashable");
-                let escaping = escaping.expect("a symlink leaving the root is hashable");
-
-                // The link is hashed, not the file it points at: `data-a/link` and `data-b/link`
-                // point at files with *different content* through the *same* target, so they hash
-                // the same...
-                assert_eq!(
-                    link_a, link_b,
-                    "the content of the target must not affect the hash of the link"
-                );
-                // ...while a link with a different target hashes differently.
-                assert_ne!(
-                    link_a, link_other,
-                    "the target of the link must affect the hash of the link"
-                );
-                // ...and a link never hashes like the file it points at.
-                assert_ne!(link_a, file_a);
-
-                // All of the hashes above are distinct, i.e. nothing collapses into a shared
-                // "symlink" hash.
-                let hashes = [&link_a, &link_other, &link_dir, &dangling, &escaping];
-                for (index, hash) in hashes.iter().enumerate() {
-                    for other in &hashes[index + 1..] {
-                        assert_ne!(hash, other, "every distinct link hashes distinctly");
-                    }
-                }
-
-                // Entries that have no content to hash are errors today. `hash_file` carries an
-                // open question on whether these should return `None` instead - if that changes,
-                // these two assertions are the ones to revisit.
-                assert!(
-                    dir.as_ref()
-                        .is_err_and(|err| err.contains("Cannot hash content of non-file path")),
-                    "a directory is not hashable, got {dir:?}"
-                );
-                assert!(
-                    missing
-                        .as_ref()
-                        .is_err_and(|err| err.contains("Cannot hash content of missing path")),
-                    "a missing path is not hashable, got {missing:?}"
-                );
-
-                anyhow::Ok(())
-            })
-            .await
-            .unwrap()
-        }
     }
 }

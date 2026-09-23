@@ -85,7 +85,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.8";
+const nextjsReactPeerVersion = "19.3.0";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -364,7 +364,9 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
+                        // Read the deployed fixture's config after its files have
+                        // been written, using the same output directory as Vercel.
+                        'post-build': `node -e 'const config = fs.existsSync("vercel.json") ? JSON.parse(fs.readFileSync("vercel.json", "utf8")) : {}; console.log("BUILD" + "_ID: " + fs.readFileSync((config.outputDirectory ?? "${this.distDir}") + "/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,

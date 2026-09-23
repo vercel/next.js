@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{JoinIterExt, ResolvedVc, Vc};
 
 use crate::{
     module::{Module, ModuleSideEffects},
@@ -62,10 +62,10 @@ async fn compute_side_effect_free_module_info_single(
                 ),
             })
         })
-        .try_join()
-        .await?
+        .join()
+        .await
         .into_iter()
-        .collect::<FxHashMap<_, _>>();
+        .collect::<Result<FxHashMap<_, _>>>()?;
 
     // Modules are categorized as side-effectful, locally side effect free and side effect free.
     // So we are really just interested in determining what modules that are locally side effect

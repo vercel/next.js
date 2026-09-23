@@ -2,7 +2,7 @@
  * agents-md: Generate Next.js documentation index for AI coding agents.
  *
  * Downloads docs from GitHub via git sparse-checkout, builds a compact
- * index of all doc files, and injects it into CLAUDE.md or AGENTS.md.
+ * index of all doc files, and injects it into AGENTS.md.
  */
 
 import execa from 'execa'
@@ -19,8 +19,7 @@ const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
 /**
  * After an upgrade, refresh the managed agent-rules block in
- * AGENTS.md / CLAUDE.md so its content matches the Next.js version
- * that is now installed.
+ * AGENTS.md so its content matches the Next.js version that is now installed.
  *
  * Delegates to the installed package's own generator
  * (`next/dist/server/lib/generate-agent-files`), so the block text is
@@ -34,18 +33,15 @@ const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 export function refreshAgentRulesBlock(
   cwd: string
 ): 'refreshed' | 'current' | 'skipped' {
-  const hostsBlock = ['AGENTS.md', 'CLAUDE.md'].some((file) => {
-    try {
-      return fs
-        .readFileSync(path.join(cwd, file), 'utf-8')
-        .includes(AGENT_RULES_START_MARKER)
-    } catch {
-      return false
-    }
-  })
-  if (!hostsBlock) return 'skipped'
+  let agentsMdContent: string
+  try {
+    agentsMdContent = fs.readFileSync(path.join(cwd, 'AGENTS.md'), 'utf-8')
+  } catch {
+    return 'skipped'
+  }
+  if (!agentsMdContent.includes(AGENT_RULES_START_MARKER)) return 'skipped'
 
-  let writeAgentFiles: (dir: string) => { agentsMd: string; claudeMd: string }
+  let writeAgentFiles: (dir: string) => { agentsMd: string }
   try {
     const generatorPath = require.resolve(
       'next/dist/server/lib/generate-agent-files',
@@ -58,9 +54,7 @@ export function refreshAgentRulesBlock(
   }
 
   const result = writeAgentFiles(cwd)
-  return result.agentsMd === 'updated' || result.claudeMd === 'updated'
-    ? 'refreshed'
-    : 'current'
+  return result.agentsMd === 'updated' ? 'refreshed' : 'current'
 }
 
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
@@ -325,13 +319,13 @@ export function buildDocTree(files: { relativePath: string }[]): DocSection[] {
   return sortedSections
 }
 
-interface ClaudeMdIndexData {
+interface AgentsMdIndexData {
   docsPath: string
   sections: DocSection[]
   outputFile?: string
 }
 
-export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
+export function generateAgentsMdIndex(data: AgentsMdIndexData): string {
   const { docsPath, sections, outputFile } = data
 
   const parts: string[] = []
@@ -341,7 +335,7 @@ export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
   parts.push(
     'STOP. What you remember about Next.js is WRONG for this project. Always search docs and read before any task.'
   )
-  const targetFile = outputFile || 'CLAUDE.md'
+  const targetFile = outputFile || 'AGENTS.md'
   parts.push(
     `If docs missing, run this command first: npx @next/codemod agents-md --output ${targetFile}`
   )
@@ -402,25 +396,25 @@ function wrapWithMarkers(content: string): string {
   return `${START_MARKER}${content}${END_MARKER}`
 }
 
-export function injectIntoClaudeMd(
-  claudeMdContent: string,
+export function injectIntoAgentsMd(
+  agentsMdContent: string,
   indexContent: string
 ): string {
   const wrappedContent = wrapWithMarkers(indexContent)
 
-  if (hasExistingIndex(claudeMdContent)) {
-    const startIdx = claudeMdContent.indexOf(START_MARKER)
-    const endIdx = claudeMdContent.indexOf(END_MARKER) + END_MARKER.length
+  if (hasExistingIndex(agentsMdContent)) {
+    const startIdx = agentsMdContent.indexOf(START_MARKER)
+    const endIdx = agentsMdContent.indexOf(END_MARKER) + END_MARKER.length
 
     return (
-      claudeMdContent.slice(0, startIdx) +
+      agentsMdContent.slice(0, startIdx) +
       wrappedContent +
-      claudeMdContent.slice(endIdx)
+      agentsMdContent.slice(endIdx)
     )
   }
 
-  const separator = claudeMdContent.endsWith('\n') ? '\n' : '\n\n'
-  return claudeMdContent + separator + wrappedContent + '\n'
+  const separator = agentsMdContent.endsWith('\n') ? '\n' : '\n\n'
+  return agentsMdContent + separator + wrappedContent + '\n'
 }
 
 interface GitignoreStatus {

@@ -1,11 +1,12 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashSet;
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{Ident, Lit},
     quote,
 };
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     module::Module,
@@ -26,7 +27,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, Encode, Decode)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,
@@ -143,12 +144,27 @@ impl ModuleReference for EcmascriptModulePartReference {
 }
 
 impl EcmascriptModulePartReference {
+    pub(crate) fn is_evaluation_only(&self) -> bool {
+        matches!(self.export_usage, ExportUsage::Evaluation)
+    }
+
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        // Namespace variables a compact re-export registration already imports for itself.
+        subsumed_namespaces: &FxHashSet<(String, Option<SyntaxContext>)>,
     ) -> Result<CodeGeneration> {
         let this = self.await?;
+
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self.to_resolved().await?))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
 
@@ -183,7 +199,8 @@ impl EcmascriptModulePartReference {
                         ExportUsage::Named(export) => Some(export.clone()),
                         ExportUsage::PartialNamespaceObject(_)
                         | ExportUsage::All
-                        | ExportUsage::Evaluation => None,
+                        | ExportUsage::Evaluation
+                        | ExportUsage::Passthrough { .. } => None,
                     },
                     scope_hoisting_context,
                 )
@@ -196,6 +213,11 @@ impl EcmascriptModulePartReference {
                 }
                 ReferencedAssetIdent::Module { .. } => {
                     let (sym, ctxt) = ident.into_module_namespace_ident().unwrap();
+                    if subsumed_namespaces.contains(&(sym.to_string(), ctxt)) {
+                        // A compact registration performs this import, including evaluation-only
+                        // empty groups such as a facade's structural locals reference.
+                        return Ok(CodeGeneration::hoisted_stmts(result));
+                    }
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 

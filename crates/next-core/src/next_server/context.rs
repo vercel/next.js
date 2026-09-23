@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -573,9 +573,9 @@ pub async fn get_server_module_options_context(
                 .await?,
         ),
         analyze_mode: if enable_tracing {
-            AnalyzeMode::CodeGenerationAndTracing
+            AnalyzeMode::code_generation_and_tracing()
         } else {
-            AnalyzeMode::CodeGeneration
+            AnalyzeMode::code_generation()
         },
         enable_externals_tracing: if enable_tracing {
             Some(
@@ -1005,7 +1005,7 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

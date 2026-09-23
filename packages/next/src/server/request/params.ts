@@ -2,7 +2,6 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
-import type { OpaqueFallbackRouteParams } from './fallback-params'
 import type { VaryParamsAccumulator } from '../app-render/vary-params'
 import {
   createVaryingParams,
@@ -78,9 +77,9 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called in a runtime prerender.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createParamsFromClient should not be called inside generateStaticParams.'
+          `createParamsFromClient should not be called inside ${workUnitStore.functionName}.`
         )
       case 'validation-client': {
         if (workUnitStore.validationSamples) {
@@ -101,12 +100,12 @@ export function createParamsFromClient(
           )
         }
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -167,9 +166,9 @@ export function createServerParamsForRoute(
         throw new InvariantError(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerParamsForRoute should not be called inside generateStaticParams.'
+          `createServerParamsForRoute should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime': {
         throw new InvariantError(
@@ -178,12 +177,12 @@ export function createServerParamsForRoute(
       }
       case 'request':
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -229,9 +228,9 @@ export function createServerParamsForServerSegment(
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerParamsForServerSegment should not be called inside generateStaticParams.'
+          `createServerParamsForServerSegment should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
         return createRuntimePrerenderParams(
@@ -301,9 +300,9 @@ export function createPrerenderParamsForClientSegment(
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
+          `createPrerenderParamsForClientSegment should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
       case 'prerender-legacy':
@@ -501,11 +500,11 @@ function createRenderParamsForPage(
 
   // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
   if (process.env.NODE_ENV === 'development') {
-    const fallbackParams = workUnitStore.fallbackParams
+    const stagedFallbackParams = workUnitStore.stagedFallbackParams
     return createRenderParamsInDev(
       underlyingParams,
       userspaceParams,
-      fallbackParams,
+      stagedFallbackParams,
       workStore,
       workUnitStore
     )
@@ -556,7 +555,9 @@ function createStagedRenderParamsImpl(
 
   // If we have fallback params, then they should always resolve in the runtime link data stage.
   // We do this indirectly via the shared params parent for better debug info.
-  if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
+  if (
+    hasFallbackRouteParams(underlyingParams, workUnitStore.stagedFallbackParams)
+  ) {
     return createParamsPromiseFromTrigger(
       asyncApiPromises.sharedParamsParent,
       userspaceParams
@@ -661,14 +662,14 @@ function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   userpaceParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  stagedFallbackParams: ReadonlySet<string> | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     userpaceParams,
-    hasFallbackRouteParams(underlyingParams, fallbackParams),
+    hasFallbackRouteParams(underlyingParams, stagedFallbackParams),
     workStore,
     requestStore
   )

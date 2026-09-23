@@ -4,7 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -27,7 +27,7 @@ use turbopack_node::{
 use super::ModuleRule;
 use crate::module_options::RuleCondition;
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
@@ -44,19 +44,19 @@ pub struct LoaderRuleItem {
 #[turbo_tasks::value(transparent)]
 pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionPath {
     Glob(RcStr),
     Regex(ResolvedVc<EsRegex>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionQuery {
     Constant(RcStr),
     Regex(ResolvedVc<EsRegex>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionContentType {
     Glob(RcStr),
     Regex(ResolvedVc<EsRegex>),
@@ -84,6 +84,7 @@ pub struct WebpackLoadersOptions {
     pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
     pub target: ResolvedVc<RcStr>,
+    pub mode: RcStr,
 }
 
 pub enum WebpackLoaderBuiltinConditionSetMatch {
@@ -127,7 +128,7 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
 /// The kind of ECMAScript class decorators transform to use.
 ///
 /// TODO: might need bikeshed for the name (Ecma)
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum DecoratorsKind {
     /// Enables the syntax and behavior of the modern [stage 3 proposal]. This is the recommended
     /// transform with JavaScript or [TypeScript 5.0][ts5] or later.
@@ -296,6 +297,8 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to enable cross-module constant inlining. Defaults to false.
     pub cross_module_constants: bool,
+    /// Whether dynamic import targets are compiled after their runtime proxy is activated.
+    pub lazy_compilation: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
