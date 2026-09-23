@@ -1,9 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
+import { readdir } from 'fs/promises'
 import { join } from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 import { createRequestTracker } from '../../../lib/e2e-utils/request-tracker'
+
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('app-root-param-getters - simple', () => {
   let currentCliOutputIndex = 0
@@ -174,6 +177,48 @@ describe('app-root-param-getters - simple', () => {
       `${params.lang} ${params.locale}`
     )
   })
+
+  if (!isNextDev && !isNextDeploy) {
+    it('should not generate fallback shells for routes with undefined root params', async () => {
+      const serverAppDir = join(next.testDir, '.next/server/app')
+      const allFiles = await readdir(serverAppDir, { recursive: true })
+      const htmlFiles = allFiles
+        .filter((f) => f.endsWith('.html'))
+        .map((f) => f.replace(/\\/g, '/'))
+        .sort()
+
+      // Fallback shells with undefined root params use BLOCKING_STATIC_RENDER
+      // and are never served, so they should not be generated at build time.
+      expect(htmlFiles).not.toContainEqual(
+        expect.stringMatching(/^\[lang\]\/\[locale\]/)
+      )
+      expect(htmlFiles).not.toContainEqual(expect.stringContaining('[...path]'))
+
+      // Concrete prerendered shells and shells without undefined root params
+      // should still be generated.
+      const alwaysExpected = [
+        'en/us.html',
+        'en/us/other.html',
+        'en/us/server-action.html',
+        'catch-all/foo.html',
+        'optional-catch-all.html',
+      ]
+
+      // With Cache Components enabled we also generate partially static shells.
+      const cacheComponentsOnly = [
+        'en/us/other/[slug].html',
+        'en/us/rerender-after-server-action.html',
+      ]
+
+      expect(htmlFiles).toEqual(
+        expect.arrayContaining(
+          isCacheComponentsEnabled
+            ? [...alwaysExpected, ...cacheComponentsOnly]
+            : alwaysExpected
+        )
+      )
+    })
+  }
 
   // TODO(root-params): add support for route handlers
   it('should error when used in a route handler (until we implement it)', async () => {
