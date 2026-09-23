@@ -221,6 +221,9 @@ describe('create-next-app prompts', () => {
           ],
         }
       `)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).not.toContain('agentFeedback')
     })
   })
 
@@ -235,7 +238,13 @@ describe('create-next-app prompts', () => {
         nextTgzFilename
       )
 
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(async (resolve) => {
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
           projectFilesShouldExist({
@@ -254,11 +263,20 @@ describe('create-next-app prompts', () => {
 
         // Select "Yes, use recommended defaults" (default option, just press enter)
         childProcess.stdin.write('\n')
+
+        await retry(async () => {
+          expect(output).toMatch(/help improve Next\.js with agent feedback/)
+        })
+        // Cursor forward, choose "Yes" for agent feedback.
+        childProcess.stdin.write('\u001b[C\n')
       })
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
       expectTurbopackTailwindSetup(cwd, projectName)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('agentFeedback: true')
     })
   })
 
@@ -303,6 +321,12 @@ describe('create-next-app prompts', () => {
         await retry(async () => {
           expect(output).toMatch(/No, reuse previous settings/)
         })
+
+        await retry(async () => {
+          expect(output).toMatch(/help improve Next\.js with agent feedback/)
+        })
+        // Keep agent feedback disabled.
+        childProcess.stdin.write('\n')
 
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)

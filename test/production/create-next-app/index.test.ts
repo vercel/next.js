@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
   resolveNextTgzFilename,
@@ -154,6 +154,37 @@ describe('create-next-app', () => {
         projectName,
         files: ['AGENTS.md'],
       })
+    })
+  })
+
+  it('should enable agent feedback with --agent-feedback', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agent-feedback'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--agent-feedback',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(
+        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('agentFeedback: true')
     })
   })
 

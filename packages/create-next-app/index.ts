@@ -111,6 +111,7 @@ const program = new Command(packageJson.name)
     '--agents-md',
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
+  .option('--agent-feedback', 'Enable agent feedback to help improve Next.js.')
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
@@ -329,6 +330,8 @@ async function run(): Promise<void> {
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
     const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+    const shouldPromptForAgentFeedback =
+      !ciInfo.isCI && !opts.yes && !hasProvidedOptions
 
     if (!skipPrompt && hasProvidedOptions) {
       skipPrompt = true
@@ -686,6 +689,32 @@ async function run(): Promise<void> {
       }
     }
 
+    if (args.includes('--no-agent-feedback')) {
+      opts.agentFeedback = false
+    } else if (!opts.agentFeedback) {
+      if (shouldPromptForAgentFeedback) {
+        const { agentFeedback } = await prompts(
+          {
+            type: 'toggle',
+            name: 'agentFeedback',
+            message: `Would you like to help improve Next.js with ${blue('agent feedback')}? (Disable anytime with \`experimental.agentFeedback: false\`.)`,
+            initial: false,
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        opts.agentFeedback = Boolean(agentFeedback)
+      } else {
+        opts.agentFeedback = false
+      }
+    }
+
     // When prompts were skipped because flags were provided, print the
     // defaults that were assumed so agents and users know what to override.
     if (hasProvidedOptions && useRecommendedDefaults) {
@@ -760,6 +789,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      agentFeedback: opts.agentFeedback,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -796,6 +826,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      agentFeedback: opts.agentFeedback,
     })
   }
   conf.set('preferences', preferences)
