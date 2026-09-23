@@ -316,8 +316,21 @@ async fn build_dependency_requests_changed(
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<Completion>> {
     for (request, is_directory) in requests {
+        let request_path = cwd.join(&request)?;
+        if matches!(
+            &*request_path.get_type().await?,
+            FileSystemEntryType::Symlink
+        ) {
+            BuildDependencyIssue {
+                source: IssueSource::from_source_only(source),
+                path: request_path,
+            }
+            .resolved_cell()
+            .emit();
+            continue;
+        }
         let path = if is_directory {
-            cwd.join(&request)?
+            request_path.clone()
         } else {
             let parsed_request = Request::parse(Pattern::Constant(request.clone()));
             let options = if request.ends_with(".mjs") {
@@ -336,10 +349,10 @@ async fn build_dependency_requests_changed(
                     if let Some(resolved_source) = result.first_source() {
                         resolved_source.ident().await?.path.clone()
                     } else {
-                        cwd.join(&request)?
+                        request_path.clone()
                     }
                 }
-                Err(_) => cwd.join(&request)?,
+                Err(_) => request_path,
             }
         };
         let entry_type = path.get_type().await?;

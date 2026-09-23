@@ -102,7 +102,7 @@ describe('turbopack-loader-file-dependencies', () => {
       async () => {
         await waitFor(1000)
         const $2 = await next.render$('/mjs')
-        expect($2('p').text()).toBe(initialText)
+        expect($2('p').text()).toContain('ESM build dependency: import-one')
       }
     )
 
