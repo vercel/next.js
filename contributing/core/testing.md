@@ -73,7 +73,16 @@ the new checks can be added to the existing test suite.
 ### Best Practices
 
 - When checking for a condition that might take time,
-  ensure it is waited for either using the browser `waitForElement` or using the `check` util in `next-test-utils`.
+  ensure it is waited for either using the browser `waitForElement` or using `retry()` with `expect()` from `next-test-utils`.
+  Note: `check()` is deprecated; use `retry()` instead.
+
+  ```typescript
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/expected/)
+  })
+  ```
+
 - When applying a fix, ensure the test fails without the fix.
   This makes sure the test will properly catch regressions.
 
