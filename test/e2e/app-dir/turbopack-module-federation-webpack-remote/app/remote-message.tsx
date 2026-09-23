@@ -25,7 +25,6 @@ export function RemoteMessage() {
       const fallbackModule = await import('local-fallback')
       setFallback(fallbackModule.value)
       setMessage('fallback loaded')
-      // @ts-expect-error -- default import resolved from a hoisted package
       const defaultSharedModule = await import('default-shared')
       setDefaultShared(defaultSharedModule.value)
       setMessage('default loaded')
