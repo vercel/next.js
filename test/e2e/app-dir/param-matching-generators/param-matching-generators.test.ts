@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
-import type { FlightRouterState } from 'next/dist/shared/lib/app-router-types'
+import {
+  PrefetchHint,
+  type FlightRouterState,
+} from 'next/dist/shared/lib/app-router-types'
 import { createRouterAct } from 'router-act'
 
 describe('param-matching-generators', () => {
@@ -13,11 +16,10 @@ describe('param-matching-generators', () => {
   ) {
     // Reconstruct the regression if this private representation changes;
     // do not preserve or expose router internals just for this assertion.
-    return browser.eval(() => {
+    return browser.eval((isClosedParamHint) => {
       const closedSegments: string[] = []
       function visit(tree: FlightRouterState) {
-        // PrefetchHint.IsClosedParam is a const enum bit.
-        if (((tree[4] ?? 0) & 0b1000000000000000) !== 0) {
+        if (((tree[4] ?? 0) & isClosedParamHint) !== 0) {
           const segment = tree[0]
           closedSegments.push(
             typeof segment === 'string' ? segment : `[${segment[0]}]`
@@ -27,18 +29,18 @@ describe('param-matching-generators', () => {
       }
       visit(window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree)
       return closedSegments
-    })
+    }, PrefetchHint.IsClosedParam)
   }
 
   async function hasClosedParamDescendants(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
-    return browser.eval(() => {
+    return browser.eval((subtreeHasClosedParamsHint) => {
       const tree: FlightRouterState =
         window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree
       // PrefetchHint.SubtreeHasClosedParams summarizes descendants at the root.
-      return ((tree[4] ?? 0) & 0b10000000000000000) !== 0
-    })
+      return ((tree[4] ?? 0) & subtreeHasClosedParamsHint) !== 0
+    }, PrefetchHint.SubtreeHasClosedParams)
   }
 
   it('allows public cached configuration in a matching generator', async () => {

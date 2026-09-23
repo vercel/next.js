@@ -1,4 +1,5 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 describe('param-matching-root-params', () => {
   const { next } = nextTestSetup({
@@ -55,7 +56,7 @@ describe('param-matching-root-params', () => {
   // Dev renders requests dynamically rather than serving and regenerating
   // fallback shells. This exercises ordinary production revalidation.
   // @force-gate !dev
-  it('keeps unknown roots out of a fallback shell regenerated after invalidation', async () => {
+  it('keeps novel roots isolated after fallback invalidation', async () => {
     const $before = await next.render$('/en/nested')
     const originalVersion = $before('#shell-version').text()
     expect(originalVersion).not.toBe('')
@@ -63,8 +64,8 @@ describe('param-matching-root-params', () => {
     const response = await next.fetch('/revalidate', { method: 'POST' })
     expect(response.status).toBe(204)
 
-    // A novel language selects the generic shell. Expiring its cached data
-    // forces a fresh fill, rather than serving the shell produced at build time.
+    // Expiring the tagged data forces a fresh fill for a novel language,
+    // rather than serving the shell produced at build time.
     const $ = await next.render$('/it/nested')
     const regeneratedVersion = $('#shell-version').text()
     expect(regeneratedVersion).not.toBe('')
@@ -72,16 +73,34 @@ describe('param-matching-root-params', () => {
     expect($('#shell-version').closest('[hidden]').length).toBe(0)
     expect($('#nested-lang').text()).toBe('nested:IT')
     expect($('#direct-lang').text()).toBe('it')
-    expect($('#nested-pending').length).toBe(1)
-    expect($('#outer-pending').length).toBe(1)
-    expect($('#nested-lang').closest('[hidden]').length).toBe(1)
-    expect($('#cache-prefix').closest('[hidden]').length).toBe(1)
 
-    // The regenerated shell must remain reusable for a different root.
+    const hasGenericFallbackShell = await gate(
+      (conditions) => !conditions.deploy
+    )
+    if (hasGenericFallbackShell) {
+      // Locally, unknown roots share the generic fallback shell. Deployment
+      // adapters may vary the shell on the concrete root query key instead.
+      expect($('#nested-pending').length).toBe(1)
+      expect($('#outer-pending').length).toBe(1)
+      expect($('#nested-lang').closest('[hidden]').length).toBe(1)
+      expect($('#cache-prefix').closest('[hidden]').length).toBe(1)
+    }
+
+    // A different root must never reuse root-dependent cached content. Local
+    // production also guarantees that both roots share the generic shell;
+    // deployment adapters may generate root-specific static HTML instead.
     const $other = await next.render$('/nl/nested')
-    expect($other('#shell-version').text()).toBe(regeneratedVersion)
+    expect($other('#shell-version').text()).not.toBe('')
+    if (hasGenericFallbackShell) {
+      expect($other('#shell-version').text()).toBe(regeneratedVersion)
+    }
     expect($other('#nested-lang').text()).toBe('nested:NL')
     expect($other('#direct-lang').text()).toBe('nl')
+
+    const $again = await next.render$('/it/nested')
+    expect($again('#shell-version').text()).not.toBe('')
+    expect($again('#nested-lang').text()).toBe('nested:IT')
+    expect($again('#direct-lang').text()).toBe('it')
   })
 
   // Inspect the real build's adapter output locally. The behavioral tests above
