@@ -5,6 +5,20 @@ describe('prerendered-http-status-codes', () => {
     files: __dirname,
   })
 
+  it('returns 200 and shows the dynamic not-found UI', async () => {
+    const { browser, response } = await next.browserWithResponse(
+      '/with-suspense/dynamic-not-found'
+    )
+    try {
+      expect(response.status()).toBe(200)
+      expect(await browser.elementByCss('#not-found').text()).toBe(
+        'This page could not be found.'
+      )
+    } finally {
+      await browser.close()
+    }
+  })
+
   describe.each(['with-suspense', 'without-suspense'])('%s', (variant) => {
     it.each([
       { route: 'unauthorized', status: 401 },
@@ -21,6 +35,12 @@ describe('prerendered-http-status-codes', () => {
         expect(response.status).toBe(status)
       }
     )
+
+    it('prerenders the not-found UI in the HTML response', async () => {
+      const $ = await next.render$(`/${variant}/not-found`)
+
+      expect($('#not-found').text()).toBe('This page could not be found.')
+    })
 
     it.each([
       { route: 'redirect', status: 307 },
