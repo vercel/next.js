@@ -45,5 +45,9 @@
   "agent-060-server-markdown-renderer": {
     "skills": ["next-browser-initial-load-optimizer"],
     "timeout": 1800
+  },
+  "agent-061-dedupe-lodash-runtime": {
+    "skills": ["next-browser-initial-load-optimizer"],
+    "timeout": 1800
   }
 }
