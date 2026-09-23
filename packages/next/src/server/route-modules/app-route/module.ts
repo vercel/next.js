@@ -563,7 +563,7 @@ export class AppRouteRouteModule extends RouteModule<
          */
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
-        const cacheSignal = new CacheSignal()
+        const cacheSignal = new CacheSignal(null)
         let dynamicTracking = createDynamicTrackingState(undefined)
 
         // TODO: Route handlers are never resumed, so it's counter-intuitive
