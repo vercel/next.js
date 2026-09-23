@@ -118,6 +118,7 @@
     "@babel/plugin-transform-object-rest-spread": "7.25.9",
     "@babel/preset-react": "7.26.3",
     "@edge-runtime/jest-environment": "4.0.0",
+    "@emnapi/wasi-threads": "2.1.0",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
     "@eslint/compat": "1.4.0",
