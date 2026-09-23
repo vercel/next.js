@@ -5,7 +5,7 @@ export type UpgradeDocument = `docs/${string}.md` | `skills/${string}/SKILL.md`
 type FutureDefault = {
   name: string
   availableSince: string
-  isAdopted(config: NextConfigComplete): boolean
+  isAdopted(config: Pick<NextConfigComplete, 'cacheComponents'>): boolean
   adoptionDoc: readonly UpgradeDocument[]
   optimizationDoc: readonly UpgradeDocument[]
 }
