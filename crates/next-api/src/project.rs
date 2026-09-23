@@ -107,11 +107,12 @@ pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
     additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
     aggregate_hmr::ServerHmrChunkLists,
-    app::{AppProject, ModuleFederationEndpoint, OptionAppProject},
+    app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    module_federation::ModuleFederationEndpoint,
     next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     path_utils::convention_file_base_name,
