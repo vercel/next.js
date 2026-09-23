@@ -277,7 +277,16 @@ export const enum PrefetchHint {
   // navigations alike. (Routes missing from the manifest — see the #91407
   // fallbacks — simply never carry it.) Set on every node of the tree, but
   // does not propagate.
-  ShouldAttemptStaticPrefetch = 0b100000000000000,
+  ShouldAttemptStaticShell = 0b100000000000000,
+  ShouldAttemptStaticPrefetch = 0b1000000000000000,
+  // This dynamic segment only accepts build-time parameter values. Kept on
+  // the affected node, without propagating or copying it to other segments.
+  // Until the client knows the allowed values, any such node prevents route
+  // prediction, even when the route's components never read the parameter.
+  IsClosedParam = 0b10000000000000000,
+  // A descendant segment (but not this one) has a closed parameter. Propagates
+  // upward so route prediction can check the root instead of walking the tree.
+  SubtreeHasClosedParams = 0b100000000000000000,
 }
 
 /**
@@ -289,16 +298,20 @@ export const enum PrefetchHint {
  * Static prefetching is disabled ONLY by `prefetch: 'force-disabled'`
  * (PrefetchDisabled). Notably, Partial Prefetching segments DO have static
  * data even though they require runtime completeness: the server emits it
- * unconditionally — it can't be gated on the ShouldAttemptStaticPrefetch
- * hint, because which segments carry static data must be deterministic
+ * unconditionally — it can't be gated on the ShouldAttemptStatic{Shell,Prefetch}
+ * hints, because which segments carry static data must be deterministic
  * from build-time config. A runtime request may still be needed for the
  * segment, but the scheduler may attempt a static prefetch first (per the
- * ShouldAttemptStaticPrefetch hint) and skip the runtime request if the
+ * ShouldAttemptStatic{Shell,Prefetch} hints) and skip the runtime request if the
  * static response proves sufficient.
  *
  * Usage: `(hints & StaticPrefetchDisabled) !== 0`
  */
 export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
+
+export const StaticAttemptHints =
+  PrefetchHint.ShouldAttemptStaticShell |
+  PrefetchHint.ShouldAttemptStaticPrefetch
 
 /**
  * The subset of PrefetchHint bits that propagate upward from a child segment to
@@ -309,7 +322,8 @@ export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
 export const SubtreePrefetchHints =
   PrefetchHint.SubtreeHasPartialPrefetching |
   PrefetchHint.SubtreeHasLoadingBoundary |
-  PrefetchHint.SubtreeHasInstantFalse
+  PrefetchHint.SubtreeHasInstantFalse |
+  PrefetchHint.SubtreeHasClosedParams
 
 /**
  * Folds a child segment's prefetch hints into its parent's, propagating the
@@ -343,6 +357,12 @@ export function propagateSubtreeBits(
   // segment, so there's no separate segment-local flag — propagate it as-is.
   if (childHints & PrefetchHint.SubtreeHasInstantFalse) {
     parentHints |= PrefetchHint.SubtreeHasInstantFalse
+  }
+  if (
+    childHints &
+    (PrefetchHint.IsClosedParam | PrefetchHint.SubtreeHasClosedParams)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasClosedParams
   }
   return parentHints
 }
@@ -423,11 +443,9 @@ export type InitialRSCPayload = {
    * Unlike an async iterable, a pending promise costs Flight no abort
    * listener on the render. Used when generating per-segment prefetch
    * responses (forwarded as each response's own `u`).
-   * The build-constant `PrefetchHint.ShouldAttemptStaticPrefetch` is
-   * tracked directly on the prerender store instead (its
-   * `shouldAttemptStaticPrefetch` cell) — it needs neither stream
-   * positioning nor this flag's param/non-param blindness. Only present
-   * for static prerenders when Cache Components is enabled.
+   * The build-time constant `PrefetchHint.ShouldAttemptStatic{Shell,Prefetch}`
+   * hint is tracked separately.
+   * Only present for static prerenders when Cache Components is enabled.
    */
   u?: Promise<boolean>
   /** staticStageByteLength - Resolves when the static stage ends. */

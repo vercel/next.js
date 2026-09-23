@@ -173,6 +173,7 @@ const transform = (
     const loadersWithOptions = loaders.map((loader) =>
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
+    const buildDependencies = new Set<string>()
 
     const logs: Array<{
       time: number
@@ -201,6 +202,9 @@ const transform = (
             return entry.options && typeof entry.options === 'object'
               ? entry.options
               : {}
+          },
+          addBuildDependency(dependency: string) {
+            buildDependencies.add(pathResolve(contextDir, dependency))
           },
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
@@ -554,11 +558,15 @@ const transform = (
         ipc.sendInfo({
           type: 'dependencies',
           envVariables: getReadEnvVariables(),
-          filePaths: result.fileDependencies.map(toPath),
+          filePaths: [
+            ...result.fileDependencies,
+            ...result.missingDependencies,
+          ].map(toPath),
           directories: result.contextDependencies.map((dep) => [
             toPath(dep),
             '**',
           ]),
+          buildFilePaths: [...buildDependencies].map(toPath).sort(),
         })
         if (err) {
           // Resolve loader paths to include in the error message using

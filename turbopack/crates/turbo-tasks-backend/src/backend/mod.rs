@@ -13,7 +13,7 @@ pub mod storage_schema;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
-    fmt::{self, Write},
+    fmt::Write,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -27,7 +27,6 @@ use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
-use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
@@ -51,7 +50,6 @@ use turbo_tasks::{
     registry::get_value_type,
     scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
-    trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 #[cfg(feature = "task_dirty_cause")]
@@ -157,16 +155,17 @@ pub struct BackendOptions {
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     pub eviction_mode: EvictionMode,
 
-    /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
-    /// it from the `TURBO_ENGINE_GC` env var;
+    /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
+    ///
+    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
-    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
 
-    /// Overrides how long a GC pass runs before it will honour an interrupt.
+    /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
+    /// [`GC_MIN_PROGRESS`].
     pub gc_min_progress: Option<Duration>,
 }
 
@@ -311,57 +310,24 @@ impl TurboTasksBackend {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
+        let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
 
-        let mut gc_enabled = options.gc.unwrap_or_else(|| {
-            std::env::var_os("TURBO_ENGINE_GC")
-                .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
-        });
+        let mut gc_enabled = options.gc.unwrap_or(false);
         if gc_enabled
             && options.storage_mode == Some(StorageMode::ReadWrite)
             && options.eviction_mode == EvictionMode::Off
         {
             eprintln!(
-                "warning: GC is enabled but eviction is disabled on a ReadWrite backend; GC would \
-                 leave collected tasks resident forever. Forcing GC off. Enable eviction \
-                 ('auto'/'full') to use GC in this mode."
+                "warning: GC is enabled but eviction is disabled; GC would leave collected tasks \
+                 resident forever. Forcing GC off. Enable eviction ('auto'/'full') to use GC in \
+                 this mode."
             );
             gc_enabled = false;
         }
-
-        let gc_min_progress = options.gc_min_progress.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_MIN_PROGRESS_MS set but is not parsable: \
-                             {e}. Using the default instead."
-                        );
-                        GC_MIN_PROGRESS
-                    }
-                },
-                Err(_) => GC_MIN_PROGRESS,
-            }
-        });
-
-        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
-                             Using the default instead."
-                        );
-                        DEFAULT_GC_ROOT_TTL
-                    }
-                },
-                Err(_) => DEFAULT_GC_ROOT_TTL,
-            }
-        });
 
         Self {
             options,
@@ -663,7 +629,7 @@ impl TurboTasksBackend {
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<ReadOutcome<RawVc>> {
-        self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
+        self.assert_not_persistent_calling_transient(reader, task_id);
 
         let mut ctx = self.execute_context(turbo_tasks);
         let need_reader_task = reader.and_then(|reader_id| {
@@ -995,7 +961,7 @@ impl TurboTasksBackend {
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<ReadOutcome<TypedCellContent>> {
-        self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
+        self.assert_not_persistent_calling_transient(reader, task_id);
 
         fn add_cell_dependency(
             task_id: TaskId,
@@ -1288,19 +1254,15 @@ impl TurboTasksBackend {
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
-            fn compressed_size(data: &[u8]) -> Result<usize> {
-                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-                    data,
-                    &mut Vec::new(),
-                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
-                )?)
+            fn compressed_size(data: &[u8]) -> usize {
+                lz4_flex::block::compress(data).len()
             }
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.data_compressed += Self::compressed_size(data);
                 }
                 self.data_count += 1;
             }
@@ -1309,7 +1271,7 @@ impl TurboTasksBackend {
                 self.meta += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.meta_compressed += Self::compressed_size(data);
                 }
                 self.meta_count += 1;
             }
@@ -1635,29 +1597,21 @@ impl TurboTasksBackend {
             )));
         }
 
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            // as_millis_f64 is not stable yet
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms: f64 = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        let (persist_start_ms, persist_end_ms) = if let Some(gc_elapsed) = gc_elapsed {
-            let persist_begin_ms = wall_start_ms + gc_elapsed.as_secs_f64() * 1000.0;
-            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        let (persist_wall_start, persist_wall_duration) = if let Some(gc_elapsed) = gc_elapsed {
+            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
                 "turbopack-gc",
-                wall_start_ms,
-                persist_begin_ms,
+                wall_start,
+                gc_elapsed,
                 serde_json::json!([]),
             )));
-            (persist_begin_ms, wall_end_ms)
+            (wall_start + gc_elapsed, elapsed.saturating_sub(gc_elapsed))
         } else {
-            (wall_start_ms, wall_end_ms)
+            (wall_start, elapsed)
         };
-        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-persistence",
-            persist_start_ms,
-            persist_end_ms,
+            persist_wall_start,
+            persist_wall_duration,
             serde_json::json!([
                 ["reason", reason.as_str()],
                 [
@@ -1791,7 +1745,6 @@ impl TurboTasksBackend {
             self.panic_persistent_calling_transient(
                 self.debug_get_task_description(parent_task),
                 Some(&task_type),
-                /* cell_id */ None,
             );
         }
 
@@ -1811,6 +1764,7 @@ impl TurboTasksBackend {
         let shard = get_shard(&self.storage.task_cache, hash);
 
         let mut ctx = self.execute_context(turbo_tasks);
+        let mut created_new = false;
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
@@ -1818,7 +1772,12 @@ impl TurboTasksBackend {
             get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
-            operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+            operation::ConnectChildOperation::run(
+                parent_task,
+                task_id,
+                /* release_construction_ref */ false,
+                ctx,
+            );
             return task_id;
         }
 
@@ -1885,6 +1844,7 @@ impl TurboTasksBackend {
 
             // The entry closure has returned, so the task_cache shard lock is released before
             // cache tracking or aggregation updates can re-enter the backend.
+            created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
                 // Update the aggregation number before connecting the child. We don't need this on
@@ -1916,100 +1876,11 @@ impl TurboTasksBackend {
             task_id
         };
 
-        operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+        // New tasks carry a transient ref so they survive construction. Release it while
+        // connecting the task to the graph.
+        operation::ConnectChildOperation::run(parent_task, task_id, created_new, ctx);
 
         task_id
-    }
-
-    /// Generate an object that implements [`fmt::Display`] explaining why the given
-    /// [`CachedTaskType`] is transient.
-    fn debug_trace_transient_task(
-        &self,
-        task_type: &CachedTaskType,
-        cell_id: Option<CellId>,
-    ) -> DebugTraceTransientTask {
-        // it shouldn't be possible to have cycles in tasks, but we could have an exponential blowup
-        // from tracing the same task many times, so use a visited_set
-        fn inner_id(
-            backend: &TurboTasksBackend,
-            task_id: TaskId,
-            cell_type_id: Option<ValueTypeId>,
-            visited_set: &mut FxHashSet<TaskId>,
-        ) -> DebugTraceTransientTask {
-            if let Some(task_type) = backend.debug_get_cached_task_type(task_id) {
-                if visited_set.contains(&task_id) {
-                    let task_name = task_type.get_name();
-                    DebugTraceTransientTask::Collapsed {
-                        task_name,
-                        cell_type_id,
-                    }
-                } else {
-                    inner_cached(backend, &task_type, cell_type_id, visited_set)
-                }
-            } else {
-                DebugTraceTransientTask::Uncached { cell_type_id }
-            }
-        }
-        fn inner_cached(
-            backend: &TurboTasksBackend,
-            task_type: &CachedTaskType,
-            cell_type_id: Option<ValueTypeId>,
-            visited_set: &mut FxHashSet<TaskId>,
-        ) -> DebugTraceTransientTask {
-            let task_name = task_type.get_name();
-
-            let cause_self = task_type.this.and_then(|cause_self_raw_vc| {
-                let Some(task_id) = cause_self_raw_vc.try_get_task_id() else {
-                    // `task_id` should never be `None` at this point, as that would imply a
-                    // non-local task is returning a local `Vc`...
-                    // Just ignore if it happens, as we're likely already panicking.
-                    return None;
-                };
-                if task_id.is_transient() {
-                    Some(Box::new(inner_id(
-                        backend,
-                        task_id,
-                        cause_self_raw_vc.try_get_type_id(),
-                        visited_set,
-                    )))
-                } else {
-                    None
-                }
-            });
-            let cause_args = task_type
-                .arg
-                .get_raw_vcs()
-                .into_iter()
-                .filter_map(|raw_vc| {
-                    let Some(task_id) = raw_vc.try_get_task_id() else {
-                        // `task_id` should never be `None` (see comment above)
-                        return None;
-                    };
-                    if !task_id.is_transient() {
-                        return None;
-                    }
-                    Some((task_id, raw_vc.try_get_type_id()))
-                })
-                .collect::<IndexSet<_>>() // dedupe
-                .into_iter()
-                .map(|(task_id, cell_type_id)| {
-                    inner_id(backend, task_id, cell_type_id, visited_set)
-                })
-                .collect();
-
-            DebugTraceTransientTask::Cached {
-                task_name,
-                cell_type_id,
-                cause_self,
-                cause_args,
-            }
-        }
-        inner_cached(
-            self,
-            task_type,
-            cell_id.map(|c| c.type_id()),
-            &mut FxHashSet::default(),
-        )
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
@@ -3531,8 +3402,13 @@ impl TurboTasksBackend {
         parent_task: Option<TaskId>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
-        self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+        self.assert_not_persistent_calling_transient(parent_task, task);
+        ConnectChildOperation::run(
+            parent_task,
+            task,
+            /* release_construction_ref */ false,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
@@ -3773,12 +3649,7 @@ impl TurboTasksBackend {
         }
     }
 
-    fn assert_not_persistent_calling_transient(
-        &self,
-        parent_id: Option<TaskId>,
-        child_id: TaskId,
-        cell_id: Option<CellId>,
-    ) {
+    fn assert_not_persistent_calling_transient(&self, parent_id: Option<TaskId>, child_id: TaskId) {
         if let Some(parent_id) = parent_id
             && !parent_id.is_transient()
             && child_id.is_transient()
@@ -3786,7 +3657,6 @@ impl TurboTasksBackend {
             self.panic_persistent_calling_transient(
                 self.debug_get_task_description(parent_id),
                 self.debug_get_cached_task_type(child_id).as_deref(),
-                cell_id,
             );
         }
     }
@@ -3795,27 +3665,17 @@ impl TurboTasksBackend {
         &self,
         parent: String,
         child: Option<&CachedTaskType>,
-        cell_id: Option<CellId>,
     ) -> ! {
-        let transient_reason = if let Some(child) = child {
-            Cow::Owned(format!(
-                " The callee is transient because it depends on:\n{}",
-                self.debug_trace_transient_task(child, cell_id),
-            ))
-        } else {
-            Cow::Borrowed("")
-        };
         panic!(
-            "Persistent task {} is not allowed to call, read, or connect to transient tasks {}.{}",
+            "Persistent task {} is not allowed to call, read, or connect to transient task {}.",
             parent,
             child.map_or("unknown", |t| t.get_name()),
-            transient_reason,
         );
     }
 
     fn assert_valid_collectible(&self, task_id: TaskId, collectible: RawVc) {
         // these checks occur in a potentially hot codepath, but they're cheap
-        let Some((col_task_id, col_cell_id)) = collectible.as_task_cell() else {
+        let Some((col_task_id, _)) = collectible.as_task_cell() else {
             // This should never happen: The collectible APIs use ResolvedVc
             let task_info = if let Some(col_task_ty) = collectible
                 .try_get_task_id()
@@ -3828,19 +3688,10 @@ impl TurboTasksBackend {
             panic!("Collectible{task_info} must be a ResolvedVc")
         };
         if col_task_id.is_transient() && !task_id.is_transient() {
-            let transient_reason =
-                if let Some(col_task_ty) = self.debug_get_cached_task_type(col_task_id) {
-                    Cow::Owned(format!(
-                        ". The collectible is transient because it depends on:\n{}",
-                        self.debug_trace_transient_task(&col_task_ty, Some(col_cell_id)),
-                    ))
-                } else {
-                    Cow::Borrowed("")
-                };
             // this should never happen: How would a persistent function get a transient Vc?
             panic!(
-                "Collectible is transient, transient collectibles cannot be emitted from \
-                 persistent tasks{transient_reason}",
+                "Collectible is transient; transient collectibles cannot be emitted from \
+                 persistent tasks"
             )
         }
     }
@@ -4067,96 +3918,6 @@ impl Backend for TurboTasksBackend {
 
     fn get_task_name(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) -> String {
         self.get_task_name(task, turbo_tasks)
-    }
-}
-
-enum DebugTraceTransientTask {
-    Cached {
-        task_name: &'static str,
-        cell_type_id: Option<ValueTypeId>,
-        cause_self: Option<Box<DebugTraceTransientTask>>,
-        cause_args: Vec<DebugTraceTransientTask>,
-    },
-    /// This representation is used when this task is a duplicate of one previously shown
-    Collapsed {
-        task_name: &'static str,
-        cell_type_id: Option<ValueTypeId>,
-    },
-    Uncached {
-        cell_type_id: Option<ValueTypeId>,
-    },
-}
-
-impl DebugTraceTransientTask {
-    fn fmt_indented(&self, f: &mut fmt::Formatter<'_>, level: usize) -> fmt::Result {
-        let indent = "    ".repeat(level);
-        f.write_str(&indent)?;
-
-        fn fmt_cell_type_id(
-            f: &mut fmt::Formatter<'_>,
-            cell_type_id: Option<ValueTypeId>,
-        ) -> fmt::Result {
-            if let Some(ty) = cell_type_id {
-                write!(
-                    f,
-                    " (read cell of type {})",
-                    get_value_type(ty).ty.global_name
-                )
-            } else {
-                Ok(())
-            }
-        }
-
-        // write the name and type
-        match self {
-            Self::Cached {
-                task_name,
-                cell_type_id,
-                ..
-            }
-            | Self::Collapsed {
-                task_name,
-                cell_type_id,
-                ..
-            } => {
-                f.write_str(task_name)?;
-                fmt_cell_type_id(f, *cell_type_id)?;
-                if matches!(self, Self::Collapsed { .. }) {
-                    f.write_str(" (collapsed)")?;
-                }
-            }
-            Self::Uncached { cell_type_id } => {
-                f.write_str("unknown transient task")?;
-                fmt_cell_type_id(f, *cell_type_id)?;
-            }
-        }
-        f.write_char('\n')?;
-
-        // write any extra "cause" information we might have
-        if let Self::Cached {
-            cause_self,
-            cause_args,
-            ..
-        } = self
-        {
-            if let Some(c) = cause_self {
-                writeln!(f, "{indent}  self:")?;
-                c.fmt_indented(f, level + 1)?;
-            }
-            if !cause_args.is_empty() {
-                writeln!(f, "{indent}  args:")?;
-                for c in cause_args {
-                    c.fmt_indented(f, level + 1)?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Display for DebugTraceTransientTask {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_indented(f, 0)
     }
 }
 

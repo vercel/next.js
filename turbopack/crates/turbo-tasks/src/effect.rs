@@ -23,7 +23,6 @@ use crate::{
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     spawn,
-    trace::TraceRawVcs,
 };
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
@@ -58,7 +57,7 @@ where
 /// [`EffectStateStorage::run_apply`] (which handles the per-key state machine, in-progress
 /// coordination, dedup-hit short-circuit, and panic recovery).
 #[async_trait]
-pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
+pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Box<[u8]>;
 
@@ -98,8 +97,8 @@ pub enum ApplyError {
 /// So instead, we leave it up to the caller to figure out how to downcast these errors themselves.
 ///
 /// [`SharedError`]: crate::util::SharedError
-pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
-impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
+pub trait EffectError: StdError + NonLocalValue + Send + Sync + 'static {}
+impl<T> EffectError for T where T: StdError + NonLocalValue + Send + Sync + 'static {}
 
 enum EffectLastApplied {
     Unapplied,
@@ -323,7 +322,7 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     Ok(Effects::new(captured, unique_keys, invalidator))
 }
 
-#[derive(thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(thiserror::Error, Debug, NonLocalValue)]
 #[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
 struct ConflictingEffectError {
     key_len: usize,
@@ -384,16 +383,16 @@ pub struct Effects {
     /// Pre-resolved effects awaiting application. Lives for the lifetime of the cell — released
     /// when the producer reruns and `cell = "new"` overwrites the cell, which is when any
     /// upstream `ReadRef` strong-count cascades are naturally released.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     captured: CapturedSlice,
     /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
     /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
     /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
     /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
     /// `apply()`.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     unique_keys: Arc<UniqueKeys>,
 }
 

@@ -73,6 +73,14 @@ type EsmExport = (
   id: ModuleId | undefined,
   dynamic?: boolean
 ) => void
+/**
+ * A flat list of `head, ...entries` groups separated by the `0` sentinel. Each head is either a
+ * module id, which {@link EsmReexport} instantiates, or the namespace object of an already-imported
+ * module, which it uses directly. Each group's entries are either `exportName, importedName` pairs,
+ * or a single comma-joined string of those pairs.
+ */
+type EsmReexports = Array<ModuleId | EsmNamespaceObject | string | 0>
+type EsmReexport = (list: EsmReexports, id?: ModuleId) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void
 type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
@@ -88,11 +96,15 @@ type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
 /**
- * This is an alternating, non-empty arrow of module factory functions and module ids
+ * This is an alternating, non-empty array of module factory functions and module ids
  * `[id1, id2..., factory1, id3, factory2, id4, id5, factory3]`
- * There can be multiple ids to support scope hoisted merged modules
+ * There can be multiple ids to support scope hoisted merged modules.
+ * The strict mode module factories of a chunk can be prepended as a nested array,
+ * which the chunk creates inside a `"use strict"` IIFE.
  */
-type CompressedModuleFactories = Array<ModuleId | Function>
+type CompressedModuleFactories = Array<
+  ModuleId | Function | Array<ModuleId | Function>
+>
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string
@@ -143,6 +155,7 @@ interface TurbopackBaseContext<M> {
   i: EsmImport
   A: InvokeAsyncLoader
   s: EsmExport
+  S: EsmReexport
   j: DynamicExport
   v: ExportValue
   q: ExportUrl

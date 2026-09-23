@@ -13,6 +13,9 @@ const TAG_PREFIX = "nextjs:use-cache-tag:";
 
 const client = createClient({
   url: process.env.REDIS_URL ?? "redis://localhost:6379",
+  // Fail commands immediately while the connection is down instead of queueing
+  // them until Redis is back.
+  disableOfflineQueue: true,
 });
 
 client.on("error", (error) => {
@@ -28,8 +31,20 @@ const connection =
         console.warn("Failed to connect to Redis (remote cache):", error);
       });
 
+// `connect()` stays pending for as long as Redis is unreachable, so cap the
+// wait: requests arriving during startup wait for the connection at most
+// once, and while Redis is down every request is served uncached instead of
+// blocking. The client keeps retrying in the background, so `isReady` flips
+// back on its own once Redis is reachable again.
+const CONNECT_TIMEOUT_MS = 1000;
+const ready = Promise.race([
+  connection,
+  // `unref()` so this timer never keeps the process alive.
+  new Promise((resolve) => setTimeout(resolve, CONNECT_TIMEOUT_MS).unref()),
+]);
+
 async function getClient() {
-  await connection;
+  await ready;
   return client.isReady ? client : null;
 }
 
@@ -38,7 +53,16 @@ module.exports = {
     const redis = await getClient();
     if (!redis) return undefined;
 
-    const stored = await redis.get(ENTRY_PREFIX + cacheKey);
+    let stored;
+    try {
+      stored = await redis.get(ENTRY_PREFIX + cacheKey);
+    } catch (error) {
+      // A connection dropping mid-request degrades to a cache miss.
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.warn("Redis get failed (remote cache):", error);
+      }
+      return undefined;
+    }
     if (!stored) return undefined;
 
     const data = JSON.parse(stored);
@@ -48,6 +72,33 @@ module.exports = {
     // background. (`expire: Infinity` never trips this, which is intended.)
     if (Date.now() > data.timestamp + data.expire * 1000) {
       return undefined;
+    }
+
+    // Next.js only asks `getExpiration` about the route's soft tags, so the
+    // entry's own tags (from `cacheTag`) are checked here. If any of them was
+    // revalidated after this entry was created, on this instance or another,
+    // the entry is out of date: report a miss so Next.js regenerates it.
+    if (data.tags.length) {
+      let revalidatedAt;
+      try {
+        revalidatedAt = await redis.mGet(
+          data.tags.map((tag) => TAG_PREFIX + tag),
+        );
+      } catch (error) {
+        // Without the tag timestamps we can't tell, so don't serve it.
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.warn("Redis tag lookup failed (remote cache):", error);
+        }
+        return undefined;
+      }
+
+      if (
+        revalidatedAt.some(
+          (time) => time !== null && Number(time) > data.timestamp,
+        )
+      ) {
+        return undefined;
+      }
     }
 
     return {
@@ -99,38 +150,60 @@ module.exports = {
         }
       : {};
 
-    await redis.set(
-      ENTRY_PREFIX + cacheKey,
-      JSON.stringify({
-        value: bytes.toString("base64"),
-        tags: entry.tags,
-        stale: entry.stale,
-        timestamp: entry.timestamp,
-        expire: entry.expire,
-        revalidate: entry.revalidate,
-      }),
-      options,
-    );
+    const value = JSON.stringify({
+      value: bytes.toString("base64"),
+      tags: entry.tags,
+      stale: entry.stale,
+      timestamp: entry.timestamp,
+      expire: entry.expire,
+      revalidate: entry.revalidate,
+    });
+
+    try {
+      await redis.set(ENTRY_PREFIX + cacheKey, value, options);
+    } catch (error) {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.warn("Redis set failed (remote cache):", error);
+      }
+    }
   },
 
   // Redis is the single source of truth and every read hits it, so there's no
   // local tag state to sync between requests.
   async refreshTags() {},
 
-  // Return the most recent revalidation time across `tags`. Next treats an
-  // entry as stale when this is newer than the entry's `timestamp`.
+  // Return the most recent revalidation time across `tags`. Next.js calls
+  // this after a hit with the route's soft tags (the implicit `_N_T_` tags
+  // that `revalidatePath` uses) and discards the entry when the result is at
+  // or after the entry's `timestamp`.
   async getExpiration(tags) {
-    const redis = await getClient();
-    if (!redis || !tags.length) return 0;
+    if (!tags.length) return 0;
 
-    const values = await redis.mGet(tags.map((tag) => TAG_PREFIX + tag));
+    // If Redis can't answer, report the tags as revalidated just now: Next.js
+    // then discards the entry and regenerates it, the same miss `get` falls
+    // back to. Returning `0` would instead serve an entry that a
+    // `revalidatePath` may already have invalidated.
+    const redis = await getClient();
+    if (!redis) return Date.now();
+
+    let values;
+    try {
+      values = await redis.mGet(tags.map((tag) => TAG_PREFIX + tag));
+    } catch (error) {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.warn("Redis tag lookup failed (remote cache):", error);
+      }
+      return Date.now();
+    }
+
     const timestamps = values.filter(Boolean).map(Number);
     return timestamps.length ? Math.max(...timestamps) : 0;
   },
 
-  // Record when each tag was last revalidated so `getExpiration` can report
-  // it. There's one key per distinct tag, overwritten in place, so a small
-  // fixed tag set (like this example's single `time-data` tag) never grows.
+  // Record when each tag was last revalidated, for `get` (the entry's own
+  // tags) and `getExpiration` (soft tags) to compare against. There's one key
+  // per distinct tag, overwritten in place, so a small fixed tag set (like
+  // this example's single `time-data` tag) never grows.
   //
   // An app that mints many distinct, short-lived tags (e.g. `user-<id>`) would
   // instead keep a key per tag forever. To bound that, give each key a TTL
@@ -140,7 +213,13 @@ module.exports = {
   // still cached and serve it as fresh when it should be stale.
   async updateTags(tags) {
     const redis = await getClient();
-    if (!redis) return;
+    // Don't report success for a revalidation Redis never recorded: once Redis
+    // is back, every instance would serve the old entries again.
+    if (!redis) {
+      throw new Error(
+        "Redis is unavailable, so the tag revalidation was not recorded",
+      );
+    }
 
     const now = String(Date.now());
     await Promise.all(tags.map((tag) => redis.set(TAG_PREFIX + tag, now)));

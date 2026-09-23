@@ -1100,10 +1100,9 @@ function pingStaticHead(
   if (
     headRequiresRuntimeCompleteness &&
     // The head is not a tree node — it hangs off the route root — so the
-    // static-attempt hint is read from the root's node. (Segments read the
-    // bit from their own node; see the decision point in
-    // pingNewPartOfCacheComponentsTree.)
-    (route.tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) === 0
+    // static-attempt hints are read from the root's node. (Segments read the
+    // hints from their own node; see `pingNewPartOfCacheComponentsTree.`)
+    !shouldSegmentAttemptStaticRequest(fetchStrategy, route.tree)
   ) {
     // No static attempt: the head arrives via the runtime request instead.
     addSpawnedRuntimePrefetch(task, route.metadata.requestKey)
@@ -1170,7 +1169,7 @@ function pingStaticHead(
  * dynamic holes are filled by the navigation-time request.
  *
  * Note: The runtime contract is affordable because most
- * routes carry the ShouldAttemptStaticPrefetch hint: their segments are
+ * routes carry the ShouldAttemptStatic{Shell,Prefetch} hints: their segments are
  * prefetched statically and the responses' own sufficiency signal makes a
  * runtime request rare. On a hint-unset route, a walked segment deopts
  * directly to the batched runtime request.
@@ -1184,10 +1183,38 @@ function walkRequiresRuntimeCompleteness(
   staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell,
   route: FulfilledRouteCacheEntry
 ): boolean {
+  if (staticWalkStrategy === FetchStrategy.StaticShell) {
+    // `FetchStrategy.StaticShell` is only used on PPF routes.
+    return true
+  }
+  // `FetchStrategy.PPR` can only use runtime requests if PPF is enabled on the route.
   return (
-    staticWalkStrategy === FetchStrategy.StaticShell ||
     (route.tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0
   )
+}
+
+/**
+ * Whether a static request for this segment should be attempted.
+ * This may vary on the static walk's strategy, because we might e.g.
+ * have a shell that's static, but a prefetch that requires runtime requests.
+ *
+ * NOTE: Should only be used on Partial Prefetching routes, where
+ * `walkCanUseRuntimeRequests` is true.
+ * */
+function shouldSegmentAttemptStaticRequest(
+  staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell,
+  tree: RouteTree<any>
+): boolean {
+  const { prefetchHints } = tree
+  switch (staticWalkStrategy) {
+    case FetchStrategy.StaticShell:
+      return (prefetchHints & PrefetchHint.ShouldAttemptStaticShell) !== 0
+    case FetchStrategy.PPR:
+      return (prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) !== 0
+    default:
+      staticWalkStrategy satisfies never
+      return false
+  }
 }
 
 /**
@@ -1253,12 +1280,14 @@ function isShellEntryEligibleForStaticAttempt(
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): boolean {
   if (
-    (entry.fetchStrategy !== FetchStrategy.StaticShell &&
-      entry.fetchStrategy !== FetchStrategy.RuntimeShell) ||
-    (tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) === 0 ||
-    // A StaticShell walk's static attempt is the shell tier itself, so it
-    // only applies when the walk's static strategy outranks the entry.
-    !canNewFetchStrategyProvideMoreContent(entry.fetchStrategy, fetchStrategy)
+    !(
+      (entry.fetchStrategy === FetchStrategy.StaticShell ||
+        entry.fetchStrategy === FetchStrategy.RuntimeShell) &&
+      shouldSegmentAttemptStaticRequest(fetchStrategy, tree) &&
+      // if the `fetchStrategy` is `FetchStrategy.PPR`, it might provide more content
+      // (e.g. static params that this shell doesn't have)
+      canNewFetchStrategyProvideMoreContent(entry.fetchStrategy, fetchStrategy)
+    )
   ) {
     return false
   }
@@ -1453,7 +1482,7 @@ function pingNewPartOfCacheComponentsTree(
   // complete as a runtime response for every segment before the prefetch
   // can complete (see walkRequiresRuntimeCompleteness) — this function is
   // also the per-segment decision point. If the segment's node carries the
-  // ShouldAttemptStaticPrefetch hint (the build-time prerender accessed no
+  // ShouldAttemptStatic{Shell,Prefetch} hints (the build-time prerender accessed no
   // runtime data), its subtree is prefetched statically first,
   // and the responses themselves decide whether that was enough: every
   // fulfilled entry carries a needsRuntimeRequest signal. Pending responses
@@ -1480,27 +1509,21 @@ function pingNewPartOfCacheComponentsTree(
 
   // Constant for the whole pass; recomputed here only because the walk is
   // recursive and the check is cheap.
-  const segmentRequiresRuntimeCompleteness = walkRequiresRuntimeCompleteness(
+  const requiresRuntimeCompleteness = walkRequiresRuntimeCompleteness(
     fetchStrategy,
     route
   )
-  // TODO: The static-attempt hint reflects the build-time prerender's whole
-  // runtime-data tracking, so a page that always accesses
-  // runtime data after the shell stage never attempts a static prefetch —
-  // even though its shell variant is rewindable at the shell boundary and
-  // perfectly reusable. The server could emit a second bit derived from the
-  // shell-stage value ("a static SHELL attempt is worthwhile even though
-  // the page accesses runtime data post-shell") to let such pages attempt
-  // static, too.
+
   // A force-disabled segment deliberately does NOT deopt here: disabling
   // prefetch is passive. It never initiates a request — its accumulation
   // below contributes nothing — and must never be the reason a runtime
   // prefetch spawns, though it may ride along in a runtime response issued
   // on another segment's behalf.
-  const attemptStaticPrefetchOfSegment =
-    (tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) !== 0
 
-  if (segmentRequiresRuntimeCompleteness && !attemptStaticPrefetchOfSegment) {
+  if (
+    requiresRuntimeCompleteness &&
+    !shouldSegmentAttemptStaticRequest(fetchStrategy, tree)
+  ) {
     // Deopt directly to a runtime prefetch, without a static attempt.
     addSpawnedRuntimePrefetch(task, tree.requestKey)
     // If there's a pending static bundle from a parent, we need to finish
@@ -1531,7 +1554,7 @@ function pingNewPartOfCacheComponentsTree(
   )
   const bundleInProgress = accumulation.bundle
 
-  if (segmentRequiresRuntimeCompleteness && accumulation.needsRuntimeRequest) {
+  if (requiresRuntimeCompleteness && accumulation.needsRuntimeRequest) {
     // The static attempt for this segment was insufficient. Stop the walk
     // and deopt — the runtime prefetch covers the whole subtree. (Unlike the
     // direct deopt above, any open bundle is dropped rather than finished: a
@@ -2303,17 +2326,20 @@ function pingSegmentBundle(
           }
         }
 
+        // If this is the speculative phase (not the shell phase), check if we
+        // should attempt to upgrade a fallback ISR response to a concrete
+        // version.
+        //
         // For entries below this phase's tier, upgrade during the phase
         // itself — no background deferral, since the whole point of the
         // Speculative phase is to bring the cache up to the
         // per-link-concrete tier. `isPartial` ensures a complete entry isn't
         // re-fetched.
+        //
         // If we can use runtime requests and a runtime request would provide more
         // data, we also skip the upgrade (see `willBeSupersededByRuntimeRequest`)
-
-        // Check if we should attempt to upgrade a fallback ISR response to
-        // a concrete version.
         const isUpgradeableISRFallbackRetry =
+          fetchStrategy === FetchStrategy.PPR &&
           nodeEntry.isUpgradeableISRFallback &&
           // If the status is empty, then we haven't yet attempted to upgrade
           // the fallback.

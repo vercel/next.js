@@ -203,6 +203,12 @@ export interface NapiAdditionalIssueSource {
   codeFrame?: string
 }
 
+export interface NapiAdditionalRoot {
+  key: RcStr
+  path: RcStr
+  ignoreIfMissing?: boolean
+}
+
 export interface NapiAssetPath {
   path: RcStr
   contentHash: RcStr
@@ -361,9 +367,6 @@ export interface NapiOptionEnvVar {
  * Refer to [`NapiProjectOptions`] for documentation on this struct's fields.
  */
 export interface NapiPartialProjectOptions {
-  rootPath?: RcStr
-  projectPath?: RcStr
-  watch?: NapiWatchOptions
   nextConfig?: RcStr
   env?: Array<NapiEnvVar>
   defineEnv?: NapiDefineEnv
@@ -374,6 +377,10 @@ export interface NapiPartialProjectOptions {
   browserslistQuery?: RcStr
   writeRoutesHashesManifest?: boolean
   noMangling?: boolean
+}
+
+export interface NapiProject {
+  project: { __napiType: 'Project' }
 }
 
 export interface NapiProjectOptions {
@@ -398,6 +405,8 @@ export interface NapiProjectOptions {
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: RcStr
+  /** Additional filesystem roots from next.config.js. */
+  additionalRoots: Array<NapiAdditionalRoot>
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -505,6 +514,15 @@ export interface NapiTurboEngineOptions {
   skipCompaction?: boolean
   /** Turbopack memory eviction mode for the persistent cache. */
   turbopackMemoryEviction: MemoryEvictionMode
+  /** Tuning for Turbopack's reference-counting GC. `None` disables the GC. */
+  gc?: NapiTurbopackGcOptions
+}
+
+export interface NapiTurbopackGcOptions {
+  /** How long a GC pass runs before it will honour an interrupt, in milliseconds. */
+  minProgressMs?: number
+  /** How long a GC root may go un-anchored before it ages out, in milliseconds. */
+  rootTtlMs?: number
 }
 
 export interface NapiUpdateInfo {
@@ -651,7 +669,7 @@ export declare function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions,
   napiCallbacks: NapiNextTurbopackCallbacksJsObject
-): Promise<{ __napiType: 'Project' }>
+): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.

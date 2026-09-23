@@ -443,16 +443,14 @@ pub(crate) enum SplitResult {
         asset_ident: ResolvedVc<AssetIdent>,
 
         /// `u32` is a index to `modules`.
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore)]
         modules: Vec<ResolvedVc<ParseResult>>,
-
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
-
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         star_reexports: Vec<ExportAll>,
     },
     Failed {

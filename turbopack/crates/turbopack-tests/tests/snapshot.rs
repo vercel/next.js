@@ -441,7 +441,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     environment: Some(env),
                     follow_reexports: options.follow_reexports,
                     module_fragments_enabled: options.module_fragments_enabled,
-                    analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+                    analyze_mode: AnalyzeMode::code_generation_and_tracing(),
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -449,7 +449,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             module_rules: vec![module_rules],
             follow_reexports: options.follow_reexports,
             module_fragments_enabled: options.module_fragments_enabled,
-            analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+            analyze_mode: AnalyzeMode::code_generation_and_tracing(),
             ..Default::default()
         }
         .cell(),

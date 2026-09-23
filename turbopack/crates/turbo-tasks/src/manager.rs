@@ -51,7 +51,6 @@ use crate::{
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
-    trace::TraceRawVcs,
     util::{IdFactory, StaticOrArc},
 };
 
@@ -965,7 +964,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.schedule(id, TaskPriority::initial());
     }
 
-    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
+    pub async fn run_once<T: Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
@@ -982,7 +981,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[tracing::instrument(level = "trace", skip_all, name = "turbo_tasks::run")]
-    pub async fn run<T: TraceRawVcs + Send + 'static>(
+    pub async fn run<T: Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T, TurboTasksExecutionError> {
@@ -1419,6 +1418,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 }
             }
             self.backend.stop(self);
+            // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
+            // to subscribers before returning, then close the queue so subscriptions end after
+            // draining.
+            self.compilation_events.flush_and_close().await;
         })
         .await;
     }
@@ -2329,12 +2332,6 @@ impl<T: ?Sized> Hash for GcRoot<T> {
 impl<T: ?Sized> Borrow<OperationVc<T>> for GcRoot<T> {
     fn borrow(&self) -> &OperationVc<T> {
         &self.vc
-    }
-}
-
-impl<T: ?Sized> TraceRawVcs for GcRoot<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.vc.trace_raw_vcs(trace_context);
     }
 }
 

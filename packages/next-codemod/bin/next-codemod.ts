@@ -70,6 +70,11 @@ program
     'Skip every interactive prompt and accept its default. Also auto-enabled when stdin is not a TTY (e.g. running under an agent or in CI).',
     false
   )
+  .option(
+    '--skip-adoption',
+    'Skip optional feature-adoption codemods while applying version migrations.',
+    false
+  )
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)
@@ -92,7 +97,7 @@ program
     '--version <version>',
     'Next.js version (auto-detected if not provided)'
   )
-  .option('--output <file>', 'Target file path (e.g., CLAUDE.md, AGENTS.md)')
+  .option('--output <file>', 'Target file path (e.g., AGENTS.md)')
   .action(async (options) => {
     try {
       await runAgentsMd(options)

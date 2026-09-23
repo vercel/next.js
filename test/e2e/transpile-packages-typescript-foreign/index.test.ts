@@ -39,9 +39,8 @@ Module parse failed: Unexpected token`)
   })
 
   describe('with transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
@@ -49,10 +48,6 @@ Module parse failed: Unexpected token`)
         transpilePackages: ['pkg'],
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should work', async () => {
       const $ = await next.render$('/')

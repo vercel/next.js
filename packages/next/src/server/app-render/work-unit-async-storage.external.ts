@@ -22,6 +22,7 @@ import type {
 } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
+import type { PrerenderDataTracking } from '../dynamic-rendering-utils'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -102,7 +103,7 @@ export interface RequestStore extends CommonWorkUnitStore {
    * These params resolve after the static stage without replacing their
    * concrete values.
    */
-  stagedFallbackParams?: OpaqueFallbackRouteParams | null
+  stagedFallbackParams?: ReadonlySet<string> | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation or when rendering
@@ -177,53 +178,23 @@ export interface PrerenderStoreModernServer
 
   readonly stagedRendering: StagedRenderingController | null
 
-  /**
-   * When not null, records whether the render has accessed a data source
-   * that hangs during a static prerender but would resolve during a runtime
-   * prerender — cookies, headers, fallback params, searchParams, and cache
-   * entries excluded only from static prerenders. Call sites go through
-   * `trackRuntimeDataAccessed`, which resolves the promise `true` on the
-   * first access; it's resolved `false` when the prerender completes without
-   * one. Promise resolution is idempotent, so the flag is monotonic with no
-   * extra state.
+  /*
+   * Records usages of non-static data during a prerender to determine
+   * whether it should be statically optimized.
+   * Includes:
+   * - session data (`cookies()`, `headers()`)
+   * - URL data (`params`, `searchParams`)
    *
-   * The promise is embedded in the RSC payload (`InitialRSCPayload['u']`)
-   * so the fulfillment row's stream position records the stage the access
-   * happened in; the per-segment prefetch encoding (`collectSegmentData`)
-   * extracts it from the page data to tell the client whether a runtime
-   * prefetch request could be skipped. Tracking is page-global: an access
-   * anywhere in the page poisons all segments (per-segment granularity is
-   * recovered downstream for segments whose content is provably complete).
-   * Shared between the payload prerender store and the render store because
-   * request-data props are created during payload construction, before the
-   * render store exists. Null for warmup, route-handler, and error prerender
-   * stores.
-   */
-  readonly runtimeDataAccessed: PromiseWithResolvers<boolean> | null
-
-  /**
-   * Mutable single-boolean companion to `runtimeDataAccessed`, holding this
-   * prerender's `PrefetchHint.ShouldAttemptStaticPrefetch` measurement
-   * directly — the value that becomes the route's build-constant hint:
-   * starts `true`, and a disqualifying runtime-data access flips it to
-   * `false`. Not every access that resolves the promise disqualifies —
-   * fallback-param accesses on a fallback-upgradeable route are transient
-   * and leave the hint intact (see `trackRuntimeDataAccessed`, which applies
-   * the rule at access time using `isFallbackUpgradeable` below). A plain
-   * boolean suffices because the hint needs no stream positioning: unlike
-   * `runtimeDataAccessed`, whose fulfillment position encodes which stage
-   * the access happened in, this is read once after the prerender settles.
-   * Held in a cell so it can be shared. Same sharing and null rules as
-   * `runtimeDataAccessed`.
-   */
-  readonly shouldAttemptStaticPrefetch: { current: boolean } | null
+   * Only intended to be used during the final prerender of a page.
+   * */
+  readonly prerenderDataTracking: PrerenderDataTracking | null
 
   /**
    * Whether a fallback shell produced by this prerender could later be
    * upgraded to a concrete prerender (`renderOpts.isFallbackUpgradeable`:
    * at least one fallback param is a `generateStaticParams` candidate).
-   * Consulted by `trackRuntimeDataAccessed` to decide whether a
-   * fallback-param access disqualifies the static-prefetch hint.
+   * Used to decide whether a fallback-param access indicates that a
+   * runtime prefetch should be used.
    */
   readonly isFallbackUpgradeable: boolean
 }
@@ -436,8 +407,12 @@ export interface UnstableCacheStore extends CommonCacheStore {
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
-export interface GenerateStaticParamsStore extends CommonWorkUnitStore {
-  readonly type: 'generate-static-params'
+export type BuildTimeGeneratorName = 'generateStaticParams'
+
+export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
+  readonly type: 'build-time-generator'
+  /** The public export name to use in diagnostics, regardless of bundling. */
+  readonly functionName: BuildTimeGeneratorName
   readonly rootParams: Params
 }
 
@@ -445,7 +420,7 @@ export type WorkUnitStore =
   | RequestStore
   | CacheStore
   | PrerenderStore
-  | GenerateStaticParamsStore
+  | BuildTimeGeneratorStore
 
 export function willConsumerServerCache(
   workUnitStore: WorkUnitStore | undefined
@@ -466,7 +441,7 @@ export function willConsumerServerCache(
     case 'request':
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -506,7 +481,7 @@ export function getResumeDataCache(
     case 'private-cache':
     case 'unstable-cache':
     case 'prerender-legacy':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -528,7 +503,7 @@ export function getHmrRefreshHash(
       case 'validation-client':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -551,7 +526,7 @@ export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
       case 'prerender-runtime':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -576,7 +551,7 @@ export function getServerComponentsHmrCache(
       case 'prerender-runtime':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -605,7 +580,7 @@ export function getDraftModeProviderForCacheScope(
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-legacy':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -629,7 +604,7 @@ export function getStagedRenderingController(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -656,7 +631,7 @@ export function getCacheSignal(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       return workUnitStore satisfies never
@@ -678,7 +653,7 @@ export function getVaryParamsAccumulator(
     case 'prerender-client':
     case 'validation-client':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return null
     default:
       workUnitStore satisfies never

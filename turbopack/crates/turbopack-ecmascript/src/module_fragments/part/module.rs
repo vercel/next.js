@@ -103,6 +103,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             generate_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
