@@ -170,10 +170,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(local_name, liveness) => {
+                EsmExport::LocalBinding(local_name, liveness, no_side_effects) => {
                     exports.push((
                         name.clone(),
-                        EsmExport::LocalBinding(local_name.clone(), *liveness),
+                        EsmExport::LocalBinding(local_name.clone(), *liveness, *no_side_effects),
                     ));
                 }
                 EsmExport::Error => {

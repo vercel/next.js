@@ -1,8 +1,16 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::ecma::{
-    ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
-    visit::fields::{CalleeField, PropField},
+use swc_core::{
+    atoms::atom,
+    base::SwcComments,
+    common::{
+        DUMMY_SP, Spanned,
+        comments::{Comment, CommentKind, Comments},
+    },
+    ecma::{
+        ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
+        visit::fields::{CalleeField, PropField, VarDeclaratorField},
+    },
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
@@ -16,6 +24,7 @@ use crate::{
     references::esm::{
         EsmAssetReference,
         base::{ReferencedAsset, ReferencedAssetIdent},
+        export::is_export_no_side_effects,
     },
 };
 
@@ -73,6 +82,13 @@ impl EsmBinding {
 
         let export = self.export.clone();
         let imported_module = self.reference.get_referenced_asset().await?;
+        let no_side_effects =
+            if let (ReferencedAsset::Some(module), Some(export)) = (&imported_module, &export) {
+                *is_export_no_side_effects(**module, export.clone()).await?
+            } else {
+                false
+            };
+        let generated_comments = SwcComments::default();
 
         enum ImportedIdent {
             Module(ReferencedAssetIdent),
@@ -149,13 +165,20 @@ impl EsmBinding {
                 // Any other expression can be replaced with the import accessor.
                 Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
                     ast_path = trie.parent_or_root(ast_path);
-                    let in_call = !self.keep_this
-                        && matches!(
-                            trie.get(ast_path),
-                            Some(swc_core::ecma::visit::AstParentKind::Callee(
-                                CalleeField::Expr
-                            ))
-                        );
+                    let is_call = matches!(
+                        trie.get(ast_path),
+                        Some(swc_core::ecma::visit::AstParentKind::Callee(
+                            CalleeField::Expr
+                        ))
+                    );
+                    let in_call = !self.keep_this && is_call;
+                    let in_var_initializer = matches!(
+                        trie.get(ast_path),
+                        Some(swc_core::ecma::visit::AstParentKind::VarDeclarator(
+                            VarDeclaratorField::Init
+                        ))
+                    );
+                    let generated_comments = generated_comments.clone();
 
                     visitors.push(create_visitor!(
                         exact,
@@ -163,7 +186,20 @@ impl EsmBinding {
                         ast_path,
                         visit_mut_expr,
                         |expr: &mut Expr| {
-                            use swc_core::common::Spanned;
+                            if no_side_effects && (is_call || in_var_initializer) {
+                                generated_comments.add_leading(
+                                    expr.span().lo,
+                                    Comment {
+                                        kind: CommentKind::Block,
+                                        span: DUMMY_SP,
+                                        text: if is_call {
+                                            atom!("#__PURE__")
+                                        } else {
+                                            atom!("#__NO_SIDE_EFFECTS__")
+                                        },
+                                    },
+                                );
+                            }
                             match &imported_ident {
                                 ImportedIdent::Module(imported_ident) => {
                                     *expr = imported_ident.as_expr(expr.span(), in_call);
@@ -223,7 +259,11 @@ impl EsmBinding {
             }
         }
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(if no_side_effects {
+            CodeGeneration::visitors_with_comments(visitors, generated_comments)
+        } else {
+            CodeGeneration::visitors(visitors)
+        })
     }
 }
 
