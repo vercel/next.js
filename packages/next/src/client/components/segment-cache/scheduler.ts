@@ -2326,17 +2326,20 @@ function pingSegmentBundle(
           }
         }
 
+        // If this is the speculative phase (not the shell phase), check if we
+        // should attempt to upgrade a fallback ISR response to a concrete
+        // version.
+        //
         // For entries below this phase's tier, upgrade during the phase
         // itself — no background deferral, since the whole point of the
         // Speculative phase is to bring the cache up to the
         // per-link-concrete tier. `isPartial` ensures a complete entry isn't
         // re-fetched.
+        //
         // If we can use runtime requests and a runtime request would provide more
         // data, we also skip the upgrade (see `willBeSupersededByRuntimeRequest`)
-
-        // Check if we should attempt to upgrade a fallback ISR response to
-        // a concrete version.
         const isUpgradeableISRFallbackRetry =
+          fetchStrategy === FetchStrategy.PPR &&
           nodeEntry.isUpgradeableISRFallback &&
           // If the status is empty, then we haven't yet attempted to upgrade
           // the fallback.
