@@ -1762,27 +1762,29 @@ export function createAppPageEntrypoint({
           }
 
           // Returned failures bypass the outer catch's error reporting. Do not
-          // await async reporting before delivering recovery.
-          const errorReporting = routeModule
-            .onRequestError(
-              req,
-              cacheEntry.error,
-              {
-                routerKind: 'App Router',
-                routePath: srcPage,
-                routeType: 'render',
-                revalidateReason: getRevalidateReason({
-                  isStaticGeneration: isSSG,
-                  isOnDemandRevalidate,
-                }),
-              },
-              false,
-              routerServerContext
-            )
-            .catch((err) => {
-              console.error(err)
-            })
-          ctx.waitUntil?.(errorReporting)
+          // await async reporting before sending the error response.
+          const reportPrerenderError = () => {
+            const errorReporting = routeModule
+              .onRequestError(
+                req,
+                cacheEntry.error,
+                {
+                  routerKind: 'App Router',
+                  routePath: srcPage,
+                  routeType: 'render',
+                  revalidateReason: getRevalidateReason({
+                    isStaticGeneration: isSSG,
+                    isOnDemandRevalidate,
+                  }),
+                },
+                false,
+                routerServerContext
+              )
+              .catch((err) => {
+                console.error(err)
+              })
+            ctx.waitUntil?.(errorReporting)
+          }
 
           const { result } = cacheEntry
           for (const [name, value] of Object.entries(
@@ -1820,6 +1822,9 @@ export function createAppPageEntrypoint({
             // The platform needs the postponed state to resume with the actual
             // request. This value is only for delivery; the response cache
             // retains the failure and never persists it as ISR output.
+            //
+            // The callback writes to res without applying value.status. Its
+            // status and metadata headers must be set first.
             if (
               await invokeOnCacheEntry({
                 value: {
@@ -1834,12 +1839,15 @@ export function createAppPageEntrypoint({
                 cacheControl: { revalidate: 0, expire: undefined },
               })
             ) {
+              reportPrerenderError()
               return null
             }
 
             if (isMinimalMode) {
               // A prerender invocation may have filtered request headers, so
               // only the platform can resume with the original request.
+              //
+              // Let the outer catch report this error once.
               throw cacheEntry.error
             }
 
@@ -1852,6 +1860,7 @@ export function createAppPageEntrypoint({
             resumeRender(response, result.metadata.postponed, span)
           }
 
+          reportPrerenderError()
           return sendRenderResult({
             req,
             res,
