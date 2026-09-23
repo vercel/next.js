@@ -506,6 +506,7 @@ mod tests {
     fn normalizes_runtime_implementation() {
         for implementation in [
             "@module-federation/runtime-tools",
+            "./runtime.js",
             "/project/node_modules/@module-federation/runtime-tools/index.js",
         ] {
             let config: UnnormalizedModuleFederationConfig =
