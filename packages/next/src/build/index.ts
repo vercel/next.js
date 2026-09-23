@@ -53,7 +53,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-import { verifyDistDir, cleanDistDir } from '../lib/dist-dir'
+import { recursiveDeleteSyncWithAsyncRetries } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -1202,11 +1202,6 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      // `distDir` must be a directory Next.js owns regardless of what we go on
-      // to do with it, so this is not conditional on cleaning. This must run
-      // before telemetry or anything else writes into the directory.
-      verifyDistDir(distDir)
-
       // Check for build cache before initializing telemetry, because the
       // Telemetry constructor creates the cache directory in CI environments.
       const cacheDir = getCacheDir(distDir)
@@ -1308,13 +1303,10 @@ export default async function build(
         await nextBuildSpan
           .traceChild('clean')
           .traceAsyncFn(() =>
-            cleanDistDir(distDir, [
-              'cache',
-              'dev',
-              'diagnostics',
-              'lock',
-              'trace',
-            ])
+            recursiveDeleteSyncWithAsyncRetries(
+              distDir,
+              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
+            )
           )
       }
 

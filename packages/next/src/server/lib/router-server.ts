@@ -68,7 +68,6 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
-import { verifyAndMarkDevDistDir } from '../../lib/dist-dir'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
@@ -166,13 +165,6 @@ export async function initialize(opts: {
   )
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
-  }
-
-  if (opts.dev) {
-    verifyAndMarkDevDistDir(
-      path.join(opts.dir, config.distDir),
-      path.join(opts.dir, (config as NextConfigComplete).distDirRoot)
-    )
   }
 
   let compress: ReturnType<typeof setupCompression> | undefined

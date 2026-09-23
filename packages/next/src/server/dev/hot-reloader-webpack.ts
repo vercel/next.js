@@ -35,7 +35,7 @@ import getBaseWebpackConfig, {
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
-import { cleanDistDir } from '../../lib/dist-dir'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -689,7 +689,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        cleanDistDir(join(this.dir, this.config.distDir), ['cache', 'lock'])
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          new Set(['cache', 'lock'])
+        )
       )
   }
 
@@ -893,6 +896,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
 
     await this.clean(startSpan)
+    // Ensure distDir exists before writing package.json
+    await fs.mkdir(this.distDir, { recursive: true })
 
     const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
 

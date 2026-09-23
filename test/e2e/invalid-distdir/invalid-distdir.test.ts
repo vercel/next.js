@@ -28,11 +28,6 @@ describe('invalid distDir', () => {
   beforeEach(async () => {
     await next.stop()
     await next.remove('.next')
-    await next.remove('not-a-build-dir')
-  })
-
-  afterAll(async () => {
-    await next.remove('not-a-build-dir')
   })
 
   it('refuses a distDir outside the application and workspace', async () => {
@@ -50,32 +45,8 @@ describe('invalid distDir', () => {
       'next.config.js',
       `module.exports = { distDir: '.' }`,
       async () => {
-        await expectStartError(
-          /should be inside of the application directory|does not appear to have been created by Next\.js/
-        )
+        await expectStartError('must not contain the application directory')
         expect(await next.hasFile('pages/index.tsx')).toBe(true)
-      }
-    )
-  })
-
-  it('refuses a distDir holding unrelated files', async () => {
-    const outputDir = isNextDev ? 'not-a-build-dir/dev' : 'not-a-build-dir'
-    await next.patchFile(`${outputDir}/important.txt`, 'user data')
-    await next.patchFile(`${outputDir}/nested/source.js`, 'more user data')
-
-    await next.patchFile(
-      'next.config.js',
-      `module.exports = { distDir: 'not-a-build-dir' }`,
-      async () => {
-        await expectStartError(
-          'does not appear to have been created by Next.js'
-        )
-        expect(await next.readFile(`${outputDir}/important.txt`)).toBe(
-          'user data'
-        )
-        expect(await next.readFile(`${outputDir}/nested/source.js`)).toBe(
-          'more user data'
-        )
       }
     )
   })
