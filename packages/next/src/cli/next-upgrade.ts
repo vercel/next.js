@@ -224,7 +224,8 @@ export async function spawnNextUpgrade(
       // A workspace root must not launch an upgrade for an unspecified app.
       if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
         throw new Error(
-          'No Next.js app found in this directory. Run the command from an app directory or pass its path.'
+          'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
+            `next upgrade [directory] --ai${typeof options.ai === 'string' ? `=${options.ai}` : ''}`
         )
       }
 
