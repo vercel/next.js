@@ -750,7 +750,8 @@ export async function handleBuildComplete({
 
       async function handleTraceFiles(
         entryFilePath: string,
-        type: 'pages' | 'app' | 'neutral'
+        type: 'pages' | 'app' | 'neutral',
+        parentSpan?: Span
       ) {
         const assets: Record<string, string> = {}
         const assetsHashes: Record<string, string> = {}
@@ -758,22 +759,32 @@ export async function handleBuildComplete({
           assets,
           assetsHashes,
           repoRoot,
-          `${entryFilePath}.nft.json`
+          `${entryFilePath}.nft.json`,
+          parentSpan
         )
-        Object.assign(
-          assets,
-          sharedNodeAssets,
-          type === 'pages' ? pagesSharedNodeAssets : {},
-          type === 'app' ? appPagesSharedNodeAssets : {}
-        )
-        Object.assign(
-          assetsHashes,
-          sharedNodeAssetsHashes,
-          type === 'pages' ? pagesSharedNodeAssetsHashes : {},
-          type === 'app' ? appPagesSharedNodeAssetsHashes : {}
-        )
-        if (entryHash) {
-          assetsHashes[path.relative(repoRoot, entryFilePath)] = entryHash
+        const mergeAssets = () => {
+          Object.assign(
+            assets,
+            sharedNodeAssets,
+            type === 'pages' ? pagesSharedNodeAssets : {},
+            type === 'app' ? appPagesSharedNodeAssets : {}
+          )
+          Object.assign(
+            assetsHashes,
+            sharedNodeAssetsHashes,
+            type === 'pages' ? pagesSharedNodeAssetsHashes : {},
+            type === 'app' ? appPagesSharedNodeAssetsHashes : {}
+          )
+          if (entryHash) {
+            assetsHashes[path.relative(repoRoot, entryFilePath)] = entryHash
+          }
+        }
+        if (parentSpan) {
+          parentSpan
+            .traceChild('adapter-merge-shared-assets')
+            .traceFn(mergeAssets)
+        } else {
+          mergeAssets()
         }
         return { assets, assetsHashes, entryHash }
       }
@@ -1194,7 +1205,8 @@ export async function handleBuildComplete({
           const pageFile = path.join(appDistDir, `${page}.js`)
           let { assets, assetsHashes } = await handleTraceFiles(
             pageFile,
-            'app'
+            'app',
+            collectAppPathsSpan
           ).catch((err) => {
             Log.warn(`Failed to copy traced files for ${pageFile}`, err)
             return { assets: {}, assetsHashes: {} }
@@ -1204,16 +1216,24 @@ export async function handleBuildComplete({
           // the assets as they share the same pathname
           const existingOutput = appOutputMap[normalizedPage]
           if (existingOutput) {
-            Object.assign(existingOutput.assets, assets)
-            Object.assign(existingOutput.assetsHashes, assetsHashes)
-            await pushAsset(
-              existingOutput.assets,
-              existingOutput.assetsHashes,
-              path.relative(repoRoot, pageFile),
-              pageFile,
-              bundler,
-              config.outputHashSalt || ''
-            )
+            collectAppPathsSpan
+              .traceChild('adapter-merge-parallel-app-path-assets')
+              .traceFn(() => {
+                Object.assign(existingOutput.assets, assets)
+                Object.assign(existingOutput.assetsHashes, assetsHashes)
+              })
+            await collectAppPathsSpan
+              .traceChild('adapter-hash-parallel-app-path-entry')
+              .traceAsyncFn(() =>
+                pushAsset(
+                  existingOutput.assets,
+                  existingOutput.assetsHashes,
+                  path.relative(repoRoot, pageFile),
+                  pageFile,
+                  bundler,
+                  config.outputHashSalt || ''
+                )
+              )
             continue
           }
 
@@ -2824,17 +2844,32 @@ async function loadNFT(
   assets: Record<string, string>,
   assetsHashes: Record<string, string>,
   repoRoot: string,
-  traceFilePath: string
+  traceFilePath: string,
+  parentSpan?: Span
 ): Promise<{ entryHash?: string }> {
-  const nft = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as NftJson
+  const readNFT = () => fs.readFile(traceFilePath, 'utf8')
+  const nftContents = parentSpan
+    ? await parentSpan.traceChild('adapter-read-nft').traceAsyncFn(readNFT)
+    : await readNFT()
+  const parseNFT = () => JSON.parse(nftContents) as NftJson
+  const nft = parentSpan
+    ? parentSpan.traceChild('adapter-parse-nft').traceFn(parseNFT)
+    : parseNFT()
 
   // This call site only records source locations and hashes, so it does not need
   // the mapped symlink targets.
-  for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
-    assets[entry.destination] = entry.source
-    if (entry.hash) {
-      assetsHashes[entry.destination] = entry.hash
+  const mapNFTAssets = () => {
+    for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
+      assets[entry.destination] = entry.source
+      if (entry.hash) {
+        assetsHashes[entry.destination] = entry.hash
+      }
     }
+  }
+  if (parentSpan) {
+    parentSpan.traceChild('adapter-map-nft-assets').traceFn(mapNFTAssets)
+  } else {
+    mapNFTAssets()
   }
   return { entryHash: nft.entryHash }
 }
