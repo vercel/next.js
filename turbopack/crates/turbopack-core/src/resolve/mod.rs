@@ -3425,7 +3425,7 @@ pub enum ModulePart {
     /// Represents the side effects of a module, such as `import "./module"`.
     /// This part is evaluated even if all exports are unused.
     Evaluation,
-    /// Represents a named export, such as `foo` in `import { foo } from "./module"`.
+    /// Represents a named export, such as `foo` in `export const foo = "bar";`.
     Export(RcStr),
     /// Represents an export for which one member is used.
     ///
@@ -3454,7 +3454,7 @@ pub enum ModulePart {
     Internal(u32),
     /// Represents the local declarations of a module, such as `const value = 1`.
     Locals,
-    /// Represents the module's export declarations, such as `export { value }`.
+    /// Represents the module's export declarations, such as `export { foo, bar }`.
     Exports,
     /// Represents a facade that behaves like the original module while referencing its internal
     /// parts, such as the facade emitted for a split module.
