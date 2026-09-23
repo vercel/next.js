@@ -26,8 +26,9 @@ compatibility.
 - Optimize **initial browser work**, not total package size in isolation.
 - Treat analyzer compressed sizes as independently compressed attribution
   estimates, not network-transfer measurements.
-- `loadScopes` are graph-reachability heuristics. They do not prove request
-  timing; source and browser behavior settle that.
+- `loadScopes` are graph reachability, using exact route entries when the
+  artifact provides them and an explicitly labeled heuristic fallback for older
+  artifacts. They do not prove request timing; source and browser behavior do.
 - Never move code behind a dynamic boundary when it is already `async`.
 - Inspect source before narrowing a namespace or moving work server-side.
   Runtime lookup, enumeration, live editing, or local-only data may require it.
@@ -81,7 +82,7 @@ Rank client route totals and save the baseline snapshot ID returned by
 ```bash
 pnpm exec next experimental-analyze \
   query get_app_overview \
-  --input '{"environment":"client","metric":"compressed","limit":100}'
+  --input '{"environment":"client","metric":"compressed","limit":500}'
 ```
 
 If the user named routes, optimize those. Otherwise start with the largest
@@ -102,12 +103,29 @@ pnpm exec next experimental-analyze \
     "loadScopes":["initial"],
     "groupBy":"package",
     "metric":"compressed",
-    "limit":100
+    "limit":500
   }'
 ```
 
-Change `groupBy` to `source` to list individual initial-scope modules. Page
-through every result when `pagination.truncated` is true. Rank candidates using
+Change `groupBy` to `source` to list individual initial-scope modules. Use
+`--all` for the complete bounded result and `--fields` when only a few row facts
+are needed; do not manually loop offsets:
+
+```bash
+pnpm exec next experimental-analyze \
+  query get_route_modules \
+  --all \
+  --fields key,compressedSize,loadScopes,chunkCount \
+  --input '{
+    "route":"/dashboard",
+    "environment":"client",
+    "loadScopes":["initial"],
+    "groupBy":"source",
+    "metric":"compressed"
+  }'
+```
+
+Rank candidates using
 all of:
 
 - estimated initial client contribution;
@@ -130,7 +148,7 @@ pnpm exec next experimental-analyze \
     "loadScopes":["initial"],
     "groupBy":"source",
     "search":"node_modules/<package>",
-    "limit":100
+    "limit":500
   }'
 
 pnpm exec next experimental-analyze \
@@ -143,17 +161,64 @@ pnpm exec next experimental-analyze \
   }'
 ```
 
-### Reverse import edges
+When `chunkCount` matters, enumerate the selected source's exact emitted outputs
+instead of expecting chunk names inline on every module row:
 
-Run reverse-edge analysis **before editing**. `explain_route_module` walks from
-an attributed source back toward the route entry and can reveal that the right
-fix is an intermediate re-export or application import rather than the named
-package itself.
+```bash
+pnpm exec next experimental-analyze \
+  query get_source_chunks \
+  --all \
+  --input '{
+    "route":"/dashboard",
+    "sourcePath":"<exact sourcePath>"
+  }'
+```
 
-Use `nearestProjectImporter`, `nearestClientBoundary`, `firstAsyncBoundary`,
-`importerChain`, and both chain orientations to find the application source to
-inspect. When an explanation is ambiguous, select a returned `moduleIdent`; do
-not guess one.
+### Reverse import edges and counterfactuals
+
+Run reverse-edge analysis **before editing**. Start with
+`explain_route_module` to select an exact `moduleIdent` and, when relevant, a
+`routeEntryId`. Use its project importer and client-boundary evidence to find
+the source that must be inspected; do not choose a boundary from package name
+or size alone.
+
+Then ask the CLI for the complete synchronous predecessor graph. This graph is
+the factual representation of every synchronous path keeping the selected
+module initial; SCCs represent cycles without enumerating path arrays:
+
+```bash
+pnpm exec next experimental-analyze \
+  query get_initial_import_graph \
+  --input '{
+    "route":"/dashboard",
+    "environment":"client",
+    "sourcePath":"<exact sourcePath>",
+    "moduleIdent":"<selected moduleIdent>",
+    "routeEntryId":"<selected routeEntryId>"
+  }'
+```
+
+Use each edge's `targetRemainsInitial` and `leavingInitial*` fields to reject
+false positives caused by alternate synchronous paths. Before editing a
+promising edge, request its full source/package impact:
+
+```bash
+pnpm exec next experimental-analyze \
+  query analyze_import_edge \
+  --all \
+  --input '{
+    "route":"/dashboard",
+    "sourcePath":"<exact sourcePath>",
+    "moduleIdent":"<selected moduleIdent>",
+    "routeEntryId":"<selected routeEntryId>",
+    "edgeId":"<edgeId from get_initial_import_graph>",
+    "granularity":"source"
+  }'
+```
+
+The CLI owns reachability, SCC, edge-cut, and byte calculations. The agent owns
+the judgment about whether the reported edge is an appropriate product and
+source boundary to change.
 
 ### Baseline comparisons
 
@@ -168,13 +233,30 @@ pnpm exec next experimental-analyze \
     "granularity":"route",
     "environment":"client",
     "metric":"compressed",
-    "limit":100
+    "limit":500
   }'
 ```
 
 For package or source attribution, set `granularity` to `package` or `source`
-and pass the target `route`. Use `get_route_modules` on each snapshot when you
-need to compare `initial` versus `async` scope rather than bytes.
+and pass the target `route`. For lazy-loading proof, query source granularity
+with `"scopeTransition":"initial-to-async"`; do not manually compare two scope
+lists:
+
+```bash
+pnpm exec next experimental-analyze \
+  query compare_bundles \
+  --all \
+  --input '{
+    "baselineSnapshot":"<saved baseline snapshot ID>",
+    "comparisonSnapshot":"current",
+    "granularity":"source",
+    "route":"/dashboard",
+    "environment":"client",
+    "scopeTransition":"initial-to-async"
+  }'
+```
+
+The CLI returns the transition and aggregate totals directly.
 
 ## 3. Evaluate opportunities
 
@@ -326,23 +408,31 @@ Inspect these only when analyzer evidence ranks them materially:
 - the same expensive initial dependency repeated across routes instead of being
   removed, narrowed, or deliberately shared.
 
-Assets need a separate pass because they may not carry module reachability:
+Assets need a separate factual pass. Query actual emitted outputs rather than
+interpreting source-level `asset` attribution as filenames:
 
 ```bash
 pnpm exec next experimental-analyze \
-  query get_route_modules \
+  query get_route_outputs \
+  --all \
+  --fields filename,kind,compressedSize,outputCount \
   --input '{
     "route":"/dashboard",
-    "environment":"client",
-    "fileTypes":["css","asset"],
-    "groupBy":"source",
-    "metric":"compressed",
-    "limit":100
+    "kinds":["css","font","image","media"],
+    "groupBy":"file",
+    "metric":"compressed"
   }'
+
+pnpm exec next experimental-analyze \
+  query get_css_assets \
+  --all \
+  --input '{"route":"/dashboard"}'
 ```
 
-Use this as route attribution only. Whether a font/image/CSS file was actually
-requested during cold initial navigation requires browser network evidence.
+`emissionEvidence` and CSS output-reference evidence are build facts.
+`requestEvidence: "unknown"` means the CLI has not observed a browser request.
+Whether a file was requested during cold initial navigation remains separate
+browser network evidence, tabled from this workflow.
 
 Do not maintain a generic package deny list. Tie every recommendation to
 measured route evidence and inspected source behavior.
@@ -364,10 +454,10 @@ For each candidate:
 
 5. Query the affected route/source again.
 6. For removal, server migration, narrowing, or deduplication, require a client
-   byte reduction. For lazy loading, require `initial` → `async` and verify the
-   trigger.
+   byte reduction. For lazy loading, require the CLI's direct
+   `initial-to-async` transition and verify the trigger.
 7. When two distinct snapshots exist, use `compare_bundles` for route/package
-   byte deltas; use source queries for scope changes. Treat a source-only or
+   deltas and source scope transitions. Treat a source-only or
    type-only edit with no analyzer delta as no bundle win.
 8. Run targeted behavior tests and the narrowest relevant type-check. The
    analyzer has already performed its own production analysis, so do not start

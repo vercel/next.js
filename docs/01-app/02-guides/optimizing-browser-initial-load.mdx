@@ -38,14 +38,16 @@ pnpm exec next experimental-analyze \
     "loadScopes":["initial"],
     "groupBy":"package",
     "metric":"compressed",
-    "limit":100
+    "limit":500
   }'
 ```
 
-`loadScopes` are module-graph heuristics, not network measurements. An `initial`
-source is reachable from the route through synchronous edges. An `async` source
-is behind at least one asynchronous edge. Use source inspection to determine
-whether the feature is actually needed before interaction.
+`loadScopes` use exact route entries in current analyzer artifacts, with a
+labeled heuristic fallback for older artifacts. They are graph evidence, not
+network measurements. An `initial` source is reachable from the route through
+synchronous edges. An `async` source is behind at least one asynchronous edge.
+Use source inspection to determine whether the feature is actually needed before
+interaction.
 
 Common opportunities include:
 
@@ -72,6 +74,14 @@ pnpm exec next experimental-analyze \
     "maxDepth":25
   }'
 ```
+
+For a complete account of every synchronous path retaining a candidate, query
+`get_initial_import_graph`. Its SCC-collapsed graph reports edge counterfactuals
+without enumerating exponentially many path arrays. Before changing an edge,
+use `analyze_import_edge` to list the sources/packages and estimated attribution
+that would leave initial scope. Use `get_route_outputs` and `get_css_assets` for
+emitted CSS/media evidence; those queries do not claim the browser requested the
+files.
 
 After each change, regenerate and compare analyzer data. Source cleanup or a
 type-only import change can have zero bundle impact when the bundler already
