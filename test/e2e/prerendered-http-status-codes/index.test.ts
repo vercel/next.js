@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { load } from 'cheerio'
 
 // These status assertions require production prerendering. In dev, pages are
 // rendered on request and Suspense may stream a 200 before an HTTP error occurs.
@@ -36,6 +37,11 @@ describe('prerendered-http-status-codes', () => {
 
         expect(response.headers.get('content-type')).toContain('text/html')
         expect(response.status).toBe(status)
+        if (variant === 'with-suspense') {
+          const $ = load(await response.text())
+          expect($('#layout').text()).toBe('Shared layout')
+          expect($('#suspense-fallback').text()).toBe('Loading...')
+        }
       }
     )
 
@@ -45,6 +51,14 @@ describe('prerendered-http-status-codes', () => {
         expect(await browser.elementByCss('#not-found').text()).toBe(
           'This page could not be found.'
         )
+        if (variant === 'with-suspense') {
+          expect(await browser.elementByCss('#layout').text()).toBe(
+            'Shared layout'
+          )
+          expect(
+            await browser.hasElementByCssSelector('#suspense-fallback')
+          ).toBe(false)
+        }
       } finally {
         await browser.close()
       }
@@ -61,6 +75,11 @@ describe('prerendered-http-status-codes', () => {
 
       expect(response.status).toBe(status)
       expect(response.headers.get('location')).toBe('/')
+      if (variant === 'with-suspense') {
+        const $ = load(await response.text())
+        expect($('#layout').text()).toBe('Shared layout')
+        expect($('#suspense-fallback').text()).toBe('Loading...')
+      }
     })
   })
 })
