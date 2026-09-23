@@ -380,6 +380,8 @@ Complete each adoption. Temporary opt-outs and TODO markers are intermediate wor
 
 ${taskSummary}
 
+Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+
 Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
 ${futureDefaultsPrompt ? `${futureDefaultsPrompt.trimStart()}\n\n` : ''}References:
