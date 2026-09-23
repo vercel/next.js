@@ -79,6 +79,39 @@ describe('on-demand-prerender-error-boundary', () => {
   })
 
   // @force-gate prod
+  it('reports a failed background prerender while retaining the stale page', async () => {
+    const slug = `reported-revalidate-${randomUUID()}`
+    const pathname = `/${slug}`
+    await setData(slug, 'ready')
+
+    const initial = await next.fetch(pathname)
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('<p id="content">ready</p>')
+
+    await setData(slug, 'error')
+    await retry(async () => {
+      const response = await next.fetch(pathname)
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('<p id="content">ready</p>')
+
+      const report = await next.fetch(
+        `/test-data?key=${encodeURIComponent(`report-${pathname}`)}`
+      )
+      expect(report.status).toBe(200)
+      expect(await report.json()).toMatchObject({
+        message: `Reported revalidation error: ${slug}`,
+        request: { path: pathname, method: 'GET' },
+        context: {
+          routerKind: 'App Router',
+          routeType: 'render',
+          routePath: expect.stringMatching(/^\/\[slug\](?:\/page)?$/),
+          revalidateReason: expect.stringMatching(/^(stale|on-demand)$/),
+        },
+      })
+    }, 30_000)
+  })
+
+  // @force-gate prod
   it('delivers recovery without waiting for onRequestError to finish', async () => {
     const slug = `reported-blocked-${randomUUID()}`
     const pathname = `/${slug}`

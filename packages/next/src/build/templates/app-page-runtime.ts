@@ -1113,6 +1113,23 @@ export function createAppPageEntrypoint({
         const isProduction = routeModule.isDev === false
         const didRespond = hasResolved || res.writableEnded
 
+        const reportRevalidationError = (error: unknown) =>
+          routeModule.onRequestError(
+            req,
+            error,
+            {
+              routerKind: 'App Router',
+              routePath: srcPage,
+              routeType: 'render',
+              revalidateReason: getRevalidateReason({
+                isStaticGeneration: isSSG,
+                isOnDemandRevalidate,
+              }),
+            },
+            false,
+            routerServerContext
+          )
+
         try {
           // skip on-demand revalidate if cache is not present and
           // revalidate-if-generated is set
@@ -1619,33 +1636,25 @@ export function createAppPageEntrypoint({
             (supportsDynamicResponse || isPossibleServerAction)
 
           // Perform the render.
-          return doRender({
+          const result = await doRender({
             span,
             postponed,
             fallbackRouteParams,
             renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
+
+          // The response cache already served the stale entry, so response
+          // delivery cannot report this background failure.
+          if ('error' in result && hasResolved) {
+            await reportRevalidationError(result.error)
+          }
+          return result
         } catch (err) {
-          // if this is a background revalidate we need to report
-          // the request error here as it won't be bubbled
-          if (previousIncrementalCacheEntry?.isStale) {
-            const silenceLog = false
-            await routeModule.onRequestError(
-              req,
-              err,
-              {
-                routerKind: 'App Router',
-                routePath: srcPage,
-                routeType: 'render',
-                revalidateReason: getRevalidateReason({
-                  isStaticGeneration: isSSG,
-                  isOnDemandRevalidate,
-                }),
-              },
-              silenceLog,
-              routerServerContext
-            )
+          // The foreground handler reports errors while it awaits a response.
+          // Report here only after the cache has resolved that response.
+          if (hasResolved) {
+            await reportRevalidationError(err)
           }
           throw err
         }

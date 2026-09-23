@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
-import { unstable_noStore } from 'next/cache'
+import { cacheLife, unstable_noStore } from 'next/cache'
 import { SsrError } from '../../ssr-error'
 import { getOrigin } from '../../origin'
 
@@ -58,6 +58,14 @@ export default async function Page({
     return <p id="content">{value}</p>
   }
 
+  if (slug.startsWith('reported-revalidate-')) {
+    const value = await getRevalidatingData(slug)
+    if (value === 'error') {
+      throw new Error(`Reported revalidation error: ${slug}`)
+    }
+    return <p id="content">{value}</p>
+  }
+
   if (slug.startsWith('reported-')) {
     throw new Error(`Reported prerender error: ${slug}`)
   }
@@ -106,4 +114,11 @@ export default async function Page({
     default:
       return <h1>{slug}</h1>
   }
+}
+
+async function getRevalidatingData(key: string) {
+  'use cache'
+
+  cacheLife({ revalidate: 1, expire: 3600 })
+  return getData(key)
 }
