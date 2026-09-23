@@ -140,7 +140,6 @@ This is a special case of the synchronous return value of a [`turbo_tasks::funct
 We prevent potentially-local `Vc`s from escaping the lifetime of a function using the [`NonLocalValue`] marker trait alongside some fallback runtime checks. We do this to avoid some ergonomic challenges that would come from using lifetime annotations with `Vc`.
 
 
-[tracing]: crate::trace::TraceRawVcs
 [`ReadRef`]: crate::ReadRef
 [`turbo_tasks::function`]: crate::function
 [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics

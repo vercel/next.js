@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import {
   createPrerenderResumeDataCache,
   deflateResumeDataCache,
@@ -14,15 +15,13 @@ import {
   parseResumeDataCacheFromPostponedState,
   parsePostponedState,
   DynamicHTMLPreludeState,
+  isEmptyHTMLPrelude,
 } from './postponed-state'
-import type {
-  OpaqueFallbackRouteParams,
-  OpaqueFallbackRouteParamValue,
-} from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { CachedRouteKind } from '../response-cache/types'
 
 export function createMockOpaqueFallbackRouteParams(
-  params: Record<string, OpaqueFallbackRouteParamValue>
+  params: Record<string, string>
 ): OpaqueFallbackRouteParams {
   return new Map(Object.entries(params))
 }
@@ -33,7 +32,7 @@ describe('getDynamicHTMLPostponedState', () => {
   it('serializes a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-      slug: [key, 'd'],
+      slug: key,
     })
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
@@ -56,51 +55,53 @@ describe('getDynamicHTMLPostponedState', () => {
     )
 
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key, nested: { [key]: key } } as any,
+      { key: 'slug|d', nested: { key: 'slug|d' } } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       prerenderResumeDataCache,
       isCacheComponentsEnabled
     )
 
-    const parsed = parsePostponedState(state, { slug: '123' }, undefined)
+    const parsed = parsePostponedState(state, undefined)
 
-    expect(parsed).toMatchInlineSnapshot(`
+    expect(state).not.toContain(key)
+    // Other suites may enable async hooks, which attach internal symbols to
+    // promises. Check the entry below rather than snapshotting those fields.
+    expect(parsed.renderResumeDataCache.cache.size).toBe(1)
+    expect(parsed).toMatchInlineSnapshot(
+      { renderResumeDataCache: { cache: expect.any(Map) } },
+      `
      {
        "data": [
          1,
          {
-           "123": "123",
+           "key": "slug|d",
            "nested": {
-             "123": "123",
+             "key": "slug|d",
            },
          },
        ],
        "renderResumeDataCache": {
-         "cache": Map {
-           "1" => Promise {},
-         },
+         "cache": Any<Map>,
          "decryptedBoundArgs": Map {},
          "encryptedBoundArgs": Map {},
          "fetch": Map {},
          "imageResponses": Map {},
          "mutable": false,
        },
-       "stagedFallbackParams": Map {
-         "slug" => [
-           "%%drp:slug:e9615126684e5%%",
-           "d",
-         ],
+       "stagedFallbackParams": Set {
+         "slug",
        },
        "type": 2,
      }
-    `)
+    `
+    )
 
     const value = await parsed.renderResumeDataCache.cache.get('1')
 
-    expect(value).toBeDefined()
+    assert(value !== undefined && typeof value !== 'symbol')
 
-    await expect(streamToString(value!.entry.value)).resolves.toEqual('hello')
+    await expect(streamToString(value.entry.value)).resolves.toEqual('hello')
   })
 
   it('serializes a HTML postponed state without fallback params', async () => {
@@ -114,39 +115,46 @@ describe('getDynamicHTMLPostponedState', () => {
     expect(state).toMatchInlineSnapshot(`"19:[1,{"key":"value"}]null"`)
   })
 
-  it('can serialize and deserialize a HTML postponed state with fallback params', async () => {
-    const key = '%%drp:slug:e9615126684e5%%'
-    const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-      slug: [key, 'd'],
-    })
-    const state = await getDynamicHTMLPostponedState(
-      { [key]: key } as any,
-      DynamicHTMLPreludeState.Full,
-      fallbackRouteParams,
-      createPrerenderResumeDataCache(),
-      isCacheComponentsEnabled
-    )
+  it.each(['d', 'c', 'oc'] as const)(
+    'only persists param names when resuming an HTML state with %s params',
+    async (paramType) => {
+      const key = '%%drp:slug:e9615126684e5%%'
+      const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+        slug: key,
+      })
+      const postponed = {
+        replayNodes: [['Context.Provider', `slug|${paramType}`, [], null]],
+      }
+      const state = await getDynamicHTMLPostponedState(
+        postponed as any,
+        DynamicHTMLPreludeState.Full,
+        fallbackRouteParams,
+        createPrerenderResumeDataCache(),
+        isCacheComponentsEnabled
+      )
 
-    const value = 'hello'
-    const params = { slug: value }
-    const parsed = parsePostponedState(state, params, undefined)
-    expect(parsed).toEqual({
-      type: DynamicState.HTML,
-      stagedFallbackParams: fallbackRouteParams,
-      data: [1, { [value]: value }],
-      renderResumeDataCache: {
-        cache: new Map(),
-        fetch: new Map(),
-        encryptedBoundArgs: new Map(),
-        decryptedBoundArgs: new Map(),
-        imageResponses: new Map(),
-        mutable: false,
-      },
-    })
-
-    // The replacements have been replaced.
-    expect(JSON.stringify(parsed)).not.toMatch(key)
-  })
+      const dataString = JSON.stringify([
+        DynamicHTMLPreludeState.Full,
+        postponed,
+      ])
+      const postponedString = `8["slug"]${dataString}`
+      expect(state).toBe(`${postponedString.length}:${postponedString}null`)
+      const parsed = parsePostponedState(state, undefined)
+      expect(parsed).toEqual({
+        type: DynamicState.HTML,
+        stagedFallbackParams: new Set(['slug']),
+        data: [1, postponed],
+        renderResumeDataCache: {
+          cache: new Map(),
+          fetch: new Map(),
+          encryptedBoundArgs: new Map(),
+          decryptedBoundArgs: new Map(),
+          imageResponses: new Map(),
+          mutable: false,
+        },
+      })
+    }
+  )
 })
 
 describe('getDynamicDataPostponedState', () => {
@@ -163,8 +171,9 @@ describe('getDynamicDataPostponedState', () => {
       expect(state).toBe(
         fallbackRouteParams === undefined ? '4:nullnull' : '7:2[]nullnull'
       )
-      const parsed = parsePostponedState(state, {}, undefined)
+      const parsed = parsePostponedState(state, undefined)
       expect(parsed.type).toBe(DynamicState.DATA)
+      expect(isEmptyHTMLPrelude(state)).toBe(false)
       expect(parsed.stagedFallbackParams).toBe(
         fallbackRouteParams === undefined ? undefined : null
       )
@@ -175,7 +184,7 @@ describe('getDynamicDataPostponedState', () => {
     'serializes and parses fallback params and a cache (disableResumeDataCacheCompression: %s)',
     async (disableResumeDataCacheCompression) => {
       const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-        slug: ['%%drp:slug:e9615126684e5%%', 'd'],
+        slug: '%%drp:slug:e9615126684e5%%',
       })
       const resumeDataCache = createPrerenderResumeDataCache()
       resumeDataCache.fetch.set('cache-key', {
@@ -201,7 +210,7 @@ describe('getDynamicDataPostponedState', () => {
       )
 
       expect(state).toBe(
-        `51:45[["slug",["%%drp:slug:e9615126684e5%%","d"]]]null${
+        `13:8["slug"]null${
           disableResumeDataCacheCompression
             ? serializedResumeDataCache
             : deflateResumeDataCache(serializedResumeDataCache)
@@ -210,12 +219,12 @@ describe('getDynamicDataPostponedState', () => {
 
       const parsed = parsePostponedState(
         state,
-        { slug: '123' },
         undefined,
         disableResumeDataCacheCompression
       )
       expect(parsed.type).toBe(DynamicState.DATA)
-      expect(parsed.stagedFallbackParams).toEqual(fallbackRouteParams)
+      expect(isEmptyHTMLPrelude(state)).toBe(false)
+      expect(parsed.stagedFallbackParams).toEqual(new Set(['slug']))
       expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
         resumeDataCache.fetch.get('cache-key')
       )
@@ -272,11 +281,44 @@ describe('getDynamicDataPostponedState', () => {
   })
 })
 
+describe('isEmptyHTMLPrelude', () => {
+  it.each([DynamicHTMLPreludeState.Empty, DynamicHTMLPreludeState.Full])(
+    'reads prelude state %s independently of the fallback names',
+    async (preludeState) => {
+      for (const fallbackRouteParams of [
+        null,
+        new Map(),
+        createMockOpaqueFallbackRouteParams({
+          category: '%%drp:category:1%%',
+          parts: '%%drp:parts:1%%',
+        }),
+      ]) {
+        const state = await getDynamicHTMLPostponedState(
+          { key: 'category|d' } as any,
+          preludeState,
+          fallbackRouteParams,
+          createPrerenderResumeDataCache(),
+          isCacheComponentsEnabled
+        )
+
+        expect(isEmptyHTMLPrelude(state)).toBe(
+          preludeState === DynamicHTMLPreludeState.Empty
+        )
+        expect(
+          parsePostponedState(state, undefined).stagedFallbackParams
+        ).toEqual(
+          fallbackRouteParams?.size ? new Set(['category', 'parts']) : null
+        )
+      }
+    }
+  )
+})
+
 describe('parseResumeDataCacheFromPostponedState', () => {
   it('extracts the resume data cache without parsing the React state', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
-      slug: [key, 'd'],
+      slug: key,
     })
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
@@ -312,8 +354,8 @@ describe('parseResumeDataCacheFromPostponedState', () => {
     )
     const value = await resumeDataCache.cache.get('cache-key')
 
-    expect(value).toBeDefined()
-    await expect(streamToString(value!.entry.value)).resolves.toBe(
+    assert(value !== undefined && typeof value !== 'symbol')
+    await expect(streamToString(value.entry.value)).resolves.toBe(
       'cached value'
     )
   })
@@ -321,17 +363,17 @@ describe('parseResumeDataCacheFromPostponedState', () => {
 
 describe('parsePostponedState', () => {
   it('parses a HTML postponed state with fallback params', () => {
-    const state = `2593:39[["slug","%%drp:slug:e9615126684e5%%"]][1,{"t":2,"d":{"nextSegmentId":2,"rootFormatContext":{"insertionMode":0,"selectedValue":null,"tagScope":0},"progressiveChunkSize":12800,"resumableState":{"idPrefix":"","nextFormID":0,"streamingFormat":0,"instructions":0,"hasBody":true,"hasHtml":true,"unknownResources":{},"dnsResources":{},"connectResources":{"default":{},"anonymous":{},"credentials":{}},"imageResources":{},"styleResources":{},"scriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null,"/_next/static/chunks/f5e865f6-5e04edf75402c5e9.js":null,"/_next/static/chunks/9440-26a4cfbb73347735.js":null,"/_next/static/chunks/main-app-315ef55d588dbeeb.js":null,"/_next/static/chunks/8630-8e01a4bea783c651.js":null,"/_next/static/chunks/app/layout-1b900e1a3caf3737.js":null},"moduleUnknownResources":{},"moduleScriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null}},"replayNodes":[["oR",0,[["Context.Provider",0,[["ServerInsertedHTMLProvider",0,[["Context.Provider",0,[["n7",0,[["nU",0,[["nF",0,[["n9",0,[["Fragment",0,[["Context.Provider",2,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["nY",0,[["nX",0,[["Fragment","c",[["Fragment",0,[["html",1,[["body",0,[["main",3,[["j",0,[["Fragment",0,[["Context.Provider","validation",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["c",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","slug|%%drp:slug:e9615126684e5%%|d",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","__PAGE__",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Suspense",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["Fragment",0,[],{"1":1}]],null]],null]],null]],null]],null]],null]],null]],null,["Suspense Fallback",0,[],null],0]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],"replaySlots":null}}]null`
-    const params = {
-      slug: Math.random().toString(16).slice(3),
-    }
-    const parsed = parsePostponedState(state, params, undefined)
+    const state = `68:8["slug"][1,{"replayNodes":[["Context.Provider","slug|d",[],null]]}]null`
+    const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
-      stagedFallbackParams: new Map([['slug', '%%drp:slug:e9615126684e5%%']]),
-      data: expect.any(Object),
+      stagedFallbackParams: new Set(['slug']),
+      data: [
+        DynamicHTMLPreludeState.Full,
+        { replayNodes: [['Context.Provider', 'slug|d', [], null]] },
+      ],
       renderResumeDataCache: {
         cache: new Map(),
         fetch: new Map(),
@@ -341,15 +383,11 @@ describe('parsePostponedState', () => {
         mutable: false,
       },
     })
-
-    // Ensure that the replacement worked and removed all the placeholders.
-    expect(JSON.stringify(parsed)).not.toMatch(/%%drp:slug:e9615126684e5%%/)
   })
 
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
-    const params = {}
-    const parsed = parsePostponedState(state, params, undefined)
+    const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -369,7 +407,7 @@ describe('parsePostponedState', () => {
 
   it('parses a legacy data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, {}, undefined)
+    const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({

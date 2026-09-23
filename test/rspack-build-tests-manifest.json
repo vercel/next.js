@@ -3531,13 +3531,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": ["instant validation causes Only implemented in dev"],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
       "app dir - instant-validation-client should error when a client component exports instant"
@@ -5244,15 +5237,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - next-image (with https) loads images without any errors"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8460,13 +8444,6 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
-    "passed": ["webpack-loader-errors should skip in non-dev mode"],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12840,8 +12817,8 @@
   },
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
-      "create-next-app should create AGENTS.md and CLAUDE.md with --agents-md flag",
-      "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
+      "create-next-app should create AGENTS.md with --agents-md flag",
+      "create-next-app should not create AGENTS.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install",

@@ -116,6 +116,7 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
+import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
@@ -494,7 +495,7 @@ export async function createHotReloaderTurbopack(
     })
   }
 
-  const project = await bindings.turbo.createProject(
+  const projectResult = await bindings.turbo.createProject(
     {
       rootPath,
       projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
@@ -535,9 +536,14 @@ export async function createHotReloaderTurbopack(
     {
       turbopackMemoryEviction:
         opts.nextConfig.experimental.turbopackMemoryEvictionMode,
+      gc: opts.nextConfig.experimental.turbopackGcOptions,
       isShortSession: false,
     }
   )
+  for (const issue of projectResult.issues) {
+    printNonFatalIssue(issue)
+  }
+  const project = projectResult.value
   backgroundLogCompilationEvents(project, {
     eventTypes: [
       'StartupCacheInvalidationEvent',
@@ -569,7 +575,7 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
-    if (process.env.NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
+    if (process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
       await project.shutdown()
     } else {
       await project.onExit()
@@ -1135,7 +1141,10 @@ export async function createHotReloaderTurbopack(
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints.value)) {
-        printBuildErrors(entrypoints, true)
+        printBuildErrors(entrypoints, true, {
+          strictRouteMatchingDefaultWarning:
+            getStrictRouteMatchingDefaultWarning(nextConfig),
+        })
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined

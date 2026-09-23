@@ -90,6 +90,25 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
+Use repeated runs when measuring behavior that may vary between agent runs:
+
+```bash
+pnpm eval agent-057-agent-feedback-anonymization \
+  --variant agent-feedback \
+  --runs 10
+```
+
+The runner sets `earlyExit: false` whenever `--runs` is greater than one, so
+the result records a real pass rate. `--variant` isolates one generated
+treatment when a full baseline comparison would add unnecessary cost.
+
+Agent-feedback fixtures opt into an `agent-feedback` treatment in
+`eval.config.json`. That treatment installs the managed block from the packed
+Next.js build and uses the bundled reporting protocol. It makes only the remote
+kill-switch result deterministic, keeping eval results independent from the
+live rollout. Each run records the number of valid review payloads and their
+trigger reasons in `result.json` under `analysis.agentFeedback`.
+
 Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Grep `transcript-raw.jsonl` to see exactly what the agent did.
 
 ## When to rebuild

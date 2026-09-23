@@ -3,25 +3,24 @@ import type {
   CacheNode,
 } from '../../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
-import { createRouterCacheKey } from '../create-router-cache-key'
+import { createSegmentKey } from '../create-segment-key'
 
 export function findHeadInCache(
   cache: CacheNode,
   parallelRoutes: FlightRouterState[1]
-): [CacheNode, string, string] | null {
-  return findHeadInCacheImpl(cache, parallelRoutes, '', '')
+): [CacheNode, string] | null {
+  return findHeadInCacheImpl(cache, parallelRoutes, '')
 }
 
 function findHeadInCacheImpl(
   cache: CacheNode,
   parallelRoutes: FlightRouterState[1],
-  keyPrefix: string,
-  keyPrefixWithoutSearchParams: string
-): [CacheNode, string, string] | null {
+  keyPrefix: string
+): [CacheNode, string] | null {
   const isLastItem = Object.keys(parallelRoutes).length === 0
   if (isLastItem) {
     // Returns the entire Cache Node of the segment whose head we will render.
-    return [cache, keyPrefix, keyPrefixWithoutSearchParams]
+    return [cache, keyPrefix]
   }
 
   // First try the 'children' parallel route if it exists
@@ -50,14 +49,14 @@ function findHeadInCacheImpl(
         continue
       }
 
-      const cacheKey = createRouterCacheKey(segment)
-      const cacheKeyWithoutSearchParams = createRouterCacheKey(segment, true)
+      // This key identifies the Head component, not a cache entry. On the
+      // server it must match even when resuming with previously unknown params.
+      const segmentKey = createSegmentKey(segment)
 
       const item = findHeadInCacheImpl(
         childCacheNode,
         childParallelRoutes,
-        keyPrefix + '/' + cacheKey,
-        keyPrefix + '/' + cacheKeyWithoutSearchParams
+        keyPrefix + '/' + segmentKey
       )
 
       if (item) {

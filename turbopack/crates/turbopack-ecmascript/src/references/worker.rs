@@ -7,8 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbofmt,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -26,12 +25,10 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
@@ -314,7 +311,8 @@ impl IntoCodeGenReference for WorkerAssetReference {
 
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -324,17 +322,16 @@ impl IntoCodeGenReference for WorkerAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct WorkerAssetReferenceCodeGen {
     reference: ResolvedVc<WorkerAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl WorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -359,7 +356,7 @@ impl WorkerAssetReferenceCodeGen {
         // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
         // The loader module exports a function that creates the worker with all necessary
         // configuration (entrypoint, chunks, forwarded globals, etc.)
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(new_expr) = expr {
                 if let Some(args) = &mut new_expr.args {
                     match args.first_mut() {
@@ -419,9 +416,7 @@ impl WorkerAssetReferenceCodeGen {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub enum WorkerGlobalPlaceholder {
     /// `const _TURBOPACK_WORKER_FORWARDED_GLOBALS_ = []`
     ForwardedGlobals,
@@ -429,22 +424,21 @@ pub enum WorkerGlobalPlaceholder {
     BasePath,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct WorkerGlobalsReplacementCodeGen {
     /// Which placeholder this codegen replaces (determines the injected value).
     placeholder: WorkerGlobalPlaceholder,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl WorkerGlobalsReplacementCodeGen {
-    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPath) -> Self {
+    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPathId) -> Self {
         WorkerGlobalsReplacementCodeGen { placeholder, path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let options = chunking_context.worker_configuration_options().await?;
@@ -463,7 +457,7 @@ impl WorkerGlobalsReplacementCodeGen {
             },
         };
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             *expr = value.clone();
         });
 

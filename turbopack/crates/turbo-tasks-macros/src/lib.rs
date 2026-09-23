@@ -23,11 +23,6 @@ mod value_trait_arguments;
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
 
-#[proc_macro_derive(TraceRawVcs, attributes(turbo_tasks))]
-pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
-    derive::derive_trace_raw_vcs(input)
-}
-
 #[proc_macro_derive(NonLocalValue, attributes(turbo_tasks))]
 pub fn derive_non_local_value_attr(input: TokenStream) -> TokenStream {
     derive::derive_non_local_value(input)

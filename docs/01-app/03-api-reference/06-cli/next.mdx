@@ -317,7 +317,11 @@ next build --debug-build-paths="pages/*.tsx"
 next build --debug-build-paths="app/**/page.tsx,!app/admin/**"
 ```
 
+You can combine `--debug-build-paths` with `--debug-prerender` for more detailed prerender diagnostics.
+
 In projects that keep routes under `src/`, paths resolve with or without the `src/` prefix, so both `app/page.tsx` and `src/app/page.tsx` match the same route.
+
+Only matching routes appear in the route table. When you select an App Router route, Next.js also includes the built-in `/_not-found` route.
 
 ### Changing the default port
 

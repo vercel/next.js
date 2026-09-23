@@ -1,3 +1,4 @@
+import type { NudgeKind } from '../lib/upgrade/nudge'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type {
   ExportPathMap,
@@ -155,7 +156,10 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { installBindings } from './swc/install-bindings'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import {
@@ -1064,8 +1068,9 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {}
-): Promise<void> {
+  enabledFeatures: Record<string, unknown> = {},
+  allowHumanUpgrade = false
+): Promise<NudgeKind | 'interrupt' | void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1074,6 +1079,7 @@ export default async function build(
   let appType: RoutesManifest['appType']
 
   let loadedConfig: NextConfigComplete | undefined
+  let pendingUpgradeNudge: Promise<void> | undefined
   let staticWorker: StaticWorker
 
   // Turbopack compile warnings are deferred until after static generation.
@@ -1104,7 +1110,7 @@ export default async function build(
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
 
-    await nextBuildSpan.traceAsyncFn(async () => {
+    return await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
       const { loadedEnvFiles } = nextBuildSpan
         .traceChild('load-dotenv')
@@ -1142,6 +1148,45 @@ export default async function build(
           )
         )
       loadedConfig = config
+
+      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      if (
+        config.experimental.agenticAutoUpgrade === 'security' ||
+        config.experimental.agenticAutoUpgrade === 'latest' ||
+        config.experimental.agenticAutoUpgrade === 'future' ||
+        process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+      ) {
+        const { nudgeUpgrade, getUpgradeContext } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        const upgradeContext = getUpgradeContext(config)
+        if (allowHumanUpgrade) {
+          // TODO: Do not block the build while prompting for an upgrade.
+          // Preserve all logs for display after the prompt and stop the build before Update.
+          const action = await nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            new AbortController().signal
+          ).catch((error) => {
+            Log.warn(`Could not offer the upgrade: ${String(error)}`)
+          })
+          if (
+            action === 'update' &&
+            upgradeContext.experimental.agenticAutoUpgrade
+          ) {
+            return upgradeContext.experimental.agenticAutoUpgrade
+          }
+          if (action === 'interrupt') {
+            return 'interrupt' as const
+          }
+        } else {
+          // Agent checks retain their parallel behavior; humans decide before building.
+          pendingUpgradeNudge = nudgeUpgrade(dir, upgradeContext, 'build').then(
+            () => {}
+          )
+          void pendingUpgradeNudge.catch(() => {})
+        }
+      }
 
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
@@ -3163,6 +3208,13 @@ export default async function build(
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
+                // Legacy dynamicParams=false closes the entire route tuple.
+                const notFoundParams =
+                  fallbackModes.get(originalAppPath) === FallbackMode.NOT_FOUND
+                    ? Object.keys(
+                        getRouteRegex(normalizeAppPath(originalAppPath)).groups
+                      )
+                    : undefined
 
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
@@ -3190,6 +3242,7 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
+                    _notFoundParams: notFoundParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
@@ -4690,8 +4743,27 @@ export default async function build(
           noMangling: NextBuildContext.noMangling ?? false,
         })
       }
+
+      await pendingUpgradeNudge
     })
   } catch (e) {
+    // A build can fail before the success path awaits this check. Surface an
+    // independent nudge failure so its retry receipt never hides the full
+    // reminder on the next build.
+    if (pendingUpgradeNudge) {
+      try {
+        await pendingUpgradeNudge
+      } catch (nudgeError) {
+        if (nudgeError !== e) {
+          Log.error(
+            nudgeError instanceof Error
+              ? nudgeError.message
+              : String(nudgeError)
+          )
+        }
+      }
+    }
+
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
       telemetry.record(
