@@ -330,11 +330,20 @@ impl EcmascriptExports {
     ///    reads this module from outside, while the locals module carries the mangled ones — see
     ///    the `references::esm::mangle` module.
     ///
-    /// A module with **no exports at all** is never split, even when mangling is enabled: there
-    /// are no export names to mangle, so the split would be pointless — and actively harmful,
-    /// because `EcmascriptModuleFacadeModule` unconditionally reports its module evaluation as
-    /// side-effect free. Splitting a module whose body is nothing *but* top-level side effects
-    /// would therefore hide them from tree shaking and let the whole body be eliminated.
+    /// A module with **no exports at all** is never split, even when mangling is enabled. There
+    /// are no export names to mangle and no exports to tree shake, so the split buys nothing — and
+    /// it is not merely pointless but unsafe.
+    ///
+    /// The facade reaches the original module's code through the references it builds in
+    /// `specific_references`: one `ExportUsage::named` reference per local export, plus a single
+    /// `ExportUsage::evaluation` reference that exists to preserve evaluation. With no exports
+    /// there are no named references, so that evaluation reference is the *only* edge — and an
+    /// evaluation edge is dropped when its target is considered side-effect free
+    /// (`BindingUsageInfo`, gated on `remove_unused_imports`). A `"sideEffects": false` package
+    /// declaration is enough to make that true of a module whose body does have side effects,
+    /// because the locals module reports whatever the original module reports. Unsplit, such a
+    /// module is a chunk group entry and runs regardless; split, its one prunable edge goes away
+    /// and the body with it.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
