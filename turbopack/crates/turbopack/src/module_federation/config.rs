@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, OperationValue, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, OperationValue};
 
 #[derive(
     Clone,
@@ -15,7 +15,6 @@ use turbo_tasks::{NonLocalValue, OperationValue, trace::TraceRawVcs};
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -43,7 +42,6 @@ impl ModuleFederationStringOrStrings {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -62,7 +60,6 @@ pub struct UnnormalizedModuleFederationRemoteOptions {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -82,7 +79,6 @@ pub enum UnnormalizedModuleFederationRemote {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -101,7 +97,6 @@ pub enum UnnormalizedModuleFederationRemoteArrayItem {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -121,7 +116,6 @@ pub enum UnnormalizedModuleFederationRemotes {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -143,7 +137,6 @@ pub struct UnnormalizedModuleFederationSharedOptions {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -162,7 +155,6 @@ pub enum ModuleFederationSharedImport {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -181,7 +173,6 @@ pub enum UnnormalizedModuleFederationShared {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -200,7 +191,6 @@ pub enum UnnormalizedModuleFederationSharedArrayItem {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -220,7 +210,6 @@ pub enum UnnormalizedModuleFederationSharedEntries {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -239,7 +228,6 @@ pub enum ModuleFederationRemoteType {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -263,27 +251,27 @@ pub struct ModuleFederationConfig {
     pub share_scope: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct ModuleFederationRemote {
     pub request: RcStr,
     pub external: Vec<ModuleFederationRemoteExternal>,
     pub share_scope: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct ModuleFederationRemoteExternal {
     pub global: RcStr,
     pub url: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct ModuleFederationExpose {
     pub request: RcStr,
     pub imports: Vec<RcStr>,
     pub chunk_name: Option<RcStr>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct ModuleFederationShared {
     pub request: RcStr,
     pub import: Option<RcStr>,
