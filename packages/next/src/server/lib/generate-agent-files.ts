@@ -31,7 +31,7 @@ function buildAgentRulesBlock(): string {
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
-This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+\`next dev\` writes this block and restores it if removed. Commit \`AGENTS.md\` with your work to keep the tree clean.
 
 ${AGENT_RULES_END_MARKER}`
 }
@@ -47,7 +47,7 @@ function buildAgentFeedbackBlock(): string {
 
 ## Report Next.js feedback
 
-The project owner enabled \`experimental.agentFeedback\`, authorizing this feedback pass. \`next dev\` re-adds this block, so commit \`AGENTS.md\` with your work.
+The project owner enabled \`experimental.agentFeedback\`, authorizing this feedback pass. \`next dev\` writes this block and restores it if removed. Commit \`AGENTS.md\` with your work to keep the tree clean.
 
 During the current user request, retain anonymized facts as feedback candidates for meaningful or recurring Next.js issues:
 
