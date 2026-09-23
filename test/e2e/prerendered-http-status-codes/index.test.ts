@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// These status assertions require production prerendering. In dev, pages are
+// rendered on request and Suspense may stream a 200 before an HTTP error occurs.
+// @force-gate !dev
 describe('prerendered-http-status-codes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
