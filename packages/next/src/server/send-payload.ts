@@ -55,9 +55,11 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  // If cache control is already set on the response we don't
-  // override it to allow users to customize it via next.config
-  if (cacheControl && !res.getHeader('Cache-Control')) {
+  // When cacheControl is provided (ISR/ISG pages), always set the
+  // Cache-Control header. This ensures ISR cache-control takes precedence
+  // over any headers that may have been set during rendering (e.g., in
+  // _app.getInitialProps). See: https://github.com/vercel/next.js/issues/14244
+  if (cacheControl) {
     res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
 
