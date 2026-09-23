@@ -1159,6 +1159,8 @@ function provenance(metadata: SnapshotMetadata) {
     gitBranch: metadata.gitBranch,
     gitSha: metadata.gitSha,
     gitDirty: metadata.gitDirty,
+    worktreeFingerprint: metadata.worktreeFingerprint,
+    analysisFingerprint: metadata.analysisFingerprint,
     routeCount: metadata.routeCount,
   }
 }
@@ -1998,6 +2000,40 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
             }
           })
       }
+      const worktreeEvidenceAvailable =
+        baseline.metadata.worktreeFingerprint !== undefined &&
+        comparison.metadata.worktreeFingerprint !== undefined
+      const analysisEvidenceAvailable =
+        baseline.metadata.analysisFingerprint !== undefined &&
+        comparison.metadata.analysisFingerprint !== undefined
+      const compatibility = {
+        sameSourceState: worktreeEvidenceAvailable
+          ? baseline.metadata.gitSha === comparison.metadata.gitSha &&
+            baseline.metadata.worktreeFingerprint!.digest ===
+              comparison.metadata.worktreeFingerprint!.digest
+          : undefined,
+        sameAnalyzerOptions:
+          baseline.metadata.appDirOnly === comparison.metadata.appDirOnly &&
+          baseline.metadata.noMangling === comparison.metadata.noMangling,
+        sameNextVersion:
+          baseline.metadata.nextVersion !== undefined &&
+          comparison.metadata.nextVersion !== undefined
+            ? baseline.metadata.nextVersion === comparison.metadata.nextVersion
+            : undefined,
+        sameAnalysisData: analysisEvidenceAvailable
+          ? baseline.metadata.analysisFingerprint!.digest ===
+            comparison.metadata.analysisFingerprint!.digest
+          : undefined,
+        evidenceAvailable: {
+          worktree: worktreeEvidenceAvailable,
+          analysis: analysisEvidenceAvailable,
+        },
+      }
+      const compatibilityWarnings = Object.entries(compatibility)
+        .filter(
+          ([name, value]) => name !== 'evidenceAvailable' && value === false
+        )
+        .map(([name]) => `${name} differs between snapshots`)
       return {
         granularity,
         route: args.route,
@@ -2005,6 +2041,8 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         metric,
         baseline: provenance(baseline.metadata),
         comparison: provenance(comparison.metadata),
+        compatibility,
+        compatibilityWarnings,
         ...summarizeDiff(
           rows,
           metric,
