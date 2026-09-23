@@ -14,12 +14,12 @@ Next.js automatically optimizes bundles by code splitting, tree-shaking, and oth
 
 There are two tools for analyzing your application's bundles:
 
-- [Next.js Bundle Analyzer for Turbopack (experimental)](#nextjs-bundle-analyzer-experimental)
+- [Next.js Bundle Analyzer for Turbopack](#nextjs-bundle-analyzer)
 - [`@next/bundle-analyzer` plugin for Webpack](#nextbundle-analyzer-for-webpack)
 
 This guide will walk you through how to use each tool and how to [optimize large bundles](#optimizing-large-bundles).
 
-## Next.js Bundle Analyzer (Experimental)
+## Next.js Bundle Analyzer
 
 > Available in v16.1 and later. You can share feedback in the [dedicated GitHub discussion](https://github.com/vercel/next.js/discussions/86731) and view the demo at [turbopack-bundle-analyzer-demo.vercel.sh](https://turbopack-bundle-analyzer-demo.vercel.sh/).
 
@@ -30,19 +30,19 @@ The Next.js Bundle Analyzer is integrated with Turbopack's module graph. You can
 To get started, run the following command and open up the interactive view in your browser.
 
 ```bash filename="Terminal" package="npm"
-npx next experimental-analyze
+npx next analyze
 ```
 
 ```bash filename="Terminal" package="yarn"
-yarn next experimental-analyze
+yarn next analyze
 ```
 
 ```bash filename="Terminal" package="pnpm"
-pnpm next experimental-analyze
+pnpm next analyze
 ```
 
 ```bash filename="Terminal" package="bun"
-bunx next experimental-analyze
+bunx next analyze
 ```
 
 ### Step 2: Filter and inspect modules
@@ -75,19 +75,19 @@ Click a module to see its size, inspect its full import chain and see exactly wh
 If you want to share the analysis with teammates or compare bundle sizes before/after optimizations, you can skip the interactive view and save the analysis as a static file with the `--output` flag:
 
 ```bash filename="Terminal" package="npm"
-npx next experimental-analyze --output
+npx next analyze --output
 ```
 
 ```bash filename="Terminal" package="yarn"
-yarn next experimental-analyze --output
+yarn next analyze --output
 ```
 
 ```bash filename="Terminal" package="pnpm"
-pnpm next experimental-analyze --output
+pnpm next analyze --output
 ```
 
 ```bash filename="Terminal" package="bun"
-bunx next experimental-analyze --output
+bunx next analyze --output
 ```
 
 This command writes the output to `.next/diagnostics/analyze`. You can copy this directory elsewhere to compare results:

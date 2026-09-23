@@ -194,10 +194,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -284,7 +282,8 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-analyze')
+  .command('analyze')
+  .alias('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
