@@ -107,7 +107,7 @@ pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
     additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
     aggregate_hmr::ServerHmrChunkLists,
-    app::{AppProject, OptionAppProject},
+    app::{AppProject, OptionAppProject, module_federation_output_assets},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -2557,7 +2557,14 @@ impl Project {
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
-            let all_output_assets = all_assets_from_entries_operation(output_assets);
+            let mut entries = output_assets
+                .connect()
+                .await?
+                .iter()
+                .copied()
+                .collect::<Vec<_>>();
+            entries.extend(module_federation_output_assets(self).await?.iter().copied());
+            let all_output_assets = all_assets_from_entries_operation(ResolvedVc::cell(entries));
 
             let client_relative_path = self.client_relative_path().owned().await?;
             let node_root = self.node_root().owned().await?;
@@ -3036,8 +3043,7 @@ async fn any_output_changed(
 
 #[turbo_tasks::function(operation, root)]
 fn all_assets_from_entries_operation(
-    operation: OperationVc<OutputAssets>,
+    entries: ResolvedVc<OutputAssets>,
 ) -> Result<Vc<ExpandedOutputAssets>> {
-    let assets = operation.connect();
-    Ok(all_assets_from_entries(assets))
+    Ok(all_assets_from_entries(*entries))
 }
