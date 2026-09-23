@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   await cookies()
   return { slug: 'blocking' }
 }

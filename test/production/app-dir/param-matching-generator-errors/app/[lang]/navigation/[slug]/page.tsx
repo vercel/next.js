@@ -1,6 +1,6 @@
 import { unstable_navigation } from 'next/cache'
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   await unstable_navigation()
   return { slug: 'blocking' }
 }

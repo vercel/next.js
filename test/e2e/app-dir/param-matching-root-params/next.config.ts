@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
     process.env.CAPTURE_QUERY_CONTRACT === '1'
       ? require.resolve('./adapter.mjs')
       : undefined,
-  experimental: { paramMatching: true },
 }
 
 export default nextConfig

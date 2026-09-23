@@ -14,7 +14,7 @@ describe('param-matching-types', () => {
     await retry(async () => {
       expect(
         await next.readFile(`${next.distDir}/types/validator.ts`)
-      ).toContain('experimental_generateParamMatching')
+      ).toContain('unstable_generateParamMatching')
     })
   })
 

@@ -114,14 +114,13 @@ function attach(
     }
   }
 
-  const hasStaticParamMatching = 'experimental_paramMatching' in userland
-  const hasGeneratedParamMatching =
-    'experimental_generateParamMatching' in userland
+  const hasStaticParamMatching = 'unstable_paramMatching' in userland
+  const hasGeneratedParamMatching = 'unstable_generateParamMatching' in userland
 
   if (hasStaticParamMatching || hasGeneratedParamMatching) {
     if (hasStaticParamMatching && hasGeneratedParamMatching) {
       throw new Error(
-        `Route "${route}" cannot export both \`experimental_paramMatching\` and \`experimental_generateParamMatching\`.`
+        `Route "${route}" cannot export both \`unstable_paramMatching\` and \`unstable_generateParamMatching\`.`
       )
     }
 
@@ -129,15 +128,15 @@ function attach(
       segment.paramMatching = validateParamMatchingExport(
         route,
         segment.filePath,
-        'experimental_paramMatching',
-        userland.experimental_paramMatching,
+        'unstable_paramMatching',
+        userland.unstable_paramMatching,
         visibleParamNames
       )
     } else {
-      const generate = userland.experimental_generateParamMatching
+      const generate = userland.unstable_generateParamMatching
       if (typeof generate !== 'function') {
         throw new Error(
-          `Route "${route}" must export \`experimental_generateParamMatching\` as a function.`
+          `Route "${route}" must export \`unstable_generateParamMatching\` as a function.`
         )
       }
       const { filePath } = segment
@@ -147,7 +146,7 @@ function attach(
         validateParamMatchingExport(
           route,
           filePath,
-          'experimental_generateParamMatching',
+          'unstable_generateParamMatching',
           await generate(),
           visibleParamNames
         )

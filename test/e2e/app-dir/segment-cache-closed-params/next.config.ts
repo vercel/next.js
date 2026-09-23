@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   // Keep the client-cache regression independent of completed-shell ISR keying.
   partialPrefetching: false,
   experimental: {
-    paramMatching: true,
     optimisticRouting: process.env.__NEXT_TEST_AXIS !== 'A',
     varyParams: true,
     prefetchInlining: true,

@@ -1,6 +1,6 @@
 export const instant = false
 
-export const experimental_paramMatching = {
+export const unstable_paramMatching = {
   top: 'blocking',
   bottom: 'dynamic',
 } as const

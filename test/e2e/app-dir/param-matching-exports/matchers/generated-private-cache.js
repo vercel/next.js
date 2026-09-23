@@ -3,6 +3,6 @@ async function privateConfig() {
   return { lang: 'blocking' }
 }
 
-export async function experimental_generateParamMatching() {
+export async function unstable_generateParamMatching() {
   return privateConfig()
 }

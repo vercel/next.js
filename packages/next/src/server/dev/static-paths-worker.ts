@@ -27,7 +27,6 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 type RuntimeConfig = {
   configFileName: string
   cacheComponents: boolean
-  paramMatching: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -137,7 +136,6 @@ export async function loadStaticPaths({
       page: pathname,
       route,
       cacheComponents: config.cacheComponents,
-      experimentalParamMatching: config.paramMatching,
       segments,
       segmentTree,
       distDir,

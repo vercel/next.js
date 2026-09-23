@@ -435,8 +435,8 @@ declare module 'next/form' {
 // contextual mode checking with `satisfies ParamMatching` from 'next'.
 const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type ParamMatchFragment<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], string>>
 type ParamMatchingExports<Route extends keyof ParamMap> =
-  | { experimental_paramMatching?: ParamMatchFragment<Route>; experimental_generateParamMatching?: never }
-  | { experimental_paramMatching?: never; experimental_generateParamMatching?: () => Promise<ParamMatchFragment<Route>> | ParamMatchFragment<Route> }
+  | { unstable_paramMatching?: ParamMatchFragment<Route>; unstable_generateParamMatching?: never }
+  | { unstable_paramMatching?: never; unstable_generateParamMatching?: () => Promise<ParamMatchFragment<Route>> | ParamMatchFragment<Route> }
 
 `
 
@@ -447,8 +447,8 @@ function getPrerenderMatcherKeyValidation(
   return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
     ? `
   type __ParamMatchingValue =
-    typeof handler extends { experimental_paramMatching: infer Matcher } ? Matcher :
-    typeof handler extends { experimental_generateParamMatching: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
+    typeof handler extends { unstable_paramMatching: infer Matcher } ? Matcher :
+    typeof handler extends { unstable_generateParamMatching: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
   type __InvalidParamMatchingKeys = Exclude<keyof __ParamMatchingValue, keyof ParamMap[${JSON.stringify(route)}]>
   type __AssertNoInvalidParamMatchingKeys<Invalid extends never> = Invalid
   const __paramMatchingKeyCheck: __AssertNoInvalidParamMatchingKeys<__InvalidParamMatchingKeys> | undefined = undefined

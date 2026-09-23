@@ -864,7 +864,6 @@ export async function buildAppStaticPaths({
   route,
   distDir,
   cacheComponents,
-  experimentalParamMatching,
   authInterrupts,
   useCacheTimeout,
   durableUseCacheEntries,
@@ -889,7 +888,6 @@ export async function buildAppStaticPaths({
   page: string
   route: NormalizedAppRoute
   cacheComponents: boolean
-  experimentalParamMatching: boolean
   authInterrupts: boolean
   useCacheTimeout: number
   durableUseCacheEntries: boolean
@@ -946,14 +944,9 @@ export async function buildAppStaticPaths({
   const hasParamMatchingExport = segments.some(
     (segment) => segment.paramMatching !== undefined
   )
-  if (hasParamMatchingExport && !experimentalParamMatching) {
-    throw new Error(
-      `Route "${page}" exports experimental parameter matching, but the experimental \`paramMatching\` flag is not enabled in next.config.`
-    )
-  }
   if (hasParamMatchingExport && !cacheComponents) {
     throw new Error(
-      `Route "${page}" cannot use experimental parameter matching without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use parameter matching without enabling \`cacheComponents\`.`
     )
   }
 
@@ -988,7 +981,7 @@ export async function buildAppStaticPaths({
     ? await workAsyncStorage.run(store, async () => {
         const generatorStore: BuildTimeGeneratorStore = {
           type: 'build-time-generator',
-          functionName: 'experimental_generateParamMatching',
+          functionName: 'unstable_generateParamMatching',
           phase: 'render',
           implicitTags: await getImplicitTags(page, page, null),
           // Matching configuration does not receive concrete parameter values.

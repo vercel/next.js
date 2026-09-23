@@ -1,6 +1,6 @@
 import type { ParamMatching } from 'next'
 
-export async function experimental_generateParamMatching(): Promise<
+export async function unstable_generateParamMatching(): Promise<
   ParamMatching<'id'>
 > {
   return { id: 'blocking' }

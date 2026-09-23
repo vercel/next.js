@@ -1,4 +1,4 @@
-export const experimental_paramMatching = { slug: 'fallback' } as const
+export const unstable_paramMatching = { slug: 'fallback' } as const
 
 export function generateStaticParams() {
   return [{ lang: 'en', slug: 'example' }]

@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-export const experimental_paramMatching = {
+export const unstable_paramMatching = {
   lang: 'not-found',
   slug: 'fallback',
 } as const

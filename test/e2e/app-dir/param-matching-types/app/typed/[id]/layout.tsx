@@ -1,7 +1,7 @@
 import type { ParamMatching } from 'next'
 import type { ReactNode } from 'react'
 
-export const experimental_paramMatching = {
+export const unstable_paramMatching = {
   id: 'blocking',
 } satisfies ParamMatching
 

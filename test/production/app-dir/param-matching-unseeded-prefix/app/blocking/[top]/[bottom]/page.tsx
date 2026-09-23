@@ -1,4 +1,4 @@
-export const experimental_paramMatching = {
+export const unstable_paramMatching = {
   bottom: 'blocking',
 } as const
 

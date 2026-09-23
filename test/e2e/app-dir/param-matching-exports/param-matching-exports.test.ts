@@ -37,37 +37,37 @@ describe('param-matching-exports', () => {
   it.each([
     [
       'static-below',
-      'experimental_paramMatching',
+      'unstable_paramMatching',
       'may only configure parameters defined at or above its segment',
     ],
     [
       'generated-below',
-      'experimental_generateParamMatching',
+      'unstable_generateParamMatching',
       'may only configure parameters defined at or above its segment',
     ],
     [
       'static-function',
-      'experimental_paramMatching',
+      'unstable_paramMatching',
       'Expected an object, but received function',
     ],
     [
       'generated-object',
-      'experimental_generateParamMatching',
-      'must export `experimental_generateParamMatching` as a function',
+      'unstable_generateParamMatching',
+      'must export `unstable_generateParamMatching` as a function',
     ],
     [
       'generated-invalid-mode',
-      'experimental_generateParamMatching',
+      'unstable_generateParamMatching',
       'Invalid mode for parameter "lang"',
     ],
     [
       'static-invalid-mode',
-      'experimental_paramMatching',
+      'unstable_paramMatching',
       'Invalid mode for parameter "lang"',
     ],
     [
       'generated-null',
-      'experimental_generateParamMatching',
+      'unstable_generateParamMatching',
       'Expected an object, but received null',
     ],
   ])(
@@ -88,7 +88,7 @@ describe('param-matching-exports', () => {
     const outputStart = next.cliOutput.length
     await next.patchFile(
       layoutFile,
-      `${layout}\nexport { experimental_generateParamMatching } from '../../matchers/generated-private-cache'\n`
+      `${layout}\nexport { unstable_generateParamMatching } from '../../matchers/generated-private-cache'\n`
     )
     await expectValidationError(
       outputStart,
@@ -99,23 +99,12 @@ describe('param-matching-exports', () => {
     )
   })
 
-  it('checks the feature flag before invoking a generated matcher', async () => {
-    await next.patchFile(
-      'next.config.ts',
-      (await next.readFile('next.config.ts')).replace(
-        'paramMatching: true',
-        'paramMatching: false'
-      )
-    )
+  it('propagates generator failures without a next.config opt-in', async () => {
     const outputStart = next.cliOutput.length
     await next.patchFile(
       layoutFile,
-      `${layout}\nexport { experimental_generateParamMatching } from '../../matchers/generated-throws'\n`
+      `${layout}\nexport { unstable_generateParamMatching } from '../../matchers/generated-throws'\n`
     )
-
-    await expectValidationError(
-      outputStart,
-      'experimental `paramMatching` flag is not enabled'
-    )
+    await expectValidationError(outputStart, 'MATCHER_GENERATOR_FAILURE')
   })
 })

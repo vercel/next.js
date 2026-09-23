@@ -1,6 +1,6 @@
 import { PolicyPage } from '../../policy-page'
 
-export const experimental_paramMatching = {
+export const unstable_paramMatching = {
   slug: 'fallback',
 } as const
 

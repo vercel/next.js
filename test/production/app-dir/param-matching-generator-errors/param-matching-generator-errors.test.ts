@@ -30,7 +30,7 @@ describe('param-matching-generator-errors', () => {
     async (route, api) => {
       const output = await buildRoute(route)
       expect(output).toContain(
-        `Route /[lang]/${route}/[slug] used \`${api}\` inside \`experimental_generateParamMatching\`. This is not supported because \`experimental_generateParamMatching\` runs at build time`
+        `Route /[lang]/${route}/[slug] used \`${api}\` inside \`unstable_generateParamMatching\`. This is not supported because \`unstable_generateParamMatching\` runs at build time`
       )
     }
   )
@@ -38,21 +38,21 @@ describe('param-matching-generator-errors', () => {
   it('names the matching generator when private caching needs a request', async () => {
     const output = await buildRoute('private-cache')
     expect(output).toContain(
-      '`"use cache: private"` needs an active request, so it can\'t be used during `experimental_generateParamMatching`'
+      '`"use cache: private"` needs an active request, so it can\'t be used during `unstable_generateParamMatching`'
     )
   })
 
   it('names the matching generator before the general render-phase revalidation error', async () => {
     const output = await buildRoute('revalidate')
     expect(output).toContain(
-      '`revalidatePath("/")` can\'t be called during render, inside a cached function, or inside `experimental_generateParamMatching`'
+      '`revalidatePath("/")` can\'t be called during render, inside a cached function, or inside `unstable_generateParamMatching`'
     )
   })
 
   it('does not suggest that the matching generator receives parent gSP values', async () => {
     const output = await buildRoute('root-params')
     expect(output).toContain(
-      "Route /[lang]/root-params/[slug] used `import('next/root-params').lang()` inside `experimental_generateParamMatching`, but the `lang` parameter is not available in this build-time generator."
+      "Route /[lang]/root-params/[slug] used `import('next/root-params').lang()` inside `unstable_generateParamMatching`, but the `lang` parameter is not available in this build-time generator."
     )
     expect(output).not.toContain('was not provided by a parent')
   })

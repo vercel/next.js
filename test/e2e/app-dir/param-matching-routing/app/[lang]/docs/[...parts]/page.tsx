@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-export const experimental_paramMatching = { parts: 'blocking' } as const
+export const unstable_paramMatching = { parts: 'blocking' } as const
 
 async function Content({
   params,

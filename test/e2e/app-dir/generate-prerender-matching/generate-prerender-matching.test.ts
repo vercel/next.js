@@ -18,7 +18,7 @@ type DynamicRoute = {
   }>
 }
 
-describe('experimental parameter matching', () => {
+describe('parameter matching', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     env: {
@@ -349,7 +349,7 @@ describe('experimental parameter matching', () => {
   }
 })
 
-describe('experimental parameter matching complex route shapes', () => {
+describe('parameter matching complex route shapes', () => {
   const { next, isNextStart } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'complex-routes'),
   })
@@ -423,7 +423,7 @@ describe('experimental parameter matching complex route shapes', () => {
   }
 })
 
-describe('experimental parameter matching foreground policy', () => {
+describe('parameter matching foreground policy', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'foreground-policy'),
   })
@@ -469,7 +469,7 @@ describe('experimental parameter matching foreground policy', () => {
   })
 })
 
-describe('experimental parameter matching ordering validation', () => {
+describe('parameter matching ordering validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'invalid-order'),
     skipStart: true,
@@ -499,7 +499,7 @@ describe('experimental parameter matching ordering validation', () => {
   })
 })
 
-describe('experimental parameter matching dynamic validation', () => {
+describe('parameter matching dynamic validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'dynamic-prerender'),
     skipStart: true,
@@ -529,7 +529,7 @@ describe('experimental parameter matching dynamic validation', () => {
   })
 })
 
-describe('experimental parameter matching type validation', () => {
+describe('parameter matching type validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'type-invalid-param-below'),
     skipStart: true,
@@ -553,8 +553,8 @@ describe('experimental parameter matching type validation', () => {
   })
 })
 
-describe('experimental parameter matching feature flag', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+describe('parameter matching without a config opt-in', () => {
+  const { next, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'flag-disabled'),
     skipStart: true,
     skipDeployment: true,
@@ -566,24 +566,16 @@ describe('experimental parameter matching feature flag', () => {
   }
 
   beforeAll(async () => {
-    if (isNextDev) {
-      await next.start()
-      await next.fetch('/en')
-    } else {
-      await next.build().catch(() => {})
-    }
+    await next.start()
   })
 
-  it('requires the experimental config flag', async () => {
-    await retry(() => {
-      expect(next.cliOutput).toContain(
-        'experimental `paramMatching` flag is not enabled'
-      )
-    })
+  it('uses the unstable export without a next.config flag', async () => {
+    expect((await next.fetch('/en')).status).toBe(200)
+    expect((await next.fetch('/fr')).status).toBe(404)
   })
 })
 
-describe('experimental parameter matching cache components requirement', () => {
+describe('parameter matching cache components requirement', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
     it.skip('not applicable when Cache Components is forced on', () => {})
     return
@@ -612,13 +604,13 @@ describe('experimental parameter matching cache components requirement', () => {
   it('requires Cache Components', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain(
-        'cannot use experimental parameter matching without enabling `cacheComponents`'
+        'cannot use parameter matching without enabling `cacheComponents`'
       )
     })
   })
 })
 
-describe('experimental parameter matching static export validation', () => {
+describe('parameter matching static export validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'export-open-param'),
     skipStart: true,
@@ -641,7 +633,7 @@ describe('experimental parameter matching static export validation', () => {
   })
 })
 
-describe('experimental parameter matching fallback validation', () => {
+describe('parameter matching fallback validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'empty-fallback'),
     skipStart: true,
@@ -664,7 +656,7 @@ describe('experimental parameter matching fallback validation', () => {
   })
 })
 
-describe('experimental parameter matching generic shell validation', () => {
+describe('parameter matching generic shell validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'missing-fallback-seed'),
     skipStart: true,
@@ -701,7 +693,7 @@ describe('experimental parameter matching generic shell validation', () => {
   })
 })
 
-describe('experimental parameter matching development shell validation', () => {
+describe('parameter matching development shell validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'dev-shell-validation'),
     skipStart: true,
