@@ -321,9 +321,9 @@ async fn build_dependency_requests_changed(
         } else {
             let parsed_request = Request::parse(Pattern::Constant(request.clone()));
             let options = if request.ends_with(".mjs") {
-                node_esm_resolve_options(cwd.root().owned().await?)
+                node_esm_resolve_options()
             } else {
-                node_cjs_resolve_options(cwd.root().owned().await?)
+                node_cjs_resolve_options()
             };
             let resolved = resolve(
                 cwd.clone(),
