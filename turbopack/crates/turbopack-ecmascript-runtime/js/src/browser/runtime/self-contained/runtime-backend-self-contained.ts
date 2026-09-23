@@ -62,7 +62,16 @@ let BACKEND: RuntimeBackend
       }
     },
 
-    loadChunkCached(_sourceType: SourceType, _chunkUrl: ChunkUrl) {
+    loadChunkCached(
+      _sourceType: SourceType,
+      chunkUrl: ChunkUrl,
+      resolveOnLoad = false
+    ) {
+      if (resolveOnLoad) {
+        throw new Error(
+          `External script loading is only supported in browser client code: ${chunkUrl}`
+        )
+      }
       throw new Error('chunk loading is not supported')
     },
   }
