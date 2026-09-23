@@ -253,18 +253,34 @@ export class ImmediateTracker {
 
   scheduleIdleCheck(): void {
     if (this.sentinel !== null) {
-      // A burst reuses the pending check and needs at most one successor, not
-      // another sentinel per call. Do not clear the pending handle: Node
-      // 20.19.6 can reenter this patch during exception recovery with that
-      // handle still at its outstanding queue head. Clearing it breaks queue
-      // traversal.
+      // New immediates are queued after the pending sentinel. Record that
+      // `checkForIdle` must check again before notifying subscribers. Further
+      // scheduling calls reuse this flag and the pending sentinel.
+      //
+      // Node's uncaught-exception recovery can also reach this branch:
+      //
+      // 1. We queue immediate `A`, then sentinel `S`: `[A, S]`.
+      // 2. `A` throws and interrupts Node's immediate-processing loop,
+      //    leaving `S` first in Node's outstanding queue.
+      // 3. An uncaughtException handler handles the error, so Node continues.
+      // 4. Node calls `timers.setImmediate(noop)` for another immediate cycle.
+      // 5. Our patch runs before async-context cleanup and sees `A`'s tracker.
+      // 6. The tracker finds `S` still pending.
+      //
+      // Node schedules this no-op after any handled uncaught exception so
+      // pending ticks get another chance to run. After exception handling
+      // returns, Node's C++ dispatcher retries the outstanding queue in the
+      // same check phase, before the no-op runs.
+      //
+      // On Node 20, clearing `S` here leaves the outstanding queue's head
+      // pointing to a destroyed immediate. When Node retries the queue, it
+      // tries to skip the cleared entry through its predecessor. The first
+      // entry has no predecessor, so recovery throws another exception. Keep
+      // `S` queued and record that another check is needed instead.
       this.needsAnotherCheck = true
       return
     }
 
-    // The check repeats if more native immediates were scheduled after it. This
-    // lets outlined elements schedule further rendering before we notify idle
-    // subscribers.
     this.sentinel = originalSetImmediate(this.checkForIdle)
     if (this.listeners.size === 0) {
       this.sentinel.unref()
@@ -274,6 +290,9 @@ export class ImmediateTracker {
   private checkForIdle = () => {
     this.sentinel = null
     if (this.needsAnotherCheck) {
+      // Schedule the next check after the immediates queued since this
+      // sentinel. Their callbacks and microtasks/nextTicks can then run before
+      // we notify idle subscribers. A synchronous burst shares this next check.
       this.needsAnotherCheck = false
       this.scheduleIdleCheck()
       return
