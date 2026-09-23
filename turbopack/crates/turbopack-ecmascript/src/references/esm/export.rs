@@ -733,6 +733,16 @@ async fn build_compact_reexports(
 
         let offset = part_references.len();
         for (index, reference) in esm_references.iter().enumerate() {
+            // Unused re-exports are absent from the module ID map and cannot contribute
+            // an import or a source-order position to the compact registration.
+            if chunking_context
+                .unused_references()
+                .contains_key(&ResolvedVc::upcast(*reference))
+                .await?
+            {
+                continue;
+            }
+
             if let Some((key, _)) = compact_reference_target(
                 ResolvedVc::upcast(*reference),
                 chunking_context,
