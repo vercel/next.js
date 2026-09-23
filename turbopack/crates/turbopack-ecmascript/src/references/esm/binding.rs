@@ -27,7 +27,7 @@ use crate::{
     references::esm::{
         EsmAssetReference,
         base::{ReferencedAsset, ReferencedAssetIdent},
-        export::{is_export_no_side_effects, is_exported_namespace_member_no_side_effects},
+        export::is_export_no_side_effects,
     },
 };
 
@@ -105,16 +105,8 @@ impl EsmBinding {
         let imported_module = self.reference.get_referenced_asset().await?;
         let no_side_effects =
             if let (ReferencedAsset::Some(module), Some(export)) = (&imported_module, &export) {
-                if let Some(namespace_member) = &self.namespace_member {
-                    *is_exported_namespace_member_no_side_effects(
-                        **module,
-                        export.clone(),
-                        namespace_member.clone(),
-                    )
+                *is_export_no_side_effects(**module, export.clone(), self.namespace_member.clone())
                     .await?
-                } else {
-                    *is_export_no_side_effects(**module, export.clone()).await?
-                }
             } else {
                 false
             };

@@ -132,18 +132,21 @@ pub async fn is_export_missing(
 
 /// Returns whether a statically resolved ESM export is backed by a binding annotated with
 /// `NO_SIDE_EFFECTS`. Imported bindings and statically expandable star exports are followed to the
-/// local binding that defines the contract.
+/// local binding that defines the contract. When `member_name` is present, `export_name` must
+/// resolve to an imported namespace and that member is then followed as a named export.
 #[turbo_tasks::function]
 pub async fn is_export_no_side_effects(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
+    member_name: Option<RcStr>,
 ) -> Result<Vc<bool>> {
     let mut module = module;
     let mut export_name = export_name;
+    let mut member_name = member_name;
     let mut visited = FxHashSet::default();
 
     loop {
-        if !visited.insert((module, export_name.clone())) {
+        if !visited.insert((module, export_name.clone(), member_name.clone())) {
             return Ok(Vc::cell(false));
         }
 
@@ -172,63 +175,8 @@ pub async fn is_export_no_side_effects(
 
         match &export {
             EsmExport::LocalBinding(_, _, no_side_effects) => {
-                return Ok(Vc::cell(*no_side_effects));
+                return Ok(Vc::cell(member_name.is_none() && *no_side_effects));
             }
-            EsmExport::ImportedBinding(reference, imported_name, _) => {
-                let ReferencedAsset::Some(imported_module) =
-                    ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
-                else {
-                    return Ok(Vc::cell(false));
-                };
-                module = imported_module;
-                export_name = imported_name.clone();
-            }
-            EsmExport::ImportedNamespace(_) | EsmExport::Error => {
-                return Ok(Vc::cell(false));
-            }
-        }
-    }
-}
-
-/// Returns whether `member_name` is a no-side-effects export of a namespace exported as
-/// `export_name`. Named re-export chains leading to that namespace are followed.
-#[turbo_tasks::function]
-pub async fn is_exported_namespace_member_no_side_effects(
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    export_name: RcStr,
-    member_name: RcStr,
-) -> Result<Vc<bool>> {
-    let mut module = module;
-    let mut export_name = export_name;
-    let mut visited = FxHashSet::default();
-
-    loop {
-        if !visited.insert((module, export_name.clone())) {
-            return Ok(Vc::cell(false));
-        }
-
-        let exports = module.get_exports().await?;
-        let EcmascriptExports::EsmExports(exports) = &*exports else {
-            return Ok(Vc::cell(false));
-        };
-        let exports_vc = *exports;
-        let exports = exports_vc.await?;
-        let export = if let Some(export) = exports.exports.get(&export_name) {
-            export.clone()
-        } else {
-            let expanded = exports_vc
-                .expand_exports(ModuleExportUsageInfo::all())
-                .await?;
-            if !expanded.dynamic_exports.is_empty() {
-                return Ok(Vc::cell(false));
-            }
-            let Some(export) = expanded.exports.get(&export_name) else {
-                return Ok(Vc::cell(false));
-            };
-            export.clone()
-        };
-
-        match &export {
             EsmExport::ImportedBinding(reference, imported_name, _) => {
                 let ReferencedAsset::Some(imported_module) =
                     ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
@@ -239,14 +187,18 @@ pub async fn is_exported_namespace_member_no_side_effects(
                 export_name = imported_name.clone();
             }
             EsmExport::ImportedNamespace(reference) => {
+                let Some(member_name) = member_name.take() else {
+                    return Ok(Vc::cell(false));
+                };
                 let ReferencedAsset::Some(imported_module) =
                     ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
                 else {
                     return Ok(Vc::cell(false));
                 };
-                return Ok(is_export_no_side_effects(*imported_module, member_name));
+                module = imported_module;
+                export_name = member_name;
             }
-            EsmExport::LocalBinding(..) | EsmExport::Error => {
+            EsmExport::Error => {
                 return Ok(Vc::cell(false));
             }
         }
