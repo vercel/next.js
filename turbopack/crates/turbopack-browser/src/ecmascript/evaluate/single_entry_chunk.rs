@@ -76,6 +76,8 @@ impl EcmascriptBrowserSingleEntryChunk {
 
         let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk);
         code.push_code(&*module_chunk.own_content().code().await?);
+        // Keep independently-generated programs from parsing as one call expression.
+        code += ";\n";
 
         let evaluate_chunk = EcmascriptBrowserEvaluateChunk::new(
             *this.chunking_context,
