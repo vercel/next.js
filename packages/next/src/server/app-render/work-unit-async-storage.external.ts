@@ -349,6 +349,13 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
   readonly type: 'cache'
 
   /**
+   * The enclosing prerender when root params are unknown. Nested caches need
+   * the same root availability and render lifetime, but their fills are
+   * cancelled independently.
+   */
+  readonly fallbackRootParamsPrerender: PrerenderStoreModernServer | null
+
+  /**
    * The root params for the current route. `undefined` when nested inside
    * `unstable_cache`, which doesn't carry root params. Currently, `"use cache"`
    * inside `unstable_cache` is allowed, so this case must be handled. The error

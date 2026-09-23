@@ -32,6 +32,7 @@ import type { NextParsedUrlQuery } from '../request-meta'
 import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
 import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
+import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
@@ -279,6 +280,11 @@ import {
   type RenderResumeDataCache,
   type ResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import {
+  FALLBACK_PARAMS,
+  RUNTIME_DATA,
+  SESSION_DATA,
+} from '../resume-data-cache/cache-store'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
@@ -8958,8 +8964,51 @@ async function prerenderToStream(
       // when prerendering an optional fallback shell after having prerendered
       // pages with defined params, we use this instead of a mutable prerender
       // resume data cache.
-      const resumeDataCache: ResumeDataCache =
+      let resumeDataCache: ResumeDataCache =
         renderOpts.renderResumeDataCache ?? createPrerenderResumeDataCache()
+
+      if (
+        renderOpts.renderResumeDataCache &&
+        fallbackRouteParams &&
+        Object.keys(rootParams).some((name) => fallbackRouteParams.has(name))
+      ) {
+        // This seed came from a more specific prerender. Its cache keys don't
+        // include root params, so replace entries that read roots this shell
+        // doesn't know with markers explaining why they must become holes.
+        // Keep the original seed intact for shells where those roots are known.
+        const cache = new Map(resumeDataCache.cache)
+        for (const [key, pendingEntry] of cache) {
+          if (
+            pendingEntry === FALLBACK_PARAMS ||
+            pendingEntry === RUNTIME_DATA ||
+            pendingEntry === SESSION_DATA
+          ) {
+            continue
+          }
+
+          const {
+            readRootParamNames,
+            entry: { revalidate, expire },
+          } = await pendingEntry
+          if (readRootParamNames) {
+            for (const name of readRootParamNames) {
+              if (fallbackRouteParams.has(name)) {
+                // Unlike an unexplained miss, this entry can become static
+                // once its root params are known. Preserve that distinction
+                // for the final pass's static-prefetch hint. Short-lived
+                // entries still need runtime data even with concrete params.
+                if (revalidate === 0 || expire < MIN_PRERENDERABLE_EXPIRE) {
+                  cache.set(key, SESSION_DATA)
+                } else {
+                  cache.set(key, FALLBACK_PARAMS)
+                }
+                break
+              }
+            }
+          }
+        }
+        resumeDataCache = { ...resumeDataCache, cache }
+      }
       reactServerPrerenderResultIsDynamic = null
       reactServerResumeDataCache = resumeDataCache
       reactServerPrerenderStore = null
