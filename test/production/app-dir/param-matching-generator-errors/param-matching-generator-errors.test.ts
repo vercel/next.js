@@ -45,7 +45,7 @@ describe('param-matching-generator-errors', () => {
   it('names the matching generator before the general render-phase revalidation error', async () => {
     const output = await buildRoute('revalidate')
     expect(output).toContain(
-      '`revalidatePath("/")` can\'t be called during render, inside a cached function, or inside `unstable_generateParamMatching`'
+      '`revalidatePath("/")` can\'t be called inside `unstable_generateParamMatching`. Call it from a Server Action or Route Handler instead.'
     )
   })
 

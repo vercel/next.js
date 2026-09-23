@@ -1,6 +1,6 @@
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 describe('param-matching-routing', () => {
@@ -150,9 +150,53 @@ describe('param-matching-routing', () => {
     it('regenerates a shared dynamic-tail shell without capturing a request value', async () => {
       const first = '/en/dynamic/revalidation-top/first'
       const second = '/en/dynamic/revalidation-top/second'
-      const before = await render(first, 'en/revalidation-top/first')
-      expect(before).not.toBe('')
-      expect(await render(second, 'en/revalidation-top/second')).toBe(before)
+
+      const isDeploy = await gate((conditions) => conditions.deploy)
+      const deploymentStabilizationTimeout = 10_000
+      // Vercel may treat a new or just-regenerated shell as already stale,
+      // replacing it on the next visits before its cache entry stabilizes.
+      // This deploy-only allowance retries both suffixes together before and
+      // after invalidation. It is separate from the cache-key/capture contract:
+      // every attempt still verifies distinct params and a shared shell, and
+      // this does not claim that cold-cache deduplication or freshness is fixed.
+      async function readStableDeploymentGeneration(
+        previousGeneration?: string
+      ) {
+        const result = await retry(async () => {
+          let firstGeneration: string
+          let secondGeneration: string
+          try {
+            firstGeneration = await render(first, 'en/revalidation-top/first')
+            secondGeneration = await render(
+              second,
+              'en/revalidation-top/second'
+            )
+          } catch (error) {
+            // Admission and param-isolation failures are never retryable.
+            // Return them through retry, then rethrow immediately below.
+            return { error }
+          }
+          expect(firstGeneration).not.toBe('')
+          expect(secondGeneration).toBe(firstGeneration)
+          if (previousGeneration !== undefined) {
+            expect(firstGeneration).not.toBe(previousGeneration)
+          }
+          return { generation: firstGeneration }
+        }, deploymentStabilizationTimeout)
+        if ('error' in result) {
+          throw result.error
+        }
+        return result.generation
+      }
+
+      let before: string
+      if (isDeploy) {
+        before = await readStableDeploymentGeneration()
+      } else {
+        before = await render(first, 'en/revalidation-top/first')
+        expect(before).not.toBe('')
+        expect(await render(second, 'en/revalidation-top/second')).toBe(before)
+      }
 
       // Invalidate the route pattern: the cached shell is shared by all values
       // of the never-prerendered bottom parameter, not keyed by either request.
@@ -165,12 +209,17 @@ describe('param-matching-routing', () => {
         }),
       })
       expect(response.status).toBe(200)
-      const after = await retry(async () => {
-        const generation = await render(first, 'en/revalidation-top/first')
-        expect(generation).not.toBe(before)
-        return generation
-      })
-      expect(await render(second, 'en/revalidation-top/second')).toBe(after)
+
+      if (isDeploy) {
+        await readStableDeploymentGeneration(before)
+      } else {
+        const after = await retry(async () => {
+          const generation = await render(first, 'en/revalidation-top/first')
+          expect(generation).not.toBe(before)
+          return generation
+        })
+        expect(await render(second, 'en/revalidation-top/second')).toBe(after)
+      }
       expect(
         (await next.fetch('/fr/dynamic/revalidation-top/first')).status
       ).toBe(404)
@@ -199,30 +248,34 @@ describe('param-matching-routing', () => {
     ])(
       'does not poison an admitted open suffix after prefetching a 404: %s',
       async (pathname, params) => {
-        let act: ReturnType<typeof createRouterAct>
+        let allow404Act: ReturnType<typeof createRouterAct>
+        let admittedAct: ReturnType<typeof createRouterAct>
         const browser = await next.browser('/', {
           beforePageLoad(page) {
-            act = createRouterAct(page, {
+            allow404Act = createRouterAct(page, {
               allowErrorStatusCodes: [404],
+              includeAppShellRequests: true,
+            })
+            admittedAct = createRouterAct(page, {
               includeAppShellRequests: true,
             })
           },
         })
-        await act(async () => {
+        await allow404Act(async () => {
           await browser
             .elementByCss(
               'input[data-link-accordion="/fr/catalog/nav-top/items/nav-bottom"]'
             )
             .click()
         })
-        await act(
-          async () => {
-            await browser
-              .elementByCss(`input[data-link-accordion="${pathname}"]`)
-              .click()
-          },
-          { includes: 'Catalog' }
-        )
+        // The adapter may return the same full RSC payload for both the tree
+        // and page prefetches. Require prefetching without coupling this setup
+        // to how that payload is partitioned across transport requests.
+        await admittedAct(async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${pathname}"]`)
+            .click()
+        })
         // The page can still have dynamic work after prefetch. Verify its final UI,
         // rather than requiring a particular number of navigation requests.
         await browser.elementByCss(`a[href="${pathname}"]`).click()
@@ -237,21 +290,19 @@ describe('param-matching-routing', () => {
       const browser = await next.browser('/', {
         beforePageLoad(page) {
           act = createRouterAct(page, {
-            allowErrorStatusCodes: [404],
             includeAppShellRequests: true,
           })
         },
       })
-      await act(
-        async () => {
-          await browser
-            .elementByCss(
-              'input[data-link-accordion="/en/catalog/nav-top/items/nav-bottom"]'
-            )
-            .click()
-        },
-        { includes: 'Catalog' }
-      )
+      // Require the admitted prefetch, but leave its tree/page response
+      // partitioning to the deployment adapter.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/en/catalog/nav-top/items/nav-bottom"]'
+          )
+          .click()
+      })
       await browser.elementById('navigate-rejected').click()
       const navigationText = await browser
         .elementByCss('#root-not-found, #params, #nested-not-found')
