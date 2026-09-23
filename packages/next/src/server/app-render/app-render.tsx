@@ -1039,7 +1039,7 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   // Check if this route should runtime-cache its navigation. This happens when
   // Partial Prefetching is enabled for the route, either per segment (a
-  // `prefetch` of 'partial' or 'unstable_eager') or globally (the
+  // `prefetch` of 'partial') or globally (the
   // `partialPrefetching` config). If so, we piggyback on the dynamic render to
   // fill caches and then spawn a final runtime prerender whose result stream
   // is embedded in the RSC payload. This is gated because it adds extra server
@@ -1404,7 +1404,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       prefetchStage = RenderStage.Static
     } else {
       if (prefetchMode === PrefetchingMode.Partial) {
-        // TODO(app-shells): model `partialPrefetching: "unstable_eager"`
         // TODO(app-shells): if this navigation came from <Link prefetch={true} />,
         // we should show the shell for a speculative prefetch
         // (which can have more data than the app shell)
@@ -2090,7 +2089,7 @@ async function getRSCPayload(
     hints,
     prefetchInliningEnabled,
     ctx.renderOpts.cacheComponents,
-    ctx.renderOpts.partialPrefetching,
+    Boolean(ctx.renderOpts.partialPrefetching),
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -2292,7 +2291,7 @@ async function getErrorRSCPayload(
     errorHints,
     errorPrefetchInliningEnabled,
     ctx.renderOpts.cacheComponents,
-    ctx.renderOpts.partialPrefetching,
+    Boolean(ctx.renderOpts.partialPrefetching),
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -3614,7 +3613,7 @@ async function renderToStream(
         // embedded in the initial RSC payload so the client can cache
         // runtime-prefetchable content during hydration. This is enabled when
         // Partial Prefetching is on for the route, either per segment (a
-        // `prefetch` of 'partial' or 'unstable_eager') or globally (the
+        // `prefetch` of 'partial') or globally (the
         // `partialPrefetching` config).
         if (
           Boolean(renderOpts.partialPrefetching) ||
@@ -5062,7 +5061,6 @@ async function getPrefetchingModeForPage(
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
-  // TODO(app-shells): support "unstable_eager"
   if (renderOpts.partialPrefetching) {
     debug?.('using prefetching mode Partial because of next.config.js')
     return PrefetchingMode.Partial
@@ -5172,7 +5170,7 @@ type StreamRevealStage =
   | RenderStage.Runtime
 
 function navigationHasAppShell(navigationKind: DevNavigationKind): boolean {
-  // TODO(app-shells): when we implement `<Link prefetch={true}>/`prefetch = "unstable_eager"` in dev,
+  // TODO(app-shells): when we implement `<Link prefetch={true}>` in dev,
   // this might need to be adjusted, because we'll use `Runtime` for the stage
   return (
     navigationKind.type === 'prefetched-client' &&
