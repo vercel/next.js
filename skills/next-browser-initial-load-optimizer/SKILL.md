@@ -36,34 +36,50 @@ compatibility.
 - Do not force dependency overrides across incompatible ranges or peer
   dependencies merely to remove a duplicate.
 - Do not manufacture work when no material candidate exists.
+- Source-level cleanup, including changing a value import to `import type`, may
+  have **zero bundle impact** when the bundler already removes it. Never claim a
+  win from the source diff; compare analyzer output.
 
-## 1. Establish the baseline
+## 1. Establish the baseline in output mode
 
-Use the project's package manager. The examples use pnpm; translate `pnpm next`
-to `npx next`, `yarn next`, or `bunx next` as appropriate.
+Use the project's package manager. The examples use pnpm; translate
+`pnpm exec next` to `npx next`, `yarn next`, or `bunx next` as appropriate.
 
 Confirm that the installed Next.js exposes the required analyzer fields:
 
 ```bash
-pnpm next experimental-analyze --help
-pnpm next experimental-analyze query --help
+pnpm exec next experimental-analyze --help
+pnpm exec next experimental-analyze query --help
 ```
 
 Stop and report the version prerequisite if `query --help` or the
 `get_route_modules.loadScopes` input is absent. Do not approximate this
 workflow with the analyzer HTML alone.
 
-Generate a named baseline from the application root:
+For an automated agent, **always default to `--output`**:
 
 ```bash
-pnpm next experimental-analyze --output \
+pnpm exec next experimental-analyze --output \
   --baseline-name initial-load-before
 ```
 
-Query client route totals and save the snapshot ID:
+This performs the production analysis, writes queryable artifacts under
+`.next/diagnostics/analyze`, and exits cleanly. It does not start a server, so
+there is no port to coordinate and no file server to shut down.
+
+Run `pnpm exec next experimental-analyze` without `--output` only when a human
+or browser-driving agent explicitly needs interactive visual exploration. That
+optional server mode stays open by design; it is not the automated workflow.
+
+## 2. Query cookbook
+
+### Route totals
+
+Rank client route totals and save the baseline snapshot ID returned by
+`get_app_overview`:
 
 ```bash
-pnpm next experimental-analyze \
+pnpm exec next experimental-analyze \
   query get_app_overview \
   --input '{"environment":"client","metric":"compressed","limit":100}'
 ```
@@ -72,13 +88,13 @@ If the user named routes, optimize those. Otherwise start with the largest
 meaningful application route. Asset-like and framework routes are evidence to
 understand, not automatic targets.
 
-## 2. Rank initial browser candidates
+### Initial-scope modules and package attribution
 
 For each target route, begin with package grouping restricted to initial client
 reachability:
 
 ```bash
-pnpm next experimental-analyze \
+pnpm exec next experimental-analyze \
   query get_route_modules \
   --input '{
     "route":"/dashboard",
@@ -90,8 +106,9 @@ pnpm next experimental-analyze \
   }'
 ```
 
-Page through every result when `pagination.truncated` is true. Rank candidates
-using all of:
+Change `groupBy` to `source` to list individual initial-scope modules. Page
+through every result when `pagination.truncated` is true. Rank candidates using
+all of:
 
 - estimated initial client contribution;
 - share of the route and repetition across routes;
@@ -105,7 +122,7 @@ creates correctness risk or repeats across many routes.
 Drill from package to source paths, then explain a representative large source:
 
 ```bash
-pnpm next experimental-analyze \
+pnpm exec next experimental-analyze \
   query get_route_modules \
   --input '{
     "route":"/dashboard",
@@ -116,7 +133,7 @@ pnpm next experimental-analyze \
     "limit":100
   }'
 
-pnpm next experimental-analyze \
+pnpm exec next experimental-analyze \
   query explain_route_module \
   --input '{
     "route":"/dashboard",
@@ -126,9 +143,39 @@ pnpm next experimental-analyze \
   }'
 ```
 
+### Reverse import edges
+
+Run reverse-edge analysis **before editing**. `explain_route_module` walks from
+an attributed source back toward the route entry and can reveal that the right
+fix is an indirect application import rather than the named package itself. For
+example, this workflow exposed a `chat-db` re-export as the edge responsible for
+a measured win.
+
 Use `nearestProjectImporter`, `nearestClientBoundary`, `firstAsyncBoundary`,
-and both chain orientations to find the application source to inspect. When an
-explanation is ambiguous, select a returned `moduleIdent`; do not guess one.
+`importerChain`, and both chain orientations to find the application source to
+inspect. When an explanation is ambiguous, select a returned `moduleIdent`; do
+not guess one.
+
+### Baseline comparisons
+
+After generating an `initial-load-after-*` snapshot, compare route totals:
+
+```bash
+pnpm exec next experimental-analyze \
+  query compare_bundles \
+  --input '{
+    "baselineSnapshot":"<saved baseline snapshot ID>",
+    "comparisonSnapshot":"current",
+    "granularity":"route",
+    "environment":"client",
+    "metric":"compressed",
+    "limit":100
+  }'
+```
+
+For package or source attribution, set `granularity` to `package` or `source`
+and pass the target `route`. Use `get_route_modules` on each snapshot when you
+need to compare `initial` versus `async` scope rather than bytes.
 
 ## 3. Evaluate opportunities
 
@@ -283,7 +330,7 @@ Inspect these only when analyzer evidence ranks them materially:
 Assets need a separate pass because they may not carry module reachability:
 
 ```bash
-pnpm next experimental-analyze \
+pnpm exec next experimental-analyze \
   query get_route_modules \
   --input '{
     "route":"/dashboard",
@@ -312,7 +359,7 @@ For each candidate:
 4. Regenerate with a new baseline name:
 
    ```bash
-   pnpm next experimental-analyze --output \
+   pnpm exec next experimental-analyze --output \
      --baseline-name initial-load-after-<change>
    ```
 
@@ -321,8 +368,13 @@ For each candidate:
    byte reduction. For lazy loading, require `initial` → `async` and verify the
    trigger.
 7. When two distinct snapshots exist, use `compare_bundles` for route/package
-   byte deltas; use source queries for scope changes.
-8. Run the project's production build and focused behavior/browser tests.
+   byte deltas; use source queries for scope changes. Treat a source-only or
+   type-only edit with no analyzer delta as no bundle win.
+8. Run targeted behavior tests and the narrowest relevant type-check. The
+   analyzer has already performed its own production analysis, so do not start
+   another expensive full production build by default. Run one only when the
+   change affects behavior the analyzer does not cover or project-specific
+   verification requires it.
 9. Revert the change if the intended signal does not improve or behavior is not
    preserved.
 
@@ -331,33 +383,42 @@ After each accepted change, use its output as the next baseline.
 
 ## 5. Report
 
-Report only accepted changes and remaining material opportunities. For each
-accepted change include:
+Use this standard format for every accepted change:
 
-- route and user-visible feature;
-- measured analyzer evidence and inspected source reason;
-- change made;
-- before/after client bytes or load-scope transition;
-- behavior verification;
-- caveats and confidence.
+```markdown
+### <route> — <user-visible feature>
 
-Separate **measurements** (bytes/scopes), **source facts** (interaction and
-imports), and **heuristics** (entry/worker detection). Say explicitly when real
-network transfer needs a cold-browser trace or HAR rather than analyzer
-attribution.
+- Baseline: <snapshot ID; initial client bytes and/or load scope>
+- After: <snapshot ID; initial client bytes and/or load scope>
+- Delta: <absolute and percentage delta, or initial → async>
+- Removed modules: <packages/source paths removed from initial scope, or none>
+- Why: <reverse-edge evidence and inspected source reason>
+- Change: <smallest behavior-preserving edit>
+- Tests: <targeted tests and type-checks run>
+- Unrelated blockers: <failures not caused by this change, or none>
+```
+
+Report only accepted changes and remaining material opportunities. Separate
+**measurements** (bytes/scopes), **source facts** (interaction and imports), and
+**heuristics** (entry/worker detection). Compressed attribution bytes estimate
+independently compressed source contributions; they are **not observed network
+transfer**. Use a cold-browser trace or HAR for actual transfer bytes and exact
+request timing.
 
 ## Completion checklist
 
 - [ ] The CLI exposes `query --help` and `loadScopes`.
 - [ ] A named production-analysis baseline exists.
 - [ ] Target routes were queried with `environment: client` and `initial` scope.
-- [ ] Every changed candidate has a project importer and source-backed reason.
+- [ ] Reverse import edges were inspected before editing, and every changed
+      candidate has a project importer and source-backed reason.
 - [ ] Already-async code was not wrapped in another dynamic boundary.
 - [ ] Duplicate versions were confirmed in browser-initial paths and the package
       graph before consolidation.
 - [ ] Server migration preserved live/local-only behavior and trust boundaries.
 - [ ] Each change was measured independently and ineffective changes reverted.
-- [ ] Production build and focused behavior tests pass.
+- [ ] Targeted tests and the narrowest relevant type-check pass; any additional
+      full production build has a specific justification.
 - [ ] Final report distinguishes attribution estimates from observed transfer.
 
 ## Related skills

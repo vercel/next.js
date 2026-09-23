@@ -16,17 +16,21 @@ _when_ the browser needs it. A large editor loaded after a click has a different
 cost than the same editor in the route's initial JavaScript.
 
 Use the experimental bundle analyzer to inspect client contributions and module
-reachability:
+reachability. For automated analysis, default to `--output`:
 
 ```bash filename="Terminal"
-next experimental-analyze --output --baseline-name initial-load-before
-next experimental-analyze query --help
+pnpm exec next experimental-analyze --output --baseline-name initial-load-before
+pnpm exec next experimental-analyze query --help
 ```
+
+Output mode performs the production analysis, writes queryable artifacts, and
+exits cleanly. Run `pnpm exec next experimental-analyze` without `--output` only
+for optional interactive browser exploration; server mode stays open by design.
 
 Start with sources that are reachable synchronously in the client graph:
 
 ```bash filename="Terminal"
-next experimental-analyze \
+pnpm exec next experimental-analyze \
   query get_route_modules \
   --input '{
     "route":"/dashboard",
@@ -54,10 +58,12 @@ Common opportunities include:
 - route-level Client Component boundaries that can move to an interactive leaf;
 - large initial CSS, fonts, images, static data, polyfills, and shims.
 
-Inspect the application importer before changing an entry:
+Inspect reverse import edges before changing an entry. They can reveal that an
+application re-export, rather than the attributed package itself, is responsible
+for pulling a module into the route:
 
 ```bash filename="Terminal"
-next experimental-analyze \
+pnpm exec next experimental-analyze \
   query explain_route_module \
   --input '{
     "route":"/dashboard",
@@ -67,10 +73,16 @@ next experimental-analyze \
   }'
 ```
 
-After each change, regenerate analyzer data. Removal, narrower imports, server
-migration, and package deduplication should reduce client attribution. Lazy
-loading can leave eventual route bytes unchanged; verify that the affected
+After each change, regenerate and compare analyzer data. Source cleanup or a
+type-only import change can have zero bundle impact when the bundler already
+removes it, so do not infer a win from the source diff. Removal, narrower imports,
+server migration, and package deduplication should reduce client attribution.
+Lazy loading can leave eventual route bytes unchanged; verify that the affected
 source moved from `initial` to `async`, then test the interaction itself.
+
+The analyzer already performs production analysis. Prefer targeted behavior
+tests and the narrowest relevant type-check before attempting another expensive
+full production build.
 
 ## Use the optimizer Skill
 
