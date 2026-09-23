@@ -10,12 +10,27 @@ description: >
 
 # Browser initial-load optimizer (raw-data prototype)
 
-Use this skill to investigate *why* a route ships code, and change one measured
-candidate at a time. Unlike the CLI-based version, this prototype gives you the
-on-disk schema and leaves parsing, graph algorithms, and judgment to you. Write
-small **disposable analysis snippets** for the question at hand; do not assume
-there is a supported query command or turn an exploratory result into a claim
-about request timing.
+Use this skill to investigate *why* a route ships code. Unlike the CLI-based
+version, this prototype gives you the on-disk schema and leaves parsing, graph
+algorithms, and judgment to you. Write small **disposable analysis snippets**
+for the question at hand; do not assume there is a supported query command or
+turn an exploratory result into a claim about request timing.
+
+## Choose a mode
+
+- **Audit (default):** Read-only with respect to the application. Generate or
+  inspect analyzer artifacts, investigate route and graph evidence, and report
+  prioritized candidates with assumptions and verification gaps. Do **not**
+  change application source, dependencies, or lockfiles. Running
+  `experimental-analyze --output` generates build artifacts; its `--output`
+  flag does **not** opt into fix mode. Stop after the report unless the user
+  explicitly asks for a fix.
+- **Fix (only on explicit request):** Audit the requested scope first, then
+  follow [Make one safe change and measure it](#4-make-one-safe-change-and-measure-it).
+  Change one behavior-preserving candidate at a time, regenerate the data,
+  check behavior, and keep or revert based on evidence. If a product decision
+  is needed (visible behavior, timing, compatibility or trust boundary), ask
+  before changing it.
 
 ## 1. Produce and locate the evidence
 
@@ -27,7 +42,12 @@ pnpm exec next experimental-analyze --output --baseline-name initial-load-before
 ```
 
 This runs production analysis and exits without starting the UI server. Check
-that the installed version supports `--output`. The files are in
+that the installed version supports `--output`. If browser verification or
+interactive development requires a local port and the agent sandbox cannot bind
+one, prefer running that step in a local or other permitted environment that
+allows port binding. Do not try to bypass sandbox restrictions or claim a
+browser check passed when it could not run; finish only the offline analysis
+that remains valid and report the blocked verification. The files are in
 `.next/diagnostics/analyze/` (or the configured dist directory):
 
 - `data/routes.json`: array of route paths, e.g. `/`, `/dashboard`.
@@ -223,7 +243,9 @@ illustrative case.
 
 ## 4. Make one safe change and measure it
 
-Reuse the original optimization loop's judgment, not its CLI calls:
+**Fix mode only.** An audit ends with measured candidates and recommendations;
+it does not authorize the edits below. In fix mode, reuse the original
+optimization loop's judgment, not its CLI calls:
 
 - Prioritize material, route-relevant browser costs and actual user behavior;
   avoid a universal byte threshold or a generic package blacklist.
@@ -248,9 +270,10 @@ Reuse the original optimization loop's judgment, not its CLI calls:
   trace. Test the interaction and run targeted project checks. Revert an
   ineffective or behavior-breaking change.
 
-Report route and snapshot IDs, exact source/output/module identifiers, measured
-before/after totals and scope of the measurement, the inspected source reason,
-uncertainties (especially inferred entry/scope and graph cuts), and behavior
+In either mode, report route and snapshot IDs, exact source/output/module
+identifiers, measured totals and scope of the measurement, inspected source
+reasons, uncertainties (especially inferred entry/scope and graph cuts), and
+checks run or blocked. In fix mode also report before/after results and behavior
 checks. Separate attributed compressed bytes from observed network transfer.
 If the artifact lacks enough evidence, say so rather than manufacturing a win.
 
