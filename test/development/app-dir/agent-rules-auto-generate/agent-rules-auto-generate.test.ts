@@ -199,7 +199,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
       'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
     )
     expect(content).toContain(
-      '`next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.'
+      'When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.'
     )
     expect(content).toContain('meaningful or recurring Next.js issues')
     expect(content).toContain('- Crashes, hangs, OOMs')
