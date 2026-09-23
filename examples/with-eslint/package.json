@@ -16,6 +16,8 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "eslint": "^9",
-    "eslint-config-next": "latest"
+    "eslint-config-next": "latest",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "@next/eslint-plugin-next": "^15.4.6"
   }
 }
