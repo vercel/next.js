@@ -1,6 +1,8 @@
+import { execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { getGitWorktreeFingerprint } from '../../lib/helpers/git'
 import { AnalyzeRepository } from './repository'
 
 const directories: string[] = []
@@ -37,6 +39,47 @@ async function fixture(): Promise<AnalyzeRepository> {
   )
   return new AnalyzeRepository(directory)
 }
+
+describe('git analyzer provenance', () => {
+  it('fingerprints clean, modified, deleted, and untracked states deterministically', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'next-analyze-git-'))
+    directories.push(directory)
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: directory, stdio: 'ignore' })
+    git('init')
+    git('config', 'user.email', 'analyzer@example.com')
+    git('config', 'user.name', 'Analyzer Test')
+    await writeFile(path.join(directory, 'tracked.txt'), 'baseline')
+    git('add', 'tracked.txt')
+    git('commit', '-m', 'baseline')
+
+    const clean = getGitWorktreeFingerprint(directory)
+    expect(clean).toMatch(/^[0-9a-f]{64}$/)
+    expect(getGitWorktreeFingerprint(directory)).toBe(clean)
+
+    await writeFile(path.join(directory, 'tracked.txt'), 'modified')
+    const modified = getGitWorktreeFingerprint(directory)
+    expect(modified).not.toBe(clean)
+    expect(getGitWorktreeFingerprint(directory)).toBe(modified)
+
+    git('checkout', '--', 'tracked.txt')
+    await writeFile(path.join(directory, 'untracked.txt'), 'one')
+    const untracked = getGitWorktreeFingerprint(directory)
+    expect(untracked).not.toBe(clean)
+    await writeFile(path.join(directory, 'untracked.txt'), 'two')
+    expect(getGitWorktreeFingerprint(directory)).not.toBe(untracked)
+
+    await rm(path.join(directory, 'untracked.txt'))
+    git('mv', 'tracked.txt', 'renamed.txt')
+    const renamed = getGitWorktreeFingerprint(directory)
+    expect(renamed).not.toBe(clean)
+    expect(getGitWorktreeFingerprint(directory)).toBe(renamed)
+
+    git('reset', '--hard', 'HEAD')
+    await rm(path.join(directory, 'tracked.txt'))
+    expect(getGitWorktreeFingerprint(directory)).not.toBe(clean)
+  })
+})
 
 describe('AnalyzeRepository path validation', () => {
   it.each(['/../secret', '/%2e%2e/secret', '/foo\\..\\secret', 'relative'])(
