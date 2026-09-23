@@ -38,6 +38,11 @@ const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
+// Gateway-backed Claude Code cannot fetch the rollout flag for native
+// AGENTS.md discovery. Attach the same file explicitly as system instructions
+// so the eval measures its contents instead of the rollout.
+const CLAUDE_AGENT_OPTIONS = { appendSystemPromptFile: 'AGENTS.md' }
+
 // The two variants we always compare. Order matters for output readability:
 // baseline first so a contributor sees "does the agent fail without docs?"
 // before "does it pass with docs?".
@@ -51,6 +56,7 @@ const BASE_VARIANTS = [
     suffix: 'agents-md',
     imports: `import { installNextJs, installPlaywright, prepareFixture, writeAgentsMd } from '../lib/setup.js'`,
     setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await writeAgentsMd(sandbox)`,
+    agentOptions: CLAUDE_AGENT_OPTIONS,
   },
 ]
 
@@ -76,6 +82,7 @@ const config: ExperimentConfig = {
   // credential needed (it auths the sandbox, the codegen model, and the judge).
   agent: 'vercel-ai-gateway/claude-code',
   model: 'claude-opus-4-8',${evalsField}
+  ${v.agentOptions ? `agentOptions: ${JSON.stringify(v.agentOptions)},` : ''}
   // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
@@ -188,6 +195,7 @@ function getExperimentSettings(evalName) {
           ? `\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`
           : ''
       }\n    await writeAgentFeedbackInstructions(sandbox)`,
+      agentOptions: CLAUDE_AGENT_OPTIONS,
       onRunComplete: 'analyzeAgentFeedbackRun',
       evals,
     })
