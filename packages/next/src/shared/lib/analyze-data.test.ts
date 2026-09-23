@@ -71,7 +71,12 @@ function modulesBuffer(
 }
 
 function analyzeBuffer(exact = true): ArrayBuffer {
-  const sections = [edges([[0], []]), edges([[], [0]]), edges([[1], []])]
+  const sections = [
+    edges(exact ? [[1], []] : []),
+    edges([[0], []]),
+    edges([[], [0]]),
+    edges([[1], []]),
+  ]
   let offset = 0
   const references = sections.map((section) => {
     const reference = { offset, length: section.byteLength }
@@ -107,11 +112,12 @@ function analyzeBuffer(exact = true): ArrayBuffer {
                 runtime: 'client',
               },
             ],
+            output_file_references: references[0],
           }
         : {}),
-      output_file_chunk_parts: references[0],
-      source_chunk_parts: references[1],
-      source_children: references[2],
+      output_file_chunk_parts: references[1],
+      source_chunk_parts: references[2],
+      source_children: references[3],
       source_roots: [0],
     },
     sections
@@ -131,6 +137,8 @@ describe('analyzer data parser', () => {
     expect(analyze.routeEntries()).toEqual([
       expect.objectContaining({ route_entry_id: 'route|client|first' }),
     ])
+    expect(analyze.hasOutputFileReferences()).toBe(true)
+    expect(analyze.outputFileReferences(0)).toEqual([1])
     const modules = new ModulesData(modulesBuffer())
     expect(
       modules.getModuleIndiciesFromPath('[project]/src/a.ts')
@@ -148,6 +156,8 @@ describe('analyzer data parser', () => {
     const analyze = new AnalyzeData(analyzeBuffer(false))
     expect(analyze.hasExactRouteEntries()).toBe(false)
     expect(analyze.routeEntries()).toEqual([])
+    expect(analyze.hasOutputFileReferences()).toBe(false)
+    expect(analyze.outputFileReferences(0)).toEqual([])
     const modules = new ModulesData(modulesBuffer(false))
     expect(modules.hasExactSyncSccs()).toBe(false)
     expect(modules.syncSccId(0)).toBeUndefined()

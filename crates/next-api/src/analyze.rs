@@ -114,6 +114,8 @@ struct AnalyzeDataHeader {
     pub output_files: Vec<AnalyzeOutputFile>,
     /// Exact module-graph entries for this route dataset.
     pub route_entries: Vec<AnalyzeRouteEntry>,
+    /// Edges from output files to directly referenced output files.
+    pub output_file_references: EdgesDataReference,
     /// Edges from output files to chunk parts
     pub output_file_chunk_parts: EdgesDataReference,
     /// Edges from sources to chunk parts
@@ -146,6 +148,7 @@ struct ModulesDataHeader {
 struct AnalyzeOutputFileBuilder {
     output_file: AnalyzeOutputFile,
     chunk_part_indices: Vec<u32>,
+    referenced_output_file_indices: Vec<u32>,
 }
 
 struct AnalyzeSourceBuilder {
@@ -234,6 +237,7 @@ impl AnalyzeDataBuilder {
         self.output_files.push(AnalyzeOutputFileBuilder {
             output_file,
             chunk_part_indices: vec![],
+            referenced_output_file_indices: vec![],
         });
         i
     }
@@ -242,6 +246,12 @@ impl AnalyzeDataBuilder {
         self.output_files[output_file_index as usize]
             .chunk_part_indices
             .push(chunk_part_index);
+    }
+
+    fn add_output_file_reference(&mut self, output_file_index: u32, referenced_index: u32) {
+        self.output_files[output_file_index as usize]
+            .referenced_output_file_indices
+            .push(referenced_index);
     }
 
     fn add_chunk_part_to_source(&mut self, source_index: u32, chunk_part_index: u32) {
@@ -272,6 +282,12 @@ impl AnalyzeDataBuilder {
 
         let output_file_chunk_parts =
             EdgesData::from_iterator(self.output_files.iter().map(|of| &of.chunk_part_indices));
+        let output_file_references = EdgesData::from_iterator(
+            self.output_files
+                .iter()
+                .map(|of| &of.referenced_output_file_indices),
+        );
+
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = AnalyzeDataHeader {
@@ -283,6 +299,7 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.output_file)
                 .collect(),
             route_entries: self.route_entries,
+            output_file_references: binary_section.add_edges(&output_file_references),
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
@@ -553,6 +570,7 @@ pub async fn analyze_output_assets(
     let route_entries = route_entries.await?.iter().cloned().collect();
 
     let mut builder = AnalyzeDataBuilder::new(route_entries);
+    let mut output_asset_indices = FxHashMap::default();
 
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
@@ -585,6 +603,9 @@ pub async fn analyze_output_assets(
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
             filename: filename.clone(),
         });
+        if let Either::Left(asset) = &asset {
+            output_asset_indices.insert(*asset, output_file_index);
+        }
         let chunk_parts = match asset {
             Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
             Either::Right(path) => split_traced_file_into_parts(path).await?,
@@ -611,6 +632,17 @@ pub async fn analyze_output_assets(
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
+        }
+    }
+
+    // Preserve direct output-asset references before the flattened asset list loses
+    // their relationship. Queries use these facts for CSS-to-asset evidence.
+    for (asset, output_file_index) in &output_asset_indices {
+        let references = asset.references().all_assets().await?;
+        for referenced in references.iter() {
+            if let Some(referenced_index) = output_asset_indices.get(referenced) {
+                builder.add_output_file_reference(*output_file_index, *referenced_index);
+            }
         }
     }
 

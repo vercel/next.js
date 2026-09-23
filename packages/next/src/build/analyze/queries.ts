@@ -63,6 +63,27 @@ interface SourceChunksArgs {
   limit?: number
 }
 
+interface RouteOutputsArgs {
+  route: string
+  snapshot?: string
+  search?: string
+  kinds?: OutputKind[]
+  environment?: Environment
+  groupBy?: 'file' | 'kind' | 'environment'
+  metric?: Metric
+  offset?: number
+  limit?: number
+}
+
+interface CssAssetsArgs {
+  route: string
+  snapshot?: string
+  cssSearch?: string
+  assetKinds?: Array<'font' | 'image' | 'media'>
+  offset?: number
+  limit?: number
+}
+
 export class AnalyzeQueryError extends Error {
   constructor(readonly output: Record<string, unknown>) {
     super(
@@ -193,6 +214,18 @@ function outputKind(filename: string): OutputKind {
   if (/\.(?:mp4|webm|ogg|mp3|wav|flac|aac|mov)$/.test(pathname)) return 'media'
   if (pathname.endsWith('.wasm')) return 'wasm'
   return 'other'
+}
+
+function outputSizes(data: AnalyzeData, outputIndex: number) {
+  let rawSize = 0
+  let compressedSize = 0
+  for (const partIndex of data.outputFileChunkParts(outputIndex)) {
+    const part = data.chunkPart(partIndex)
+    if (!part) continue
+    rawSize += part.size
+    compressedSize += part.compressed_size
+  }
+  return { rawSize, compressedSize }
 }
 
 function packageNameFromPath(sourcePath: string): string | undefined {
@@ -468,6 +501,198 @@ export function createAnalyzeQueryRegistry(repository: AnalyzeRepository) {
         ),
         pagination: paged.pagination,
         caveats: [COMPRESSED_CAVEAT],
+      }
+    })
+  )
+
+  registerQuery(
+    'get_route_outputs',
+    {
+      route: z.string().max(4096),
+      snapshot: snapshotSchema,
+      search: z.string().max(1000).optional(),
+      kinds: z
+        .array(
+          z.enum([
+            'js',
+            'css',
+            'json',
+            'font',
+            'image',
+            'media',
+            'wasm',
+            'other',
+          ])
+        )
+        .max(8)
+        .optional(),
+      environment: environmentSchema,
+      groupBy: z.enum(['file', 'kind', 'environment']).optional(),
+      metric: metricSchema,
+      ...pagingSchema,
+    },
+    safeQuery(async (args: RouteOutputsArgs) => {
+      const data = await repository.loadRoute(args.snapshot, args.route)
+      const environment = args.environment ?? 'total'
+      const groupBy = args.groupBy ?? 'file'
+      const metric = args.metric ?? 'raw'
+      const search = args.search?.toLocaleLowerCase()
+      const files = Array.from(
+        { length: data.outputFileCount() },
+        (_, index) => {
+          const filename = data.outputFile(index)!.filename
+          return {
+            key: filename,
+            filename,
+            kind: outputKind(filename),
+            environment: outputEnvironment(filename),
+            ...outputSizes(data, index),
+            outputCount: 1,
+            emissionEvidence: 'emitted' as const,
+            requestEvidence: 'unknown' as const,
+          }
+        }
+      ).filter(
+        (row) =>
+          (!search || row.filename.toLocaleLowerCase().includes(search)) &&
+          (!args.kinds?.length || args.kinds.includes(row.kind)) &&
+          (environment === 'total' || row.environment === environment)
+      )
+      const grouped = new Map<string, (typeof files)[number]>()
+      for (const row of files) {
+        const key =
+          groupBy === 'kind'
+            ? row.kind
+            : groupBy === 'environment'
+              ? row.environment
+              : row.filename
+        const existing = grouped.get(key)
+        if (existing) {
+          existing.rawSize += row.rawSize
+          existing.compressedSize += row.compressedSize
+          existing.outputCount += 1
+        } else {
+          grouped.set(key, { ...row, key })
+        }
+      }
+      const rows = [...grouped.values()].sort(
+        (a, b) =>
+          metricValue(b, metric) - metricValue(a, metric) ||
+          compareText(a.key, b.key)
+      )
+      const paged = page(rows, args.offset ?? 0, args.limit ?? DEFAULT_LIMIT)
+      return {
+        route: args.route,
+        snapshot: provenance(
+          (await repository.getSnapshot(args.snapshot)).metadata
+        ),
+        environment,
+        groupBy,
+        metric,
+        outputs: paged.values,
+        totals: files.reduce(
+          (total, row) => ({
+            rawSize: total.rawSize + row.rawSize,
+            compressedSize: total.compressedSize + row.compressedSize,
+            outputCount: total.outputCount + 1,
+          }),
+          { rawSize: 0, compressedSize: 0, outputCount: 0 }
+        ),
+        pagination: paged.pagination,
+        caveats: [
+          COMPRESSED_CAVEAT,
+          'Emitted outputs are not observed browser requests.',
+        ],
+      }
+    })
+  )
+
+  registerQuery(
+    'get_css_assets',
+    {
+      route: z.string().max(4096),
+      snapshot: snapshotSchema,
+      cssSearch: z.string().max(1000).optional(),
+      assetKinds: z
+        .array(z.enum(['font', 'image', 'media']))
+        .max(3)
+        .optional(),
+      ...pagingSchema,
+    },
+    safeQuery(async (args: CssAssetsArgs) => {
+      const data = await repository.loadRoute(args.snapshot, args.route)
+      const available = data.hasOutputFileReferences()
+      const search = args.cssSearch?.toLocaleLowerCase()
+      const kinds = args.assetKinds ?? ['font', 'image', 'media']
+      const rows: Array<{
+        key: string
+        cssFilename: string
+        assetFilename: string
+        assetKind: 'font' | 'image' | 'media'
+        rawSize: number
+        compressedSize: number
+        relationshipEvidence: 'output-reference'
+        emissionEvidence: 'emitted'
+        requestEvidence: 'unknown'
+      }> = []
+      if (available) {
+        for (let cssIndex = 0; cssIndex < data.outputFileCount(); cssIndex++) {
+          const css = data.outputFile(cssIndex)!
+          if (
+            outputKind(css.filename) !== 'css' ||
+            (search && !css.filename.toLocaleLowerCase().includes(search))
+          ) {
+            continue
+          }
+          for (const assetIndex of data.outputFileReferences(cssIndex)) {
+            const asset = data.outputFile(assetIndex)
+            if (!asset) continue
+            const kind = outputKind(asset.filename)
+            if (kind !== 'font' && kind !== 'image' && kind !== 'media')
+              continue
+            if (!kinds.includes(kind)) continue
+            rows.push({
+              key: `${css.filename}\0${asset.filename}`,
+              cssFilename: css.filename,
+              assetFilename: asset.filename,
+              assetKind: kind,
+              ...outputSizes(data, assetIndex),
+              relationshipEvidence: 'output-reference',
+              emissionEvidence: 'emitted',
+              requestEvidence: 'unknown',
+            })
+          }
+        }
+      }
+      rows.sort((a, b) => compareText(a.key, b.key))
+      const paged = page(rows, args.offset ?? 0, args.limit ?? DEFAULT_LIMIT)
+      return {
+        route: args.route,
+        snapshot: provenance(
+          (await repository.getSnapshot(args.snapshot)).metadata
+        ),
+        relationshipEvidence: available ? 'output-reference' : 'unavailable',
+        assets: paged.values,
+        totals: rows.reduce(
+          (totals, row) => {
+            totals.rawSize += row.rawSize
+            totals.compressedSize += row.compressedSize
+            totals.assetCount++
+            totals.byKind[row.assetKind]++
+            return totals
+          },
+          {
+            rawSize: 0,
+            compressedSize: 0,
+            assetCount: 0,
+            byKind: { font: 0, image: 0, media: 0 },
+          }
+        ),
+        pagination: paged.pagination,
+        caveats: [
+          COMPRESSED_CAVEAT,
+          'Output references prove emitted relationships, not browser requests or timing.',
+        ],
       }
     })
   )

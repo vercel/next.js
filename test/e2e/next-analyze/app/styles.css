@@ -1,0 +1,9 @@
+@font-face {
+  font-family: 'AnalyzerFixture';
+  src: url('./fixture-font.woff2') format('woff2');
+}
+
+button {
+  font-family: 'AnalyzerFixture', sans-serif;
+  background-image: url('./fixture-image.svg');
+}

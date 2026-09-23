@@ -124,7 +124,47 @@ describe('next experimental-analyze', () => {
         expect(sources.exitCode).toBe(0)
         expect(JSON.parse(sources.stdout)).toMatchObject({
           route: '/',
-          sources: [{ sourcePath: expect.any(String) }],
+          sources: [
+            {
+              sourcePath: expect.any(String),
+              chunkCount: expect.any(Number),
+            },
+          ],
+        })
+        expect(JSON.parse(sources.stdout).sources[0]).not.toHaveProperty(
+          'chunks'
+        )
+
+        const outputs = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'get_route_outputs',
+          '--input',
+          '{"route":"/","kinds":["css","font","image"]}',
+        ])
+        expect(outputs.exitCode).toBe(0)
+        expect(JSON.parse(outputs.stdout)).toMatchObject({
+          outputs: expect.arrayContaining([
+            expect.objectContaining({ kind: 'css' }),
+            expect.objectContaining({ kind: 'font' }),
+            expect.objectContaining({ kind: 'image' }),
+          ]),
+        })
+
+        const cssAssets = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'get_css_assets',
+          '--input',
+          '{"route":"/"}',
+        ])
+        expect(cssAssets.exitCode).toBe(0)
+        expect(JSON.parse(cssAssets.stdout)).toMatchObject({
+          relationshipEvidence: 'output-reference',
+          assets: expect.arrayContaining([
+            expect.objectContaining({ assetKind: 'font' }),
+            expect.objectContaining({ assetKind: 'image' }),
+          ]),
         })
       })
     })

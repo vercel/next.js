@@ -47,6 +47,8 @@ interface AnalyzeDataHeader {
   output_files: AnalyzeOutputFile[]
   /** Absent in analyzer artifacts produced before exact route-entry support. */
   route_entries?: AnalyzeRouteEntry[]
+  /** Absent in analyzer artifacts that flattened output references. */
+  output_file_references?: EdgesDataReference
   output_file_chunk_parts: EdgesDataReference
   source_chunk_parts: EdgesDataReference
   source_children: EdgesDataReference
@@ -351,6 +353,15 @@ export class AnalyzeData {
         ids.add(entry.route_entry_id)
       }
     }
+    if (this.analyzeHeader.output_file_references !== undefined) {
+      validateEdges(
+        this.analyzeBinaryData,
+        this.analyzeHeader.output_file_references,
+        outputs.length,
+        outputs.length,
+        'analyze.data output references'
+      )
+    }
     validateEdges(
       this.analyzeBinaryData,
       this.analyzeHeader.output_file_chunk_parts,
@@ -507,6 +518,15 @@ export class AnalyzeData {
 
   hasExactRouteEntries(): boolean {
     return this.analyzeHeader.route_entries !== undefined
+  }
+
+  outputFileReferences(index: number): number[] {
+    const reference = this.analyzeHeader.output_file_references
+    return reference ? this.readEdgesDataAtIndex(reference, index) : []
+  }
+
+  hasOutputFileReferences(): boolean {
+    return this.analyzeHeader.output_file_references !== undefined
   }
 
   outputFileChunkParts(index: number): number[] {
