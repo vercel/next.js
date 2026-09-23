@@ -2032,21 +2032,23 @@ where
         ResolveErrorMode::Error
     };
 
-    let get_traced_project_dir = async |pattern: Pattern| -> Result<(FileSystemPath, Pattern)> {
-        // Relative filesystem references are resolved from the project root at runtime. Inside
-        // node_modules, only trace fully static alternatives from there: a dynamic pattern could
-        // otherwise include much or all of the project. Dynamic-only patterns continue to fall
-        // back to the package directory, preserving package-local tracing without exposing the
-        // project root.
-        if let Some(cwd) = compile_time_info.environment().cwd().owned().await? {
-            if state.allow_project_root_tracing {
-                return Ok((cwd, pattern));
-            }
-            if let Some(static_pattern) = pattern.filter_static() {
-                return Ok((cwd, static_pattern));
-            }
+    let get_traced_project_dir = async || -> Result<FileSystemPath> {
+        // readFileSync("./foo") should always be relative to the project root, but this is
+        // dangerous inside of node_modules as it can cause a lot of false positives in the
+        // tracing, if some package does `path.join(dynamic)`, it would include
+        // everything from the project root as well.
+        //
+        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
+        // shouldn't assume a `process.cwd()` for all of node_modules), fallback to
+        // the source file directory. This still allows relative file accesses, just
+        // not from the project root.
+        if state.allow_project_root_tracing
+            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
+        {
+            Ok(cwd)
+        } else {
+            Ok(source.ident().await?.path.parent())
         }
-        Ok((source.ident().await?.path.parent(), pattern))
     };
 
     let get_issue_source =
@@ -2222,13 +2224,13 @@ where
                     };
                     // WorkerThreads resolve URLs relative to import.meta.url
                     // and string paths relative to the process root
-                    let (context_dir, pat) = if matches!(
+                    let context_dir = if matches!(
                         args.first(),
                         Some(JsValue::Url(_, JsValueUrlKind::Relative))
                     ) {
-                        (origin.into_trait_ref().await?.origin_path().parent(), pat)
+                        origin.into_trait_ref().await?.origin_path().parent()
                     } else {
-                        get_traced_project_dir(pat).await?
+                        get_traced_project_dir().await?
                     };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
@@ -2561,10 +2563,9 @@ where
                         return Ok(());
                     }
                 }
-                let (context_dir, pat) = get_traced_project_dir(pat).await?;
                 analysis.add_reference(
                     FileSourceReference::new(
-                        context_dir,
+                        get_traced_project_dir().await?,
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
@@ -2599,10 +2600,9 @@ where
                         return Ok(());
                     }
                 }
-                let (context_dir, pat) = get_traced_project_dir(pat).await?;
                 analysis.add_reference(
                     DirAssetReference::new(
-                        context_dir,
+                        get_traced_project_dir().await?,
                         Pattern::new(pat),
                         get_issue_source(),
                         rcstr!("fs.readdir"),
@@ -2657,10 +2657,9 @@ where
                     return Ok(());
                 }
             }
-            let (context_dir, pat) = get_traced_project_dir(pat).await?;
             analysis.add_reference(
                 DirAssetReference::new(
-                    context_dir,
+                    get_traced_project_dir().await?,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.resolve"),
@@ -2710,10 +2709,9 @@ where
                     return Ok(());
                 }
             }
-            let (context_dir, pat) = get_traced_project_dir(pat).await?;
             analysis.add_reference(
                 DirAssetReference::new(
-                    context_dir,
+                    get_traced_project_dir().await?,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.join"),
@@ -2773,10 +2771,9 @@ where
                     show_dynamic_warning = true;
                 }
                 if !dynamic || !ignore_dynamic_requests {
-                    let (context_dir, pat) = get_traced_project_dir(pat).await?;
                     analysis.add_reference(
                         FileSourceReference::new(
-                            context_dir,
+                            get_traced_project_dir().await?,
                             Pattern::new(pat),
                             collect_affecting_sources,
                             IssueSource::from_swc_offsets(
@@ -3016,11 +3013,9 @@ where
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
-                            let (context_dir, abs_pattern) =
-                                get_traced_project_dir(abs_pattern).await?;
                             analysis.add_reference(
                                 DirAssetReference::new(
-                                    context_dir,
+                                    get_traced_project_dir().await?,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
                                     rcstr!("express().set"),
@@ -3090,10 +3085,9 @@ where
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                let (context_dir, abs_pattern) = get_traced_project_dir(abs_pattern).await?;
                 analysis.add_reference(
                     DirAssetReference::new(
-                        context_dir,
+                        get_traced_project_dir().await?,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
                         rcstr!("strong-globalize.SetRootDir"),
@@ -3149,10 +3143,7 @@ where
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                // Every `includeDirs` entry below is a constant, so the traced directory is the
-                // same for all of them and can be computed once from a static pattern.
-                let (context_dir, _) =
-                    get_traced_project_dir(Pattern::Constant(rcstr!(""))).await?;
+                let context_dir = get_traced_project_dir().await?;
                 let resolved_dirs = parts
                     .iter()
                     .filter_map(|object_part| match object_part {
