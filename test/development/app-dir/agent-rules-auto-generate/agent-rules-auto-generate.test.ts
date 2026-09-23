@@ -206,15 +206,29 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).toContain('\n## Report Next.js feedback\n')
-    expect(content).toContain('meaningful detour or are likely to recur')
-    expect(content).toContain('Crashes, hangs, OOMs, or unexpected slowness')
-    expect(content).toContain('CLI, codemod, Skill, or upgrade behavior')
+    expect(content).toContain(
+      'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
+    )
+    expect(content).toContain(
+      'When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.'
+    )
+    expect(content).toContain('meaningful or recurring Next.js issues')
+    expect(content).toContain('- Crashes, hangs, OOMs')
+    expect(content).toContain('- Incorrect behavior, output, errors')
+    expect(content).toContain(
+      '- Missing, unclear, or conflicting documentation'
+    )
+    expect(content).toContain('- Unexpected CLI, codemod, Skill')
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
-    expect(content).toContain('Immediately before the final response')
+    expect(content).toContain('without piping or truncating its output')
     expect(content).toContain(
-      'Keep unresolved feedback candidates for a later final response'
+      'Before the final response, run one reporting pass'
+    )
+    expect(content).toContain('If a network sandbox blocks it')
+    expect(content).toContain(
+      'if it still returns no output, continue normally'
     )
     expect(content).not.toContain('"schemaVersion":3')
   })

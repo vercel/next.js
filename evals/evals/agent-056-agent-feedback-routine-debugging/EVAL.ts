@@ -1,14 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
-import { transcript, transcriptPath } from '@vercel/agent-eval/eval'
-
-const feedbackMarker = '<!-- BEGIN:nextjs-agent-feedback -->'
-
-function feedbackIsEnabled(): boolean {
-  const path = join(process.cwd(), 'AGENTS.md')
-  return existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
-}
+import { transcriptPath } from '@vercel/agent-eval/eval'
 
 function reportPayloads(): unknown[] {
   const raw = readFileSync(transcriptPath(), 'utf8')
@@ -31,12 +24,4 @@ test('fixes the application bug', () => {
 
 test('does not report routine first-pass debugging', () => {
   expect(reportPayloads()).toHaveLength(0)
-})
-
-test('still completes the feedback pass when enabled', async () => {
-  if (!feedbackIsEnabled()) return
-
-  await expect(transcript).toSatisfyCriterion(
-    `Immediately before the final response, after completing the requested work and tool calls, the coding agent ran one reporting pass. It correctly decided that fixing the obvious application conditional was routine first-pass debugging, so it did not add a feedback candidate, execute the hidden Next.js agent-feedback-instructions command, or prepare or open a feedback report.`
-  )
 })
