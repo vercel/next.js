@@ -34,6 +34,10 @@ export class SyntheticSymlinkManager {
         targetType = fs.statSync(source).isDirectory() ? 'dir' : 'file'
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code
+        // We cannot determine the target type, so just create a file symlink
+        // ENOENT: Dangling link, preserve the dangling link as a file link
+        // ELOOP: Unresolvable link cycle, preserve any part of the cycle that
+        //        was traced
         if (code !== 'ENOENT' && code !== 'ELOOP') {
           throw error
         }
