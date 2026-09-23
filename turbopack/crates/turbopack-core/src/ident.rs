@@ -249,30 +249,40 @@ impl AssetIdent {
                     2_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::PartialExport { export, member } => {
+                    3_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::RenamedExport {
                     original_export,
                     export,
                 } => {
-                    3_u8.deterministic_hash(&mut hasher);
+                    4_u8.deterministic_hash(&mut hasher);
                     original_export.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedNamespace { export } => {
-                    4_u8.deterministic_hash(&mut hasher);
+                    5_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::RenamedPartialNamespace { export, member } => {
+                    6_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::Internal(id) => {
-                    5_u8.deterministic_hash(&mut hasher);
+                    7_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Locals => {
-                    6_u8.deterministic_hash(&mut hasher);
+                    8_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Exports => {
-                    7_u8.deterministic_hash(&mut hasher);
+                    9_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Facade => {
-                    8_u8.deterministic_hash(&mut hasher);
+                    10_u8.deterministic_hash(&mut hasher);
                 }
             }
 
