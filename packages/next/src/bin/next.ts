@@ -29,6 +29,7 @@ import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
+import type { NextAnalyzeQueryOptions } from '../cli/next-analyze-query.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
@@ -279,7 +280,7 @@ program
   })
   .usage('[directory] [options]')
 
-program
+const experimentalAnalyzeCommand = program
   .command('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
@@ -322,6 +323,29 @@ program
         }
       })
   })
+
+experimentalAnalyzeCommand
+  .command('query')
+  .description('Query previously generated analyzer data as JSON.')
+  .argument('<name>', 'Name of the analyzer query to run.')
+  .argument(
+    '[directory]',
+    `The analyzed application directory. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--input <json>', 'Query arguments as a JSON object.', '{}')
+  .action(
+    (
+      name: string,
+      directory: string | undefined,
+      options: NextAnalyzeQueryOptions
+    ) => {
+      return import('../cli/next-analyze-query.js').then((mod) =>
+        mod.nextAnalyzeQuery(name, directory, options)
+      )
+    }
+  )
 
 program
   .command('dev', { isDefault: true })

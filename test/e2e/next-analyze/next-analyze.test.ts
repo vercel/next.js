@@ -99,6 +99,20 @@ describe('next experimental-analyze', () => {
         )
         const routes = JSON.parse(routesJson)
         expect(routes).toEqual(['/', '/_not-found'])
+
+        const query = await next.runCommand([
+          'experimental-analyze',
+          'query',
+          'get_app_overview',
+          next.testDir,
+          '--input',
+          '{"limit":1}',
+        ])
+        expect(query.exitCode).toBe(0)
+        expect(JSON.parse(query.stdout)).toMatchObject({
+          pagination: { limit: 1, returned: 1 },
+          routes: [{ route: expect.any(String), rawSize: expect.any(Number) }],
+        })
       })
     })
   })
