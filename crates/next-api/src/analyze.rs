@@ -4,6 +4,7 @@ use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
 use next_core::app_structure::FileSystemPathVec;
+use petgraph::{Directed, Graph, algo::kosaraju_scc};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
@@ -126,6 +127,8 @@ struct AnalyzeDataHeader {
 #[derive(Serialize)]
 struct ModulesDataHeader {
     pub modules: Vec<AnalyzeModule>,
+    /// Deterministic petgraph SCC ID for each module, using synchronous edges only.
+    pub sync_scc_ids: Vec<u32>,
     /// Edges from modules to modules
     pub module_dependents: EdgesDataReference,
     /// Edges from modules to modules
@@ -297,12 +300,131 @@ impl AnalyzeDataBuilder {
     }
 }
 
+fn compute_sync_scc_ids(module_idents: &[RcStr], dependencies: &[Vec<u32>]) -> Vec<u32> {
+    debug_assert_eq!(module_idents.len(), dependencies.len());
+    let mut graph = Graph::<u32, (), Directed, u32>::with_capacity(
+        module_idents.len(),
+        dependencies.iter().map(Vec::len).sum(),
+    );
+    let nodes: Vec<_> = (0..module_idents.len())
+        .map(|index| graph.add_node(index as u32))
+        .collect();
+    for (from, targets) in dependencies.iter().enumerate() {
+        for &to in targets {
+            graph.add_edge(nodes[from], nodes[to as usize], ());
+        }
+    }
+
+    let mut components: Vec<Vec<u32>> = kosaraju_scc(&graph)
+        .into_iter()
+        .map(|component| {
+            let mut members: Vec<_> = component.into_iter().map(|node| graph[node]).collect();
+            members.sort_unstable_by(|&a, &b| {
+                module_idents[a as usize].cmp(&module_idents[b as usize])
+            });
+            members
+        })
+        .collect();
+    components
+        .sort_unstable_by(|a, b| module_idents[a[0] as usize].cmp(&module_idents[b[0] as usize]));
+
+    let mut ids = vec![0; module_idents.len()];
+    for (component_id, members) in components.into_iter().enumerate() {
+        for module_index in members {
+            ids[module_index as usize] = component_id as u32;
+        }
+    }
+    ids
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::RcStr;
+
+    use super::{ModulesDataBuilder, compute_sync_scc_ids};
+
+    fn id_map(idents: &[RcStr], ids: &[u32]) -> Vec<(RcStr, u32)> {
+        let mut result: Vec<_> = idents.iter().cloned().zip(ids.iter().copied()).collect();
+        result.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        result
+    }
+
+    #[test]
+    fn sync_scc_ids_are_deterministic_across_insertion_order() {
+        let first_idents: Vec<RcStr> = ["z", "a", "b"].into_iter().map(Into::into).collect();
+        let first = compute_sync_scc_ids(&first_idents, &[vec![1], vec![0], vec![]]);
+
+        let second_idents: Vec<RcStr> = ["b", "z", "a"].into_iter().map(Into::into).collect();
+        let second = compute_sync_scc_ids(&second_idents, &[vec![], vec![2], vec![1]]);
+
+        assert_eq!(
+            id_map(&first_idents, &first),
+            id_map(&second_idents, &second)
+        );
+        assert_eq!(
+            id_map(&first_idents, &first),
+            vec![("a".into(), 0), ("b".into(), 1), ("z".into(), 0)]
+        );
+    }
+
+    #[test]
+    fn sync_scc_ids_ignore_async_and_traced_edges() {
+        let mut builder = ModulesDataBuilder::new();
+        builder.ensure_module("entry", "entry");
+        builder.ensure_module("dependency", "dependency");
+        builder.modules[0].dependencies.insert(1);
+        builder.modules[1].async_dependencies.insert(0);
+        builder.modules[1].traced_dependencies.insert(0);
+
+        let without_sync_back_edge = builder.sync_scc_ids();
+        assert_ne!(without_sync_back_edge[0], without_sync_back_edge[1]);
+
+        builder.modules[1].dependencies.insert(0);
+        let with_sync_back_edge = builder.sync_scc_ids();
+        assert_eq!(with_sync_back_edge[0], with_sync_back_edge[1]);
+    }
+
+    #[test]
+    fn sync_scc_ids_keep_cycles_and_singletons_separate() {
+        let idents: Vec<RcStr> = ["entry", "left", "right", "unused"]
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let ids = compute_sync_scc_ids(&idents, &[vec![1], vec![2], vec![1], vec![]]);
+
+        assert_ne!(ids[0], ids[1]);
+        assert_eq!(ids[1], ids[2]);
+        assert_ne!(ids[2], ids[3]);
+        assert_eq!(
+            ids.iter()
+                .copied()
+                .collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from([0_u32, 1, 2])
+        );
+    }
+}
+
 impl ModulesDataBuilder {
     fn new() -> Self {
         Self {
             modules: vec![],
             module_index_map: FxHashMap::default(),
         }
+    }
+
+    fn sync_scc_ids(&self) -> Vec<u32> {
+        compute_sync_scc_ids(
+            &self
+                .modules
+                .iter()
+                .map(|module| module.module.ident.clone())
+                .collect::<Vec<_>>(),
+            &self
+                .modules
+                .iter()
+                .map(|module| module.dependencies.iter().copied().collect())
+                .collect::<Vec<_>>(),
+        )
     }
 
     fn get_module(&mut self, ident: &str) -> (&mut AnalyzeModuleBuilder, u32) {
@@ -364,6 +486,7 @@ impl ModulesDataBuilder {
             .map(|s| s.traced_dependents.iter().copied().collect())
             .collect();
 
+        let sync_scc_ids = self.sync_scc_ids();
         let module_dependencies = EdgesData::from_iterator(&module_dependencies_vecs);
         let async_module_dependencies = EdgesData::from_iterator(&async_module_dependencies_vecs);
         let traced_module_dependencies = EdgesData::from_iterator(&traced_module_dependencies_vecs);
@@ -375,6 +498,7 @@ impl ModulesDataBuilder {
 
         let header = ModulesDataHeader {
             modules: self.modules.into_iter().map(|s| s.module).collect(),
+            sync_scc_ids,
             module_dependents: binary_section.add_edges(&module_dependents),
             async_module_dependents: binary_section.add_edges(&async_module_dependents),
             traced_module_dependents: binary_section.add_edges(&traced_module_dependents),

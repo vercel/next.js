@@ -34,7 +34,10 @@ function frame(header: object, binary: Uint8Array[]): ArrayBuffer {
   return result.buffer
 }
 
-function modulesBuffer(): ArrayBuffer {
+function modulesBuffer(
+  exact = true,
+  syncSccIds: number[] = [0, 1]
+): ArrayBuffer {
   const sections = [
     edges([[1], []]),
     edges([[], [0]]),
@@ -55,6 +58,7 @@ function modulesBuffer(): ArrayBuffer {
         { ident: 'first', path: '[project]/src/a.ts' },
         { ident: 'second', path: '[project]/src/a.ts' },
       ],
+      ...(exact ? { sync_scc_ids: syncSccIds } : {}),
       module_dependents: references[0],
       async_module_dependents: references[1],
       traced_module_dependents: references[2],
@@ -135,12 +139,29 @@ describe('analyzer data parser', () => {
     expect(modules.asyncModuleDependents(1)).toEqual([0])
     expect(modules.moduleDependencies(1)).toEqual([0])
     expect(modules.getModuleIndexFromIdent('second')).toBe(1)
+    expect(modules.hasExactSyncSccs()).toBe(true)
+    expect(modules.syncSccId(0)).toBe(0)
+    expect(modules.syncSccId(1)).toBe(1)
   })
 
   it('keeps old artifacts readable with explicit unavailable evidence', () => {
     const analyze = new AnalyzeData(analyzeBuffer(false))
     expect(analyze.hasExactRouteEntries()).toBe(false)
     expect(analyze.routeEntries()).toEqual([])
+    const modules = new ModulesData(modulesBuffer(false))
+    expect(modules.hasExactSyncSccs()).toBe(false)
+    expect(modules.syncSccId(0)).toBeUndefined()
+  })
+
+  it.each([
+    [[0], 'wrong cardinality'],
+    [[0, -1], 'negative ID'],
+    [[0, 2], 'gapped ID'],
+    [[0, 0.5], 'non-integer ID'],
+  ])('rejects invalid sync SCC IDs: %s (%s)', (ids) => {
+    expect(() => new ModulesData(modulesBuffer(true, ids as number[]))).toThrow(
+      'Invalid modules.data sync SCC IDs'
+    )
   })
 
   it('rejects duplicate exact route entry IDs', () => {

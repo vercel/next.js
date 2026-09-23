@@ -4149,6 +4149,7 @@ dependencies = [
  "indexmap 2.14.0",
  "itertools 0.10.5",
  "next-core",
+ "petgraph 0.8.3",
  "regex",
  "roaring",
  "rustc-hash 2.1.1",

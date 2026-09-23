@@ -27,6 +27,7 @@ futures = { workspace = true }
 itertools = { workspace = true }
 indexmap = { workspace = true }
 next-core = { workspace = true }
+petgraph = { workspace = true }
 regex = { workspace = true }
 roaring = { workspace = true }
 rustc-hash = { workspace = true }

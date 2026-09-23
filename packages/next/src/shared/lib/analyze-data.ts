@@ -55,6 +55,8 @@ interface AnalyzeDataHeader {
 
 interface ModulesDataHeader {
   modules: AnalyzeModule[]
+  /** Absent in analyzer artifacts produced before petgraph SCC support. */
+  sync_scc_ids?: number[]
   module_dependents: EdgesDataReference
   async_module_dependents: EdgesDataReference
   traced_module_dependents: EdgesDataReference
@@ -143,8 +145,26 @@ export class ModulesData {
     ;[this.modulesHeader, this.modulesBinaryData] =
       parseHeader<ModulesDataHeader>(modulesArrayBuffer, 'modules.data')
     requireArray(this.modulesHeader.modules, 'modules.data modules')
+    if (this.modulesHeader.sync_scc_ids !== undefined) {
+      requireArray(this.modulesHeader.sync_scc_ids, 'modules.data sync SCC IDs')
+      if (
+        this.modulesHeader.sync_scc_ids.length !==
+          this.modulesHeader.modules.length ||
+        this.modulesHeader.sync_scc_ids.some(
+          (id) => !Number.isInteger(id) || id < 0
+        )
+      ) {
+        throw new Error('Invalid modules.data sync SCC IDs')
+      }
+      const distinct = [...new Set(this.modulesHeader.sync_scc_ids)].sort(
+        (a, b) => a - b
+      )
+      if (distinct.some((id, index) => id !== index)) {
+        throw new Error('Invalid modules.data sync SCC IDs')
+      }
+    }
     for (const [name, reference] of Object.entries(this.modulesHeader)) {
-      if (name === 'modules') continue
+      if (name === 'modules' || name === 'sync_scc_ids') continue
       validateEdges(
         this.modulesBinaryData,
         reference as EdgesDataReference,
@@ -191,6 +211,14 @@ export class ModulesData {
 
   getModuleIndexFromIdent(ident: string): ModuleIndex | undefined {
     return this.identToModuleIndex.get(ident)
+  }
+
+  hasExactSyncSccs(): boolean {
+    return this.modulesHeader.sync_scc_ids !== undefined
+  }
+
+  syncSccId(index: ModuleIndex): number | undefined {
+    return this.modulesHeader.sync_scc_ids?.[index]
   }
 
   private readEdgesDataAtIndex(
