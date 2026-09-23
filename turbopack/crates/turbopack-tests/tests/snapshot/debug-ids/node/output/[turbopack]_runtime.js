@@ -1552,7 +1552,7 @@ const nodeDevContextPrototype = Context.prototype;
 nodeDevContextPrototype.q = exportUrl;
 nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
-nodeDevContextPrototype.S = resolvePathFromModule;
+nodeDevContextPrototype.p = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
 /**
  * Instantiates a module in development mode using shared HMR logic.
