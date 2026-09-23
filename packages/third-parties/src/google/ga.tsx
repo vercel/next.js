@@ -5,12 +5,6 @@ import Script from 'next/script'
 
 import type { GAParams } from '../types/google'
 
-declare global {
-  interface Window {
-    dataLayer?: Object[]
-  }
-}
-
 let currDataLayerName: string | undefined = undefined
 
 export function GoogleAnalytics(props: GAParams) {
@@ -61,6 +55,8 @@ export function sendGAEvent(..._args: Object[]) {
     console.warn(`@next/third-parties: GA has not been initialized`)
     return
   }
+
+  const window = globalThis.window as unknown as { [key: string]: Object[] }
 
   if (window[currDataLayerName]) {
     window[currDataLayerName].push(arguments)
