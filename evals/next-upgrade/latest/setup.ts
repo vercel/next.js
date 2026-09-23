@@ -21,5 +21,6 @@ export async function setupLatest(sandbox: Sandbox) {
     assessmentPath: join(__dirname, 'assessment.mjs'),
     assessment: scenario,
     installedVersion: scenario.installedVersion,
+    skillSources: undefined,
   })
 }

@@ -11,7 +11,7 @@ export function upgradeExperiment(
   if (!fixture) throw new Error('Select one upgrade eval case')
   const security = fixture.startsWith('security-')
   const latest = fixture.startsWith('latest-')
-  const future = fixture.startsWith('future-')
+  const future = fixture === 'future' || fixture.startsWith('future-')
 
   return {
     agent: `vercel-ai-gateway/${harness}`,

@@ -11,8 +11,6 @@ type FutureDefault = {
 }
 
 export const futureDefaults = [
-  // TODO: Add `partialPrefetching` after the Cache Components Future Default
-  // workflow is proven end to end.
   {
     name: 'Cache Components',
     availableSince: '16.3.0',
@@ -22,6 +20,16 @@ export const futureDefaults = [
       'skills/next-cache-components-adoption/SKILL.md',
     ],
     optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+  },
+  {
+    name: 'Partial Prefetching',
+    availableSince: '16.3.0',
+    isAdopted: (config) => config.partialPrefetching === true,
+    adoptionDoc: [
+      'docs/01-app/02-guides/adopting-partial-prefetching.md',
+      'skills/next-partial-prefetching-adoption/SKILL.md',
+    ],
+    optimizationDoc: ['skills/next-partial-prefetching-optimizer/SKILL.md'],
   },
 ] as const satisfies readonly FutureDefault[]
 

@@ -44,13 +44,16 @@ describe('prepare latest upgrade', () => {
     )
   }
 
-  function mockFutureMetadata(vulnerableVersions: string) {
+  function mockFutureMetadata(
+    vulnerableVersions: string,
+    targetVersion: string = '16.4.0'
+  ) {
     global.fetch = jest.fn(async (input) => {
       const url = String(input)
 
       if (url === 'https://registry.npmjs.org/next/latest') {
         return Response.json({
-          version: '16.4.0',
+          version: targetVersion,
           engines: { node: '>=18' },
         })
       }
@@ -90,6 +93,7 @@ describe('prepare latest upgrade', () => {
   beforeEach(() => {
     jest.mocked(loadConfig).mockResolvedValue({
       cacheComponents: false,
+      partialPrefetching: false,
     } as never)
   })
 
@@ -414,9 +418,10 @@ describe('prepare latest upgrade', () => {
         'does not change versions when the tag is equal or older: %s',
         async (target) => {
           const directory = await createApp('17.2.0-canary.4')
-          jest
-            .mocked(loadConfig)
-            .mockResolvedValue({ cacheComponents: true } as never)
+          jest.mocked(loadConfig).mockResolvedValue({
+            cacheComponents: true,
+            partialPrefetching: true,
+          } as never)
           mockSecurityMetadata({ target, ranges: [] })
           await expect(prepareUpgrade(directory, policy)).resolves.toEqual(
             expect.objectContaining({ status: 'unaffected' })
@@ -490,6 +495,7 @@ describe('prepare latest upgrade', () => {
           targetVersion: '17.2.0-canary.4',
           futureDefaults: [
             expect.objectContaining({ name: 'Cache Components' }),
+            expect.objectContaining({ name: 'Partial Prefetching' }),
           ],
         })
       )
@@ -694,10 +700,47 @@ describe('prepare latest upgrade', () => {
     )
   })
 
-  it('uses the adapter to detect an adopted Future Default', async () => {
+  it('selects only Partial Prefetching when Cache Components is adopted', async () => {
     const directory = await createApp('16.4.0')
     jest.mocked(loadConfig).mockResolvedValue({
       cacheComponents: true,
+      partialPrefetching: false,
+    } as never)
+    mockFutureMetadata('<16.3.0')
+
+    await expect(prepareUpgrade(directory, 'future')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'ready',
+        installedVersion: '16.4.0',
+        targetVersion: '16.4.0',
+        futureDefaults: [
+          expect.objectContaining({ name: 'Partial Prefetching' }),
+        ],
+      })
+    )
+  })
+
+  it.each([
+    ['16.2.9', []],
+    ['16.3.0', ['Cache Components', 'Partial Prefetching']],
+  ] as const)('gates defaults on target version %s', async (version, names) => {
+    const directory = await createApp('16.2.0')
+    mockFutureMetadata('<16.2.0', version)
+
+    const result = await prepareUpgrade(directory, 'future')
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') {
+      throw new Error('Expected a version upgrade')
+    }
+    expect(result.futureDefaults.map((entry) => entry.name)).toEqual(names)
+  })
+
+  it('does nothing when all available Future Defaults are adopted', async () => {
+    const directory = await createApp('16.4.0')
+    jest.mocked(loadConfig).mockResolvedValue({
+      cacheComponents: true,
+      partialPrefetching: true,
     } as never)
     mockFutureMetadata('<16.3.0')
 

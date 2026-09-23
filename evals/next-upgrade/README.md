@@ -22,6 +22,21 @@ packing or making model calls. Run one named fixture at a time. Results use the
 framework's normal `results/` layout. Fixtures are added by the feature PRs stacked
 above this infrastructure.
 
+## Future Defaults coverage
+
+- `future` upgrades the existing Next.js 13 storefront and adopts Cache Components
+  followed by Partial Prefetching.
+- `future-same-version` adopts both defaults without changing the Next.js version.
+- `future-nudge` checks that the development reminder names both defaults while
+  the agent completes the original task without starting an upgrade.
+
+The two adoption cases require both flags, no temporary route opt-outs,
+request-specific cookie isolation, meaningful shared shells, and transcript
+evidence of sequential adoption and production client-navigation verification.
+The storefronts use automatic links, so these cases do not require a new eager-link
+preservation suite. The existing `agent-046-adopt-partial-prefetching` eval covers
+that separate preservation workflow.
+
 ## Lifecycle
 
 1. Create one temporary Vercel Sandbox snapshot with the agent CLIs.

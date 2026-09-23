@@ -27,6 +27,9 @@ test('leaves the Future policy and installed version unchanged', () => {
 
   expect(manifest.dependencies.next).toBe('16.3.5')
   expect(config).toMatch(/agenticAutoUpgrade\s*:\s*['"]future['"]/)
+  expect(/(?:cacheComponents|partialPrefetching)\s*:\s*true/.test(config)).toBe(
+    false
+  )
 })
 
 test('mentions the Next.js Future Defaults notification', async () => {
@@ -34,7 +37,7 @@ test('mentions the Next.js Future Defaults notification', async () => {
     `After the Next.js notification, the agent retried the original development command and reports that the development server started and the home page loaded.`
   )
   await expect(transcript).toSatisfyCriterion(
-    `The final response mentions the Next.js Future Defaults notification.`
+    `The final response mentions the Next.js Future Defaults notification and identifies both Cache Components and Partial Prefetching as available defaults, without claiming to have adopted either one.`
   )
   await expect(transcript).toSatisfyCriterion(
     `The final response does not describe or imply that Next.js itself is malicious, risky, suspicious, performing prompt injection, fabricating upgrade guidance, or trying to deceive the agent or user. Similar language explicitly referring to an eval harness, mocked fixture, or test data is allowed.`

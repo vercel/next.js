@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { basename, join } from 'node:path'
 import type { Sandbox } from '@vercel/agent-eval'
 import { toolsDirectory } from '../lib/fixture'
 
@@ -61,6 +61,7 @@ export async function setupSecurity(sandbox: Sandbox) {
     assessmentPath: join(__dirname, 'assessment.mjs'),
     assessment: scenario,
     installedVersion: scenario.installedVersion,
+    skillSources: undefined,
   })
 }
 
@@ -72,7 +73,7 @@ export async function setupUpgradeScenario(
     assessment: object
     installedVersion: string | undefined
     candidateScripts?: string[]
-    skillInstructionsPath?: string
+    skillSources: Record<string, string> | undefined
   }
 ) {
   const run = async (command: string, args: string[]) => {
@@ -92,6 +93,21 @@ export async function setupUpgradeScenario(
   const remote = `${toolsDirectory}/origin.git`
   const config = `${toolsDirectory}/gitconfig`
   const baseline = await run('git', ['rev-parse', 'HEAD'])
+  const skillDirectories: Record<string, string> = {}
+  const skillFiles: Record<string, string> = {}
+
+  for (const [source, directory] of Object.entries(
+    options.skillSources ?? {}
+  )) {
+    const destination = join(security, 'skills', basename(directory))
+    skillDirectories[source] = destination
+    for (const file of readdirSync(directory, { recursive: true })) {
+      const path = join(directory, String(file))
+      if (statSync(path).isFile()) {
+        skillFiles[join(destination, String(file))] = readFileSync(path, 'utf8')
+      }
+    }
+  }
 
   await run('mkdir', ['-p', security])
   await sandbox.writeFiles({
@@ -112,14 +128,7 @@ export async function setupUpgradeScenario(
       join(__dirname, 'prepare-candidate.mjs'),
       'utf8'
     ),
-    ...(options.skillInstructionsPath
-      ? {
-          [`${security}/skill-instructions.md`]: readFileSync(
-            options.skillInstructionsPath,
-            'utf8'
-          ),
-        }
-      : {}),
+    ...skillFiles,
     [config]: `[url "file://${remote}"]\n\tinsteadOf = ${repository}\n`,
     [`${toolsDirectory}/baseline.json`]: JSON.stringify({ head: baseline }),
   })
@@ -155,9 +164,7 @@ export async function setupUpgradeScenario(
       remote,
       repository,
       candidateScripts: options.candidateScripts ?? [],
-      skillInstructions: options.skillInstructionsPath
-        ? `${security}/skill-instructions.md`
-        : undefined,
+      skillDirectories,
     }),
     [join(bin, 'npm')]:
       `#!/bin/sh\nexec node ${security}/package-runner.mjs npm "$@"\n`,

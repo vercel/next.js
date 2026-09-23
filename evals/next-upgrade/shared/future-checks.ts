@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test, vi } from 'vitest'
-import { environment } from '@vercel/agent-eval/eval'
+import { environment, transcript } from '@vercel/agent-eval/eval'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -38,6 +38,7 @@ export function futureChecks(options: FutureChecksOptions) {
     expect(manifest.dependencies.next).toBe(targetVersion)
     const config = readFileSync('next.config.js', 'utf8')
     expect(config).toMatch(/cacheComponents\s*:\s*true/)
+    expect(config).toMatch(/partialPrefetching\s*:\s*true/)
 
     const sourceFiles = git(
       'ls-files',
@@ -59,6 +60,11 @@ export function futureChecks(options: FutureChecksOptions) {
       /export\s+(?:const|var|let)\s+instant\s*=\s*false/
     )
     expect(source).not.toMatch(/TODO:\s*Cache Components adoption/)
+    expect(
+      /export\s+(?:const|var|let)\s+prefetch\s*=\s*['"](?:partial|force-disabled)['"]/.test(
+        source
+      )
+    ).toBe(false)
 
     cwd = process.cwd()
     server = spawn(npm, ['run', 'dev', '--', '--port', '0'], {
@@ -125,9 +131,21 @@ export function futureChecks(options: FutureChecksOptions) {
     expect(await product.text()).toContain('Field Notes')
   })
 
-  test('leaves meaningful Cache Components boundaries', async () => {
+  test('leaves meaningful Cache Components and Partial Prefetching boundaries', async () => {
     await expect(environment).toSatisfyCriterion(
-      `Cache Components is fully enabled with no temporary route opt-outs. The account page still reads its cookie at request time beneath meaningful Suspense or loading UI so values cannot leak between visitors. The dynamic product page resolves params below a meaningful Suspense boundary while preserving useful route-independent shell content.`
+      `Cache Components and Partial Prefetching are both fully enabled with no temporary route opt-outs. The account page still reads its cookie at request time beneath meaningful Suspense or loading UI so values cannot leak between visitors. The dynamic product page resolves params below a meaningful Suspense boundary while preserving a useful shared App Shell containing the Product heading. Product names and descriptions remain correct for the requested slug and may stream after the shell. The existing product and account links retain automatic prefetching; disabling their prefetches or replacing client navigation with full document navigation does not complete adoption.`
+    )
+  })
+
+  test('verifies Cache Components before adopting Partial Prefetching', async () => {
+    await expect(transcript).toSatisfyCriterion(
+      `The agent completed Cache Components adoption and obtained a passing production build with cacheComponents enabled before starting Partial Prefetching adoption. It then audited existing prefetch behavior and completed Partial Prefetching adoption. This storefront starts with automatic Links and no explicit full-prefetch preservation targets, so a new instant() test suite is not required. Enabling both flags together without first verifying Cache Components, or stopping after only Cache Components, does not satisfy this criterion.`
+    )
+  })
+
+  test('verifies both Future Defaults in production', async () => {
+    await expect(transcript).toSatisfyCriterion(
+      `After enabling both cacheComponents and partialPrefetching, the agent successfully built and started the production app and used a browser to navigate from the storefront to a product through its existing Link. It observed a meaningful shared Product shell and the correct product name and description, which may stream after the shell, and verified the account route still works. Successful production commands and observed client-navigation results are required. Merely enabling the flags, planning verification, fetching HTML, or checking only next dev does not satisfy this criterion.`
     )
   })
 }
