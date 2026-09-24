@@ -7,6 +7,7 @@ import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
   ACTION_HEADER,
   NEXT_ACTION_NOT_FOUND_HEADER,
+  NEXT_ACTION_DRAFT_MODE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -48,7 +49,10 @@ import {
   invalidateEntirePrefetchCache,
   segmentCacheMap,
 } from '../../segment-cache/cache'
-import { startRevalidationCooldown } from '../../segment-cache/scheduler'
+import {
+  setIsDraftMode,
+  startRevalidationCooldown,
+} from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../lib/constants'
@@ -172,6 +176,18 @@ async function fetchServerAction(
       }
     }
     throw err
+  }
+
+  // The action wrote the draft cookie. Update the scheduler from the headers,
+  // before the cache invalidation below reschedules visible links and before
+  // the body can fail to decode.
+  const draftMode = res.headers.get(NEXT_ACTION_DRAFT_MODE_HEADER)
+  if (draftMode !== null) {
+    if (draftMode !== '0' && draftMode !== '1') {
+      throw new Error('Invalid draft mode header in Server Action response.')
+    }
+    setIsDraftMode(draftMode === '1')
+    action.didRevalidate = true
   }
 
   // Handle server actions that the server didn't recognize.
@@ -560,6 +576,14 @@ export function serverActionReducer(
       )
     },
     (e: any) => {
+      if (action.didRevalidate) {
+        // The draft cookie can change even if decoding the action response
+        // fails. Invalidate its old cache entries and let the normal cooldown
+        // restart queued prefetches.
+        invalidateBfCache()
+        invalidateEntirePrefetchCache(nextUrl, state.tree)
+        startRevalidationCooldown()
+      }
       // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
       reject(e)
 

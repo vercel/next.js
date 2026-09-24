@@ -27,6 +27,7 @@ import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-a
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
+import { setIsDraftMode } from './components/segment-cache/scheduler'
 import type { ClientInstrumentationModules } from './router-transition-types'
 import { initializeRouterTransitionModules } from './components/router-transition'
 
@@ -374,6 +375,10 @@ export async function hydrate(
   }
 
   initializeRouterTransitionModules(instrumentationModules)
+
+  // The prefetch scheduler needs the draft-mode state before the first Link
+  // mounts/hydrates.
+  setIsDraftMode(initialRSCPayload.D)
 
   const initialTimestamp = Date.now()
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
