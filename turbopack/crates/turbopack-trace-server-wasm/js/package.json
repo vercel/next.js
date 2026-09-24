@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "napi build --target wasm32-wasip1-threads --release --manifest-path ../Cargo.toml --output-dir ."
+    "build-trace-wasm": "napi build --target wasm32-wasip1-threads --release --manifest-path ../Cargo.toml --output-dir ."
   },
   "napi": {
     "binaryName": "turbopack-trace-server-wasm",

@@ -694,13 +694,14 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: 22
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
         set -euo pipefail
         rustup target add wasm32-wasip1-threads
         cargo check -p turbopack-trace-server-wasm --target wasm32-wasip1-threads --locked
-        pnpm --filter @vercel/turbopack-trace-server-wasm build
+        pnpm --filter @vercel/turbopack-trace-server-wasm build-trace-wasm
         cargo test -p turbopack-trace-server
       stepName: 'test-turbopack-trace-server-wasm'
     secrets: inherit
