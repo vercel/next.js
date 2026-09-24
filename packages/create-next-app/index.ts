@@ -255,8 +255,13 @@ async function run(): Promise<void> {
       agentsMd: true,
     }
 
+    const recommendedDefaults = {
+      ...defaults,
+      agentFeedback: true,
+    }
+
     type DisplayConfigItem = {
-      key: keyof typeof defaults
+      key: keyof typeof defaults | 'agentFeedback'
       values?: Record<string, string>
       flags?: Record<string, string>
     }
@@ -301,6 +306,10 @@ async function run(): Promise<void> {
         key: 'agentsMd',
         values: { true: 'AGENTS.md', false: 'No AGENTS.md' },
         flags: { true: '--agents-md', false: '--no-agents-md' },
+      },
+      {
+        key: 'agentFeedback',
+        values: { true: 'Agent feedback', false: 'No agent feedback' },
       },
     ]
 
@@ -354,7 +363,7 @@ async function run(): Promise<void> {
         {
           title: 'Yes, use recommended defaults',
           value: 'recommended',
-          description: `${formatSettingsDescription(defaults)}, Agent feedback`,
+          description: formatSettingsDescription(recommendedDefaults),
         },
         {
           title: 'No, customize settings',
@@ -391,7 +400,7 @@ async function run(): Promise<void> {
 
       if (setupChoice === 'recommended') {
         useRecommendedDefaults = true
-        enableAgentFeedbackByDefault = true
+        enableAgentFeedbackByDefault = recommendedDefaults.agentFeedback
         skipPrompt = true
       } else if (setupChoice === 'reuse') {
         skipPrompt = true
