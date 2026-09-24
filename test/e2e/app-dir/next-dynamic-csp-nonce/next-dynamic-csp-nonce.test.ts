@@ -31,6 +31,21 @@ describe('next/dynamic with CSP nonce', () => {
     })
   })
 
+  it('should include nonce attribute on component convention chunk scripts', async () => {
+    const $ = await next.render$('/with-template')
+
+    const chunkScripts = $('script[src]').filter((_, element) => {
+      const src = $(element).attr('src')
+      return src ? /_next\/static\/(immutable\/)?chunks\//.test(src) : false
+    })
+
+    expect(chunkScripts.length).toBeGreaterThan(0)
+
+    chunkScripts.each((_, element) => {
+      expect($(element).attr('nonce')).toBe('test-nonce')
+    })
+  })
+
   it('should not generate CSP violations when using next/dynamic with nonce', async () => {
     const browser = await next.browser('/')
 
