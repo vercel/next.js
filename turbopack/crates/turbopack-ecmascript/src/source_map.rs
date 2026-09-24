@@ -27,7 +27,7 @@ impl GenerateSourceMap for InlineSourceMap {
     pub async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
         let source_map = maybe_decode_data_url(&self.source_map);
         if let Some(source_map) =
-            resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?
+            resolve_source_map_sources(source_map.as_ref(), &self.origin_path, None).await?
         {
             Ok(FileContent::Content(File::from(source_map)).cell())
         } else {
