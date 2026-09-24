@@ -76,7 +76,7 @@ function get(request) {{
   }}
   return loader();
 }}
-function init(shareScope, initScope, remoteEntryInitOptions) {{
+function init(shareScope, initScope = [], remoteEntryInitOptions) {{
   const keys = remoteEntryInitOptions?.shareScopeKeys || {default_scope};
   const scopeNames = Array.isArray(keys) ? keys : [keys];
   const pending = [];
