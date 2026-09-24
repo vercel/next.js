@@ -344,16 +344,24 @@ async fn build_dependency_requests_changed(
                 parsed_request,
                 options,
             );
-            match resolved.await {
+            let (resolved_source, error) = match resolved.await {
                 Ok(result) => {
-                    if let Some(resolved_source) = result.first_source() {
-                        resolved_source.ident().await?.path.clone()
-                    } else {
-                        request_path.clone()
-                    }
+                    assert!(result.primary_sources().count() <= 1);
+                    (result.first_source(), None)
                 }
-                Err(_) => request_path,
-            }
+                Err(error) => (None, Some(format!("{error:#}").into())),
+            };
+            let Some(resolved_source) = resolved_source else {
+                UnresolvedBuildDependencyIssue {
+                    source: IssueSource::from_source_only(source),
+                    request,
+                    error,
+                }
+                .resolved_cell()
+                .emit();
+                continue;
+            };
+            resolved_source.ident().await?.path.clone()
         };
         let entry_type = path.get_type().await?;
         let supported = match &*entry_type {
@@ -1196,11 +1204,58 @@ impl Issue for BuildDependencyIssue {
             StyledString::Text(rcstr!("The path at ")),
             StyledString::Code(self.path.to_string().into()),
             StyledString::Text(
-                " could not be resolved to an existing file or explicit directory build \
-                 dependency. Unsupported inputs may require restarting the development server."
+                " is not a supported file or explicit directory build dependency. Unsupported \
+                 inputs may require restarting the development server."
                     .into(),
             ),
         ])))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub struct UnresolvedBuildDependencyIssue {
+    pub request: RcStr,
+    pub error: Option<RcStr>,
+    pub source: IssueSource,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnresolvedBuildDependencyIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Unable to resolve webpack loader build dependency"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut description = vec![
+            StyledString::Text(rcstr!("The build dependency request ")),
+            StyledString::Code(self.request.clone()),
+            StyledString::Text(rcstr!(" could not be resolved to a file.")),
+        ];
+        if let Some(error) = &self.error {
+            description.push(StyledString::Text(
+                format!(" Resolver error: {error}").into(),
+            ));
+        }
+        Ok(Some(StyledString::Line(description)))
     }
 
     fn source(&self) -> Option<IssueSource> {
