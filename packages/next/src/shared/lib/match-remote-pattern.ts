@@ -22,7 +22,10 @@ export function matchRemotePattern(
       `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
     )
   } else {
-    if (!makeRe(pattern.hostname).test(url.hostname)) {
+    // Hostnames are case-insensitive (RFC 4343), and `url.hostname` is always
+    // lowercased by the URL parser, so match the pattern case-insensitively.
+    // Otherwise a pattern like `CDN.Example.com` would never match anything.
+    if (!makeRe(pattern.hostname, { nocase: true }).test(url.hostname)) {
       return false
     }
   }
@@ -47,7 +50,9 @@ export function hasRemoteMatch(
   url: URL
 ): boolean {
   return (
-    domains.some((domain) => url.hostname === domain) ||
+    // Hostnames are case-insensitive (RFC 4343); `url.hostname` is always
+    // lowercased by the URL parser.
+    domains.some((domain) => url.hostname === domain.toLowerCase()) ||
     remotePatterns.some((p) => matchRemotePattern(p, url))
   )
 }
