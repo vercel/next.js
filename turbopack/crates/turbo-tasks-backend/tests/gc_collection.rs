@@ -259,8 +259,9 @@ async fn dispose_root_task_releases_anchored_subgraph() {
     turbo_tasks::run_once(tt.clone(), async move { anyhow::Ok(()) })
         .await
         .unwrap();
-    // Two: the leaf, and the disposed root itself. The root is a transient task, and transient
-    // tasks are collectible, so releasing the last reference to the subgraph reclaims both.
+    // Two: the leaf, and the disposed root_task` itself. The `root_task` is a transient task, and
+    // transient tasks are collectible, so releasing the last reference to the subgraph reclaims
+    // both.
     assert_eq!(
         tt.backend()
             .snapshot_and_evict_for_testing(&tt)

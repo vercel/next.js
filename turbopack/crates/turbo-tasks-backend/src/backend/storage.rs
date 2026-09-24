@@ -544,21 +544,10 @@ impl Storage {
         Some(f(task.value()))
     }
 
-    /// The number of **persistent** (non-transient) tasks resident in the map. Use this to assert
-    /// GC returns to a flat baseline across re-rooting, without the noise of root/once tasks,
-    /// which are never collected.
+    /// The number of tasks resident in the map.
     #[doc(hidden)]
-    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
-        let mut persistent = 0;
-        for shard in self.map.shards() {
-            let shard = shard.read();
-            for (task_id, _) in shard.iter() {
-                if !task_id.is_transient() {
-                    persistent += 1;
-                }
-            }
-        }
-        persistent
+    pub fn resident_task_count_for_testing(&self) -> usize {
+        self.map.len()
     }
 
     /// The number of shards in the resident map. GC seeds one `ScanShard` job per index; the slice
