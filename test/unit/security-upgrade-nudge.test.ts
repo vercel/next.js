@@ -807,6 +807,53 @@ describe('human upgrade nudge', () => {
     }
   )
 
+  it('wraps only the actual prompt and preserves its action', async () => {
+    const events: string[] = []
+    jest.mocked(getUpgradeAssessment).mockImplementationOnce(async () => {
+      events.push('assessed')
+      return securityAssessment
+    })
+    jest.mocked(promptUpgrade).mockImplementationOnce(async () => {
+      events.push('prompted')
+      return 'update'
+    })
+    await expect(
+      nudgeUpgrade(
+        directory,
+        config('security'),
+        'dev',
+        new AbortController().signal,
+        async (show) => {
+          events.push('held')
+          try {
+            return await show()
+          } finally {
+            events.push('restored')
+          }
+        }
+      )
+    ).resolves.toBe('update')
+    // Assessment finishes before output is held; the wrapper preserves the choice.
+    expect(events).toEqual(['assessed', 'held', 'prompted', 'restored'])
+  })
+
+  it('does not enter the prompt runner when assessment finds no upgrade', async () => {
+    jest.mocked(getUpgradeAssessment).mockResolvedValueOnce({
+      ...securityAssessment,
+      affected: false,
+    })
+    const runner = jest.fn()
+    await nudgeUpgrade(
+      directory,
+      config('security'),
+      'dev',
+      new AbortController().signal,
+      runner
+    )
+    // No available upgrade means no prompt and no output-holding wrapper.
+    expect(runner).toHaveBeenCalledTimes(0)
+  })
+
   it('lets an explicit request bypass a saved dismissal', async () => {
     jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
     await run('security')
