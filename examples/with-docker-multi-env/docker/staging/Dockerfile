@@ -1,54 +1,73 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM node:20-alpine AS base
+# Stage 1: Install dependencies
+ARG NODE_VERSION=24.13.0-slim
 
-# 1. Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+FROM node:${NODE_VERSION} AS dependencies
 
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
-RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i; \
-  else echo "Lockfile not found." && exit 1; \
+
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/usr/local/share/.cache/yarn \
+    --mount=type=cache,target=/root/.local/share/pnpm/store \
+  if [ -f package-lock.json ]; then \
+    npm ci --no-audit --no-fund; \
+  elif [ -f yarn.lock ]; then \
+    corepack enable yarn && yarn install --frozen-lockfile --production=false; \
+  elif [ -f pnpm-lock.yaml ]; then \
+    corepack enable pnpm && pnpm install --frozen-lockfile; \
+  else \
+    echo "No lockfile found." && exit 1; \
   fi
 
+# Stage 2: Build the application
+FROM node:${NODE_VERSION} AS builder
 
-# 2. Rebuild the source code only when needed
-FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+
+COPY --from=dependencies /app/node_modules ./node_modules
+
 COPY . .
-# This will do the trick, use the corresponding env file for each environment.
-COPY .env.staging.sample .env.production
-RUN npm run build
 
-# 3. Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# Use the staging env file for this environment.
+COPY .env.staging.sample .env.production
 
 ENV NODE_ENV=production
 
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+RUN if [ -f package-lock.json ]; then \
+    npm run build; \
+  elif [ -f yarn.lock ]; then \
+    corepack enable yarn && yarn build; \
+  elif [ -f pnpm-lock.yaml ]; then \
+    corepack enable pnpm && pnpm build; \
+  else \
+    echo "No lockfile found." && exit 1; \
+  fi
 
-COPY --from=builder /app/public ./public
+# Stage 3: Run the application
+FROM node:${NODE_VERSION} AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+COPY --from=builder --chown=node:node /app/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown node:node .next
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-
-USER nextjs
+USER node
 
 EXPOSE 3000
 
-ENV PORT=3000
-
-CMD HOSTNAME="0.0.0.0" node server.js
+CMD ["node", "server.js"]
