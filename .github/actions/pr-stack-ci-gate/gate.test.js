@@ -553,7 +553,27 @@ test('workflow keeps expensive work gated, forks isolated and action pinned to t
     expect(block).not.toBeNull()
     expect(block[0]).toContain("needs: ['optimize-ci']")
   }
-  expect(build).toContain('pnpm --dir .github/actions/pr-stack-ci-gate test')
+  const lint = build.match(
+    /^  lint:\n([\s\S]*?)(?=^  validate-docs-links:)/m
+  )?.[1]
+  expect(lint).toBeDefined()
+  const commands = [
+    'pnpm lint-no-typescript',
+    'pnpm check-examples',
+    'pnpm validate-externals-doc',
+    'pnpm generate-browser-variant-aliases',
+    'pnpm --dir .github/actions/pr-stack-ci-gate install',
+    'pnpm --dir .github/actions/pr-stack-ci-gate types',
+    'pnpm --dir .github/actions/pr-stack-ci-gate build',
+    'pnpm --dir .github/actions/pr-stack-ci-gate test',
+    'git diff --exit-code',
+  ]
+  let previous = -1
+  for (const command of commands) {
+    const position = lint.indexOf(`        ${command}`)
+    expect(position).toBeGreaterThan(previous)
+    previous = position
+  }
   expect(build).not.toContain('node --test .github/actions/pr-stack-ci-gate')
   expect(build).toContain("needs: ['optimize-ci', 'changes', 'build-next'")
 })

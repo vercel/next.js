@@ -249,10 +249,6 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
-        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
-        pnpm --dir .github/actions/pr-stack-ci-gate types
-        pnpm --dir .github/actions/pr-stack-ci-gate build
-        pnpm --dir .github/actions/pr-stack-ci-gate test
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
@@ -260,6 +256,10 @@ jobs:
         # `*.browser.{ts,tsx}` sibling was added/removed without running
         # `pnpm generate-browser-variant-aliases` and committing the result.
         pnpm generate-browser-variant-aliases
+        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
+        pnpm --dir .github/actions/pr-stack-ci-gate types
+        pnpm --dir .github/actions/pr-stack-ci-gate build
+        pnpm --dir .github/actions/pr-stack-ci-gate test
         git diff --exit-code
       stepName: 'lint'
     secrets: inherit
