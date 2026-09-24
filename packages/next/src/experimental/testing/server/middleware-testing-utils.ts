@@ -6,24 +6,30 @@ import { parseUrl } from '../../../lib/url'
 import { constructRequest } from './utils'
 import type { MiddlewareConfigMatcherInput } from '../../../build/segment-config/middleware/middleware-config'
 
-export interface MiddlewareSourceConfig {
+export interface ProxySourceConfig {
   matcher?: MiddlewareConfigMatcherInput
 }
 
 /**
- * Checks whether the middleware config will match the provide URL and request
+ * @deprecated Use `ProxySourceConfig` instead. Middleware has been renamed to
+ * Proxy.
+ */
+export type MiddlewareSourceConfig = ProxySourceConfig
+
+/**
+ * Checks whether the proxy config will match the provided URL and request
  * information such as headers and cookies. This function is useful for
- * unit tests to assert that middleware is matching (and therefore executing)
+ * unit tests to assert that proxy is matching (and therefore executing)
  * only when it should be.
  */
-export function unstable_doesMiddlewareMatch({
+export function unstable_doesProxyMatch({
   config,
   url,
   headers,
   cookies,
   nextConfig,
 }: {
-  config: MiddlewareSourceConfig
+  config: ProxySourceConfig
   url: string
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
@@ -38,3 +44,9 @@ export function unstable_doesMiddlewareMatch({
   const request = constructRequest({ url, headers, cookies })
   return routeMatchFn(pathname, request, Object.fromEntries(searchParams))
 }
+
+/**
+ * @deprecated Use `unstable_doesProxyMatch` instead. Middleware has been
+ * renamed to Proxy.
+ */
+export const unstable_doesMiddlewareMatch = unstable_doesProxyMatch
