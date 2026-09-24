@@ -12,15 +12,10 @@ const baseEnv = {
 // cssChunking: "graph", is Turbopack-only, so we use this as to verify whether
 // typegen is selecting the right bundler
 describe('typegen bundler env', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('defaults to Turbopack, accepting Turbopack-only config', async () => {
     const { code } = await runNextCommand(['typegen', next.testDir], {

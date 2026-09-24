@@ -4,7 +4,6 @@ describe('resolve-alias-false', () => {
   const isTurbopack = Boolean(process.env.IS_TURBOPACK_TEST)
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   describe('ESM static imports', () => {

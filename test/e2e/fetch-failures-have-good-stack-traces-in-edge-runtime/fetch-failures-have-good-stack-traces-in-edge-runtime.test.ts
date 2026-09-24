@@ -3,15 +3,10 @@ import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('fetch failures have good stack traces in edge runtime', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
     // don't have access to runtime logs on deploy
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: Failure is not specific to Turbopack, edge runtime errors don't have source maps applied.
   ;(process.env.IS_TURBOPACK_TEST && isNextStart ? it.skip : it)(
