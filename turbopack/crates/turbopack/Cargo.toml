@@ -21,9 +21,11 @@ rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+semver = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }

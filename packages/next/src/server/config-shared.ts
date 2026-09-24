@@ -354,6 +354,12 @@ export interface TurbopackModuleFederationOptions {
   shareScope?: string
   /** Remote transport. Only `script` is currently supported. */
   remoteType?: 'script'
+  /** Load shared providers before selection, or prefer an already-loaded provider. */
+  shareStrategy?: 'version-first' | 'loaded-first'
+  /** Browser runtime plugins, loaded in declaration order from the app root. */
+  runtimePlugins?: Array<string | [string, unknown]>
+  /** Package supplying the enhanced runtime-tools entrypoints. */
+  implementation?: string
 }
 
 export interface WebpackConfigContext {
