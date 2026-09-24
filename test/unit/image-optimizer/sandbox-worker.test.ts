@@ -79,6 +79,79 @@ describe('SandboxedImageOptimizerWorker', () => {
     worker = undefined
   })
 
+  it('shares shutdown listeners and removes them when workers close', async () => {
+    const listenerCounts = () => [
+      process.listeners('SIGINT').length,
+      process.listeners('SIGTERM').length,
+      process.listeners('exit').length,
+    ]
+    const counts = listenerCounts()
+    worker = createWorker()
+    const second = createWorker()
+    try {
+      expect(listenerCounts()).toEqual(counts.map((count) => count + 1))
+      await worker.close()
+      expect(listenerCounts()).toEqual(counts.map((count) => count + 1))
+    } finally {
+      await second.close()
+    }
+    expect(listenerCounts()).toEqual(counts)
+  })
+
+  it.each(['SIGINT', 'SIGTERM'])(
+    'preserves default %s termination without other signal handlers',
+    async (signal) => {
+      await expect(
+        execFileAsync(
+          process.execPath,
+          [join(__dirname, 'fixtures', 'sandbox-worker-signal.js'), signal],
+          { timeout: 5000 }
+        )
+      ).rejects.toMatchObject({ signal })
+    }
+  )
+
+  it('does not launch a worker when shutdown interrupts initialization', async () => {
+    const listeners = process.listeners('SIGTERM')
+    const serverHandler = () => {}
+    process.on('SIGTERM', serverHandler)
+    let finishStartup!: () => void
+    const startup = new Promise<void>((resolve) => {
+      finishStartup = resolve
+    })
+    const wrapWithSandboxArgv = jest.fn(fakeSandboxManager.wrapWithSandboxArgv)
+    worker = createWorker({
+      sandboxManager: {
+        ...fakeSandboxManager,
+        initialize: () => startup,
+        wrapWithSandboxArgv,
+      } as never,
+    })
+    const operationPromise = worker
+      .runOperation(operation('/echo'))
+      .catch((error) => error)
+    try {
+      // Invoke only the worker's listener, without delivering a signal to Jest.
+      const handler = process
+        .listeners('SIGTERM')
+        .find(
+          (listener) =>
+            !listeners.includes(listener) && listener !== serverHandler
+        )!
+      handler('SIGTERM')
+      finishStartup()
+      expect(await operationPromise).toMatchObject({
+        message: 'Image optimizer worker is closed',
+      })
+      await expect(worker.runOperation(operation('/echo'))).rejects.toThrow(
+        'closed'
+      )
+    } finally {
+      finishStartup()
+      process.removeListener('SIGTERM', serverHandler)
+    }
+  })
+
   it('denies reads by default with explicit runtime exceptions', () => {
     const config = getImageOptimizerSandboxConfig()
     expect(config.filesystem.denyRead).toEqual(['/'])
@@ -385,7 +458,7 @@ describe('SandboxedImageOptimizerWorker', () => {
       finishStartup = resolve
     })
     worker = createWorker({
-      requestTimeoutMs: 100,
+      requestTimeoutMs: 500,
       sandboxManager: {
         ...fakeSandboxManager,
         initialize: () => initialize,
