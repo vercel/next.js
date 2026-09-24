@@ -10,6 +10,11 @@ const nextConfig = {
           `missingCatalog@${process.env.MF_REMOTE_ORIGIN}/missing/remoteEntry.js`,
           `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
         ],
+        factoryErrorCatalog: [
+          `factoryErrorCatalog@${process.env.MF_REMOTE_ORIGIN}/factory-error/remoteEntry.js`,
+          `factoryFallbackCatalog@${process.env.MF_REMOTE_ORIGIN}/factory-fallback/remoteEntry.js`,
+        ],
+        __turbopack_remote_2_1_factoryFallbackCatalog: `factoryErrorCatalog@${process.env.MF_REMOTE_ORIGIN}/factory-error/remoteEntry.js`,
         workerCatalog: {
           external: `workerCatalog@${process.env.MF_REMOTE_ORIGIN}/worker/remoteEntry.js`,
           shareScope: 'worker',

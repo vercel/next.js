@@ -633,9 +633,12 @@ impl ModuleFederationConfig {
         bail!("Module Federation requires a name or a non-empty app package.json name");
     }
 
-    pub async fn validate_runtime(&self, project_path: &FileSystemPath) -> Result<()> {
+    pub async fn runtime_request(
+        &self,
+        project_path: &FileSystemPath,
+    ) -> Result<(RcStr, Option<FileSystemPath>)> {
         if !self.is_enabled() {
-            return Ok(());
+            return Ok(("@module-federation/runtime-tools/runtime".into(), None));
         }
         self.host_name(project_path).await?;
         if let Some(implementation) = &self.implementation {
@@ -668,7 +671,20 @@ impl ModuleFederationConfig {
                      and ./webpack-bundler-runtime"
                 );
             }
-            return Ok(());
+            if implementation.starts_with("./") {
+                let Some(name) = package
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|name| !name.trim().is_empty())
+                else {
+                    bail!(
+                        "Module Federation implementation '{implementation}' must have a \
+                         non-empty package.json name to resolve its exports"
+                    );
+                };
+                return Ok((format!("{name}/runtime").into(), Some(path)));
+            }
+            return Ok((format!("{implementation}/runtime").into(), None));
         }
         let missing_peer = "Module Federation requires @module-federation/runtime-tools@^2.9.0 in \
                             the project. Install it or provide an implementation override";
@@ -695,7 +711,7 @@ impl ModuleFederationConfig {
                  project. Install a compatible version or provide an implementation override"
             );
         }
-        Ok(())
+        Ok(("@module-federation/runtime-tools/runtime".into(), None))
     }
 
     pub fn validate(&self) -> Result<()> {

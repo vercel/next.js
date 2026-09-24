@@ -11,7 +11,20 @@ async function buildRemote(
   context: string,
   outputPath: string,
   remoteOrigin: string,
-  worker = false
+  {
+    worker = false,
+    name = worker ? 'workerCatalog' : 'catalog',
+    publicPath = worker ? 'worker' : 'browser',
+    exposes = {
+      './component': './component.js',
+      './message': './message.js',
+    },
+  }: {
+    worker?: boolean
+    name?: string
+    publicPath?: string
+    exposes?: Record<string, string>
+  } = {}
 ) {
   await new Promise<void>((resolve, reject) => {
     webpack(
@@ -22,19 +35,16 @@ async function buildRemote(
         entry: {},
         output: {
           path: outputPath,
-          publicPath: `${remoteOrigin}/${worker ? 'worker' : 'browser'}/`,
-          uniqueName: worker ? 'webpack-worker-catalog' : 'webpack-catalog',
+          publicPath: `${remoteOrigin}/${publicPath}/`,
+          uniqueName: worker ? 'webpack-worker-catalog' : `webpack-${name}`,
           chunkLoading: worker ? 'import-scripts' : 'jsonp',
           globalObject: 'globalThis',
         },
         plugins: [
           new webpack.container.ModuleFederationPlugin({
-            name: worker ? 'workerCatalog' : 'catalog',
+            name,
             filename: 'remoteEntry.js',
-            exposes: {
-              './component': './component.js',
-              './message': './message.js',
-            },
+            exposes,
             shared: worker
               ? {}
               : {
@@ -113,7 +123,35 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
       remoteContext,
       join(remoteOutput, 'worker'),
       remoteOrigin,
-      true
+      { worker: true }
+    )
+    await buildRemote(
+      remoteContext,
+      join(remoteOutput, 'factory-error'),
+      remoteOrigin,
+      {
+        name: 'factoryErrorCatalog',
+        publicPath: 'factory-error',
+        exposes: {
+          './message': './factory-error.js',
+          './async-message': './factory-async-message.js',
+          './primary-only': './factory-primary-only.js',
+        },
+      }
+    )
+    await buildRemote(
+      remoteContext,
+      join(remoteOutput, 'factory-fallback'),
+      remoteOrigin,
+      {
+        name: 'factoryFallbackCatalog',
+        publicPath: 'factory-fallback',
+        exposes: {
+          './message': './factory-fallback.js',
+          './async-message': './factory-fallback-async-message.js',
+          './fallback-only': './factory-fallback-only.js',
+        },
+      }
     )
     remoteServer = await startStaticServer(remoteOutput, undefined, remotePort)
     process.env.MF_REMOTE_ORIGIN = remoteOrigin
@@ -255,6 +293,46 @@ export { remoteShared }
       expect(next.cliOutput).toContain(
         'External script loading is only supported in browser client code'
       )
+    })
+  })
+
+  it('propagates remote factory errors without loading a fallback factory', async () => {
+    const browser = await next.browser('/factories')
+    await retry(async () => {
+      expect(await browser.eval(`globalThis.__factoryErrorResult`)).toEqual({
+        error: 'factory error from webpack remote',
+        fallbackCalls: 0,
+      })
+    })
+  })
+
+  it('awaits an asynchronous remote factory result', async () => {
+    const browser = await next.browser('/factories')
+    await retry(async () => {
+      expect(await browser.eval(`globalThis.__factoryAsyncResult`)).toBe(
+        'async factory from webpack remote'
+      )
+    })
+  })
+
+  it('returns to the primary remote after loading a fallback-only module', async () => {
+    const browser = await next.browser('/factories')
+    await retry(async () => {
+      expect(
+        await browser.eval(`globalThis.__factoryFallbackOrderResult`)
+      ).toEqual({
+        fallback: 'fallback-only from webpack remote',
+        primary: 'primary-only from webpack remote',
+      })
+    })
+  })
+
+  it('loads a remote whose name matches the private candidate prefix', async () => {
+    const browser = await next.browser('/factories')
+    await retry(async () => {
+      expect(
+        await browser.eval(`globalThis.__factoryPrefixCollisionResult`)
+      ).toBe('primary-only from webpack remote')
     })
   })
 })

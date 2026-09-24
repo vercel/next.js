@@ -61,29 +61,31 @@ describeTurbopack('enhanced federation runtime configuration', () => {
 // per-test setting. The default-peer case above still runs in deployment mode.
 const describeOverride = !isNextDeploy ? describeTurbopack : describe.skip
 
-describeOverride('enhanced federation runtime implementation override', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    packageJson: { name: 'override-federation-host' },
-    dependencies: {
-      'custom-runtime': 'npm:@module-federation/runtime-tools@2.9.0',
-    },
-    skipStart: true,
-    skipDeployment: true,
-  })
+describeOverride.each(['custom-runtime', './relative-runtime'])(
+  'enhanced federation runtime implementation override: %s',
+  (implementation) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      packageJson: { name: 'override-federation-host' },
+      dependencies: {
+        'custom-runtime': 'npm:@module-federation/runtime-tools@2.9.0',
+      },
+      skipStart: true,
+      skipDeployment: true,
+    })
 
-  beforeAll(async () => {
-    process.env.MF_RUNTIME_OVERRIDE = 'custom-runtime'
-    await next.start()
-  })
+    beforeAll(async () => {
+      process.env.MF_RUNTIME_OVERRIDE = implementation
+      await next.start()
+    })
 
-  afterAll(() => {
-    delete process.env.MF_RUNTIME_OVERRIDE
-  })
+    afterAll(() => {
+      delete process.env.MF_RUNTIME_OVERRIDE
+    })
 
-  it('uses the project implementation and loaded-first sharing', async () => {
-    const browser = await next.browser('/')
-    const result = await browser.eval(`(async () => {
+    it('uses the project implementation and loaded-first sharing', async () => {
+      const browser = await next.browser('/')
+      const result = await browser.eval(`(async () => {
       const instance = globalThis.__FEDERATION__?.__INSTANCES__?.find((item) => item.name === 'override-federation-host');
       if (!instance) return { error: 'missing instance' };
       const first = await instance.loadShare('local-value');
@@ -101,14 +103,15 @@ describeOverride('enhanced federation runtime implementation override', () => {
         second: second().value
       };
     })()`)
-    expect(result).toEqual({
-      name: 'override-federation-host',
-      strategy: 'loaded-first',
-      first: 'locally loaded provider',
-      second: 'locally loaded provider',
+      expect(result).toEqual({
+        name: 'override-federation-host',
+        strategy: 'loaded-first',
+        first: 'locally loaded provider',
+        second: 'locally loaded provider',
+      })
     })
-  })
-})
+  }
+)
 
 // A missing optional peer is an intentionally invalid self-hosted installation and cannot
 // produce a deployable fixture. The positive case above still exercises deployed builds.
@@ -132,3 +135,27 @@ describeMissingPeer('enhanced federation runtime missing peer', () => {
     })
   })
 })
+
+describeMissingPeer(
+  'enhanced federation runtime relative package validation',
+  () => {
+    const { next, isNextDev } = nextTestSetup({
+      files: __dirname,
+      packageJson: { name: 'inferred-federation-host' },
+      skipStart: true,
+      skipDeployment: true,
+    })
+
+    it('requires a package name for a relative implementation directory', async () => {
+      process.env.MF_RUNTIME_OVERRIDE = './relative-runtime-missing-name'
+      await next.start().catch(() => undefined)
+      if (isNextDev) await next.render('/').catch(() => undefined)
+      delete process.env.MF_RUNTIME_OVERRIDE
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          "Module Federation implementation './relative-runtime-missing-name' must have a non-empty package.json name"
+        )
+      })
+    })
+  }
+)

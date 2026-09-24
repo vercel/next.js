@@ -20,28 +20,43 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::module_federation::{
     config::{ModuleFederationConfig, ModuleFederationRemote},
-    runtime::{FEDERATION_RUNTIME_REQUEST, module_federation_runtime_source},
+    runtime::{
+        FEDERATION_IMPLEMENTATION_REQUEST, FEDERATION_RUNTIME_REQUEST,
+        module_federation_runtime_source,
+    },
     shared::apply_shared_import_map,
 };
 
 async fn module_federation_remote_init_source(
     project_path: FileSystemPath,
     remote: &ModuleFederationRemote,
+    remote_index: usize,
+    remote_prefix: &str,
 ) -> Result<ResolvedVc<Box<dyn Source>>> {
     let candidates = remote
         .external
         .iter()
-        .map(|external| (&*external.global, &*external.url))
+        .enumerate()
+        .map(|(candidate_index, external)| {
+            let candidate_name = if candidate_index == 0 {
+                remote.request.to_string()
+            } else {
+                format!(
+                    "{remote_prefix}{remote_index}_{candidate_index}_{}",
+                    external.global
+                )
+            };
+            (candidate_name, &*external.global, &*external.url)
+        })
         .collect::<Vec<_>>();
     let code = format!(
         r#"
 const candidates = {candidates};
-const remoteName = {remote_name};
 const shareScope = {share_scope};
 
 async function getInstance() {{
   if (typeof window === 'undefined' && typeof importScripts === 'undefined') {{
-    throw new Error(`External script loading is only supported in browser client code: ${{candidates[0]?.[1]}}`);
+    throw new Error(`External script loading is only supported in browser client code: ${{candidates[0]?.[2]}}`);
   }}
   return (await import({runtime_request})).instance;
 }}
@@ -60,16 +75,16 @@ export async function get(request, fullRequest) {{
     throw new Error(`Failed to load federated module ${{fullRequest}}: ${{error?.message || error}}`);
   }}
   const failures = [];
-  const id = `${{remoteName}}${{request === '.' ? '' : '/' + request.replace(/^\.\//, '')}}`;
   for (let index = 0; index < candidates.length; index++) {{
-    const [entryGlobalName, entry] = candidates[index];
-    if (index) {{
-      instance.registerRemotes([{{name: remoteName, entry, entryGlobalName, type: 'var', shareScope}}], {{force: true}});
-    }}
+    const [candidateName, entryGlobalName, entry] = candidates[index];
     try {{
-      const namespace = await instance.loadRemote(id);
-      if (namespace == null) throw new Error(`Remote ${{remoteName}} returned no module for ${{request}}`);
-      return () => namespace;
+      if (index) {{
+        instance.registerRemotes([{{name: candidateName, entry, entryGlobalName, type: 'var', shareScope}}]);
+      }}
+      const candidateId = `${{candidateName}}${{request === '.' ? '' : '/' + request.replace(/^\.\//, '')}}`;
+      const factory = await instance.loadRemote(candidateId, {{loadFactory: false}});
+      if (typeof factory !== 'function') throw new Error(`Remote ${{candidateName}} returned no factory for ${{request}}`);
+      return factory;
     }} catch (error) {{
       failures.push(error);
     }}
@@ -81,7 +96,6 @@ export async function get(request, fullRequest) {{
 }}
 "#,
         candidates = StringifyJs(&candidates),
-        remote_name = StringifyJs(&remote.request),
         share_scope = StringifyJs(&remote.share_scope),
         runtime_request = StringifyJs(FEDERATION_RUNTIME_REQUEST),
     );
@@ -106,17 +120,41 @@ pub async fn apply_module_federation_import_map(
     if !config.is_enabled() {
         return Ok(());
     }
-    let runtime_source = module_federation_runtime_source(project_path.clone(), config).await?;
+    let (runtime_request, lookup_path) = config.runtime_request(&project_path).await?;
+    let runtime_import = if let Some(lookup_path) = lookup_path {
+        import_map.insert_exact_alias(
+            FEDERATION_IMPLEMENTATION_REQUEST,
+            ImportMapping::PrimaryAlternative(runtime_request, Some(lookup_path)).resolved_cell(),
+        );
+        FEDERATION_IMPLEMENTATION_REQUEST.into()
+    } else {
+        runtime_request
+    };
+    let runtime_source =
+        module_federation_runtime_source(project_path.clone(), config, &runtime_import).await?;
     import_map.insert_exact_alias(
         FEDERATION_RUNTIME_REQUEST,
         ImportMapping::Direct(ResolveResult::source(runtime_source).resolved_cell())
             .resolved_cell(),
     );
+    let mut remote_prefix = "__turbopack_remote_".to_string();
+    while config
+        .remotes
+        .iter()
+        .any(|remote| remote.request.starts_with(&remote_prefix))
+    {
+        remote_prefix.push('_');
+    }
     for (index, remote) in config.remotes.iter().enumerate() {
         let init_request: RcStr =
             format!("__turbopack_module_federation_remote_init__/{index}").into();
-        let init_source =
-            module_federation_remote_init_source(project_path.clone(), remote).await?;
+        let init_source = module_federation_remote_init_source(
+            project_path.clone(),
+            remote,
+            index,
+            &remote_prefix,
+        )
+        .await?;
         import_map.insert_exact_alias(
             init_request.clone(),
             ImportMapping::Direct(ResolveResult::source(init_source).resolved_cell())
@@ -174,7 +212,7 @@ impl ImportMappingReplacement for ModuleFederationRemoteReplacer {
             r#"
 const {{ get }} = await import({init_request});
 const factory = await get({exposed_request_json}, {full_request});
-const federatedModule = factory();
+const federatedModule = await factory();
 __turbopack_export_namespace__(federatedModule);
 "#,
             init_request = StringifyJs(&this.init_request),
