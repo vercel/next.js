@@ -44,3 +44,8 @@ unchanged so the eval can attribute acknowledgment to the runtime notice. Featur
 PRs own browser setup, repository remotes, advisory responses, codemod routing,
 grading, and reference or negative controls. Keep graders and reference solutions
 withheld, and retain sandbox or authentication failures as failures.
+
+## CI setup template
+
+See [Verify upgrade CI setup](./ci-setup.md) for workflow syntax validation,
+agent onboarding rehearsal, and the private GitHub repository trial.

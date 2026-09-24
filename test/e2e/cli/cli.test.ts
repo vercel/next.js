@@ -426,6 +426,81 @@ describe('CLI Usage', () => {
     })
   })
 
+  describe('upgrade CI setup', () => {
+    it.each([
+      ['--ci', undefined],
+      ['--experimental-ci', undefined],
+      ['--ci', 'security'],
+      ['--experimental-ci', 'security'],
+    ])(
+      '%s %s hands off the bundled guide without running an upgrade',
+      async (flag, policy) => {
+        const args = ['upgrade', flag]
+        if (policy) {
+          args.push(policy)
+        }
+        const output = await next.runCommand(args, {
+          env: {
+            NODE_OPTIONS: '--require ./upgrade-environment.cjs',
+            NODE_ENV: policy ? 'development' : '',
+            NEXT_RUNTIME: policy ? 'edge' : '',
+          },
+        })
+
+        expect(output.code).toBe(0)
+        expect(output.stdout).toContain(
+          `UPGRADE_ENVIRONMENT=${JSON.stringify({
+            NODE_ENV: policy ? 'development' : null,
+            NEXT_RUNTIME: policy ? 'edge' : null,
+          })}`
+        )
+        expect(output.stdout).toContain(
+          'Set up automated Next.js upgrades in GitHub Actions'
+        )
+        expect(output.stdout).toContain(
+          policy
+            ? 'Use the "security" upgrade policy.'
+            : 'Preserve the configured upgrade policy'
+        )
+        const match = output.stdout.match(
+          /instruction in ("[^\n]+") before proceeding\./
+        )
+        expect(match).toBeTruthy()
+        const guidePath = JSON.parse(match![1])
+        try {
+          const guide = await fs.readFile(guidePath, 'utf8')
+          expect(guide).toContain('## Install')
+          expect(guide).toContain('NEXT_UPGRADE_OPENAI_API_KEY')
+          expect(guide).toContain('## Workflow template')
+        } finally {
+          await fs.rm(path.dirname(guidePath), { recursive: true, force: true })
+        }
+      }
+    )
+
+    it.each(['--ci=', '--experimental-ci='])(
+      'rejects an empty policy in %s instead of starting a regular upgrade',
+      async (flag) => {
+        const output = await next.runCommand(['upgrade', flag])
+
+        expect(output.code).toBe(1)
+        expect(output.stderr).toContain('Unsupported CI upgrade type ""')
+      }
+    )
+
+    it.each([
+      ['--ci', '--ai'],
+      ['--experimental-ci', '--experimental-ai'],
+      ['--ci', '--revision', 'latest'],
+      ['--experimental-ci', '--revision', 'latest'],
+    ])('rejects conflicting setup options: %s %s', async (...args) => {
+      const output = await next.runCommand(['upgrade', ...args])
+
+      expect(output.code).toBe(1)
+      expect(output.stderr).toContain('cannot be used with option')
+    })
+  })
+
   describe('no command', () => {
     test('--help', async () => {
       const help = await next.runCommand(['--help'])

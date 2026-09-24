@@ -99,7 +99,10 @@ function normalizedWriteFileCalls() {
   )
 }
 
-function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
+function overrideTTY(
+  target: NodeJS.ReadStream | NodeJS.WriteStream,
+  isTTY = true
+): void {
   const descriptor = Object.getOwnPropertyDescriptor(target, 'isTTY')
   restoreDescriptors.push(() => {
     if (descriptor) {
@@ -110,7 +113,7 @@ function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
   })
   Object.defineProperty(target, 'isTTY', {
     configurable: true,
-    value: true,
+    value: isTTY,
   })
 }
 
@@ -195,6 +198,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'security',
+      setupCi: undefined,
     })
 
     expect(global.fetch).toHaveBeenCalledTimes(0)
@@ -211,6 +215,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'security',
+      setupCi: undefined,
     })
 
     expect(Log.error).toHaveBeenCalledWith(
@@ -245,6 +250,7 @@ describe('agentic upgrade prompts', () => {
         revision: 'latest',
         verbose: false,
         ai: 'security',
+        setupCi: undefined,
       })
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
@@ -278,6 +284,7 @@ describe('agentic upgrade prompts', () => {
         revision: 'latest',
         verbose: true,
         ai,
+        setupCi: undefined,
       })
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
@@ -326,6 +333,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'security',
+      setupCi: undefined,
     })
 
     expect(Log.error).toHaveBeenCalledWith(
@@ -436,6 +444,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'security',
+      setupCi: undefined,
     })
 
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
@@ -463,11 +472,124 @@ describe('agentic upgrade prompts', () => {
     `)
   })
 
+  it('hands off CI setup without assessing or upgrading the app', async () => {
+    delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: undefined,
+      setupCi: true,
+    })
+
+    expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+    expect(loadConfig).toHaveBeenCalledTimes(0)
+    expect(findDir).toHaveBeenCalledTimes(0)
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(cp).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /[/\\]docs[/\\]01-app[/\\]02-guides[/\\]upgrading[/\\]agentic-upgrade-ci\.md$/
+      ),
+      expect.stringMatching(
+        /[/\\]next-upgrade-test[/\\]agentic-upgrade-ci\.md$/
+      )
+    )
+    expect(normalizedBootstrapCalls()).toEqual([
+      [
+        'Read and follow every applicable instruction in "/tmp/next-upgrade-test/agentic-upgrade-ci.md" before proceeding.\n\n' +
+          'Set up automated Next.js upgrades in GitHub Actions for the app in "/workspace/app".\n' +
+          'Preserve the configured upgrade policy, or propose security if none is configured.',
+      ],
+    ])
+  })
+
+  it.each(['security', 'latest', 'future'])(
+    'includes an explicit %s policy in the CI setup handoff',
+    async (policy) => {
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: undefined,
+        setupCi: policy,
+      })
+
+      expect(Log.bootstrap).toHaveBeenCalledWith(
+        expect.stringContaining(`Use the "${policy}" upgrade policy.`)
+      )
+      expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it('prints the CI setup handoff without a terminal or current agent', async () => {
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    overrideTTY(process.stdin, false)
+    overrideTTY(process.stdout, false)
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: undefined,
+      setupCi: true,
+    })
+
+    expect(Log.bootstrap).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Set up automated Next.js upgrades in GitHub Actions'
+      )
+    )
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+  })
+
+  it.each(['invalid', ''])(
+    'rejects CI setup policy %j before preparing the guide',
+    async (policy) => {
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: undefined,
+        setupCi: policy,
+      })
+
+      expect(process.exitCode).toBe(1)
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare CI setup:',
+        `Unsupported CI upgrade type ${JSON.stringify(policy)}. Expected "security", "latest", or "future".`
+      )
+      expect(mkdtemp).toHaveBeenCalledTimes(0)
+      expect(Log.bootstrap).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it('reports a missing setup guide and cleans up its temporary directory', async () => {
+    jest.mocked(cp).mockRejectedValue(new Error('Setup guide not found'))
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: undefined,
+      setupCi: true,
+    })
+
+    expect(process.exitCode).toBe(1)
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare CI setup:',
+      'Setup guide not found'
+    )
+    expect(rm).toHaveBeenCalledWith('/tmp/next-upgrade-test', {
+      recursive: true,
+      force: true,
+    })
+    expect(Log.bootstrap).toHaveBeenCalledTimes(0)
+  })
+
   it('renders verbose codemod instructions in the guide', async () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
       verbose: true,
       ai: 'security',
+      setupCi: undefined,
     })
 
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
@@ -482,6 +604,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: true,
+      setupCi: undefined,
     })
 
     expect(loadConfig).toHaveBeenCalledWith(
@@ -503,6 +626,7 @@ describe('agentic upgrade prompts', () => {
         revision: 'latest',
         verbose: false,
         ai: true,
+        setupCi: undefined,
       })
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
@@ -527,6 +651,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'latest',
+      setupCi: undefined,
     })
 
     expect(loadConfig).not.toHaveBeenCalled()
@@ -562,6 +687,7 @@ describe('agentic upgrade prompts', () => {
         revision: 'latest',
         verbose: false,
         ai: policy,
+        setupCi: undefined,
       })
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
@@ -623,6 +749,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'future',
+      setupCi: undefined,
     })
 
     expect(crossSpawn).toHaveBeenCalledTimes(1)
@@ -709,6 +836,7 @@ describe('agentic upgrade prompts', () => {
       revision: 'latest',
       verbose: false,
       ai: 'future',
+      setupCi: undefined,
     })
 
     expect(
