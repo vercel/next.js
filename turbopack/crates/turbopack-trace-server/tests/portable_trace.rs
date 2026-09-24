@@ -1,9 +1,9 @@
-use std::{borrow::Cow, io::Write, sync::Arc};
+use std::{borrow::Cow, io::Write, ops::ControlFlow, sync::Arc};
 
 use flate2::{Compression, write::GzEncoder};
 use turbopack_trace_server::{
     QueryOptions, SortMode, TraceParser, protocol::ProtocolSession, query_spans, read_trace_bytes,
-    store_container::StoreContainer,
+    read_trace_bytes_with_progress, store_container::StoreContainer,
 };
 use turbopack_trace_utils::tracing::TraceRow;
 
@@ -78,6 +78,52 @@ fn parses_gzip_trace() {
 
     let store = read_trace_bytes(&gzip).unwrap();
     assert_eq!(root_names(&store), ["test compile"]);
+}
+
+#[test]
+fn reports_raw_and_gzip_load_progress() {
+    let raw = raw_trace();
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+    encoder.write_all(&raw).unwrap();
+    let gzip = encoder.finish().unwrap();
+
+    for (input, is_compressed) in [(&raw, false), (&gzip, true)] {
+        let mut reports = Vec::new();
+        read_trace_bytes_with_progress(input, |progress| {
+            reports.push((
+                progress.bytes_read,
+                progress.total_bytes,
+                progress.uncompressed_bytes_read,
+                progress.done,
+                progress.stats(),
+            ));
+            ControlFlow::Continue(())
+        })
+        .unwrap();
+
+        let final_report = reports.last().unwrap();
+        assert_eq!(final_report.0, input.len());
+        assert_eq!(final_report.1, input.len());
+        assert_eq!(final_report.2, raw.len());
+        assert!(final_report.3);
+        assert!(final_report.4.contains("1 spans"));
+        assert!(reports[..reports.len() - 1].iter().all(|report| !report.3));
+        if is_compressed {
+            assert_ne!(final_report.0, final_report.2);
+        } else {
+            assert_eq!(final_report.0, final_report.2);
+        }
+    }
+}
+
+#[test]
+fn progress_callback_can_abort_loading() {
+    let error = read_trace_bytes_with_progress(&raw_trace(), |_| ControlFlow::Break(()))
+        .err()
+        .unwrap()
+        .to_string();
+
+    assert!(error.contains("aborted by the progress callback"));
 }
 
 #[test]

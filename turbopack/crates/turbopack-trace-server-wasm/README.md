@@ -4,6 +4,16 @@ This crate exposes the transport-independent Turbopack trace viewer engine throu
 
 The exported `TurbopackTraceServer` class accepts a complete raw or gzip-compressed trace as a `Uint8Array`. Its `handleMessage()` method accepts the existing trace viewer client JSON protocol and returns the corresponding server messages in protocol order.
 
+Loading is synchronous, so pass an optional progress callback to the constructor before parsing starts. It runs at most once every 250 milliseconds and always receives a final update with `done: true`:
+
+```js
+const server = new TurbopackTraceServer(trace, (progress) => {
+  worker.postMessage({ type: 'trace-load-progress', progress })
+})
+```
+
+The callback receives `bytesRead`, `totalBytes`, `uncompressedBytesRead`, `percentage`, `elapsedMs`, `bytesPerSecond`, `etaMs`, `stats`, and `done`. Because construction is synchronous, use the callback from a Web Worker if progress needs to update the browser UI while the trace is loading.
+
 Zstd-compressed traces and live file tailing remain native-only.
 
 ## Build

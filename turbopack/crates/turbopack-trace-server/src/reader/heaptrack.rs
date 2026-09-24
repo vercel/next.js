@@ -169,7 +169,6 @@ impl HeaptrackFormat {
 }
 
 impl TraceFormat for HeaptrackFormat {
-    #[cfg(not(target_arch = "wasm32"))]
     fn stats(&self) -> String {
         format!(
             "{} spans, {} strings, {} ips, {} traces, {} allocations, {:.2} GB allocated, {:.2} \
