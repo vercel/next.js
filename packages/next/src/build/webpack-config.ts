@@ -92,7 +92,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
 import { getRspackCore } from '../shared/lib/get-rspack'
-import { findConfigPath } from '../lib/find-config'
+import { findConfigFile } from '../lib/find-config'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
@@ -2384,7 +2384,7 @@ export default async function getBaseWebpackConfig(
   // PostCSS plugins are loaded outside of the loader, so webpack doesn't see the
   // PostCSS config. Track its location in the cache version and its contents as
   // a build dependency so cached CSS is invalidated when the config changes.
-  const postcssConfigFile = await findConfigPath(dir, 'postcss')
+  const postcssConfigFile = await findConfigFile(dir, 'postcss')
 
   const configVars = JSON.stringify({
     postcssConfigFile,

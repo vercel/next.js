@@ -1,3 +1,4 @@
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 const canaryPlugin = `
@@ -67,5 +68,26 @@ describe('PostCSS config as a build dependency', () => {
 
     expect((await next.build()).exitCode).toBe(0)
     expect(await readBuiltCss()).not.toContain('.postcss-canary')
+  })
+
+  it('should rebuild CSS when a PostCSS config in package.json changes', async () => {
+    const setPackageJsonPlugins = (plugins: Record<string, object>) =>
+      next.patchFile('package.json', (content) =>
+        JSON.stringify(
+          { ...JSON.parse(content ?? '{}'), postcss: { plugins } },
+          null,
+          2
+        )
+      )
+
+    await setPackageJsonPlugins({})
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).not.toContain('.postcss-canary')
+
+    await setPackageJsonPlugins({
+      [path.join(next.testDir, 'postcss-canary.js')]: {},
+    })
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).toContain('.postcss-canary')
   })
 })
