@@ -15,17 +15,15 @@ use crate::module_federation::{
 /// An import that is shared by the app bootstrap, federated imports and the container entry.
 pub const FEDERATION_RUNTIME_REQUEST: &str = "__turbopack_module_federation_runtime__";
 
+pub(super) const FEDERATION_IMPLEMENTATION_REQUEST: &str =
+    "__turbopack_module_federation_implementation__";
+
 pub async fn module_federation_runtime_source(
     project_path: FileSystemPath,
     config: &ModuleFederationConfig,
+    runtime_request: &str,
 ) -> Result<ResolvedVc<Box<dyn Source>>> {
-    config.validate_runtime(&project_path).await?;
     let name = config.host_name(&project_path).await?;
-    let implementation = config
-        .implementation
-        .as_deref()
-        .unwrap_or("@module-federation/runtime-tools");
-    let runtime_request = format!("{implementation}/runtime");
     let mut plugins = Vec::with_capacity(config.runtime_plugins.len());
     let mut plugin_imports = String::new();
     for (index, plugin) in config.runtime_plugins.iter().enumerate() {
@@ -119,7 +117,7 @@ export const instance = init({{
   plugins: [workerPlugin, {plugins}]
 }});
 "#,
-        runtime_request = StringifyJs(&runtime_request),
+        runtime_request = StringifyJs(runtime_request),
         plugin_imports = plugin_imports,
         eager_imports = eager_imports,
         name = StringifyJs(&name),

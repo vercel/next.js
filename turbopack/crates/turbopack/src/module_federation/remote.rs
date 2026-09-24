@@ -20,7 +20,10 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::module_federation::{
     config::{ModuleFederationConfig, ModuleFederationRemote},
-    runtime::{FEDERATION_RUNTIME_REQUEST, module_federation_runtime_source},
+    runtime::{
+        FEDERATION_IMPLEMENTATION_REQUEST, FEDERATION_RUNTIME_REQUEST,
+        module_federation_runtime_source,
+    },
     shared::apply_shared_import_map,
 };
 
@@ -117,7 +120,18 @@ pub async fn apply_module_federation_import_map(
     if !config.is_enabled() {
         return Ok(());
     }
-    let runtime_source = module_federation_runtime_source(project_path.clone(), config).await?;
+    let (runtime_request, lookup_path) = config.runtime_request(&project_path).await?;
+    let runtime_import = if let Some(lookup_path) = lookup_path {
+        import_map.insert_exact_alias(
+            FEDERATION_IMPLEMENTATION_REQUEST,
+            ImportMapping::PrimaryAlternative(runtime_request, Some(lookup_path)).resolved_cell(),
+        );
+        FEDERATION_IMPLEMENTATION_REQUEST.into()
+    } else {
+        runtime_request
+    };
+    let runtime_source =
+        module_federation_runtime_source(project_path.clone(), config, &runtime_import).await?;
     import_map.insert_exact_alias(
         FEDERATION_RUNTIME_REQUEST,
         ImportMapping::Direct(ResolveResult::source(runtime_source).resolved_cell())

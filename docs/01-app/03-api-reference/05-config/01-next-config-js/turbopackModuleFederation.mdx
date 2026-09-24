@@ -208,7 +208,7 @@ module.exports = {
 }
 ```
 
-The webpack `library` and `runtime` plugin options are not supported. Turbopack emits a global container and initializes the enhanced runtime. You can configure `runtimePlugins` as an ordered array of project-relative paths or installed package specifiers, or `[specifier, JSON-serializable options]` tuples. The runtime loads the default export of each module and calls it with the provided options in the browser. Use `implementation` to resolve a compatible runtime-tools implementation from your project instead of the default optional peer; it must provide the `./runtime` and `./webpack-bundler-runtime` entrypoints.
+The webpack `library` and `runtime` plugin options are not supported. Turbopack emits a global container and initializes the enhanced runtime. You can configure `runtimePlugins` as an ordered array of project-relative paths or installed package specifiers, or `[specifier, JSON-serializable options]` tuples. The runtime loads the default export of each module and calls it with the provided options in the browser. Use `implementation` to resolve a compatible runtime-tools implementation from your project instead of the default optional peer; it must provide the `./runtime` and `./webpack-bundler-runtime` entrypoints. A project-relative implementation directory must also have a package.json with a non-empty `name` so Turbopack can resolve those exported entrypoints.
 
 For example, a runtime plugin can observe requests and use the upstream loaded-first strategy:
 
