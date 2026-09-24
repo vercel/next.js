@@ -264,6 +264,7 @@ test('three terminal failures fail the gate without running expensive jobs', asy
     },
   })
   expect(core.failures).toHaveLength(1)
+  expect(core.outputs.get('skip')).toBe('false')
   expect(core.failures[0]).toMatch(/All three predecessor PRs/)
   expect(core.summaries.join('\n')).toMatch(/Result: \*\*failed\*\*/)
 })
