@@ -13,13 +13,9 @@ describe('app-dir edge SSR invalid reexport', () => {
   })
 
   it('should warn or error about the re-export of a pages runtime/preferredRegion config', async () => {
-    if (isNextDev || !isTurbopack) {
-      await next.start()
-    } else {
-      await expect(next.start()).rejects.toThrow()
-    }
-
     if (isNextDev) {
+      await next.start()
+
       const browser = await next.browser('/export/inherit')
       // Turbopack is stricter and disallows reexports completely
       // webpack merely warns in the CLI and still serves the page wuthout a redbox
@@ -37,6 +33,11 @@ describe('app-dir edge SSR invalid reexport', () => {
          }
         `)
       }
+    } else if (isTurbopack) {
+      // Turbopack fails the build, webpack only warns.
+      await expect(next.start()).rejects.toThrow()
+    } else {
+      await next.start()
     }
 
     expect(next.cliOutput).toInclude(

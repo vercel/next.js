@@ -20,9 +20,7 @@ describe('Errors on conflict between public file and page file', () => {
 
       expect(next.cliOutput).toMatch(regex)
     })
-  }
-
-  if (!isNextDev) {
+  } else {
     it('should show conflict error during build', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput
