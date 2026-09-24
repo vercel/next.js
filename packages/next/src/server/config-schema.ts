@@ -292,6 +292,7 @@ export const experimentalSchema = {
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptMozjpeg: z.boolean().optional(),
+  imgOptWorker: z.boolean().optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
