@@ -20,6 +20,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   ai: boolean | string | undefined
+  setupCi: boolean | string | undefined
 }
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
@@ -174,6 +175,57 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions
 ) {
   const baseDir = getProjectDir(directory)
+
+  if (options.setupCi !== undefined && options.setupCi !== false) {
+    try {
+      if (
+        typeof options.setupCi === 'string' &&
+        options.setupCi !== 'security' &&
+        options.setupCi !== 'latest' &&
+        options.setupCi !== 'future'
+      ) {
+        throw new Error(
+          `Unsupported CI upgrade type ${JSON.stringify(options.setupCi)}. Expected "security", "latest", or "future".`
+        )
+      }
+
+      // Keep the invoking build's guide available while the agent sets up CI.
+      const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-ci-'))
+      const guidePath = join(runDirectory, 'agentic-upgrade-ci.md')
+      try {
+        await cp(
+          join(
+            __dirname,
+            '../docs/01-app/02-guides/upgrading/agentic-upgrade-ci.md'
+          ),
+          guidePath
+        )
+      } catch (error) {
+        await rm(runDirectory, { recursive: true, force: true })
+        throw error
+      }
+
+      const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
+
+Set up automated Next.js upgrades in GitHub Actions for the app in ${JSON.stringify(baseDir)}.
+${
+  typeof options.setupCi === 'string'
+    ? `Use the ${JSON.stringify(options.setupCi)} upgrade policy.`
+    : 'Preserve the configured upgrade policy, or propose security if none is configured.'
+}`
+
+      const { handoffUpgrade } =
+        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+      await handoffUpgrade(prompt, baseDir)
+    } catch (error) {
+      Log.error(
+        'Could not prepare CI setup:',
+        error instanceof Error ? error.message : error
+      )
+      process.exitCode = 1
+    }
+    return
+  }
 
   if (options.ai) {
     try {
