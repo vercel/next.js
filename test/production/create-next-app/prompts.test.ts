@@ -265,7 +265,8 @@ describe('create-next-app prompts', () => {
         childProcess.stdin.write('\n')
 
         await retry(async () => {
-          expect(output).toMatch(/help improve Next\.js with agent feedback/)
+          expect(output).toMatch(/agents prepare anonymized feedback/)
+          expect(output).toMatch(/for your review as you code/)
         })
         // Cursor forward, choose "Yes" for agent feedback.
         childProcess.stdin.write('\u001b[C\n')

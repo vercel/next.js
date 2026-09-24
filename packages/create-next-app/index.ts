@@ -111,7 +111,10 @@ const program = new Command(packageJson.name)
     '--agents-md',
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
-  .option('--agent-feedback', 'Enable agent feedback to help improve Next.js.')
+  .option(
+    '--agent-feedback',
+    'Prepare anonymized Next.js feedback for your review.'
+  )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
@@ -697,7 +700,7 @@ async function run(): Promise<void> {
           {
             type: 'toggle',
             name: 'agentFeedback',
-            message: `Would you like to help improve Next.js with ${blue('agent feedback')}? (Disable anytime with \`agentFeedback: false\`.)`,
+            message: `Would you like to help improve Next.js by letting agents prepare ${blue('anonymized feedback')} for your review as you code? (Disable with \`agentFeedback: false\`.)`,
             initial: false,
             active: 'Yes',
             inactive: 'No',
