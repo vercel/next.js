@@ -1,0 +1,43 @@
+name: Image sandbox verification
+
+on:
+  push:
+    branches: [sandbox-images]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  linux:
+    if: github.repository == 'petehunt/next.js'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Isolated route tests need the published SWC binary. Most repository CI
+      # jobs provide a locally built one, so the postinstall defaults to off.
+      NEXT_SKIP_NATIVE_POSTINSTALL: '0'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+      - name: Install sandbox prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build JavaScript packages
+        run: pnpm exec turbo run build --filter=next...
+      - name: Test the shipped sandbox policy and direct transform API
+        run: pnpm exec jest --runInBand test/unit/image-optimizer
+      - name: Test the development image route with and without sandboxing
+        run: pnpm test-dev-webpack test/e2e/image-optimizer/sharp.test.ts -t 'should resize relative url and png accept header'
+      - name: Test the production image route with and without sandboxing
+        run: pnpm test-start-webpack test/e2e/image-optimizer/sharp.test.ts -t 'should resize relative url and png accept header'
