@@ -1,5 +1,6 @@
 import type {
   ArrayExpression,
+  BinaryExpression,
   BooleanLiteral,
   ExportDeclaration,
   Identifier,
@@ -16,6 +17,7 @@ import type {
   TsConstAssertion,
   TsTypeAssertion,
   TsSatisfiesExpression,
+  UnaryExpression,
   VariableDeclaration,
 } from '@swc/core'
 
@@ -81,6 +83,14 @@ function isTsTypeAssertion(node: Node): node is TsTypeAssertion {
 
 function isTsSatisfiesExpression(node: Node): node is TsSatisfiesExpression {
   return node.type === 'TsSatisfiesExpression'
+}
+
+function isBinaryExpression(node: Node): node is BinaryExpression {
+  return node.type === 'BinaryExpression'
+}
+
+function isUnaryExpression(node: Node): node is UnaryExpression {
+  return node.type === 'UnaryExpression'
 }
 
 export type ExtractValueResult =
@@ -218,6 +228,51 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
     isTsConstAssertion(node)
   ) {
     return extractValue(node.expression)
+  } else if (isBinaryExpression(node)) {
+    // e.g. `60 * 5` — fold compile-time arithmetic / string-concat
+    // expressions. Restricted to a small set of pure operators so we
+    // don't accidentally evaluate side-effecting or short-circuiting
+    // semantics (logical, comparison, etc.) at extraction time.
+    const left = extractValue(node.left, path)
+    if ('unsupported' in left) return left
+    const right = extractValue(node.right, path)
+    if ('unsupported' in right) return right
+    switch (node.operator) {
+      case '+':
+        return { value: left.value + right.value }
+      case '-':
+        return { value: left.value - right.value }
+      case '*':
+        return { value: left.value * right.value }
+      case '/':
+        return { value: left.value / right.value }
+      case '%':
+        return { value: left.value % right.value }
+      case '**':
+        return { value: left.value ** right.value }
+      default:
+        return {
+          unsupported: `Unsupported binary operator "${node.operator}"`,
+          path: formatCodePath(path),
+        }
+    }
+  } else if (isUnaryExpression(node)) {
+    // e.g. `-5`, `+5`, `~0xff` — same restricted set as binary above.
+    const arg = extractValue(node.argument, path)
+    if ('unsupported' in arg) return arg
+    switch (node.operator) {
+      case '-':
+        return { value: -arg.value }
+      case '+':
+        return { value: +arg.value }
+      case '~':
+        return { value: ~arg.value }
+      default:
+        return {
+          unsupported: `Unsupported unary operator "${node.operator}"`,
+          path: formatCodePath(path),
+        }
+    }
   } else {
     return {
       unsupported: `Unsupported node type "${node.type}"`,
