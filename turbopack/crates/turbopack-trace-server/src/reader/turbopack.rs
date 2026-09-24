@@ -26,6 +26,41 @@ struct AllocationInfo {
     deallocation_count: u64,
 }
 
+const ID_PAGE_BITS: u32 = 16;
+const ID_PAGE_SIZE: usize = 1 << ID_PAGE_BITS;
+const ID_PAGE_MASK: u64 = ID_PAGE_SIZE as u64 - 1;
+
+#[derive(Default)]
+struct IdMapping {
+    pages: FxHashMap<u64, Box<[Option<SpanIndex>]>>,
+    len: usize,
+}
+
+impl IdMapping {
+    fn get(&self, id: u64) -> Option<SpanIndex> {
+        self.pages
+            .get(&(id >> ID_PAGE_BITS))
+            .and_then(|page| page[(id & ID_PAGE_MASK) as usize])
+    }
+
+    fn insert(&mut self, id: u64, span: SpanIndex) {
+        let page = self
+            .pages
+            .entry(id >> ID_PAGE_BITS)
+            .or_insert_with(|| vec![None; ID_PAGE_SIZE].into_boxed_slice());
+        let entry = &mut page[(id & ID_PAGE_MASK) as usize];
+        if entry.is_none() {
+            self.len += 1;
+        }
+        *entry = Some(span);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
 struct InternalRow {
     id: Option<u64>,
     ty: InternalRowType,
@@ -69,7 +104,7 @@ enum InternalRowType {
 
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
-    id_mapping: FxHashMap<u64, SpanIndex>,
+    id_mapping: IdMapping,
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
@@ -88,7 +123,7 @@ impl TurbopackFormat {
             .unwrap_or_default();
         Self {
             store,
-            id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
+            id_mapping: IdMapping::default(),
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
@@ -366,8 +401,8 @@ impl TurbopackFormat {
             {
                 return;
             }
-            if let Some(id) = self.id_mapping.get(&id) {
-                Some(*id)
+            if let Some(id) = self.id_mapping.get(id) {
+                Some(id)
             } else {
                 // Parent hasn't been seen yet; queue this row to be processed
                 // when the parent arrives. The row is already lifetime-free
@@ -549,5 +584,38 @@ impl<T> Deref for ClearOnDrop<'_, T> {
 impl<T> DerefMut for ClearOnDrop<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn id_mapping_supports_dense_and_sparse_ids() {
+        let mut mapping = IdMapping::default();
+        let first = SpanIndex::new(1).unwrap();
+        let second = SpanIndex::new(2).unwrap();
+
+        mapping.insert(1, first);
+        mapping.insert(ID_PAGE_SIZE as u64 * 3 + 7, second);
+
+        assert_eq!(mapping.get(1), Some(first));
+        assert_eq!(mapping.get(ID_PAGE_SIZE as u64 * 3 + 7), Some(second));
+        assert_eq!(mapping.get(ID_PAGE_SIZE as u64 + 1), None);
+        assert_eq!(mapping.len(), 2);
+    }
+
+    #[test]
+    fn id_mapping_overwrites_existing_ids() {
+        let mut mapping = IdMapping::default();
+        let first = SpanIndex::new(1).unwrap();
+        let second = SpanIndex::new(2).unwrap();
+
+        mapping.insert(42, first);
+        mapping.insert(42, second);
+
+        assert_eq!(mapping.get(42), Some(second));
+        assert_eq!(mapping.len(), 1);
     }
 }
