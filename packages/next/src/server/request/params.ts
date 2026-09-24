@@ -33,7 +33,7 @@ import {
   trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 import {
   isEmptyParams,
   hasFallbackRouteParams,
@@ -694,13 +694,10 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
             trackFallbackParamsAccessed(workUnitStore, '`params`')
           }
 
-          const store = dynamicAccessAsyncStorage.getStore()
-
-          if (store) {
-            store.abortController.abort(
-              new Error(`Accessed fallback \`params\` during prerendering.`)
-            )
-          }
+          abortOnDynamicAccess(
+            'fallback-params',
+            new Error(`Accessed fallback \`params\` during prerendering.`)
+          )
 
           return new Proxy(
             originalMethod.apply(target, args),

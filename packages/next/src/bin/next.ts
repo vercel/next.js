@@ -194,10 +194,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -208,7 +206,8 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .option('--turbo', 'Builds using Turbopack.')
   .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using webpack.')
+  .option('--webpack', 'Builds using the bundled webpack.')
+  .option('--custom-webpack', 'Builds using your project-installed webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -253,6 +252,9 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
+    if (options.customWebpack) {
+      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
+    }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
@@ -280,7 +282,8 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-analyze')
+  .command('analyze')
+  .alias('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -342,7 +345,11 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using webpack.')
+  .option('--webpack', 'Starts development mode using the bundled webpack.')
+  .option(
+    '--custom-webpack',
+    'Starts development mode using your project-installed webpack.'
+  )
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -406,6 +413,9 @@ program
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.customWebpack) {
+        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
@@ -669,9 +679,13 @@ const internal = program
 
 internal
   .command('agent-feedback-instructions', { hidden: true })
-  .action(() =>
+  .option(
+    '--dry-run',
+    'Print report preview URLs without opening the review form.'
+  )
+  .action((options: { dryRun?: boolean }) =>
     import('../cli/internal/agent-feedback-instructions.js').then((mod) =>
-      mod.agentFeedbackInstructionsCli()
+      mod.agentFeedbackInstructionsCli(options)
     )
   )
 

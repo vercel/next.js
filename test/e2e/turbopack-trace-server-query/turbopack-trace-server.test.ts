@@ -120,7 +120,6 @@ describe('turbopack-trace-server', () => {
   const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     env: { NEXT_TURBOPACK_TRACING: '1' },
-    skipDeployment: true,
   })
 
   if (skipped) return

@@ -182,7 +182,9 @@ export default function Forbidden() {
 }
 ```
 
-The trade-off is the HTTP status code. Because the check runs inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. This is usually fine for a page, where the user sees the `forbidden` UI regardless. To return a real `403` status, the check has to run before the response streams. With [Cache Components](/docs/app/getting-started/caching), every dynamic route streams a static shell first, so run that check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+The response starts streaming from the `<Suspense>` boundary before `forbidden()` runs, so it keeps its `200` status. Next.js adds a `noindex` tag.
+
+Calling `forbidden()` before streaming starts returns a `403`. A page that reaches `forbidden()` during prerendering can remain `○` Static and serve a `403`. A request-time check can run in [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Role-based route protection
 

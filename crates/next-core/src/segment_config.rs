@@ -17,9 +17,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs, util::WrapFuture,
-};
+use turbo_tasks::{JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, util::WrapFuture};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -43,17 +41,7 @@ use crate::{
 };
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
@@ -65,17 +53,7 @@ pub enum NextSegmentDynamic {
 }
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
@@ -89,9 +67,7 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
-#[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
 pub enum NextRevalidate {
     #[default]
     Never,
@@ -115,15 +91,18 @@ pub struct NextSegmentConfig {
     /// Whether these exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub instant: Option<Span>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub prefetch: Option<Span>,
+    #[turbo_tasks(unsafe_ignore)]
+    #[bincode(with_serde)]
+    pub unstable_ensure_static: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -290,7 +269,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
@@ -548,36 +527,29 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
 
-        if let Some(span) = config.instant {
-            invalid_config(
-                source,
-                "instant",
-                span,
-                rcstr!(
-                    "\"instant\" is a route segment config and can only be used when the segment \
-                     is a Server Component module. Remove the \"use client\" directive to use \
-                     this API."
-                ),
-                None,
-                IssueSeverity::Error,
-            )
-            .await?;
-        }
-
-        if let Some(span) = config.prefetch {
-            invalid_config(
-                source,
-                "prefetch",
-                span,
-                rcstr!(
-                    "\"prefetch\" is a route segment config and can only be used when the segment \
-                     is a Server Component module. Remove the \"use client\" directive to use \
-                     this API."
-                ),
-                None,
-                IssueSeverity::Error,
-            )
-            .await?;
+        let server_only_route_configs = [
+            ("instant", config.instant),
+            ("prefetch", config.prefetch),
+            ("unstable_ensureStatic", config.unstable_ensure_static),
+        ];
+        for (config_name, usage) in server_only_route_configs {
+            if let Some(span) = usage {
+                invalid_config(
+                    source,
+                    config_name,
+                    span,
+                    format!(
+                        "\"{}\" is a route segment config and can only be used when the segment \
+                         is a Server Component module. Remove the \"use client\" directive to use \
+                         this API.",
+                        config_name
+                    )
+                    .into(),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await?;
+            }
         }
     }
 
@@ -1005,6 +977,9 @@ async fn parse_config_value(
         }
         "prefetch" => {
             config.prefetch = Some(span);
+        }
+        "unstable_ensureStatic" => {
+            config.unstable_ensure_static = Some(span);
         }
         _ => {}
     }

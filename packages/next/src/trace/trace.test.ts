@@ -147,6 +147,26 @@ describe('Trace', () => {
       ])
     })
 
+    it('records manualTraceChild spans with their own start time', () => {
+      const root = trace('root-span')
+      // A span that started one minute ago and ran for 1.5s, as happens when
+      // the event is only recorded after the work completes (e.g. Turbopack
+      // compilation events forwarded from Rust).
+      const startMs = Date.now() - 60_000
+      const stopMs = startMs + 1500
+      const msToNs = (ms: number) => BigInt(ms) * BigInt(1_000_000)
+      root.manualTraceChild('manual-child', msToNs(startMs), msToNs(stopMs))
+      root.stop()
+
+      const events = getTraceEvents()
+      const child = events.find((e) => e.name === 'manual-child')
+      expect(child).toBeDefined()
+      // startTime must be the span's actual start, not the time the event was
+      // recorded (which is when manualTraceChild is called).
+      expect(child!.startTime).toEqual(startMs)
+      expect(child!.duration).toEqual(1_500_000)
+    })
+
     // Builds flush repeatedly -- after each compilation, and again at the
     // end -- so every flush must leave the file usable.
     it('writes buffered spans on each flush', async () => {

@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
+import { prerelease, valid } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
@@ -143,6 +144,31 @@ async function resolveAIUpgradeType(
     : 'security'
 }
 
+async function resolveCanaryVersion(): Promise<string> {
+  try {
+    const response = await fetch('https://registry.npmjs.org/next/canary', {
+      signal: AbortSignal.timeout(10_000),
+      cache: 'no-store',
+      redirect: 'error',
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const { version } = await response.json()
+    if (typeof version !== 'string' || valid(version) !== version) {
+      throw new Error('Invalid canary version')
+    }
+
+    return version
+  } catch (error) {
+    throw new Error('Could not fetch the latest Next.js canary from npm.', {
+      cause: error,
+    })
+  }
+}
+
 export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions
@@ -151,39 +177,55 @@ export async function spawnNextUpgrade(
 
   if (options.ai) {
     try {
-      // A delegated canary uses itself. Local runs and evals use their invoked build.
-      const useCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI === '1'
+      const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
 
-      if (!useCurrentCli) {
-        Log.info(dim('Preparing upgrade...'))
-        const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
-        const aiArgument =
-          typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
-        const args = [
-          ...runnerArgs,
-          'next@canary',
-          'upgrade',
-          baseDir,
-          aiArgument,
-        ]
-
-        if (options.verbose) {
-          args.push('--verbose')
+      if (expectedVersion !== undefined) {
+        // Delegated upgrades and evals use their pinned CLI without another lookup.
+        if (process.env.__NEXT_VERSION !== expectedVersion) {
+          throw new Error(
+            `Expected Next.js ${expectedVersion} for the upgrade, but launched ${process.env.__NEXT_VERSION}.`
+          )
         }
+      } else {
+        Log.info(dim('Preparing upgrade...'))
+        const canaryVersion = await resolveCanaryVersion()
+        if (process.env.__NEXT_VERSION !== canaryVersion) {
+          const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
+          const aiArgument =
+            typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
+          const args = [
+            ...runnerArgs,
+            `next@${canaryVersion}`,
+            'upgrade',
+            baseDir,
+            aiArgument,
+          ]
 
-        process.exitCode = await runChildProcess(command, args, {
-          cwd: baseDir,
-          stdio: 'inherit',
-          env: { ...process.env, __NEXT_UPGRADE_USE_CURRENT_CLI: '1' },
-        })
-        return
+          if (options.verbose) {
+            args.push('--verbose')
+          }
+
+          process.exitCode = await runChildProcess(command, args, {
+            cwd: baseDir,
+            stdio: 'inherit',
+            env: {
+              ...process.env,
+              __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
+              // Older canaries recognize only this recursion guard.
+              __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+            },
+          })
+          return
+        }
       }
 
       // A workspace root must not launch an upgrade for an unspecified app.
       if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
         throw new Error(
-          'No Next.js app found in this directory. Run the command from an app directory or pass its path.'
+          'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
+            `next upgrade [directory] --ai${typeof options.ai === 'string' ? `=${options.ai}` : ''}`
         )
       }
 
@@ -310,12 +352,14 @@ export async function spawnNextUpgrade(
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
+      const releaseKind =
+        prerelease(result.targetVersion)?.[0] === 'canary' ? 'canary' : 'stable'
       const reason =
         upgradeType === 'security'
           ? 'the installed version is affected by a published security advisory'
           : upgradeType === 'latest'
-            ? 'a newer stable Next.js release is available'
-            : 'the Future policy applies the latest stable release and adopts its Future Defaults'
+            ? `a newer ${releaseKind} Next.js release is available`
+            : `the Future policy applies the latest ${releaseKind} release and adopts its Future Defaults`
       const futureDefaultsPrompt = preparedFutureDefaults.length
         ? `
 ${needsVersionMigration ? 'After completing and verifying the version migration, adopt' : 'Adopt'} these Future Defaults in order:
@@ -335,6 +379,8 @@ Complete each adoption. Temporary opt-outs and TODO markers are intermediate wor
       const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
 
 ${taskSummary}
+
+Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
 
 Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 

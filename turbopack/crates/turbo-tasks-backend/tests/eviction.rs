@@ -555,7 +555,7 @@ fn fresh_decoded_alive() -> Arc<AtomicBool> {
 #[turbo_tasks::value(evict = "never", eq = "manual")]
 struct SessionAlive {
     count: u32,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     #[bincode(skip, default = "fresh_decoded_alive")]
     alive: Arc<AtomicBool>,
 }

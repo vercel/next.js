@@ -47,7 +47,7 @@ interface BaselinePickerProps {
  * Two instances can select arbitrary A and B snapshots for comparison.
  *
  * Snapshots are loaded from `history/history.json` — written by
- * `writeAnalyzeSnapshot` after each `next build --experimental-analyze`.
+ * `writeAnalyzeSnapshot` after each `next build --analyze`.
  */
 export function BaselinePicker({
   selectedSnapshotId,
@@ -157,7 +157,7 @@ export function BaselinePicker({
                   <div className="mt-1">
                     Run{' '}
                     <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                      next experimental-analyze
+                      next analyze
                     </code>{' '}
                     again to capture a baseline you can compare against.
                   </div>
@@ -170,7 +170,7 @@ export function BaselinePicker({
                   <div className="mt-1">
                     Run{' '}
                     <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                      next build --experimental-analyze
+                      next build --analyze
                     </code>{' '}
                     to start collecting snapshots.
                   </div>

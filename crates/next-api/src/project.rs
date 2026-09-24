@@ -1,7 +1,8 @@
 use std::{
     iter,
     path::{Path, PathBuf},
-    time::Duration,
+    sync::Arc,
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::{Context, Result, bail};
@@ -45,7 +46,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
     OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -123,17 +124,7 @@ use crate::{
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    OperationValue,
-    Encode,
-    Decode,
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
@@ -153,7 +144,6 @@ pub struct DraftModeOptions {
     PartialEq,
     Eq,
     Hash,
-    TraceRawVcs,
     OperationValue,
     Encode,
     Decode,
@@ -178,7 +168,6 @@ pub struct WatchOptions {
     PartialEq,
     Eq,
     Hash,
-    TraceRawVcs,
     OperationValue,
     Encode,
     Decode,
@@ -292,7 +281,6 @@ impl DebugBuildPathsRouteKeys {
     Clone,
     PartialEq,
     Eq,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
     Encode,
@@ -405,17 +393,7 @@ pub struct PartialProjectOptions {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    OperationValue,
-    Encode,
-    Decode,
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
@@ -424,21 +402,19 @@ pub struct DefineEnv {
     pub nodejs: Vec<(RcStr, Option<RcStr>)>,
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct Middleware {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub is_proxy: bool,
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct Instrumentation {
     pub node_js: ResolvedVc<Box<dyn Endpoint>>,
     pub edge: ResolvedVc<Box<dyn Endpoint>>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, Encode, Decode)]
 struct ProjectFileSystemState {
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
@@ -450,7 +426,7 @@ pub struct ProjectContainer {
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
@@ -1949,6 +1925,21 @@ impl Project {
         // `ends_with` is the correct matcher here.
         static FEATURE_MODULE_PATH_SUFFIXES: &[(&str, &str)] = &[
             ("next/image", "/next/image.js"),
+            ("next/image", "/next/dist/api/image.js"),
+            ("next/image", "/next/dist/esm/api/image.js"),
+            // next/dist/api/image.js re-exports this module. When Turbopack can prove that
+            // the re-export has no side effects, it may flatten the re-export
+            // chain and leave this as the feature module in the graph.
+            ("next/image", "/next/dist/client/image-component.js"),
+            ("next/image", "/next/dist/esm/client/image-component.js"),
+            (
+                "next/image",
+                "/next/dist/shared/lib/image-external-get-image-props.js",
+            ),
+            (
+                "next/image",
+                "/next/dist/esm/shared/lib/image-external-get-image-props.js",
+            ),
             ("next/future/image", "/next/future/image.js"),
             ("next/legacy/image", "/next/legacy/image.js"),
             ("next/script", "/next/script.js"),
@@ -2052,6 +2043,9 @@ impl Project {
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, _)) = parent
                 && let Some(&feature) = matching.get(&node)
+                // A feature's public entry point may re-export another matched module. Only
+                // count the external importer, not the internal re-export edge.
+                && matching.get(&parent_node) != Some(&feature)
             {
                 pairs.insert((feature, parent_node));
             }
@@ -2819,8 +2813,12 @@ impl Project {
             .cache_handlers(project_path.clone())
             .await?;
 
-        let asset_context =
-            externals_tracing_module_context(get_tracing_compile_time_info(), false, None);
+        let asset_context = externals_tracing_module_context(
+            get_tracing_compile_time_info(),
+            /* resolve_typescript */ false,
+            /* prune */ None,
+            /* trace_file_references */ true,
+        );
 
         Ok(Vc::cell(
             cache_handler
@@ -2847,15 +2845,17 @@ impl Project {
     pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
-            false,
-            None,
+            /* resolve_typescript */ false,
+            /* prune */ None,
+            /* trace_file_references */ true,
         ));
         let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
             .owned()
             .await?;
-        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
-            .owned()
-            .await?;
+        let renderer_modules =
+            pages_renderer_modules(self.project_path().owned().await?, asset_context)
+                .owned()
+                .await?;
 
         Ok(Vc::cell(
             self.additional_traced_modules()
@@ -2887,9 +2887,11 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
     let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
     let span_clone = span.clone();
-    async move {
+    let result = async move {
         let next_mode = project.next_mode();
         let should_trace = *project.should_write_nft_manifests().await?;
         let should_read_binding_usage = next_mode.await?.is_production();
@@ -2974,7 +2976,14 @@ async fn whole_app_module_graph_operation(
         .cell())
     }
     .instrument(span_clone)
-    .await
+    .await;
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "turbopack-module-graph",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
+    result
 }
 
 #[turbo_tasks::value(shared)]

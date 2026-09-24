@@ -199,7 +199,8 @@ async function main() {
 
   if (dryRun) {
     // So the dry-run can be exercised outside
-    // of the release branches lerna.json restricts in real publishes.
+    // of the release branches `command.version.allowBranch` in lerna.json
+    // restricts real version bumps to.
     lernaArgs.push('--allow-branch', '**')
   }
 

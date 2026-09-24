@@ -47,6 +47,14 @@ export default function Page() {
               </LinkAccordion>
             </li>
             <li>
+              <LinkAccordion
+                href="/params-used-after-navigation/1"
+                prefetch={true}
+              >
+                Param 1 (prefetch=true)
+              </LinkAccordion>
+            </li>
+            <li>
               <Link href="/params-used-after-navigation/2" prefetch={false}>
                 Param 2 (unprefetched)
               </Link>
@@ -62,6 +70,11 @@ export default function Page() {
               </LinkAccordion>
             </li>
             <li>
+              <LinkAccordion href="/params-used-in-icon/1" prefetch={true}>
+                Param 1 (prefetch=true)
+              </LinkAccordion>
+            </li>
+            <li>
               <Link href="/params-used-in-icon/2" prefetch={false}>
                 Params 2
               </Link>
@@ -74,7 +87,17 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/uses-search-params?q=test" prefetch={true}>
+            Uses search params (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/uses-connection">Uses connection</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/uses-connection" prefetch={true}>
+            Uses connection (prefetch=true)
+          </LinkAccordion>
         </li>
         <li>
           <LinkAccordion href="/uses-runtime-after-navigation">
@@ -89,6 +112,11 @@ export default function Page() {
         <li>
           <LinkAccordion href="/uses-runtime-after-prefetch">
             Uses runtime APIs after prefetch()
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/uses-runtime-after-prefetch" prefetch={true}>
+            Uses runtime APIs after prefetch() (prefetch=true)
           </LinkAccordion>
         </li>
         <li>
@@ -219,6 +247,43 @@ export default function Page() {
             prefetch={true}
           >
             Uses cookies in the prefetch, but was not prerendered
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>ensureStatic</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/ensure-static/false/uses-cookies">
+            Page with <code>ensureStatic = false</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/ensure-static/shell/uses-cookies">
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/shell/uses-cookies"
+            prefetch={true}
+          >
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/ensure-static/prefetch/uses-cookies">
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/prefetch/uses-cookies"
+            prefetch={true}
+          >
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
             (prefetch=true)
           </LinkAccordion>
         </li>

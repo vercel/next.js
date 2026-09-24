@@ -1082,6 +1082,8 @@ impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for
 }
 #[cfg(test)]
 mod tests {
+    // Only used by `test_schema_size`, which is 64-bit only.
+    #[cfg(target_pointer_width = "64")]
     use std::mem::size_of;
 
     use turbo_tasks::{CellId, TaskId};
@@ -1702,11 +1704,7 @@ mod tests {
         struct Keepable(#[allow(dead_code)] u32);
 
         #[turbo_tasks::value(serialization = "skip", evict = "last")]
-        struct KeepMe(
-            #[turbo_tasks(trace_ignore)]
-            #[allow(dead_code)]
-            u32,
-        );
+        struct KeepMe(#[allow(dead_code)] u32);
 
         fn dummy_ref() -> SharedReference {
             SharedReference::new(triomphe::Arc::new(0u32))

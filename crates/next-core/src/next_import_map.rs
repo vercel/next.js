@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -17,7 +17,8 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, ResolveResult, SubpathValue,
+        AliasKey, AliasPattern, AliasTemplate, ExternalTraced, ExternalType,
+        ReplacedSubpathValueResultType, ResolveAliasMap, ResolveResult, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -63,6 +64,11 @@ pub async fn get_next_client_import_map(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -280,6 +286,11 @@ pub async fn get_next_server_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -1441,31 +1452,35 @@ fn export_value_to_import_mapping(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
-    let mut result = Vec::new();
-    value.add_results(
+    let alias_key = AliasKey::Exact;
+    let mut results = Vec::new();
+    value.convert().add_results(
+        Cow::Borrowed(""),
+        &alias_key,
         conditions,
         &ConditionValue::Unset,
         &mut FxHashMap::default(),
-        &mut result,
+        &mut results,
     );
-    if result.is_empty() {
-        None
-    } else {
-        Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path.clone()))
-                .resolved_cell()
-        } else {
-            ImportMapping::Alternatives(
-                result
-                    .iter()
-                    .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path.clone()))
-                            .resolved_cell()
-                    })
-                    .collect(),
-            )
-            .resolved_cell()
+
+    let mappings: Vec<_> = results
+        .iter()
+        .filter_map(|r| match &r.ty {
+            ReplacedSubpathValueResultType::Path(path) => {
+                let m = path.as_constant_string()?;
+                Some(
+                    ImportMapping::PrimaryAlternative(m.clone(), Some(project_path.clone()))
+                        .resolved_cell(),
+                )
+            }
+            ReplacedSubpathValueResultType::Empty => Some(ImportMapping::Empty.resolved_cell()),
         })
+        .collect();
+
+    match mappings.len() {
+        0 => None,
+        1 => mappings.into_iter().next(),
+        _ => Some(ImportMapping::Alternatives(mappings).resolved_cell()),
     }
 }
 

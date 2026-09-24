@@ -848,4 +848,44 @@ describe('segment cache - vary params', () => {
       'Locale: de'
     )
   })
+
+  it.each(['direct', 'public-child', 'private-child'])(
+    'tracks root params in private caches (%s)',
+    async (route) => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/private-cached-root-params/en', {
+        beforePageLoad(page: Playwright.Page) {
+          act = createRouterAct(page)
+        },
+      })
+      const englishPath = `/private-cached-root-params/en/${route}`
+      const germanPath = `/private-cached-root-params/de/${route}`
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${englishPath}"]`)
+            .click()
+        },
+        { includes: 'Locale: en' }
+      )
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${germanPath}"]`)
+            .click()
+        },
+        { includes: 'Locale: de' }
+      )
+
+      await act(async () => {
+        await browser.elementByCss(`a[href="${germanPath}"]`).click()
+      }, 'no-requests')
+
+      expect(await browser.elementById('private-root-param').text()).toBe(
+        'Locale: de'
+      )
+    }
+  )
 })

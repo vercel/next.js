@@ -14,7 +14,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    Vc, debug::ValueDebugFormat, turbofmt,
 };
 
 use crate::{
@@ -23,13 +23,9 @@ use crate::{
     module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
-#[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
+#[derive(Clone, Debug, Default, PartialEq, ValueDebugFormat, Encode, Decode)]
 #[repr(transparent)]
-pub struct RoaringBitmapWrapper(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with_serde)]
-    pub RoaringBitmap,
-);
+pub struct RoaringBitmapWrapper(#[bincode(with_serde)] pub RoaringBitmap);
 
 impl TaskInput for RoaringBitmapWrapper {
     fn is_transient(&self) -> bool {
@@ -89,10 +85,9 @@ pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBit
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
-    #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
@@ -101,18 +96,7 @@ pub struct ChunkGroupInfo {
 /// Chunking heuristics computed by [`compute_chunk_group_info`]. `clusters` is indexed by
 /// chunk-group index (same length and order as [`ChunkGroupInfo::chunk_groups`]); `priority_routes`
 /// is a set of those indices.
-#[derive(
-    Debug,
-    Default,
-    Clone,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct ChunkingHeuristicsInfo {
     /// For each chunk group (by index), the set of cluster IDs it belongs to. A cluster ID is the
     /// index of a configured cluster. A route's chunk group carries that route's clusters; chunk
@@ -125,7 +109,6 @@ pub struct ChunkingHeuristicsInfo {
     ///
     /// Example: `priority_routes = {3, 7}` — chunk groups 3 and 7 are served by a priority
     /// route; any group not in the set (e.g. 4) is not.
-    #[turbo_tasks(trace_ignore)]
     pub priority_routes: RoaringBitmapWrapper,
 }
 
@@ -161,7 +144,7 @@ impl ChunkGroupInfo {
 
 /// Per-entry chunking heuristics.
 #[turbo_tasks::task_input]
-#[derive(Debug, Default, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Default, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct EntryHeuristics {
     /// Cluster indices this route belongs to.
     pub clusters: Vec<u16>,
@@ -181,7 +164,7 @@ impl EntryHeuristics {
 
 /// See [ChunkGroup] for documentation
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkGroupEntry {
     Entry {
         modules: Vec<ResolvedVc<Box<dyn Module>>>,
@@ -219,7 +202,7 @@ impl ChunkGroupEntry {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.

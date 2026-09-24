@@ -222,12 +222,31 @@ export async function initialize(opts: {
     if (
       developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
       developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'future'
+      developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
+      process.env.__NEXT_AGENTIC_AUTO_UPGRADE
     ) {
-      const { nudgeForUpgrade } =
+      const { nudgeUpgrade, getUpgradeContext } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
-      void nudgeForUpgrade(opts.dir, developmentConfig, 'dev').catch(
-        (error) => {
+      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        // TODO: Do not block dev startup while prompting for an upgrade.
+        // Preserve all logs for display after the prompt and stop dev before Update.
+        // The existing dev worker pauses here while its parent owns the menu.
+        await new Promise<void>((resolve) => {
+          const resume = (message: {
+            nextUpgradeContinue: boolean | undefined
+          }) => {
+            if (message.nextUpgradeContinue) {
+              process.off('message', resume)
+              resolve()
+            }
+          }
+          process.on('message', resume)
+          process.send!({
+            nextUpgradeContext: getUpgradeContext(developmentConfig),
+          })
+        })
+      } else {
+        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')
           const exitCode =
@@ -238,8 +257,8 @@ export async function initialize(opts: {
             error instanceof Error ? error.message : String(error),
             typeof exitCode === 'number' ? exitCode : 1
           )
-        }
-      )
+        })
+      }
     }
 
     // Resolve the effective serverFastRefresh value.

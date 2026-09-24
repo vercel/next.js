@@ -75,6 +75,7 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
 
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
 const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock
+const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
@@ -116,11 +117,16 @@ function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
 describe('agentic upgrade prompts', () => {
   const originalPath = process.env.PATH
   const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+  const originalExpectedCliVersion =
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  const originalFetch = global.fetch
   const originalExitCode = process.exitCode
 
   beforeEach(() => {
     jest.resetAllMocks()
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
+    global.fetch = jest.fn()
     process.exitCode = undefined
 
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
@@ -167,9 +173,168 @@ describe('agentic upgrade prompts', () => {
     }
 
     process.exitCode = originalExitCode
+    global.fetch = originalFetch
+    if (originalExpectedCliVersion === undefined) {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    } else {
+      process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
+        originalExpectedCliVersion
+    }
     while (restoreDescriptors.length > 0) {
       restoreDescriptors.pop()?.()
     }
+  })
+
+  it('uses the pinned CLI without looking up canary again', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'unaffected',
+      reason: 'Already current.',
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'security',
+    })
+
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(1)
+    expect(process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION).toBeUndefined()
+    expect(process.env.__NEXT_UPGRADE_USE_CURRENT_CLI).toBeUndefined()
+  })
+
+  it('rejects a worker running a different CLI version', async () => {
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = '0.0.0'
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'security',
+    })
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      `Expected Next.js 0.0.0 for the upgrade, but launched ${cliVersion}.`
+    )
+    expect(process.exitCode).toBe(1)
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+  })
+
+  it.each([undefined, '1'])(
+    'reuses the current canary after checking npm with legacy guard %s',
+    async (legacyGuard) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      if (legacyGuard === undefined) {
+        delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+      } else {
+        process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = legacyGuard
+      }
+      jest
+        .mocked(global.fetch)
+        .mockResolvedValue(
+          new Response(JSON.stringify({ version: cliVersion }))
+        )
+      jest.mocked(prepareUpgrade).mockResolvedValue({
+        status: 'unaffected',
+        reason: 'Already current.',
+      })
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      })
+
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://registry.npmjs.org/next/canary',
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+          cache: 'no-store',
+        })
+      )
+      expect(crossSpawn).toHaveBeenCalledTimes(0)
+      expect(prepareUpgrade).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it.each([true, 'security', 'latest', 'future'])(
+    'delegates %s to the exact canary and preserves its failure status',
+    async (ai) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      const version = '99.0.0-canary.35'
+      jest
+        .mocked(global.fetch)
+        .mockResolvedValue(new Response(JSON.stringify({ version })))
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('close', 42, null))
+        return child
+      })
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: true,
+        ai,
+      })
+
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(crossSpawn).toHaveBeenCalledTimes(1)
+      expect(crossSpawn).toHaveBeenCalledWith(
+        'npx',
+        [
+          `next@${version}`,
+          'upgrade',
+          '/workspace/app',
+          ai === true ? '--ai' : `--ai=${ai}`,
+          '--verbose',
+        ],
+        expect.objectContaining({
+          cwd: '/workspace/app',
+          stdio: 'inherit',
+          env: expect.objectContaining({
+            __NEXT_UPGRADE_EXPECTED_CLI_VERSION: version,
+            __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+          }),
+        })
+      )
+      expect(process.exitCode).toBe(42)
+      expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it.each([
+    ['HTTP error', () => Promise.resolve(new Response('', { status: 503 }))],
+    ['network error', () => Promise.reject(new TypeError('fetch failed'))],
+    [
+      'timeout',
+      () => Promise.reject(new DOMException('Timed out', 'TimeoutError')),
+    ],
+    ['invalid JSON', () => Promise.resolve(new Response('invalid'))],
+    ['missing version', () => Promise.resolve(new Response('{}'))],
+    [
+      'invalid version',
+      () => Promise.resolve(new Response('{"version":"canary"}')),
+    ],
+  ] as const)('stops before upgrading on %s', async (_name, response) => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest.mocked(global.fetch).mockImplementation(response)
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'security',
+    })
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      'Could not fetch the latest Next.js canary from npm.'
+    )
+    expect(process.exitCode).toBe(1)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(0)
   })
 
   it('uses the planned multiple-agent question and choices', async () => {
@@ -288,6 +453,8 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
+     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+
      Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
@@ -373,6 +540,8 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
+     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+
      Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
@@ -381,6 +550,40 @@ describe('agentic upgrade prompts', () => {
      ]
     `)
   })
+
+  it.each(['latest', 'future'] as const)(
+    'hands off the exact canary target for %s upgrades',
+    async (policy) => {
+      jest.mocked(prepareUpgrade).mockResolvedValue({
+        status: 'ready',
+        installedVersion: '17.2.0-canary.4',
+        targetVersion: '17.2.0-canary.9',
+        references: ['https://registry.npmjs.org/next/canary'],
+        futureDefaults: [],
+      })
+
+      await spawnNextUpgrade('/workspace/app', {
+        revision: 'latest',
+        verbose: false,
+        ai: policy,
+      })
+
+      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+      const prompt = normalizedBootstrapCalls().flat().join('\n')
+      expect(prompt).toContain(
+        'from Next.js 17.2.0-canary.4 to 17.2.0-canary.9'
+      )
+      expect(prompt).toContain(
+        policy === 'latest'
+          ? 'newer canary Next.js release'
+          : 'latest canary release'
+      )
+      expect(prompt).toContain('https://registry.npmjs.org/next/canary')
+      expect(String(jest.mocked(writeFile).mock.calls[0][1])).toContain(
+        'upgrade 17.2.0-canary.9 --yes --skip-adoption'
+      )
+    }
+  )
 
   it('adds temporary Future Default instructions to the migration prompt', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
@@ -398,6 +601,7 @@ describe('agentic upgrade prompts', () => {
             'skills/next-cache-components-adoption/SKILL.md',
           ],
           optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+          isApplicable: jest.fn(() => true),
         },
       ],
     })
@@ -445,6 +649,8 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
+     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      After completing and verifying the version migration, adopt these Future Defaults in order:
@@ -484,6 +690,7 @@ describe('agentic upgrade prompts', () => {
             'skills/next-cache-components-adoption/SKILL.md',
           ],
           optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+          isApplicable: jest.fn(() => true),
         },
       ],
     })
@@ -539,6 +746,8 @@ describe('agentic upgrade prompts', () => {
          "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
+
+     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
