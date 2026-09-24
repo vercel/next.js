@@ -15,11 +15,11 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{GcRoot, TurboTasks, Vc};
+use turbo_tasks::{GcRoot, ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
-    gc_fixture::{create_constant, diamond_root_op},
+    gc_fixture::{Constant, Selector, create_constant, create_selector, diamond_root_op},
     util::{create_persistence_dir, reopen_tt_with_gc, reopen_tt_with_gc_ttl},
 };
 
@@ -217,5 +217,137 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
         .await;
         tt.stop_and_wait().await;
         result.unwrap();
+    }
+}
+
+// Regression test for a bug where a second cell reader owned by a different root task would panic
+// when the root eventually ages out.
+//
+// This test merely asserts that such dependencies don't cause panics.
+//
+// `shared_target` is *called* by the owning side only, so that side is its sole parent.
+// `borrowing_root` receives the target already resolved and only reads it through `shared_reader`:
+// a forward cell-dependency, no child edge. So the target's `cell_dependents` holds reader 2 while
+// its `parent_count` comes entirely from the owning side.
+//
+// Session 1 flips a selector to drop the owning side cleanly -- no invalidation, so the target
+// keeps its edges -- and collects it. The shared target cascades with it, because
+// `cell_dependents` do not keep a task alive (the documented `gc_collectible` heuristic). Reader 2
+// survives under the pinned borrowing root holding a forward dependency on a task that is now
+// gone, and that state is persisted.
+//
+// Session 2 ages the borrowing root out. Tearing down reader 2 scrubs its forward dependency on
+// the target collected back in session 1: a `MustExist` open of an already-collected task. The
+// session does not need to execute anything -- the tasks only have to exist on disk for GC to
+// reach them.
+
+#[turbo_tasks::function]
+async fn shared_target(constant: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*constant.await?.get() + 41))
+}
+
+/// Reads the shared target via an already-resolved `Vc`: a forward cell-dependency, no child edge.
+#[turbo_tasks::function]
+async fn shared_reader(target: ResolvedVc<u32>, n: u32) -> Result<Vc<u32>> {
+    Ok(Vc::cell(n + *target.await?))
+}
+
+/// Calls the shared target -- becoming its only parent -- and reads it through reader 1.
+#[turbo_tasks::function]
+async fn owning_subtree(constant: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    let target = shared_target(*constant).to_resolved().await?;
+    assert_eq!(*shared_reader(*target, 1).await?, 42);
+    // Return the target's own `Vc`, so a caller that resolves this reaches `shared_target`.
+    Ok(*target)
+}
+
+/// Selector-gated root over [`owning_subtree`]: flipping the selector to `true` drops the owning
+/// subtree cleanly, without invalidating it, so it keeps its edges and becomes collectible.
+#[turbo_tasks::function(operation, root)]
+async fn select_owning(
+    selector: ResolvedVc<Selector>,
+    constant: ResolvedVc<Constant>,
+) -> Result<Vc<u32>> {
+    // Pass the subtree's `Vc` through unchanged rather than re-celling it, so resolving this op
+    // names `shared_target` itself -- that is the task the borrowing side must depend on.
+    if !*selector.await?.get() {
+        Ok(owning_subtree(*constant))
+    } else {
+        Ok(Vc::cell(0))
+    }
+}
+
+/// Reaches reader 2 through an **already-resolved** target, so it never calls the target and never
+/// becomes its parent. Reader 2 keeps its forward cell-dependency on the target after the owning
+/// subtree -- the target's only parent -- is collected.
+#[turbo_tasks::function(operation, root)]
+async fn borrowing_root(target: ResolvedVc<u32>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*shared_reader(*target, 2).await?))
+}
+
+/// A surviving task must not be left holding a forward cell-dependency on a collected task.
+///
+/// Two readers share a cell target, but only one side *owns* it (is its parent). The owning side is
+/// collected while the borrowing root is still pinned, so the target is destroyed with reader 2
+/// still depending on it -- and reader 2 is only torn down in the next session.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn shared_cell_target_collected_before_its_second_reader() {
+    let dir = create_persistence_dir("shared_cell_target_collected_before_its_second_reader");
+
+    // Session 1: build both sides over one shared target, drop the owning side, and collect it.
+    // That leaves reader 2 holding a dependency on the collected target, and persists it.
+    {
+        let tt = reopen_tt_with_gc(&dir);
+        let borrowing_op = turbo_tasks::run_once(tt.clone(), async move {
+            let selector_op = create_selector(false);
+            let selector_vc = selector_op.resolve().strongly_consistent().await?;
+            let selector = selector_op.read_strongly_consistent().await?;
+
+            let constant_op = create_constant();
+            let constant_vc = constant_op.resolve().strongly_consistent().await?;
+
+            // The owning side parents the target and hands it back.
+            let owning = select_owning(selector_vc, constant_vc);
+            let target = owning.resolve().strongly_consistent().await?;
+            assert_eq!(*target.await?, 41);
+
+            let borrowing = borrowing_root(target);
+            assert_eq!(*borrowing.read_strongly_consistent().await?, 43);
+
+            // Drop the owning subtree cleanly: no invalidation, so the target keeps its edges.
+            selector.set(true);
+            assert_eq!(*owning.read_strongly_consistent().await?, 0);
+            anyhow::Ok(borrowing)
+        })
+        .await
+        .unwrap();
+
+        // Pin the borrowing root so only the owning side is collectible.
+        let borrowing_pin = GcRoot::pin(tt.clone(), borrowing_op);
+        let collected = gc_until_collected(&tt, 3).await;
+        assert!(
+            collected >= 3,
+            "the owning subtree, reader 1 and the shared target should be collected (got              {collected})"
+        );
+
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+        drop(borrowing_pin);
+
+        tt.stop_and_wait().await;
+    }
+
+    // Session 2: nothing is pinned, so the borrowing root ages out. Tearing down reader 2 scrubs
+    // its forward dependency on the target collected in session 1 -- the dangling half-edge.
+    // Surviving these passes without a panic is the assertion.
+    {
+        let tt = reopen_tt_with_gc_ttl(&dir, Duration::ZERO);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            gc_until_collected(&tt2, 2).await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
     }
 }
