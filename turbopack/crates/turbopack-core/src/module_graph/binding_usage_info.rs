@@ -83,15 +83,10 @@ impl BindingUsageInfo {
     ) -> Result<Vc<ModuleExportUsage>> {
         let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
         let Some(exports) = self.used_exports.get(&module).await? else {
-            // The WebAssembly loader is code-generated as a different module from the one
-            // recorded in the graph. Until it uses the graph module as its codegen context,
-            // conservatively treat all of its exports as used.
-            let ident = module.ident_string().await?;
-            if ident.contains(".wasm_.loader.mjs") {
-                return Ok(ModuleExportUsage::unknown());
-            }
-
-            bail!("export usage not found for module: {ident:?}");
+            bail!(
+                "export usage not found for module: {:?}",
+                module.ident_string().await?
+            );
         };
         let namespace_object_may_escape =
             self.partial_namespace_modules.contains_key(&module).await?;

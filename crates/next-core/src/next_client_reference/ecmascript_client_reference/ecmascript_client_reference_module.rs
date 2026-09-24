@@ -1,6 +1,6 @@
 use std::{io::Write, iter::once};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
@@ -25,11 +25,11 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    EcmascriptAnalyzable, EcmascriptModuleContent,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    chunk_item_content_with_code_from,
     runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
 };
@@ -259,19 +259,19 @@ impl Module for EcmascriptClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(
             EcmascriptClientReferenceProxyChunkItem {
                 inner_module: self,
-                module_graph: module_graph.to_resolved().await?,
+                module_graph,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -286,28 +286,17 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
 
     #[turbo_tasks::function]
     async fn chunk_item_content(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let proxy_module = self.proxy_module().to_resolved().await?;
-        let proxy_analyzable =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(proxy_module)
-                .context("client reference proxy must be an analyzable ECMAScript module")?;
-        let options = proxy_analyzable
-            .module_content_options(chunking_context, async_module_info)
-            .await?
-            .with_module_context(ResolvedVc::upcast(self.to_resolved().await?));
-        let content = EcmascriptModuleContent::new(options);
-        let async_module_options = proxy_module
-            .get_async_module()
-            .module_options(async_module_info);
-        Ok(EcmascriptChunkItemContent::new(
-            content,
-            chunking_context,
-            async_module_options,
+        Ok(chunk_item_content_with_code_from(
+            *ResolvedVc::upcast(self),
+            self.proxy_module(),
+            *chunking_context,
+            async_module_info,
         ))
     }
 }
