@@ -86,4 +86,91 @@ describe('postNextTelemetryPayload', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(2) // Initial try + 1 retry
   })
+
+  it('applies the built-in timeout even when a caller signal is provided', async () => {
+    const timeoutController = new AbortController()
+    const timeoutSpy = jest
+      .spyOn(AbortSignal, 'timeout')
+      .mockReturnValue(timeoutController.signal)
+
+    let fetchSignal: AbortSignal | undefined
+    const mockFetch = jest.fn().mockImplementation((_url, opts) => {
+      fetchSignal = opts.signal
+      if (opts.signal.aborted) {
+        return Promise.reject(opts.signal.reason)
+      }
+      return new Promise((_resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(opts.signal.reason))
+      })
+    })
+    global.fetch = mockFetch
+
+    const payload = {
+      meta: {},
+      context: {
+        anonymousId: 'test-id',
+        projectId: 'test-project',
+        sessionId: 'test-session',
+      },
+      events: [],
+    }
+
+    // Caller signal that never aborts (e.g. `next build` waiting on flush)
+    const callerController = new AbortController()
+    const resPromise = postNextTelemetryPayload(
+      payload,
+      callerController.signal
+    )
+
+    // The built-in timeout must still be installed
+    expect(timeoutSpy).toHaveBeenCalledWith(5000)
+    expect(fetchSignal!.aborted).toBe(false)
+
+    // Simulate the built-in timeout firing while the caller never aborts
+    timeoutController.abort()
+    expect(fetchSignal!.aborted).toBe(true)
+
+    // Errors from the aborted request are swallowed
+    await resPromise
+
+    timeoutSpy.mockRestore()
+  })
+
+  it('still aborts the request when the caller signal aborts', async () => {
+    let fetchSignal: AbortSignal | undefined
+    const mockFetch = jest.fn().mockImplementation((_url, opts) => {
+      fetchSignal = opts.signal
+      if (opts.signal.aborted) {
+        return Promise.reject(opts.signal.reason)
+      }
+      return new Promise((_resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(opts.signal.reason))
+      })
+    })
+    global.fetch = mockFetch
+
+    const payload = {
+      meta: {},
+      context: {
+        anonymousId: 'test-id',
+        projectId: 'test-project',
+        sessionId: 'test-session',
+      },
+      events: [],
+    }
+
+    const callerController = new AbortController()
+    const resPromise = postNextTelemetryPayload(
+      payload,
+      callerController.signal
+    )
+
+    expect(fetchSignal!.aborted).toBe(false)
+
+    callerController.abort()
+    expect(fetchSignal!.aborted).toBe(true)
+
+    // Errors from the aborted request are swallowed
+    await resPromise
+  })
 })
