@@ -37,5 +37,9 @@
     "agentFeedback": true,
     "publish": false,
     "timeout": 900
+  },
+  "agent-059-browser-initial-load-optimizer": {
+    "skills": ["next-browser-initial-load-optimizer"],
+    "timeout": 1800
   }
 }
