@@ -297,7 +297,7 @@ export { remoteShared }
   })
 
   it('propagates remote factory errors without loading a fallback factory', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/factories')
     await retry(async () => {
       expect(await browser.eval(`globalThis.__factoryErrorResult`)).toEqual({
         error: 'factory error from webpack remote',
@@ -307,7 +307,7 @@ export { remoteShared }
   })
 
   it('awaits an asynchronous remote factory result', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/factories')
     await retry(async () => {
       expect(await browser.eval(`globalThis.__factoryAsyncResult`)).toBe(
         'async factory from webpack remote'
@@ -316,7 +316,7 @@ export { remoteShared }
   })
 
   it('returns to the primary remote after loading a fallback-only module', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/factories')
     await retry(async () => {
       expect(
         await browser.eval(`globalThis.__factoryFallbackOrderResult`)
@@ -328,7 +328,7 @@ export { remoteShared }
   })
 
   it('loads a remote whose name matches the private candidate prefix', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/factories')
     await retry(async () => {
       expect(
         await browser.eval(`globalThis.__factoryPrefixCollisionResult`)
