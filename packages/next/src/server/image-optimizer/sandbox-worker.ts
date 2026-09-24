@@ -2,7 +2,8 @@ import type { ChildProcess, SpawnOptions } from 'child_process'
 import { spawn } from 'child_process'
 import { realpathSync } from 'fs'
 import { dirname, resolve } from 'path'
-import type { SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime'
+import { getImageOptimizerSandboxConfig } from './sandbox-worker-policy'
+export { getImageOptimizerSandboxConfig } from './sandbox-worker-policy'
 import { ImageError } from './image-error'
 import type {
   ImageOptimizerOperation,
@@ -37,6 +38,7 @@ interface ActiveOperation extends QueuedOperation {
 
 interface WorkerOptions {
   workerPath?: string
+  readAllowlist?: string[]
   maxOperations?: number
   maxInFlightBytes?: number
   maxPendingOperations?: number
@@ -44,26 +46,6 @@ interface WorkerOptions {
   requestTimeoutMs?: number
   killGraceMs?: number
   sandboxManager?: SandboxManager
-}
-
-// Reads remain unrestricted here for runtime/dependency compatibility.
-// A later commit adds read restrictions; this commit establishes process,
-// write, and network isolation.
-export function getImageOptimizerSandboxConfig(): SandboxRuntimeConfig {
-  if (process.platform !== 'darwin' && process.platform !== 'linux') {
-    throw new Error(
-      `Sandboxed image optimization is not supported on ${process.platform}`
-    )
-  }
-  return {
-    network: { allowedDomains: [], deniedDomains: [] },
-    filesystem: {
-      denyRead: [],
-      allowRead: [],
-      allowWrite: [],
-      denyWrite: [],
-    },
-  }
 }
 
 function getRestrictedEnvironment(
@@ -75,6 +57,9 @@ function getRestrictedEnvironment(
 
   const environment: NodeJS.ProcessEnv = {
     NODE_ENV: sandboxEnvironment.NODE_ENV ?? process.env.NODE_ENV,
+    // Image transforms do not need host OpenSSL configuration (which may
+    // itself reference secrets or additional files outside the read policy).
+    OPENSSL_CONF: '/dev/null',
     // This is a no-op for an installed `node_modules/next` package. It also
     // lets the monorepo checkout resolve `next/dist/compiled/*` from the
     // package's own worker.
@@ -115,6 +100,7 @@ function getOperationSize(operation: ImageOptimizerOperation): number {
 
 export class SandboxedImageOptimizerWorker {
   private readonly workerPath: string
+  private readonly readAllowlist?: string[]
   private readonly maxOperations: number
   private readonly maxInFlightBytes: number
   private readonly maxPendingOperations: number
@@ -136,6 +122,7 @@ export class SandboxedImageOptimizerWorker {
   private closed = false
 
   constructor(options: WorkerOptions = {}) {
+    this.readAllowlist = options.readAllowlist?.slice()
     this.workerPath =
       options.workerPath ?? require.resolve('./sandbox-worker-child')
     this.maxOperations = options.maxOperations ?? DEFAULT_MAX_OPERATIONS
@@ -280,7 +267,9 @@ export class SandboxedImageOptimizerWorker {
         )
       ).SandboxManager
     this.sandboxManager = sandboxManager
-    await sandboxManager.initialize(getImageOptimizerSandboxConfig())
+    await sandboxManager.initialize(
+      getImageOptimizerSandboxConfig(this.workerPath, this.readAllowlist)
+    )
 
     const command = `exec ${quoteShellArgument(process.execPath)} ${quoteShellArgument(this.workerPath)}`
     const { argv, env } = await sandboxManager.wrapWithSandboxArgv(
@@ -294,7 +283,7 @@ export class SandboxedImageOptimizerWorker {
     }
 
     const spawnOptions: SpawnOptions = {
-      cwd: dirname(this.workerPath),
+      cwd: __dirname,
       env: getRestrictedEnvironment(env),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       serialization: 'advanced',

@@ -293,6 +293,7 @@ export const experimentalSchema = {
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptMozjpeg: z.boolean().optional(),
   imgOptWorker: z.boolean().optional(),
+  imgOptWorkerReadAllowlist: z.array(z.string()).optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
