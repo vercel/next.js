@@ -72,6 +72,18 @@ const linterConfigWithNestedContentRootDirDirectory = {
     },
   },
 }
+const linterConfigWithCustomPageExtensions: any = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [2, undefined, ['js', 'jsx', 'ts', 'tsx', 'mdx']],
+  },
+}
+const linterConfigWithMdxExcluded: any = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [2, undefined, ['js']],
+  },
+}
 
 for (const linter of Object.values(linters)) {
   linter.defineRules({
@@ -494,5 +506,21 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('should detect mdx pages when pageExtensions includes mdx', function () {
+    const [report] = linters.withApp.verify(
+      invalidStaticCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+  })
+  it('should not detect mdx pages when pageExtensions excludes mdx', function () {
+    const report = linters.withApp.verify(
+      invalidStaticCode,
+      linterConfigWithMdxExcluded,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
   })
 })
