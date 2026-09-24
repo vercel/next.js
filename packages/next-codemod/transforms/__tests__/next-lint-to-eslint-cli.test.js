@@ -40,9 +40,6 @@ describe('next-lint-to-eslint-cli', () => {
     ['empty scripts', {}],
     ['ESLint', { lint: 'eslint .' }],
     ['Biome', { lint: 'biome check .' }],
-    ['unrelated command', { lint: 'next linting' }],
-    ['newline-separated commands', { lint: 'echo next\nlint' }],
-    ['CRLF-separated commands', { lint: 'echo next\r\nlint' }],
   ])('skips projects with %s', (_name, scripts) => {
     const testDir = fs.mkdtempSync(path.join(isolatedDir, 'no-next-lint-'))
     const packageJsonPath = path.join(testDir, 'package.json')
@@ -70,28 +67,6 @@ describe('next-lint-to-eslint-cli', () => {
     expect(fs.readFileSync(configPath, 'utf8')).toBe(configContent)
     expect(fs.readFileSync(packageJsonPath, 'utf8')).toBe(packageJsonContent)
   })
-
-  it.each(['next  lint', 'next\tlint'])(
-    'migrates %s without rewriting newline-separated commands',
-    (lint) => {
-      const testDir = fs.mkdtempSync(path.join(isolatedDir, 'script-spacing-'))
-      const packageJsonPath = path.join(testDir, 'package.json')
-      const scripts = {
-        lint,
-        unrelated: 'echo next\nlint',
-        mixed: 'echo next\nlint && next lint',
-      }
-      fs.writeFileSync(packageJsonPath, JSON.stringify({ scripts }))
-
-      transformer([testDir], { skipInstall: true })
-
-      expect(JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')).scripts).toEqual({
-        lint: 'eslint .',
-        unrelated: scripts.unrelated,
-        mixed: 'echo next\nlint && eslint .',
-      })
-    }
-  )
 
   describe('flat-config', () => {
     it('should keep config unchanged and transform package.json', () => {

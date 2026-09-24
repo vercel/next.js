@@ -842,11 +842,11 @@ function updatePackageJsonScripts(packageJsonContent: string): {
       const scriptValue = packageJson.scripts[scriptName]
       if (
         typeof scriptValue === 'string' &&
-        /\bnext[ \t]+lint\b/.test(scriptValue)
+        scriptValue.includes('next lint')
       ) {
         // Replace "next lint" with "eslint" and handle special arguments
         const updatedScript = scriptValue.replace(
-          /\bnext[ \t]+lint\b([^&|;]*)/gi,
+          /\bnext\s+lint\b([^&|;]*)/gi,
           (_match, args = '') => {
             // Track whether we need a trailing space before operators
             let trailingSpace = ''
@@ -1069,7 +1069,7 @@ export default function transformer(
   const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
   const packageJson = JSON.parse(packageJsonContent)
   const usesNextLint = Object.values(packageJson.scripts || {}).some(
-    (script) => typeof script === 'string' && /\bnext[ \t]+lint\b/.test(script)
+    (script) => typeof script === 'string' && script.includes('next lint')
   )
   if (!usesNextLint) {
     console.log(
