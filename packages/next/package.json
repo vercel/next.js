@@ -100,6 +100,7 @@
     ]
   },
   "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.60",
     "@next/env": "16.4.0-canary.47",
     "@swc/helpers": "0.5.23",
     "baseline-browser-mapping": "^2.9.19",
