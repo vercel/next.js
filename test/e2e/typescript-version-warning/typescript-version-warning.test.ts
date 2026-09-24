@@ -1,20 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('typescript-version-warning', () => {
-  const { next, isNextDeploy, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       typescript: '4.0.6',
     },
   })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextDeploy || isNextDev) {
+  if (isNextDev) {
     it('should skip', () => {})
     return
   }
@@ -24,5 +19,5 @@ describe('typescript-version-warning', () => {
     expect(next.cliOutput).toContain(
       'Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: 4.0.6'
     )
-  })
+  }, 240_000)
 })

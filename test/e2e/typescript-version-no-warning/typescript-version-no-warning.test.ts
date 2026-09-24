@@ -1,17 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('typescript-version-no-warning', () => {
-  const { next, isNextDeploy, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextDeploy || isNextDev) {
+  if (isNextDev) {
     it('should skip', () => {})
     return
   }
@@ -21,5 +16,5 @@ describe('typescript-version-no-warning', () => {
     expect(next.cliOutput).not.toContain(
       'Minimum recommended TypeScript version is'
     )
-  })
+  }, 240_000)
 })
