@@ -10150,6 +10150,7 @@ dependencies = [
 name = "turbopack-trace-server-wasm"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "napi",
  "napi-build",
  "napi-derive",

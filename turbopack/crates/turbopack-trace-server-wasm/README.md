@@ -1,20 +1,24 @@
 # Turbopack trace server WASM
 
-This crate exposes the transport-independent Turbopack trace viewer engine through NAPI-RS v3's browser WASM mode. It is intended to let a browser or Web Worker load a completed trace without starting the native localhost WebSocket server.
+This crate exposes the transport-independent Turbopack trace viewer engine through NAPI-RS v3's browser WASM mode. It is intended to let a browser or Web Worker load a trace without starting the native localhost WebSocket server.
 
-The exported `TurbopackTraceServer` class accepts a complete raw or gzip-compressed trace as a `Uint8Array`. Its `handleMessage()` method accepts the existing trace viewer client JSON protocol and returns the corresponding server messages in protocol order.
+The exported `TurbopackTraceServer` class incrementally accepts raw or gzip-compressed trace chunks through its `read()` method. Its `handleMessage()` method accepts the existing trace viewer client JSON protocol and returns the corresponding server messages in protocol order. The store can be queried while more trace data is still arriving.
 
-Loading is synchronous, so pass an optional progress callback to the constructor before parsing starts. It runs at most once every 250 milliseconds and always receives a final update with `done: true`:
+Each `read()` call parses synchronously. Pass an optional progress callback to the constructor to receive updates at most once every 250 milliseconds:
 
 ```js
-const server = new TurbopackTraceServer(trace, (progress) => {
+const server = new TurbopackTraceServer((progress) => {
   worker.postMessage({ type: 'trace-load-progress', progress })
 })
+
+for await (const chunk of traceStream) {
+  server.read(chunk)
+}
 ```
 
-The callback receives `bytesRead`, `totalBytes`, `uncompressedBytesRead`, `percentage`, `elapsedMs`, `bytesPerSecond`, `etaMs`, `stats`, and `done`. Because construction is synchronous, use the callback from a Web Worker if progress needs to update the browser UI while the trace is loading.
+The callback receives `bytesRead`, `uncompressedBytesRead`, `elapsedMs`, `bytesPerSecond`, and `stats`. The caller owns the stream and therefore also knows its total size and when loading is complete. Use the API from a Web Worker if parsing must not block the browser UI.
 
-Zstd-compressed traces and live file tailing remain native-only.
+Zstd-compressed traces remain native-only.
 
 ## Build
 
