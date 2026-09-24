@@ -164,13 +164,20 @@ export async function buildPagesStaticPaths({
 
         if (
           (repeat && !Array.isArray(paramValue)) ||
+          (repeat &&
+            Array.isArray(paramValue) &&
+            paramValue.some((value) => typeof value !== 'string')) ||
           (!repeat && typeof paramValue !== 'string') ||
           typeof paramValue === 'undefined'
         ) {
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
-              repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in getStaticPaths for ${page}`
+              repeat ? 'an array of strings' : 'a string'
+            } received ${
+              repeat && Array.isArray(paramValue)
+                ? 'an array with non-string values'
+                : typeof paramValue
+            } in getStaticPaths for ${page}`
           )
         }
 
