@@ -19,8 +19,8 @@ use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     chunk::{ChunkingType, TracedMode},
-    module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module::{Module, ModuleSideEffects},
+    module_graph::{GraphTraversalAction, ModuleGraph, binding_usage_info::ModuleExportUsageInfo},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
@@ -71,6 +71,38 @@ pub struct AnalyzeSource {
 pub struct AnalyzeModule {
     pub ident: RcStr,
     pub path: RcStr,
+    pub used_exports: AnalyzeUsedExports,
+    pub own_side_effects: AnalyzeOwnSideEffects,
+    pub transitive_side_effects: AnalyzeTransitiveSideEffects,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum AnalyzeUsedExports {
+    State(AnalyzeUsedExportsState),
+    Exports(Vec<RcStr>),
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnalyzeUsedExportsState {
+    All,
+    Evaluation,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnalyzeOwnSideEffects {
+    Free,
+    EvaluationFree,
+    Effectful,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnalyzeTransitiveSideEffects {
+    Free,
+    Effectful,
 }
 
 #[derive(Serialize)]
@@ -294,16 +326,14 @@ impl ModulesDataBuilder {
         panic!("Module with ident `{}` not found", ident);
     }
 
-    fn ensure_module(&mut self, ident: &str, path: &str) -> (&mut AnalyzeModuleBuilder, u32) {
-        if let Some(&index) = self.module_index_map.get(ident) {
+    fn ensure_module(&mut self, module: AnalyzeModule) -> (&mut AnalyzeModuleBuilder, u32) {
+        if let Some(&index) = self.module_index_map.get(&module.ident) {
             return (&mut self.modules[index as usize], index);
         }
         let index = self.modules.len() as u32;
-        let ident = RcStr::from(ident);
-        let path = RcStr::from(path);
-        self.module_index_map.insert(ident.clone(), index);
+        self.module_index_map.insert(module.ident.clone(), index);
         self.modules.push(AnalyzeModuleBuilder {
-            module: AnalyzeModule { ident, path },
+            module,
             dependencies: FxIndexSet::default(),
             async_dependencies: FxIndexSet::default(),
             traced_dependencies: FxIndexSet::default(),
@@ -506,9 +536,10 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
     let mut all_traced_edges = FxIndexSet::default();
     let mut traced_modules = FxHashSet::default();
 
-    let module_graph = module_graph.await?;
-    module_graph.traverse_edges_dfs(
-        module_graph.all_entry_modules(),
+    let side_effect_free_modules = module_graph.side_effect_free_modules().await?;
+    let module_graph_ref = module_graph.await?;
+    module_graph_ref.traverse_edges_dfs(
+        module_graph_ref.all_entry_modules(),
         &mut (),
         |parent, node, _| {
             all_modules.insert(node);
@@ -561,13 +592,42 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
         .map(async |module| {
             let ident = module.ident().to_string().owned().await?;
             let path = module.ident().await?.path.to_string_ref().await?;
-            anyhow::Ok((ident, path))
+            let module_export_usage = module_graph.module_export_usage(*module).await?;
+            let used_exports = match &*module_export_usage.export_usage.await? {
+                ModuleExportUsageInfo::Evaluation => {
+                    AnalyzeUsedExports::State(AnalyzeUsedExportsState::Evaluation)
+                }
+                ModuleExportUsageInfo::Exports(exports) => {
+                    AnalyzeUsedExports::Exports(exports.iter().cloned().collect())
+                }
+                ModuleExportUsageInfo::All => {
+                    AnalyzeUsedExports::State(AnalyzeUsedExportsState::All)
+                }
+            };
+            let own_side_effects = match *module.side_effects().await? {
+                ModuleSideEffects::SideEffectFree => AnalyzeOwnSideEffects::Free,
+                ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                    AnalyzeOwnSideEffects::EvaluationFree
+                }
+                ModuleSideEffects::SideEffectful => AnalyzeOwnSideEffects::Effectful,
+            };
+            let transitive_side_effects = if side_effect_free_modules.contains(&module) {
+                AnalyzeTransitiveSideEffects::Free
+            } else {
+                AnalyzeTransitiveSideEffects::Effectful
+            };
+            anyhow::Ok(AnalyzeModule {
+                ident,
+                path,
+                used_exports,
+                own_side_effects,
+                transitive_side_effects,
+            })
         })
         .join()
         .await;
     for module in modules {
-        let (ident, path) = module?;
-        builder.ensure_module(&ident, &path);
+        builder.ensure_module(module?);
     }
 
     let all_edges = all_edges

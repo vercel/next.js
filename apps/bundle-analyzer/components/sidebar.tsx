@@ -17,6 +17,12 @@ import { cn, getSpecialModuleType } from '@/lib/utils'
 import { Badge } from './ui/badge'
 import type { DiffSummary, SourceDiffRow } from '@/lib/diff'
 import { formatDelta } from '@/lib/diff'
+import { summarizeTreeShaking, type TreeShakingInfo } from '@/lib/tree-shaking'
+import {
+  TreeShakingComparison,
+  TreeShakingDetails,
+  type ComparisonTreeShakingSide,
+} from './tree-shaking-details'
 
 interface SidebarProps {
   sidebarWidth: number
@@ -133,6 +139,14 @@ function SelectionDetails({
       ? analyzeData.sourceChunks(selectedSourceIndex)
       : []
 
+  const treeShakingInfo =
+    selectedSource && modulesData
+      ? getTreeShakingInfo(
+          modulesData,
+          analyzeData.getFullSourcePath(selectedSourceIndex)
+        )
+      : null
+
   return (
     <div className="flex-1 p-3 space-y-8 overflow-y-auto">
       <div className="space-y-2">
@@ -213,6 +227,9 @@ function SelectionDetails({
                   ))}
                 </ul>
               </div>
+            ) : null}
+            {treeShakingInfo ? (
+              <TreeShakingDetails info={treeShakingInfo} />
             ) : null}
           </>
         )}
@@ -317,6 +334,17 @@ function CompareSidebarContent({
   const activeDepthMap =
     activeTab === 'A' ? baselineModuleDepthMap : moduleDepthMap
 
+  const treeShakingA = getComparisonTreeShakingSide(
+    baselineAnalyzeData,
+    baselineModulesData,
+    row.sourceIndexA
+  )
+  const treeShakingB = getComparisonTreeShakingSide(
+    analyzeData,
+    modulesData,
+    row.sourceIndexB
+  )
+
   const compressedDelta = row.compressedB - row.compressedA
 
   return (
@@ -391,8 +419,42 @@ function CompareSidebarContent({
           Import chain not available.
         </p>
       )}
+
+      <TreeShakingComparison
+        a={treeShakingA}
+        b={treeShakingB}
+        aLabel={aLabel}
+        bLabel={bLabel}
+      />
     </div>
   )
+}
+
+function getTreeShakingInfo(
+  modulesData: ModulesData,
+  sourcePath: string
+): TreeShakingInfo | null {
+  const modules = modulesData
+    .getModuleIndiciesFromPath(sourcePath)
+    .map((index) => modulesData.module(index))
+    .filter((module) => module !== undefined)
+  return summarizeTreeShaking(modules)
+}
+
+function getComparisonTreeShakingSide(
+  analyzeData: AnalyzeData | null,
+  modulesData: ModulesData | null,
+  sourceIndex: number | null
+): ComparisonTreeShakingSide {
+  if (sourceIndex == null) return { status: 'not-present' }
+  if (!analyzeData || !modulesData) return { status: 'unavailable' }
+  const source = analyzeData.source(sourceIndex)
+  if (!source) return { status: 'unavailable' }
+  const info = getTreeShakingInfo(
+    modulesData,
+    analyzeData.getFullSourcePath(sourceIndex)
+  )
+  return info ? { status: 'available', info } : { status: 'unavailable' }
 }
 
 function InlineHelpTooltip({ children }: { children: React.ReactNode }) {
@@ -400,11 +462,13 @@ function InlineHelpTooltip({ children }: { children: React.ReactNode }) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <CircleHelp
-            size={14}
-            className="inline-block ml-1 text-muted-foreground"
-            aria-hidden="true"
-          />
+          <button
+            type="button"
+            aria-label="More information"
+            className="ml-1 inline-flex align-text-bottom text-muted-foreground"
+          >
+            <CircleHelp size={14} aria-hidden="true" />
+          </button>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs" side="top" align="center">
           {children}

@@ -13,6 +13,12 @@ use crate::{
 #[turbo_tasks::value(transparent)]
 pub struct SideEffectFreeModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
+impl SideEffectFreeModules {
+    pub fn contains(&self, module: &ResolvedVc<Box<dyn Module>>) -> bool {
+        self.0.contains(module)
+    }
+}
+
 /// Computes the set of side effect free modules in the module graph.
 ///
 /// This leverages the module graph to compute if modules with `ModuleEvaluationIsSideEffectFree`
