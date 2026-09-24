@@ -256,11 +256,16 @@ export const invalid = ;`
 
         const cliOutput = next.getCliOutputFromHere()
         await browser.elementByCss('#load-parse-error').click()
-        await retry(async () => {
-          expect(cliOutput()).toContain(
-            'parse-error-proves-target-was-analyzed'
-          )
-        })
+        // Activating the import adds it to the page's module graph, so the
+        // compile error reloads the page. Wait for that document before
+        // looking for its overlay.
+        await browser.waitForCondition(
+          `performance.getEntriesByType('navigation')[0]?.type === 'reload'`
+        )
+        await waitForRedbox(browser)
+        expect(await getRedboxSource(browser)).toContain(
+          'parse-error-proves-target-was-analyzed'
+        )
       } finally {
         await next.patchFile(targetPath, originalTarget)
         await next.patchFile(demoPath, originalDemo)
