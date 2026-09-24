@@ -69,7 +69,7 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
 /// Zstd is intentionally unsupported here because the browser WASM build does
 /// not include the native zstd decoder used by the file reader.
 pub fn read_trace_bytes(bytes: &[u8]) -> anyhow::Result<Arc<StoreContainer>> {
-    const PARSE_CHUNK_SIZE: usize = 4 * 1024 * 1024;
+    const PARSE_CHUNK_SIZE: usize = 2 * 1024 * 1024;
     const GZIP_MAGIC: &[u8] = &[0x1f, 0x8b];
     const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
 
