@@ -581,7 +581,7 @@ pub fn extract_highlights(
 
     let scan_end = output_ranges.last().map_or(source.len(), |r| r.1);
     let mut scanner = Scanner::new(line_starts, source, output_ranges, language);
-    scanner.scan(scan_start, scan_end, None);
+    scanner.scan(scan_start, scan_end, None, 0);
     let all_spans = scanner.markers;
 
     debug_assert!(
@@ -675,6 +675,13 @@ static REGEX_LITERAL_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 impl Scanner<'_> {
+    /// Maximum nesting depth for template literal expressions (`${...}`)
+    /// and nested templates. `scan` and `scan_template` recurse into each
+    /// other for every `${`, so unbounded nesting (e.g. in generated or
+    /// minified files) would overflow the stack; past this limit the rest
+    /// of the template is treated as plain string content instead.
+    const MAX_TEMPLATE_NESTING: u32 = 32;
+
     /// Scan a template literal starting at the opening backtick.
     ///
     /// Walks the source byte-by-byte from `tpl_start` (the `` ` ``), emitting
@@ -687,7 +694,7 @@ impl Scanner<'_> {
     ///
     /// Returns the byte position just past the closing backtick (or `scan_end`
     /// if the template is unterminated).
-    fn scan_template(&mut self, tpl_start: usize, scan_end: usize) -> usize {
+    fn scan_template(&mut self, tpl_start: usize, scan_end: usize, nesting: u32) -> usize {
         let bytes = self.source.as_bytes();
         let search_start = tpl_start + 1;
 
@@ -733,6 +740,14 @@ impl Scanner<'_> {
             // b == b'$'
             debug_assert_eq!(b, b'$');
             if pos + 1 < scan_end && bytes[pos + 1] == b'{' {
+                if nesting >= Self::MAX_TEMPLATE_NESTING {
+                    // Nesting too deep — skip past this `${` instead of
+                    // recursing, so the rest of the template is scanned as
+                    // plain string content.
+                    i = pos + 2;
+                    continue;
+                }
+
                 // End the current quasi segment just before the `${`
                 if pos > seg_start {
                     self.add_span(seg_start, pos, TokenType::String);
@@ -744,7 +759,7 @@ impl Scanner<'_> {
                 // with backticks, etc. It returns the byte position just past
                 // the matching `}`.
                 let expr_start = pos + 2;
-                let expr_end = self.scan(expr_start, scan_end, Some(1));
+                let expr_end = self.scan(expr_start, scan_end, Some(1), nesting + 1);
 
                 // The next quasi segment starts at the closing `}`
                 if expr_end > expr_start && bytes.get(expr_end - 1) == Some(&b'}') {
@@ -774,7 +789,13 @@ impl Scanner<'_> {
     /// `${...}`. The scanner tracks `{` / `}` tokens and returns as soon as
     /// the matching `}` brings the depth back to 0, returning the byte
     /// position just past the `}`. Pass `None` for top-level scanning.
-    fn scan(&mut self, start_pos: usize, scan_end: usize, mut brace_depth: Option<u32>) -> usize {
+    fn scan(
+        &mut self,
+        start_pos: usize,
+        scan_end: usize,
+        mut brace_depth: Option<u32>,
+        nesting: u32,
+    ) -> usize {
         let mut pos = start_pos;
 
         // Track the last non-whitespace, non-comment token kind for regex
@@ -803,7 +824,7 @@ impl Scanner<'_> {
                     // The regex only matched the opening backtick. Walk the
                     // full template literal (quasis + expression holes)
                     // manually, recursing into scan() for each ${...}.
-                    let tpl_end = self.scan_template(start, scan_end);
+                    let tpl_end = self.scan_template(start, scan_end, nesting);
                     last_token = LastToken::Value;
                     pos = tpl_end;
                     // we already updated pos so just continue
