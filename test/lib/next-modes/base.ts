@@ -562,11 +562,23 @@ export class NextInstance {
               'Detected node_modules in the test directory, writing `vercel.json` and `.vercelignore` to ensure its included.'
             )
 
+            // The fixture's `node_modules` was built by `createNextInstall`
+            // with pnpm, so its `package.json` can carry pnpm-only dependency
+            // protocols. `npm i` parses `package.json` before the copy below
+            // makes its work redundant, and rejects those specs outright
+            // (`EUNSUPPORTEDPROTOCOL: Unsupported URL Type "link:"`). Match
+            // the installer that produced the lockfile. `--no-frozen-lockfile`
+            // mirrors the local install: the harness rewrites `package.json`
+            // after it, and Vercel's builds set `CI`, which would otherwise
+            // make pnpm insist the lockfile is current.
+            const remoteInstall = testDirFiles.includes('pnpm-lock.yaml')
+              ? 'pnpm install --no-frozen-lockfile'
+              : 'npm i'
+
             await fs.writeFile(
               path.join(this.testDir, 'vercel.json'),
               JSON.stringify({
-                installCommand:
-                  'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
+                installCommand: `mv node_modules node_modules.bak && ${remoteInstall} && cp -r node_modules.bak/* node_modules`,
               })
             )
 
