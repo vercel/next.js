@@ -7,15 +7,13 @@ import { retry, waitForRedbox } from '../../../lib/next-test-utils'
 import { createRedboxSnapshot } from '../../../lib/add-redbox-matchers'
 
 describe('instant validation - server errors', () => {
-  const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },
   })
-  if (skipped) return
 
   if (isNextStart && !isTurbopack) {
     it.skip('TODO: snapshot tests for webpack', () => {})

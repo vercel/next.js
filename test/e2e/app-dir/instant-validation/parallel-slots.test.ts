@@ -9,15 +9,13 @@ import {
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
 
 describe('instant validation - parallel slot configs', () => {
-  const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },
   })
-  if (skipped) return
 
   if (isNextStart && !isTurbopack) {
     // TODO(instant-validation-build): snapshot tests for webpack
