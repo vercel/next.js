@@ -363,9 +363,12 @@ export function nextTestSetup(
   if (options.skipDeployment) {
     // When the environment is running for deployment tests.
     if (isNextDeploy) {
-      // eslint-disable-next-line jest/no-focused-tests
-      it.only('should skip next deploy', () => {})
-      // No tests are run.
+      // A placeholder keeps Jest from failing the file for having no tests.
+      // It must not be `it.only`: `.only` focuses the whole *file*, not this
+      // describe, so a suite that opts out of deploy would silently skip every
+      // other suite in the same file.
+      it('should skip next deploy', () => {})
+      // The caller returns on `skipped`, so no tests of its own are run.
       skipped = true
     }
   }
