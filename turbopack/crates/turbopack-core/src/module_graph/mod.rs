@@ -585,6 +585,10 @@ impl SingleModuleGraph {
         let mut scc_node_set = FxHashSet::default();
         let mut scc = Vec::new();
         let mut partially_observable = Vec::new();
+        // Diagnostics only: which of the two clauses put each module in
+        // `partially_observable`. Used to measure how much each contributes on real apps.
+        let mut back_edge_observable = Vec::new();
+        let mut entry_observable = Vec::new();
         for initial_index in self.graph.node_indices() {
             // Skip over already visited nodes
             if node_states[initial_index.index()].is_some() {
@@ -684,6 +688,8 @@ impl SingleModuleGraph {
                                 let graph_entries = self.entry_nodes();
                                 scc.clear();
                                 partially_observable.clear();
+                                back_edge_observable.clear();
+                                entry_observable.clear();
                                 for &scc_node in scc_nodes.iter() {
                                     let SingleModuleGraphNode::Module(module) =
                                         self.graph.node_weight(scc_node).unwrap()
@@ -715,15 +721,23 @@ impl SingleModuleGraph {
                                                     edge_filter(edge.weight())
                                                 })
                                     };
-                                    if back_edge_targets.contains(&scc_node)
-                                        || reachable_from_outside()
-                                    {
+                                    let is_back_edge_target = back_edge_targets.contains(&scc_node);
+                                    let is_entry = reachable_from_outside();
+                                    if is_back_edge_target {
+                                        back_edge_observable.push(module);
+                                    }
+                                    if is_entry {
+                                        entry_observable.push(module);
+                                    }
+                                    if is_back_edge_target || is_entry {
                                         partially_observable.push(module);
                                     }
                                 }
                                 visit_cycle(Cycle {
                                     modules: &scc,
                                     partially_observable: &partially_observable,
+                                    back_edge_observable: &back_edge_observable,
+                                    entry_observable: &entry_observable,
                                 })?;
                             }
                             scc_nodes.clear();
@@ -753,6 +767,14 @@ pub struct Cycle<'a, 'l> {
     ///
     /// This is never empty for a cycle, because a cycle always contains at least one back edge.
     pub partially_observable: &'a [&'l ResolvedVc<Box<dyn Module>>],
+    /// Diagnostics only: the subset of `partially_observable` that qualified through the back-edge
+    /// clause, i.e. the back-edge targets of the single DFS order this traversal explored.
+    /// Overlaps with `entry_observable`.
+    pub back_edge_observable: &'a [&'l ResolvedVc<Box<dyn Module>>],
+    /// Diagnostics only: the subset of `partially_observable` that qualified through the external
+    /// reachability clause, i.e. the modules where evaluation of the cycle could start. Overlaps
+    /// with `back_edge_observable`.
+    pub entry_observable: &'a [&'l ResolvedVc<Box<dyn Module>>],
 }
 
 #[turbo_tasks::value]
