@@ -48,6 +48,15 @@ Once the files are created, you can further configure your app by adding [SDK se
 
 (If you'd rather do the SDK set-up manually, [you can do that, too](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/).)
 
+Copy the local environment example and set your Sentry DSN values:
+
+```bash
+cp .env.local.example .env.local
+```
+
+- `SENTRY_DSN` is used by the server and edge Sentry config.
+- `NEXT_PUBLIC_SENTRY_DSN` is used by the client Sentry config.
+
 You should now be able to build and run your app locally, upload source maps, and send errors and performance data to Sentry. For more details, check out the [Sentry Next.js SDK docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/).
 
 #### Deploy your app to Vercel
