@@ -61,6 +61,7 @@ import {
   isImplicitValidationSegment,
 } from './instant-config'
 import type { NextParsedUrlQuery } from '../../request-meta'
+import { DynamicHoleKind } from '../dynamic-rendering'
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
@@ -85,7 +86,117 @@ const debug =
   process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
 //===============================================================
-// 1. Validation planning
+// Validation sequence
+//===============================================================
+
+export enum ValidationPrefetchKind {
+  /** App Shells, for `<Link>` without `prefetch={true}` */
+  Shell = 1,
+  // TODO(app-shells): validate speculative prefetches
+  // Speculative = 2,
+  /** Behavior when Partial Prefetching is not enabled. */
+  LegacySpeculative = 3,
+}
+
+type ValidationSequence = {
+  stageOrder: SegmentStage[]
+  initialStage: PrefetchedSegmentStage
+  finalStage: SegmentStage
+  holeResolution: Partial<Record<SegmentStage, DynamicHoleKind | null>>
+}
+
+/**
+ * Typescript helper to ensure that all stages in `stageOrder` have an entry in `holeResolution`.
+ * This is more constrained than the actual `ValidationSequence` type.
+ * */
+const defineValidationSequence = <
+  TStages extends [
+    PrefetchedSegmentStage,
+    ...PrefetchedSegmentStage[],
+    RenderStage.Dynamic,
+  ],
+>(sequence: {
+  stageOrder: TStages
+  holeResolution: Record<
+    TStages[number] | RenderStage.Dynamic,
+    DynamicHoleKind | null
+  >
+}): ValidationSequence => {
+  return {
+    stageOrder: sequence.stageOrder,
+    initialStage: sequence.stageOrder[0],
+    finalStage: sequence.stageOrder.at(-1)!,
+    holeResolution: sequence.holeResolution,
+  }
+}
+
+const BASE_VALIDATION_SEQUENCES: Record<
+  ValidationPrefetchKind,
+  ValidationSequence
+> = {
+  [ValidationPrefetchKind.Shell]: defineValidationSequence({
+    stageOrder: [
+      RenderStage.ShellRuntime,
+      RenderStage.Runtime,
+      RenderStage.NavigationRuntime,
+      RenderStage.Dynamic,
+    ],
+    holeResolution: {
+      [RenderStage.ShellRuntime]: null, // initial stage
+      [RenderStage.Runtime]: DynamicHoleKind.Link,
+      [RenderStage.NavigationRuntime]: DynamicHoleKind.Navigation,
+      [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
+    },
+  }),
+  [ValidationPrefetchKind.LegacySpeculative]: defineValidationSequence({
+    stageOrder: [RenderStage.Static, RenderStage.Runtime, RenderStage.Dynamic],
+    holeResolution: {
+      [RenderStage.Static]: null, // initial stage
+      [RenderStage.Runtime]: DynamicHoleKind.Runtime,
+      [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
+    },
+  }),
+} as const
+
+export function getValidationSequence(
+  prefetchKind: ValidationPrefetchKind,
+  accumulatedChunks: Record<SegmentStage, Uint8Array[]>
+): ValidationSequence {
+  // Narrow the stage order to only include stages that produced new data
+  // in the render.
+
+  const baseValidationSequence = BASE_VALIDATION_SEQUENCES[prefetchKind]
+  const { stageOrder: fullStageOrder, initialStage } = baseValidationSequence
+
+  // We always use the first stage, which is the stage of the prefetch we're trying to validate.
+  const narrowedStageOrder: ValidationSequence['stageOrder'] = [initialStage]
+  let lastUsedStage: SegmentStage = initialStage
+
+  // Loop through the remaining stages. If a stage has more data than
+  // the last stage we used, it might have content that fills holes,
+  // so we keep it.
+  // Note that if the render ended before Dynamic, we won't include the dynamic stage.
+  for (let stageIx = 1; stageIx < fullStageOrder.length; stageIx++) {
+    const currentStage = fullStageOrder[stageIx]
+    if (
+      accumulatedChunks[currentStage].length >
+      accumulatedChunks[lastUsedStage].length
+    ) {
+      narrowedStageOrder.push(currentStage)
+      lastUsedStage = currentStage
+    }
+  }
+
+  const validationSequence: ValidationSequence = {
+    stageOrder: narrowedStageOrder,
+    initialStage,
+    finalStage: narrowedStageOrder.at(-1)!,
+    holeResolution: baseValidationSequence.holeResolution,
+  }
+
+  return validationSequence
+}
+
 //===============================================================
 
 /** Used to identify a segment. Conceptually similar to request keys in the Client Segment Cache. */
@@ -163,7 +274,7 @@ function stringifySegment(segment: Segment): SegmentPath {
 }
 
 //===============================================================
-// 2. Separating a stream into segments
+// Separating a stream into segments
 //===============================================================
 
 export type SegmentStage =
@@ -192,7 +303,7 @@ type RenderToFlightStream = (
  * into separate staged streams (also in arrays-of-chunks form), one for each segment.
  * */
 export async function collectStagedSegmentData(
-  prefetchKind: ValidationPrefetchKind,
+  validationSequence: ValidationSequence,
   ComponentMod: FlightComponentMod,
   renderFlightStream: RenderToFlightStream,
   fullPageChunks: StageChunks,
@@ -202,30 +313,14 @@ export async function collectStagedSegmentData(
   clientReferenceManifest: ClientReferenceManifest,
   createDebugChannel: () => DebugChannelPair | undefined
 ): Promise<{ cache: SegmentCache; payload: InitialRSCPayload }> {
+  const { stageOrder, initialStage, finalStage } = validationSequence
   const cache = createSegmentCache()
-
-  let partialStages: SegmentStage[]
-  switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
-      partialStages = [
-        RenderStage.ShellRuntime,
-        RenderStage.Runtime,
-        RenderStage.NavigationRuntime, // TODO(cache-stages): only if needed
-      ]
-      break
-    }
-    case ValidationPrefetchKind.LegacySpeculative: {
-      partialStages = [RenderStage.Static, RenderStage.Runtime]
-      break
-    }
-  }
 
   const doStage = async (targetStage: SegmentStage) => {
     const endTime =
       targetStage !== RenderStage.Dynamic
         ? stageEndTimes[targetStage]
         : undefined
-    const firstStage = partialStages[0]
     return await collectSegmentDataForStage(
       ComponentMod,
       renderFlightStream,
@@ -234,17 +329,18 @@ export async function collectStagedSegmentData(
       clientReferenceManifest,
       createDebugChannel,
       cache,
-      firstStage,
+      initialStage,
       targetStage,
+      finalStage,
       startTime,
       endTime
     )
   }
 
-  for (const targetStage of partialStages) {
-    await doStage(targetStage)
+  for (let i = 0; i < stageOrder.length - 1 /* skip final stage */; i++) {
+    await doStage(stageOrder[i])
   }
-  const payload = await doStage(RenderStage.Dynamic)
+  const payload = await doStage(finalStage)
 
   return { cache, payload }
 }
@@ -257,8 +353,9 @@ async function collectSegmentDataForStage(
   clientReferenceManifest: ClientReferenceManifest,
   createDebugChannel: () => DebugChannelPair | undefined,
   cache: SegmentCache,
-  firstStage: SegmentStage,
+  initialStage: SegmentStage,
   targetStage: SegmentStage,
+  finalStage: SegmentStage,
   startTime: number,
   endTime: number | undefined
 ): Promise<InitialRSCPayload> {
@@ -270,7 +367,10 @@ async function collectSegmentDataForStage(
       )
     : null
 
-  const { stream, controller } = createStagedStreamFromChunks(fullPageChunks)
+  const { stream, controller } = createStagedStreamFromChunks(
+    fullPageChunks,
+    finalStage
+  )
   stream.on('end', () => {
     // When the stream finishes, we have to close the debug stream too,
     // but delay it to avoid "Connection closed." errors.
@@ -327,7 +427,7 @@ async function collectSegmentDataForStage(
   // even if the segments are incomplete.
   // NOTE: This must be done after the `createFromNodeStream` call but *before*
   // the result is awaited, otherwise we'll deadlock.
-  controller.advanceStage(firstStage)
+  controller.advanceStage(initialStage)
 
   const payload = await payloadPromise
 
@@ -391,7 +491,7 @@ async function collectSegmentDataForStage(
   // 2. the dynamic stage (for late-release debug info)
   await runInSequentialTasks(
     () => {
-      if (targetStage !== RenderStage.Dynamic) {
+      if (targetStage !== finalStage) {
         controller.advanceStage(targetStage)
       }
 
@@ -426,7 +526,7 @@ async function collectSegmentDataForStage(
       }
     },
     () => {
-      controller.advanceStage(RenderStage.Dynamic)
+      controller.advanceStage(finalStage)
     }
   )
   await Promise.all(pendingTasks)
@@ -469,11 +569,14 @@ function onFlightRenderError(error: unknown): string | undefined {
  * Conceptually, this is similar to how we unblock more content
  * by advancing stages in a regular staged render.
  * */
-function createStagedStreamFromChunks(stageChunks: StageChunks) {
+function createStagedStreamFromChunks(
+  stageChunks: StageChunks,
+  finalStage: SegmentStage
+) {
   // The successive stages are supersets of one another,
   // so we can index into the dynamic chunks everywhere
   // and just look at the lengths of the Static/Runtime arrays
-  const allChunks = stageChunks[RenderStage.Dynamic]
+  const allChunks = stageChunks[finalStage]
 
   let chunkIx = 0
   let currentStage: SegmentStage | RenderStage.Before = RenderStage.Before
@@ -997,17 +1100,9 @@ export type ValidationPayloadResult = {
   slotStacks: Array<(() => Error) | null>
 }
 
-export enum ValidationPrefetchKind {
-  /** App Shells, for `<Link>` without `prefetch={true}` */
-  Shell = 1,
-  // TODO(app-shells): validate speculative prefetches
-  // Speculative = 2,
-  /** Behavior when Partial Prefetching is not enabled. */
-  LegacySpeculative = 3,
-}
-
 export async function createCombinedPayloadAtDepth(
-  prefetchKind: ValidationPrefetchKind,
+  validationSequence: ValidationSequence,
+  prefetchStage: PrefetchedSegmentStage,
   initialRSCPayload: InitialRSCPayload,
   cache: SegmentCache,
   initialLoaderTree: LoaderTree,
@@ -1017,11 +1112,7 @@ export async function createCombinedPayloadAtDepth(
   groupDepth: number,
   releaseSignal: AbortSignal,
   boundaryState: ValidationBoundaryTracking,
-  clientReferenceManifest: ClientReferenceManifest,
-  overrideStageForPartialSegments:
-    | null
-    | RenderStage.Runtime
-    | RenderStage.NavigationRuntime
+  clientReferenceManifest: ClientReferenceManifest
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -1085,13 +1176,16 @@ export async function createCombinedPayloadAtDepth(
         ? stringifySegment(segment)
         : createChildSegmentPath(parentPath, key!, segment)
 
-    debug?.(`    ${path || '/'} - Dynamic`)
+    debug?.(`    ${path || '/'} - complete`)
     const segmentCacheItem = cache.segments.get(path)
     if (!segmentCacheItem) {
       throw new InvariantError(`Missing segment data: ${path}`)
     }
 
-    const stageEntry = getStageEntry(segmentCacheItem, RenderStage.Dynamic)
+    const stageEntry = getStageEntry(
+      segmentCacheItem,
+      validationSequence.finalStage
+    )
     const dynamicChunks = stageEntry.chunks
     const segmentData = await deserializeFromChunks<SegmentData>(
       dynamicChunks,
@@ -1306,22 +1400,9 @@ export async function createCombinedPayloadAtDepth(
       throw new InvariantError(`Missing segment data: ${path}`)
     }
 
-    let stage: PrefetchedSegmentStage
-    switch (prefetchKind) {
-      case ValidationPrefetchKind.Shell: {
-        stage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
-        break
-      }
-      case ValidationPrefetchKind.LegacySpeculative: {
-        // In legacy speculative prefetches, we always use static.
-        stage = overrideStageForPartialSegments ?? RenderStage.Static
-        break
-      }
-    }
+    debug?.(`    ${path || '/'} - ${RenderStage[prefetchStage]}`)
 
-    debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
-
-    const stageEntry = getStageEntry(segmentCacheItem, stage)
+    const stageEntry = getStageEntry(segmentCacheItem, prefetchStage)
     const segmentData = await deserializeFromChunks<SegmentData>(
       stageEntry.chunks,
       stageEntry.allChunks,
@@ -1429,24 +1510,12 @@ export async function createCombinedPayloadAtDepth(
   // that occur above any fork (no slot marker in the component stack).
   slotStacks[0] = createInstantStack
 
-  let headStage: PrefetchedSegmentStage
-  switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
-      headStage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
-      break
-    }
-    case ValidationPrefetchKind.LegacySpeculative: {
-      headStage = overrideStageForPartialSegments ?? RenderStage.Static
-      break
-    }
-  }
-  debug?.(`    /_head - ${RenderStage[headStage]}`)
-
+  debug?.(`    /_head - ${RenderStage[prefetchStage]}`)
   const head = await createValidationHead(
     cache,
     releaseSignal,
     clientReferenceManifest,
-    headStage
+    prefetchStage
   )
 
   const payload: InitialRSCPayload = {
