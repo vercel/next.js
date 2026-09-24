@@ -1,0 +1,321 @@
+name: Next.js upgrade
+
+on:
+  workflow_call:
+    secrets:
+      openai-api-key:
+        required: false
+      anthropic-api-key:
+        required: false
+      claude-code-oauth-token:
+        required: false
+
+concurrency:
+  group: next-upgrade-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  NODE_VERSION: '22'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  prepare:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      has_changes: ${{ steps.candidate.outputs.has_changes }}
+      tree: ${{ steps.candidate.outputs.tree }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Select the connected provider
+        id: credentials
+        env:
+          OPENAI_KEY: ${{ secrets.openai-api-key }}
+          ANTHROPIC_KEY: ${{ secrets.anthropic-api-key }}
+          CLAUDE_TOKEN: ${{ secrets.claude-code-oauth-token }}
+        run: |
+          set -euo pipefail
+          count=0
+          provider=''
+          if [ -n "$OPENAI_KEY" ]; then
+            provider=codex
+            count=$((count + 1))
+          fi
+          if [ -n "$ANTHROPIC_KEY" ]; then
+            provider=claude
+            count=$((count + 1))
+          fi
+          if [ -n "$CLAUDE_TOKEN" ]; then
+            provider=claude
+            count=$((count + 1))
+          fi
+          if [ "$count" -ne 1 ]; then
+            echo '::error::Connect exactly one provider credential to the caller workflow.'
+            exit 1
+          fi
+          echo "provider=$provider" >> "$GITHUB_OUTPUT"
+      - name: Install app dependencies
+        run: |
+          set -euo pipefail
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ]; then
+            corepack enable
+            if [ "$(yarn --version | cut -d. -f1)" -ge 2 ]; then
+              yarn install --immutable
+            else
+              yarn install --frozen-lockfile
+            fi
+          elif [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo '::error::Expected a root-app lockfile (npm, pnpm, or Yarn).'
+            exit 1
+          fi
+      - name: Configure the upgrade harness
+        id: configure
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          npx --yes next@canary upgrade --help > "$RUNNER_TEMP/next-upgrade-help.txt"
+          grep -q -- '--experimental-ai' "$RUNNER_TEMP/next-upgrade-help.txt"
+          mkdir -p "$RUNNER_TEMP/next-upgrade-codex"
+          cat > "$RUNNER_TEMP/next-upgrade-codex/config.toml" <<'TOML'
+          [permissions.upgrade]
+          extends = ":workspace"
+          [permissions.upgrade.network]
+          enabled = true
+          TOML
+      - name: Prepare the upgrade with Codex
+        id: codex
+        if: steps.credentials.outputs.provider == 'codex'
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
+        with:
+          openai-api-key: ${{ secrets.openai-api-key }}
+          codex-version: 0.156.1
+          codex-home: ${{ runner.temp }}/next-upgrade-codex
+          permission-profile: upgrade
+          safety-strategy: drop-sudo
+          output-schema: |
+            {"type":"object","properties":{"status":{"type":"string","enum":["ready","no_change","blocked"]},"summary":{"type":"string"}},"required":["status","summary"],"additionalProperties":false}
+          prompt: |
+            Prepare the configured upgrade for this root Next.js app.
+            Run: npx --yes next@canary upgrade --ai
+            Read and follow the complete handoff returned by that command, including
+            any referenced guide. Printing the handoff alone is not completion.
+            Keep all changes uncommitted for the workflow to verify and publish.
+            The workflow owns branches, commits, pushes, and pull requests.
+            Preserve automation, authentication configuration, and unrelated files.
+            Make at most one repair attempt if checks fail. Report blocked if any
+            required operation or verification remains incomplete, or tooling fails.
+            Report ready only for a completed candidate, and no_change only after
+            checking that the requested upgrade needs no changes. Include the actual
+            resolved tooling version and outcome in the summary.
+      - name: Prepare the upgrade with Claude Code
+        id: claude
+        if: steps.credentials.outputs.provider == 'claude'
+        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # v1.0.233
+        with:
+          anthropic_api_key: ${{ secrets.anthropic-api-key }}
+          claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          github_token: ${{ github.token }}
+          show_full_output: 'false'
+          display_report: 'false'
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
+            --json-schema '{"type":"object","properties":{"status":{"type":"string","enum":["ready","no_change","blocked"]},"summary":{"type":"string"}},"required":["status","summary"],"additionalProperties":false}'
+          prompt: |
+            Prepare the configured upgrade for this root Next.js app.
+            Run: npx --yes next@canary upgrade --ai
+            Read and follow the complete handoff returned by that command, including
+            any referenced guide. Printing the handoff alone is not completion.
+            Keep all changes uncommitted for the workflow to verify and publish.
+            The workflow owns branches, commits, pushes, and pull requests.
+            Preserve automation, authentication configuration, and unrelated files.
+            Make at most one repair attempt if checks fail. Report blocked if any
+            required operation or verification remains incomplete, or tooling fails.
+            Report ready only for a completed candidate, and no_change only after
+            checking that the requested upgrade needs no changes. Include the actual
+            resolved tooling version and outcome in the summary.
+      - name: Capture the candidate
+        id: candidate
+        env:
+          AGENT_RESULT: ${{ steps.codex.outputs.final-message || steps.claude.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args])
+          result = json.loads(os.environ['AGENT_RESULT'])
+          status = result['status']
+          if status not in ('ready', 'no_change'):
+              raise SystemExit('Agent reported a blocked upgrade; inspect the agent step and rerun after repair.')
+          if git('rev-parse', 'HEAD').decode().strip() != os.environ['GITHUB_SHA']:
+              raise SystemExit('Agent changed HEAD; candidate rejected.')
+          git('add', '--all')
+          paths = git('diff', '--cached', '--name-only', '-z').decode().split('\0')
+          for name in filter(None, paths):
+              parts = pathlib.PurePosixPath(name).parts
+              if parts[0] in ('.github', '.codex', '.claude') or any(
+                  p.startswith(('.env', '.npmrc', '.yarnrc')) or p in ('.gitmodules', '.gitconfig') for p in parts
+              ):
+                  raise SystemExit('Candidate changes automation or authentication configuration; human review required.')
+          patch = git('diff', '--cached', '--binary', '--full-index', '--no-ext-diff', '--no-textconv', os.environ['GITHUB_SHA'])
+          if (status == 'ready') != bool(patch):
+              raise SystemExit('Agent outcome does not match candidate changes.')
+          tree = git('write-tree').decode().strip()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'has_changes={str(bool(patch)).lower()}\ntree={tree}\n')
+          if patch:
+              artifact = pathlib.Path(os.environ['RUNNER_TEMP']) / 'next-upgrade-candidate'
+              artifact.mkdir()
+              (artifact / 'candidate.patch').write_bytes(patch)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Candidate ready for verification.\n' if patch else 'No update needed; no PR will be created.\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.candidate.outputs.has_changes == 'true'
+        with:
+          name: next-upgrade-candidate
+          path: ${{ runner.temp }}/next-upgrade-candidate/candidate.patch
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  verify:
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-upgrade-candidate
+          path: ${{ runner.temp }}/next-upgrade-candidate
+      - name: Apply the candidate
+        id: apply
+        env:
+          EXPECTED_TREE: ${{ needs.prepare.outputs.tree }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git apply --index "$RUNNER_TEMP/next-upgrade-candidate/candidate.patch"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Verify the app
+        id: checks
+        run: |
+          set -euo pipefail
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+            pnpm run build
+          elif [ -f yarn.lock ]; then
+            corepack enable
+            if [ "$(yarn --version | cut -d. -f1)" -ge 2 ]; then
+              yarn install --immutable
+            else
+              yarn install --frozen-lockfile
+            fi
+            yarn run build
+          elif [ -f package-lock.json ]; then
+            npm ci
+            npm run build
+          else
+            echo '::error::Expected a root-app lockfile (npm, pnpm, or Yarn).'
+            exit 1
+          fi
+      - name: Confirm the verified candidate
+        id: verified
+        env:
+          EXPECTED_TREE: ${{ needs.prepare.outputs.tree }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git diff --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          echo 'Candidate verified. Publication will use this exact Git tree.' >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-upgrade-candidate
+          path: ${{ runner.temp }}/next-upgrade-candidate
+      - name: Publish the verified candidate
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_TREE: ${{ needs.prepare.outputs.tree }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          marker='<!-- next-upgrade: path="."'
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" > "$RUNNER_TEMP/next-upgrade-prs.json"
+          if jq -s -e --arg marker "$marker" --arg repo "$GITHUB_REPOSITORY" --arg base "$DEFAULT_BRANCH" \
+            'add | any(.[];
+              (.body // "" | contains($marker)) and
+              .user.login == "github-actions[bot]" and
+              .head.repo.full_name == $repo and
+              (.head.ref | startswith("next-upgrade/")) and
+              .base.ref == $base
+            )' "$RUNNER_TEMP/next-upgrade-prs.json" > /dev/null; then
+            echo 'An upgrade PR already exists; no duplicate created.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git apply --index "$RUNNER_TEMP/next-upgrade-candidate/candidate.patch"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          branch="next-upgrade/$GITHUB_RUN_ID"
+          gh auth setup-git
+          remote_branch="$(git ls-remote origin "refs/heads/$branch")"
+          if [ -n "$remote_branch" ]; then
+            git -c core.hooksPath=/dev/null fetch --no-tags origin "refs/heads/$branch"
+            test "$(git rev-parse 'FETCH_HEAD^{tree}')" = "$EXPECTED_TREE"
+            test "$(git rev-parse 'FETCH_HEAD^')" = "$GITHUB_SHA"
+          else
+            git checkout -b "$branch"
+            git -c core.hooksPath=/dev/null -c commit.gpgsign=false \
+              -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Upgrade Next.js"
+            test "$(git rev-parse 'HEAD^{tree}')" = "$EXPECTED_TREE"
+            git -c core.hooksPath=/dev/null push origin "$branch"
+          fi
+          printf '%s -->\n\nVerified with the configured application checks.\n\nRun: https://github.com/%s/actions/runs/%s\n\nReview before merging. Downstream CI may need approval when using GITHUB_TOKEN.\n' \
+            "$marker" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/next-upgrade-pr.md"
+          gh pr create --repo "$GITHUB_REPOSITORY" --draft --base "$DEFAULT_BRANCH" --head "$branch" \
+            --title "Upgrade Next.js" \
+            --body-file "$RUNNER_TEMP/next-upgrade-pr.md" > "$RUNNER_TEMP/next-upgrade-pr-url"
+          printf 'Draft upgrade PR: %s\n' "$(cat "$RUNNER_TEMP/next-upgrade-pr-url")" >> "$GITHUB_STEP_SUMMARY"
