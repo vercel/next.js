@@ -638,6 +638,17 @@ enum EmitManifests {
     Full,
 }
 
+/// The chunk group entry modules of a set of client evaluatable assets.
+async fn client_entry_modules(
+    evaluatable_assets: Vc<EvaluatableAssets>,
+) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    Ok(evaluatable_assets
+        .await?
+        .iter()
+        .map(|asset| ResolvedVc::upcast(*asset))
+        .collect())
+}
+
 #[turbo_tasks::value_impl]
 impl PageEndpoint {
     #[turbo_tasks::function]
@@ -726,8 +737,54 @@ impl PageEndpoint {
     async fn client_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
         let this = self.await?;
         let project = this.pages_project.project();
-        let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_modules(evaluatable_assets))
+
+        if !*project.per_page_module_graph().await? {
+            return Ok(project.module_graph_for_modules(self.client_evaluatable_assets()));
+        }
+
+        // With a per-page module graph every endpoint would otherwise get its own graph, and
+        // chunk group indices are only meaningful within the `ChunkGroupInfo` of a single graph.
+        // `/_app` is always loaded before the page in the browser and seeds the page's
+        // availability, so both entry groups have to live in the same graph. Build a graph
+        // "chain" for app, page -- the same layout segment optimization `ssr_module_graph` uses
+        // for document, app, page.
+        let should_trace = *project.should_write_nft_manifests().await?;
+        let should_read_binding_usage = project.next_mode().await?.is_production();
+
+        let mut graphs = vec![];
+        let mut visited_modules = VisitedModules::empty();
+
+        if this.pathname != "/_app" {
+            let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                    modules: client_entry_modules(
+                        this.pages_project
+                            .app_page_endpoint()
+                            .client_evaluatable_assets(),
+                    )
+                    .await?,
+                    heuristics: EntryHeuristics::default(),
+                }]),
+                visited_modules,
+                should_trace,
+                should_read_binding_usage,
+            );
+            graphs.push(graph);
+            visited_modules = VisitedModules::concatenate(visited_modules, graph);
+        }
+
+        let graph = SingleModuleGraph::new_with_entries_visited_intern(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: client_entry_modules(self.client_evaluatable_assets()).await?,
+                heuristics: EntryHeuristics::default(),
+            }]),
+            visited_modules,
+            should_trace,
+            should_read_binding_usage,
+        );
+        graphs.push(graph);
+
+        Ok(ModuleGraph::from_graphs(graphs, None).connect())
     }
 
     #[turbo_tasks::function]
@@ -803,12 +860,7 @@ impl PageEndpoint {
 
             let module_graph = self.client_module_graph();
 
-            let evaluatable_assets = self
-                .client_evaluatable_assets()
-                .await?
-                .iter()
-                .map(|m| ResolvedVc::upcast(*m))
-                .collect();
+            let evaluatable_assets = client_entry_modules(self.client_evaluatable_assets()).await?;
             // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
             // the page's chunks don't include modules that the browser already downloaded with
             // `/_app`.
