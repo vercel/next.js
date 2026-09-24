@@ -1067,6 +1067,36 @@ pub struct EcmascriptModuleContentOptions {
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
+/// Generate the code of a processed virtual module under the identity of the module in the
+/// graph. The code source supplies its parsed program, references, exports and async behavior;
+/// the graph module supplies the identity for export usage and other code generation.
+#[turbo_tasks::function]
+pub async fn chunk_item_content_with_code_from(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    code_source: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+) -> Result<Vc<EcmascriptChunkItemContent>> {
+    let Some(analyzable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(code_source)
+    else {
+        bail!("virtual ECMAScript code source must be analyzable");
+    };
+    let source_options = analyzable
+        .module_content_options(*chunking_context, async_module_info)
+        .await?;
+    let mut options = (*source_options).clone();
+    options.module = module;
+    let content = EcmascriptModuleContent::new(options.cell());
+    let async_module_options = code_source
+        .get_async_module()
+        .module_options(async_module_info);
+    Ok(EcmascriptChunkItemContent::new(
+        content,
+        *chunking_context,
+        async_module_options,
+    ))
+}
+
 impl EcmascriptModuleContentOptions {
     async fn merged_code_gens(
         &self,
