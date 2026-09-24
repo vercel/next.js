@@ -4,6 +4,7 @@ const os = require('os')
 const path = require('path')
 const {
   SandboxedImageOptimizerWorker,
+  getImageOptimizerSandboxConfig,
 } = require('../../../../packages/next/dist/server/image-optimizer/sandbox-worker')
 
 const fixtureWorker = path.join(__dirname, 'sandbox-worker-fixture.js')
@@ -40,14 +41,43 @@ async function main() {
   )
   const homeProbe = path.join(homeProbeDirectory, 'secret')
   fs.writeFileSync(homeProbe, 'must-not-be-readable')
+  const isolatedWorker = path.join(homeProbeDirectory, 'worker.js')
+  fs.copyFileSync(fixtureWorker, isolatedWorker)
+  const libraryNames = [
+    'libprobe.dylib',
+    'libprobe.dylib.1',
+    'libprobe.so',
+    'libprobe.so.1',
+    'addon.node',
+    'probe.dll',
+  ]
+  for (const name of libraryNames)
+    fs.writeFileSync(path.join(homeProbeDirectory, name), 'library-probe')
+  const envFile = path.join(homeProbeDirectory, '.env.production')
+  fs.writeFileSync(envFile, 'TEST_SECRET=must-not-leak')
+  const libraryAlias = path.join(homeProbeDirectory, 'secret-alias.so')
+  fs.symlinkSync(envFile, libraryAlias)
+  const disguisedDirectory = path.join(homeProbeDirectory, 'directory.so')
+  fs.mkdirSync(disguisedDirectory)
+  fs.writeFileSync(path.join(disguisedDirectory, 'secret.txt'), 'must-not-leak')
+  const dependencies = path.join(homeProbeDirectory, 'node_modules')
+  fs.mkdirSync(dependencies)
+  fs.writeFileSync(path.join(dependencies, 'data.json'), '{}')
+  fs.symlinkSync(envFile, path.join(dependencies, 'secret-link'))
   const previousSecret = process.env.NEXT_IMAGE_SANDBOX_SECRET
   process.env.NEXT_IMAGE_SANDBOX_SECRET = 'must-not-leak'
   let worker = new SandboxedImageOptimizerWorker({
-    workerPath: fixtureWorker,
-    requestTimeoutMs: 2000,
+    workerPath: isolatedWorker,
+    requestTimeoutMs: 5000,
     killGraceMs: 50,
   })
   try {
+    const probeRead = async (file) => {
+      const output = await worker.runOperation(
+        operation(`/read?path=${encodeURIComponent(file)}`)
+      )
+      return output.diagnostics[0].message
+    }
     const read = await worker.runOperation(
       operation(
         `/read?path=${encodeURIComponent(path.join(projectRoot, 'package.json'))}`
@@ -64,6 +94,21 @@ async function main() {
         `/read?path=${encodeURIComponent(require.resolve('next/package.json'))}`
       )
     )
+    const libraries = await Promise.all(
+      libraryNames.map((name) => probeRead(path.join(homeProbeDirectory, name)))
+    )
+    const envRead = await probeRead(envFile)
+    const libraryAliasRead = await probeRead(libraryAlias)
+    const directoryRead = await probeRead(
+      path.join(disguisedDirectory, 'secret.txt')
+    )
+    const dependencyData = await probeRead(path.join(dependencies, 'data.json'))
+    const dependencyLink = await probeRead(
+      path.join(dependencies, 'secret-link')
+    )
+    const lateEnv = path.join(homeProbeDirectory, '.env.late')
+    fs.writeFileSync(lateEnv, 'TEST_SECRET=must-not-leak')
+    const lateEnvRead = await probeRead(lateEnv)
     const writePath = path.join(__dirname, 'sandbox-write-probe')
     const write = await worker.runOperation(
       operation(`/write?path=${encodeURIComponent(writePath)}`)
@@ -111,6 +156,22 @@ async function main() {
     }
     const afterMalformed = await worker.runOperation(operation('/echo'))
 
+    // Explicit directory allowances trust all contents, regardless of suffix.
+    const trustedDirectory = path.join(homeProbeDirectory, 'trusted-runtime')
+    fs.mkdirSync(trustedDirectory)
+    const customFile = path.join(trustedDirectory, '.env')
+    fs.writeFileSync(customFile, 'explicitly-readable')
+    await worker.close()
+    worker = new SandboxedImageOptimizerWorker({
+      workerPath: isolatedWorker,
+      readAllowlist: [
+        ...getImageOptimizerSandboxConfig(isolatedWorker).filesystem.allowRead,
+        trustedDirectory,
+      ],
+    })
+    const customRead = await probeRead(customFile)
+    const customOutsideRead = await probeRead(envFile)
+
     await worker.close()
     worker = new SandboxedImageOptimizerWorker()
     const image = fs.readFileSync(
@@ -124,6 +185,15 @@ async function main() {
         readHome: readHome.diagnostics[0].message,
         readApplication: readApplication.diagnostics[0].message,
         readDependency: readDependency.diagnostics[0].message,
+        libraries,
+        customRead,
+        customOutsideRead,
+        envRead,
+        libraryAliasRead,
+        directoryRead,
+        dependencyData,
+        dependencyLink,
+        lateEnvRead,
         write: write.diagnostics[0].message,
         writeCreated: fs.existsSync(writePath),
         network: network.diagnostics[0].message,
