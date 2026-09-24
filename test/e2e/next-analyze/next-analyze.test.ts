@@ -24,12 +24,20 @@ type ChunkGraphHeader = {
   output_files: Array<{ filename: string }>
   output_file_modules: EdgesReference
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
+  unresolved_output_references: number[]
   chunk_groups: Array<{
     id: number
-    kind: 'bootstrap' | 'render_dependent'
+    kind: 'bootstrap' | 'render_dependent' | 'async' | 'worker'
     trigger_module_index?: number
     output_file_indices: number[]
   }>
+  chunk_load_edges: Array<{
+    source_output_file_index: number
+    target_output_file_index: number
+    kind: string
+    trigger_module_index?: number
+  }>
+  unjoined_chunk_load_edges: Array<{ kind: string; reason: string }>
   unjoined_modules: Array<{
     output_file_index: number
     module_ident: string
@@ -301,6 +309,9 @@ describe('next analyze', () => {
               module_index_hash: moduleIndexHash,
             })
           ).toBe(true)
+          expect(header.unresolved_output_references).toHaveLength(
+            header.output_files.length
+          )
           expect(header.output_file_module_coverage).toHaveLength(
             header.output_files.length
           )
@@ -320,9 +331,21 @@ describe('next analyze', () => {
               expect(index).toBeLessThan(header.output_files.length)
             }
           }
+          const edgeKeys = header.chunk_load_edges.map((edge) =>
+            JSON.stringify(edge)
+          )
+          expect(new Set(edgeKeys).size).toBe(edgeKeys.length)
           expect(header.chunk_groups.map((group) => group.id)).toEqual(
             header.chunk_groups.map((_, index) => index)
           )
+          for (const edge of header.chunk_load_edges) {
+            expect(edge.source_output_file_index).toBeLessThan(
+              header.output_files.length
+            )
+            expect(edge.target_output_file_index).toBeLessThan(
+              header.output_files.length
+            )
+          }
           expect(header).not.toHaveProperty('initial')
           expect(header).not.toHaveProperty('prefetched')
         }
@@ -338,11 +361,32 @@ describe('next analyze', () => {
           )
         ).toBe(true)
         expect(
+          appGraph.chunk_groups.some((group) => group.kind === 'worker')
+        ).toBe(true)
+        expect(
           pagesGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
         ).toBe(true)
         expect(
           apiGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
         ).toBe(false)
+        expect(
+          appGraph.chunk_groups.some((group) => group.kind === 'async')
+        ).toBe(true)
+        expect(
+          appGraph.chunk_load_edges.some((edge) => edge.kind === 'async')
+        ).toBe(true)
+        expect(
+          appGraph.chunk_load_edges.some(
+            (edge) => edge.kind === 'worker_registration'
+          )
+        ).toBe(true)
+        expect(
+          appGraph.unjoined_modules.some(
+            (module) =>
+              module.reason === 'worker_compiled_in_separate_graph' &&
+              module.module_ident.includes('/pwa')
+          )
+        ).toBe(true)
         const appRows = readRows(
           routeGraphs[0].binary,
           appGraph.output_file_modules
@@ -352,6 +396,11 @@ describe('next analyze', () => {
             row.some((index) => modules[index].ident.includes('client-entry'))
           )
         ).toBe(true)
+        expect(
+          appRows.some((row) =>
+            row.some((index) => modules[index].ident.includes('/lazy'))
+          )
+        ).toBe(true)
         expect(appGraph.output_file_module_coverage).toContain('exact')
         const groupedFileIndices = appGraph.chunk_groups.flatMap(
           (group) => group.output_file_indices
@@ -359,6 +408,14 @@ describe('next analyze', () => {
         expect(new Set(groupedFileIndices).size).toBeLessThan(
           groupedFileIndices.length
         )
+        for (const index of appGraph.chunk_groups
+          .filter((group) => group.kind === 'worker')
+          .flatMap((group) => group.output_file_indices)) {
+          expect(appGraph.output_file_module_coverage[index]).toBe(
+            'unsupported'
+          )
+          expect(appRows[index]).toEqual([])
+        }
         expect(
           appRows.some(
             (row, index) =>
@@ -378,9 +435,35 @@ describe('next analyze', () => {
           )
         ).toBe(true)
         expect(
+          appGraph.chunk_load_edges.some(
+            (edge) =>
+              edge.kind === 'async' &&
+              appRows[edge.target_output_file_index].some((module) =>
+                modules[module].ident.includes('/lazy')
+              )
+          )
+        ).toBe(true)
+        expect(
+          appGraph.chunk_load_edges.some(
+            (edge) =>
+              edge.kind === 'worker_registration' &&
+              appRows[edge.source_output_file_index].some((module) =>
+                modules[module].ident.includes('client-entry')
+              ) &&
+              appGraph.output_files[
+                edge.target_output_file_index
+              ].filename.includes('service-worker/sw.js')
+          )
+        ).toBe(true)
+        expect(
           pagesGraph.chunk_groups.filter((group) => group.kind === 'bootstrap')
             .length
         ).toBeGreaterThanOrEqual(2)
+        expect(
+          appGraph.unjoined_chunk_load_edges.every(
+            (edge) => edge.kind !== 'worker_registration'
+          )
+        ).toBe(true)
       })
     })
   })
