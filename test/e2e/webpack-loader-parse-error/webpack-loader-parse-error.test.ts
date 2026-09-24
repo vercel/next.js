@@ -75,18 +75,12 @@ function extractErrorBlock(output: string, errorTitle: string): string {
   return block.trimEnd()
 }
 
+// @force-gate dev
 describe('webpack-loader-parse-error (development)', () => {
-  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
-
-  if (!isNextDev) {
-    it('skipped in production mode', () => {})
-    return
-  }
 
   beforeAll(() => next.start())
 
@@ -200,7 +194,7 @@ describe('webpack-loader-parse-error (development)', () => {
 
 // @force-gate !dev
 describe('webpack-loader-parse-error (production)', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -210,7 +204,17 @@ describe('webpack-loader-parse-error (production)', () => {
 
     const output = normalizePaths(stripAnsi(next.cliOutput), next.testDir)
 
-    if (isTurbopack) {
+    if (isNextDeploy) {
+      // Deployment logs prefix every line with a timestamp and strip
+      // code-frame indentation, so the exact formatting the snapshots below
+      // assert cannot survive the round trip. Assert the error titles, which
+      // are single lines, and leave the formatting to the local build.
+      expect(output).toContain("Expected '</', got '{'")
+
+      if (isTurbopack) {
+        expect(output).toContain('Parsing CSS source code failed')
+      }
+    } else if (isTurbopack) {
       const jsError = extractErrorBlock(output, "Expected '</', got '{'")
       expect(jsError).toMatchInlineSnapshot(`
        "./app/data.broken.js:3:1
