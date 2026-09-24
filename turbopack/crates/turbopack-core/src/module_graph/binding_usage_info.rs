@@ -17,6 +17,12 @@ use crate::{
     resolve::{ExportUsage, ImportUsage},
 };
 
+/// Diagnostics only: set `TURBOPACK_PRINT_CYCLE_STATS=1` to print per-build cycle statistics.
+/// Available in release builds so it can be measured on real applications.
+static PRINT_CYCLE_STATS: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+    std::env::var_os("TURBOPACK_PRINT_CYCLE_STATS").is_some_and(|v| v == "1" || v == "true")
+});
+
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>);
 
@@ -317,6 +323,18 @@ pub async fn compute_binding_usage_info(
         // module factory.)
         let mut export_circuit_breakers = FxHashSet::default();
 
+        // Diagnostics only, enabled with `TURBOPACK_PRINT_CYCLE_STATS=1`. Measures how much each
+        // of the two `partially_observable` clauses contributes, to judge whether pruning the
+        // entry set with real chunk-group reachability would pay for itself.
+        let mut cycle_stats: Vec<(usize, usize, usize, usize)> = Vec::new();
+        // The members of each cycle, so the biggest ones can be printed by name.
+        #[allow(clippy::type_complexity)]
+        let mut cycle_members: Vec<(
+            Vec<ResolvedVc<Box<dyn Module>>>,
+            FxHashSet<ResolvedVc<Box<dyn Module>>>,
+            FxHashSet<ResolvedVc<Box<dyn Module>>>,
+        )> = Vec::new();
+
         graph_ref.traverse_cycles(
             // No need to traverse edges that are unused.
             |e| e.chunking_type.is_parallel() && !unused_references.contains_key(&e.reference),
@@ -325,9 +343,102 @@ pub async fn compute_binding_usage_info(
                 // the cycle. The rest are fully evaluated by the time anything reads them, so they
                 // can keep exporting values instead of getters.
                 export_circuit_breakers.extend(cycle.partially_observable.iter().map(|n| **n));
+                if *PRINT_CYCLE_STATS {
+                    // Modules that only the back-edge clause caught, i.e. what would survive even
+                    // if the entry set were pruned to nothing.
+                    let entry_set = cycle.entry_observable.iter().collect::<FxHashSet<_>>();
+                    let back_edge_only = cycle
+                        .back_edge_observable
+                        .iter()
+                        .filter(|m| !entry_set.contains(*m))
+                        .count();
+                    cycle_stats.push((
+                        cycle.modules.len(),
+                        cycle.partially_observable.len(),
+                        cycle.entry_observable.len(),
+                        back_edge_only,
+                    ));
+                    cycle_members.push((
+                        cycle.modules.iter().map(|m| **m).collect(),
+                        cycle.back_edge_observable.iter().map(|m| **m).collect(),
+                        cycle.entry_observable.iter().map(|m| **m).collect(),
+                    ));
+                }
                 Ok(())
             },
         )?;
+
+        if *PRINT_CYCLE_STATS && !cycle_stats.is_empty() {
+            use turbo_tasks::TryJoinIterExt;
+            let multi = cycle_stats.iter().filter(|s| s.0 > 1).count();
+            let multi_entry = cycle_stats.iter().filter(|s| s.0 > 1 && s.2 > 1).count();
+            let largest = cycle_stats.iter().map(|s| s.0).max().unwrap_or(0);
+            let total_modules: usize = cycle_stats.iter().map(|s| s.0).sum();
+            let total_observable: usize = cycle_stats.iter().map(|s| s.1).sum();
+            let total_entry: usize = cycle_stats.iter().map(|s| s.2).sum();
+            let total_back_edge_only: usize = cycle_stats.iter().map(|s| s.3).sum();
+            println!(
+                "CYCLE_STATS cycles={} multi_member={} multi_entry={} largest={}                  cycle_modules={} observable={} entry_clause={} back_edge_only={}",
+                cycle_stats.len(),
+                multi,
+                multi_entry,
+                largest,
+                total_modules,
+                total_observable,
+                total_entry,
+                total_back_edge_only,
+            );
+            // Per-cycle detail for the biggest cycles, where pruning would matter most.
+            let mut by_size = cycle_stats.clone();
+            by_size.sort_by_key(|s| std::cmp::Reverse(s.0));
+            for (size, observable, entry, back_edge_only) in by_size.iter().take(15) {
+                if *size > 1 {
+                    println!(
+                        "CYCLE_DETAIL size={size} observable={observable} entry={entry}                          back_edge_only={back_edge_only}"
+                    );
+                }
+            }
+
+            // Name every member of the largest cycles, to inspect what they actually consist of.
+            let dump_count: usize = std::env::var("TURBOPACK_DUMP_CYCLES")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(1);
+            let mut order: Vec<usize> = (0..cycle_stats.len()).collect();
+            order.sort_by_key(|&i| std::cmp::Reverse(cycle_stats[i].0));
+            for (rank, &i) in order.iter().take(dump_count).enumerate() {
+                let (members, back_edge_set, entry_set) = &cycle_members[i];
+                if members.len() < 2 {
+                    continue;
+                }
+                println!(
+                    "CYCLE_DUMP_BEGIN rank={rank} size={} observable={} entry={} back_edge_only={}",
+                    cycle_stats[i].0, cycle_stats[i].1, cycle_stats[i].2, cycle_stats[i].3
+                );
+                let named = members
+                    .iter()
+                    .map(async |m| {
+                        let name = m.ident_string().await?;
+                        let is_back = back_edge_set.contains(m);
+                        let is_entry = entry_set.contains(m);
+                        Ok((name.to_string(), is_back, is_entry))
+                    })
+                    .try_join()
+                    .await?;
+                let mut named = named;
+                named.sort();
+                for (name, is_back, is_entry) in named {
+                    let tag = match (is_back, is_entry) {
+                        (true, true) => "BACK+ENTRY",
+                        (true, false) => "BACK      ",
+                        (false, true) => "ENTRY     ",
+                        (false, false) => "-         ",
+                    };
+                    println!("CYCLE_MEMBER {tag} {name}");
+                }
+                println!("CYCLE_DUMP_END rank={rank}");
+            }
+        }
 
         span.record("visit_count", visit_count);
         span.record("unused_reference_count", unused_references.len());
