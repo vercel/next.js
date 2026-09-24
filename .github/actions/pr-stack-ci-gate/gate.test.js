@@ -194,6 +194,7 @@ test('fork and bypass PRs open immediately', async () => {
   const fork = await run({
     pulls: [pull(1, 'canary', 'fork-work', { repository: 'someone/fork' })],
   })
+  expect(fork.calls.checks).toBe(0)
   expect(fork.core.summaries.join('\n')).toContain(
     'fork PRs always run immediately'
   )
