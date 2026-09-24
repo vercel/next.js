@@ -20,6 +20,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   ai: boolean | string | undefined
+  ci: boolean | undefined
 }
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
@@ -174,6 +175,45 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions
 ) {
   const baseDir = getProjectDir(directory)
+
+  if (options.ci) {
+    try {
+      if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
+        throw new Error(
+          'No Next.js app found in this directory. Run the command from a root app.'
+        )
+      }
+
+      // Keep the invoking build's guide available throughout the agent session.
+      const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-ci-'))
+      const guidePath = join(runDirectory, 'agentic-upgrade-ci.md')
+      try {
+        await cp(
+          join(
+            __dirname,
+            '../docs/01-app/02-guides/upgrading/agentic-upgrade-ci.md'
+          ),
+          guidePath
+        )
+      } catch (error) {
+        await rm(runDirectory, { recursive: true, force: true })
+        throw error
+      }
+
+      const prompt = `Read ${JSON.stringify(guidePath)} and complete every setup checklist item in order for the app at ${JSON.stringify(baseDir)}. If blocked, report the exact remaining step.`
+
+      const { handoffUpgrade } =
+        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+      await handoffUpgrade(prompt, baseDir)
+    } catch (error) {
+      Log.error(
+        'Could not prepare CI setup:',
+        error instanceof Error ? error.message : error
+      )
+      process.exitCode = 1
+    }
+    return
+  }
 
   if (options.ai) {
     try {
