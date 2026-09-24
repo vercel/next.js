@@ -34,31 +34,31 @@ pub async fn module_federation_container_source(
             imports
         ));
     }
-    let mut registrations = Vec::new();
-    for shared in &config.shared {
-        let Some(import) = &shared.import else {
-            continue;
-        };
-        let version = shared.version.as_deref().unwrap_or("0");
-        registrations.push(format!(
-            r#"
+    let init = if let Some(implementation) = &config.implementation {
+        runtime_container_init(&project_path, config, name, implementation).await?
+    } else {
+        let mut registrations = Vec::new();
+        for shared in &config.shared {
+            let Some(import) = &shared.import else {
+                continue;
+            };
+            let version = shared.version.as_deref().unwrap_or("0");
+            registrations.push(format!(
+                r#"
   const versions_{index} = shareScope[{key}] ||= Object.create(null);
   versions_{index}[{version}] ||= {{
     get: () => import({import}).then((module) => () => module),
     from: {name},
     eager: {eager}
   }};"#,
-            index = registrations.len(),
-            key = StringifyJs(&shared.share_key),
-            version = StringifyJs(version),
-            import = StringifyJs(import),
-            name = StringifyJs(name),
-            eager = shared.eager,
-        ));
-    }
-    let init = if let Some(implementation) = &config.implementation {
-        runtime_container_init(&project_path, config, name, implementation).await?
-    } else {
+                index = registrations.len(),
+                key = StringifyJs(&shared.share_key),
+                version = StringifyJs(version),
+                import = StringifyJs(import),
+                name = StringifyJs(name),
+                eager = shared.eager,
+            ));
+        }
         format!(
             r#"function init(shareScope, initScope) {{
   if (initializedScope) {{
