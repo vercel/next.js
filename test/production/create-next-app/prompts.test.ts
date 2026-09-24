@@ -247,6 +247,7 @@ describe('create-next-app prompts', () => {
 
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
+          expect(output).toContain('Agent feedback')
           expect(output).not.toMatch(/agents prepare anonymized feedback/)
           projectFilesShouldExist({
             cwd,

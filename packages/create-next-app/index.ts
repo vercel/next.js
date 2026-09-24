@@ -354,7 +354,7 @@ async function run(): Promise<void> {
         {
           title: 'Yes, use recommended defaults',
           value: 'recommended',
-          description: formatSettingsDescription(defaults),
+          description: `${formatSettingsDescription(defaults)}, Agent feedback`,
         },
         {
           title: 'No, customize settings',
