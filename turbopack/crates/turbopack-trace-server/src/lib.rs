@@ -1,9 +1,11 @@
 #![feature(deref_patterns)]
-#![feature(bufreader_peek)]
+#![cfg_attr(not(target_arch = "wasm32"), feature(bufreader_peek))]
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 use std::{
     hash::BuildHasherDefault,
-    path::PathBuf,
+    io::Read,
     sync::Arc,
     thread,
     time::{Duration, Instant},
@@ -11,16 +13,18 @@ use std::{
 
 use rustc_hash::FxHasher;
 
-use self::{
-    reader::TraceReader, server::serve, span_graph_ref::SpanGraphEventRef, span_ref::SpanRef,
-    store_container::StoreContainer,
-};
+#[cfg(not(target_arch = "wasm32"))]
+use self::{reader::TraceReader, server::serve};
+use self::{span_graph_ref::SpanGraphEventRef, span_ref::SpanRef, store_container::StoreContainer};
 
 mod bottom_up;
 mod chunked_vec;
 mod lazy_sorted_vec;
+pub mod protocol;
+#[cfg(not(target_arch = "wasm32"))]
 mod reader;
 mod self_time_tree;
+#[cfg(not(target_arch = "wasm32"))]
 mod server;
 mod span;
 mod span_bottom_up_ref;
@@ -30,6 +34,8 @@ mod store;
 pub mod store_container;
 mod string_tuple_ref;
 mod timestamp;
+mod trace;
+pub use trace::TraceParser;
 mod u64_empty_string;
 mod u64_string;
 mod viewer;
@@ -42,6 +48,7 @@ type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
     let store = Arc::new(StoreContainer::new());
 
@@ -55,6 +62,38 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
     });
 
     store
+}
+
+/// Parses a complete raw or gzip-compressed trace held in memory.
+///
+/// Zstd is intentionally unsupported here because the browser WASM build does
+/// not include the native zstd decoder used by the file reader.
+pub fn read_trace_bytes(bytes: &[u8]) -> anyhow::Result<Arc<StoreContainer>> {
+    const GZIP_MAGIC: &[u8] = &[0x1f, 0x8b];
+    const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
+
+    if bytes.starts_with(ZSTD_MAGIC) {
+        anyhow::bail!("zstd-compressed traces are not supported by the WASM trace engine");
+    }
+
+    let decoded;
+    let bytes = if bytes.starts_with(GZIP_MAGIC) {
+        let mut decoder = flate2::read::GzDecoder::new(bytes);
+        decoded = {
+            let mut decoded = Vec::new();
+            decoder.read_to_end(&mut decoded)?;
+            decoded
+        };
+        decoded.as_slice()
+    } else {
+        bytes
+    };
+
+    let store = Arc::new(StoreContainer::new());
+    let mut parser = TraceParser::new(store.clone());
+    parser.push(bytes)?;
+    parser.finish()?;
+    Ok(store)
 }
 
 const PAGE_SIZE: usize = 20;

@@ -1,0 +1,22 @@
+[package]
+name = "turbopack-trace-server-wasm"
+version = "0.1.0"
+description = "Browser WASM bindings for the Turbopack trace viewer engine"
+license = "MIT"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+napi = { version = "3.10.0", default-features = false, features = ["napi3"] }
+napi-derive = { workspace = true }
+turbopack-trace-server = { workspace = true, default-features = false }
+
+[build-dependencies]
+napi-build = { workspace = true }
