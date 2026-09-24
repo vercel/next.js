@@ -26,6 +26,7 @@ import { Worker } from 'next/dist/compiled/jest-worker'
 import { installUseCacheProbe } from './use-cache-probe-pool'
 import { installDevValidationWorker } from './dev-validation-worker-pool'
 import { join as pathJoin } from 'path'
+import { writeFileAtomic } from '../../lib/fs/write-atomic'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
@@ -840,11 +841,14 @@ export default class DevServer extends Server {
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
           // we write the static paths to partial manifest for
-          // fallback handling inside of entry handler's
-          const rawExistingManifest = await fs.promises.readFile(
-            pathJoin(this.distDir, PRERENDER_MANIFEST),
-            'utf8'
-          )
+          // fallback handling inside of entry handler's.
+          //
+          // The read-modify-write below must stay synchronous: routes that
+          // compile concurrently each update this file, and an await between
+          // the read and the write would let them interleave, dropping entries
+          // or leaving a truncated JSON tail that breaks every later request.
+          const manifestPath = pathJoin(this.distDir, PRERENDER_MANIFEST)
+          const rawExistingManifest = fs.readFileSync(manifestPath, 'utf8')
           const existingManifest: PrerenderManifest =
             JSON.parse(rawExistingManifest)
           for (const staticPath of value.staticPaths || []) {
@@ -881,10 +885,7 @@ export default class DevServer extends Server {
           const updatedManifest = JSON.stringify(existingManifest)
 
           if (updatedManifest !== rawExistingManifest) {
-            await fs.promises.writeFile(
-              pathJoin(this.distDir, PRERENDER_MANIFEST),
-              updatedManifest
-            )
+            writeFileAtomic(manifestPath, updatedManifest)
           }
         }
         this.staticPathsCache.set(pathname, value)
