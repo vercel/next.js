@@ -1,22 +1,20 @@
 import type { ChildProcess } from 'child_process'
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, retry } from 'next-test-utils'
 
 describe('interception-routes-output-export', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
 
   it('should error when using interception routes with static export', async () => {
-    if (isNextStart) {
-      const { exitCode, cliOutput } = await next.build()
+    if (!isNextDev) {
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
       expect(cliOutput).toContain(
         'Intercepting routes are not supported with static export.'
       )
-      expect(exitCode).toBe(1)
     } else if (isNextDev) {
       let stderr = ''
       let child: ChildProcess | undefined
@@ -45,5 +43,5 @@ describe('interception-routes-output-export', () => {
         await exit.catch(() => {})
       }
     }
-  })
+  }, 240_000)
 })
