@@ -20,7 +20,11 @@ export function getPreloadableFonts(
   const fontFiles = new Set<string>()
   let foundFontUsage = false
 
-  const preloadedFontFiles = nextFontManifest.app[filepathWithoutExtension]
+  let preloadedFontFiles = nextFontManifest.app[filepathWithoutExtension]
+  if (!preloadedFontFiles) {
+    const fallbackPath = filepathWithoutExtension.replace(/\.[^.]+$/, '')
+    preloadedFontFiles = nextFontManifest.app[fallbackPath]
+  }
   if (preloadedFontFiles) {
     foundFontUsage = true
     for (const fontFile of preloadedFontFiles) {
