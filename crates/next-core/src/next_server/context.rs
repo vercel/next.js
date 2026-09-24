@@ -1118,9 +1118,11 @@ pub async fn get_server_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
+                    // Server chunks are loaded with require(), not fetched over the network.
+                    min_chunk_size: 4_000,
+                    max_chunk_count_per_group: 0,
                     max_merge_chunk_size: 100_000,
+                    request_cost: Some(10_000),
                     ..Default::default()
                 },
             )
@@ -1227,9 +1229,11 @@ pub async fn get_server_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
+                    // Server chunks are loaded with require(), not fetched over the network.
+                    min_chunk_size: 4_000,
+                    max_chunk_count_per_group: 0,
                     max_merge_chunk_size: 100_000,
+                    request_cost: Some(10_000),
                     ..Default::default()
                 },
             )
