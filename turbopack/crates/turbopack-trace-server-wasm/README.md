@@ -28,3 +28,7 @@ pnpm --filter @vercel/turbopack-trace-server-wasm build
 The package pins matching NAPI-RS and Emnapi build dependencies and configures `wasm32-wasip1-threads` as its target. The generated browser loader imports `@napi-rs/wasm-runtime` and `@emnapi/runtime`; consuming code must serve those runtime packages, generated worker files, and the `.wasm` file together.
 
 WebAssembly threads use `SharedArrayBuffer`, so the viewer must be served in a cross-origin isolated context with appropriate COOP and COEP headers.
+
+The browser entry configures Rayon's global thread pool from `navigator.hardwareConcurrency` before exporting the trace server. This is necessary because WASI Preview 1 does not expose the host processor count through `std::thread::available_parallelism()`. If the browser does not report a valid count, the pool defaults to four threads.
+
+Consumers of a generated loader directly must call `configureRayonThreadPool(threadCount)` before handling any viewer messages. The configuration is process-wide and can only be set once; repeated calls with the same count are allowed. Node consumers may use `os.availableParallelism()` or the `RAYON_NUM_THREADS` environment variable to choose the count.
