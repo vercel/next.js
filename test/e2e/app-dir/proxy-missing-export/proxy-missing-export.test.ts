@@ -16,15 +16,10 @@ To fix it:
 Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
 describe('proxy-missing-export', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should error when proxy file has invalid export named middleware', async () => {
     await writeFile(

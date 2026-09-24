@@ -14,7 +14,7 @@ import {
 //     ├── package-lock.json
 //     └── app/                         the Next.js app
 describe('root-detection - git worktree boundary', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       '../.git': 'gitdir: ../repo/.git/worktrees/worktree\n',
@@ -28,15 +28,10 @@ describe('root-detection - git worktree boundary', () => {
     },
     // So that the files written above don't leave the isolated testDir
     subDir: 'worktree/app',
-    skipDeployment: true,
     // The workspace file would stop the search before the worktree boundary
     // does, so the test wouldn't be exercising the boundary.
     deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not select a root above the worktree', async () => {
     const worktreeDir = dirname(next.testDir)

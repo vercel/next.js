@@ -6,7 +6,6 @@ describe('self-importing-package', () => {
     files: __dirname,
     // This test is skipped when deployed because the local tarball appears corrupted
     // It also doesn't seem particularly useful to test when deployed
-    skipDeployment: true,
     dependencies: {
       'internal-pkg': `file:${path.join(__dirname, 'internal-pkg.tar')}`,
     },

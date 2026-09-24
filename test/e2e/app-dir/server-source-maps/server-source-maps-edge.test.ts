@@ -8,14 +8,11 @@ function normalizeCliOutput(output: string) {
 }
 
 describe('app-dir - server source maps edge runtime', () => {
-  const { skipped, next, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/edge'),
     // Deploy tests don't have access to runtime logs.
     // Manually verify that the runtime logs match.
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
     const outputIndex = next.cliOutput.length
