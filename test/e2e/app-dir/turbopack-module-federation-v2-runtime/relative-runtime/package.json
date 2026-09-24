@@ -1,0 +1,16 @@
+{
+  "name": "relative-runtime",
+  "type": "module",
+  "exports": {
+    "./runtime": {
+      "browser": "./lib/runtime-browser.js",
+      "import": "./lib/runtime-import.js",
+      "default": "./lib/runtime-default.js"
+    },
+    "./webpack-bundler-runtime": {
+      "browser": "./lib/webpack-bundler-runtime-browser.js",
+      "import": "./lib/webpack-bundler-runtime-import.js",
+      "default": "./lib/webpack-bundler-runtime-default.js"
+    }
+  }
+}
