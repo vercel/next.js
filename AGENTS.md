@@ -180,6 +180,11 @@ tail -5 /tmp/test-output.log             # Summary
 
 - **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
 
+- **Normalize filesystem paths in cross-platform assertions.** Windows
+  `path.join()` uses backslashes. Normalize paths from mocked filesystem calls,
+  including `cp` sources and destinations, before positive or negative checks
+  that use `/`. Otherwise tests can fail on Windows or pass for the wrong reason.
+
 - **Use `retry()` from `next-test-utils` instead of `setTimeout` for waiting**
 
   ```typescript

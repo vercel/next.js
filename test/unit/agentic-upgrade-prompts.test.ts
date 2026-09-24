@@ -93,6 +93,12 @@ function normalizedFileWriteCalls() {
     ])
 }
 
+function normalizedCopiedSources(): string[] {
+  return jest
+    .mocked(cp)
+    .mock.calls.map(([source]) => String(source).replace(/\\+/g, '/'))
+}
+
 function normalizedWriteFileCalls() {
   return normalizedFileWriteCalls().filter(([path]) =>
     String(path).includes('/skills/')
@@ -446,9 +452,7 @@ describe('agentic upgrade prompts', () => {
     expect(String(guide)).toMatch(
       /^Run npx @next\/codemod@\S+ upgrade 16\.3\.5 --yes --skip-adoption$/
     )
-    const copiedSources = jest
-      .mocked(cp)
-      .mock.calls.map(([source]) => String(source))
+    const copiedSources = normalizedCopiedSources()
     expect(copiedSources).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/agentic-upgrade/shared.md'),
@@ -553,16 +557,12 @@ describe('agentic upgrade prompts', () => {
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
-      jest
-        .mocked(cp)
-        .mock.calls.some(([source]) =>
-          String(source).includes('/agentic-upgrade/future-defaults.md')
-        )
+      normalizedCopiedSources().some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
     ).toBe(false)
     expect(
-      jest
-        .mocked(cp)
-        .mock.calls.some(([source]) => String(source).includes('/02-pages/'))
+      normalizedCopiedSources().some((source) => source.includes('/02-pages/'))
     ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
@@ -605,9 +605,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
-    expect(
-      jest.mocked(cp).mock.calls.map(([source]) => String(source))
-    ).toEqual([
+    expect(normalizedCopiedSources()).toEqual([
       expect.stringContaining('/agentic-upgrade/shared.md'),
       expect.stringContaining('/agentic-upgrade/same-major.md'),
     ])
@@ -632,11 +630,9 @@ describe('agentic upgrade prompts', () => {
       '/agentic-upgrade/different-major.md'
     )
     expect(
-      jest
-        .mocked(cp)
-        .mock.calls.some(([source]) =>
-          String(source).includes('/agentic-upgrade/future-defaults.md')
-        )
+      normalizedCopiedSources().some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
     ).toBe(false)
   })
 
@@ -658,9 +654,7 @@ describe('agentic upgrade prompts', () => {
     const prompt = normalizedBootstrapCalls().flat().join('\n')
     expect(prompt).toContain('/agentic-upgrade/different-major.md')
     expect(prompt).toContain('/agentic-upgrade/future-defaults.md')
-    expect(
-      jest.mocked(cp).mock.calls.map(([source]) => String(source))
-    ).toEqual(
+    expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/agentic-upgrade/future-defaults.md'),
       ])
@@ -748,9 +742,7 @@ describe('agentic upgrade prompts', () => {
     expect(crossSpawn).toHaveBeenCalledTimes(1)
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
-    expect(
-      jest.mocked(cp).mock.calls.map(([source]) => String(source))
-    ).toEqual(
+    expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/agentic-upgrade/future-defaults.md'),
       ])
