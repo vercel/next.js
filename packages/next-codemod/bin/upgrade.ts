@@ -388,8 +388,13 @@ export async function runUpgrade(
       if (eslintRange) {
         // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
         // eslint-plugin-react, support its API removals (e.g. context.getFilename).
-        const targetEslintVersion =
-          await loadHighestNPMVersionMatching('eslint@^9')
+        const cappedRange = eslintRange
+          .split('||')
+          .map((range) => `${range.trim()} <10`)
+          .join(' || ')
+        const targetEslintVersion = await loadHighestNPMVersionMatching(
+          `eslint@${cappedRange}`
+        )
         versionMapping['eslint'] = {
           version: targetEslintVersion,
           required: false,
