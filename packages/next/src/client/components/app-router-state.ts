@@ -41,6 +41,7 @@ import {
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
 } from './segment-cache/bfcache'
+import { getNextHistoryId, setNextHistoryId } from './router-reducer/history-id'
 import { createLinkPrefetchPartialError } from '../../shared/lib/instant-messages'
 import {
   createNavigationSeed,
@@ -806,6 +807,10 @@ export function completeSoftNavigation(
     nextUrl: nextUrlForNewRoute,
     previousNextUrl,
     debugInfo: collectedDebugInfo,
+    activeHistoryId:
+      navigateType === 'push'
+        ? getNextHistoryId()
+        : (oldState.activeHistoryId ?? getNextHistoryId()),
   }
   return newState
 }
@@ -816,8 +821,12 @@ export function completeTraverseNavigation(
   renderedSearch: string,
   cache: CacheNode,
   tree: FlightRouterState,
-  nextUrl: string | null
+  nextUrl: string | null,
+  historyId?: number
 ) {
+  if (typeof historyId === 'number') {
+    setNextHistoryId(historyId)
+  }
   return {
     // Set canonical url
     canonicalUrl: createHrefFromUrl(url),
@@ -838,6 +847,7 @@ export function completeTraverseNavigation(
     // canonical URL, there should be a corresponding Next-Url.
     previousNextUrl: null,
     debugInfo: null,
+    activeHistoryId: historyId,
   }
 }
 

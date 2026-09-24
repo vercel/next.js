@@ -24,6 +24,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
+import { getNextHistoryId } from './router-reducer/history-id'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -112,7 +113,8 @@ function HistoryUpdater({
       window.next.__pendingUrl = undefined
     }
 
-    const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
+    const { tree, pushRef, canonicalUrl, renderedSearch, activeHistoryId } =
+      appRouterState
 
     if (!checkedMissedTraversalBeforeHistoryWrite) {
       checkedMissedTraversalBeforeHistoryWrite = true
@@ -124,20 +126,8 @@ function HistoryUpdater({
       }
     }
 
-    const appHistoryState: AppHistoryState = {
-      tree,
-      renderedSearch,
-    }
+    const historyId = activeHistoryId ?? getNextHistoryId()
 
-    // TODO: Use Navigation API if available
-    const historyState = {
-      ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
-      // Identifier is shortened intentionally.
-      // __NA is used to identify if the history entry can be handled by the app-router.
-      // __N is used to identify if the history entry can be handled by the old router.
-      __NA: true,
-      __PRIVATE_NEXTJS_INTERNALS_TREE: appHistoryState,
-    }
     if (
       pushRef.pendingPush &&
       // Skip pushing an additional history entry if the canonicalUrl is the same as the current url.
@@ -146,8 +136,28 @@ function HistoryUpdater({
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
+      const appHistoryState: AppHistoryState = {
+        tree,
+        renderedSearch,
+        historyId,
+      }
+      const historyState = {
+        ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
+        __NA: true,
+        __PRIVATE_NEXTJS_INTERNALS_TREE: appHistoryState,
+      }
       window.history.pushState(historyState, '', canonicalUrl)
     } else {
+      const appHistoryState: AppHistoryState = {
+        tree,
+        renderedSearch,
+        historyId,
+      }
+      const historyState = {
+        ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
+        __NA: true,
+        __PRIVATE_NEXTJS_INTERNALS_TREE: appHistoryState,
+      }
       window.history.replaceState(historyState, '', canonicalUrl)
     }
 
@@ -478,8 +488,9 @@ function Router({
       url: canonicalUrl,
       // Root segment is always active
       isActive: true,
+      activeHistoryId: state.activeHistoryId,
     }
-  }, [tree, cache, canonicalUrl])
+  }, [tree, cache, canonicalUrl, state.activeHistoryId])
 
   const globalLayoutRouterContext = useMemo(() => {
     return {

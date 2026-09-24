@@ -305,6 +305,7 @@ function InnerLayoutRouter({
   params,
   url,
   isActive,
+  activeHistoryId,
 }: {
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
@@ -313,6 +314,7 @@ function InnerLayoutRouter({
   params: Params
   url: string
   isActive: boolean
+  activeHistoryId?: number
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   const parentNavPromises = useContext(NavigationPromisesContext)
@@ -413,6 +415,7 @@ function InnerLayoutRouter({
         // TODO-APP: overriding of url for parallel routes
         url: url,
         isActive: isActive,
+        activeHistoryId: activeHistoryId,
       }}
     >
       {children}
@@ -460,6 +463,7 @@ export function LoadingBoundaryProvider({
         debugNameContext: parentContext.debugNameContext,
         url: parentContext.url,
         isActive: parentContext.isActive,
+        activeHistoryId: parentContext.activeHistoryId,
       }}
     >
       {children}
@@ -551,6 +555,7 @@ export default function OuterLayoutRouter({
     url,
     isActive,
     debugNameContext,
+    activeHistoryId,
   } = context
 
   // Get the CacheNode for this segment by reading it from the parent segment's
@@ -604,7 +609,8 @@ export default function OuterLayoutRouter({
   let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
     activeTree,
     activeCacheNode,
-    activeStateKey
+    activeStateKey,
+    activeHistoryId
   )
   let children: Array<React.ReactNode> = []
   do {
@@ -710,6 +716,7 @@ export default function OuterLayoutRouter({
                   segmentPath={segmentPath}
                   debugNameContext={childDebugNameContext}
                   isActive={isActive && stateKey === activeStateKey}
+                  activeHistoryId={activeHistoryId}
                 />
                 {segmentBoundaryTriggerNode}
               </RedirectBoundary>
