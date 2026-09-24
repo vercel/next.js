@@ -215,12 +215,50 @@ To ensure `next-env.d.ts` is present before type-checking run `next typegen`. Th
 
 The following options are available for the `next upgrade` command:
 
-| Option                  | Description                                                                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-h, --help`            | Show all available options.                                                                                                                        |
-| `[directory]`           | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                          |
-| `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
-| `--verbose`             | Show verbose output during the upgrade process.                                                                                                    |
+| Option                                    | Description                                                                                                                                        |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`                              | Show all available options.                                                                                                                        |
+| `[directory]`                             | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                          |
+| `--revision <revision>`                   | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
+| `--verbose`                               | Show verbose output during the upgrade process.                                                                                                    |
+| `--experimental-ci [type]`, `--ci [type]` | Hand a setup guide to a coding agent to configure automated upgrades in GitHub Actions. Accepts `security`, `latest`, or `future`.                 |
+
+```bash
+next upgrade --ci
+next upgrade --experimental-ci security
+```
+
+CI setup currently supports one Next.js app at the repository root. Run these
+commands from that root. The guide checks this scope before setting up
+credentials or a workflow; monorepo support is deferred to a follow-up.
+
+If your app's installed Next.js version does not support `--ci`, run a
+newer CLI without upgrading the app first. Replace `<supported-exact-version>`
+with a published Next.js version whose `upgrade --help` lists `--ci`, and
+use a Node.js version supported by that CLI. From your app directory, run:
+
+```bash package="npm"
+npx --yes next@<supported-exact-version> upgrade --ci
+```
+
+```bash package="pnpm"
+pnpm dlx next@<supported-exact-version> upgrade --ci
+```
+
+The setup guide also directs recurring workflows to invoke supported tooling
+independently of the app's dependency. The first upgrade can happen through CI.
+
+This experimental option hands a short installation guide to your coding agent.
+The agent copies a small workflow that calls Next.js's reusable workflow from
+`canary`, opens a setup PR, and guides credential connection. The workflow reads
+the app's `experimental.agenticAutoUpgrade` policy or uses the CLI's `security`
+default; the selected secret input chooses the CI provider. The app's installed
+Next.js version and the caller workflow need no pinned tooling version.
+
+An existing agent receives the instructions in its current session. Otherwise,
+Next.js offers the same agent launch or prompt-copy flow as `--ai`. In a
+noninteractive terminal, it prints the handoff. `--ci` cannot be combined
+with `--ai` or `--revision`.
 
 ### `next experimental-analyze` options
 

@@ -1,0 +1,84 @@
+---
+title: Set up automatic Next.js upgrades
+description: Agent guide for installing the weekly Next.js upgrade workflow.
+version: draft
+---
+
+`next upgrade --ci` hands this guide to a coding agent. It installs a weekly
+GitHub Actions workflow for one Next.js app at the repository root. The app does
+not need to upgrade first. The workflow uses the app's
+`experimental.agenticAutoUpgrade` policy, or the CLI's `security` default.
+
+## Install
+
+1. Identify the GitHub repository and default branch. Confirm there is one root
+   app and a supported lockfile. Inspect existing upgrade workflows and open setup
+   PRs; resume existing setup rather than creating a duplicate. Check that the
+   authenticated GitHub account can write workflows and open PRs.
+2. Copy the template below to `.github/workflows/next-upgrade.yml`. Select **one**
+   credential input: `openai-api-key`, `anthropic-api-key`, or
+   `claude-code-oauth-token`. Replace the example secret reference with a real
+   repository or accessible organization secret. That input selects the CI agent;
+   the coding agent performing setup can be different. Review the small diff.
+3. Create a setup branch and open a PR when authorized. Keep the credential value
+   out of the branch and PR. Show the user the exact repository, secret name, AI
+   provider, billing source, and any required Actions setting. The PR can be
+   opened before the secret is connected; say “Credential pending” until it is.
+4. Reuse an existing secret if its availability to the repository is verified.
+   Otherwise, check for a supported local credential by **name only**. With
+   approval for the exact destination, use a host's protected transfer method
+   when available. If it is unavailable, guide the user through private entry
+   with [GitHub CLI](https://cli.github.com/manual/gh_secret_set) or [GitHub's
+   Actions secret settings](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets):
+
+   ```bash
+   gh secret set NEXT_UPGRADE_OPENAI_API_KEY_CONNECTION_ID --repo OWNER/REPO
+   ```
+
+   The command contains no key; GitHub CLI asks for it privately. A local
+   ChatGPT login is not an OpenAI API key. For a Claude subscription token, use
+   `claude setup-token` in a user-controlled terminal and enter it privately.
+   Never paste credentials into chat, files, commands, PRs, or logs. Secret
+   presence does not prove provider authentication.
+
+5. Check the repository's [Actions settings](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/manage-github-actions-settings-for-a-repository).
+   If **Allow GitHub Actions to create and approve pull requests** is disabled,
+   guide an authorized user to `https://github.com/OWNER/REPO/settings/actions`.
+   Preserve the prepared PR if permissions or credential setup is blocked.
+   Review and merge the setup PR. The workflow-path push starts the first run;
+   inspect it before declaring setup complete. Report provider authentication,
+   app checks, and draft upgrade PR creation separately. A run with no changes
+   skips verification and publication.
+
+## Workflow template
+
+The setup agent copies this file and changes only the credential input and
+secret reference. It contains no provider or policy setting, and no Next.js
+version to maintain. The implementation lives in the Next.js repository and is
+referenced from `canary`.
+
+```yaml filename=".github/workflows/next-upgrade.yml"
+name: Next.js upgrade
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * 1'
+  push:
+    paths: [.github/workflows/next-upgrade.yml]
+
+jobs:
+  upgrade:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: vercel/next.js/.github/workflows/next-upgrade.yml@canary
+    secrets:
+      openai-api-key: ${{ secrets.NEXT_UPGRADE_OPENAI_API_KEY_CONNECTION_ID }}
+```
+
+The caller grants GitHub write access, which the reusable workflow uses only in
+its publication job. The workflow prepares an upgrade, verifies the candidate
+in a fresh job, then opens a draft PR with the exact verified changes. GitHub
+may delay or skip scheduled runs. `@canary` follows changes to the reusable
+workflow after they merge into Next.js.
