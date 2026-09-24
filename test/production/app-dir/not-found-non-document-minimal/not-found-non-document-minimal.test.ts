@@ -5,7 +5,6 @@ describe('not-found-non-document-minimal', () => {
     files: __dirname,
     // This test synthesizes an adapter invocation using private runtime
     // switches; it does not exercise the deployed platform proxy.
-    skipDeployment: true,
     env: {
       NEXT_PRIVATE_TEST_HEADERS: '1',
       NEXT_PRIVATE_MINIMAL_MODE: '1',

@@ -3,12 +3,10 @@ import fs from 'fs'
 import path from 'path'
 
 describe('dynamic-import-evaluation-only', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   it('should drop only the side-effect-free targets of evaluation-only dynamic imports', async () => {
     const { exitCode, cliOutput } = await next.build()

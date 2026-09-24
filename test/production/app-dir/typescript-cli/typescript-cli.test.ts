@@ -16,16 +16,13 @@ const typeError = `export const invalidValue: number = 'not a number'
 
 describe('TypeScript CLI backend', () => {
   describe('TypeScript 7', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: '7.0.2',
       },
     })
-
-    if (skipped) return
 
     let originalTsConfig: string
 
@@ -123,16 +120,13 @@ describe('TypeScript CLI backend', () => {
   })
 
   describe('TypeScript 7 with the CLI disabled', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: '7.0.2',
       },
     })
-
-    if (skipped) return
 
     it('fails with actionable API compatibility guidance', async () => {
       await next.patchFile('next.config.js', apiConfig)
@@ -151,16 +145,13 @@ describe('TypeScript CLI backend', () => {
   })
 
   describe('TypeScript 6', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: '6.0.2',
       },
     })
-
-    if (skipped) return
 
     it('uses the same project-local tsc entry point', async () => {
       const result = await next.build()
@@ -171,16 +162,13 @@ describe('TypeScript CLI backend', () => {
   })
 
   describe('TypeScript 6 npm alias', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: 'npm:@typescript/typescript6@6.0.1',
       },
     })
-
-    if (skipped) return
 
     it('builds with the versioned tsc6 entry point', async () => {
       const result = await next.build()

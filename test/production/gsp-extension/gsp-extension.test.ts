@@ -4,11 +4,9 @@ const fileNames = ['1', '2.ext', '3.html']
 
 describe('GS(S)P with file extension', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should support slug with different extensions', async () => {
       for (const name of fileNames) {
