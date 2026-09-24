@@ -207,38 +207,73 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
     })
   })
 
-  it('does not deadlock when a remote reenters its own init scope', async () => {
-    const browser = await next.browser('/')
-    await retry(async () => {
-      expect(await browser.elementByCss('#remote-message').text()).toBe(
-        'hello from Next.js'
-      )
-    }, 15_000)
-    await browser.eval(`(() => {
-      const container = globalThis.nextRemote;
-      const instance = globalThis.__FEDERATION__.__INSTANCES__.find((item) => item.name === 'nextRemote');
-      const scope = Object.create(null);
-      const initScope = [];
-      const original = instance.initializeSharing;
-      instance.initializeSharing = function (name, options) {
-        instance.initializeSharing = original;
-        return [
-          ...original.call(this, name, options),
-          container.init(scope, initScope, { shareScopeKeys: 'cyclic' })
-        ];
-      };
-      globalThis.__cyclicInitStatus = 'pending';
-      container.init(scope, initScope, { shareScopeKeys: 'cyclic' }).then(
-        () => { globalThis.__cyclicInitStatus = 'resolved'; },
-        (error) => { globalThis.__cyclicInitStatus = error.message; }
-      );
-    })()`)
-    await retry(async () => {
-      expect(await browser.eval(`globalThis.__cyclicInitStatus`)).toBe(
-        'resolved'
-      )
-    }, 5_000)
-  })
+  it.each([true, false])(
+    'waits for cyclic initialization with an explicit init scope: %s',
+    async (supplyInitScope) => {
+      const browser = await next.browser('/')
+      await retry(async () => {
+        expect(await browser.elementByCss('#remote-message').text()).toBe(
+          'hello from Next.js'
+        )
+      }, 15_000)
+      await browser.eval(`(() => {
+        const container = globalThis.nextRemote;
+        const instance = globalThis.__FEDERATION__.__INSTANCES__.find((item) => item.name === 'nextRemote');
+        const scope = Object.create(null);
+        const options = { shareScopeKeys: 'cyclic' };
+        const state = globalThis.__cyclicInitState = {
+          entered: false, firstReady: false, secondReady: false, error: null
+        };
+        const gate = new Promise((resolve) => {
+          globalThis.__releaseCyclicInit = resolve;
+        });
+        globalThis.cycleRemote = {
+          async init(shareScope, initScope, remoteEntryInitOptions) {
+            await container.init(shareScope, initScope, remoteEntryInitOptions);
+            state.entered = true;
+            await gate;
+          },
+          get() { return Promise.resolve(() => ({})); }
+        };
+        instance.initOptions({
+          name: 'nextRemote',
+          shareStrategy: 'version-first',
+          remotes: [{
+            name: 'cycleRemote',
+            entry: ${JSON.stringify(process.env.MF_REMOTE_URL)},
+            entryGlobalName: 'cycleRemote',
+            type: 'global',
+            shareScope: 'cyclic'
+          }]
+        });
+        container.init(scope, ${supplyInitScope ? '[]' : 'undefined'}, options).then(
+          () => { state.firstReady = true; },
+          (error) => { state.error = error.message; }
+        );
+        container.init(scope, undefined, options).then(
+          () => { state.secondReady = true; },
+          (error) => { state.error = error.message; }
+        );
+      })()`)
+      await retry(async () => {
+        expect(await browser.eval(`globalThis.__cyclicInitState`)).toEqual({
+          entered: true,
+          firstReady: false,
+          secondReady: false,
+          error: null,
+        })
+      }, 5_000)
+      await browser.eval(`globalThis.__releaseCyclicInit()`)
+      await retry(async () => {
+        expect(await browser.eval(`globalThis.__cyclicInitState`)).toEqual({
+          entered: true,
+          firstReady: true,
+          secondReady: true,
+          error: null,
+        })
+      }, 5_000)
+    }
+  )
 
   it('exposes the module to a webpack host', async () => {
     const browser = await next.browser('/', { baseUrl: webpackHostOrigin })
