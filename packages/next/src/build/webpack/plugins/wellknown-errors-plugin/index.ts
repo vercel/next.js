@@ -8,15 +8,17 @@ export class WellKnownErrorsPlugin {
     compiler.hooks.compilation.tap(NAME, (compilation) => {
       compilation.hooks.afterSeal.tapPromise(NAME, async () => {
         if (compilation.warnings?.length) {
-          await Promise.all(
-            compilation.warnings.map(async (warn, i) => {
-              if (
+          // Suppress ModuleDependencyWarnings originating in node_modules.
+          // Build a new array instead of splicing during the index-based
+          // iteration: each splice shifts later elements left, skipping the
+          // element right after a removed one and deleting unrelated
+          // first-party warnings at stale indices.
+          compilation.warnings = compilation.warnings.filter(
+            (warn) =>
+              !(
                 warn.name === 'ModuleDependencyWarning' &&
                 warn.module?.context?.includes('node_modules')
-              ) {
-                compilation.warnings.splice(i, 1)
-              }
-            })
+              )
           )
         }
 
