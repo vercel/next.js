@@ -561,6 +561,8 @@ const transform = (
           directories: result.contextDependencies.map((dep) => [dep, '**']),
           buildDependencyRequests: [...buildDependencies]
             .map((dependency) => {
+              // Webpack uses a trailing slash or backslash to identify directory build dependencies:
+              // https://github.com/webpack/webpack/blob/v5.98.0/lib/FileSystemInfo.js#L1741-L1748
               const isDirectory = /[\\/]$/.test(dependency)
               let request = isDirectory ? dependency.slice(0, -1) : dependency
               if (path.isAbsolute(request)) {
