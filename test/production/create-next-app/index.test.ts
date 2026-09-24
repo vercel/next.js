@@ -220,6 +220,7 @@ describe('create-next-app', () => {
           --no-src-dir            No src/ directory (use --src-dir for src/ directory)
           --no-cache-components   No Cache Components (use --cache-components for Cache Components)
           --agents-md             AGENTS.md (use --no-agents-md for No AGENTS.md)
+          --no-agent-feedback     No agent feedback (use --agent-feedback for Agent feedback)
           --import-alias          "@/*""
       `)
     })
@@ -241,6 +242,7 @@ describe('create-next-app', () => {
           '--no-react-compiler',
           '--no-cache-components',
           '--no-agents-md',
+          '--no-agent-feedback',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],

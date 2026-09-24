@@ -746,6 +746,15 @@ async function run(): Promise<void> {
         lines.push(`  ${flag.padEnd(24)}${label}${altText}`)
       }
 
+      const hasAgentFeedback = process.argv.some(
+        (arg) => arg === '--agent-feedback' || arg === '--no-agent-feedback'
+      )
+      if (!hasAgentFeedback) {
+        lines.push(
+          `  ${'--no-agent-feedback'.padEnd(24)}No agent feedback (use --agent-feedback for Agent feedback)`
+        )
+      }
+
       // Import alias is not a boolean toggle, handle separately
       const hasImportAlias = process.argv.some(
         (arg) =>
