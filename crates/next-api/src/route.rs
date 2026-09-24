@@ -10,6 +10,7 @@ use turbo_tasks::{
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
+    module::Module,
     module_graph::{GraphEntries, ModuleGraph},
     output::OutputAssets,
 };
@@ -45,6 +46,22 @@ pub enum Route {
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
 
+/// Client-side modules associated with an endpoint. This is build provenance,
+/// not a claim that a browser requested their chunks during initial navigation.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Default)]
+pub struct AnalyzeClientEntries {
+    pub server_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub bootstrap_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub references: Vec<AnalyzeClientReference>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeClientReference {
+    pub module: ResolvedVc<Box<dyn Module>>,
+    pub kind: RcStr,
+}
+
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     #[turbo_tasks::function]
@@ -57,6 +74,11 @@ pub trait Endpoint {
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
+    /// Build-time client bootstrap and client-reference modules for analysis.
+    #[turbo_tasks::function]
+    fn analyze_client_entries(self: Vc<Self>) -> Vc<AnalyzeClientEntries> {
+        AnalyzeClientEntries::default().cell()
+    }
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
     #[turbo_tasks::function]

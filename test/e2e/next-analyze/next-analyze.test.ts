@@ -4,6 +4,24 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
+type RouteEntry = {
+  route_entry_id: string
+  module_ident: string
+  role: 'route' | 'shared'
+  entry_kind?: 'server' | 'client_bootstrap'
+  client_references?: Array<{
+    module_ident: string
+    module_path: string
+    reference_kind: 'ecmascript' | 'css'
+  }>
+}
+
+function readAnalyzeHeader<T>(filename: string): T {
+  const buffer = readFileSync(filename)
+  const jsonLength = buffer.readUInt32BE(0)
+  return JSON.parse(buffer.subarray(4, 4 + jsonLength).toString('utf8')) as T
+}
+
 describe('next analyze', () => {
   if (!shouldUseTurbopack()) {
     // Test suites require at least one test
@@ -98,7 +116,70 @@ describe('next analyze', () => {
           'utf-8'
         )
         const routes = JSON.parse(routesJson)
-        expect(routes).toEqual(['/', '/_not-found'])
+        expect([...routes].sort()).toEqual(
+          ['/', '/_not-found', '/api/ping', '/legacy'].sort()
+        )
+
+        const dataDir = path.join(defaultOutputPath, 'data')
+        const { modules } = readAnalyzeHeader<{
+          modules: Array<{ ident: string }>
+        }>(path.join(dataDir, 'modules.data'))
+        const moduleIdents = new Set(modules.map((module) => module.ident))
+        const { route_entries: appEntries } = readAnalyzeHeader<{
+          route_entries: RouteEntry[]
+        }>(path.join(dataDir, 'analyze.data'))
+        const { route_entries: pagesEntries } = readAnalyzeHeader<{
+          route_entries: RouteEntry[]
+        }>(path.join(dataDir, 'legacy', 'analyze.data'))
+        const { route_entries: apiEntries } = readAnalyzeHeader<{
+          route_entries: RouteEntry[]
+        }>(path.join(dataDir, 'api', 'ping', 'analyze.data'))
+
+        expect(appEntries.some((entry) => entry.entry_kind === 'server')).toBe(
+          true
+        )
+        expect(
+          appEntries.some((entry) => entry.entry_kind === 'client_bootstrap')
+        ).toBe(true)
+        const clientReferences = appEntries.flatMap(
+          (entry) => entry.client_references ?? []
+        )
+        expect(
+          clientReferences.some((reference) =>
+            reference.module_path.includes('client-entry')
+          )
+        ).toBe(true)
+        expect(
+          clientReferences.some(
+            (reference) => reference.reference_kind === 'css'
+          )
+        ).toBe(true)
+        const rootIdents = new Set(
+          appEntries.map((entry) => entry.module_ident)
+        )
+        for (const reference of clientReferences) {
+          expect(rootIdents.has(reference.module_ident)).toBe(false)
+          expect(moduleIdents.has(reference.module_ident)).toBe(true)
+          expect(['ecmascript', 'css']).toContain(reference.reference_kind)
+        }
+        expect(
+          pagesEntries.some((entry) => entry.entry_kind === 'client_bootstrap')
+        ).toBe(true)
+        expect(pagesEntries.some((entry) => entry.role === 'shared')).toBe(true)
+        expect(apiEntries.some((entry) => entry.entry_kind === 'server')).toBe(
+          true
+        )
+        expect(
+          apiEntries.some((entry) => entry.entry_kind === 'client_bootstrap')
+        ).toBe(false)
+        expect(
+          apiEntries.every((entry) => !entry.client_references?.length)
+        ).toBe(true)
+        for (const entry of [...appEntries, ...pagesEntries, ...apiEntries]) {
+          expect(moduleIdents.has(entry.module_ident)).toBe(true)
+          expect(entry).not.toHaveProperty('initial')
+          expect(entry).not.toHaveProperty('load_scope')
+        }
       })
     })
   })
