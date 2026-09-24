@@ -15,6 +15,18 @@ describe('create-next-app', () => {
     nextTgzFilename = resolveNextTgzFilename()
   })
 
+  it('should list both agent feedback flags in help', async () => {
+    await useTempDir(async (cwd) => {
+      const res = await run(['--help'], nextTgzFilename, {
+        cwd,
+        stdio: 'pipe',
+      })
+
+      expect(res.stdout).toContain('--agent-feedback')
+      expect(res.stdout).toContain('--no-agent-feedback')
+    })
+  })
+
   it('should not create if the target directory is not empty', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-dir'
@@ -254,6 +266,9 @@ describe('create-next-app', () => {
       )
       expect(res.exitCode).toBe(0)
       expect(res.stdout).not.toContain('Using defaults for unprovided options')
+      expect(
+        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).not.toContain('agentFeedback')
     })
   })
 

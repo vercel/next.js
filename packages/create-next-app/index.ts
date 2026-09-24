@@ -115,6 +115,10 @@ const program = new Command(packageJson.name)
     '--agent-feedback',
     'Prepare anonymized Next.js feedback for your review.'
   )
+  .option(
+    '--no-agent-feedback',
+    'Do not prepare anonymized Next.js feedback for your review.'
+  )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
@@ -703,7 +707,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (args.includes('--no-agent-feedback')) {
+    if (opts.agentFeedback === false) {
       opts.agentFeedback = false
     } else if (!opts.agentFeedback) {
       if (enableAgentFeedbackByDefault) {
