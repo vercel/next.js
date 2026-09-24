@@ -8,23 +8,21 @@ mod util;
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{
-    ResolvedVc, TaskId, Vc, prevent_gc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, TaskId, Vc, prevent_gc};
 
 use crate::{
     gc_fixture::{Selector, create_selector},
     util::create_tt,
 };
 
-/// The `TaskId` backing a resolved `Vc` (its `TaskOutput` node).
+/// The `TaskId` backing a `Vc`'s `TaskOutput` node.
 fn task_id_of<T>(vc: Vc<T>) -> TaskId {
     Vc::into_raw(vc)
         .try_get_task_id()
         .expect("a resolved Vc should be backed by a task")
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 fn leaf(n: u32) -> Vc<u32> {
     Vc::cell(n)
 }
@@ -180,6 +178,20 @@ async fn gc_does_not_collect_pinned_task() {
     tt.stop_and_wait().await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn construction_pin_is_released_after_connecting_task() {
+    let (tt, _persistence_dir) = create_tt("construction_pin_is_released");
+    let task_id = turbo_tasks::run_once(tt.clone(), async move {
+        let task_id = TaskId::try_from(*leaf_task_id(7).read_strongly_consistent().await?)?;
+        anyhow::Ok(task_id)
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(tt.backend().transient_ref_count_for_testing(task_id), 0);
+    tt.stop_and_wait().await;
+}
+
 /// Disposing a root task (as `RootTask::Drop` does when JS stops listening to a subscription) must
 /// release the anchor its child edges placed on the tasks it read. Disposal is also idempotent and
 /// safe after the backend has stopped, which `RootTask::Drop` relies on.
@@ -196,11 +208,10 @@ async fn dispose_root_task_releases_anchored_subgraph() {
         let tx = tx.lock().unwrap().take();
         Box::pin(async move {
             // The root body runs as a top-level task, as `subscribe`'s HMR handler does.
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             let leaf_vc = leaf(88);
-            let value = *leaf_vc.await?;
+            let value = *leaf_vc.strongly_consistent().await?;
             if let Some(tx) = tx {
-                let _ = tx.send(task_id_of(leaf_vc.resolve().await?));
+                let _ = tx.send(task_id_of(leaf_vc));
             }
             anyhow::Ok(Vc::<u32>::cell(value))
         })

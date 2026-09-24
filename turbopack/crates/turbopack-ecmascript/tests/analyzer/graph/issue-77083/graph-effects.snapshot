@@ -13,6 +13,7 @@
                         export: Some(
                             "assert",
                         ),
+                        member: None,
                         ast_path: [
                             Program(
                                 Module,
@@ -228,42 +229,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Labeled,
-                        ),
-                        LabeledStmt(
-                            Body,
-                        ),
-                    ],
+                    AstPathId(
+                        13,
+                    ),
                 ),
             },
         },
@@ -307,6 +275,7 @@
         export: Some(
             "assert",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -464,6 +433,7 @@
         export: Some(
             "assert",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,

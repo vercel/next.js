@@ -32,9 +32,9 @@ setup_wasi_env() {
 
   rustup target add wasm32-wasip1-threads || return 1
 
-  # `lzzzz` (LZ4, via turbo-persistence) and `zstd-sys` have C build scripts, so a WASI clang and
-  # sysroot are required on top of the Rust target. The SDK build must match the host running the
-  # compiler; an x86_64 clang on arm64 fails with "Exec format error".
+  # `zstd-sys` has a C build script, so a WASI clang and sysroot are required on top of the Rust
+  # target. The SDK build must match the host running the compiler; an x86_64 clang on arm64 fails
+  # with "Exec format error".
   local wasi_sdk_version=33.0 wasi_sdk_arch wasi_sdk_sha256
   case "$(uname -m)" in
     x86_64 | amd64)

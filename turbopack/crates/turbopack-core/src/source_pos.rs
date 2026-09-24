@@ -1,6 +1,5 @@
 use bincode::{Decode, Encode};
 use serde::Serialize;
-use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -19,7 +18,6 @@ const U8_CR: u8 = 0x0D;
     Hash,
     PartialOrd,
     Ord,
-    TraceRawVcs,
     Serialize,
     DeterministicHash,
     Encode,

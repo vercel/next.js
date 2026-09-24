@@ -109,8 +109,16 @@ class NextRootCommand extends Command {
         }
       }
 
-      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      // The upgrade harness may run both dev and production checks. Preserve
+      // its caller's environment instead of forcing all child commands into
+      // production mode merely because they were launched through this CLI.
+      if (
+        commandName !== 'upgrade' ||
+        !event.getOptionValue('experimentalAi')
+      ) {
+        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      }
 
       if (
         process.platform === 'darwin' &&
@@ -186,10 +194,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -200,7 +206,8 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .option('--turbo', 'Builds using Turbopack.')
   .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using webpack.')
+  .option('--webpack', 'Builds using the bundled webpack.')
+  .option('--custom-webpack', 'Builds using your project-installed webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -245,6 +252,9 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
+    if (options.customWebpack) {
+      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
+    }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
@@ -272,7 +282,8 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-analyze')
+  .command('analyze')
+  .alias('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -334,7 +345,11 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using webpack.')
+  .option('--webpack', 'Starts development mode using the bundled webpack.')
+  .option(
+    '--custom-webpack',
+    'Starts development mode using your project-installed webpack.'
+  )
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -398,6 +413,9 @@ program
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.customWebpack) {
+        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
@@ -554,6 +572,7 @@ program
 const nextVersion = process.env.__NEXT_VERSION || 'unknown'
 program
   .command('upgrade')
+  .aliases(['update', 'up'])
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
@@ -576,9 +595,18 @@ program
           : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
+  .addOption(
+    new Option(
+      '--ai, --experimental-ai [type]',
+      'Upgrade with AI to security, latest, or future. Defaults to security.'
+    ).conflicts('revision')
+  )
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    mod.spawnNextUpgrade(directory, options)
+    await mod.spawnNextUpgrade(directory, {
+      ...options,
+      ai: options.experimentalAi,
+    })
   })
 
 program
@@ -647,6 +675,18 @@ const internal = program
   .command('internal')
   .description(
     'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
+
+internal
+  .command('agent-feedback-instructions', { hidden: true })
+  .option(
+    '--dry-run',
+    'Print report preview URLs without opening the review form.'
+  )
+  .action((options: { dryRun?: boolean }) =>
+    import('../cli/internal/agent-feedback-instructions.js').then((mod) =>
+      mod.agentFeedbackInstructionsCli(options)
+    )
   )
 
 internal

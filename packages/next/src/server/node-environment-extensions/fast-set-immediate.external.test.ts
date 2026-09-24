@@ -1,9 +1,12 @@
 import '../node-environment-baseline'
-import { AsyncLocalStorage } from 'node:async_hooks'
+import { AsyncLocalStorage, createHook } from 'node:async_hooks'
+import { execFile } from 'node:child_process'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
+  ImmediateTracker,
+  runWithNativeImmediateTracking,
   unpatchedSetImmediate,
 } from './fast-set-immediate.external'
 import { createAtomicTimerGroup } from '../app-render/app-render-scheduling'
@@ -328,6 +331,494 @@ it('runs ticks and microtasks from immediates before moving onto the next task',
   ])
 })
 
+describe('native immediate tracking', () => {
+  it('separates explicit trackers, forwards arguments and results, and restores the parent scope', async () => {
+    const first = new ImmediateTracker()
+    const second = new ImmediateTracker()
+    const render = (value: string, count: number) => {
+      setImmediate(() => {})
+      return { value, count }
+    }
+
+    runWithNativeImmediateTracking(first, () => {
+      expect(
+        runWithNativeImmediateTracking(second, render, 'second', 2)
+      ).toEqual({
+        value: 'second',
+        count: 2,
+      })
+      expect(first.hasPendingImmediates()).toBe(false)
+      expect(second.hasPendingImmediates()).toBe(true)
+      expect(render('first', 1)).toEqual({ value: 'first', count: 1 })
+      expect(first.hasPendingImmediates()).toBe(true)
+    })
+
+    await Promise.all([
+      new Promise<void>((resolve) => first.onIdle(resolve)),
+      new Promise<void>((resolve) => second.onIdle(resolve)),
+    ])
+
+    const error = new Error('render failed')
+    runWithNativeImmediateTracking(first, () => {
+      expect(() =>
+        runWithNativeImmediateTracking(second, () => {
+          throw error
+        })
+      ).toThrow(error)
+      setImmediate(() => {})
+      expect(first.hasPendingImmediates()).toBe(true)
+      expect(second.hasPendingImmediates()).toBe(false)
+    })
+
+    await new Promise<void>((resolve) => first.onIdle(resolve))
+    setImmediate(() => {})
+    expect(first.hasPendingImmediates()).toBe(false)
+    expect(second.hasPendingImmediates()).toBe(false)
+    await new Promise<void>((resolve) => unpatchedSetImmediate(resolve))
+  })
+
+  it('coalesces a synchronous burst of native immediates into at most two checks', async () => {
+    const tracker = new ImmediateTracker()
+    const storage = new AsyncLocalStorage<symbol>()
+    const marker = Symbol('immediate burst')
+    const count = 32
+    const callback = jest.fn()
+    let nativeImmediates = 0
+    const hook = createHook({
+      init(_asyncId, type) {
+        if (type === 'Immediate' && storage.getStore() === marker) {
+          nativeImmediates++
+        }
+      },
+    })
+
+    hook.enable()
+    try {
+      await storage.run(marker, () =>
+        runWithNativeImmediateTracking(tracker, async () => {
+          for (let index = 0; index < count; index++) {
+            setImmediate(callback)
+          }
+          expect(nativeImmediates).toBe(count + 1)
+          expect(callback).not.toHaveBeenCalled()
+          await new Promise<void>((resolve) => tracker.onIdle(resolve))
+        })
+      )
+      expect(callback).toHaveBeenCalledTimes(count)
+      expect(nativeImmediates).toBeLessThanOrEqual(count + 2)
+      expect(tracker.hasPendingImmediates()).toBe(false)
+    } finally {
+      hook.disable()
+    }
+  })
+
+  it('waits for callback, microtask, and nextTick work queued after a successor check', async () => {
+    for (const source of ['callback', 'microtask', 'nextTick']) {
+      const tracker = new ImmediateTracker()
+      const events: string[] = []
+      const done = createPromiseWithResolvers<void>()
+
+      runWithNativeImmediateTracking(tracker, () => {
+        setImmediate(() => events.push('first'))
+        // The first sentinel queues its successor before this callback runs.
+        setImmediate(() => {
+          events.push('second')
+          const scheduleDescendant = () => {
+            setImmediate(() => {
+              events.push(source)
+              setImmediate(() => {
+                events.push('descendant')
+                done.resolve()
+              })
+            })
+          }
+          if (source === 'callback') {
+            scheduleDescendant()
+          } else if (source === 'microtask') {
+            queueMicrotask(scheduleDescendant)
+          } else {
+            process.nextTick(scheduleDescendant)
+          }
+        })
+      })
+
+      await Promise.all([
+        done.promise,
+        new Promise<void>((resolve) => {
+          tracker.onIdle(() => {
+            events.push('idle')
+            resolve()
+          })
+        }),
+      ])
+      expect(events).toEqual(['first', 'second', source, 'descendant', 'idle'])
+      expect(tracker.hasPendingImmediates()).toBe(false)
+    }
+  })
+
+  it('tracks native descendants before a readiness subscription', async () => {
+    const events: string[] = []
+    const tracker = new ImmediateTracker()
+    runWithNativeImmediateTracking(tracker, () => {
+      setImmediate(() => {
+        events.push('root')
+        setImmediate(() => events.push('callback'))
+        process.nextTick(() => {
+          setImmediate(() => events.push('nextTick'))
+        })
+        queueMicrotask(() => {
+          setImmediate(() => {
+            events.push('microtask')
+            queueMicrotask(() => {
+              process.nextTick(() => {
+                setImmediate(() => events.push('nested nextTick'))
+              })
+            })
+          })
+        })
+      })
+    })
+
+    await new Promise<void>((resolve) => unpatchedSetImmediate(resolve))
+    expect(events).toEqual(['root'])
+    expect(tracker.hasPendingImmediates()).toBe(true)
+
+    await new Promise<void>((resolve) => tracker.onIdle(resolve))
+    expect(events).toEqual([
+      'root',
+      'callback',
+      'nextTick',
+      'microtask',
+      'nested nextTick',
+    ])
+    expect(tracker.hasPendingImmediates()).toBe(false)
+  })
+
+  it('waits for a native sentinel on every subscription and tracks later batches', async () => {
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
+      const events: string[] = []
+      let previousReady: Promise<void> | undefined
+
+      for (const batch of ['first', 'second']) {
+        unpatchedSetImmediate(() => events.push(`${batch} control`))
+        const ready = new Promise<void>((resolve) => tracker.onIdle(resolve))
+        const otherReady = new Promise<void>((resolve) =>
+          tracker.onIdle(resolve)
+        )
+        expect(ready).not.toBe(previousReady)
+        expect(ready).not.toBe(otherReady)
+        let settled = false
+        ready.then(() => {
+          settled = true
+        })
+        await Promise.resolve()
+        expect(settled).toBe(false)
+
+        await Promise.all([ready, otherReady])
+        expect(events.at(-1)).toBe(`${batch} control`)
+        setImmediate(() => {
+          setImmediate(() => events.push(batch))
+        })
+        expect(tracker.hasPendingImmediates()).toBe(true)
+        await new Promise<void>((resolve) => tracker.onIdle(resolve))
+        expect(events.at(-1)).toBe(batch)
+        expect(tracker.hasPendingImmediates()).toBe(false)
+        previousReady = ready
+      }
+    })
+  })
+
+  it('cancels idle subscriptions independently and accepts later subscriptions', async () => {
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
+      const cancelled = jest.fn()
+      const active = jest.fn()
+      const cancel = tracker.onIdle(cancelled)
+      tracker.onIdle(active)
+      cancel()
+      cancel()
+
+      await new Promise<void>((resolve) => tracker.onIdle(resolve))
+      expect(cancelled).not.toHaveBeenCalled()
+      expect(active).toHaveBeenCalledTimes(1)
+
+      tracker.onIdle(cancelled)
+      await new Promise<void>((resolve) => tracker.onIdle(resolve))
+      expect(cancelled).toHaveBeenCalledTimes(1)
+      expect(active).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('preserves subscriber context across cancellation, resubscription, and listener reentry', async () => {
+    const tracker = new ImmediateTracker()
+    const subscriberTracker = new ImmediateTracker()
+    const storage = new AsyncLocalStorage<string>()
+    const events: string[] = []
+    const cancelled = jest.fn()
+    const cancel = tracker.onIdle(cancelled)
+    cancel()
+    const notified = createPromiseWithResolvers<void>()
+    const reentered = createPromiseWithResolvers<void>()
+
+    storage.run('work', () =>
+      runWithNativeImmediateTracking(tracker, () => {
+        setImmediate(() => events.push(`work: ${storage.getStore()}`))
+      })
+    )
+    storage.run('subscriber', () =>
+      runWithNativeImmediateTracking(subscriberTracker, () => {
+        tracker.onIdle(() => {
+          events.push(`idle: ${storage.getStore()}`)
+          setImmediate(() =>
+            events.push(`listener work: ${storage.getStore()}`)
+          )
+          tracker.onIdle(() => {
+            events.push(`reentered: ${storage.getStore()}`)
+            reentered.resolve()
+          })
+          cancel()
+          notified.resolve()
+        })
+      })
+    )
+
+    await notified.promise
+    expect(subscriberTracker.hasPendingImmediates()).toBe(true)
+    await reentered.promise
+    expect(cancelled).not.toHaveBeenCalled()
+    expect(events).toEqual([
+      'work: work',
+      'idle: subscriber',
+      'listener work: subscriber',
+      'reentered: subscriber',
+    ])
+    expect(tracker.hasPendingImmediates()).toBe(false)
+    expect(subscriberTracker.hasPendingImmediates()).toBe(false)
+    expect(storage.getStore()).toBeUndefined()
+  })
+
+  it('exits after cancelling an idle subscription with recurring unreferenced immediates', async () => {
+    const { promisify } = require('node:util') as typeof import('node:util')
+    const subprocess = promisify(execFile)(
+      process.execPath,
+      [
+        '--require',
+        require.resolve('tsx/cjs'),
+        '--eval',
+        `
+          require(${JSON.stringify(require.resolve('../node-environment-baseline'))})
+          const { ImmediateTracker, runWithNativeImmediateTracking } =
+            require(${JSON.stringify(require.resolve('./fast-set-immediate.external'))})
+          const assert = require('node:assert/strict')
+          const tracker = new ImmediateTracker()
+          let callbacks = 0
+          process.on('exit', () => {
+            assert.ok(callbacks >= 5, 'The subscription must keep the process alive until cancellation')
+          })
+
+          runWithNativeImmediateTracking(tracker, () => {
+            const repeat = () => {
+              callbacks++
+              if (callbacks === 5) {
+                cancel()
+                cancel()
+                console.log('cancelled')
+              }
+              setImmediate(repeat).unref()
+            }
+            setImmediate(repeat).unref()
+            const cancel = tracker.onIdle(() => {
+              throw new Error('Recurring immediates must not report idle')
+            })
+          })
+        `,
+      ],
+      { timeout: 10_000, killSignal: 'SIGKILL' }
+    )
+    try {
+      const { stdout, stderr } = await subprocess
+      expect(stderr).toBe('')
+      expect(stdout.trim()).toBe('cancelled')
+    } finally {
+      subprocess.child.kill('SIGKILL')
+    }
+  })
+
+  it('keeps native scheduling unless fast scheduling is explicitly enabled', async () => {
+    const events: string[] = []
+    const done = createPromiseWithResolvers<void>()
+    const scheduleTimeout = createAtomicTimerGroup()
+
+    const tracker = new ImmediateTracker()
+    runWithNativeImmediateTracking(tracker, () => {
+      scheduleTimeout(() => {
+        events.push('first timer')
+        unpatchedSetImmediate(() => events.push('native control'))
+        setImmediate(() => {
+          events.push('native')
+          setImmediate(() => events.push('native nested'))
+        })
+
+        DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+        setImmediate(() => {
+          events.push('fast')
+          setImmediate(() => events.push('fast nested'))
+        })
+        new Promise<void>((resolve) => tracker.onIdle(resolve)).then(
+          done.resolve,
+          done.reject
+        )
+      })
+      scheduleTimeout(() => events.push('second timer'))
+    })
+
+    await done.promise
+    expectNoPendingImmediates()
+    expect(events).toEqual([
+      'first timer',
+      'fast',
+      'fast nested',
+      'second timer',
+      'native control',
+      'native',
+      'native nested',
+    ])
+  })
+
+  it('isolates renders that resume from the same promise', async () => {
+    const first = new ImmediateTracker()
+    const second = new ImmediateTracker()
+    const shared = createPromiseWithResolvers<void>()
+    const outside = shared.promise.then(() => {
+      setImmediate(() => {})
+      expect(first.hasPendingImmediates()).toBe(false)
+      expect(second.hasPendingImmediates()).toBe(false)
+    })
+    const observed: string[] = []
+    const render = (nested: boolean) => {
+      const resumed = shared.promise.then(() => {
+        setImmediate(() => {
+          observed.push(nested ? 'second' : 'first')
+          if (nested) {
+            setImmediate(() => {
+              setImmediate(() => observed.push('second descendant'))
+            })
+          }
+        })
+      })
+      if (!nested) {
+        unpatchedSetImmediate(shared.resolve)
+      }
+      return resumed
+    }
+
+    const firstResumed = runWithNativeImmediateTracking(first, render, false)
+    const secondResumed = runWithNativeImmediateTracking(second, render, true)
+    await Promise.all([firstResumed, secondResumed, outside])
+    expect(first.hasPendingImmediates()).toBe(true)
+    expect(second.hasPendingImmediates()).toBe(true)
+
+    await new Promise<void>((resolve) => first.onIdle(resolve))
+    expect(first.hasPendingImmediates()).toBe(false)
+    expect(second.hasPendingImmediates()).toBe(true)
+    await new Promise<void>((resolve) => second.onIdle(resolve))
+    expect(observed).toEqual(['first', 'second', 'second descendant'])
+    expect(second.hasPendingImmediates()).toBe(false)
+  })
+
+  it('preserves native callback arguments, handles, cancellation, and disposal', async () => {
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
+      const timers = require('node:timers') as typeof import('node:timers')
+      let receiver: NodeJS.Immediate | undefined
+      const callback = jest.fn(function (
+        this: NodeJS.Immediate,
+        ..._args: unknown[]
+      ) {
+        receiver = this
+      })
+      const value = { message: 'native arguments' }
+      const immediate = timers.setImmediate(callback, value, 42)
+      const control = unpatchedSetImmediate(() => {})
+      expect(Object.getPrototypeOf(immediate)).toBe(
+        Object.getPrototypeOf(control)
+      )
+      clearImmediate(control)
+      expect(immediate.hasRef()).toBe(true)
+      expect(immediate.unref()).toBe(immediate)
+      expect(immediate.hasRef()).toBe(false)
+      expect(immediate.ref()).toBe(immediate)
+      expect(immediate.hasRef()).toBe(true)
+
+      const cancelled = jest.fn()
+      const cleared = setImmediate(cancelled)
+      process.nextTick(() => {
+        timers.clearImmediate(cleared)
+        timers.clearImmediate(cleared)
+      })
+      const disposed = setImmediate(cancelled)
+      const { runInThisContext } =
+        require('node:vm') as typeof import('node:vm')
+      // Jest's Symbol.dispose polyfill is not the symbol on native handles.
+      const nativeDispose: typeof Symbol.dispose =
+        runInThisContext('Symbol.dispose')
+      disposed[nativeDispose]()
+      disposed[nativeDispose]()
+      expect(() => setImmediate(undefined as any)).toThrow(/callback/)
+
+      await new Promise<void>((resolve) => tracker.onIdle(resolve))
+      expect(callback).toHaveBeenCalledTimes(1)
+      expect(callback).toHaveBeenCalledWith(value, 42)
+      expect(receiver).toBe(immediate)
+      expect(cancelled).not.toHaveBeenCalled()
+      expect(tracker.hasPendingImmediates()).toBe(false)
+    })
+  })
+
+  it('preserves native promisified values and AbortError semantics', async () => {
+    const { promisify } = require('node:util') as typeof import('node:util')
+    const timersPromises =
+      require('node:timers/promises') as typeof import('node:timers/promises')
+
+    const tracker = new ImmediateTracker()
+    await runWithNativeImmediateTracking(tracker, async () => {
+      for (const immediate of [
+        promisify(setImmediate),
+        timersPromises.setImmediate,
+      ]) {
+        const value = { message: 'native value' }
+        const values: unknown[] = []
+        const fulfilled = immediate(value, { ref: false }).then((result) => {
+          setImmediate(() => values.push(result))
+        })
+        await new Promise<void>((resolve) => tracker.onIdle(resolve))
+        await fulfilled
+        expect(values).toEqual([value])
+
+        const controller = new AbortController()
+        const reason = new Error('cancel native immediate')
+        const cancelled = immediate(undefined, { signal: controller.signal })
+        controller.abort(reason)
+        await expect(cancelled).rejects.toMatchObject({
+          name: 'AbortError',
+          code: 'ABORT_ERR',
+          cause: reason,
+        })
+        await expect(
+          immediate(undefined, { signal: controller.signal })
+        ).rejects.toMatchObject({
+          name: 'AbortError',
+          code: 'ABORT_ERR',
+          cause: reason,
+        })
+        await new Promise<void>((resolve) => tracker.onIdle(resolve))
+        expect(tracker.hasPendingImmediates()).toBe(false)
+      }
+    })
+  })
+})
+
 describe('alternate sources of immediates', () => {
   it('promisify(setImmediate)', async () => {
     // `setImmediate` defines a `util.promisify.custom`, and so does our patch.
@@ -541,6 +1032,82 @@ describe('patched function behavior', () => {
 })
 
 describe('async context propagation', () => {
+  it('shares capture across promise continuations without leaking it to the next task', async () => {
+    const { log, logs } = createLogger()
+    const context = new AsyncLocalStorage<string>()
+    const shared = createPromiseWithResolvers<void>()
+    const done = createPromiseWithResolvers<void>()
+    const scheduleTimeout = createAtomicTimerGroup()
+
+    for (const name of ['A', 'B']) {
+      context
+        .run(name, async () => {
+          await shared.promise
+          log(`${name} resumed :: ${context.getStore()}`)
+          if (name === 'A') {
+            DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+          }
+          setImmediate(() => {
+            log(`${name} immediate :: ${context.getStore()}`)
+            if (name === 'A') {
+              setImmediate(() =>
+                log(`A nested immediate :: ${context.getStore()}`)
+              )
+            }
+          })
+        })
+        .catch(done.reject)
+    }
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log('first timer')
+        shared.resolve()
+      } catch (error) {
+        done.reject(error)
+      }
+    })
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log(`next timer :: ${context.getStore()}`)
+        context.run('B', () => {
+          setImmediate(() => {
+            log(`B native immediate :: ${context.getStore()}`)
+            done.resolve()
+          })
+        })
+      } catch (error) {
+        done.reject(error)
+      }
+    })
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log('last timer')
+      } catch (error) {
+        done.reject(error)
+      }
+    })
+
+    await done.promise
+
+    expect(logs).toEqual([
+      'first timer',
+      'A resumed :: A',
+      'B resumed :: B',
+      'A immediate :: A',
+      'B immediate :: B',
+      'A nested immediate :: A',
+      'next timer :: undefined',
+      'last timer',
+      'B native immediate :: B',
+    ])
+  })
+
   it('propagates AsyncLocalStorage to setImmediate', async () => {
     const { log, logs } = createLogger()
     const done = createPromiseWithResolvers<void>()
@@ -915,6 +1482,125 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       },
     }
   }
+
+  it('preserves native nextTick error timing without capture', async () => {
+    const { log, logs } = createLogger()
+    const done = createPromiseWithResolvers<void>()
+    const scheduleTimeout = createAtomicTimerGroup()
+    const error = new Error('native nextTick error')
+    const triggeredErrors: TriggeredUncaught[] = []
+
+    using _ = trackUncaughtErrors((receivedError, kind) => {
+      log(kind)
+      triggeredErrors.push({ error: receivedError, kind })
+    })
+
+    scheduleTimeout(() => {
+      try {
+        expectNoPendingImmediates()
+        log('first timer')
+        process.nextTick(() => {
+          log('nextTick')
+          throw error
+        })
+        process.nextTick(() => log('remaining nextTick'))
+        setImmediate(() => {
+          log('native immediate')
+          done.resolve()
+        })
+      } catch (caughtError) {
+        done.reject(caughtError)
+      }
+    })
+
+    scheduleTimeout(() => {
+      try {
+        log('next timer')
+        expectNoPendingImmediates()
+      } catch (caughtError) {
+        done.reject(caughtError)
+      }
+    })
+
+    await done.promise
+
+    expectNoPendingImmediates()
+    expect(triggeredErrors[0]?.error).toBe(error)
+    expect(triggeredErrors).toEqual([{ error, kind: 'uncaughtException' }])
+    expect(logs).toEqual([
+      'first timer',
+      'nextTick',
+      'uncaughtException',
+      'next timer',
+      'remaining nextTick',
+      'native immediate',
+    ])
+  })
+
+  it('recovers from native callback and nextTick errors while tracking', async () => {
+    const { promisify } = require('node:util') as typeof import('node:util')
+    for (const kind of ['immediate', 'nextTick']) {
+      const subprocess = promisify(execFile)(
+        process.execPath,
+        [
+          '--require',
+          require.resolve('tsx/cjs'),
+          '--eval',
+          `
+            require(${JSON.stringify(require.resolve('../node-environment-baseline'))})
+            const { ImmediateTracker, runWithNativeImmediateTracking } =
+              require(${JSON.stringify(require.resolve('./fast-set-immediate.external'))})
+            const events = []
+            const expectedError = new Error('expected native error')
+            process.on('uncaughtException', (error) => {
+              if (error !== expectedError) {
+                console.error(error)
+                process.exit(1)
+              }
+              events.push('uncaughtException')
+            })
+
+            const tracker = new ImmediateTracker()
+            runWithNativeImmediateTracking(tracker, async () => {
+              setImmediate(() => {
+                events.push('immediate')
+                if (${JSON.stringify(kind)} === 'nextTick') {
+                  process.nextTick(() => {
+                    events.push('nextTick')
+                    throw expectedError
+                  })
+                } else {
+                  throw expectedError
+                }
+              })
+              await new Promise((resolve) => tracker.onIdle(resolve))
+              events.push('ready')
+              setImmediate(() => events.push('later immediate'))
+              await new Promise((resolve) => tracker.onIdle(resolve))
+              console.log(JSON.stringify(events))
+            }).catch((error) => {
+              console.error(error)
+              process.exit(1)
+            })
+          `,
+        ],
+        { timeout: 10_000, killSignal: 'SIGKILL' }
+      )
+      try {
+        const { stdout, stderr } = await subprocess
+        expect(stderr).toBe('')
+        expect(JSON.parse(stdout)).toEqual([
+          'immediate',
+          ...(kind === 'nextTick' ? ['nextTick'] : []),
+          'uncaughtException',
+          'ready',
+          'later immediate',
+        ])
+      } finally {
+        subprocess.child.kill('SIGKILL')
+      }
+    }
+  })
 
   it('sync errors trigger uncaughtException', async () => {
     const { log, logs } = createLogger()

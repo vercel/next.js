@@ -11,7 +11,7 @@ use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
@@ -200,16 +200,7 @@ impl NextConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 struct EslintConfig {
@@ -218,16 +209,7 @@ struct EslintConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum BuildActivityPositions {
@@ -239,16 +221,7 @@ pub enum BuildActivityPositions {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DevIndicatorsOptions {
@@ -256,9 +229,7 @@ pub struct DevIndicatorsOptions {
     pub position: Option<BuildActivityPositions>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum DevIndicatorsConfig {
     WithOptions(DevIndicatorsOptions),
@@ -266,16 +237,7 @@ pub enum DevIndicatorsConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 struct OnDemandEntriesConfig {
@@ -284,16 +246,7 @@ struct OnDemandEntriesConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 struct HttpAgentConfig {
@@ -301,16 +254,7 @@ struct HttpAgentConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DomainLocale {
@@ -321,16 +265,7 @@ pub struct DomainLocale {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct I18NConfig {
@@ -344,16 +279,7 @@ pub struct I18NConfig {
 pub struct OptionI18NConfig(Option<I18NConfig>);
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum OutputType {
@@ -373,7 +299,6 @@ pub struct OptionOutputType(Option<OutputType>);
     PartialEq,
     Ord,
     PartialOrd,
-    TraceRawVcs,
     Serialize,
     Deserialize,
     OperationValue,
@@ -402,14 +327,14 @@ pub enum RouteHas {
     },
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderValue {
     pub key: RcStr,
     pub value: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct Header {
     pub source: String,
@@ -420,18 +345,14 @@ pub struct Header {
     pub missing: Option<Vec<RouteHas>>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub enum RedirectStatus {
     StatusCode(f64),
     Permanent(bool),
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct Redirect {
     pub source: String,
@@ -467,16 +388,7 @@ pub struct Rewrites {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptConfig {
@@ -535,9 +447,7 @@ impl Default for ImageConfig {
     }
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageLoader {
     Default,
@@ -547,9 +457,7 @@ pub enum ImageLoader {
     Custom,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 pub enum ImageFormat {
     #[serde(rename = "image/webp")]
     Webp,
@@ -558,16 +466,7 @@ pub enum ImageFormat {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RemotePattern {
@@ -580,9 +479,7 @@ pub struct RemotePattern {
     pub pathname: Option<String>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "kebab-case")]
 pub enum RemotePatternProtocol {
     Http,
@@ -590,16 +487,7 @@ pub enum RemotePatternProtocol {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackConfig {
@@ -617,16 +505,7 @@ pub struct TurbopackConfig {
 }
 
 #[derive(
-    Deserialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Deserialize, Clone, PartialEq, Eq, Debug, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(deny_unknown_fields)]
 pub struct RegexComponents {
@@ -639,16 +518,7 @@ pub struct RegexComponents {
 ///
 /// This is needed because `RegExp` objects are not otherwise serializable.
 #[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, PartialEq, Eq, Debug, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(
     tag = "type",
@@ -683,16 +553,7 @@ impl TryFrom<RegexComponents> for EsRegex {
 }
 
 #[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, PartialEq, Eq, Debug, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(
     tag = "type",
@@ -719,16 +580,7 @@ impl TryFrom<ConfigConditionQuery> for ConditionQuery {
 }
 
 #[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, PartialEq, Eq, Debug, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(
     tag = "type",
@@ -755,16 +607,7 @@ impl TryFrom<ConfigConditionContentType> for ConditionContentType {
 }
 
 #[derive(
-    Deserialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Deserialize, Clone, PartialEq, Eq, Debug, NonLocalValue, OperationValue, Encode, Decode,
 )]
 // We can end up with confusing behaviors if we silently ignore extra properties, since `Base` will
 // match nearly every object, since it has no required field.
@@ -829,16 +672,7 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItem {
@@ -852,9 +686,7 @@ pub struct RuleConfigItem {
     pub module_type: Option<RcStr>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, Encode, Decode)]
 pub struct RuleConfigCollection(Vec<RuleConfigCollectionItem>);
 
 impl<'de> Deserialize<'de> for RuleConfigCollection {
@@ -874,16 +706,7 @@ impl<'de> Deserialize<'de> for RuleConfigCollection {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum RuleConfigCollectionItem {
@@ -892,16 +715,7 @@ pub enum RuleConfigCollectionItem {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum LoaderItem {
@@ -927,9 +741,7 @@ pub enum TurbopackPluginRuntimeStrategy {
     ChildProcesses,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum MdxRsOptions {
     Boolean(bool),
@@ -960,9 +772,7 @@ pub struct ReactCompilerOptions {
     pub target: Option<ReactCompilerTarget>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum ReactCompilerOptionsOrBoolean {
     Boolean(bool),
@@ -975,9 +785,7 @@ pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>
 /// Serialized representation of a path pattern for `turbopack.ignoreIssue`.
 /// Strings are serialized as `{ "type": "glob", "value": "..." }` and
 /// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(tag = "type")]
 pub enum TurbopackIgnoreIssuePathPattern {
     #[serde(rename = "glob")]
@@ -1003,9 +811,7 @@ impl TurbopackIgnoreIssuePathPattern {
 /// `turbopack.ignoreIssue`. Strings are serialized as
 /// `{ "type": "string", "value": "..." }` and RegExp as
 /// `{ "type": "regex", "source": "...", "flags": "..." }`.
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(tag = "type")]
 pub enum TurbopackIgnoreIssueTextPattern {
     #[serde(rename = "string")]
@@ -1028,9 +834,7 @@ impl TurbopackIgnoreIssueTextPattern {
 }
 
 /// A single rule in `turbopack.ignoreIssue`.
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 pub struct TurbopackIgnoreIssueRule {
     pub path: TurbopackIgnoreIssuePathPattern,
     #[serde(default)]
@@ -1047,9 +851,7 @@ pub struct TurbopackIgnoreIssueRule {
 /// * `"strict"` / `"loose"` / `"graph"` — string shorthands.
 /// * `{ type: "strict" }` / `{ type: "loose" }` — object form for the legacy modes.
 /// * `{ type: "graph", requestCost?, weightDistribution? }` — object form for the graph algorithm.
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum CssChunkingConfig {
     Bool(bool),
@@ -1059,17 +861,7 @@ pub enum CssChunkingConfig {
 
 /// String shorthand variants for [`CssChunkingConfig`].
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Copy, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum CssChunkingMode {
@@ -1082,9 +874,7 @@ pub enum CssChunkingMode {
 ///
 /// `None` is the normalized representation of `false` ("CSS chunking is disabled"). It is not
 /// reachable through deserialization — users write `false`, not `{ type: "none" }`.
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CssChunkingObject {
     #[serde(skip)]
@@ -1096,16 +886,7 @@ pub enum CssChunkingObject {
 
 /// Cost parameters for the graph algorithm. See [`CssChunkingConfig`] for details.
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct CssChunkingGraphOptions {
@@ -1137,16 +918,7 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackChunkingConfig {
@@ -1281,7 +1053,6 @@ fn resolve_css_chunking_algorithm(
     Default,
     PartialEq,
     Deserialize,
-    TraceRawVcs,
     ValueDebugFormat,
     NonLocalValue,
     OperationValue,
@@ -1466,16 +1237,7 @@ pub struct ExperimentalConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct SubResourceIntegrity {
@@ -1483,17 +1245,7 @@ pub struct SubResourceIntegrity {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct LightningCssFeatures {
@@ -1501,9 +1253,7 @@ pub struct LightningCssFeatures {
     pub exclude: Option<Vec<RcStr>>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum ServerActionsOrLegacyBool {
     /// The current way to configure server actions sub behaviors.
@@ -1514,17 +1264,13 @@ pub enum ServerActionsOrLegacyBool {
     LegacyBool(bool),
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "kebab-case")]
 pub enum EsmExternalsValue {
     Loose,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum EsmExternals {
     Loose(EsmExternalsValue),
@@ -1551,17 +1297,7 @@ fn test_esm_externals_deserialization() {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, Default, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ServerActions {
@@ -1569,7 +1305,7 @@ pub struct ServerActions {
     pub body_size_limit: Option<SizeLimit>,
 }
 
-#[derive(Clone, Debug, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+#[derive(Clone, Debug, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum SizeLimit {
     Number(f64),
@@ -1590,18 +1326,14 @@ impl PartialEq for SizeLimit {
 
 impl Eq for SizeLimit {}
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "kebab-case")]
 pub enum MiddlewarePrefetchType {
     Strict,
     Flexible,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum EmotionTransformOptionsOrBoolean {
     Boolean(bool),
@@ -1617,9 +1349,7 @@ impl EmotionTransformOptionsOrBoolean {
     }
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum StyledComponentsTransformOptionsOrBoolean {
     Boolean(bool),
@@ -1646,9 +1376,7 @@ pub struct CompilerConfig {
     pub styled_components: Option<StyledComponentsTransformOptionsOrBoolean>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum ReactRemoveProperties {
     Boolean(bool),
@@ -1666,9 +1394,7 @@ impl ReactRemoveProperties {
 
 /// `experimental.turbopackMinify`, either a single value for all output or a
 /// per-environment configuration.
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum TurbopackMinify {
     Boolean(bool),
@@ -1705,9 +1431,7 @@ impl TurbopackMinify {
     }
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum RemoveConsoleConfig {
     Boolean(bool),
@@ -1740,7 +1464,6 @@ pub struct SwcPlugins(
     Eq,
     Serialize,
     Deserialize,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
     Encode,

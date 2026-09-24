@@ -1,5 +1,8 @@
 import { nextTestSetup, type NextInstance, type Playwright } from 'e2e-utils'
-import { waitForValidation } from 'e2e-utils/instant-validation'
+import {
+  createGetInstantInsight,
+  waitForValidation,
+} from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
 
 export interface InstantValidationCaseContext {
@@ -20,6 +23,7 @@ export interface InstantValidationCaseContext {
     browser: Playwright,
     url: string
   ) => Promise<void>
+  getInstantInsight: ReturnType<typeof createGetInstantInsight>
 
   getCliOutputSinceMark: () => string
   /** Prerender a single page with `--experimental-build-mode generate` */
@@ -74,6 +78,11 @@ export function runInstantValidationTests(
       return next.cliOutput.slice(currentCliOutputIndex)
     }
 
+    const getInstantInsight = createGetInstantInsight(
+      getCliOutputSinceMark,
+      next
+    )
+
     async function restartDevServerToEnsureColdCaches() {
       if (isNextDev) {
         // Ensure caches are cold.
@@ -87,7 +96,14 @@ export function runInstantValidationTests(
     if (isNextStart) {
       // Compile the app first so that `prerender` can run individual prerenders.
       beforeAll(async () => {
-        await next.build({ args: ['--experimental-build-mode', 'compile'] })
+        const result = await next.build({
+          args: ['--experimental-build-mode', 'compile'],
+        })
+        if (result.exitCode !== 0) {
+          throw new Error(
+            `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+          )
+        }
       })
       afterEach(async () => {
         await next.stop()
@@ -246,6 +262,7 @@ export function runInstantValidationTests(
         warmCachesAndNavigateTo,
         restartDevServerToEnsureColdCaches,
         expectNoDevValidationErrors,
+        getInstantInsight,
         getCliOutputSinceMark,
         prerender,
       })

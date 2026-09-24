@@ -100,7 +100,6 @@ import { nextTestSetup } from 'e2e-utils'
       expect(modules).toMatchInlineSnapshot(`
          [
            "[project]/src/app/client/a/lib.js [app-rsc] (client reference proxy)",
-           "[project]/src/app/client/a/lib.js [app-rsc] (client reference proxy) <module evaluation>",
            "[project]/src/app/client/a/lib.js [app-rsc] (ecmascript)",
            "[project]/src/app/client/a/unique.js [app-client] (ecmascript)",
            "[project]/src/app/client/a/unique.js [app-ssr] (ecmascript)",
@@ -128,20 +127,20 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/a/lib.js [app-rsc] (client reference proxy)",
-           "[project]/src/app/client/a/lib.js [app-rsc] (ecmascript)",
-           "[project]/src/app/client/a/unique.js [app-client] (ecmascript)",
-           "[project]/src/app/client/a/unique.js [app-ssr] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [app-rsc] (ecmascript)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/a/lib.js [app-rsc] (client reference proxy)",
+         "[project]/src/app/client/a/lib.js [app-rsc] (ecmascript)",
+         "[project]/src/app/client/a/unique.js [app-client] (ecmascript)",
+         "[project]/src/app/client/a/unique.js [app-ssr] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 
@@ -163,7 +162,6 @@ import { nextTestSetup } from 'e2e-utils'
       expect(modules).toMatchInlineSnapshot(`
          [
            "[project]/src/app/client/b/lib.js [app-rsc] (client reference proxy)",
-           "[project]/src/app/client/b/lib.js [app-rsc] (client reference proxy) <module evaluation>",
            "[project]/src/app/client/b/lib.js [app-rsc] (ecmascript)",
            "[project]/src/app/client/b/unique.js [app-client] (ecmascript)",
            "[project]/src/app/client/b/unique.js [app-ssr] (ecmascript)",
@@ -191,20 +189,20 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/b/lib.js [app-rsc] (client reference proxy)",
-           "[project]/src/app/client/b/lib.js [app-rsc] (ecmascript)",
-           "[project]/src/app/client/b/unique.js [app-client] (ecmascript)",
-           "[project]/src/app/client/b/unique.js [app-ssr] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [app-rsc] (ecmascript)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/b/lib.js [app-rsc] (client reference proxy)",
+         "[project]/src/app/client/b/lib.js [app-rsc] (ecmascript)",
+         "[project]/src/app/client/b/unique.js [app-client] (ecmascript)",
+         "[project]/src/app/client/b/unique.js [app-ssr] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 
@@ -252,21 +250,21 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/a/lib.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/a/unique.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/index.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [app-rsc] (ecmascript)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/a/lib.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/a/unique.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/index.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 
@@ -314,21 +312,21 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/b/lib.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/b/unique.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/index.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [app-rsc] (ecmascript)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/b/lib.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/b/unique.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/index.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 
@@ -374,19 +372,19 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/index.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
-           "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [app-rsc] (ecmascript)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/index.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
+         "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 
@@ -430,18 +428,18 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [ssr] (ecmascript)",
-           "[project]/src/pages-lib/a/lib.js [ssr] (ecmascript)",
-           "[project]/src/pages-lib/a/unique.js [ssr] (ecmascript)",
-           "[project]/src/pages/pages/a.js [ssr] (ecmascript, collect, my-test)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [ssr] (ecmascript) <locals>",
+         "[project]/src/pages-lib/a/lib.js [ssr] (ecmascript)",
+         "[project]/src/pages-lib/a/unique.js [ssr] (ecmascript)",
+         "[project]/src/pages/pages/a.js [ssr] (ecmascript, collect, my-test)",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 
@@ -485,18 +483,18 @@ import { nextTestSetup } from 'e2e-utils'
          ]
         `)
       expect(modules).toMatchInlineSnapshot(`
-         [
-           "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
-           "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
-           "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-           "[project]/src/collect-result.js [ssr] (ecmascript)",
-           "[project]/src/pages-lib/client-only/lib.js [ssr] (ecmascript, next/dynamic entry, async loader)",
-           "[project]/src/pages-lib/client-only/unique.js [ssr] (ecmascript)",
-           "[project]/src/pages/pages/client-only.js [ssr] (ecmascript, collect, my-test)",
-           "[project]/src/shared-pages-client.js [client] (ecmascript)",
-           "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
-         ]
-        `)
+       [
+         "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
+         "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
+         "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
+         "[project]/src/collect-result.js [ssr] (ecmascript) <locals>",
+         "[project]/src/pages-lib/client-only/lib.js [ssr] (ecmascript, next/dynamic entry, async loader)",
+         "[project]/src/pages-lib/client-only/unique.js [ssr] (ecmascript)",
+         "[project]/src/pages/pages/client-only.js [ssr] (ecmascript, collect, my-test)",
+         "[project]/src/shared-pages-client.js [client] (ecmascript)",
+         "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
+       ]
+      `)
     }
   })
 

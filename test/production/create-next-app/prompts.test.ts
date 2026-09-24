@@ -204,7 +204,6 @@ describe('create-next-app prompts', () => {
               'next.config.ts',
               'tsconfig.json',
               'AGENTS.md',
-              'CLAUDE.md',
             ],
           })
           resolve()
@@ -247,8 +246,7 @@ describe('create-next-app prompts', () => {
               'package.json',
               'next.config.ts', // tailwind
               'tsconfig.json', // typescript
-              'AGENTS.md', // agent files
-              'CLAUDE.md',
+              'AGENTS.md', // agent instructions
             ],
           })
           resolve()

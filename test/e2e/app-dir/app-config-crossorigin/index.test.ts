@@ -5,14 +5,9 @@ const assetPrefix = 'https://example.vercel.sh'
 
 if (!isNextStart) {
   describe('app dir - crossOrigin config', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should render correctly with assetPrefix: "/"', async () => {
       const $ = await next.render$('/')
