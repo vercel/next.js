@@ -200,6 +200,7 @@ impl AppPageLoaderTreeBuilder {
                     path.clone(),
                     name.into(),
                     app_page.clone(),
+                    self.base_path.clone(),
                 );
 
                 let module = self.base.process_source(source).to_resolved().await?;
