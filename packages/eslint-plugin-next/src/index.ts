@@ -14,6 +14,7 @@ import noHeadElement from './rules/no-head-element'
 import noHeadImportInDocument from './rules/no-head-import-in-document'
 import noHtmlLinkForPages from './rules/no-html-link-for-pages'
 import noImgElement from './rules/no-img-element'
+import noInvalidHtmlTagsInHead from './rules/no-invalid-html-tags-in-head'
 import noLocationAssign from './rules/no-location-assign-relative-destination'
 import noPageCustomFont from './rules/no-page-custom-font'
 import noScriptComponentInHead from './rules/no-script-component-in-head'
@@ -33,6 +34,7 @@ const recommendedRules = {
   '@next/next/no-css-tags': 'warn',
   '@next/next/no-head-element': 'warn',
   '@next/next/no-html-link-for-pages': 'warn',
+  '@next/next/no-invalid-html-tags-in-head': 'warn',
   '@next/next/no-img-element': 'warn',
   '@next/next/no-location-assign-relative-destination': 'warn',
   '@next/next/no-page-custom-font': 'warn',
@@ -75,6 +77,7 @@ const plugin = {
     'no-head-import-in-document': noHeadImportInDocument,
     'no-html-link-for-pages': noHtmlLinkForPages,
     'no-img-element': noImgElement,
+    'no-invalid-html-tags-in-head': noInvalidHtmlTagsInHead,
     'no-location-assign-relative-destination': noLocationAssign,
     'no-page-custom-font': noPageCustomFont,
     'no-script-component-in-head': noScriptComponentInHead,
