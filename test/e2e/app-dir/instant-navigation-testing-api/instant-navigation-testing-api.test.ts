@@ -295,6 +295,48 @@ describe('instant-navigation-testing-api', () => {
     await dynamicContent.waitFor({ state: 'visible' })
   })
 
+  it('preserves an instant cookie that only applies to another origin', async () => {
+    const page = await openPage(next, '/')
+    const context = page.context()
+    const otherDomain = 'app-b.example'
+    const otherValue = JSON.stringify([1, 'other-origin', null])
+
+    await context.addCookies([
+      {
+        name: 'next-instant-navigation-testing',
+        value: otherValue,
+        domain: otherDomain,
+        path: '/',
+      },
+    ])
+
+    const getOtherOriginCookie = async () =>
+      (await context.cookies()).find(
+        (cookie) =>
+          cookie.name === 'next-instant-navigation-testing' &&
+          cookie.domain === otherDomain &&
+          cookie.path === '/'
+      )
+
+    try {
+      await instant(page, async () => {
+        expect((await getOtherOriginCookie())?.value).toBe(otherValue)
+      })
+
+      expect((await getOtherOriginCookie())?.value).toBe(otherValue)
+    } finally {
+      await context.addCookies([
+        {
+          name: 'next-instant-navigation-testing',
+          value: otherValue,
+          domain: otherDomain,
+          path: '/',
+          expires: 1,
+        },
+      ])
+    }
+  })
+
   it('allows concurrent instant scopes across separate browser contexts', async () => {
     const page = await openPage(next, '/')
 
