@@ -1,10 +1,11 @@
 /**
  * ISR cache handler (singular `cacheHandler` API) for App and Pages Router.
  *
- * Next.js constructs this class and calls get/set/revalidateTag on the
- * instance. The constructor only initializes a module-level singleton
- * (`RedisStringsHandler`, or a no-op during `PHASE_PRODUCTION_BUILD`);
- * the methods below delegate to it.
+ * Next.js instantiates this class and calls the methods on the returned object.
+ * We therefore return the singleton adapter instance itself after lazy
+ * initialization so the `RedisStringsHandler` methods are the ones that receive
+ * runtime calls. The wrapper methods below are intentionally omitted; any
+ * monitoring logic belongs in the adapter instance and should be wired there.
  */
 const { PHASE_PRODUCTION_BUILD } = require("next/constants");
 
@@ -13,7 +14,7 @@ let cachedHandler;
 class CacheHandler {
   constructor() {
     if (cachedHandler) {
-      return;
+      return cachedHandler;
     }
 
     // No-op during build phase — Redis is a runtime concern only.
@@ -24,7 +25,7 @@ class CacheHandler {
         revalidateTag: () => Promise.resolve(undefined),
         resetRequestCache: () => Promise.resolve(undefined),
       };
-      return;
+      return cachedHandler;
     }
 
     // Lazily import so the Redis client is only created at runtime.
@@ -40,19 +41,8 @@ class CacheHandler {
       // Optional: isolate cache entries per deployment.
       // keyPrefix: process.env.VERCEL_URL ?? "turbo-example:",
     });
-  }
 
-  get(...args) {
-    return cachedHandler.get(...args);
-  }
-  set(...args) {
-    return cachedHandler.set(...args);
-  }
-  revalidateTag(...args) {
-    return cachedHandler.revalidateTag(...args);
-  }
-  resetRequestCache(...args) {
-    return cachedHandler.resetRequestCache(...args);
+    return cachedHandler;
   }
 }
 

@@ -1,12 +1,13 @@
 /**
  * Next.js config for the cache-handler-redis-turbo example.
  *
- * This example demonstrates TWO Next.js cache interfaces side by side:
+ * This example demonstrates BOTH Next.js cache interfaces side by side:
  *
  *  1. `cacheHandler` (singular) — ISR for App and Pages Router, on-demand
  *     revalidation. Pointed at `./cache-handler.js`.
- *  2. `cacheHandlers` (plural) — `'use cache'` with `cacheComponents: true`.
- *     Pointed at `./cache-components-handler.js`.
+ *  2. `cacheHandlers` (plural) — the `'use cache'` family with
+ *     `cacheComponents: true`. The `remote` kind is the one that couples to a
+ *     shared remote cache, so we point it at `./cache-components-handler.js`.
  *
  * The canonical no-dependency Redis example is `examples/cache-handler-redis`.
  * This example wires the same two APIs through `@trieb.work/nextjs-turbo-redis-cache`.
@@ -25,8 +26,9 @@ const nextConfig = {
       ? require.resolve("./cache-handler.js")
       : undefined,
   // `'use cache'` directive handler (plural API, Next.js 16+).
+  // `remote` is the cache kind that should be coupled to a backing remote store.
   cacheHandlers: {
-    default: require.resolve("./cache-components-handler.js"),
+    remote: require.resolve("./cache-components-handler.js"),
   },
   env: {
     NEXT_PUBLIC_REDIS_INSIGHT_URL:
