@@ -22,6 +22,36 @@ const MIN_REQUEST_TIMEOUT_MS = 60_000
 const WATCHDOG_GRACE_MS = 2_000
 const KILL_GRACE_MS = 1_000
 
+const shutdownHandlers = new Set<() => void>()
+function killWorkers() {
+  for (const shutdown of shutdownHandlers) shutdown()
+}
+function onSignal(signal: NodeJS.Signals) {
+  killWorkers()
+  // Do not swallow Node's default termination behavior in custom servers
+  // that have no signal handler of their own.
+  if (process.listenerCount(signal) === 1) {
+    process.removeListener(signal, onSignal)
+    process.kill(process.pid, signal)
+  }
+}
+function registerShutdown(handler: () => void) {
+  if (shutdownHandlers.size === 0) {
+    process.prependListener('SIGINT', onSignal)
+    process.prependListener('SIGTERM', onSignal)
+    process.on('exit', killWorkers)
+  }
+  shutdownHandlers.add(handler)
+}
+function unregisterShutdown(handler: () => void) {
+  shutdownHandlers.delete(handler)
+  if (shutdownHandlers.size === 0) {
+    process.removeListener('SIGINT', onSignal)
+    process.removeListener('SIGTERM', onSignal)
+    process.removeListener('exit', killWorkers)
+  }
+}
+
 type SandboxManager =
   (typeof import('@anthropic-ai/sandbox-runtime'))['SandboxManager']
 
@@ -120,6 +150,14 @@ export class SandboxedImageOptimizerWorker {
   private nextId = 1
   private pumping = false
   private closed = false
+  private interrupted = false
+  private children = new Set<ChildProcess>()
+  private shutdown = () => {
+    this.interrupted = true
+    // Do not wait for graceful termination: next dev can force-kill the
+    // server before our normal SIGTERM-to-SIGKILL timer gets a chance to run.
+    for (const child of this.children) this.signal(child, 'SIGKILL')
+  }
 
   constructor(options: WorkerOptions = {}) {
     this.readAllowlist = options.readAllowlist?.slice()
@@ -134,12 +172,13 @@ export class SandboxedImageOptimizerWorker {
     this.requestTimeoutMs = options.requestTimeoutMs
     this.killGraceMs = options.killGraceMs ?? KILL_GRACE_MS
     this.sandboxManager = options.sandboxManager
+    registerShutdown(this.shutdown)
   }
 
   runOperation(
     operation: ImageOptimizerOperation
   ): Promise<ImageOptimizerOperationResult> {
-    if (this.closed) {
+    if (this.closed || this.interrupted) {
       return Promise.reject(new Error('Image optimizer worker is closed'))
     }
 
@@ -255,7 +294,7 @@ export class SandboxedImageOptimizerWorker {
   }
 
   private async spawnChild(): Promise<ChildProcess> {
-    if (this.closed) {
+    if (this.closed || this.interrupted) {
       throw new Error('Image optimizer worker is closed')
     }
     const sandboxManager =
@@ -278,7 +317,7 @@ export class SandboxedImageOptimizerWorker {
       undefined,
       undefined
     )
-    if (this.closed) {
+    if (this.closed || this.interrupted) {
       throw new Error('Image optimizer worker is closed')
     }
 
@@ -291,6 +330,12 @@ export class SandboxedImageOptimizerWorker {
     }
     const child = spawn(argv[0], argv.slice(1), spawnOptions)
     this.child = child
+    this.children.add(child)
+    // Keep terminating workers tracked even after this.child is cleared.
+    child.once('exit', () => this.children.delete(child))
+    child.once('error', () => {
+      if (!child.pid) this.children.delete(child)
+    })
 
     child.stdout?.pipe(process.stdout)
     child.stderr?.pipe(process.stderr)
@@ -430,30 +475,34 @@ export class SandboxedImageOptimizerWorker {
       return
     }
     this.closed = true
-    const closedError = new Error('Image optimizer worker is closed')
-    for (const operation of this.queue.splice(0)) {
-      operation.reject(closedError)
-    }
-    this.rejectActive(closedError)
+    try {
+      const closedError = new Error('Image optimizer worker is closed')
+      for (const operation of this.queue.splice(0)) {
+        operation.reject(closedError)
+      }
+      this.rejectActive(closedError)
 
-    let child = this.child
-    if (!child && this.childPromise) {
-      child = await this.childPromise.catch(() => undefined)
-    }
-    this.child = undefined
-    if (child && child.exitCode === null && child.signalCode === null) {
-      const exited = new Promise<void>((resolveExit) =>
-        child.once('exit', () => resolveExit())
-      )
-      this.terminate(child)
-      await exited
-    }
+      let child = this.child
+      if (!child && this.childPromise) {
+        child = await this.childPromise.catch(() => undefined)
+      }
+      this.child = undefined
+      if (child && child.exitCode === null && child.signalCode === null) {
+        const exited = new Promise<void>((resolveExit) =>
+          child.once('exit', () => resolveExit())
+        )
+        this.terminate(child)
+        await exited
+      }
 
-    await this.terminationPromise
-    this.terminationPromise = undefined
+      await this.terminationPromise
+      this.terminationPromise = undefined
 
-    this.sandboxManager?.cleanupAfterCommand()
-    await this.sandboxManager?.reset()
-    this.sandboxManager = undefined
+      this.sandboxManager?.cleanupAfterCommand()
+      await this.sandboxManager?.reset()
+      this.sandboxManager = undefined
+    } finally {
+      unregisterShutdown(this.shutdown)
+    }
   }
 }

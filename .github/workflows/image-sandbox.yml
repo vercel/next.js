@@ -37,6 +37,8 @@ jobs:
         run: pnpm exec turbo run build --filter=next...
       - name: Test the shipped sandbox policy and direct transform API
         run: pnpm exec jest --runInBand test/unit/image-optimizer
+      - name: Test dev shutdown with a stuck image worker
+        run: pnpm test-dev-webpack test/development/image-optimizer-shutdown/image-optimizer-shutdown.test.ts
       - name: Test the development image route with and without sandboxing
         run: pnpm test-dev-webpack test/e2e/image-optimizer/sharp.test.ts -t 'should resize relative url and png accept header'
       - name: Test the production image route with and without sandboxing
