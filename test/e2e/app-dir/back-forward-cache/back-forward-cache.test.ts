@@ -267,4 +267,40 @@ describe('back/forward cache', () => {
       await browser.elementById('counter-display-1')
     expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
   })
+
+  // TODO: Remove `.failing` once nested scroll restoration is fixed.
+  it.failing(
+    'preserves a nested scroll position across repeated back/forward navigations',
+    async () => {
+      const browser = await next.browser('/nested-scroll-restoration')
+
+      const scrollPosition = await browser.eval(() => {
+        const scroller = document.getElementById('nested-scroll-container')
+        scroller!.scrollTop = 1000
+        return scroller!.scrollTop
+      })
+
+      await browser.elementById('nested-scroll-detail-link').click()
+      await browser.waitForElementByCss('#nested-scroll-detail')
+
+      await browser.back()
+      await browser.waitForElementByCss('#nested-scroll-container')
+      expect(
+        await browser.eval(
+          `document.getElementById('nested-scroll-container').scrollTop`
+        )
+      ).toBe(scrollPosition)
+
+      await browser.forward()
+      await browser.waitForElementByCss('#nested-scroll-detail')
+      await browser.back()
+      await browser.waitForElementByCss('#nested-scroll-container')
+
+      expect(
+        await browser.eval(
+          `document.getElementById('nested-scroll-container').scrollTop`
+        )
+      ).toBe(scrollPosition)
+    }
+  )
 })
