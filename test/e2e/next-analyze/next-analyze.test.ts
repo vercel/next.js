@@ -204,7 +204,7 @@ describe('next analyze', () => {
           expect(
             await browser.eval(`(() => {
               const row = Array.from(document.querySelectorAll('tr')).find(
-                (element) => element.textContent?.includes('values.ts')
+                (element) => element.textContent?.includes('transitive-effect.ts')
               )
               if (!row) return false
               row.click()
@@ -217,9 +217,28 @@ describe('next analyze', () => {
             .elementByCss('[data-tree-shaking]')
             .text()
           expect(treeShaking).toContain('Used exports')
-          expect(treeShaking).toContain('used')
-          expect(treeShaking).toContain('Own side effects')
-          expect(treeShaking).toContain('Transitive side effects')
+          expect(treeShaking).toContain('This module')
+          expect(treeShaking).toContain('No direct side effects')
+          expect(treeShaking).toContain('Including dependencies')
+          expect(treeShaking).toContain('May have side effects')
+        })
+        await browser.elementByCss('[data-tree-shaking-more-exports]').moveTo()
+        await retry(async () => {
+          expect(
+            await browser
+              .elementByCss('[data-tree-shaking-more-exports]')
+              .text()
+          ).toBe('and 2 more')
+          const exports = await browser
+            .elementByCss('[data-tree-shaking-export-list]')
+            .text()
+          expect(exports).toContain('first')
+          expect(exports).toContain('fifth')
+          expect(exports).toContain('fourth')
+          expect(exports).toContain('second')
+          expect(exports).toContain('seventh')
+          expect(exports).toContain('sixth')
+          expect(exports).toContain('third')
         })
       } finally {
         await browser.close()
@@ -289,6 +308,15 @@ describe('next analyze', () => {
         expect(modulesByPath('/app/transitive-effect.ts')).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
+              used_exports: expect.arrayContaining([
+                'fifth',
+                'first',
+                'fourth',
+                'second',
+                'seventh',
+                'sixth',
+                'third',
+              ]),
               own_side_effects: 'evaluation-free',
               transitive_side_effects: 'effectful',
             }),

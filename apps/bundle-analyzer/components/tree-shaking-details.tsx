@@ -21,6 +21,8 @@ export type ComparisonTreeShakingSide =
   | { status: 'unavailable' }
   | { status: 'not-present' }
 
+const MAX_INLINE_EXPORTS = 5
+
 export function TreeShakingDetails({ info }: { info: TreeShakingInfo }) {
   return (
     <section
@@ -93,16 +95,22 @@ function TreeShakingRows({ info }: { info: TreeShakingInfo }) {
         <UsedExportsValue value={info.usedExports} />
       </TreeShakingRow>
       <TreeShakingRow
-        label="Own side effects"
-        help="Whether this source's own evaluation can cause side effects. evaluation-free sources may still depend on effectful modules."
+        label="This module"
+        help={`Whether this module's own evaluation can cause side effects. Turbopack state: ${info.ownSideEffects}.`}
       >
-        <SideEffectValue value={info.ownSideEffects} />
+        <SideEffectValue
+          value={info.ownSideEffects}
+          label={ownSideEffectLabel(info.ownSideEffects)}
+        />
       </TreeShakingRow>
       <TreeShakingRow
-        label="Transitive side effects"
-        help="Whether evaluating this source or any of its evaluation dependencies can cause side effects."
+        label="Including dependencies"
+        help={`Whether evaluating this module or its evaluation dependencies can cause side effects. Turbopack state: ${info.transitiveSideEffects}.`}
       >
-        <SideEffectValue value={info.transitiveSideEffects} />
+        <SideEffectValue
+          value={info.transitiveSideEffects}
+          label={transitiveSideEffectLabel(info.transitiveSideEffects)}
+        />
       </TreeShakingRow>
     </dl>
   )
@@ -140,9 +148,11 @@ function UsedExportsValue({ value }: { value: UsedExports }) {
   if (value.length === 0) {
     return <span className="text-muted-foreground">none</span>
   }
+  const visibleExports = value.slice(0, MAX_INLINE_EXPORTS)
+  const hiddenCount = value.length - visibleExports.length
   return (
     <span className="flex flex-wrap justify-end gap-1">
-      {value.map((name) => (
+      {visibleExports.map((name) => (
         <code
           key={name}
           className="break-all rounded bg-background/80 px-1 font-mono text-[10px] text-foreground"
@@ -150,24 +160,62 @@ function UsedExportsValue({ value }: { value: UsedExports }) {
           {name}
         </code>
       ))}
+      {hiddenCount > 0 ? (
+        <OverflowTooltip hiddenCount={hiddenCount} label="All used exports">
+          <div
+            data-tree-shaking-export-list
+            className="flex max-h-48 flex-wrap gap-1 overflow-y-auto"
+          >
+            {value.map((name) => (
+              <code
+                key={name}
+                className="rounded bg-background/80 px-1 font-mono text-[10px] text-foreground"
+              >
+                {name}
+              </code>
+            ))}
+          </div>
+        </OverflowTooltip>
+      ) : null}
     </span>
   )
 }
 
 type SideEffectState = OwnSideEffects | TransitiveSideEffects
 
-function SideEffectValue({ value }: { value: SideEffectState }) {
+function ownSideEffectLabel(value: OwnSideEffects): string {
+  switch (value) {
+    case 'free':
+      return 'Declared side-effect free'
+    case 'evaluation-free':
+      return 'No direct side effects'
+    case 'effectful':
+      return 'May have direct side effects'
+  }
+}
+
+function transitiveSideEffectLabel(value: TransitiveSideEffects): string {
+  return value === 'free' ? 'No side effects' : 'May have side effects'
+}
+
+function SideEffectValue({
+  value,
+  label,
+}: {
+  value: SideEffectState
+  label: string
+}) {
   return (
-    <code
+    <span
       className={cn(
-        'font-mono leading-4',
+        'leading-4',
         value === 'free' && 'text-green-600 dark:text-green-400',
-        value === 'evaluation-free' && 'text-amber-600 dark:text-amber-400',
+        value === 'evaluation-free' && 'text-green-600 dark:text-green-400',
         value === 'effectful' && 'text-red-600 dark:text-red-400'
       )}
     >
-      {value}
-    </code>
+      {label}
+    </span>
   )
 }
 
@@ -214,16 +262,22 @@ function TreeShakingDiffRows({
         <UsedExportsDiffValue diff={diff.usedExports} />
       </TreeShakingRow>
       <TreeShakingRow
-        label="Own side effects"
-        help="Change in whether the source's own evaluation can cause side effects."
+        label="This module"
+        help={`Change in whether the module's own evaluation can cause side effects. Turbopack states: ${diff.ownSideEffects.before} → ${diff.ownSideEffects.after}.`}
       >
-        <SideEffectDiffValue diff={diff.ownSideEffects} />
+        <SideEffectDiffValue
+          diff={diff.ownSideEffects}
+          format={ownSideEffectLabel}
+        />
       </TreeShakingRow>
       <TreeShakingRow
-        label="Transitive side effects"
-        help="Change in side effects from the source and its evaluation dependencies."
+        label="Including dependencies"
+        help={`Change in side effects from the module and its evaluation dependencies. Turbopack states: ${diff.transitiveSideEffects.before} → ${diff.transitiveSideEffects.after}.`}
       >
-        <SideEffectDiffValue diff={diff.transitiveSideEffects} />
+        <SideEffectDiffValue
+          diff={diff.transitiveSideEffects}
+          format={transitiveSideEffectLabel}
+        />
       </TreeShakingRow>
     </dl>
   )
@@ -238,24 +292,38 @@ function UsedExportsDiffValue({
     return <span className="text-muted-foreground">No change</span>
   }
   if (diff.kind === 'exports') {
+    const changes = [
+      ...diff.added.map((name) => ({
+        key: `added-${name}`,
+        label: `+${name}`,
+        className: 'text-red-600 dark:text-red-400',
+      })),
+      ...diff.removed.map((name) => ({
+        key: `removed-${name}`,
+        label: `−${name}`,
+        className: 'text-green-600 dark:text-green-400',
+      })),
+    ]
+    const visibleChanges = changes.slice(0, MAX_INLINE_EXPORTS)
+    const hiddenCount = changes.length - visibleChanges.length
     return (
       <span className="flex flex-wrap justify-end gap-x-2 gap-y-1 font-mono">
-        {diff.added.map((name) => (
-          <span
-            key={`added-${name}`}
-            className="text-red-600 dark:text-red-400"
-          >
-            +{name}
+        {visibleChanges.map((change) => (
+          <span key={change.key} className={change.className}>
+            {change.label}
           </span>
         ))}
-        {diff.removed.map((name) => (
-          <span
-            key={`removed-${name}`}
-            className="text-green-600 dark:text-green-400"
-          >
-            −{name}
-          </span>
-        ))}
+        {hiddenCount > 0 ? (
+          <OverflowTooltip hiddenCount={hiddenCount} label="All export changes">
+            <div className="flex max-h-48 flex-wrap gap-x-2 gap-y-1 overflow-y-auto font-mono">
+              {changes.map((change) => (
+                <span key={change.key} className={change.className}>
+                  {change.label}
+                </span>
+              ))}
+            </div>
+          </OverflowTooltip>
+        ) : null}
       </span>
     )
   }
@@ -268,29 +336,63 @@ function UsedExportsDiffValue({
   )
 }
 
-function SideEffectDiffValue({
+function SideEffectDiffValue<T extends SideEffectState>({
   diff,
+  format,
 }: {
   diff: {
-    before: SideEffectState
-    after: SideEffectState
+    before: T
+    after: T
     changed: boolean
   }
+  format: (value: T) => string
 }) {
   if (!diff.changed) {
     return (
       <span className="inline-flex items-center gap-1.5">
-        <SideEffectValue value={diff.after} />
+        <SideEffectValue value={diff.after} label={format(diff.after)} />
         <span className="text-muted-foreground">No change</span>
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1">
-      <SideEffectValue value={diff.before} />
+      <SideEffectValue value={diff.before} label={format(diff.before)} />
       <span className="text-muted-foreground">→</span>
-      <SideEffectValue value={diff.after} />
+      <SideEffectValue value={diff.after} label={format(diff.after)} />
     </span>
+  )
+}
+
+function OverflowTooltip({
+  hiddenCount,
+  label,
+  children,
+}: {
+  hiddenCount: number
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            data-tree-shaking-more-exports
+            className="rounded bg-background/80 px-1 text-[10px] text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+          >
+            and {hiddenCount} more
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-sm space-y-1.5" side="top" align="end">
+          <p className="text-[10px] font-medium text-muted-foreground">
+            {label}
+          </p>
+          {children}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
