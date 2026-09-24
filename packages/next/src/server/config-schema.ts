@@ -200,7 +200,6 @@ export const experimentalSchema = {
   agenticAutoUpgrade: z
     .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
     .optional(),
-  agentFeedback: z.boolean().optional(),
   turbopackAdditionalRoots: z
     .record(
       z.string(),
@@ -533,6 +532,7 @@ export const experimentalSchema = {
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     adapterPath: z.string().optional(),
+    agentFeedback: z.boolean().optional(),
     agentRules: z.boolean().optional(),
     allowedDevOrigins: z.array(z.string()).optional(),
     assetPrefix: z.string().optional(),

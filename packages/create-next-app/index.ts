@@ -697,7 +697,7 @@ async function run(): Promise<void> {
           {
             type: 'toggle',
             name: 'agentFeedback',
-            message: `Would you like to help improve Next.js with ${blue('agent feedback')}? (Disable anytime with \`experimental.agentFeedback: false\`.)`,
+            message: `Would you like to help improve Next.js with ${blue('agent feedback')}? (Disable anytime with \`agentFeedback: false\`.)`,
             initial: false,
             active: 'Yes',
             inactive: 'No',

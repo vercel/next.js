@@ -179,7 +179,7 @@ export const installTemplate = async ({
 
     configContent = configContent.replace(
       "/* config options here */\n",
-      "/* config options here */\n  experimental: {\n    agentFeedback: true,\n  },\n",
+      "/* config options here */\n  agentFeedback: true,\n",
     );
 
     await fs.writeFile(nextConfigFile, configContent);

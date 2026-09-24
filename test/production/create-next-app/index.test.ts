@@ -182,9 +182,12 @@ describe('create-next-app', () => {
         }
       )
       expect(res.exitCode).toBe(0)
-      expect(
-        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
-      ).toContain('agentFeedback: true')
+      const nextConfig = await readFile(
+        join(cwd, projectName, 'next.config.ts'),
+        'utf8'
+      )
+      expect(nextConfig).toContain('\n  agentFeedback: true,\n')
+      expect(nextConfig).not.toContain('experimental')
     })
   })
 

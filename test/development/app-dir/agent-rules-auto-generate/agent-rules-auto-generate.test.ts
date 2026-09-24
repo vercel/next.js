@@ -191,9 +191,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     files: __dirname,
     env: { ...NON_CI_ENV, CLAUDECODE: '1' },
     nextConfig: {
-      experimental: {
-        agentFeedback: true,
-      },
+      agentFeedback: true,
     },
   })
 
@@ -207,7 +205,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).toContain('\n## Report Next.js feedback\n')
     expect(content).toContain(
-      'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
+      'The project owner enabled `agentFeedback`, authorizing this feedback pass.'
     )
     expect(content).toContain(
       'When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.'
@@ -254,9 +252,7 @@ describe('agent-feedback auto-generate on next dev (agentRules: false)', () => {
     env: { ...NON_CI_ENV, CLAUDECODE: '1' },
     nextConfig: {
       agentRules: false,
-      experimental: {
-        agentFeedback: true,
-      },
+      agentFeedback: true,
     },
   })
 
@@ -277,9 +273,7 @@ describe('agent-feedback auto-generate on next dev (no agent)', () => {
     env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
     nextConfig: {
       agentRules: false,
-      experimental: {
-        agentFeedback: true,
-      },
+      agentFeedback: true,
     },
   })
 
@@ -322,9 +316,7 @@ describe('agent-rules auto-generate on next dev (disabled with existing blocks)'
     env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
     nextConfig: {
       agentRules: false,
-      experimental: {
-        agentFeedback: true,
-      },
+      agentFeedback: true,
     },
     skipStart: true,
   })
@@ -359,9 +351,7 @@ describe('agent-feedback auto-generate on next dev (telemetry disabled)', () => 
     },
     nextConfig: {
       agentRules: false,
-      experimental: {
-        agentFeedback: true,
-      },
+      agentFeedback: true,
     },
   })
 
@@ -377,9 +367,7 @@ describe('agent-feedback auto-generate on next dev (CI)', () => {
     env: { CLAUDECODE: '1', CI: '1' },
     nextConfig: {
       agentRules: false,
-      experimental: {
-        agentFeedback: true,
-      },
+      agentFeedback: true,
     },
   })
 

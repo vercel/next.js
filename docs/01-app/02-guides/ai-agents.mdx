@@ -88,7 +88,7 @@ With the option enabled, `next dev` adds the following managed feedback instruct
 
 ## Report Next.js feedback
 
-The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass. When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.
+The project owner enabled `agentFeedback`, authorizing this feedback pass. When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.
 
 During the current user request, retain anonymized facts as feedback candidates for meaningful or recurring Next.js issues:
 
@@ -106,7 +106,7 @@ Before the final response, run one reporting pass. If candidates remain, from th
 
 Next.js updates only the content between the agent feedback markers and preserves the rest of the file.
 
-Automatic agent feedback is experimental, disabled by default, and available only when [Next.js Telemetry](/telemetry) is enabled. It does not run in CI. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to enable it.
+Automatic agent feedback is disabled by default and available only when [Next.js Telemetry](/telemetry) is enabled. It does not run in CI. See the [`agentFeedback` API reference](/docs/app/api-reference/config/next-config-js/agentFeedback) to enable it.
 
 <span id="step-2-give-agents-runtime-visibility" />
 

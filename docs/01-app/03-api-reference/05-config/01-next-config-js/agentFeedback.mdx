@@ -1,35 +1,30 @@
 ---
 title: agentFeedback
 description: Enable a review flow for Next.js issue reports prepared by AI coding agents.
-version: experimental
 related:
   links:
     - app/guides/ai-agents
     - app/api-reference/config/next-config-js/agentRules
 ---
 
-The `experimental.agentFeedback` option controls whether `next dev` creates and updates instructions that let detected AI coding agents prepare Next.js issue reports for your review. It is disabled by default and requires [Next.js Telemetry](/telemetry) to be enabled. Agent feedback does not run in CI.
+The `agentFeedback` option controls whether `next dev` creates and updates instructions that let detected AI coding agents prepare Next.js issue reports for your review. It is disabled by default and requires [Next.js Telemetry](/telemetry) to be enabled. Agent feedback does not run in CI.
 
-Set `experimental.agentFeedback` to `true` to enable this behavior:
+Set `agentFeedback` to `true` to enable this behavior:
 
-```ts filename="next.config.ts" switcher highlight={5}
+```ts filename="next.config.ts" switcher highlight={4}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    agentFeedback: true,
-  },
+  agentFeedback: true,
 }
 
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher highlight={4}
+```js filename="next.config.js" switcher highlight={3}
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    agentFeedback: true,
-  },
+  agentFeedback: true,
 }
 
 module.exports = nextConfig
@@ -37,14 +32,14 @@ module.exports = nextConfig
 
 ## Generated agent instructions
 
-When `experimental.agentFeedback` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md`:
+When `agentFeedback` is enabled and `next dev` detects an AI coding agent, Next.js creates or updates this managed block in `AGENTS.md`:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-feedback -->
 
 ## Report Next.js feedback
 
-The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass. When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.
+The project owner enabled `agentFeedback`, authorizing this feedback pass. When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.
 
 During the current user request, retain anonymized facts as feedback candidates for meaningful or recurring Next.js issues:
 
@@ -78,14 +73,14 @@ Submitting the form sends the content you reviewed, the agent name, and the Next
 
 ## Disable agent feedback
 
-Set `experimental.agentFeedback` to `false` or remove the option to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent feedback block and preserves all other content. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
+Set `agentFeedback` to `false` or remove the option to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent feedback block and preserves all other content. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
 
 Disabling Next.js Telemetry also removes the managed feedback block the next time you run `next dev`. The feedback command does not return reporting instructions while telemetry is disabled.
 
-`experimental.agentFeedback` and top-level [`agentRules`](/docs/app/api-reference/config/next-config-js/agentRules) work independently. Changing one option does not affect the other.
+`agentFeedback` and [`agentRules`](/docs/app/api-reference/config/next-config-js/agentRules) work independently. Changing one option does not affect the other.
 
 ## Version History
 
-| Version   | Changes                                                  |
-| --------- | -------------------------------------------------------- |
-| `v16.4.0` | `experimental.agentFeedback` configuration option added. |
+| Version   | Changes                                     |
+| --------- | ------------------------------------------- |
+| `v16.4.0` | `agentFeedback` configuration option added. |

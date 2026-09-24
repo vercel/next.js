@@ -274,9 +274,12 @@ describe('create-next-app prompts', () => {
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
       expectTurbopackTailwindSetup(cwd, projectName)
-      expect(
-        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
-      ).toContain('agentFeedback: true')
+      const nextConfig = readFileSync(
+        join(cwd, projectName, 'next.config.ts'),
+        'utf8'
+      )
+      expect(nextConfig).toContain('\n  agentFeedback: true,\n')
+      expect(nextConfig).not.toContain('experimental')
     })
   })
 
