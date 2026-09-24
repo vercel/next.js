@@ -38,7 +38,6 @@ for (const { app, src, pathname, text } of [
       env: {
         NEXT_PUBLIC_SIMPLE_INSTRUMENT: '1',
       },
-      skipDeployment: true,
       packageJson: {
         scripts: {
           'setup-dir': `mv instrumentation-minimal.ts instrumentation.ts; rm -rf ${oppositeDir}${

@@ -10,7 +10,6 @@ describe('TypeScript Image Component Build Errors', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   it('should fail to build invalid usage of the Image component', async () => {

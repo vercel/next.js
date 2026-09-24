@@ -5,7 +5,6 @@ import path from 'path'
 describe('Vary Header Tests', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, '../app'),
-    skipDeployment: true,
   })
 
   it('should preserve custom vary header in API routes', async () => {

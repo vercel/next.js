@@ -6,7 +6,6 @@ describe('script-loader - partytown-missing', () => {
     files: join(__dirname, 'partytown-missing'),
     skipStart: true,
     // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
 
   it('Error message is shown if Partytown is not installed locally', async () => {

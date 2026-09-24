@@ -1,18 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('typescript-version-warning', () => {
-  const { next, isNextDeploy, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       typescript: '4.0.6',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDeploy || isNextDev) {
     it('should skip', () => {})

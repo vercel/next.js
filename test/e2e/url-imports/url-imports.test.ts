@@ -25,7 +25,7 @@ import { join } from 'path'
       await stopApp(staticServer)
     })
 
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: isNextDev
         ? {
             // exclude next.lock here, should be generated automatically in dev
@@ -35,12 +35,7 @@ import { join } from 'path'
           }
         : __dirname,
       // The staticServer above doesn't work when deployed
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     const expectedServer =
       /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/(immutable\/)?media\/vercel\.[0-9a-z_-]+\.png<!-- -->\+<!-- -->\/_next\/static\/(immutable\/)?media\/vercel\.[0-9a-z_-]+\.png/

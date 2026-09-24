@@ -8,7 +8,7 @@ import {
 } from 'next-test-utils'
 
 describe('Image Component basePath Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Image URL assertions construct expected URLs via
@@ -18,9 +18,7 @@ describe('Image Component basePath Tests', () => {
     // expected URL omits the `&dpl=...` query that Vercel injects at
     // runtime. The assertions are about local-build URL shape, not deploy
     // CDN URLs, so skip in deploy.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let dpl: string
   beforeAll(() => {

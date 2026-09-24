@@ -76,12 +76,10 @@ function extractErrorBlock(output: string, errorTitle: string): string {
 }
 
 describe('webpack-loader-parse-error (development)', () => {
-  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   if (!isNextDev) {
     it('skipped in production mode', () => {})
@@ -201,7 +199,6 @@ describe('webpack-loader-parse-error (development)', () => {
 describe('webpack-loader-parse-error (production)', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 
