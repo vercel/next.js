@@ -5,12 +5,10 @@ describe('build trace with extra entries', () => {
   ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'production mode',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       it('should build and trace correctly', async () => {
         const { exitCode } = await next.build()

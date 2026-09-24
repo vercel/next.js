@@ -45,7 +45,6 @@ function parseLogsFromCli(cliOutput: string) {
 
 describe('app-dir - fetch logging', () => {
   const { next, isNextDev } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
   })
 
@@ -80,11 +79,9 @@ describe('app-dir - fetch logging', () => {
 })
 
 describe('app-dir - logging', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-  if (skipped) return
   function runTests({
     withFetchesLogging,
     withFullUrlFetches = false,

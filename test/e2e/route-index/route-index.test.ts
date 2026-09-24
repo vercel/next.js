@@ -5,7 +5,6 @@ describe('Route index handling', () => {
     files: __dirname,
     // Pages-router `/index` route resolution differs in Vercel's deploy
     // infrastructure; these assertions are local-only.
-    skipDeployment: true,
   })
 
   it('should handle / correctly', async () => {

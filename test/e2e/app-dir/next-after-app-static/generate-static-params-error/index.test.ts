@@ -6,13 +6,11 @@ import {
 } from '../../../../lib/next-test-utils'
 
 describe('after() in generateStaticParams - thrown errors', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // can't access build errors in deploy tests
+    // Was excluded from deploy: can't access build errors in deploy tests
   })
-
-  if (skipped) return
 
   if (isNextDev) {
     it('shows the error overlay if an error is thrown inside after', async () => {

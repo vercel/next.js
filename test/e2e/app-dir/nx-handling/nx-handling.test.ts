@@ -2,7 +2,6 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('nx-handling', () => {
   const { next } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
     buildCommand: 'pnpm run build',
     startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',

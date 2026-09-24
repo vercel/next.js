@@ -13,14 +13,9 @@ type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRo
 `
 
 describe('typed-routes', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should generate route types correctly', async () => {
     // Route type generation happens after the "Ready" log fires; give it time.

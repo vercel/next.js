@@ -2,13 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('app dir', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     // This is skipped when deployed because there are no assertions outside of next start/next dev
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   if (isNextStart) {
     describe('Loading', () => {

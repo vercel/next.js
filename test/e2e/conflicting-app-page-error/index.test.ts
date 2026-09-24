@@ -9,15 +9,10 @@ import {
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Conflict between app file and pages file', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextStart) {
     it('should print error for conflicting app/page', async () => {

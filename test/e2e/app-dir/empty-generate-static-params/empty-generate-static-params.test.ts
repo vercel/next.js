@@ -1,15 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('empty-generate-static-params', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   function errorBlock(cliOutput: string) {
     return cliOutput.slice(

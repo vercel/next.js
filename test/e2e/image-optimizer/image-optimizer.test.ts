@@ -15,12 +15,10 @@ const largeSize = 1080
 
 describe('Image Optimizer', () => {
   describe('config checks', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     const configChecks: Array<{
       name: string
@@ -284,10 +282,9 @@ describe('Image Optimizer', () => {
     'Server support for headers in next.config.js',
     () => {
       const size = 96
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
       })
-      if (skipped) return
 
       beforeAll(async () => {
         await next.patchFile(
@@ -369,7 +366,7 @@ describe('Image Optimizer', () => {
   ;(isNextDev ? describe : describe.skip)(
     'dev support next.config.js cloudinary loader',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: {
           images: {
@@ -378,7 +375,6 @@ describe('Image Optimizer', () => {
           },
         },
       })
-      if (skipped) return
 
       it('should 404 when loader is not default', async () => {
         const size = 384
@@ -395,13 +391,12 @@ describe('Image Optimizer', () => {
   ;(isNextDev ? describe : describe.skip)(
     'images.unoptimized in next.config.js',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: {
           images: { unoptimized: true },
         },
       })
-      if (skipped) return
 
       it('should 404 when unoptimized', async () => {
         const size = 384
@@ -418,13 +413,12 @@ describe('Image Optimizer', () => {
   ;(isNextDev ? describe : describe.skip)(
     'experimental.imgOptMaxInputPixels in next.config.js',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: {
           experimental: { imgOptMaxInputPixels: 100 },
         },
       })
-      if (skipped) return
 
       it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
         const size = 256
@@ -442,7 +436,7 @@ describe('Image Optimizer', () => {
   ;(isNextStart ? describe : describe.skip)(
     'External rewrite support with for serving static content in images',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: {
           async rewrites() {
@@ -456,7 +450,6 @@ describe('Image Optimizer', () => {
           },
         },
       })
-      if (skipped) return
 
       it('should return response when image is served from an external rewrite', async () => {
         const imagesDir = join(next.testDir, '.next', 'cache', 'images')
@@ -500,7 +493,7 @@ describe('Image Optimizer', () => {
   ;(isNextDev ? describe : describe.skip)(
     'dev support for dynamic blur placeholder',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: {
           images: {
@@ -509,7 +502,6 @@ describe('Image Optimizer', () => {
           },
         },
       })
-      if (skipped) return
 
       it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
         const query = { url: '/test.png', w: 8, q: 70 }

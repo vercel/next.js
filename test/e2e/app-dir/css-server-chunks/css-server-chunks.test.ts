@@ -4,14 +4,9 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 describe('css-server-chunks', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not write CSS chunks for the server', async () => {
     // Fetch all routes to compile them in development

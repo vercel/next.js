@@ -6,7 +6,7 @@ const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('tsconfig module: preserve', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       'tsconfig.json': JSON.stringify({
         compilerOptions: { module: 'preserve' },
@@ -18,13 +18,10 @@ describe('tsconfig module: preserve', () => {
       `,
     },
     // This test is skipped because it relies on `next.readFile`
-    skipDeployment: true,
     dependencies: {
       typescript: '5.4.4',
     },
   })
-
-  if (skipped) return
 
   it('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
     let output = ''

@@ -1,7 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('`next-js` Condition - Rendering', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname + '/fixtures/render',
     // copy shared packages over to the test folder. This will override the symlink that currently
     // exists in the fixture with relative paths
@@ -10,12 +10,7 @@ describe('`next-js` Condition - Rendering', () => {
     },
     dependencies: require('./fixtures/render/package.json').dependencies,
     // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO I should be able to access the complete config from a Next.js Server or Build
   // So I don't have to coordinate using process env variables
@@ -624,7 +619,7 @@ describe('`next-js` Condition - Rendering', () => {
 })
 
 describe('`next-js` Condition - middleware (legacy)', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname + '/fixtures/middleware',
     // copy shared packages over to the test folder. This will override the symlink that currently
     // exists in the fixture with relative paths
@@ -633,12 +628,7 @@ describe('`next-js` Condition - middleware (legacy)', () => {
     },
     dependencies: require('./fixtures/middleware/package.json').dependencies,
     // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
   describe('With or Without Cache Components', () => {
@@ -669,7 +659,7 @@ describe('`next-js` Condition - middleware (legacy)', () => {
 })
 
 describe('`next-js` Condition - proxy', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname + '/fixtures/proxy',
     // copy shared packages over to the test folder. This will override the symlink that currently
     // exists in the fixture with relative paths
@@ -678,12 +668,7 @@ describe('`next-js` Condition - proxy', () => {
     },
     dependencies: require('./fixtures/proxy/package.json').dependencies,
     // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
   describe('With or Without Cache Components', () => {
@@ -714,7 +699,7 @@ describe('`next-js` Condition - proxy', () => {
 })
 
 describe('`next-js` Condition - instrumentation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname + '/fixtures/instrumentation',
     // copy shared packages over to the test folder. This will override the symlink that currently
     // exists in the fixture with relative paths
@@ -724,12 +709,7 @@ describe('`next-js` Condition - instrumentation', () => {
     dependencies: require('./fixtures/instrumentation/package.json')
       .dependencies,
     // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
   describe('With or Without Cache Components', () => {

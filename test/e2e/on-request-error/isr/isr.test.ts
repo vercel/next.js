@@ -5,14 +5,9 @@ import { getOutputLogJson } from '../_testing/utils'
 const outputLogPath = 'output-log.json'
 
 describe('on-request-error - isr', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     it('should skip in development mode', () => {

@@ -2,9 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('no-double-tailwind-execution', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@tailwindcss/postcss': '^4',
       tailwindcss: '^4',
@@ -14,10 +13,6 @@ describe('no-double-tailwind-execution', () => {
       ...process.env,
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should run tailwind only once initially and per change', async () => {
     const browser = await next.browser('/')

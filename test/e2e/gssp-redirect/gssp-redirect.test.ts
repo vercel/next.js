@@ -2,15 +2,13 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('GS(S)P Redirect Support', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
     const res = await next.fetch('/gssp-blog/redirect-1', {

@@ -4,7 +4,6 @@ describe('Build Error Tests for basePath', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   if (isNextDev) {
@@ -32,11 +31,9 @@ describe('Build Error Tests for basePath', () => {
 })
 
 describe('Static Image Component Tests for basePath', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let browser: Playwright
   let html: string

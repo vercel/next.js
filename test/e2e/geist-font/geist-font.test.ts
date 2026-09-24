@@ -6,7 +6,6 @@ describe('geist-font', () => {
     files: __dirname,
     // `geist@latest` has a peer dependency issue with the latest Next.js.
     // see: https://github.com/vercel/geist-font/pull/117
-    skipDeployment: true,
     dependencies: {
       geist: 'latest',
     },

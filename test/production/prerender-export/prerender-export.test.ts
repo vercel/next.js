@@ -4,15 +4,13 @@ import { renderViaHTTP, startStaticServer, waitFor } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 
 describe('SSG Prerender export', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       firebase: '7.14.5',
     },
   })
-  if (skipped) return
 
   let server: Server
   let appPort: number

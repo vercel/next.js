@@ -47,7 +47,6 @@ function setupCollector(next: NextInstance, port: number) {
 function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
   const testSetup = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
     dependencies: require('./package.json').dependencies,
     ...(!useDirectEntrypointHandler
@@ -82,11 +81,7 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
   })
   return {
     next: testSetup,
-    getCollector: testSetup.skipped
-      ? () => {
-          throw new Error('OpenTelemetry test setup was skipped')
-        }
-      : setupCollector(testSetup.next, COLLECTOR_PORT),
+    getCollector: setupCollector(testSetup.next, COLLECTOR_PORT),
   }
 }
 
@@ -100,16 +95,12 @@ describe.each(
   ].filter(Boolean)
 )('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
   const {
-    next: { next, skipped, isNextDev },
+    next: { next, isNextDev },
     getCollector,
   } = setup({
     useDirectEntrypointHandler,
     useNodeMiddleware: false,
   })
-
-  if (skipped) {
-    return
-  }
 
   let connectedCollector: Collector
 
@@ -1685,7 +1676,7 @@ describe.each(
 if (isNextStart) {
   describe('opentelemetry route module preparation with direct entrypoint handler', () => {
     let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
@@ -1703,10 +1694,6 @@ if (isNextStart) {
         NODE_ENV: 'production',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     afterAll(async () => {
       await collector?.shutdown()
@@ -1759,9 +1746,8 @@ describe.each(
   'opentelemetry App Route module loading - $name',
   ({ useDirectEntrypointHandler }) => {
     let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       ...(!useDirectEntrypointHandler
@@ -1791,10 +1777,6 @@ describe.each(
             },
           }),
     })
-
-    if (skipped) {
-      return
-    }
 
     afterAll(async () => {
       await collector?.shutdown()
@@ -1891,16 +1873,12 @@ describe.each(
 )('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
   describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
     const {
-      next: { next, skipped },
+      next: { next },
       getCollector,
     } = setup({
       useDirectEntrypointHandler,
       useNodeMiddleware: runtime === 'nodejs',
     })
-
-    if (skipped) {
-      return
-    }
 
     if (useDirectEntrypointHandler && runtime === 'edge') {
       it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
@@ -1989,9 +1967,8 @@ describe.each(
   'opentelemetry instrumentation startup - $name',
   ({ useDirectEntrypointHandler }) => {
     let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       ...(!useDirectEntrypointHandler
@@ -2021,10 +1998,6 @@ describe.each(
             },
           }),
     })
-
-    if (skipped) {
-      return
-    }
 
     afterAll(async () => {
       await collector?.shutdown()
@@ -2088,9 +2061,8 @@ describe.each(
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'opentelemetry NEXT_OTEL_VERBOSE=1',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       env: {
@@ -2099,10 +2071,6 @@ describe.each(
         NEXT_OTEL_VERBOSE: '1',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     const getCollector = setupCollector(next, COLLECTOR_PORT)
 
@@ -2147,9 +2115,8 @@ describe.each(
 )
 
 describe('opentelemetry with disabled fetch tracing', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
     dependencies: require('./package.json').dependencies,
     env: {
@@ -2157,10 +2124,6 @@ describe('opentelemetry with disabled fetch tracing', () => {
       TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   const getCollector = setupCollector(next, COLLECTOR_PORT)
   ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
@@ -2217,9 +2180,8 @@ describe('opentelemetry with disabled fetch tracing', () => {
 })
 
 describe('opentelemetry with custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
@@ -2235,10 +2197,6 @@ describe('opentelemetry with custom server', () => {
       NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   const getCollector = setupCollector(next, COLLECTOR_PORT)
 
@@ -2384,7 +2342,7 @@ describe('opentelemetry with custom server', () => {
 
 if (isNextStart) {
   describe('opentelemetry with direct entrypoint handler', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
@@ -2401,10 +2359,6 @@ if (isNextStart) {
         NODE_ENV: 'production',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     const getCollector = setupCollector(next, COLLECTOR_PORT)
 

@@ -2,19 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('app dir - css', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',
       sass: 'latest',
       '@next/mdx': 'workspace:*',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('css support', () => {
     describe('server layouts', () => {

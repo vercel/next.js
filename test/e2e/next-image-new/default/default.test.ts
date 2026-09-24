@@ -13,15 +13,13 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 
 describe('Image Component Default Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Image URL assertions assume local-relative `/_next/image?url=...`
     // paths and access to `.next/static` on disk; deploy mode rewrites URLs
     // through the Vercel hostname and has no on-disk `.next/`.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let dpl: string
   let assetDpl: string

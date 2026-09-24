@@ -2,14 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
 describe('app dir - not found with default 404 page', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should error on client notFound from root layout in browser', async () => {
     const browser = await next.browser('/')

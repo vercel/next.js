@@ -474,7 +474,6 @@ const options = (value: CssChunkingValue) => ({
   dependencies: {
     sass: 'latest',
   },
-  skipDeployment: true,
 })
 
 /**
@@ -517,8 +516,7 @@ function shouldSkipConflict(ordering: readonly string[]): boolean {
 describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
   'css-order %s',
   (_label: string, value: CssChunkingValue) => {
-    const { next, isNextDev, skipped } = nextTestSetup(options(value))
-    if (skipped) return
+    const { next, isNextDev } = nextTestSetup(options(value))
     for (const ordering of allPairs) {
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '

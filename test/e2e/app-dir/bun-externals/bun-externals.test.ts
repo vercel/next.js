@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - bun externals', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should handle bun builtins as external modules', async () => {
     const $ = await next.render$('/')

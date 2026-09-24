@@ -4,7 +4,6 @@ import { waitForNoRedbox } from 'next-test-utils'
 describe('Image qualities config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   async function getSrc(browser: Playwright, id: string) {

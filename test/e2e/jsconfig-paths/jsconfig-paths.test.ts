@@ -3,11 +3,9 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 describe('jsconfig paths', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
   if (isNextDeploy) return
 
   it('should alias components', async () => {
@@ -97,12 +95,10 @@ describe('jsconfig paths', () => {
 })
 
 describe('jsconfig paths without baseurl', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let originalJsconfigContent: string
 

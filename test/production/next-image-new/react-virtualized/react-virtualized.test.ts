@@ -4,16 +4,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
 describe('react-virtualized wrapping next/image', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       'react-virtualized': 'latest',
       'http-proxy': '1.18.1',
     },
   })
-  if (skipped) return
 
   let proxyChild: ChildProcess
   let proxyPort: number

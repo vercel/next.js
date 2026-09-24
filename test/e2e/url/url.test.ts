@@ -11,19 +11,14 @@ import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 // - a bug where App Router API routes (and Metadata) return client assets for `new URL`s.
 // - a bug where Edge Page routes return client assets for `new URL`s.
 describe(`Handle new URL asset references`, () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: {
       // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
       __NEXT_SUPPORTS_IMMUTABLE_ASSETS: isNextStart ? '1' : undefined,
     },
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   const serverFileRegex = expect.stringMatching(
     /file:.*\/.next(\/dev)?\/server\/.*\/vercel.HASH.png$/

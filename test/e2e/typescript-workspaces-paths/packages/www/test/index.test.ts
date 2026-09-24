@@ -46,8 +46,7 @@ describe('TypeScript Features', () => {
       }
     })
 
-    const { next, skipped } = nextTestSetup({
-      skipDeployment: true,
+    const { next } = nextTestSetup({
       dependencies: testBaseUrl
         ? {
             typescript: '5.9.3',
@@ -58,7 +57,6 @@ describe('TypeScript Features', () => {
       startCommand:
         'pnpm next ' + (isNextDev ? 'dev' : 'start') + ' packages/www',
     })
-    if (skipped) return
 
     it('should alias components', async () => {
       const $ = await next.render$('/basic-alias')

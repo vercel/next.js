@@ -2,7 +2,7 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { getDeploymentId } from 'next-test-utils'
 
 describe('Image Component basePath + trailingSlash Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Image URL assertions construct expected URLs via
@@ -12,9 +12,7 @@ describe('Image Component basePath + trailingSlash Tests', () => {
     // expected URL omits the `&dpl=...` query that Vercel injects at
     // runtime. The assertions are about local-build URL shape, not deploy
     // CDN URLs, so skip in deploy.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let dpl: string
   let assetDpl: string

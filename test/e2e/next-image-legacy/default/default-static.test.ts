@@ -11,7 +11,6 @@ describe('Build Error Tests', () => {
   const { next, isTurbopack, isRspack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
   if (isNextDeploy) return
   ;(isNextStart ? it : it.skip)(

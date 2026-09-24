@@ -11,17 +11,10 @@ describe('next analyze', () => {
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    // Test suites require at least one test
-    it('is skipped', () => {})
-    return
-  }
 
   it('runs successfully without errors', async () => {
     let serveProcess: ChildProcess | undefined

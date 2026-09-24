@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - not-found - conflict route', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   const runTests = () => {
     it('should use the not-found page for non-matching routes', async () => {

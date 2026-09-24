@@ -3,9 +3,8 @@ import { check, waitFor } from 'next-test-utils'
 import path from 'path'
 
 describe('multi-zone', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'app'),
-    skipDeployment: true,
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     serverReadyPattern: /Next mode: (production|development)/,
@@ -19,10 +18,6 @@ describe('multi-zone', () => {
     },
     dependencies: require('./app/package.json').dependencies,
   })
-
-  if (skipped) {
-    return
-  }
 
   it.each([
     { pathname: '/', content: ['hello from host app'] },

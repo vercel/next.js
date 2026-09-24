@@ -5,11 +5,9 @@ import { getDeterministicOutput } from '../app-dir/cache-components-errors/utils
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
 describe('Validations for <Link legacyBehavior>', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
   let previousOutputIndex = 0
 
   beforeEach(() => {
