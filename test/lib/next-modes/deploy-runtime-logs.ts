@@ -1,6 +1,12 @@
 import execa from 'execa'
 import { createInterface } from 'readline'
 
+/**
+ * How long to let the log stream settle before the suite starts making
+ * requests. Elapsing is normal — see `waitForStreamReady`.
+ */
+const QUIET_DEPLOYMENT_HEAD_START_MS = 15_000
+
 /** Collect application messages, never CLI diagnostics, into the test output. */
 export class DeployRuntimeLogs {
   private process: execa.ExecaChildProcess<string>
@@ -90,25 +96,24 @@ export class DeployRuntimeLogs {
     if (this.error) throw this.error
   }
 
-  async waitForFirstMessage() {
+  /**
+   * Give the stream a head start before the suite makes its first request, so
+   * an application that logs immediately is not missed.
+   *
+   * A deployment that has just been created is silent: it emits nothing until
+   * a request arrives, and the requests come from the test bodies, which run
+   * after setup. Waiting for a record is therefore best-effort and a quiet
+   * window is the expected outcome, not a failure — tests that assert on logs
+   * poll with `retry()`. Only a collector that has actually broken rejects.
+   */
+  async waitForStreamReady() {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
       await Promise.race([
         this.firstMessage,
-        this.completion.then(() => {
-          this.assertHealthy()
-          throw new Error(
-            'Vercel runtime log stream stopped before its first message'
-          )
-        }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            reject(
-              new Error(
-                'No Vercel runtime log received within 15000ms. A quiet deployment may emit no logs before test requests.'
-              )
-            )
-          }, 15_000)
+        this.completion,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, QUIET_DEPLOYMENT_HEAD_START_MS)
         }),
       ])
       this.assertHealthy()

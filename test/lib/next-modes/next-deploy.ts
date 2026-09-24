@@ -626,7 +626,7 @@ export class NextDeployInstance extends NextInstance {
       }
     )
     try {
-      await this.runtimeLogs.waitForFirstMessage()
+      await this.runtimeLogs.waitForStreamReady()
     } catch (error) {
       await this.runtimeLogs.stop().catch(() => {})
       throw error
