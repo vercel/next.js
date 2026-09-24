@@ -83,13 +83,11 @@ impl BindingUsageInfo {
     ) -> Result<Vc<ModuleExportUsage>> {
         let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
         let Some(exports) = self.used_exports.get(&module).await? else {
-            // There are some module that are codegened, but not referenced in the module graph,
+            // The WebAssembly loader is code-generated as a different module from the one
+            // recorded in the graph. Until it uses the graph module as its codegen context,
+            // conservatively treat all of its exports as used.
             let ident = module.ident_string().await?;
-            if ident.contains(".wasm_.loader.mjs") || ident.contains("/__nextjs-internal-proxy.") {
-                // Both the turbopack-wasm `ModuleChunkItem` and `EcmascriptClientReferenceModule`
-                // do `self.slightly_different_module().as_chunk_item()`, so the
-                // module that codegen sees isn't actually in the module graph.
-                // TODO fix these cases
+            if ident.contains(".wasm_.loader.mjs") {
                 return Ok(ModuleExportUsage::unknown());
             }
 

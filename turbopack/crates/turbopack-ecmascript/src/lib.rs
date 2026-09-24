@@ -1068,6 +1068,17 @@ pub struct EcmascriptModuleContentOptions {
 }
 
 impl EcmascriptModuleContentOptions {
+    /// Use the module represented in the graph when generating a virtual module's content.
+    /// Parsing and references still come from the virtual module's own options.
+    pub fn with_module_context(
+        &self,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ) -> Vc<Self> {
+        let mut options = self.clone();
+        options.module = module;
+        options.cell()
+    }
+
     async fn merged_code_gens(
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
