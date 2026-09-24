@@ -205,6 +205,7 @@ test('fork and bypass PRs open immediately', async () => {
       }),
     ],
   })
+  expect(bypass.calls.checks).toBe(0)
   expect(bypass.core.summaries.join('\n')).toContain('bypass label is present')
 })
 
