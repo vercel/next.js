@@ -337,11 +337,11 @@ describe('tsconfig.json verifier', () => {
     }
   })
 
-  // `module: commonjs` forces `moduleResolution: node`, which TypeScript 6
-  // deprecates (TS5107). The commonjs case is tested in a separate describe
-  // block below that pins TypeScript 5.9 until we stop emitting the deprecated
-  // resolution. See the `tsconfig.json verifier 5.x` block at the end of this
-  // file.
+  // `module: commonjs` uses `moduleResolution: bundler` on TypeScript 6+.
+  // TypeScript 5 cannot combine `bundler` with `commonjs` (TS5095), so it
+  // still emits the legacy `node` resolution there. The commonjs case is
+  // tested in a separate describe block below that pins TypeScript 5.9. See
+  // the `tsconfig.json verifier 5.x` block at the end of this file.
 
   it('allows you to set es2020 module mode', async () => {
     expect(await next.hasFile('tsconfig.json')).toBe(false)
@@ -400,6 +400,102 @@ describe('tsconfig.json verifier', () => {
            "compilerOptions": {
              "esModuleInterop": true,
              "module": "es2020",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "bundler",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+    }
+  })
+
+  it('allows you to set commonjs module mode', async () => {
+    expect(await next.hasFile('tsconfig.json')).toBe(false)
+
+    await next.patchFile(
+      'tsconfig.json',
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+
+    if (strictRouteTypes) {
+      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "bundler",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+    } else {
+      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
              "target": "ES2017",
              "lib": [
                "dom",
@@ -1130,9 +1226,10 @@ describe('tsconfig.json verifier', () => {
   })
 })
 
-// `module: commonjs` forces Next.js to emit `moduleResolution: node`, which
-// TypeScript 6 deprecates (TS5107). Pin TypeScript 5.9 for this case until we
-// stop emitting the deprecated resolution.
+// TypeScript 5 cannot combine `moduleResolution: bundler` with
+// `module: commonjs` (TS5095), so Next.js still emits the legacy `node`
+// resolution there. Pin TypeScript 5.9 for this case to keep that behavior
+// covered until TypeScript 5 is no longer supported.
 describe('tsconfig.json verifier 5.x', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
