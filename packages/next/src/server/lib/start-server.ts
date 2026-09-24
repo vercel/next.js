@@ -399,7 +399,13 @@ export async function startServer(
       try {
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
-        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
+        let initialization: ReturnType<typeof getRequestHandlers> | null = null
+        let cleanupFailed = false
+        const reportCleanupError = (error: unknown) => {
+          cleanupFailed = true
+          console.error(error)
+        }
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM', forUpgrade = false) => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -415,7 +421,9 @@ export async function startServer(
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
             await new Promise<void>((res) => {
               server.close((err) => {
-                if (err) console.error(err)
+                if (err) {
+                  reportCleanupError(err)
+                }
                 res()
               })
               if (isDev) {
@@ -424,10 +432,17 @@ export async function startServer(
               }
             })
 
+            // A human can choose Upgrade while the bundler is initializing.
+            // Let its cleanup registrations finish before closing its resources.
+            // The parent bounds this wait and refuses the upgrade on timeout.
+            if (forUpgrade) {
+              await initialization?.catch(reportCleanupError)
+            }
+
             // now that no new requests can come in, clean up the rest
             await Promise.all([
-              nextServer?.close().catch(console.error),
-              cleanupListeners?.runAll().catch(console.error),
+              nextServer?.close().catch(reportCleanupError),
+              cleanupListeners?.runAll().catch(reportCleanupError),
             ])
 
             // Flush any remaining traces to the trace file on shutdown
@@ -456,6 +471,17 @@ export async function startServer(
 
             debug('start-server process cleanup finished')
 
+            if (forUpgrade && process.send) {
+              // IPC invokes the same cleanup on Windows, where child.kill does
+              // not deliver a catchable SIGTERM. Flush the result before exit.
+              await new Promise<void>((sent) => {
+                process.send!(
+                  { nextWorkerShutdownResult: !cleanupFailed },
+                  () => sent()
+                )
+              })
+            }
+
             // Exit with signal-based exit code (128 + signal number) so that
             // Node.js treats this as a signal termination, not a normal exit.
             // This avoids waiting for the debugger to disconnect.
@@ -482,13 +508,34 @@ export async function startServer(
           process.on('SIGTERM', cleanup)
         }
 
+        if (isDev && process.env.NEXT_PRIVATE_WORKER && process.send) {
+          process.on(
+            'message',
+            (message: { nextWorkerShutdown: boolean | undefined }) => {
+              if (message?.nextWorkerShutdown === true) {
+                cleanup('SIGTERM', true)
+              }
+            }
+          )
+        }
+
         // Now load config via getRequestHandlers (single loadConfig call)
-        const initResult = await getRequestHandlers({
+        initialization = getRequestHandlers({
           dir,
           port,
           isDev,
           onDevServerCleanup: cleanupListeners
-            ? cleanupListeners.add.bind(cleanupListeners)
+            ? (listener) => {
+                cleanupListeners!.add(async () => {
+                  try {
+                    await listener()
+                  } catch (error) {
+                    // AsyncCallbackSet settles all listeners. Record failure
+                    // so the upgrade handoff cannot mistake that for success.
+                    reportCleanupError(error)
+                  }
+                })
+              }
             : undefined,
           server,
           hostname,
@@ -497,6 +544,7 @@ export async function startServer(
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
         })
+        const initResult = await initialization
         devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler

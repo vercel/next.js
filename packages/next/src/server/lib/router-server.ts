@@ -228,22 +228,9 @@ export async function initialize(opts: {
       const { nudgeUpgrade, getUpgradeContext } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
-        // TODO: Do not block dev startup while prompting for an upgrade.
-        // Preserve all logs for display after the prompt and stop dev before Update.
-        // The existing dev worker pauses here while its parent owns the menu.
-        await new Promise<void>((resolve) => {
-          const resume = (message: {
-            nextUpgradeContinue: boolean | undefined
-          }) => {
-            if (message.nextUpgradeContinue) {
-              process.off('message', resume)
-              resolve()
-            }
-          }
-          process.on('message', resume)
-          process.send!({
-            nextUpgradeContext: getUpgradeContext(developmentConfig),
-          })
+        // The parent owns the menu and retains output while initialization proceeds.
+        process.send({
+          nextUpgradeContext: getUpgradeContext(developmentConfig),
         })
       } else {
         void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {

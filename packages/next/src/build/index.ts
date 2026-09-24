@@ -1,4 +1,3 @@
-import type { NudgeKind } from '../lib/upgrade/nudge'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type {
   ExportPathMap,
@@ -1068,9 +1067,8 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {},
-  allowHumanUpgrade = false
-): Promise<NudgeKind | 'interrupt' | void> {
+  enabledFeatures: Record<string, unknown> = {}
+): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1159,28 +1157,11 @@ export default async function build(
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
         const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
-          // TODO: Do not block the build while prompting for an upgrade.
-          // Preserve all logs for display after the prompt and stop the build before Update.
-          const action = await nudgeUpgrade(
-            dir,
-            upgradeContext,
-            'build',
-            new AbortController().signal
-          ).catch((error) => {
-            Log.warn(`Could not offer the upgrade: ${String(error)}`)
-          })
-          if (
-            action === 'update' &&
-            upgradeContext.experimental.agenticAutoUpgrade
-          ) {
-            return upgradeContext.experimental.agenticAutoUpgrade
-          }
-          if (action === 'interrupt') {
-            return 'interrupt' as const
-          }
+        if (process.env.NEXT_PRIVATE_UPGRADE_BUILD_WORKER === '1') {
+          // The CLI parent owns the menu while this process keeps building.
+          process.send?.({ nextUpgradeContext: upgradeContext })
         } else {
-          // Agent checks retain their parallel behavior; humans decide before building.
+          // Agent checks retain their parallel behavior.
           pendingUpgradeNudge = nudgeUpgrade(dir, upgradeContext, 'build').then(
             () => {}
           )

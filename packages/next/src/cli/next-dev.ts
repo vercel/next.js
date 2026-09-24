@@ -30,6 +30,8 @@ import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import type { UpgradeContext } from '../lib/upgrade/nudge'
+import type { UpgradeAction } from '../lib/upgrade/prompt'
+import type { UpgradeOutput } from '../lib/upgrade/output'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -78,6 +80,9 @@ let upgradeController: AbortController | null = null
 let upgradeOffered = false
 let upgradeInProgress = false
 let interruption: NodeJS.Signals | null = null
+let upgradeOutput: UpgradeOutput | null = null
+let upgradePrompt: Promise<UpgradeAction> | null = null
+let childClosed: Promise<void> | null = null
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
   'missing-next-dir': false,
@@ -113,7 +118,8 @@ const shouldWaitForChildExit =
 
 const handleSessionStop = async (
   signal: NodeJS.Signals | number | null,
-  exit = true
+  exit = true,
+  stopForUpgrade: (() => Promise<void>) | null = null
 ) => {
   if (signal != null && child?.pid) {
     child.kill(signal)
@@ -129,7 +135,9 @@ const handleSessionStop = async (
   // session stop (via the 'exit' event), otherwise assume success (0).
   const exitCode = child?.exitCode || 0
 
-  if (
+  if (stopForUpgrade) {
+    await stopForUpgrade()
+  } else if (
     signal != null &&
     child?.pid &&
     child.exitCode === null &&
@@ -143,6 +151,23 @@ const handleSessionStop = async (
     }
     await once(child, 'exit').catch(() => {})
     if (exitTimeout) clearTimeout(exitTimeout)
+  }
+
+  if (upgradeOutput && !stopForUpgrade) {
+    // A descendant may keep a pipe open. Normal interruption retains its
+    // bounded exit policy; an upgrade requires the stronger result below.
+    let timeout: NodeJS.Timeout | undefined
+    await Promise.race([
+      (async () => {
+        await upgradePrompt?.catch(() => {})
+        await childClosed
+        await upgradeOutput?.whenDrained()
+      })(),
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, CHILD_EXIT_TIMEOUT_MS)
+      }),
+    ]).catch(() => {})
+    clearTimeout(timeout)
   }
 
   sessionSpan.stop()
@@ -255,7 +280,26 @@ const nextDev = async (
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
-  async function offerUpgrade(worker: ChildProcess, context: UpgradeContext) {
+  if (humanUpgrade) {
+    const { UpgradeOutput } = await import('../lib/upgrade/output.js')
+    upgradeOutput = new UpgradeOutput(
+      process.stdout,
+      process.stderr,
+      Boolean(process.stderr.isTTY)
+    )
+    upgradeOutput.stdout.on('error', (error: Error) => {
+      if (sessionStopHandled) {
+        return
+      }
+      console.error(error)
+      void handleSessionStop('SIGTERM', false).finally(() => process.exit(1))
+    })
+  }
+  async function offerUpgrade(
+    worker: ChildProcess,
+    context: UpgradeContext,
+    stopForUpgrade: () => Promise<void>
+  ) {
     process.on('SIGHUP', onHangup)
     upgradeOffered = true
     upgradeInProgress = true
@@ -263,13 +307,44 @@ const nextDev = async (
     upgradeController = controller
     let action
     try {
-      action = await nudgeUpgrade(dir, context, 'dev', controller.signal)
+      action = await nudgeUpgrade(
+        dir,
+        context,
+        'dev',
+        controller.signal,
+        (show) => {
+          const output = upgradeOutput!
+          upgradePrompt = (async (): Promise<UpgradeAction> => {
+            let warning: string | null = null
+            try {
+              if (
+                !(await output.hold(() => {
+                  warning =
+                    'Upgrade prompt closed because buffered dev output reached 1 MiB.'
+                  controller.abort()
+                }))
+              ) {
+                warning ??=
+                  'Upgrade prompt skipped because dev output ended with an incomplete character or terminal escape sequence.'
+                return 'skip'
+              }
+              return await show()
+            } finally {
+              await output.resume(
+                warning ? `${Log.prefixes.warn} ${warning}\n` : null
+              )
+            }
+          })()
+          return upgradePrompt
+        }
+      )
     } catch (error) {
       Log.warn(`Could not offer the upgrade: ${String(error)}`)
     } finally {
       upgradeController = null
+      upgradePrompt = null
     }
-    if (controller.signal.aborted || sessionStopHandled) {
+    if (controller.signal.aborted || sessionStopHandled || worker !== child) {
       upgradeInProgress = false
       process.off('SIGHUP', onHangup)
       return
@@ -279,7 +354,7 @@ const nextDev = async (
       return
     }
     if (action === 'update' && context.experimental.agenticAutoUpgrade) {
-      await handleSessionStop('SIGTERM', false)
+      await handleSessionStop(null, false, stopForUpgrade)
       if (interruption) {
         process.exit(128 + os.constants.signals[interruption])
       }
@@ -292,9 +367,6 @@ const nextDev = async (
     }
     upgradeInProgress = false
     process.off('SIGHUP', onHangup)
-    if (worker.connected) {
-      worker.send({ nextUpgradeContinue: true })
-    }
   }
 
   // Check if pages dir exists and warn if not
@@ -309,6 +381,16 @@ const nextDev = async (
   }
 
   async function preflight(skipOnReboot: boolean) {
+    const warn = (message: string) => {
+      if (sessionStopHandled) {
+        return
+      }
+      if (upgradeOutput) {
+        upgradeOutput.stderr.write(`${Log.prefixes.warn} ${message}\n`)
+      } else {
+        Log.warn(message)
+      }
+    }
     const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version') as typeof import('../lib/get-package-version')
     )) as typeof import('../lib/get-package-version')
@@ -318,7 +400,7 @@ const nextDev = async (
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
     ])
     if (sassVersion && nodeSassVersion) {
-      Log.warn(
+      warn(
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
@@ -337,7 +419,7 @@ const nextDev = async (
           devDependencies['@next/font'] !== 'workspace:*')
       ) {
         const command = getNpxCommand(dir)
-        Log.warn(
+        warn(
           'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
             'The `@next/font` package will be removed in Next.js 14. ' +
             `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
@@ -476,11 +558,25 @@ const nextDev = async (
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
-      child = fork(startServerPath, {
-        stdio: 'inherit',
+      const worker = (child = fork(startServerPath, {
+        stdio: upgradeOutput
+          ? [
+              'inherit',
+              'pipe',
+              process.stderr.isTTY ? 'pipe' : 'inherit',
+              'ipc',
+            ]
+          : 'inherit',
         execArgv,
         env: {
           ...defaultEnv,
+          ...(upgradeOutput &&
+          defaultEnv.FORCE_COLOR === undefined &&
+          !defaultEnv.NO_COLOR &&
+          !defaultEnv.CI &&
+          defaultEnv.TERM !== 'dumb'
+            ? { FORCE_COLOR: '1' }
+            : {}),
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
           __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
@@ -511,21 +607,81 @@ const nextDev = async (
             ? { NEXT_TURBOPACK_TRACING: process.env.NEXT_TURBOPACK_TRACING }
             : undefined),
         },
+      }))
+      if (upgradeOutput) {
+        worker.stdout?.pipe(upgradeOutput.stdout, { end: false })
+        worker.stderr?.pipe(upgradeOutput.stderr, { end: false })
+      }
+      let cleanupSucceeded = false
+      const closed = new Promise<void>((resolveClose) => {
+        worker.once('close', () => resolveClose())
       })
-
-      child.on('message', (msg: any) => {
-        if (msg && typeof msg === 'object') {
-          if (msg.nextUpgradeContext) {
-            distDir = msg.nextUpgradeContext.distDir
-            void offerUpgrade(child!, msg.nextUpgradeContext).catch(
-              async (error) => {
-                console.error(error)
-                await handleSessionStop('SIGTERM', false)
-                process.exit(1)
+      childClosed = closed
+      const stopForUpgrade = async () => {
+        let timeout: NodeJS.Timeout | undefined
+        try {
+          await Promise.race([
+            (async () => {
+              await new Promise<void>((resolveSend, reject) => {
+                worker.send({ nextWorkerShutdown: true }, (error) => {
+                  if (error) {
+                    reject(error)
+                  } else {
+                    resolveSend()
+                  }
+                })
+              })
+              await closed
+              if (
+                !cleanupSucceeded ||
+                worker.exitCode !== 143 ||
+                worker.signalCode !== null
+              ) {
+                throw new Error(
+                  'Dev cleanup failed. The upgrade was not started.'
+                )
               }
-            )
+              await upgradeOutput!.whenDrained()
+            })(),
+            new Promise<never>((_resolve, reject) => {
+              timeout = setTimeout(
+                () => {
+                  worker.kill('SIGKILL')
+                  reject(
+                    new Error(
+                      'Dev shutdown timed out. The upgrade was not started.'
+                    )
+                  )
+                },
+                process.env.NEXT_EXIT_TIMEOUT_MS ? CHILD_EXIT_TIMEOUT_MS : 5000
+              )
+            }),
+          ])
+        } finally {
+          clearTimeout(timeout)
+        }
+      }
+
+      worker.on('message', (msg: any) => {
+        if (worker !== child) {
+          return
+        }
+        if (msg && typeof msg === 'object') {
+          if ('nextWorkerShutdownResult' in msg) {
+            cleanupSucceeded = msg.nextWorkerShutdownResult === true
+          } else if (msg.nextUpgradeContext && !upgradeOffered) {
+            distDir = msg.nextUpgradeContext.distDir
+            void offerUpgrade(
+              worker,
+              msg.nextUpgradeContext,
+              stopForUpgrade
+            ).catch(async (error) => {
+              console.error(error)
+              await handleSessionStop('SIGTERM', false)
+              process.exit(1)
+            })
           } else if (msg.nextWorkerReady) {
-            child?.send({ nextWorkerOptions: startServerOptions })
+            worker.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
@@ -543,7 +699,10 @@ const nextDev = async (
         }
       })
 
-      child.on('exit', async (code, signal) => {
+      worker.on('exit', async (code, signal) => {
+        if (worker !== child) {
+          return
+        }
         upgradeController?.abort()
         if (sessionStopHandled) {
           return

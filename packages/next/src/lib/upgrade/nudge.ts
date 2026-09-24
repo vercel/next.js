@@ -385,7 +385,8 @@ async function nudgeUpgradeForHuman(
   directory: string,
   reminder: UpgradeReminder,
   signal: AbortSignal,
-  preview: boolean
+  preview: boolean,
+  runPrompt: UpgradePromptRunner | null
 ): Promise<UpgradeAction> {
   if (signal.aborted) {
     return 'skip'
@@ -418,7 +419,8 @@ async function nudgeUpgradeForHuman(
     message = `Forced preview: __NEXT_AGENTIC_AUTO_UPGRADE=${reminder.policy}. Upgrade eligibility has not been established.\n\n${message}`
   }
   const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, canUpgrade)
+  const show = () => promptUpgrade(message, signal, canUpgrade)
+  const action = await (runPrompt ? runPrompt(show) : show())
   if (signal.aborted) {
     return 'skip'
   }
@@ -455,11 +457,16 @@ export async function shouldPromptForUpgrade(): Promise<boolean> {
   return canPromptForUpgrade() && !(await getAgentName())
 }
 
+type UpgradePromptRunner = (
+  show: () => Promise<UpgradeAction>
+) => Promise<UpgradeAction>
+
 export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null = null,
+  runPrompt: UpgradePromptRunner | null = null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agenticAutoUpgrade
@@ -540,6 +547,6 @@ export async function nudgeUpgrade(
       preview
     )
   } else if (signal) {
-    return nudgeUpgradeForHuman(directory, reminder, signal, preview)
+    return nudgeUpgradeForHuman(directory, reminder, signal, preview, runPrompt)
   }
 }
