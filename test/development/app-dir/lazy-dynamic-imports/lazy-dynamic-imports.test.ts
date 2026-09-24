@@ -256,14 +256,13 @@ export const invalid = ;`
 
         const cliOutput = next.getCliOutputFromHere()
         await browser.elementByCss('#load-parse-error').click()
-        // Activating the import adds it to the page's module graph, so the
-        // compile error reloads the page. Wait for that document before
-        // looking for its overlay.
-        await browser.waitForCondition(
-          `performance.getEntriesByType('navigation')[0]?.type === 'reload'`
-        )
-        await waitForRedbox(browser)
-        expect(await getRedboxSource(browser)).toContain(
+        const source = browser
+          .locateRedbox()
+          .locator('[data-nextjs-codeframe], [data-nextjs-terminal]', {
+            hasText: 'parse-error-proves-target-was-analyzed',
+          })
+        await source.waitFor()
+        expect(await source.innerText()).toContain(
           'parse-error-proves-target-was-analyzed'
         )
       } finally {
