@@ -54,6 +54,13 @@ describe.each([
       }
     }
 
+    it('uses the constant build ID when generateBuildId is not configured', async () => {
+      const $ = await next.render$('/')
+      expect(JSON.parse($('script#__NEXT_DATA__').html()!).buildId).toBe(
+        'build-TfctsWXpff2fKS'
+      )
+    })
+
     it.each([
       { urlPath: '/' },
       { urlPath: '/pages-edge' },
@@ -214,6 +221,24 @@ describe.each([
     }
   }
 )
+
+describe('deployment-id-handling with generateBuildId', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'app'),
+    env: {
+      CUSTOM_DEPLOYMENT_ID: 'test-deployment-id',
+      CUSTOM_BUILD_ID: 'custom-build-id',
+    },
+    disableAutoSkewProtection: true,
+  })
+
+  it('uses the explicitly configured build ID', async () => {
+    const $ = await next.render$('/')
+    expect(JSON.parse($('script#__NEXT_DATA__').html()!).buildId).toBe(
+      'custom-build-id'
+    )
+  })
+})
 
 describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
