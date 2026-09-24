@@ -84,6 +84,8 @@ function checkState(check: Check | null): CandidateState {
   return check.conclusion === 'success' ? 'success' : 'unsuccessful'
 }
 
+// Any nearby green CI can release this PR despite a flaky predecessor, but
+// all three must have finished unsuccessfully before the gate can fail.
 function gateDecision(candidates: Candidate[]): 'open' | 'fail' | 'wait' {
   if (candidates.some((candidate) => candidate.state === 'success')) {
     return 'open'
@@ -174,6 +176,8 @@ export async function runGate({
     )
   }
 
+  // Base/head branch links also describe stacks not registered in GitHub's
+  // stack API. A leaf runs immediately so the top PR is never held by polling.
   async function discoverTopology(): Promise<Topology> {
     const prNumber = context.payload.pull_request?.number
     if (!prNumber) throw new Error('Missing pull request number')
@@ -234,6 +238,9 @@ export async function runGate({
     return { current, role: 'middle', predecessors }
   }
 
+  // The required check may attach to the PR head rather than its test-merge
+  // SHA. Match the current PR and base too, rejecting a green check from a
+  // previous rebase before it can release downstream CI.
   async function latestRequiredCheck(pull: Pull): Promise<Candidate> {
     const { data } = await github.rest.checks.listForRef({
       owner,
@@ -377,6 +384,8 @@ export async function runGate({
           }
         }
       } catch (error) {
+        // A brief GitHub outage should not start all waiting CI at once;
+        // retry transient errors until the same five-hour waiting deadline.
         if (!isTransientApiError(error)) throw error
         if (Date.now() - startedAt >= WAIT_DEADLINE_MS) {
           await writeSummary(
@@ -445,6 +454,8 @@ export async function runGate({
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
     }
   } catch (error) {
+    // Unexpected errors must run the required full-CI graph, not turn a
+    // missing classification result into a mergeable skipped-check success.
     core.warning(
       `PR stack classification failed; failing open and starting full CI: ${String(error)}`
     )
