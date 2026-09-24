@@ -236,6 +236,7 @@ async function run(): Promise<void> {
    */
   let skipPrompt = ciInfo.isCI || opts.yes
   let useRecommendedDefaults = false
+  let enableAgentFeedbackByDefault = false
 
   if (!example) {
     const defaults: typeof preferences = {
@@ -390,6 +391,7 @@ async function run(): Promise<void> {
 
       if (setupChoice === 'recommended') {
         useRecommendedDefaults = true
+        enableAgentFeedbackByDefault = true
         skipPrompt = true
       } else if (setupChoice === 'reuse') {
         skipPrompt = true
@@ -695,7 +697,9 @@ async function run(): Promise<void> {
     if (args.includes('--no-agent-feedback')) {
       opts.agentFeedback = false
     } else if (!opts.agentFeedback) {
-      if (shouldPromptForAgentFeedback) {
+      if (enableAgentFeedbackByDefault) {
+        opts.agentFeedback = true
+      } else if (shouldPromptForAgentFeedback) {
         const { agentFeedback } = await prompts(
           {
             type: 'toggle',

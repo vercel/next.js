@@ -238,7 +238,7 @@ describe('create-next-app prompts', () => {
         nextTgzFilename
       )
 
-      await new Promise<void>(async (resolve) => {
+      await new Promise<void>((resolve) => {
         let output = ''
         childProcess.stdout.on('data', (data) => {
           output += data
@@ -247,6 +247,7 @@ describe('create-next-app prompts', () => {
 
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
+          expect(output).not.toMatch(/agents prepare anonymized feedback/)
           projectFilesShouldExist({
             cwd,
             projectName,
@@ -262,13 +263,6 @@ describe('create-next-app prompts', () => {
         })
 
         // Select "Yes, use recommended defaults" (default option, just press enter)
-        childProcess.stdin.write('\n')
-
-        await retry(async () => {
-          expect(output).toMatch(/agents prepare anonymized feedback/)
-          expect(output).toMatch(/for your review as you code/)
-        })
-        // Accept the default "Yes" for agent feedback.
         childProcess.stdin.write('\n')
       })
 
