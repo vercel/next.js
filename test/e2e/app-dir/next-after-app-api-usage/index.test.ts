@@ -428,6 +428,30 @@ describe('nextjs APIs in after()', () => {
       )
     })
   })
+
+  describe('cookies() inside after() reflects cookie mutations', () => {
+    it('in a route handler', async () => {
+      const path = '/cookies-mutation/route-handler'
+      await next.fetch(path, { headers: { cookie: 'test-cookie=initial' } })
+      await retry(() => {
+        expect(getLogs()).toContain(
+          `[${path}] cookies() in after(): test-cookie=mutated`
+        )
+      })
+    })
+
+    it('in a server action', async () => {
+      const path = '/cookies-mutation/server-action'
+      const browser = await next.browser(path)
+      await using _ = defer(() => browser.deleteCookies())
+      await browser.elementByCss('button[type="submit"]').click()
+      await retry(() => {
+        expect(getLogs()).toContain(
+          `[${path}] cookies() in after(): test-cookie=mutated`
+        )
+      })
+    })
+  })
 })
 
 function defer(callback: () => void | Promise<void>): AsyncDisposable {
