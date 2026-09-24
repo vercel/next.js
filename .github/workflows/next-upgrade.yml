@@ -1,0 +1,99 @@
+name: Next.js upgrade
+
+on:
+  workflow_call:
+    secrets:
+      openai-api-key:
+        required: false
+      anthropic-api-key:
+        required: false
+      claude-code-oauth-token:
+        required: false
+
+concurrency:
+  group: next-upgrade-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  upgrade:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Select agent
+        id: agent
+        env:
+          OPENAI_KEY: ${{ secrets.openai-api-key }}
+          ANTHROPIC_KEY: ${{ secrets.anthropic-api-key }}
+          CLAUDE_TOKEN: ${{ secrets.claude-code-oauth-token }}
+        run: |
+          count=0
+          provider=''
+          for key in "$OPENAI_KEY" "$ANTHROPIC_KEY" "$CLAUDE_TOKEN"; do
+            if [ -n "$key" ]; then
+              count=$((count + 1))
+            fi
+          done
+          if [ "$count" -ne 1 ]; then
+            echo '::error::Connect exactly one Next.js upgrade credential.'
+            exit 1
+          fi
+          if [ -n "$OPENAI_KEY" ]; then
+            provider=codex
+          else
+            provider=claude
+          fi
+          echo "provider=$provider" >> "$GITHUB_OUTPUT"
+      - name: Configure Codex network access
+        if: steps.agent.outputs.provider == 'codex'
+        run: |
+          mkdir -p "$RUNNER_TEMP/next-upgrade-codex"
+          cat > "$RUNNER_TEMP/next-upgrade-codex/config.toml" <<'TOML'
+          [permissions.upgrade]
+          extends = ":workspace"
+          [permissions.upgrade.network]
+          enabled = true
+          TOML
+      - name: Upgrade with Codex
+        if: steps.agent.outputs.provider == 'codex'
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          openai-api-key: ${{ secrets.openai-api-key }}
+          codex-home: ${{ runner.temp }}/next-upgrade-codex
+          permission-profile: upgrade
+          safety-strategy: drop-sudo
+          prompt: |
+            Install this root app's dependencies using its lockfile.
+            Run npx --yes next@canary upgrade --ai from the repository root.
+            Follow its handoff completely. Opening the draft upgrade PR is
+            approved for this CI run; do not ask again before opening it.
+      - name: Upgrade with Claude Code
+        if: steps.agent.outputs.provider == 'claude'
+        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # v1.0.233
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          anthropic_api_key: ${{ secrets.anthropic-api-key }}
+          claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          github_token: ${{ github.token }}
+          show_full_output: 'false'
+          display_report: 'false'
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
+          prompt: |
+            Install this root app's dependencies using its lockfile.
+            Run npx --yes next@canary upgrade --ai from the repository root.
+            Follow its handoff completely. Opening the draft upgrade PR is
+            approved for this CI run; do not ask again before opening it.
