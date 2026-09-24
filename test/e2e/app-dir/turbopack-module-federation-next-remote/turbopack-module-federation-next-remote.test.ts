@@ -92,7 +92,7 @@ describeTurbopack.each([
   })
 
   afterAll(async () => {
-    if (remoteServer) await killApp(remoteServer)
+    await killApp(remoteServer)
     delete process.env.MF_REMOTE_URL
     delete process.env.MF_IMPLEMENTATION
   })

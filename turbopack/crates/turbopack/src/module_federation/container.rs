@@ -1,12 +1,14 @@
-use std::{collections::BTreeMap, path::Path};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::module_federation::config::ModuleFederationConfig;
+use crate::module_federation::{
+    config::ModuleFederationConfig,
+    runtime_implementation::{runtime_implementation_request, runtime_shared_option},
+};
 
 /// Creates the virtual entry module for a webpack-compatible global container.
 pub async fn module_federation_container_source(
@@ -33,27 +35,11 @@ pub async fn module_federation_container_source(
         ));
     }
     let mut registrations = Vec::new();
-    let mut shared_entries = BTreeMap::<_, Vec<String>>::new();
     for shared in &config.shared {
         let Some(import) = &shared.import else {
             continue;
         };
         let version = shared.version.as_deref().unwrap_or("0");
-        shared_entries
-            .entry(&shared.share_key)
-            .or_default()
-            .push(format!(
-                r#"{{
-  version: {version},
-  scope: [{scope}],
-  get: () => import({import}).then((module) => () => module),
-  shareConfig: {{ eager: {eager}, requiredVersion: false }}
-}}"#,
-                version = StringifyJs(version),
-                scope = StringifyJs(&shared.share_scope),
-                import = StringifyJs(import),
-                eager = shared.eager,
-            ));
         registrations.push(format!(
             r#"
   const versions_{index} = shareScope[{key}] ||= Object.create(null);
@@ -70,39 +56,70 @@ pub async fn module_federation_container_source(
             eager = shared.eager,
         ));
     }
-    let initialization = if let Some(implementation) = &config.implementation {
-        let implementation_path = Path::new(&**implementation);
-        let implementation = if implementation_path.is_absolute() {
-            let fs = project_path.fs().to_resolved().await?;
-            let disk_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs).context(
-                "An absolute Module Federation implementation requires a disk filesystem",
-            )?;
-            let implementation_path = disk_fs
-                .await?
-                .try_from_sys_path(disk_fs, implementation_path, None)
-                .context(
-                    "Module Federation implementation is outside the filesystem root; include its \
-                     package in the configured root",
-                )?;
-            project_path
-                .get_relative_request_to(&implementation_path)
-                .context("Module Federation implementation must use the project's filesystem")?
-        } else {
-            implementation.clone()
-        };
-        let shared = shared_entries
-            .into_iter()
-            .map(|(key, entries)| format!("[{}]: [{}]", StringifyJs(key), entries.join(",\n")))
-            .collect::<Vec<_>>()
-            .join(",\n");
+    let init = if let Some(implementation) = &config.implementation {
+        runtime_container_init(&project_path, config, name, implementation).await?
+    } else {
         format!(
-            r#"
-import {{ createInstance }} from {implementation};
+            r#"function init(shareScope, initScope) {{
+  if (initializedScope) {{
+    if (initializedScope !== shareScope) {{
+      throw new Error("Container initialization failed because it has already been initialized with a different share scope");
+    }}
+    return;
+  }}
+  initializedScope = shareScope;
+  {registrations}
+}}"#,
+            registrations = registrations.join("\n"),
+        )
+    };
+    let source = format!(
+        r#"
+const moduleMap = {{
+  {module_entries}
+}};
+let initializedScope;
+function get(request) {{
+  const loader = moduleMap[request];
+  if (!loader) {{
+    return Promise.reject(new Error(`Module ${{request}} does not exist in container {name}`));
+  }}
+  return loader();
+}}
+{init}
+const container = {{ get, init }};
+globalThis[{name_json}] = container;
+export {{ get, init }};
+"#,
+        module_entries = module_entries.join(",\n  "),
+        name_json = StringifyJs(name),
+    );
+    Ok(ResolvedVc::upcast(
+        VirtualSource::new(
+            project_path.join("__turbopack_module_federation_entry__.js")?,
+            AssetContent::file(FileContent::Content(source.into()).cell()),
+        )
+        .to_resolved()
+        .await?,
+    ))
+}
+
+/// Renders a container `init` that registers providers through the runtime implementation and
+/// accepts the runtime's `remoteEntryInitOptions`.
+async fn runtime_container_init(
+    project_path: &FileSystemPath,
+    config: &ModuleFederationConfig,
+    name: &str,
+    implementation: &RcStr,
+) -> Result<String> {
+    let implementation = runtime_implementation_request(project_path, implementation).await?;
+    Ok(format!(
+        r#"import {{ createInstance }} from {implementation};
 const runtime = createInstance({{
   name: {name},
   remotes: [],
   shareStrategy: "loaded-first",
-  shared: {{ {shared} }}
+  shared: {shared}
 }});
 const initToken = {{ from: {name} }};
 let pending;
@@ -133,56 +150,10 @@ function init(shareScope, initScope, remoteEntryInitOptions) {{
     pending = undefined;
   }});
   return pending;
-}}
-"#,
-            implementation = StringifyJs(&implementation),
-            name = StringifyJs(name),
-            scope = StringifyJs(&config.share_scope),
-        )
-    } else {
-        format!(
-            r#"
-function init(shareScope, initScope) {{
-  if (initializedScope) {{
-    if (initializedScope !== shareScope) {{
-      throw new Error("Container initialization failed because it has already been initialized with a different share scope");
-    }}
-    return;
-  }}
-  initializedScope = shareScope;
-  {registrations}
-}}
-"#,
-            registrations = registrations.join("\n"),
-        )
-    };
-    let source = format!(
-        r#"
-const moduleMap = {{
-  {module_entries}
-}};
-let initializedScope;
-function get(request) {{
-  const loader = moduleMap[request];
-  if (!loader) {{
-    return Promise.reject(new Error(`Module ${{request}} does not exist in container {name}`));
-  }}
-  return loader();
-}}
-{initialization}
-const container = {{ get, init }};
-globalThis[{name_json}] = container;
-export {{ get, init }};
-"#,
-        module_entries = module_entries.join(",\n  "),
-        name_json = StringifyJs(name),
-    );
-    Ok(ResolvedVc::upcast(
-        VirtualSource::new(
-            project_path.join("__turbopack_module_federation_entry__.js")?,
-            AssetContent::file(FileContent::Content(source.into()).cell()),
-        )
-        .to_resolved()
-        .await?,
+}}"#,
+        implementation = StringifyJs(&implementation),
+        name = StringifyJs(name),
+        scope = StringifyJs(&config.share_scope),
+        shared = runtime_shared_option(&config.shared),
     ))
 }
