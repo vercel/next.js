@@ -1,9 +1,20 @@
 ---
 title: output
-description: Next.js automatically traces which files are needed by each page to allow for easy deployment of your application. Learn how it works here.
+description: Configure how Next.js builds your application for deployment with the `output` option, and learn how output file tracing works.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+The `output` config option accepts two values:
+
+| Value          | Description                                                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'standalone'` | Copies only the files needed for a production deployment into a `standalone` folder. See [Automatically Copying Traced Files](#automatically-copying-traced-files) below. |
+| `'export'`     | Produces a static site that can be served without a Node.js server. See the [Static Exports](/docs/app/guides/static-exports) guide.                                      |
+
+Leaving `output` unset produces the default build, which requires a Node.js server to run `next start`.
+
+The rest of this page covers output file tracing, which is what `'standalone'` builds on.
 
 During a build, Next.js will automatically trace each page and its dependencies to determine all of the files that are needed for deploying a production version of your application.
 

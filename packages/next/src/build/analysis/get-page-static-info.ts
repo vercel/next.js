@@ -60,8 +60,7 @@ export type ProxyMatcher = {
 
 export type ProxyConfig = {
   /**
-   * The matcher for the proxy. Read more: [Next.js Docs: Proxy `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher),
-   * [Next.js Docs: Proxy matching paths](https://nextjs.org/docs/app/building-your-application/routing/proxy#matching-paths)
+   * The matcher for the proxy. Read more: [Next.js Docs: Proxy `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher)
    */
   matchers?: ProxyMatcher[]
 

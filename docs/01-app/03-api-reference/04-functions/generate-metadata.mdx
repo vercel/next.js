@@ -194,7 +194,7 @@ export function InteractiveComponent() {
 > - If metadata doesn't depend on request information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
 > - `fetch` requests are automatically memoized for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](https://react.dev/reference/react/cache) if `fetch` is unavailable.
 > - `searchParams` are only available in `page.js` segments.
-> - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
+> - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`. A redirect thrown here does not produce an HTTP redirect response: the route responds with a 200 and the redirect is performed on the client, so it requires JavaScript. If the page component redirects as well, the page's redirect is the one that takes effect. Redirect from the page component, or from [Proxy](/docs/app/api-reference/file-conventions/proxy), when you need an HTTP redirect.
 
 ### Metadata Fields
 

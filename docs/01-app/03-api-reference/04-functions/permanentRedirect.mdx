@@ -45,7 +45,7 @@ The `type` parameter has no effect when used in Server Components.
 
 ## Behavior
 
-- In Server Actions and Route Handlers, `permanentRedirect` should be called **outside** the `try` block when using `try/catch` statements because it throws an error.
+- Because `permanentRedirect` throws, call it **outside** the `try` block when using `try/catch` statements. A `try/catch` around the call suppresses the redirect. If you need to catch errors near the call, use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let the interrupt through first.
 - If you prefer to return a 307 (Temporary) HTTP redirect instead of 308 (Permanent), you can use the [`redirect` function](/docs/app/api-reference/functions/redirect) instead.
 
 ## Example
