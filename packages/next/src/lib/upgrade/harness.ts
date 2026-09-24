@@ -13,7 +13,7 @@ import { runChildProcess } from './run-child-process'
 // Model defaults for newly launched sessions; existing agents keep their model.
 const UPGRADE_MODELS = {
   codex: 'gpt-5.6-terra',
-  claude: 'sonnet',
+  claude: 'claude-sonnet-5[1m]',
 } as const
 
 type UpgradeHarness = {
