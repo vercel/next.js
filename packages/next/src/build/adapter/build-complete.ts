@@ -2517,6 +2517,14 @@ async function getSharedNodeAssets({
     )
     currentDependencies.push(modulePath)
 
+    if (type === 'pages' && bundler === Bundler.Turbopack) {
+      currentDependencies.push(
+        require.resolve(
+          'next/dist/compiled/next-server/pages-turbo.runtime.prod.js'
+        )
+      )
+    }
+
     const contextDir = path.join(
       path.dirname(modulePath),
       'vendored',
