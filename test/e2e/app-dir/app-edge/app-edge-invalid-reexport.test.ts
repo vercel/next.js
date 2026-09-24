@@ -8,6 +8,23 @@ describe('app-dir edge SSR invalid reexport', () => {
       'app/export': new FileRef(path.join(__dirname, 'app', 'export')),
       'app/export/inherit/page.tsx':
         "export { default, runtime, preferredRegion } from '../basic/page'",
+      // Vercel rejects deployments with an unknown region, so the deployed
+      // fixture uses a valid one.
+      'app/export/basic/page.tsx':
+        process.env.NEXT_TEST_MODE === 'deploy'
+          ? `export default function Page() {
+  if ('EdgeRuntime' in globalThis) {
+    return <p>Edge!</p>
+  }
+  return <p>Node!</p>
+}
+
+export const runtime = 'edge'
+export const preferredRegion = 'iad1'
+`
+          : new FileRef(
+              path.join(__dirname, 'app', 'export', 'basic', 'page.tsx')
+            ),
     },
     skipStart: true,
   })

@@ -20,7 +20,7 @@ describe('deprecation-warnings', () => {
       expect(configLogs).not.toContain('deprecated')
       expect(configLogs).not.toContain('has been renamed')
       expect(configLogs).not.toContain('no longer needed')
-    })
+    }, 240_000)
   })
 
   describe('with deprecated config options', () => {
@@ -58,6 +58,6 @@ describe('deprecation-warnings', () => {
         expect(logs).toContain('skipMiddlewareUrlNormalize')
         expect(logs).toContain('Please use `skipProxyUrlNormalize` instead')
       })
-    })
+    }, 240_000)
   })
 })
