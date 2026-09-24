@@ -88,9 +88,11 @@ Both use the same envelope:
    section length, not the number of edges. Both newer headers have
    `schema_version: 1` and `module_index_hash`: require **both** fields to
    match before joining a route's numeric module indices to `modules.data`.
-   The hash fingerprints the ordered module identities, **not** the entire
-   build or its outputs. It detects accidental mismatches, not malicious
-   artifact tampering; keep files from the same named snapshot together.
+   `module_index_hash` is a non-cryptographic **ordered-index fingerprint**
+   of module identities and paths. It excludes dependency edges and outputs:
+   equal hashes do **not** prove that two files contain the same graph or
+   build. It detects accidental index mismatches, not artifact tampering;
+   keep files from the same named snapshot together.
    Missing versions are legacy files (decode their older fields without an
    `output_file_modules` join). Unknown versions or mismatched hashes must
    not be joined by index.
@@ -226,7 +228,8 @@ printing entire headers to a model context.
 4. In v1, verify the **version and module-index hash** before reading
    `output_file_modules` or a group/edge trigger index. Traverse the output →
    module rows to find exact chunk membership; check coverage and unmatched
-   identities before using an empty row. Inspect `chunk_groups` and typed
+   identities before using an empty row. An `unsupported` empty row never
+   proves that a chunk contains no modules. Inspect `chunk_groups` and typed
    `chunk_load_edges` to distinguish build-time bootstrap assets,
    render-dependent references, async loader targets, workers and generic
    references. A client reference is not itself an endpoint graph root; do
@@ -265,14 +268,24 @@ bundler: only a measured artifact delta supports a bundle win.
 
 ### When a graph strategy helps
 
-- **Min cut:** For a known client entry set and a target heavy subgraph, start
-  with the directed _synchronous_ module dependency graph. Use matching v1
-  output→module rows, typed groups and load edges to scope the route's
-  build-time bootstrap and **explicitly selected** render-dependent groups;
-  inspect unsupported coverage, unresolved reference counts, and unjoined edges first. This supports a
-  _conditional build-time_ cut, not a verified cold browser-load claim. For a
-  cold-load cut, verify actual requested entry/chunk sets with a network trace;
-  refrain from a definitive result if roles are incomplete. Add a super-source
+- **Min cut:** Select the route, render scenario, all known client entry roots,
+  and the target heavy subgraph; start with the directed _synchronous_ module
+  dependency graph. Use matching v1 output→module rows, typed groups and load
+  edges to scope build-time bootstrap and **explicitly selected**
+  render-dependent groups. **Completeness gate:** Check the selected roots,
+  their reachable outputs and every possible alternate root→target path for
+  unknown roles/triggers, `unsupported` membership, unjoined modules or load
+  edges, and nonzero unresolved reference counts on relevant outputs. If a
+  cumulative group cannot isolate a selected reference's outputs, do not
+  assign that group's chunks to the reference. If any potentially relevant
+  path remains incomplete, **refuse a definitive or exhaustive cut**; absence
+  of a recorded edge is not proof no path exists. Unrelated unsupported outputs
+  elsewhere in the snapshot need not block a scoped result. You may still
+  show a cut of the **known subgraph**, explicitly labeled _provisional_, with
+  the missing evidence and a way to verify it. A sufficiently covered result
+  remains conditional on the selected route/render scenario, not a proven
+  cold browser-load claim. Verify actual requested entry/chunk sets with a
+  cold network trace before claiming an initial-load cut. Add a super-source
   connecting **all** selected client entries and a sink connecting targets;
   find a separating set of import edges (or use node splitting if boundaries
   are modules). Define capacity deliberately: a unit cut minimizes edge count;
@@ -304,7 +317,7 @@ route and report actual paths and values:
 
 - **What contributes most to `/dashboard` client output?** Decode that route's `analyze.data`; filter output filenames after verifying the client convention; group `chunk_parts` by reconstructed source path or package; sum each part once. Report the largest paths, uncompressed/compressed attribution and the selected output files. This ranks **route output**, not proven initial requests.
 - **Why is a large editor included?** Find it in v1 output→module rows (or use source paths as ambiguous leads in legacy artifacts); check the containing chunk's coverage and group roles. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. Browser requests remain unverified without a trace.
-- **Where might a lazy boundary isolate the editor?** Select client entry nodes and a conditional render scenario (or observe a real initial-request set), check the group/edge coverage, then search for **all** synchronous paths to the editor and run a cut only when the scope is defensible. For instance, two independent entry→editor paths need both severed, not just the visually obvious import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
+- **Where might a lazy boundary isolate the editor?** Select client entry nodes and a conditional render scenario (or observe a real initial-request set), check the group/edge coverage, then search for **all** synchronous paths to the editor. If an unknown reference or unsupported chunk might supply another path, report only a provisional cut of the known graph and the evidence needed to complete it. For instance, two independent entry→editor paths need both severed, not just the visually obvious import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
 
 As a toy sanity check, imagine a folder source 0 with no direct parts and a
 child source 1 owning one 100-byte part (40 attributed compressed bytes). The
@@ -387,7 +400,11 @@ For each accepted change include:
 ```
 
 Always distinguish **attribution measurements**, **source facts**, and
-**heuristics** (especially entry detection and cuts). Compressed source parts
+**heuristics** (especially entry detection and cuts). For a cut, state the
+selected route/render conditions, roots and target, whether the result covers
+only the known subgraph, and any unsupported/unjoined/unresolved evidence that
+could alter the paths. If coverage is incomplete, say _provisional_ and name
+what would resolve it; do not call the cut exhaustive. Compressed source parts
 are estimates, not observed network transfer. Include exact output/module
 identifiers, assumptions and uncertainty; use a cold-browser trace/HAR for
 actual request timing and transfer bytes. If artifacts or ports are unavailable,
