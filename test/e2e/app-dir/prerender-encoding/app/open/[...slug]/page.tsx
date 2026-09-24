@@ -1,5 +1,8 @@
 export function generateStaticParams() {
-  return [{ slug: ['docs', 'space here', 'with/slash', '100%'] }]
+  return [
+    { slug: ['docs', 'space here', '100%'] },
+    { slug: ['docs', 'space here', 'with/slash', '100%'] },
+  ]
 }
 
 export default async function Page({
