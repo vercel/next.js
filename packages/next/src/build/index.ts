@@ -347,6 +347,9 @@ export interface DynamicPrerenderManifestRoute
    */
   throwOnEmptyStaticShell?: boolean
 
+  /** True if the build produced an empty static HTML shell. */
+  hasEmptyStaticShell?: boolean
+
   /**
    * When defined, it describes the revalidation configuration for the fallback
    * route.
@@ -3950,6 +3953,8 @@ export default async function build(
                     route.remainingPrerenderableParams,
                   throwOnEmptyStaticShell:
                     prerenderCandidate?.throwOnEmptyStaticShell,
+                  hasEmptyStaticShell:
+                    routeResult?.hasEmptyStaticShell || undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
