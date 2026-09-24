@@ -270,7 +270,7 @@ async fn chunk_group_content_operation(
     };
 
     let chunk_group_info = module_graph.chunk_group_info();
-    let chunk_group_index = *chunk_group_info.get_index_of(chunk_group.clone()).await?;
+    let chunk_group_index = chunk_group_info.get_index_of(chunk_group.clone()).await?;
     let chunk_group_info = chunk_group_info.await?;
     let available_chunk_groups = match availability_info.available_chunk_groups() {
         Some(available_chunk_groups) => {

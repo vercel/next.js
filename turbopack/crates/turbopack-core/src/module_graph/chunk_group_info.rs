@@ -112,6 +112,23 @@ pub struct ChunkGroups(Vec<ChunkGroupWithIndex>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionChunkGroupWithIndex(Option<ChunkGroupWithIndex>);
 
+/// Maps each [`ChunkGroupKey`] to the index of its chunk group in
+/// [`ChunkGroupInfo::chunk_groups`].
+///
+/// This is a keyed cell so that [`ChunkGroupInfo::get_index_of`] can look a single key up with
+/// [`Vc::get`] and make its caller depend only on *that* key, instead of on the whole
+/// [`ChunkGroupInfo`]. Without it, changing any unrelated part of the chunk group info would
+/// invalidate every caller of an index lookup.
+///
+/// It deliberately duplicates the key set held by [`ChunkGroupInfo::chunk_group_keys`], which stays
+/// for the opposite (index -> key) direction. The set cannot serve both: `KeyedAccess for IndexSet`
+/// yields `()` rather than the index, and `KeyedEq for IndexSet` compares membership while ignoring
+/// position, so a key whose index merely *shifted* would not be reported as changed and lookups
+/// would return a stale index. Mapping to the index as the *value* makes `KeyedEq for HashMap`
+/// compare indices, which detects exactly that.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ChunkGroupKeyToIndex(FxHashMap<ChunkGroupKey, u32>);
+
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
@@ -122,6 +139,9 @@ pub struct ChunkGroupInfo {
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    /// The same keys as `chunk_group_keys`, mapped to their index, in a keyed cell so a single
+    /// index lookup does not depend on the whole `ChunkGroupInfo`. See [`ChunkGroupKeyToIndex`].
+    pub chunk_group_indices: ResolvedVc<ChunkGroupKeyToIndex>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
 }
 
@@ -151,26 +171,11 @@ impl ChunkGroupInfo {
         *self.module_chunk_groups
     }
 
+    /// The keyed `ChunkGroupKey` -> index map. Read a single entry from it with [`Vc::get`] to
+    /// depend only on that key rather than on all of [`ChunkGroupInfo`].
     #[turbo_tasks::function]
-    pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
-        if let Some(idx) = self.chunk_group_keys.get_index_of(&chunk_group.key()) {
-            Ok(Vc::cell(idx))
-        } else {
-            if cfg!(debug_assertions) {
-                bail!(
-                    "Couldn't find chunk group index for {} in {}",
-                    chunk_group.debug_str(self).await?,
-                    self.chunk_groups
-                        .iter()
-                        .map(|c| c.debug_str(self))
-                        .try_join()
-                        .await?
-                        .join(", ")
-                );
-            } else {
-                bail!("Couldn't find chunk group index")
-            }
-        }
+    pub fn chunk_group_indices(&self) -> Vc<ChunkGroupKeyToIndex> {
+        *self.chunk_group_indices
     }
 
     /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
@@ -241,6 +246,39 @@ impl ChunkGroupInfo {
                     chunk_group: self.chunk_groups[index].clone(),
                 }),
         )
+    }
+}
+
+impl ChunkGroupInfo {
+    /// Returns the index of `chunk_group` in [`ChunkGroupInfo::chunk_groups`].
+    ///
+    /// The lookup goes through the keyed [`ChunkGroupKeyToIndex`] cell, so the caller depends only
+    /// on the queried key: adding or changing an unrelated chunk group does not invalidate it.
+    ///
+    /// This is deliberately *not* a `turbo_tasks::function`. Making it one would create a separate
+    /// task per chunk group argument, which is exactly the per-chunk-group overhead the keyed cell
+    /// is meant to avoid; the single argument-less [`ChunkGroupInfo::chunk_group_indices`] task is
+    /// what provides the caching.
+    pub async fn get_index_of(self: Vc<Self>, chunk_group: ChunkGroup) -> Result<usize> {
+        let key = chunk_group.key();
+        if let Some(idx) = self.chunk_group_indices().get(&key).await? {
+            Ok(*idx as usize)
+        } else if cfg!(debug_assertions) {
+            // Only taken on the failure path, so the happy path keeps its narrow dependency.
+            let this = self.await?;
+            bail!(
+                "Couldn't find chunk group index for {} in {}",
+                chunk_group.debug_str(&this).await?,
+                this.chunk_groups
+                    .iter()
+                    .map(|c| c.debug_str(&this))
+                    .try_join()
+                    .await?
+                    .join(", ")
+            )
+        } else {
+            bail!("Couldn't find chunk group index")
+        }
     }
 }
 
@@ -475,7 +513,7 @@ impl ChunkGroup {
 }
 
 /// See [ChunkGroup] for documentation
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum ChunkGroupKey {
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
     Async(ResolvedVc<Box<dyn Module>>),
@@ -568,7 +606,7 @@ impl ChunkGroupKey {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, NonLocalValue, Encode, Decode)]
 pub struct ChunkGroupId(u32);
 
 impl From<usize> for ChunkGroupId {
@@ -1074,6 +1112,13 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             async_loader_chunk_groups: ResolvedVc::cell(async_loader_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
+            chunk_group_indices: ResolvedVc::cell(
+                chunk_groups_map
+                    .keys()
+                    .enumerate()
+                    .map(|(index, key)| (key.clone(), index as u32))
+                    .collect(),
+            ),
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,
                 priority_routes: chunk_group_priority_routes,
