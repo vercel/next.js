@@ -183,12 +183,8 @@ impl EcmascriptClientReferenceModule {
     }
 }
 
-pub fn ecmascript_client_reference_merge_tag() -> RcStr {
-    rcstr!("client")
-}
-pub fn ecmascript_client_reference_merge_tag_ssr() -> RcStr {
-    rcstr!("ssr")
-}
+pub const ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG: RcStr = rcstr!("client");
+pub const ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR: RcStr = rcstr!("ssr");
 
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptClientReferenceModule {
@@ -226,7 +222,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(ecmascript_client_reference_merge_tag()),
+                    Some(ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG),
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
@@ -236,7 +232,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(ecmascript_client_reference_merge_tag_ssr()),
+                    Some(ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR),
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()
