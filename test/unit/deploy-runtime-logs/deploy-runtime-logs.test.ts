@@ -101,9 +101,9 @@ describe('deploy runtime logs', () => {
     jest.useRealTimers()
   })
 
-  it('waits for an application message rather than CLI diagnostics', async () => {
+  it('settles on an application message rather than CLI diagnostics', async () => {
     const ready = jest.fn()
-    const waiting = collector.waitForFirstMessage().then(ready)
+    const waiting = collector.waitForStreamReady().then(ready)
     stderr.write('Connected to logs')
     await Promise.resolve()
     expect(ready).not.toHaveBeenCalled()
@@ -112,22 +112,21 @@ describe('deploy runtime logs', () => {
     expect(ready).toHaveBeenCalledTimes(1)
   })
 
-  it('times out after 15 seconds without an application message', async () => {
+  it('proceeds when a quiet deployment emits nothing', async () => {
+    // A deployment logs only once a request reaches it, and the requests are
+    // made by the test bodies, after setup. Elapsing here must not fail them.
     jest.useFakeTimers()
-    const waiting = collector.waitForFirstMessage().catch((error) => error)
-    await jest.advanceTimersByTimeAsync(15_000)
-    expect(await waiting).toEqual(
-      expect.objectContaining({
-        message: expect.stringContaining(
-          'No Vercel runtime log received within 15000ms'
-        ),
-      })
+    const waiting = collector.waitForStreamReady().then(
+      () => 'ready',
+      (error) => error
     )
+    await jest.advanceTimersByTimeAsync(15_000)
+    expect(await waiting).toBe('ready')
     expect(jest.getTimerCount()).toBe(0)
   })
 
   it('fails startup immediately when the collector exits', async () => {
-    const waiting = collector.waitForFirstMessage()
+    const waiting = collector.waitForStreamReady()
     fail()
     await expect(waiting).rejects.toThrow('collection failed')
   })
