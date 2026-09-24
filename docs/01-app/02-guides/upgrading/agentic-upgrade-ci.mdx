@@ -45,9 +45,9 @@ jobs:
       pull-requests: write
     uses: vercel/next.js/.github/workflows/next-upgrade.yml@canary
     secrets:
-      openai-api-key: ${{ secrets.NEXT_UPGRADE_OPENAI_API_KEY }}
-      anthropic-api-key: ${{ secrets.NEXT_UPGRADE_ANTHROPIC_API_KEY }}
-      claude-code-oauth-token: ${{ secrets.NEXT_UPGRADE_CLAUDE_CODE_OAUTH_TOKEN }}
+      openai-api-key: ${{ secrets.NEXT_AI_UPGRADE_OPENAI_API_KEY }}
+      anthropic-api-key: ${{ secrets.NEXT_AI_UPGRADE_ANTHROPIC_API_KEY }}
+      claude-code-oauth-token: ${{ secrets.NEXT_AI_UPGRADE_CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 Only one secret needs a value. The reusable workflow selects the matching
@@ -60,8 +60,8 @@ into Next.js.
 - [ ] Check out the app and run `next upgrade --ai` through the selected agent.
       The agent may open a draft PR without asking again.
 - [ ] Check GitHub for an open upgrade PR targeting the default branch with
-      the expected type and `path="."` marker. Report whether it existed or
-      appeared during this run.
+      a valid upgrade type and `path="."` marker. The agent checks whether an
+      existing PR is equivalent; the marker alone does not prove that.
 - [ ] Succeed only if the agent succeeds and that PR is verified. Otherwise,
       fail with a reason. This includes a run with no applicable upgrade and
       no open upgrade PR.
