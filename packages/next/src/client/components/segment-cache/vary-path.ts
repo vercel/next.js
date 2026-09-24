@@ -242,7 +242,7 @@ export function finalizeMetadataVaryPath(
   // parallel pages.
   //
   // However, this means the metadata request key is insufficient for
-  // caching the the metadata in the client cache, because on the client we
+  // caching the metadata in the client cache, because on the client we
   // use the request key to distinguish the metadata entry from all other
   // page's metadata entries.
   //
@@ -325,7 +325,7 @@ export function getSegmentVaryPathForRequest(
       fetchStrategy === FetchStrategy.PPRRuntime
 
     if (!doesVaryOnSearchParams) {
-      // The response from the the server will not vary on search params. Clone
+      // The response from the server will not vary on search params. Clone
       // the end of the original vary path to replace the search params
       // with Fallback.
       //
