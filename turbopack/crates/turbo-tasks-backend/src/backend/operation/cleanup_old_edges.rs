@@ -107,7 +107,37 @@ impl CleanupOldEdgesOperation {
         .execute_with_stats(ctx)
     }
 
-    fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
+    /// GC variant: tears down `outdated`, running only the edge deletions.
+    ///
+    /// Returns the balance jobs that the deletions produced, for the caller to replay once the
+    /// parallel collect is quiescent. Deletion is safe to run concurrently, but `balance_edge`
+    /// *adds* edges, which is not while other workers are still collecting.
+    pub fn run_edge_deletions_only<'a, C: ExecuteContext<'a>>(
+        task_id: TaskId,
+        outdated: Vec<OutdatedEdge>,
+        ctx: &mut C,
+    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<C> {
+        let op = CleanupOldEdgesOperation::RemoveEdges {
+            task_id,
+            outdated,
+            queue: AggregationUpdateQueue::new_without_optimizations(),
+        };
+        op.execute_inner(ctx, true)
+            .1
+            .map(|mut queue| queue.take_deferred_balance_edges())
+            .into_iter()
+            .flatten()
+    }
+
+    fn execute_with_stats(self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
+        self.execute_inner(ctx, false).0
+    }
+
+    fn execute_inner(
+        mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        stop_when_only_rebalance_remains: bool,
+    ) -> (Stats, Option<AggregationUpdateQueue>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -320,6 +350,12 @@ impl CleanupOldEdgesOperation {
                     }
                 }
                 CleanupOldEdgesOperation::AggregationUpdate { ref mut queue } => {
+                    if stop_when_only_rebalance_remains && queue.only_rebalance_remains() {
+                        // Edge removal is done; hand the rebalance back to the caller. Any
+                        // other pending work would be dropped here, so `only_rebalance_remains`
+                        // asserts that nothing else is left.
+                        return (Default::default(), Some(take(queue)));
+                    }
                     if queue.process(ctx) {
                         self = CleanupOldEdgesOperation::Done {
                             #[cfg(feature = "trace_aggregation_update_stats")]
@@ -330,7 +366,7 @@ impl CleanupOldEdgesOperation {
                     }
                 }
                 CleanupOldEdgesOperation::Done { stats } => {
-                    return stats;
+                    return (stats, None);
                 }
             }
         }
