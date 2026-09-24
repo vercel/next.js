@@ -113,7 +113,7 @@ fn read_trace_bytes_impl(
     }
 
     let store = Arc::new(StoreContainer::new());
-    let mut parser = TraceParser::new(store.clone());
+    let mut parser = TraceParser::new_complete(store.clone());
     let mut uncompressed_bytes_read = 0;
 
     if bytes.starts_with(GZIP_MAGIC) {
