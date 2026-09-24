@@ -534,11 +534,11 @@ export async function startServer(
                 agentFeedbackConfigured && telemetryEnabled
               ),
               (files) =>
-                `Generated agent feedback instructions in ${files}. Set \`agentFeedback: false\` in next.config to disable.`,
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
               (files) =>
                 agentFeedbackConfigured
                   ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
-                  : `Removed agent feedback instructions from ${files} because \`agentFeedback\` is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
             )
           }
         }

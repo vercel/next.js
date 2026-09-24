@@ -502,6 +502,11 @@ export interface ExperimentalConfig {
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
   /**
+   * Adds managed instructions to AGENTS.md that let AI coding agents prepare
+   * anonymized Next.js feedback for user review.
+   */
+  agentFeedback?: boolean
+  /**
    * Additional filesystem roots that symlinked dependencies may resolve into.
    * Relative paths are resolved from the current working directory.
    *
@@ -2165,14 +2170,6 @@ export interface NextConfig {
   agentRules?: boolean
 
   /**
-   * Adds managed instructions to AGENTS.md that let AI coding agents prepare
-   * anonymized Next.js feedback for user review.
-   *
-   * @default false
-   */
-  agentFeedback?: boolean
-
-  /**
    * Options for deprecated features that are still available for backwards
    * compatibility.
    */
@@ -2314,7 +2311,6 @@ export const defaultConfig = Object.freeze({
   allowedDevOrigins: undefined,
   enablePrerenderSourceMaps: true,
   cacheComponents: false,
-  agentFeedback: false,
   cacheLife: {
     default: {
       stale: undefined, // defaults to staleTimes.static
@@ -2360,6 +2356,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
@@ -2508,7 +2505,6 @@ export interface NextConfigRuntime {
   cacheComponents: NextConfigComplete['cacheComponents']
   partialPrefetching: NextConfigComplete['partialPrefetching']
   agentRules: NextConfigComplete['agentRules']
-  agentFeedback: NextConfigComplete['agentFeedback']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
   output?: NextConfigComplete['output']
@@ -2537,6 +2533,7 @@ export interface NextConfigRuntime {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'taint'
+    | 'agentFeedback'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
@@ -2608,6 +2605,7 @@ export function getNextConfigRuntime(
 
   const experimental = {
     taint: ex.taint,
+    agentFeedback: ex.agentFeedback,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,
@@ -2673,7 +2671,6 @@ export function getNextConfigRuntime(
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
-    agentFeedback: config.agentFeedback,
     htmlLimitedBots: config.htmlLimitedBots,
     assetPrefix: config.assetPrefix,
     output: config.output,

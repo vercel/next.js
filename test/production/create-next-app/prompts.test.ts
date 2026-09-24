@@ -268,19 +268,16 @@ describe('create-next-app prompts', () => {
           expect(output).toMatch(/agents prepare anonymized feedback/)
           expect(output).toMatch(/for your review as you code/)
         })
-        // Cursor forward, choose "Yes" for agent feedback.
-        childProcess.stdin.write('\u001b[C\n')
+        // Accept the default "Yes" for agent feedback.
+        childProcess.stdin.write('\n')
       })
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
       expectTurbopackTailwindSetup(cwd, projectName)
-      const nextConfig = readFileSync(
-        join(cwd, projectName, 'next.config.ts'),
-        'utf8'
-      )
-      expect(nextConfig).toContain('\n  agentFeedback: true,\n')
-      expect(nextConfig).not.toContain('experimental')
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
     })
   })
 
@@ -327,9 +324,9 @@ describe('create-next-app prompts', () => {
         })
 
         await retry(async () => {
-          expect(output).toMatch(/help improve Next\.js with agent feedback/)
+          expect(output).toMatch(/agents prepare anonymized feedback/)
         })
-        // Keep agent feedback disabled.
+        // Accept the default "Yes" for agent feedback.
         childProcess.stdin.write('\n')
 
         childProcess.on('exit', async (exitCode) => {

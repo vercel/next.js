@@ -2,7 +2,9 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   agentRules: false,
-  agentFeedback: true,
+  experimental: {
+    agentFeedback: true,
+  },
 }
 
 export default nextConfig
