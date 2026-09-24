@@ -2,7 +2,7 @@ import { spawn } from 'child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
-import { prerelease, valid } from 'next/dist/compiled/semver'
+import { major, prerelease, valid } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
@@ -254,11 +254,13 @@ export async function spawnNextUpgrade(
         return
       }
 
-      const needsVersionMigration =
+      const needsVersionUpdate =
         result.installedVersion !== result.targetVersion
+      const crossesMajor =
+        major(result.installedVersion) !== major(result.targetVersion)
 
       Log.info(
-        needsVersionMigration
+        needsVersionUpdate
           ? `Upgrade: Next.js ${result.installedVersion} → ${result.targetVersion}`
           : `Future Defaults: Next.js ${result.installedVersion}`
       )
@@ -267,22 +269,94 @@ export async function spawnNextUpgrade(
       // Retain them outside the app so dependency changes cannot remove them.
       const bundledDocs = join(__dirname, '../docs')
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
-      const guidePath = join(
+      const guideName = crossesMajor
+        ? 'different-major'
+        : needsVersionUpdate
+          ? 'same-major'
+          : 'future-defaults'
+      const guideDirectory = 'docs/01-app/02-guides/upgrading/agentic-upgrade'
+      const sharedGuidePath = join(runDirectory, guideDirectory, 'shared.md')
+      const guidePath = join(runDirectory, guideDirectory, `${guideName}.md`)
+      const futureGuidePath = join(
         runDirectory,
-        'docs/01-app/02-guides/upgrading/agentic-upgrade.md'
+        guideDirectory,
+        'future-defaults.md'
       )
       const guidesSpinner = createSpinner('Preparing upgrade')
 
       try {
-        for (const router of ['01-app', '02-pages']) {
+        await mkdir(dirname(guidePath), { recursive: true })
+        await cp(
+          join(
+            bundledDocs,
+            '01-app/02-guides/upgrading/agentic-upgrade/shared.md'
+          ),
+          sharedGuidePath
+        )
+        await cp(
+          join(
+            bundledDocs,
+            '01-app/02-guides/upgrading/agentic-upgrade',
+            `${guideName}.md`
+          ),
+          guidePath
+        )
+
+        if (crossesMajor) {
           await cp(
-            join(bundledDocs, router, '02-guides/upgrading'),
-            join(runDirectory, 'docs', router, '02-guides/upgrading'),
-            { recursive: true }
+            join(bundledDocs, '01-app/02-guides/upgrading/codemods.md'),
+            join(runDirectory, 'docs/01-app/02-guides/upgrading/codemods.md')
+          )
+          for (
+            let version = major(result.installedVersion) + 1;
+            version <= major(result.targetVersion);
+            version++
+          ) {
+            const router = version < 14 ? '02-pages' : '01-app'
+            const destination = join(
+              runDirectory,
+              'docs',
+              router,
+              '02-guides/upgrading',
+              `version-${version}.md`
+            )
+            await mkdir(dirname(destination), { recursive: true })
+            await cp(
+              join(
+                bundledDocs,
+                router,
+                '02-guides/upgrading',
+                `version-${version}.md`
+              ),
+              destination
+            )
+          }
+          if (major(result.installedVersion) < 13) {
+            await mkdir(
+              join(runDirectory, 'docs/02-pages/02-guides/upgrading'),
+              { recursive: true }
+            )
+            await cp(
+              join(bundledDocs, '02-pages/02-guides/upgrading/codemods.md'),
+              join(
+                runDirectory,
+                'docs/02-pages/02-guides/upgrading/codemods.md'
+              )
+            )
+          }
+        }
+
+        if (upgradeType === 'future' && needsVersionUpdate) {
+          await cp(
+            join(
+              bundledDocs,
+              '01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md'
+            ),
+            futureGuidePath
           )
         }
 
-        if (needsVersionMigration) {
+        if (crossesMajor) {
           const codemodVersion = process.env.__NEXT_VERSION
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
@@ -359,24 +433,23 @@ export async function spawnNextUpgrade(
           ? 'the installed version is affected by a published security advisory'
           : upgradeType === 'latest'
             ? `a newer ${releaseKind} Next.js release is available`
-            : `the Future policy applies the latest ${releaseKind} release and adopts its Future Defaults`
-      const futureDefaultsPrompt = preparedFutureDefaults.length
-        ? `
-${needsVersionMigration ? 'After completing and verifying the version migration, adopt' : 'Adopt'} these Future Defaults in order:
-${preparedFutureDefaults
-  .map(
-    (futureDefault) =>
-      `- ${futureDefault.name}\n${futureDefault.documents.map((document) => `  - Read and follow ${JSON.stringify(document)}.`).join('\n')}`
-  )
-  .join('\n')}
-Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.`
-        : ''
+            : `the Future policy applies the latest ${releaseKind} release${preparedFutureDefaults.length > 0 ? ' and adopts its Future Defaults' : ''}`
+      const futureDefaultsList = preparedFutureDefaults
+        .map(
+          (futureDefault) =>
+            `- ${futureDefault.name}\n${futureDefault.documents.map((document) => `  - Read and follow ${JSON.stringify(document)}.`).join('\n')}`
+        )
+        .join('\n')
+      const futureDefaultsPrompt =
+        upgradeType === 'future'
+          ? `${needsVersionUpdate ? `After completing and verifying the version update, read and follow ${JSON.stringify(futureGuidePath)}.\n` : ''}${futureDefaultsList ? `Adopt these Future Defaults in order:\n${futureDefaultsList}\nComplete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.` : 'No Future Defaults are pending adoption.'}`
+          : ''
 
       // Pass resolved inputs directly; the agent owns repairs and verification.
-      const taskSummary = needsVersionMigration
+      const taskSummary = needsVersionUpdate
         ? `We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.`
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
-      const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
+      const prompt = `Read and follow ${JSON.stringify(sharedGuidePath)} first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
 
 ${taskSummary}
 

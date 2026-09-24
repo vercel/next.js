@@ -93,6 +93,12 @@ function normalizedFileWriteCalls() {
     ])
 }
 
+function normalizedCopiedSources(): string[] {
+  return jest
+    .mocked(cp)
+    .mock.calls.map(([source]) => String(source).replace(/\\+/g, '/'))
+}
+
 function normalizedWriteFileCalls() {
   return normalizedFileWriteCalls().filter(([path]) =>
     String(path).includes('/skills/')
@@ -441,15 +447,30 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md'
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(
       /^Run npx @next\/codemod@\S+ upgrade 16\.3\.5 --yes --skip-adoption$/
     )
+    const copiedSources = normalizedCopiedSources()
+    expect(copiedSources).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/agentic-upgrade/shared.md'),
+        expect.stringContaining('/agentic-upgrade/different-major.md'),
+        expect.stringContaining('/codemods.md'),
+        expect.stringContaining('/version-15.md'),
+        expect.stringContaining('/version-16.md'),
+      ])
+    )
+    expect(
+      copiedSources.some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
+    ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
@@ -474,7 +495,7 @@ describe('agentic upgrade prompts', () => {
 
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md'
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(/--skip-adoption --verbose$/)
   })
@@ -533,10 +554,20 @@ describe('agentic upgrade prompts', () => {
 
     expect(loadConfig).not.toHaveBeenCalled()
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+    expect(readFile).toHaveBeenCalledTimes(0)
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(
+      normalizedCopiedSources().some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
+    ).toBe(false)
+    expect(
+      normalizedCopiedSources().some((source) => source.includes('/02-pages/'))
+    ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
@@ -549,6 +580,85 @@ describe('agentic upgrade prompts', () => {
        ],
      ]
     `)
+  })
+
+  it('uses the same-major guide for a security update', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '15.0.0',
+      targetVersion: '15.5.26',
+      references: ['https://example.com/advisory'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'security',
+    })
+
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      '/agentic-upgrade/shared.md'
+    )
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      '/agentic-upgrade/same-major.md'
+    )
+    expect(readFile).toHaveBeenCalledTimes(0)
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(normalizedCopiedSources()).toEqual([
+      expect.stringContaining('/agentic-upgrade/shared.md'),
+      expect.stringContaining('/agentic-upgrade/same-major.md'),
+    ])
+  })
+
+  it('uses the different-major guide for a latest update', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '15.5.26',
+      targetVersion: '16.3.5',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      '/agentic-upgrade/different-major.md'
+    )
+    expect(
+      normalizedCopiedSources().some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
+    ).toBe(false)
+  })
+
+  it('adds the Future Defaults guide after a different-major update', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '15.5.26',
+      targetVersion: '16.3.5',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'future',
+    })
+
+    const prompt = normalizedBootstrapCalls().flat().join('\n')
+    expect(prompt).toContain('/agentic-upgrade/different-major.md')
+    expect(prompt).toContain('/agentic-upgrade/future-defaults.md')
+    expect(normalizedCopiedSources()).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+      ])
+    )
   })
 
   it.each(['latest', 'future'] as const)(
@@ -579,13 +689,12 @@ describe('agentic upgrade prompts', () => {
           : 'latest canary release'
       )
       expect(prompt).toContain('https://registry.npmjs.org/next/canary')
-      expect(String(jest.mocked(writeFile).mock.calls[0][1])).toContain(
-        'upgrade 17.2.0-canary.9 --yes --skip-adoption'
-      )
+      expect(readFile).toHaveBeenCalledTimes(0)
+      expect(writeFile).toHaveBeenCalledTimes(0)
     }
   )
 
-  it('adds temporary Future Default instructions to the migration prompt', async () => {
+  it('adds the Future Defaults guide after a same-major update', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '16.2.0',
@@ -631,12 +740,13 @@ describe('agentic upgrade prompts', () => {
     })
 
     expect(crossSpawn).toHaveBeenCalledTimes(1)
-    expect(normalizedFileWriteCalls()).toContainEqual([
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
-      expect.stringMatching(
-        /^Run npx @next\/codemod@\S+ upgrade 16\.4\.0 --yes --skip-adoption$/
-      ),
-    ])
+    expect(readFile).toHaveBeenCalledTimes(0)
+    expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
+    expect(normalizedCopiedSources()).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+      ])
+    )
 
     expect({
       prompt: normalizedBootstrapCalls(),
@@ -645,7 +755,7 @@ describe('agentic upgrade prompts', () => {
      {
        "prompt": [
          [
-           "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+           "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
@@ -653,7 +763,8 @@ describe('agentic upgrade prompts', () => {
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
-     After completing and verifying the version migration, adopt these Future Defaults in order:
+     After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
+     Adopt these Future Defaults in order:
      - Cache Components
        - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
        - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
@@ -674,7 +785,7 @@ describe('agentic upgrade prompts', () => {
     `)
   })
 
-  it('includes the shared preflight without a version migration when current', async () => {
+  it('uses only the Future Defaults guide when the version is unchanged', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '16.4.0',
@@ -730,20 +841,20 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/docs/01-app/02-guides/upgrading'),
-          '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading',
+          expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+          '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md',
         ],
       ])
     )
     expect(readFile).not.toHaveBeenCalled()
     expect(normalizedFileWriteCalls()).not.toContainEqual([
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md',
       expect.anything(),
     ])
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 
