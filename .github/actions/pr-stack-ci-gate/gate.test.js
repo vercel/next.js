@@ -230,6 +230,7 @@ test('older success releases even when nearer predecessor is pending', async () 
     },
   })
   expect(core.failures).toEqual([])
+  expect(core.outputs.get('skip')).toBe('false')
   expect(calls.refs).toEqual(['head-3', 'head-2', 'head-1', 'head-2'])
   expect(core.summaries.join('\n')).toContain('PR #2 passed thank you, next')
 })
