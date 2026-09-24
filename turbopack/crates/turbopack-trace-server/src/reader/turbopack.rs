@@ -14,6 +14,7 @@ use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 use super::TraceFormat;
 use crate::{
     span::{SpanArgs, SpanIndex},
+    store::OutdatedSpans,
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
 };
@@ -108,7 +109,7 @@ pub struct TurbopackFormat {
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
-    outdated_spans: FxHashSet<SpanIndex>,
+    outdated_spans: OutdatedSpans,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
@@ -128,7 +129,7 @@ impl TurbopackFormat {
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
-            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
+            outdated_spans: OutdatedSpans::with_capacity(8_192, invalidate_caches),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             thread_allocation_counters: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
