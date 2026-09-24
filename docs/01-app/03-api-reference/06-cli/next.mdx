@@ -265,14 +265,16 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor
 
 The following options are available for the `next analyze` command:
 
-| Option          | Description                                                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-h, --help`    | Show all available options.                                                                                                                   |
-| `[directory]`   | A directory on which to analyze the application. If not provided, the current directory will be used.                                         |
-| `--no-mangling` | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes. |
-| `--profile`     | Enables production [profiling for React](https://react.dev/reference/react/Profiler). This may affect performance.                            |
-| `-o, --output`  | Write analysis files to disk without starting the server. Output is written to `.next/diagnostics/analyze`.                                   |
-| `--port <port>` | Specify a port number to serve the analyzer on. (default: 4000, env: PORT)                                                                    |
+| Option                    | Description                                                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`              | Show all available options.                                                                                                                   |
+| `[directory]`             | A directory on which to analyze the application. If not provided, the current directory will be used.                                         |
+| `--experimental-app-only` | Analyzes only App Router routes.                                                                                                              |
+| `--no-mangling`           | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes. |
+| `--profile`               | Enables production [profiling for React](https://react.dev/reference/react/Profiler). This may affect performance.                            |
+| `--snapshot-name <name>`  | Names the snapshot created by this run. The name appears in the comparison UI instead of the Git branch and commit.                           |
+| `-o, --output`            | Write analysis files to disk without starting the server. Output is written to `.next/diagnostics/analyze`.                                   |
+| `--port <port>`           | Specify a port number to serve the analyzer on. (default: 4000, env: PORT)                                                                    |
 
 ## Examples
 
