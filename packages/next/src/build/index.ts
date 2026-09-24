@@ -4617,8 +4617,9 @@ export default async function build(
       if (adapterPath) {
         await nextBuildSpan
           .traceChild('adapter-handle-build-complete')
-          .traceAsyncFn(async () => {
+          .traceAsyncFn(async (adapterBuildCompleteSpan) => {
             await handleBuildComplete({
+              buildSpan: adapterBuildCompleteSpan,
               dir,
               distDir,
               config,
