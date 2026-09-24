@@ -1,9 +1,9 @@
 import React from 'react'
 
-export default function RemoteComponent() {
+export default function WebpackRemoteComponent() {
   return React.createElement(
     'p',
     { id: 'remote-react-component' },
-    'next/dynamic from federated remote'
+    'next/dynamic from webpack remote'
   )
 }

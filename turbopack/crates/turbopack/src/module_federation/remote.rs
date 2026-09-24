@@ -1,9 +1,7 @@
-use std::{collections::BTreeMap, path::Path};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     resolve::{
@@ -19,11 +17,10 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::module_federation::config::{
-    ModuleFederationConfig, ModuleFederationRemote, ModuleFederationShared,
+use crate::module_federation::{
+    config::{ModuleFederationConfig, ModuleFederationRemote, ModuleFederationShared},
+    runtime_implementation::{runtime_implementation_request, runtime_shared_option},
 };
-
-const IMPLEMENTATION_HOST_REQUEST: &str = "__turbopack_module_federation_host__";
 
 fn provider_registrations(shared: &[ModuleFederationShared], host_name: &str) -> Result<String> {
     let mut registrations = Vec::new();
@@ -59,14 +56,16 @@ pub fn apply_module_federation_import_map(
 ) {
     let host_name = config.name.clone().unwrap_or_else(|| "host".into());
     if let Some(implementation) = &config.implementation {
-        let host_replacer = ModuleFederationHostReplacer {
+        let host_replacer = ModuleFederationRuntimeHostReplacer {
             project_path: project_path.clone(),
             implementation: implementation.clone(),
-            config: config.clone(),
+            remotes: config.remotes.clone(),
+            shared: config.shared.clone(),
+            host_name: host_name.clone(),
         }
         .resolved_cell();
         import_map.insert_exact_alias(
-            IMPLEMENTATION_HOST_REQUEST,
+            RUNTIME_HOST_REQUEST,
             ImportMapping::Dynamic(ResolvedVc::upcast(host_replacer)).resolved_cell(),
         );
     }
@@ -79,7 +78,7 @@ pub fn apply_module_federation_import_map(
             shared: config.shared.clone(),
             host_name: host_name.clone(),
             init_request: init_request.clone(),
-            implementation_remote_index: config.implementation.as_ref().map(|_| index),
+            runtime_remote_index: config.implementation.as_ref().map(|_| index),
         }
         .resolved_cell();
         import_map.insert_exact_alias(
@@ -102,21 +101,14 @@ pub fn apply_module_federation_import_map(
 
 #[turbo_tasks::value]
 #[derive(Clone)]
-struct ModuleFederationHostReplacer {
-    project_path: FileSystemPath,
-    implementation: RcStr,
-    config: ModuleFederationConfig,
-}
-
-#[turbo_tasks::value]
-#[derive(Clone)]
 struct ModuleFederationRemoteInitReplacer {
     project_path: FileSystemPath,
     remote: ModuleFederationRemote,
     shared: Vec<ModuleFederationShared>,
     host_name: RcStr,
     init_request: RcStr,
-    implementation_remote_index: Option<usize>,
+    /// Set when the remote is loaded through the runtime implementation's host instance.
+    runtime_remote_index: Option<usize>,
 }
 
 #[turbo_tasks::value]
@@ -126,159 +118,6 @@ struct ModuleFederationRemoteReplacer {
     remote: ModuleFederationRemote,
     init_request: RcStr,
     await_factory: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ImportMappingReplacement for ModuleFederationHostReplacer {
-    #[turbo_tasks::function]
-    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Dynamic(ResolvedVc::upcast(self.clone().resolved_cell())).cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn result(
-        self: Vc<Self>,
-        _lookup_path: FileSystemPath,
-        _request: Vc<Request>,
-    ) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
-        let implementation_path = Path::new(&*this.implementation);
-        let implementation = if implementation_path.is_absolute() {
-            let fs = this.project_path.fs().to_resolved().await?;
-            let disk_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs).context(
-                "An absolute Module Federation implementation requires a disk filesystem",
-            )?;
-            let implementation_path = disk_fs
-                .await?
-                .try_from_sys_path(disk_fs, implementation_path, None)
-                .context(
-                    "Module Federation implementation is outside the filesystem root; include its \
-                     package in the configured root",
-                )?;
-            this.project_path
-                .get_relative_request_to(&implementation_path)
-                .context("Module Federation implementation must use the project's filesystem")?
-        } else {
-            this.implementation.clone()
-        };
-        let mut remotes = Vec::new();
-        for (remote_index, remote) in this.config.remotes.iter().enumerate() {
-            for (candidate_index, external) in remote.external.iter().enumerate() {
-                remotes.push(serde_json::json!({
-                    "name": format!("__turbopack_remote_{remote_index}_{candidate_index}_{}", external.global),
-                    "entry": external.url,
-                    "entryGlobalName": external.global,
-                    "type": "global",
-                    "shareScope": remote.share_scope,
-                }));
-            }
-        }
-        let mut shared_entries: BTreeMap<&RcStr, Vec<String>> = BTreeMap::new();
-        for shared in &this.config.shared {
-            let Some(import) = &shared.import else {
-                continue;
-            };
-            shared_entries
-                .entry(&shared.share_key)
-                .or_default()
-                .push(format!(
-                    r#"{{
-  version: {version},
-  scope: [{scope}],
-  get: () => import({import}).then((module) => () => module),
-  shareConfig: {{ eager: {eager}, requiredVersion: false }}
-}}"#,
-                    version = StringifyJs(shared.version.as_deref().unwrap_or("0")),
-                    scope = StringifyJs(&shared.share_scope),
-                    import = StringifyJs(import),
-                    eager = shared.eager,
-                ));
-        }
-        let shared = shared_entries
-            .into_iter()
-            .map(|(key, entries)| format!("[{}]: [{}]", StringifyJs(key), entries.join(",\n")))
-            .collect::<Vec<_>>()
-            .join(",\n");
-        let code = format!(
-            r#"
-import {{ createInstance }} from {implementation};
-export const host = createInstance({{
-  name: {host_name},
-  shareStrategy: "loaded-first",
-  remotes: {remotes},
-  shared: {{ {shared} }}
-}});
-"#,
-            implementation = StringifyJs(&implementation),
-            host_name = StringifyJs(this.config.name.as_deref().unwrap_or("host")),
-            remotes = StringifyJs(&remotes),
-        );
-        let source = VirtualSource::new(
-            this.project_path
-                .join(".turbopack-module-federation-host.js")?,
-            AssetContent::file(FileContent::Content(code.into()).cell()),
-        )
-        .to_resolved()
-        .await?;
-        Ok(ImportMapResult::Result(
-            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
-        )
-        .cell())
-    }
-}
-
-fn implementation_remote_source(remote_index: usize, remote: &ModuleFederationRemote) -> String {
-    let candidates = remote
-        .external
-        .iter()
-        .enumerate()
-        .map(|(index, external)| {
-            (
-                format!(
-                    "__turbopack_remote_{remote_index}_{index}_{}",
-                    external.global
-                ),
-                &external.global,
-                &external.url,
-            )
-        })
-        .collect::<Vec<_>>();
-    format!(
-        r#"
-import {{ host }} from {host_request};
-const candidates = {candidates};
-
-export async function get(request, fullRequest) {{
-  await Promise.all(host.initializeSharing({share_scope}, {{ strategy: "loaded-first" }}));
-  const failures = [];
-  for (const [name, globalName, url] of candidates) {{
-    try {{
-      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
-        await __turbopack_load_by_url__(url, true);
-      }}
-      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
-        throw new Error(`Container global ${{globalName}} is missing after loading ${{url}}`);
-      }}
-      const id = request === "." ? name : `${{name}}/${{request.slice(2)}}`;
-      const factory = await host.loadRemote(id, {{ loadFactory: false, from: "runtime" }});
-      if (typeof factory !== "function") {{
-        throw new Error(`Container ${{globalName}} returned no factory for ${{request}}`);
-      }}
-      return factory;
-    }} catch (error) {{
-      failures.push(error);
-    }}
-  }}
-  const details = failures.map((failure) => failure?.message || String(failure)).join("; ");
-  const error = new Error(`Failed to load federated module ${{fullRequest}}: ${{details}}`);
-  error.cause = failures;
-  throw error;
-}}
-"#,
-        host_request = StringifyJs(IMPLEMENTATION_HOST_REQUEST),
-        candidates = StringifyJs(&candidates),
-        share_scope = StringifyJs(&remote.share_scope),
-    )
 }
 
 #[turbo_tasks::value_impl]
@@ -295,18 +134,19 @@ impl ImportMappingReplacement for ModuleFederationRemoteInitReplacer {
         _request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let this = self.await?;
-        let code = if let Some(index) = this.implementation_remote_index {
-            implementation_remote_source(index, &this.remote)
-        } else {
-            let candidates = this
-                .remote
-                .external
-                .iter()
-                .map(|external| (&*external.global, &*external.url))
-                .collect::<Vec<_>>();
-            let registrations = provider_registrations(&this.shared, &this.host_name)?;
-            format!(
-                r#"
+        if let Some(remote_index) = this.runtime_remote_index {
+            return runtime_remote_init_result(&this.project_path, &this.remote, remote_index)
+                .await;
+        }
+        let candidates = this
+            .remote
+            .external
+            .iter()
+            .map(|external| (&*external.global, &*external.url))
+            .collect::<Vec<_>>();
+        let registrations = provider_registrations(&this.shared, &this.host_name)?;
+        let code = format!(
+            r#"
 const candidates = {candidates};
 const remoteKey = {remote_key};
 const federation = __turbopack_module_federation__;
@@ -374,11 +214,10 @@ export async function get(request, fullRequest) {{
   throw error;
 }}
 "#,
-                candidates = StringifyJs(&candidates),
-                remote_key = StringifyJs(&this.remote.request),
-                share_scope = StringifyJs(&this.remote.share_scope),
-            )
-        };
+            candidates = StringifyJs(&candidates),
+            remote_key = StringifyJs(&this.remote.request),
+            share_scope = StringifyJs(&this.remote.share_scope),
+        );
         let virtual_name = format!(
             ".turbopack-module-federation-init-{}.js",
             this.remote.request.replace('/', "_")
@@ -449,4 +288,150 @@ __turbopack_export_namespace__(federatedModule);
         )
         .cell())
     }
+}
+
+const RUNTIME_HOST_REQUEST: &str = "__turbopack_module_federation_host__";
+
+/// Name of a remote candidate in the runtime implementation's host instance. It includes the
+/// container global because the runtime caches containers by remote name across instances.
+fn runtime_remote_name(remote_index: usize, candidate_index: usize, global: &str) -> String {
+    format!("__turbopack_remote_{remote_index}_{candidate_index}_{global}")
+}
+
+#[turbo_tasks::value]
+#[derive(Clone)]
+struct ModuleFederationRuntimeHostReplacer {
+    project_path: FileSystemPath,
+    implementation: RcStr,
+    remotes: Vec<ModuleFederationRemote>,
+    shared: Vec<ModuleFederationShared>,
+    host_name: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for ModuleFederationRuntimeHostReplacer {
+    #[turbo_tasks::function]
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Dynamic(ResolvedVc::upcast(self.clone().resolved_cell())).cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn result(
+        self: Vc<Self>,
+        _lookup_path: FileSystemPath,
+        _request: Vc<Request>,
+    ) -> Result<Vc<ImportMapResult>> {
+        let this = self.await?;
+        let implementation =
+            runtime_implementation_request(&this.project_path, &this.implementation).await?;
+        let mut remotes = Vec::new();
+        for (remote_index, remote) in this.remotes.iter().enumerate() {
+            for (candidate_index, external) in remote.external.iter().enumerate() {
+                remotes.push(serde_json::json!({
+                    "name": runtime_remote_name(remote_index, candidate_index, &external.global),
+                    "entry": external.url,
+                    "entryGlobalName": external.global,
+                    "type": "global",
+                    "shareScope": remote.share_scope,
+                }));
+            }
+        }
+        let code = format!(
+            r#"
+import {{ createInstance }} from {implementation};
+export const host = createInstance({{
+  name: {host_name},
+  shareStrategy: "loaded-first",
+  remotes: {remotes},
+  shared: {shared}
+}});
+"#,
+            implementation = StringifyJs(&implementation),
+            host_name = StringifyJs(&this.host_name),
+            remotes = StringifyJs(&remotes),
+            shared = runtime_shared_option(&this.shared),
+        );
+        let source = VirtualSource::new(
+            this.project_path
+                .join(".turbopack-module-federation-host.js")?,
+            AssetContent::file(FileContent::Content(code.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        )
+        .cell())
+    }
+}
+
+/// Resolves the init module of a remote that is loaded through the runtime implementation's host
+/// instance instead of Turbopack's share scopes.
+async fn runtime_remote_init_result(
+    project_path: &FileSystemPath,
+    remote: &ModuleFederationRemote,
+    remote_index: usize,
+) -> Result<Vc<ImportMapResult>> {
+    let candidates = remote
+        .external
+        .iter()
+        .enumerate()
+        .map(|(index, external)| {
+            (
+                runtime_remote_name(remote_index, index, &external.global),
+                &external.global,
+                &external.url,
+            )
+        })
+        .collect::<Vec<_>>();
+    let code = format!(
+        r#"
+import {{ host }} from {host_request};
+const candidates = {candidates};
+
+export async function get(request, fullRequest) {{
+  await Promise.all(host.initializeSharing({share_scope}, {{ strategy: "loaded-first" }}));
+  const failures = [];
+  for (const [name, globalName, url] of candidates) {{
+    try {{
+      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
+        await __turbopack_load_by_url__(url, true);
+      }}
+      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
+        throw new Error(`Container global ${{globalName}} is missing after loading ${{url}}`);
+      }}
+      const id = request === "." ? name : `${{name}}/${{request.slice(2)}}`;
+      const factory = await host.loadRemote(id, {{ loadFactory: false, from: "runtime" }});
+      if (typeof factory !== "function") {{
+        throw new Error(`Container ${{globalName}} returned no factory for ${{request}}`);
+      }}
+      return factory;
+    }} catch (error) {{
+      failures.push(error);
+    }}
+  }}
+  const details = failures.map((failure) => failure?.message || String(failure)).join("; ");
+  const error = new Error(`Failed to load federated module ${{fullRequest}}: ${{details}}`);
+  error.cause = failures;
+  throw error;
+}}
+"#,
+        host_request = StringifyJs(RUNTIME_HOST_REQUEST),
+        candidates = StringifyJs(&candidates),
+        share_scope = StringifyJs(&remote.share_scope),
+    );
+    let virtual_name = format!(
+        ".turbopack-module-federation-init-{}.js",
+        remote.request.replace('/', "_")
+    );
+    let source = VirtualSource::new(
+        project_path.join(&virtual_name)?,
+        AssetContent::file(FileContent::Content(code.into()).cell()),
+    )
+    .to_resolved()
+    .await?;
+    Ok(
+        ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell())
+            .cell(),
+    )
 }

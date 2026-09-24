@@ -1,39 +1,39 @@
+import { copyFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// Runs outside Jest because `@rspack/core` v2 is ESM-only.
 const require = createRequire(import.meta.url)
 const testDir = dirname(fileURLToPath(import.meta.url))
 const [producer, remoteOrigin] = process.argv.slice(2)
-const bundler =
-  producer === 'rspack-v2'
-    ? (await import('@rspack/core')).rspack
-    : require('next/dist/compiled/webpack/webpack').webpack
+const isRspack = producer === 'rspack-v2'
+const bundler = isRspack
+  ? (await import('@rspack/core')).rspack
+  : require('next/dist/compiled/webpack/webpack').webpack
 
-for (const worker of [false, true]) {
+async function buildRemote(context, outputPath, worker = false) {
   await new Promise((resolve, reject) => {
     bundler(
       {
         mode: 'development',
-        context: join(testDir, 'remote'),
+        context,
         target: worker ? 'webworker' : 'web',
         entry: {},
         output: {
-          path: join(testDir, 'remote-dist', worker ? 'worker' : 'browser'),
+          path: outputPath,
           publicPath: `${remoteOrigin}/${worker ? 'worker' : 'browser'}/`,
-          uniqueName: `${producer}-${worker ? 'worker-catalog' : 'catalog'}`,
+          uniqueName: worker ? 'webpack-worker-catalog' : 'webpack-catalog',
           chunkLoading: worker ? 'import-scripts' : 'jsonp',
           globalObject: 'globalThis',
         },
         plugins: [
           new bundler.container.ModuleFederationPlugin({
-            ...(producer === 'rspack-v2'
-              ? {
-                  implementation: require.resolve(
-                    '@module-federation/runtime-tools'
-                  ),
-                }
-              : {}),
+            ...(isRspack && {
+              implementation: require.resolve(
+                '@module-federation/runtime-tools'
+              ),
+            }),
             name: worker ? 'workerCatalog' : 'catalog',
             filename: 'remoteEntry.js',
             exposes: {
@@ -59,3 +59,12 @@ for (const worker of [false, true]) {
     )
   })
 }
+
+const remoteOutput = join(testDir, 'remote-dist')
+const remoteContext = join(testDir, 'remote')
+await buildRemote(remoteContext, join(remoteOutput, 'browser'))
+await buildRemote(remoteContext, join(remoteOutput, 'worker'), true)
+await copyFile(
+  join(remoteContext, 'fallback.js'),
+  join(remoteOutput, 'fallback.js')
+)
