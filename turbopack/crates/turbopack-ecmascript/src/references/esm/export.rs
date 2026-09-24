@@ -679,6 +679,7 @@ async fn build_compact_reexports(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<CompactReexports>> {
+    let unused_references = chunking_context.unused_references().await?;
     let locally_bound: FxHashSet<usize> = eval_context
         .imports
         .locally_bound_reference_idxs()
@@ -696,11 +697,7 @@ async fn build_compact_reexports(
         // a group for a reference the usage graph pruned: its target may not exist in this chunk,
         // and its code generation deliberately emits no namespace binding either.
         for (order, reference) in part_references.iter().enumerate() {
-            if chunking_context
-                .unused_references()
-                .contains_key(&ResolvedVc::upcast(*reference))
-                .await?
-            {
+            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -735,11 +732,7 @@ async fn build_compact_reexports(
         for (index, reference) in esm_references.iter().enumerate() {
             // Unused re-exports are absent from the module ID map and cannot contribute
             // an import or a source-order position to the compact registration.
-            if chunking_context
-                .unused_references()
-                .contains_key(&ResolvedVc::upcast(*reference))
-                .await?
-            {
+            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -759,6 +752,12 @@ async fn build_compact_reexports(
         let EsmExport::ImportedBinding(esm_ref, imported_name, mutable) = local else {
             return Ok(None);
         };
+        // The usage graph can prune a re-export's target even though its name is still
+        // present in the facade's expanded export list. Do not generate a module ID for
+        // a target that was excluded from chunking.
+        if unused_references.contains_key(esm_ref) {
+            continue;
+        }
         if *mutable {
             // A mutable re-export needs a setter, which the compact form cannot express.
             return Ok(None);
@@ -1009,6 +1008,7 @@ impl EsmExports {
         synthetic_references: Option<SyntheticReexportReferences<'_>>,
         is_async_module: bool,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
+        let unused_references = chunking_context.unused_references().await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
@@ -1102,6 +1102,12 @@ impl EsmExports {
         }
 
         for (exported, local) in &expanded.exports {
+            if let EsmExport::ImportedBinding(reference, ..)
+            | EsmExport::ImportedNamespace(reference) = local
+                && unused_references.contains_key(reference)
+            {
+                continue;
+            }
             let exprs: ExportBinding = match local {
                 EsmExport::Error => ExportBinding::Getter(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
