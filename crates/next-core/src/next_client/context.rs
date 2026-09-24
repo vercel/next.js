@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, TypescriptTransformOptions,
@@ -477,7 +477,7 @@ pub async fn get_client_module_options_context(
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -663,7 +663,7 @@ pub async fn get_client_chunking_context(
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ServiceWorkerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

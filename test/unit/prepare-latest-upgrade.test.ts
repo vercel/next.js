@@ -21,6 +21,7 @@ describe('prepare latest upgrade', () => {
   async function createApp(version: string): Promise<string> {
     const directory = await mkdtemp(join(tmpdir(), 'next-latest-upgrade-'))
     directories.push(directory)
+    await mkdir(join(directory, 'app'))
     await mkdir(join(directory, 'node_modules/next'), { recursive: true })
     await writeFile(join(directory, 'package.json'), '{}')
     await writeFile(
@@ -200,6 +201,27 @@ describe('prepare latest upgrade', () => {
       )
     }
   )
+
+  it('does not request canary target metadata after a release dismissal', async () => {
+    global.fetch = jest.fn()
+    await expect(
+      getUpgradeAssessment('16.4.0-canary.1', 'future', true)
+    ).resolves.toMatchObject({ affected: null, upgrade: { status: 'blocked' } })
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+  })
+
+  it('checks advisories without target metadata after a release dismissal', async () => {
+    mockLatestVersion('17.0.0')
+    await expect(
+      getUpgradeAssessment('16.4.0', 'future', true)
+    ).resolves.toMatchObject({
+      affected: false,
+      upgrade: { status: 'unaffected' },
+    })
+    expect(
+      jest.mocked(global.fetch).mock.calls.map(([url]) => String(url))
+    ).toEqual([expect.stringContaining('https://api.github.com/advisories?')])
+  })
 
   describe('shared stable eligibility', () => {
     const installed = '17.2.0'
@@ -704,7 +726,18 @@ describe('prepare latest upgrade', () => {
     await expect(prepareUpgrade(directory, 'future')).resolves.toEqual({
       status: 'unaffected',
       reason:
-        'Next.js 16.4.0 is current and all available Future Defaults are enabled.',
+        'Next.js 16.4.0 is current and no applicable Future Defaults are pending.',
+    })
+  })
+  it('keeps version upgrades but excludes adoption for a Pages-only app', async () => {
+    const directory = await createApp('16.2.0')
+    await rm(join(directory, 'app'), { recursive: true })
+    await mkdir(join(directory, 'pages'))
+    mockFutureMetadata('<16.3.0')
+    await expect(prepareUpgrade(directory, 'future')).resolves.toMatchObject({
+      status: 'ready',
+      targetVersion: '16.4.0',
+      futureDefaults: [],
     })
   })
 })

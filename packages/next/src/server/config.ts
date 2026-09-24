@@ -62,6 +62,7 @@ import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
+import { verifyDistDir } from '../lib/dist-dir'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -1265,6 +1266,8 @@ function assignDefaultsAndValidate(
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
 
+  verifyDistDir(resolve(dir, result.distDir), dir, repoRoot)
+
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
@@ -1996,7 +1999,7 @@ async function loadConfigImpl(
   // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
-      loadWebpackHook()
+      loadWebpackHook(dir)
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included

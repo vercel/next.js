@@ -19,7 +19,7 @@ use swc_core::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath, ReadGlobResult,
@@ -1285,9 +1285,7 @@ impl IntoCodeGenReference for ImportMetaGlobAssetReference {
 // ImportMetaGlobAssetReferenceCodeGen — AST rewriting
 // ---------------------------------------------------------------------------
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ImportMetaGlobAssetReferenceCodeGen {
     path: AstPathId,
     reference: ResolvedVc<ImportMetaGlobAssetReference>,

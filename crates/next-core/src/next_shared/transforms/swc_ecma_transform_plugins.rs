@@ -18,13 +18,12 @@ use crate::next_config::NextConfig;
 mod native_types {
     use bincode::{Decode, Encode};
     use serde::{Deserialize, Serialize};
-    use turbo_tasks::trace::TraceRawVcs;
 
     /// A wrapper around [`serde_json::Value`] that implements [`turbo_tasks::TaskInput`].
     ///
     /// [`serde_json::Value`] does not implement [`std::hash::Hash`], so we implement it manually by
     /// hashing the serialized JSON string.
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Encode, Decode)]
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
     pub struct JsonValue(
         #[bincode(with = "turbo_bincode::serde_self_describing")] pub serde_json::Value,
     );

@@ -1,6 +1,8 @@
 #![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![feature(once_cell_try)]
 #![feature(sync_unsafe_cell)]
+// Miri compiles a reduced test subset, leaving helpers from disabled tests intentionally unused.
+#![cfg_attr(miri, allow(dead_code, unused_imports))]
 
 mod arc_bytes;
 pub(crate) mod be;

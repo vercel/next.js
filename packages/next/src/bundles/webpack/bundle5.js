@@ -1,5 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
-
 module.exports = function () {
   return {
     BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),

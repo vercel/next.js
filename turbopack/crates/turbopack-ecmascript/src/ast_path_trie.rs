@@ -28,7 +28,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use rustc_hash::FxBuildHasher;
 use swc_core::ecma::visit::AstParentKind;
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::NonLocalValue;
 
 /// A reference to a path interned in an [`AstPathTrie`].
 ///
@@ -53,9 +53,6 @@ impl AstPathId {
 
 // `AstPathId` is a plain index, so it holds no `Vc`s to trace and is trivially non-local.
 unsafe impl NonLocalValue for AstPathId {}
-impl TraceRawVcs for AstPathId {
-    fn trace_raw_vcs(&self, _trace_context: &mut turbo_tasks::trace::TraceRawVcsContext) {}
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 struct Node {
@@ -154,9 +151,6 @@ pub struct AstPathTrie {
 }
 
 unsafe impl NonLocalValue for AstPathTrie {}
-impl TraceRawVcs for AstPathTrie {
-    fn trace_raw_vcs(&self, _trace_context: &mut turbo_tasks::trace::TraceRawVcsContext) {}
-}
 
 impl AstPathTrie {
     fn node(&self, id: AstPathId) -> Option<&Node> {

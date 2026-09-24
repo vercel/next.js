@@ -224,7 +224,8 @@ export async function spawnNextUpgrade(
       // A workspace root must not launch an upgrade for an unspecified app.
       if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
         throw new Error(
-          'No Next.js app found in this directory. Run the command from an app directory or pass its path.'
+          'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
+            `next upgrade [directory] --ai${typeof options.ai === 'string' ? `=${options.ai}` : ''}`
         )
       }
 
@@ -378,6 +379,8 @@ Complete each adoption. Temporary opt-outs and TODO markers are intermediate wor
       const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
 
 ${taskSummary}
+
+Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
 
 Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 

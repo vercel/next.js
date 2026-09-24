@@ -10,10 +10,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{
     FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
 };
@@ -1506,9 +1503,7 @@ impl Pattern {
     }
 }
 
-#[derive(
-    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
     Directory(RcStr, FileSystemPath),

@@ -202,6 +202,7 @@ Before any Next.js work, find and read the relevant doc in \`node_modules/next/d
 `
   await sandbox.writeFiles({
     'AGENTS.md': body,
+    'CLAUDE.md': '@AGENTS.md\n',
   })
 }
 
@@ -242,6 +243,9 @@ require(path.join(nextRoot, 'dist/server/lib/generate-agent-files.js'))
       `enabling agent feedback for the eval failed (exit ${exitCode}):\n${stderr}`
     )
   }
+  await sandbox.writeFiles({
+    'CLAUDE.md': '@AGENTS.md\n',
+  })
   console.log('  Enabled deterministic agent feedback instructions')
 }
 

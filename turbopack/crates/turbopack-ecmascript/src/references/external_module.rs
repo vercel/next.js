@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt::Display, io::Write};
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     FileSystem, FileSystemPath, VirtualFileSystem, WriteLinkContent, WriteLinkTargetType,
     rope::RopeBuilder,
@@ -45,7 +45,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, TraceRawVcs, Hash, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub enum CachedExternalType {
     CommonJs,
     EcmaScriptViaRequire,
@@ -55,7 +55,7 @@ pub enum CachedExternalType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Eq, PartialEq, TraceRawVcs, Hash, Encode, Decode)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 /// Whether to add a traced reference to the external module using the given context and resolve
 /// origin.
 pub enum CachedExternalTracingMode {

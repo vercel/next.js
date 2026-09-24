@@ -27,6 +27,17 @@ const NO_AGENT_ENV = {
   COPILOT_GITHUB_TOKEN: '',
 }
 
+const NON_CI_ENV = {
+  CI: '',
+  CONTINUOUS_INTEGRATION: '',
+  BUILD_NUMBER: '',
+  RUN_ID: '',
+  GITHUB_ACTIONS: '',
+  NOW_BUILDER: '',
+  STACK: '',
+  NEXT_TELEMETRY_DISABLED: '',
+}
+
 /**
  * The canonical block as the version under test generates it,
  * obtained by running the real generator into a temp dir — the test
@@ -178,7 +189,7 @@ describe('agent-rules auto-generate on next dev (AGENTS.md exists without marker
 describe('agent-feedback auto-generate on next dev (enabled)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
     nextConfig: {
       experimental: {
         agentFeedback: true,
@@ -195,15 +206,29 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
     expect(content).toContain('\n## Report Next.js feedback\n')
-    expect(content).toContain('meaningful detour or are likely to recur')
-    expect(content).toContain('Crashes, hangs, OOMs, or unexpected slowness')
-    expect(content).toContain('CLI, codemod, Skill, or upgrade behavior')
+    expect(content).toContain(
+      'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
+    )
+    expect(content).toContain(
+      'When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.'
+    )
+    expect(content).toContain('meaningful or recurring Next.js issues')
+    expect(content).toContain('- Crashes, hangs, OOMs')
+    expect(content).toContain('- Incorrect behavior, output, errors')
+    expect(content).toContain(
+      '- Missing, unclear, or conflicting documentation'
+    )
+    expect(content).toContain('- Unexpected CLI, codemod, Skill')
     expect(content).toContain(
       'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
     )
-    expect(content).toContain('Immediately before the final response')
+    expect(content).toContain('without piping or truncating its output')
     expect(content).toContain(
-      'Keep unresolved feedback candidates for a later final response'
+      'Before the final response, run one reporting pass'
+    )
+    expect(content).toContain('If a network sandbox blocks it')
+    expect(content).toContain(
+      'if it still returns no output, continue normally'
     )
     expect(content).not.toContain('"schemaVersion":3')
   })
@@ -226,7 +251,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
 describe('agent-feedback auto-generate on next dev (agentRules: false)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
     nextConfig: {
       agentRules: false,
       experimental: {
@@ -249,7 +274,7 @@ describe('agent-feedback auto-generate on next dev (agentRules: false)', () => {
 describe('agent-feedback auto-generate on next dev (no agent)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: NO_AGENT_ENV,
+    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
     nextConfig: {
       agentRules: false,
       experimental: {
@@ -267,7 +292,7 @@ describe('agent-feedback auto-generate on next dev (no agent)', () => {
 describe('agent-feedback auto-generate on next dev (disabled)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
     skipStart: true,
   })
 
@@ -294,7 +319,7 @@ describe('agent-feedback auto-generate on next dev (disabled)', () => {
 describe('agent-rules auto-generate on next dev (disabled with existing blocks)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: NO_AGENT_ENV,
+    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
     nextConfig: {
       agentRules: false,
       experimental: {
@@ -321,5 +346,45 @@ describe('agent-rules auto-generate on next dev (disabled with existing blocks)'
     expect(content).toContain('Keep this content.')
     expect(content).not.toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (telemetry disabled)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: {
+      ...NON_CI_ENV,
+      CLAUDECODE: '1',
+      NEXT_TELEMETRY_DISABLED: '1',
+    },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('does not create feedback instructions', async () => {
+    await next.fetch('/')
+    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (CI)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { CLAUDECODE: '1', CI: '1' },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('does not create feedback instructions', async () => {
+    await next.fetch('/')
+    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
   })
 })
