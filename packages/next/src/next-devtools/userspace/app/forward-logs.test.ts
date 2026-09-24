@@ -1,4 +1,5 @@
 import { preLogSerializationClone, logStringify } from './forward-logs-utils'
+import { patchConsoleMethod } from '../../shared/forward-logs-shared'
 
 const safeStringify = (data: unknown) =>
   logStringify(preLogSerializationClone(data))
@@ -105,6 +106,52 @@ describe('forward-logs serialization', () => {
 
       const result = safeStringify(problematicData)
       expect(result).toBe(`"[Unable to view]"`)
+    })
+  })
+
+  describe('values that trap the clone itself', () => {
+    it('should handle a proxy whose getPrototypeOf throws', () => {
+      const proxy = new Proxy(
+        { a: 1 },
+        {
+          getPrototypeOf() {
+            throw new Error('getPrototypeOf throws')
+          },
+        }
+      )
+
+      expect(preLogSerializationClone(proxy)).toBe('[Unable to view]')
+    })
+
+    it('should handle a value whose Symbol.toStringTag getter throws', () => {
+      const value = {
+        get [Symbol.toStringTag](): string {
+          throw new Error('toStringTag throws')
+        },
+      }
+      // Give it a non-plain prototype so the clone falls through to
+      // `Object.prototype.toString`.
+      Object.setPrototypeOf(value, Object.create(Object.prototype))
+
+      expect(preLogSerializationClone(value)).toBe('[Unable to view]')
+    })
+  })
+
+  describe('patchConsoleMethod', () => {
+    it('should still call the original method when the wrapper throws', () => {
+      const original = jest.fn()
+      const descriptor = Object.getOwnPropertyDescriptor(console, 'log')!
+      Object.defineProperty(console, 'log', { ...descriptor, value: original })
+
+      const restore = patchConsoleMethod('log', () => {
+        throw new Error('wrapper blew up')
+      })
+
+      expect(() => console.log('user message', 42)).not.toThrow()
+      expect(original).toHaveBeenCalledWith('user message', 42)
+
+      restore()
+      Object.defineProperty(console, 'log', descriptor)
     })
   })
 })
