@@ -18,7 +18,7 @@ use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc,
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
-    issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
+    issue::{IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
@@ -521,8 +521,8 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
     AnalyzeIssue::new(
         IssueSeverity::Warning,
         source_ident,
-        Vc::cell(rcstr!("unexpected export *")),
-        StyledString::Text(message).cell(),
+        rcstr!("unexpected export *"),
+        message,
         None,
         None,
     )
