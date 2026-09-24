@@ -34,22 +34,53 @@ turn an exploratory result into a claim about request timing.
 
 ## 1. Produce and locate the evidence
 
-In the application, use its package manager (substitute `npx next`, `yarn next`,
-`bunx next`, etc. for pnpm):
+In the application, first check whether the installed project-local Next
+executable is usable without asking the package manager to resolve or repair
+dependencies. Where the installation exposes a file-backed executable, prefer
+the direct form:
+
+```bash
+test -f node_modules/next/dist/bin/next
+node node_modules/next/dist/bin/next experimental-analyze --output \
+  --baseline-name initial-load-before
+```
+
+Use the equivalent supported mechanism for installations without that path.
+Package-manager `exec` and script commands may verify or repair dependencies
+before launching Next, so do not use them as a harmless version probe in a
+restricted sandbox. A failed or interrupted repair can leave the dependency
+tree partially linked.
+
+If direct execution is unavailable, use the application's package manager
+(substitute `npx next`, `yarn next`, `bunx next`, etc. for pnpm):
 
 ```bash
 pnpm exec next experimental-analyze --output --baseline-name initial-load-before
 ```
 
+If dependencies must be installed or repaired, use the project's normal
+package-manager workflow and lockfile policy. Run it outside a sandbox that
+blocks required network access, lifecycle operations, or filesystem writes,
+preserving the user's normal environment so existing registry configuration is
+available. Do not invent flags that ignore lockfile disagreements, skip
+lifecycle requirements, or re-resolve the graph merely to make analysis start;
+report a project dependency-state failure separately from an analyzer failure.
+
 Check that the installed version supports `--output`. That mode performs
 production analysis and exits without starting the analyzer UI server, but do
-**not** infer that it runs inside a sandbox without TCP port binding. In an
-agent sandbox that cannot bind TCP ports (for example, some Codex sandboxes),
-run **`experimental-analyze --output` itself outside the sandbox** in an
-environment that supports port binding. Ask for that environment or for its
-resulting data files when necessary. Continue analysis only once the artifacts
-are accessible; do not claim the analysis or browser verification ran if they
-did not. Do not bypass sandbox restrictions.
+**not** infer that it runs inside a sandbox without TCP port binding. If an
+agent sandbox cannot bind TCP ports, request out-of-sandbox execution **before
+running the analyzer**, even in output mode. Run the direct project executable
+there when available. Ask for a suitable environment or the resulting data
+files when necessary. Continue analysis only once the artifacts are accessible;
+do not claim the analysis or browser verification ran if they did not. Do not
+bypass sandbox restrictions.
+
+Do not use the process exit code as the only success signal. Treat reported
+configuration, compilation, or unhandled-rejection errors as failures even if
+the command exits zero. Require the analyzer's completion message and verify
+that the expected artifact or named snapshot was freshly written before using
+its data.
 
 Run without `--output` only if a human or browser-driving agent needs the
 optional interactive analyzer UI; that server remains open and needs a usable
