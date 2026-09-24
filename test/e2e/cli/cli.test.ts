@@ -20,7 +20,6 @@ describe('CLI Usage', () => {
     files: join(__dirname, 'basic'),
     skipStart: true,
     dependencies: reactDependencies,
-    skipDeployment: true,
   })
 
   /**

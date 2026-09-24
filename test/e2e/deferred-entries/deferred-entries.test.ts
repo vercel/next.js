@@ -114,14 +114,11 @@ async function waitForCallbackTimestampToStabilize(
 }
 
 describe('deferred-entries', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
     dependencies: {},
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     // Clear log files before starting

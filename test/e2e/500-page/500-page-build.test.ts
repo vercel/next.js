@@ -4,12 +4,10 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 // is meaningless in dev mode where the dev server bypasses production build
 // artifacts (e.g. statically prerendered 500.html from getStaticProps).
 ;(isNextDev ? describe.skip : describe)('500 Page build validation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const gip500Err =
     /`pages\/500` can not have getInitialProps\/getServerSideProps/

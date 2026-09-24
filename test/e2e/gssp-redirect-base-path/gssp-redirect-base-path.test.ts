@@ -4,15 +4,13 @@ import { retry } from 'next-test-utils'
 const basePath = '/docs'
 
 describe('GS(S)P Redirect with basePath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       react: '19.3.0-canary-da9325b5-20260417',
       'react-dom': '19.3.0-canary-da9325b5-20260417',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
     const res = await next.fetch(`${basePath}/gssp-blog/redirect-1`, {

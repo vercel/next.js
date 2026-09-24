@@ -14,15 +14,10 @@ async function verify(res, locale) {
 }
 
 describe('i18n-disallow-multiple-locales', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     // TODO: re-enable after this behavior is corrected
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should verify the default locale works', async () => {
     const res = await next.fetch('/', { redirect: 'manual' })

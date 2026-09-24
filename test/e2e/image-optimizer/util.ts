@@ -1774,7 +1774,6 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         // headers from `/_next/image`). Vercel's deploy serves images
         // through its own image CDN with different headers, paths, and
         // cache semantics, so these assertions don't apply.
-        skipDeployment: true,
       })
       if (isNextDeploy) return
 
@@ -1818,7 +1817,6 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       // headers from `/_next/image`). Vercel's deploy serves images
       // through its own image CDN with different headers, paths, and
       // cache semantics, so these assertions don't apply.
-      skipDeployment: true,
     })
     if (isNextDeploy) return
 

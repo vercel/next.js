@@ -2,12 +2,10 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 ;(process.env.TURBOPACK_DEV && isNextStart ? describe.skip : describe)(
   'API routes',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should return data when catch-all', async () => {
       const data = await next

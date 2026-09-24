@@ -4,12 +4,10 @@ import { findPort, retry } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('Custom routes i18n', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let server: http.Server
   let externalPort: number

@@ -7,7 +7,7 @@ describe('Fetch polyfill', () => {
   let apiServerPort: number
   let apiServer: http.Server
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     dependencies: {
@@ -15,9 +15,7 @@ describe('Fetch polyfill', () => {
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
     // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeAll(async () => {
     apiServerPort = await findPort()

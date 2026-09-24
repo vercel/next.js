@@ -3,14 +3,9 @@ import { retry } from 'next-test-utils'
 import execa from 'execa'
 
 describe('cache-life-typecheck', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('accepts configured cacheLife profiles and rejects unknown ones', async () => {
     const $ = await next.render$('/')

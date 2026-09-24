@@ -13,18 +13,15 @@ function checkDataRoute(data: any, page: string) {
 }
 
 describe('i18n-data-route', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     // This test skips deployment because env vars that are doubled underscore prefixed
     // are not supported.
-    skipDeployment: true,
     env: {
       // Disable internal header stripping so we can test the invoke output.
       __NEXT_NO_STRIP_INTERNAL_HEADERS: '1',
     },
   })
-
-  if (skipped) return
 
   describe('with locale prefix', () => {
     describe.each(i18n.locales)('/%s', (locale) => {
