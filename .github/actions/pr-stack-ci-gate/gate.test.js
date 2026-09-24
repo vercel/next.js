@@ -214,6 +214,7 @@ test('first three and the top/leaf PR open immediately', async () => {
   for (const current of [1, 2, 3, 5]) {
     const { core } = await run({ pulls: stack, current })
     expect(core.failures).toEqual([])
+    expect(core.outputs.get('skip')).toBe('false')
   }
 })
 
