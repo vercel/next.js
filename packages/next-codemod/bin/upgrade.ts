@@ -386,9 +386,10 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
-        const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${eslintRange}`
-        )
+        // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
+        // eslint-plugin-react, support its API removals (e.g. context.getFilename).
+        const targetEslintVersion =
+          await loadHighestNPMVersionMatching('eslint@^9')
         versionMapping['eslint'] = {
           version: targetEslintVersion,
           required: false,
