@@ -246,6 +246,14 @@ describe('deployment-id-handling disabled', () => {
     files: join(__dirname, 'app'),
     disableAutoSkewProtection: true,
   })
+
+  it('generates a build ID without a configured callback', async () => {
+    const $ = await next.render$('/')
+    const buildId = JSON.parse($('script#__NEXT_DATA__').html()!).buildId
+    expect(buildId).toBeTruthy()
+    expect(buildId).not.toBe('build-TfctsWXpff2fKS')
+  })
+
   it.each([
     { urlPath: '/' },
     { urlPath: '/pages-edge' },

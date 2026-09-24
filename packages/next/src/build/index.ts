@@ -1044,11 +1044,7 @@ async function getBuildId(
   if (isGenerateMode) {
     return await fs.readFile(path.join(distDir, BUILD_ID_FILE), 'utf8')
   }
-  // The default callback returns null, but an explicitly configured callback takes precedence.
-  if (
-    config.deploymentId &&
-    config.generateBuildId === defaultConfig.generateBuildId
-  ) {
+  if (config.deploymentId && !config.generateBuildId) {
     // Skew protection is enabled and NEXT_NAV_DEPLOYMENT_ID_HEADER will be used instead. Set a
     // constant but "random" string because various tools perform `.replace(escapedBuildId, ....)`
     // which would fail if this were something like "build-id" instead.
