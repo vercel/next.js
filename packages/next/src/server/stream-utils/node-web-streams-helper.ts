@@ -973,7 +973,10 @@ export async function continueFizzStream(
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     inlinedDataStream
-      ? createFlightDataInjectionTransformStream(inlinedDataStream, true)
+      ? createFlightDataInjectionTransformStream(
+          inlinedDataStream,
+          isStaticGeneration
+        )
       : null,
 
     // Validate the root layout for missing html or body tags
