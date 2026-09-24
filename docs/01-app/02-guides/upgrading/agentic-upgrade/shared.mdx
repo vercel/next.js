@@ -1,0 +1,47 @@
+---
+title: Shared agentic Next.js upgrade checks and delivery
+description: Duplicate checks and delivery for all agentic Next.js upgrade policies.
+version: draft
+---
+
+## Before changing files: check for duplicates
+
+- [ ] Identify the repository provider from `git remote -v`, then use its CLI or
+      API to list every open pull request. For GitHub, run
+      `gh pr list --state open --limit 100 --json number,title,body,url,headRefName`.
+- [ ] Inspect the body and diff of likely matches. For GitHub, run
+      `gh pr diff <number>`.
+- [ ] Check local and remote branches and commits for an equivalent upgrade or
+      Future Defaults adoption.
+
+Look for unmarked work and these markers:
+
+```md
+<!-- next-upgrade: <type>; path="." -->
+<!-- next-upgrade: <type>; path="apps/web" -->
+```
+
+Do not substitute Git history for the provider lookup. If any check is
+unavailable, fails, or finds existing work, stop before changing files and
+report it. Continue only when every check finds no equivalent work.
+
+## After all upgrade and adoption steps: commit and deliver
+
+- [ ] Commit the verified version update before Future Defaults adoption. For a
+      different-major update, use one commit for each crossed major, containing
+      that major's surviving final-target changes. Do not add transitional
+      changes solely to make an intermediate version work. Include source and
+      target versions in each commit message and explain why and how.
+- [ ] Group Future Defaults changes by the default adopted. Explain why and how
+      in each commit message.
+- [ ] With permission, recheck open pull requests for duplicates and publish one
+      draft PR with the app marker:
+
+```md
+<!-- next-upgrade: <type>; path="." -->
+<!-- next-upgrade: <type>; path="apps/web" -->
+```
+
+- [ ] If permission to open a PR has not been granted, ask the user whether to
+      open one when reporting the completed work.
+- [ ] If work is incomplete, report completed work, the blocker, and how to resume.
