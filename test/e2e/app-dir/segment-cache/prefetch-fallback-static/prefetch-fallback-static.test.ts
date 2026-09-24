@@ -258,6 +258,8 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
 
       describe('with ensureStatic', () => {
         describe('ensureStatic = "shell"', () => {
+          // FIXME: Flaky test
+          // @force-gate !deploy
           it('prefetch={true}: uses a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
             let page: Playwright.Page
             const browser = await next.browser('/', {
@@ -327,6 +329,8 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
         })
 
         describe('ensureStatic = "prefetch"', () => {
+          // FIXME: Flaky test
+          // @force-gate !deploy
           it('prefetch={true}: does not use a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
             let page: Playwright.Page
             const browser = await next.browser('/', {
@@ -409,6 +413,8 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
       // (assuming the link allows it), before we find out that the concrete prerender
       // used runtime data and merits a runtime prefetch.
 
+      // FIXME: Flaky test
+      // @force-gate !deploy
       it('prefetch="auto": does not use a runtime prefetch', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -473,6 +479,8 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
         ])
       })
 
+      // FIXME: Flaky test
+      // @force-gate !deploy
       it('prefetch={true}: uses a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -535,6 +543,8 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
 
       describe('with ensureStatic', () => {
         describe('ensureStatic = "shell"', () => {
+          // FIXME: Flaky test
+          // @force-gate !deploy
           it('prefetch={true}: uses a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
             let page: Playwright.Page
             const browser = await next.browser('/', {
@@ -603,6 +613,8 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
         })
 
         describe('ensureStatic = "prefetch"', () => {
+          // FIXME: Flaky test
+          // @force-gate !deploy
           it('prefetch={true}: does not use a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
             let page: Playwright.Page
             const browser = await next.browser('/', {

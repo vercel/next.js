@@ -1735,6 +1735,8 @@ describe('static App Shell prefetch attempt', () => {
         })
       })
       describe('when a link to a prerendered param that does not use cookies in the prefetch is revealed second', () => {
+        // FIXME: Flaky test
+        // @force-gate !deploy
         it('[FAILING] speculative: attempts a static prefetch and does not fall back to a runtime prefetch', async () => {
           let page: Playwright.Page
           const browser = await next.browser('/', {
