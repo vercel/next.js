@@ -27,10 +27,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
-    issue::{
-        ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, StyledString,
-        analyze::AnalyzeIssue,
-    },
+    issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
@@ -763,12 +760,11 @@ impl ImportTracer for ModuleGraphImportTracer {
                             AnalyzeIssue::new(
                                 IssueSeverity::Bug,
                                 module.ident(),
-                                Vc::cell(rcstr!("Module graph is missing an entry point")),
-                                StyledString::Text(rcstr!(
+                                rcstr!("Module graph is missing an entry point"),
+                                rcstr!(
                                     "The module cannot reach any of the explicit entry points in \
                                      its module graph."
-                                ))
-                                .cell(),
+                                ),
                                 None,
                                 None,
                             )

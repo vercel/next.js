@@ -78,7 +78,7 @@ use turbopack_core::{
         InputRelativeConstant,
     },
     environment::Rendering,
-    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
+    issue::{IssueExt, IssueSeverity, IssueSource, analyze::AnalyzeIssue},
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
@@ -849,9 +849,8 @@ async fn analyze_ecmascript_module_internal(
             AnalyzeIssue::new(
                 IssueSeverity::Error,
                 source.ident(),
-                Vc::cell(rcstr!("unexpected top level await")),
-                StyledString::Text(rcstr!("top level await is only supported in ESM modules."))
-                    .cell(),
+                rcstr!("unexpected top level await"),
+                rcstr!("top level await is only supported in ESM modules."),
                 None,
                 Some(issue_source(source, span)),
             )

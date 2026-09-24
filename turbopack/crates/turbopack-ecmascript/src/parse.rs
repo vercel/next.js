@@ -588,12 +588,7 @@ async fn parse_file_content(
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
-                    // The emitter created in here only uses StyledString::Text
-                    if let StyledString::Text(xx) = &*error.await?.message.await? {
-                        Some(vec![xx.clone()])
-                    } else {
-                        None
-                    }
+                    Some(vec![error.await?.message.clone()])
                 } else {
                     None
                 };
