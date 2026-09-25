@@ -70,7 +70,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, JoinIterExt, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt,
     Upcast, ValueToString, Vc, turbofmt,
 };
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
@@ -2059,54 +2059,17 @@ where
         ResolveErrorMode::Error
     };
 
-    let get_traced_project_dir = async |pattern: Pattern| -> Result<(FileSystemPath, Pattern)> {
-        // Relative filesystem references are resolved from the project root at runtime. Inside
-        // node_modules, only trace fully static alternatives naming files from there: even a
-        // static directory (e.g. `.`) could include the entire project. Missing alternatives
-        // don't disqualify an existing file, but a directory makes the whole pattern fall back
-        // to package-local tracing, as do patterns without any existing static files.
+    let get_traced_project_dirs = async || -> Result<(Option<FileSystemPath>, FileSystemPath)> {
+        let fallback = source.ident().await?.path.parent();
         if let Some(cwd) = compile_time_info.environment().cwd().owned().await? {
             if state.allow_project_root_tracing {
-                return Ok((cwd, pattern));
+                return Ok((None, cwd));
             }
-            if let Some(static_pattern) = pattern.filter_static() {
-                let alternatives = match &static_pattern {
-                    Pattern::Alternatives(list) => list.iter().collect::<Vec<_>>(),
-                    _ => vec![&static_pattern],
-                };
-                let mut has_file = false;
-                let mut only_files_or_missing = true;
-                for alternative in alternatives {
-                    let Some(path) = alternative.as_constant_string() else {
-                        only_files_or_missing = false;
-                        break;
-                    };
-                    let Some(path) = cwd.try_join_inside(path) else {
-                        only_files_or_missing = false;
-                        break;
-                    };
-                    let file_type = match *path.get_type().await? {
-                        FileSystemEntryType::Symlink => match path.realpath().await? {
-                            Ok(path) => *path.get_type().await?,
-                            Err(_) => FileSystemEntryType::Error,
-                        },
-                        file_type => file_type,
-                    };
-                    match file_type {
-                        FileSystemEntryType::File => has_file = true,
-                        FileSystemEntryType::NotFound => {}
-                        _ => {
-                            only_files_or_missing = false;
-                            break;
-                        }
-                    }
-                }
-                if has_file && only_files_or_missing {
-                    return Ok((cwd, static_pattern));
-                }
-            }
+            // Resolve only static files from the project root. All paths, including dynamic
+            // alternatives and directories, are still traced from the package directory.
+            return Ok((Some(cwd), fallback));
         }
-        Ok((source.ident().await?.path.parent(), pattern))
+        Ok((None, fallback))
     };
 
     let get_issue_source =
@@ -2282,18 +2245,19 @@ where
                     };
                     // WorkerThreads resolve URLs relative to import.meta.url
                     // and string paths relative to the process root
-                    let (context_dir, pat) = if matches!(
+                    let (static_files_only_context_dir, fallback_context_dir) = if matches!(
                         args.first(),
                         Some(JsValue::Url(_, JsValueUrlKind::Relative))
                     ) {
-                        (origin.into_trait_ref().await?.origin_path().parent(), pat)
+                        (None, origin.into_trait_ref().await?.origin_path().parent())
                     } else {
-                        get_traced_project_dir(pat).await?
+                        get_traced_project_dirs().await?
                     };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
-                            context_dir,
+                            static_files_only_context_dir,
+                            fallback_context_dir,
                             Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),
@@ -2621,10 +2585,12 @@ where
                         return Ok(());
                     }
                 }
-                let (context_dir, pat) = get_traced_project_dir(pat).await?;
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 analysis.add_reference(
                     FileSourceReference::new(
-                        context_dir,
+                        static_files_only_context_dir,
+                        fallback_context_dir,
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
@@ -2659,10 +2625,12 @@ where
                         return Ok(());
                     }
                 }
-                let (context_dir, pat) = get_traced_project_dir(pat).await?;
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 analysis.add_reference(
                     DirAssetReference::new(
-                        context_dir,
+                        static_files_only_context_dir,
+                        fallback_context_dir,
                         Pattern::new(pat),
                         get_issue_source(),
                         rcstr!("fs.readdir"),
@@ -2717,10 +2685,12 @@ where
                     return Ok(());
                 }
             }
-            let (context_dir, pat) = get_traced_project_dir(pat).await?;
+            let (static_files_only_context_dir, fallback_context_dir) =
+                get_traced_project_dirs().await?;
             analysis.add_reference(
                 DirAssetReference::new(
-                    context_dir,
+                    static_files_only_context_dir,
+                    fallback_context_dir,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.resolve"),
@@ -2770,10 +2740,12 @@ where
                     return Ok(());
                 }
             }
-            let (context_dir, pat) = get_traced_project_dir(pat).await?;
+            let (static_files_only_context_dir, fallback_context_dir) =
+                get_traced_project_dirs().await?;
             analysis.add_reference(
                 DirAssetReference::new(
-                    context_dir,
+                    static_files_only_context_dir,
+                    fallback_context_dir,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.join"),
@@ -2833,10 +2805,12 @@ where
                     show_dynamic_warning = true;
                 }
                 if !dynamic || !ignore_dynamic_requests {
-                    let (context_dir, pat) = get_traced_project_dir(pat).await?;
+                    let (static_files_only_context_dir, fallback_context_dir) =
+                        get_traced_project_dirs().await?;
                     analysis.add_reference(
                         FileSourceReference::new(
-                            context_dir,
+                            static_files_only_context_dir,
+                            fallback_context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
                             IssueSource::from_swc_offsets(
@@ -3076,11 +3050,12 @@ where
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
-                            let (context_dir, abs_pattern) =
-                                get_traced_project_dir(abs_pattern).await?;
+                            let (static_files_only_context_dir, fallback_context_dir) =
+                                get_traced_project_dirs().await?;
                             analysis.add_reference(
                                 DirAssetReference::new(
-                                    context_dir,
+                                    static_files_only_context_dir,
+                                    fallback_context_dir,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
                                     rcstr!("express().set"),
@@ -3150,10 +3125,12 @@ where
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                let (context_dir, abs_pattern) = get_traced_project_dir(abs_pattern).await?;
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 analysis.add_reference(
                     DirAssetReference::new(
-                        context_dir,
+                        static_files_only_context_dir,
+                        fallback_context_dir,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
                         rcstr!("strong-globalize.SetRootDir"),
@@ -3209,6 +3186,8 @@ where
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 let resolved_dirs = parts
                     .iter()
                     .filter_map(|object_part| match object_part {
@@ -3221,20 +3200,15 @@ where
                         _ => None,
                     })
                     .flatten()
-                    .map(|dir| async move {
-                        // Classify the actual directory, not an empty placeholder pattern.
-                        let (context_dir, pattern) =
-                            get_traced_project_dir(Pattern::Constant(dir.into())).await?;
-                        Ok::<_, anyhow::Error>(
-                            DirAssetReference::new(
-                                context_dir,
-                                Pattern::new(pattern),
-                                get_issue_source(),
-                                rcstr!("protobufjs.load"),
-                            )
-                            .to_resolved()
-                            .await?,
+                    .map(|dir| {
+                        DirAssetReference::new(
+                            static_files_only_context_dir.clone(),
+                            fallback_context_dir.clone(),
+                            Pattern::new(Pattern::Constant(dir.into())),
+                            get_issue_source(),
+                            rcstr!("protobufjs.load"),
                         )
+                        .to_resolved()
                     })
                     .join()
                     .await;
