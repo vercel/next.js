@@ -1408,9 +1408,12 @@ impl TurboTasksBackend {
                             .get_persistent_task_type()
                             .expect("a GC-deleted task must have a task type"),
                     );
+                    let surviving_ids = self
+                        .storage
+                        .unregister_task_cache_id(task_type_hash, task_id);
                     return SnapshotItem::Delete {
                         task_id,
-                        task_type_hash,
+                        task_cache: (task_type_hash, surviving_ids),
                     };
                 } else {
                     debug_assert!(
@@ -1449,7 +1452,7 @@ impl TurboTasksBackend {
             } else {
                 None
             };
-            let task_type_hash = if inner.flags.new_task() {
+            let task_cache = if inner.flags.new_task() {
                 let task_type = inner.get_persistent_task_type().expect(
                     "It is not possible for a new_task to not have a persistent_task_type.  Task \
                      creation for persistent tasks uses a single ExecutionContextImpl for \
@@ -1458,7 +1461,14 @@ impl TurboTasksBackend {
                      or suspend before we start snapshotting.  So task creation will always set \
                      the task_type.",
                 );
-                Some(compute_task_type_hash(task_type))
+                let task_type_hash = compute_task_type_hash(task_type);
+                let task_ids = self
+                    .storage
+                    .task_cache_buckets
+                    .get(&task_type_hash)
+                    .map(|bucket| bucket.clone())
+                    .unwrap_or_else(|| smallvec![task_id]);
+                Some((task_type_hash, task_ids))
             } else {
                 None
             };
@@ -1467,7 +1477,7 @@ impl TurboTasksBackend {
                 task_id,
                 meta,
                 data,
-                task_type_hash,
+                task_cache,
             }
         };
 
@@ -1503,6 +1513,9 @@ impl TurboTasksBackend {
             gc_roots_to_persist,
             task_snapshots,
         )?;
+        self.storage
+            .task_cache_buckets
+            .retain(|_, task_ids| task_ids.len() > 1);
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1775,11 +1788,22 @@ impl TurboTasksBackend {
 
         // Step 2: Check backing storage using borrowed components (no box needed yet).
 
+        let mut task_cache_miss = None;
+        let restored_task = if transient {
+            None
+        } else {
+            match ctx.task_by_type(native_fn, this, arg_ref) {
+                operation::TaskByType::Found(task_id, stored_type) => Some((task_id, stored_type)),
+                operation::TaskByType::NotFound(task_type_hash, candidates) => {
+                    task_cache_miss = Some((task_type_hash, candidates));
+                    None
+                }
+            }
+        };
+
         // Task exists in backing storage.
         // We only need to insert it into the in-memory cache.
-        let task_id = if !transient
-            && let Some((task_id, stored_type)) = ctx.task_by_type(native_fn, this, arg_ref)
-        {
+        let task_id = if let Some((task_id, stored_type)) = restored_task {
             self.track_cache_hit_by_fn(native_fn);
             // Step 3a: Insert into in-memory cache using the pre-located shard.
             // Use the existing Arc from storage to avoid a duplicate allocation.
@@ -1826,6 +1850,12 @@ impl TurboTasksBackend {
                         // Initialize storage BEFORE making task_id visible in the cache.
                         // This ensures any thread that reads task_id from the cache sees
                         // the storage entry already initialized (restored flags set).
+                        if let Some((task_type_hash, existing_ids)) = task_cache_miss.as_ref() {
+                            self.storage.record_task_cache_bucket(
+                                *task_type_hash,
+                                existing_ids.iter().copied().chain(std::iter::once(task_id)),
+                            );
+                        }
                         self.storage
                             .initialize_new_task(task_id, Some(task_type.clone()));
                         entry.insert((task_type, task_id));

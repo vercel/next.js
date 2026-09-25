@@ -11,6 +11,7 @@ use std::{
 
 use crossbeam_utils::CachePadded;
 use hashbrown::hash_table;
+use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
@@ -20,7 +21,7 @@ use crate::{
     backend::storage_schema::{
         DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
     },
-    backing_storage::SnapshotItem,
+    backing_storage::{SnapshotItem, TaskTypeHash},
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -217,6 +218,10 @@ pub struct Storage {
     ///
     /// LockOrdering: See the comments on [map].
     pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
+    /// Complete TaskCache buckets for hashes modified since the last snapshot or known to collide.
+    /// Singleton modified buckets are discarded after persistence; collision buckets remain so GC
+    /// deletion can find their mates without scanning the full task cache.
+    pub task_cache_buckets: FxDashMap<TaskTypeHash, SmallVec<[TaskId; 1]>>,
 }
 
 impl Storage {
@@ -250,6 +255,7 @@ impl Storage {
             map,
             restored: Event::new(|| || "Storage::restored".to_string()),
             task_cache: FxDashMap::default(),
+            task_cache_buckets: FxDashMap::default(),
         }
     }
 
@@ -281,6 +287,37 @@ impl Storage {
         if !already_modified && promoted {
             self.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
         }
+    }
+
+    /// Records members of a bucket observed in the backing store or created in this session. Only
+    /// colliding buckets need to survive after a snapshot, but merging here also serializes racing
+    /// creations by hash.
+    pub fn record_task_cache_bucket(
+        &self,
+        task_type_hash: TaskTypeHash,
+        task_ids: impl IntoIterator<Item = TaskId>,
+    ) -> SmallVec<[TaskId; 1]> {
+        let mut bucket = self.task_cache_buckets.entry(task_type_hash).or_default();
+        for task_id in task_ids {
+            if !bucket.contains(&task_id) {
+                bucket.push(task_id);
+            }
+        }
+        bucket.clone()
+    }
+
+    /// Removes a task from a known collision bucket and returns its survivors. An absent bucket is
+    /// a singleton, so deleting it leaves no survivors.
+    pub fn unregister_task_cache_id(
+        &self,
+        task_type_hash: TaskTypeHash,
+        task_id: TaskId,
+    ) -> SmallVec<[TaskId; 1]> {
+        let Some(mut bucket) = self.task_cache_buckets.get_mut(&task_type_hash) else {
+            return SmallVec::new();
+        };
+        bucket.retain(|candidate_id| *candidate_id != task_id);
+        bucket.clone()
     }
 
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
@@ -1171,6 +1208,8 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Barrier};
+
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
@@ -1180,6 +1219,54 @@ mod tests {
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
+    }
+
+    #[test]
+    fn colliding_task_cache_updates_are_merged_atomically() {
+        let storage = Arc::new(Storage::new(2, true));
+        let barrier = Arc::new(Barrier::new(3));
+        let task_type_hash = 42u64.to_le_bytes();
+        let ids = [non_transient_task(1), non_transient_task(2)];
+
+        std::thread::scope(|scope| {
+            for task_id in ids {
+                let storage = Arc::clone(&storage);
+                let barrier = Arc::clone(&barrier);
+                scope.spawn(move || {
+                    barrier.wait();
+                    storage.record_task_cache_bucket(task_type_hash, [task_id]);
+                });
+            }
+            barrier.wait();
+        });
+
+        let mut bucket = storage
+            .task_cache_buckets
+            .get(&task_type_hash)
+            .unwrap()
+            .clone();
+        bucket.sort_by_key(|id| **id);
+        assert_eq!(bucket.as_slice(), &ids);
+    }
+
+    #[test]
+    fn colliding_task_cache_deletes_track_survivors() {
+        let storage = Storage::new(2, true);
+        let task_type_hash = 42u64.to_le_bytes();
+        let ids = [non_transient_task(1), non_transient_task(2)];
+        storage.record_task_cache_bucket(task_type_hash, ids);
+
+        assert_eq!(
+            storage
+                .unregister_task_cache_id(task_type_hash, ids[0])
+                .as_slice(),
+            &[ids[1]]
+        );
+        assert!(
+            storage
+                .unregister_task_cache_id(task_type_hash, ids[1])
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1205,7 +1292,7 @@ mod tests {
             task_id,
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
-            task_type_hash: None,
+            task_cache: None,
         }
     }
 

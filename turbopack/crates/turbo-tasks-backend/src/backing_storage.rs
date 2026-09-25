@@ -1,5 +1,6 @@
 use std::cmp::max;
 
+use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
@@ -19,14 +20,13 @@ pub enum SnapshotItem {
         meta: Option<TurboBincodeBuffer>,
         /// Serialized task data, if modified
         data: Option<TurboBincodeBuffer>,
-        /// Task type for new tasks that need to be added to the task cache
-        task_type_hash: Option<TaskTypeHash>,
+        /// Complete TaskCache bucket for a newly created task.
+        task_cache: Option<(TaskTypeHash, SmallVec<[TaskId; 1]>)>,
     },
     Delete {
         task_id: TaskId,
-        /// The deleted task's `TaskCache` key. Always present: only persistent tasks are
-        /// collected, and those always have a task type.
-        task_type_hash: TaskTypeHash,
+        /// The deleted task's `TaskCache` key and the bucket members that survive it.
+        task_cache: (TaskTypeHash, SmallVec<[TaskId; 1]>),
     },
 }
 

@@ -47,8 +47,8 @@ impl KeySpace {
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
-                // TaskCache uses hash-based lookups with potential collisions.
-                kind: FamilyKind::MultiValue,
+                // Hash collisions are encoded together in one list-valued record.
+                kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             },
         }

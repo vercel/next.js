@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Ok, Result};
-use smallvec::SmallVec;
 use turbo_persistence::{
     ArcBytes, CommitStats, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence,
     ValueBuffer,
@@ -97,13 +96,6 @@ impl TurboKeyValueDatabase {
 
     pub fn batch_get(&self, key_space: KeySpace, keys: &[&[u8]]) -> Result<Vec<Option<ArcBytes>>> {
         self.db.batch_get(key_space as usize, keys)
-    }
-
-    /// Looks up a key and returns all matching values.
-    ///
-    /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
-    pub fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
-        self.db.get_multiple(key_space as usize, &key)
     }
 
     pub fn write_batch(&self) -> Result<TurboWriteBatch<'_>> {
@@ -226,22 +218,8 @@ impl<'a> TurboWriteBatch<'a> {
     }
 
     /// Writes a delete (tombstone) for `key` into the write batch.
-    ///
-    /// Use [`Self::delete_value`] to remove a single mapping from a MultiValue KeySpace
     pub fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.batch.delete(key_space as u32, key.into_static())
-    }
-
-    /// Writes a tombstone for a single `key` -> `value` mapping, leaving other values under `key`
-    /// intact. Only valid for `MultiValue` families (`TaskCache`).
-    pub fn delete_value(
-        &self,
-        key_space: KeySpace,
-        key: WriteBuffer<'_>,
-        value: WriteBuffer<'_>,
-    ) -> Result<()> {
-        self.batch
-            .delete_value(key_space as u32, key.into_static(), value.into())
     }
 
     /// Flushes a key space of the write batch, reducing the amount of buffered memory used.

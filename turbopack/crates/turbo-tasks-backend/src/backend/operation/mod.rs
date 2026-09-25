@@ -16,6 +16,7 @@ use std::{
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use parking_lot::RwLockReadGuard;
+use smallvec::SmallVec;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -34,6 +35,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
+    backing_storage::TaskTypeHash,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -198,9 +200,8 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
-    /// the existing `CachedTaskTypeArc` from storage (avoiding a duplicate
-    /// allocation).
+    /// Returns the matching task and its stored type, or the complete hash bucket on a miss so a
+    /// newly created task can persist the updated bucket without another database lookup.
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
@@ -208,8 +209,14 @@ pub trait ExecuteContext<'e>: Sized {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, CachedTaskTypeArc)>;
+    ) -> TaskByType;
+
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
+}
+
+pub enum TaskByType {
+    Found(TaskId, CachedTaskTypeArc),
+    NotFound(TaskTypeHash, SmallVec<[TaskId; 1]>),
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -1395,29 +1402,40 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, CachedTaskTypeArc)> {
+    ) -> TaskByType {
         if !self.backend.should_restore() {
-            return None;
+            return TaskByType::NotFound(
+                crate::backing_storage::compute_task_type_hash_from_components(
+                    native_fn, this, arg,
+                ),
+                SmallVec::new(),
+            );
         }
 
         // Get candidates from backing storage (hash-based lookup may return multiple)
-        let candidates = self
+        let (task_type_hash, candidates) = self
             .backend
             .backing_storage
             .lookup_task_candidates(native_fn, this, arg)
             .expect("Failed to lookup task ids");
 
+        if candidates.len() > 1 {
+            self.backend
+                .storage
+                .record_task_cache_bucket(task_type_hash, candidates.iter().copied());
+        }
+
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
-        for candidate_id in candidates {
+        for &candidate_id in &candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
             if let Some(stored_type) = task.get_persistent_task_type()
                 && stored_type.eq_components(native_fn, this, arg)
             {
-                return Some((candidate_id, stored_type.clone()));
+                return TaskByType::Found(candidate_id, stored_type.clone());
             }
         }
-        None
+        TaskByType::NotFound(task_type_hash, candidates)
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
