@@ -230,9 +230,8 @@ export function createNavigationSeed(
  * information (vary paths, the normalized segment value)
  * initialized, and the remaining fields set to their defaults. The caller
  * finishes initializing those in place after recursing into the children.
- * Shared by the FlightRouterState converter and the transport decoder so the
- * two cannot drift, and so every node they produce has the same property
- * order (one hidden class).
+ * Shared by FlightRouterState conversion, transport decoding, and subtree
+ * rebasing so their routing identity stays consistent.
  */
 export function createRouteTreeNode<TData>(
   originalSegment: FlightRouterStateSegment,
@@ -323,7 +322,7 @@ export function createRouteTreeNode<TData>(
  *
  * TODO: The base is a FlightRouterState only because that's the
  * representation the client router currently renders from (the router
- * reducer's `state.tree`, which the CacheNode tree and layout-router are
+ * reducer's `state.tree`, which the render tree and layout-router are
  * keyed against). Once the rendering path is updated to use RouteTree as its
  * source of truth, the base tree here can be a RouteTree, and the base-only
  * conversion path (convertFlightRouterStateToRouteTree) goes away with it.

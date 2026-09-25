@@ -1,3 +1,4 @@
+import type { RouteTree } from './segment-cache/cache'
 import React, {
   useEffect,
   useMemo,
@@ -159,8 +160,8 @@ function HistoryUpdater({
     // task. Re-prefetch all visible links with the updated values. In most
     // cases, this will not result in any new network requests, only if
     // the prefetch result actually varies on one of these inputs.
-    pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
-  }, [appRouterState.nextUrl, appRouterState.tree])
+    pingVisibleLinks(appRouterState.nextUrl, appRouterState.cache)
+  }, [appRouterState.nextUrl, appRouterState.cache])
 
   return null
 }
@@ -182,16 +183,16 @@ function copyNextJsInternalHistoryState(data: any) {
 }
 
 function Head({
-  headCacheNode,
+  headRenderTree,
 }: {
-  headCacheNode: CacheNode | null
+  headRenderTree: RouteTree<CacheNode> | null
 }): React.ReactNode {
   // If this segment has a `prefetchHead`, it's the statically prefetched data.
   // We should use that on initial render instead of `head`. Then we'll switch
   // to `head` when the dynamic response streams in.
-  const head = headCacheNode !== null ? headCacheNode.head : null
+  const head = headRenderTree !== null ? headRenderTree.data.head : null
   const prefetchHead =
-    headCacheNode !== null ? headCacheNode.prefetchHead : null
+    headRenderTree !== null ? headRenderTree.data.prefetchHead : null
 
   // If no prefetch data is available, then we go straight to rendering `head`.
   const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
@@ -466,7 +467,7 @@ function Router({
   const layoutRouterContext = useMemo(() => {
     return {
       parentTree: tree,
-      parentCacheNode: cache,
+      parentRenderTree: cache,
       parentSegmentPath: null,
       parentParams: {},
       parentLoadingData: null,
@@ -498,9 +499,9 @@ function Router({
     //
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
-    const [headCacheNode, headKey] = matchingHead
+    const [headRenderTree, headKey] = matchingHead
 
-    head = <Head key={headKey} headCacheNode={headCacheNode} />
+    head = <Head key={headKey} headRenderTree={headRenderTree} />
   } else {
     head = null
   }
@@ -511,7 +512,7 @@ function Router({
       {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
           When users wrap their layout in <Suspense>, this creates the component stack pattern
           "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
-      <RootLayoutBoundary>{cache.rsc}</RootLayoutBoundary>
+      <RootLayoutBoundary>{cache.data.rsc}</RootLayoutBoundary>
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
