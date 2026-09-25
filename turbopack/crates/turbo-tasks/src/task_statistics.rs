@@ -216,6 +216,29 @@ impl Serialize for TaskFunctionStatistics {
     }
 }
 
+impl Serialize for TaskStatistics {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Sort by `global_name` so the emitted JSON is deterministic — the
+        // underlying `FxDashMap` has unspecified iteration order. The map is
+        // small (~1500 entries in practice), so the sort cost is negligible
+        // and not worth optimizing.
+        let mut entries: Vec<_> = self
+            .inner
+            .iter()
+            .map(|e| (e.key().ty.global_name, e.value().clone()))
+            .collect();
+        entries.sort_unstable_by_key(|(name, _)| *name);
+        let mut map = serializer.serialize_map(Some(entries.len()))?;
+        for (name, stats) in &entries {
+            map.serialize_entry(name, stats)?;
+        }
+        map.end()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -270,28 +293,5 @@ mod tests {
                 "abort_observed_invalidation": 1,
             })
         );
-    }
-}
-
-impl Serialize for TaskStatistics {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // Sort by `global_name` so the emitted JSON is deterministic — the
-        // underlying `FxDashMap` has unspecified iteration order. The map is
-        // small (~1500 entries in practice), so the sort cost is negligible
-        // and not worth optimizing.
-        let mut entries: Vec<_> = self
-            .inner
-            .iter()
-            .map(|e| (e.key().ty.global_name, e.value().clone()))
-            .collect();
-        entries.sort_unstable_by_key(|(name, _)| *name);
-        let mut map = serializer.serialize_map(Some(entries.len()))?;
-        for (name, stats) in &entries {
-            map.serialize_entry(name, stats)?;
-        }
-        map.end()
     }
 }
