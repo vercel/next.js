@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import ws from 'next/dist/compiled/ws'
 
 import type { OutputState } from '../../build/output/store'
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import { store as consoleStore } from '../../build/output/store'
 import type {
   CompilationError,
@@ -35,7 +36,11 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  CLIENT_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
+} from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
@@ -43,7 +48,9 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { clearManifestCache } from '../load-manifest.external'
+import { clearManifestCache, loadManifest } from '../load-manifest.external'
+import { loadClientReferenceManifestForPage } from '../load-components'
+import { setManifestsSingleton } from '../app-render/manifests-singleton'
 import { deleteCache } from './require-cache'
 import {
   dropDevValidationWorker,
@@ -2320,11 +2327,37 @@ export async function createHotReloaderTurbopack(
       }
 
       for (const key of keys) {
+        const { page, type } = splitEntryKey(key)
         await hotReloader.ensurePage({
-          page: splitEntryKey(key).page,
+          page,
           clientOnly: false,
           definition: undefined,
         })
+        if (type === 'app') {
+          clearManifestCache(
+            join(
+              distDir,
+              'server',
+              'app',
+              page.replace(/%5F/g, '_') +
+                '_' +
+                CLIENT_REFERENCE_MANIFEST +
+                '.js'
+            )
+          )
+          const clientReferenceManifest =
+            await loadClientReferenceManifestForPage(distDir, page, 1)
+          if (clientReferenceManifest) {
+            setManifestsSingleton({
+              page,
+              clientReferenceManifest,
+              serverActionsManifest: loadManifest<ActionManifest>(
+                join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json'),
+                false
+              ),
+            })
+          }
+        }
       }
       deleteCache([join(distDir, chunkPath)])
     }

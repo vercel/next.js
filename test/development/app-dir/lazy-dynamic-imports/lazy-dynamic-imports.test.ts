@@ -191,7 +191,40 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       }
     })
 
-    it('preserves client and server references behind a server dynamic import', async () => {
+    it('does not compile a server component dynamic import before it is reached', async () => {
+      const targetPath = path.join(
+        'app',
+        'server-graph',
+        'lazy-server-content.tsx'
+      )
+      const originalTarget = await next.readFile(targetPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `${originalTarget}\nexport const invalid = ;`
+        )
+        expect(await next.render('/server-graph')).toContain(
+          'reveal server graph'
+        )
+        expect(
+          await assetsContaining('server-graph-marker', 'server')
+        ).toHaveLength(0)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+      const renders = await Promise.all([
+        next.render('/server-graph?show=1'),
+        next.render('/server-graph?show=1'),
+      ])
+      for (const html of renders) {
+        expect(html).toContain('server-graph-marker')
+        expect(html).toContain('hydrate-client')
+        expect(html).not.toContain('Could not find the module')
+      }
+    })
+
+    it('preserves client and server references behind a lazy server component import', async () => {
       const browser = await next.browser('/server-graph')
 
       expect(
@@ -217,6 +250,29 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
           'hidden-action-result'
         )
       })
+
+      const targetPath = path.join(
+        'app',
+        'server-graph',
+        'lazy-server-content.tsx'
+      )
+      const originalTarget = await next.readFile(targetPath)
+      try {
+        await next.patchFile(
+          targetPath,
+          originalTarget.replace(
+            'server-graph-marker',
+            'updated-server-graph-marker'
+          )
+        )
+        await retry(async () => {
+          expect(await next.render('/server-graph?show=1')).toContain(
+            'updated-server-graph-marker'
+          )
+        }, 10000)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
     })
 
     it('does not parse a dynamic import target before activation', async () => {

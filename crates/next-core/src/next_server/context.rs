@@ -746,6 +746,10 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
+            let lazy_compilation = matches!(next_runtime, NextRuntime::NodeJs)
+                && *next_config
+                    .turbopack_lazy_dynamic_imports_ssr(*next_mode)
+                    .await?;
             let client_directive_transformer =
                 if let Some(name) = ecmascript_client_reference_transition_name {
                     Some(get_ecma_transform_rule(
@@ -804,6 +808,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
