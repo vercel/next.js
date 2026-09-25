@@ -134,6 +134,7 @@
     }
   },
   "optionalDependencies": {
+    "node-pty": "1.2.0-beta.15",
     "sharp": "^0.35.4"
   },
   "devDependencies": {
