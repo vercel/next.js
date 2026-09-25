@@ -228,6 +228,7 @@ const summarizeDurations = (data) => {
         average,
         median,
         percentile75,
+        samples: durations,
       }
     }
 

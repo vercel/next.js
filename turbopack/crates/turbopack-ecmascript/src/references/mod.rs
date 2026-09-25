@@ -124,10 +124,7 @@ use crate::{
             AmdDefineWithDependenciesCodeGen,
         },
         async_module::{AsyncModule, OptionAsyncModule},
-        cjs::{
-            CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
-            CjsRequireResolveAssetReference,
-        },
+        cjs::{CjsAssetReference, CjsRequireAssetReference, CjsRequireResolveAssetReference},
         cross_module_constants::{
             is_import_name_eligible_for_exports, module_value_to_constants_module,
         },
@@ -3664,16 +3661,30 @@ async fn handle_membership<'a>(
             if is_prop_cache
                 && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
             {
-                analysis.add_code_gen::<CodeGen>(match ty {
+                match ty {
                     MembershipType::Member { .. } => {
-                        CjsRequireCacheAccess::new(analysis.intern_path(ast_path)).into()
+                        handle_free_var_reference(
+                            ast_path,
+                            // Import the `cache` proxy wrapper helper to satisfy require.cache
+                            // This re-exposes the `Map` the runtime uses as a object.
+                            &FreeVarReference::EcmaScriptModule {
+                                request: rcstr!("@turbopack/module-cache"),
+                                lookup_path: None,
+                                export: Some(rcstr!("cache")),
+                            },
+                            span,
+                            state,
+                            analysis,
+                        )
+                        .await?;
                     }
-                    MembershipType::In => ConstantValueCodeGen::new(
-                        CompileTimeDefineValue::Bool(true),
-                        analysis.intern_path(ast_path),
-                    )
-                    .into(),
-                });
+                    MembershipType::In => {
+                        analysis.add_code_gen(ConstantValueCodeGen::new(
+                            CompileTimeDefineValue::Bool(true),
+                            analysis.intern_path(ast_path),
+                        ));
+                    }
+                }
                 return Ok(());
             }
         }

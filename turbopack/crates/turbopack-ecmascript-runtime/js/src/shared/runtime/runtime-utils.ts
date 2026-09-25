@@ -118,15 +118,15 @@ function getOverwrittenModule(
   moduleCache: ModuleCache<Module>,
   id: ModuleId
 ): Module {
-  let module = moduleCache[id]
-  if (!module) {
+  let module = moduleCache.get(id)
+  if (module === undefined) {
     if (createModuleWithDirectionFlag) {
       // set in development modes for hmr support
       module = createModuleWithDirection(id)
     } else {
       module = createModuleObject(id)
     }
-    moduleCache[id] = module
+    moduleCache.set(id, module)
   }
   return module
 }
