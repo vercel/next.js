@@ -25,7 +25,7 @@ import type {
   VaryParams,
   VaryParamsIterable,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
-import { readVaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import { decodeVaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   type SegmentRequestKey,
   ROOT_SEGMENT_REQUEST_KEY,
@@ -70,10 +70,9 @@ export type NavigationSeed = {
   head: HeadData | null
   isHeadPartial: boolean
   /**
-   * The params the head's output depends on (root params already unioned
-   * in), drained from the response's wire iterables at decode. Null means
-   * unknown — tracking wasn't enabled, or the decode had no root params to
-   * union in — so consumers key on all params.
+   * The source of the params the head's output depends on (root params
+   * included). Null means unknown — tracking wasn't enabled, or the decode
+   * had no root params to union in — so consumers key on all params.
    */
   headVaryParams: VaryParams | null
   /**
@@ -118,13 +117,11 @@ export function createNavigationSeed(
   // The response's root vary params (its `r` field): the root params
   // accessed anywhere in the response, emitted once at the response level
   // and unioned into the head's and every segment's own drained set here at
-  // the decode boundary. Pass null when vary params are unavailable or
-  // unwanted: navigation and reducer flows, whose responses stream in
-  // incrementally (the wire iterables can only be drained completely from a
-  // fully-buffered response) and whose seeds' vary params nothing consumes —
-  // only segment-cache writes read them, and those decode their own,
-  // buffered, payloads. Null decodes every set as null ("unknown; key on
-  // all params") without touching the wire iterables.
+  // the decode boundary. Pass null when the response streams in
+  // incrementally (navigation and reducer flows): the wire iterables can
+  // only be drained completely from a fully-buffered response, so their sets
+  // decode as null ("unknown; key on all params") without touching the wire
+  // iterables.
   rootVaryParams: VaryParamsIterable | null,
   // Whether anything in the response is not fully resolved: dynamic holes, runtime holes, anything suspended.
   // Boolean-form nodes resolve their partiality to this value (their wire
@@ -192,7 +189,7 @@ export function createNavigationSeed(
             ? isResponsePartial
             : transportHead.p
           : readFulfilledIsPartial(transportHead.p)
-      headVaryParams = readVaryParams(transportHead.v, rootVaryParams)
+      headVaryParams = decodeVaryParams(transportHead.v, rootVaryParams)
       headStaleTimeSeconds =
         transportHead.s !== undefined
           ? readFulfilledStaleTimeSeconds(transportHead.s)
@@ -636,11 +633,12 @@ function decodeTransportNode(
         typeof nodeData.p === 'boolean'
           ? isResponsePartial
           : readFulfilledIsPartial(nodeData.p),
-      // Drain the segment's wire iterable into a plain set, unioning in the
-      // response-level root params. Same buffered-read reasoning as `p`
-      // above; skipped entirely (decoded as null, "unknown") when the caller
-      // passed no root params — see createNavigationSeed.
-      varyParams: readVaryParams(nodeData.v, rootVaryParams),
+      // The source of the params this segment's output depends on: the
+      // segment's wire iterable, drained here, unioning in the response-level
+      // root params (same buffered-read reasoning as `p` above), or decoded
+      // as null ("unknown") when the caller passed no root params — see
+      // createNavigationSeed.
+      varyParams: decodeVaryParams(nodeData.v, rootVaryParams),
       // Per-node staleTime, only present in per-segment prefetch responses
       // (same buffered-read reasoning as `p` above).
       staleTimeSeconds:

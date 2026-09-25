@@ -52,9 +52,10 @@ import {
   readFromBFCacheDuringRegularNavigation,
   writeToBFCache,
   writeHeadToBFCache,
-  updateBFCacheEntryStaleAt,
+  updateBFCacheEntryFromDynamicResponse,
   computeDynamicStaleAt,
 } from './segment-cache/bfcache'
+import type { VaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -389,10 +390,12 @@ function updateRenderTreeOnNavigation(
     // new one.
     const data = newRouteTree.data
     const seedRsc = data !== null ? data.rsc : null
+    const seedVaryParams = data !== null ? data.varyParams : null
     const result = createRenderTreeForSegment(
       navigatedAt,
       newRouteTree,
       seedRsc,
+      seedVaryParams,
       newMetadataVaryPath,
       seedHead,
       freshness,
@@ -662,10 +665,12 @@ function createRenderTreeOnNavigation(
 
   const data = newRouteTree.data
   const seedRsc = data !== null ? data.rsc : null
+  const seedVaryParams = data !== null ? data.varyParams : null
   const result = createRenderTreeForSegment(
     navigatedAt,
     newRouteTree,
     seedRsc,
+    seedVaryParams,
     newMetadataVaryPath,
     seedHead,
     freshness,
@@ -916,6 +921,7 @@ function createRenderTreeForSegment(
   now: number,
   tree: RouteTree<RSCSegmentData | null>,
   seedRsc: React.ReactNode | null,
+  seedVaryParams: VaryParams | null,
   metadataVaryPath: VaryPath | null,
   seedHead: HeadData | null,
   freshness: FreshnessPolicy,
@@ -966,6 +972,7 @@ function createRenderTreeForSegment(
             createCacheNode(
               bfcacheEntry.rsc,
               bfcacheEntry.prefetchRsc,
+              bfcacheEntry.varyParams,
               bfcacheEntry.head,
               bfcacheEntry.prefetchHead,
               bfcacheId
@@ -996,6 +1003,7 @@ function createRenderTreeForSegment(
       const cacheNode = createCacheNode(
         seedRsc,
         null,
+        seedVaryParams,
         isPage ? seedHead : null,
         null,
         bfcacheId
@@ -1035,6 +1043,7 @@ function createRenderTreeForSegment(
             createCacheNode(
               bfcacheEntry.rsc,
               dropPrefetchRsc ? null : bfcacheEntry.prefetchRsc,
+              bfcacheEntry.varyParams,
               bfcacheEntry.head,
               dropPrefetchRsc ? null : bfcacheEntry.prefetchHead,
               bfcacheEntry.bfcacheId
@@ -1056,6 +1065,7 @@ function createRenderTreeForSegment(
 
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
+  let cachedVaryParams: VaryParams | null = null
 
   const segmentEntry = readSegmentCacheEntryForNavigation(
     now,
@@ -1069,6 +1079,7 @@ function createRenderTreeForSegment(
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
         isCachedRscPartial = segmentEntry.isPartial
+        cachedVaryParams = segmentEntry.varyParams
         break
       }
       case EntryStatus.Pending: {
@@ -1079,6 +1090,8 @@ function createRenderTreeForSegment(
         cachedRsc = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.rsc : null
         )
+        // The entry's data hasn't arrived, and neither has the source of the
+        // params it depends on; `cachedVaryParams` stays null.
         // Because the request is still pending, we typically don't know yet
         // whether the response will be partial. We shouldn't skip this segment
         // during the dynamic navigation request. Otherwise, we might need to
@@ -1115,6 +1128,10 @@ function createRenderTreeForSegment(
   // means the data failed to load; the LayoutRouter will suspend indefinitely
   // until the router updates again (refer to finishNavigationTask).
   let rsc: React.ReactNode | null
+  // The source of the params `rsc` depends on. A server response or a
+  // fulfilled segment cache entry carries one; a deferred `rsc` gets its
+  // source when the response arrives (finishPendingCacheNode).
+  let varyParams: VaryParams | null
   let doesSegmentNeedDynamicRequest: boolean
 
   if (seedRsc !== null) {
@@ -1124,6 +1141,7 @@ function createRenderTreeForSegment(
       // partial cached state in the meantime.
       prefetchRsc = cachedRsc
       rsc = seedRsc
+      varyParams = seedVaryParams
     } else {
       // We already have a completely cached segment. Ignore the seed data,
       // which may still be streaming in. This shouldn't happen in the normal
@@ -1131,6 +1149,7 @@ function createRenderTreeForSegment(
       // already fully cached, and the server will skip rendering them.
       prefetchRsc = null
       rsc = cachedRsc
+      varyParams = cachedVaryParams
     }
     doesSegmentNeedDynamicRequest = false
   } else {
@@ -1143,10 +1162,12 @@ function createRenderTreeForSegment(
       // data arrives from the server.
       prefetchRsc = cachedRsc
       rsc = createDeferredRsc()
+      varyParams = null
     } else {
       // The data is fully cached.
       prefetchRsc = null
       rsc = cachedRsc
+      varyParams = cachedVaryParams
     }
     doesSegmentNeedDynamicRequest = isCachedRscPartial
   }
@@ -1246,6 +1267,7 @@ function createRenderTreeForSegment(
   const cacheNode = createCacheNode(
     rsc,
     prefetchRsc,
+    varyParams,
     head,
     prefetchHead,
     bfcacheId
@@ -1270,6 +1292,7 @@ function createRenderTreeForSegment(
 function createCacheNode(
   rsc: React.ReactNode | null,
   prefetchRsc: React.ReactNode | null,
+  varyParams: VaryParams | null,
   head: React.ReactNode | null,
   prefetchHead: HeadData | null,
   bfcacheId: number,
@@ -1278,6 +1301,7 @@ function createCacheNode(
   return {
     rsc,
     prefetchRsc,
+    varyParams,
     head,
     prefetchHead,
     scrollRef,
@@ -1769,9 +1793,7 @@ async function fetchMissingDynamicData(
       task.route,
       result.transportData,
       // Navigation responses stream in incrementally, so their vary params
-      // can't be drained here — and nothing consumes them from a navigation
-      // seed (only segment-cache writes read vary params, and those decode
-      // their own, buffered, payloads).
+      // can't be drained here; they decode as null.
       null,
       result.isResponsePartial,
       // Navigation responses always include the param values in the tree, so
@@ -1911,12 +1933,17 @@ function writeDynamicDataIntoNavigationTask(
       revealAfter
     )
 
-    // Update the BFCache entry's staleAt for this segment with the value
-    // from the dynamic response. This applies the per-page
-    // unstable_dynamicStaleTime if set, or the default DYNAMIC_STALETIME_MS.
-    // We only update segments that received dynamic data — static segments
-    // are unaffected.
-    updateBFCacheEntryStaleAt(serverRouteTree.varyPath, dynamicStaleAt)
+    // The BFCache entry for this segment was written before the response
+    // arrived. Bring it up to date with what the response filled in: its
+    // staleAt (the per-page unstable_dynamicStaleTime if set, or the default
+    // DYNAMIC_STALETIME_MS) and the source of the params its data depends
+    // on. We only update segments that received dynamic data — static
+    // segments are unaffected.
+    updateBFCacheEntryFromDynamicResponse(
+      serverRouteTree.varyPath,
+      cacheNode,
+      dynamicStaleAt
+    )
   }
 
   const taskChildren = task.children
@@ -2008,20 +2035,27 @@ function finishPendingCacheNode(
     return
   }
 
+  // TODO: `varyParams` must always describe the render that produced `rsc`,
+  // but nothing in the CacheNode type ties the two fields together; this
+  // function keeps them in lockstep by writing both at once. Eventually the
+  // whole CacheNode should be a thenable whose fields are populated through
+  // dedicated helpers that own the state transition.
   if (rsc === null) {
     // This is a lazy cache node. We can overwrite it. This is only safe
     // because we know that the LayoutRouter suspends if `rsc` is `null`.
     cacheNode.rsc = dynamicSegmentData
-  } else if (isDeferredRsc(rsc)) {
+    cacheNode.varyParams = dynamicData.varyParams
+  } else if (isDeferredRsc(rsc) && rsc.status === 'pending') {
     // This is a deferred RSC promise. We can fulfill it with the data we just
-    // received from the server. If it was already resolved by a different
-    // navigation, then this does nothing because we can't overwrite data.
+    // received from the server. The source of the params that data depends
+    // on travels with it.
     //
     // In the streaming dev render, defer the fill until `revealAfter` settles,
     // so React doesn't render the boundary's children before their row has been
     // decoded (otherwise it suspends on the still-pending children and commits
     // a premature fallback). Outside that render `revealAfter` is null and we
     // resolve immediately.
+    cacheNode.varyParams = dynamicData.varyParams
     if (revealAfter !== null) {
       const resolveRsc = () => rsc.resolve(dynamicSegmentData, debugInfo)
       // Use the same callback for both outcomes: we don't expect `revealAfter`
@@ -2032,8 +2066,9 @@ function finishPendingCacheNode(
       rsc.resolve(dynamicSegmentData, debugInfo)
     }
   } else {
-    // This is not a deferred RSC promise, nor is it empty, so it must have
-    // been populated by a different navigation. We must not overwrite it.
+    // This is not a deferred RSC promise that's still pending, nor is it
+    // empty, so it must have been populated by a different navigation. We
+    // must not overwrite it (nor its dependency source).
   }
 
   // Check if this is a leaf segment. If so, it will have a `head` property with

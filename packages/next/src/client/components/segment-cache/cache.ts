@@ -5,6 +5,8 @@ import {
   StaticAttemptHints,
 } from '../../../shared/lib/app-router-types'
 import {
+  createVaryParams,
+  readVaryParams,
   SEARCH_PARAMS_VARY_ID,
   type VaryParams,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
@@ -185,10 +187,9 @@ export type RSCSegmentData = {
    */
   isPartial: boolean
   /**
-   * The params this segment's output depends on (root params already
-   * unioned in), drained from the response's wire iterables at decode. Null
-   * means unknown — tracking wasn't enabled, or the decode had no root
-   * params to union in — so consumers key on all params.
+   * The source of the params this segment's output depends on (root params
+   * included). Null means unknown — tracking wasn't enabled, or the decode
+   * had no root params to union in — so consumers key on all params.
    */
   varyParams: VaryParams | null
   /**
@@ -361,6 +362,12 @@ export type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   blockedTasks: null
   rsc: React.ReactNode | null
   isPartial: boolean
+  // The source of the params `rsc` depends on, recorded under exactly the
+  // condition the entry's key trusts it (see the re-key derivation in
+  // writeSegmentDataIntoCache). Null means unknown: consumers assume the
+  // output depends on every param. A navigation that renders this entry's
+  // `rsc` as its final data carries it onto the CacheNode.
+  varyParams: VaryParams | null
   promise: null
 }
 
@@ -1314,6 +1321,7 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
       bfcacheEntry.rsc,
       dynamicPrefetchStaleAt,
       isPartial,
+      bfcacheEntry.varyParams,
       // bfcache data is concrete, never an ISR fallback.
       false,
       FetchStrategy.Full
@@ -1352,6 +1360,7 @@ export function attemptToUpgradeSegmentFromBFCache(
       bfcacheEntry.rsc,
       dynamicPrefetchStaleAt,
       isPartial,
+      bfcacheEntry.varyParams,
       // bfcache data is concrete, never an ISR fallback.
       false,
       FetchStrategy.Full
@@ -1548,6 +1557,7 @@ function fulfillSegmentCacheEntry(
   rsc: React.ReactNode,
   staleAt: number,
   isPartial: boolean,
+  varyParams: VaryParams | null,
   // Only static (per-segment PPR) responses can be ISR fallbacks; all other
   // callers pass false. Always assigned (even when false) so that re-fulfilling
   // a previously-fallback entry with a concrete response clears the flag and
@@ -1570,6 +1580,7 @@ function fulfillSegmentCacheEntry(
   fulfilledEntry.rsc = rsc
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.isPartial = isPartial
+  fulfilledEntry.varyParams = varyParams
   fulfilledEntry.isUpgradeableISRFallback = isUpgradeableISRFallback
   fulfilledEntry.fetchStrategy = fetchStrategy
   // Resolve any listeners that were waiting for this data.
@@ -3430,46 +3441,59 @@ function writeSegmentDataIntoCache(
   // vary path).
   const payloadStrategy = contentFetchStrategy ?? fetchStrategy
   let fulfilledVaryPath: VaryPath | null = null
+  // The dependency source the entry records, so a navigation that renders
+  // its content can tell which params that content read. It is the same
+  // evidence the key derivation below trusts, under the same condition, with
+  // the same correction; otherwise null, and consumers assume every param.
+  let recordedVaryParams: VaryParams | null = null
   if (
     process.env.__NEXT_VARY_PARAMS &&
     payloadStrategy !== FetchStrategy.Full &&
     segmentVaryParams !== null
   ) {
-    let varyParams = segmentVaryParams
-    if (
-      payloadStrategy === FetchStrategy.RuntimeShell &&
-      varyParams.has(SEARCH_PARAMS_VARY_ID)
-    ) {
-      // SPECIAL CASE: for a RuntimeShell payload, the search params entry
-      // is dropped from the server's vary evidence before deriving the
-      // key, so the search component of the resulting path is marked as
-      // the fallback. This exists ONLY because of a known compromise in
-      // how the server reports search params: accessing `searchParams`
-      // records a dependency on them at access time, even when the render
-      // suspends on that access and cuts the content at the param
-      // fallback. A shell render's page and head segments therefore report
-      // the search params while the emitted bytes contain no
-      // search-dependent content.
-      // Trusting that report would key shell-grade content at a concrete
-      // search value, where shell-restricted reads (which generalize every
-      // non-root param — see getShellSegmentVaryPath) can never find it. A
-      // RuntimeShell payload's search-dependent content is reduced to
-      // fallbacks by construction, so its key must not vary on search
-      // regardless of the over-reported evidence. Every other component of
-      // the evidence is still honored as-is.
-      //
-      // Nothing else should rely on this branch; for every other payload
-      // grade — and every other param — the server's evidence
-      // is authoritative.
-      //
-      // TODO: Reconsider special-casing this on the server instead: don't
-      // report a param access that never resolved past the fallback cut in
-      // the emitted stage. A shell payload's evidence would then be
-      // accurate, and this branch could be deleted.
-      varyParams = new Set(varyParams)
-      varyParams.delete(SEARCH_PARAMS_VARY_ID)
+    // Read the reported set now, when the key is chosen. The payload is fully
+    // buffered by the time it's written, so the source has settled; a read of
+    // null means the report is unavailable and every param varies.
+    let varyParams = readVaryParams(segmentVaryParams)
+    if (varyParams !== null) {
+      if (
+        payloadStrategy === FetchStrategy.RuntimeShell &&
+        varyParams.has(SEARCH_PARAMS_VARY_ID)
+      ) {
+        // SPECIAL CASE: for a RuntimeShell payload, the search params entry
+        // is dropped from the server's vary evidence before deriving the
+        // key, so the search component of the resulting path is marked as
+        // the fallback. This exists ONLY because of a known compromise in
+        // how the server reports search params: accessing `searchParams`
+        // records a dependency on them at access time, even when the render
+        // suspends on that access and cuts the content at the param
+        // fallback. A shell render's page and head segments therefore report
+        // the search params while the emitted bytes contain no
+        // search-dependent content.
+        // Trusting that report would key shell-grade content at a concrete
+        // search value, where shell-restricted reads (which generalize every
+        // non-root param — see getShellSegmentVaryPath) can never find it. A
+        // RuntimeShell payload's search-dependent content is reduced to
+        // fallbacks by construction, so its key must not vary on search
+        // regardless of the over-reported evidence. Every other component of
+        // the evidence is still honored as-is.
+        //
+        // Nothing else should rely on this branch; for every other payload
+        // grade — and every other param — the server's evidence
+        // is authoritative.
+        //
+        // TODO: Reconsider special-casing this on the server instead: don't
+        // report a param access that never resolved past the fallback cut in
+        // the emitted stage. A shell payload's evidence would then be
+        // accurate, and this branch could be deleted.
+        varyParams = new Set(varyParams)
+        varyParams.delete(SEARCH_PARAMS_VARY_ID)
+        recordedVaryParams = createVaryParams(varyParams)
+      } else {
+        recordedVaryParams = segmentVaryParams
+      }
+      fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
     }
-    fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
   }
 
   // The canonical path to (re-)key the entry at. When the derivation above
@@ -3508,6 +3532,7 @@ function writeSegmentDataIntoCache(
       rsc,
       staleAt,
       isPartial,
+      recordedVaryParams,
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
@@ -3527,6 +3552,7 @@ function writeSegmentDataIntoCache(
       rsc,
       staleAt,
       isPartial,
+      recordedVaryParams,
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
