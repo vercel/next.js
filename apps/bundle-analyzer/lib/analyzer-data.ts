@@ -1,4 +1,4 @@
-import useSWR from 'swr'
+import useSWR, { type SWRConfiguration } from 'swr'
 import { AnalyzeData, ModulesData } from './analyze-data'
 import type { HistoryIndex } from './snapshot'
 import { fetchStrict, jsonFetcher } from './utils'
@@ -18,6 +18,18 @@ export function useHistoryIndex() {
     ...staticDataOptions,
     shouldRetryOnError: false,
   })
+}
+
+export function useSuspenseJsonData<Data>(
+  key: string,
+  options: SWRConfiguration<Data> = {}
+): Data {
+  const { data } = useSWR(key, jsonFetcher<Data>, {
+    ...options,
+    suspense: true,
+  })
+
+  return data
 }
 
 export async function fetchAnalyzeData(url: string): Promise<AnalyzeData> {
