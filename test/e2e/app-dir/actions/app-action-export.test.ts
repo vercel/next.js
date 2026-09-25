@@ -1,14 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir action handling - next export', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
     dependencies: {
       nanoid: '4.0.1',
       'server-only': 'latest',
     },
   })
+  if (skipped) return
 
   if (!isNextStart) {
     it('skip test for development mode', () => {})
