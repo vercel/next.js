@@ -18,6 +18,7 @@ use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     flavor::WriteGuardFlavor,
+    tokio_workers::active_worker_threads,
     trace_writer::TraceWriter,
     tracing::{TraceRow, TraceValue},
 };
@@ -107,6 +108,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
                     ts,
                     memory,
                     memory_pressure,
+                    active_worker_threads: active_worker_threads() as u64,
                 });
             }
             Err(actual) => {
