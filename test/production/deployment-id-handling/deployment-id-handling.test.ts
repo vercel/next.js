@@ -191,6 +191,30 @@ describe.each([
       )
     })
 
+    it('should contain deployment id in Server Action responses', async () => {
+      const actionResponseHeaders = []
+      const browser = await next.browser('/action-page')
+
+      browser.on('response', (res) => {
+        if (
+          res.url().includes('/action-page') &&
+          res.request().method() === 'POST'
+        ) {
+          actionResponseHeaders.push(res.headers())
+        }
+      })
+
+      await browser.elementByCss('#trigger-action').click()
+
+      await retry(async () => {
+        expect(actionResponseHeaders.length).toBeGreaterThan(0)
+      })
+
+      expect(actionResponseHeaders).toSatisfyAll(
+        (headers) => headers['x-nextjs-deployment-id'] === deploymentId
+      )
+    })
+
     if (usesImmutableAssets) {
       it('should emit hashes to adapter', async () => {
         const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
