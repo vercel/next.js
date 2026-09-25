@@ -802,8 +802,20 @@ export default class DevServer extends Server {
               )
             }
 
+            let decodedUrlPathname: string | undefined
+            try {
+              decodedUrlPathname = decodeURI(urlPathname)
+            } catch {}
+
             if (
-              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+              !prerenderedRoutes.some(
+                (item) =>
+                  item.pathname === urlPathname ||
+                  item.encodedPathname === urlPathname ||
+                  (decodedUrlPathname !== undefined &&
+                    (item.pathname === decodedUrlPathname ||
+                      item.encodedPathname === decodedUrlPathname))
+              )
             ) {
               throw new Error(
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
