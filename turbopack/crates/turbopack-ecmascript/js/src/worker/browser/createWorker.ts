@@ -41,7 +41,9 @@ type WorkerChunkData = string | { path: string }
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS, ...workerForwardedGlobals values]`
+ * `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ *
+ * `PRELOAD_CHUNK_URLS` comes first because it is loaded first.
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -86,7 +88,7 @@ function createWorker(
   //     deliberately excludes availability info), but carries a different chunk
   //     list per group. Loading the worker's own chunks last means its version
   //     wins, so a nested worker gets the correctly-pruned chunk list.
-  // They travel in their own params slot so the bootstrap can order them.
+  // They travel in their own params slot — first, since they load first.
   const preloadChunkPaths = (
     typeof __turbopack_get_loaded_chunk_paths__ === 'function'
       ? __turbopack_get_loaded_chunk_paths__()
@@ -102,10 +104,10 @@ function createWorker(
     __turbopack_chunk_relative_url__(chunkPath, workerBasePath)
   )
   const params: unknown[] = [
+    preloadUrls,
     chunkUrls,
     __turbopack_chunk_asset_suffix__,
     workerBasePath,
-    preloadUrls,
   ]
   const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
   for (let i = 0; i < globals.length; i++) {
