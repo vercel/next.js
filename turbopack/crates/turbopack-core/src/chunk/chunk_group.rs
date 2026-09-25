@@ -6,8 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc, turbobail,
+    FxIndexSet, JoinIterExt, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 
 use super::{
@@ -34,7 +33,6 @@ use crate::{
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
     output::OutputAssetsReference,
-    resolve::origin::ResolveOrigin,
 };
 
 pub struct MakeChunkGroupResult {
@@ -206,34 +204,19 @@ pub async fn make_chunk_group(
     //   enclosing chunk group already lists it as its own entry and it looks "available" even
     //   on the first, non-recursive call.
     //
-    // The loader also needs the `AssetContext` the worker reference was resolved with, so it can
-    // resolve the `createWorker` runtime helper to the same module `WorkerAssetReference`
-    // registered in the graph. `url_resolve` / `process_resolve_result` resolved the worker
-    // through `origin.asset_context()`, and the resolved module is itself a `ResolveOrigin`
-    // carrying that same context — so recovering it here is equivalent.
+    // The referring module references the `createWorker` helper and passes it to the loader
+    // at runtime. No origin or helper lookup is needed here — worker entry modules need only be
+    // chunkable (and evaluatable for Node worker threads), even when wrapped in a facade.
     let worker_loaders = worker_modules
         .iter()
         .copied()
         .map(async |(module, worker_type)| {
-            let Some(origin) = ResolvedVc::try_sidecast::<Box<dyn ResolveOrigin>>(module) else {
-                turbobail!(
-                    "worker module {} must implement ResolveOrigin so the createWorker runtime \
-                     helper can be resolved with the same asset context",
-                    module.ident().to_string().await?
-                );
-            };
             let availability_info = match worker_type {
                 WorkerType::WebWorker | WorkerType::SharedWebWorker => new_availability_info,
                 WorkerType::NodeWorkerThread => AvailabilityInfo::root(),
             };
             chunking_context
-                .worker_loader_chunk_item(
-                    *module,
-                    *origin.into_trait_ref().await?.asset_context(),
-                    worker_type,
-                    *module_graph,
-                    availability_info,
-                )
+                .worker_loader_chunk_item(*module, worker_type, *module_graph, availability_info)
                 .to_resolved()
                 .await
         })

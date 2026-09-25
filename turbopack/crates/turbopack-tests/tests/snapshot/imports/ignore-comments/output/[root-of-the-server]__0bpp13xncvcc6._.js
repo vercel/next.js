@@ -24,7 +24,7 @@ var __TURBOPACK__import$2e$meta__ = {
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
 console.log(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)")(Worker);
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
 // turbopack shouldn't attempt to bundle these, and they should be preserved in the output
 import(/* webpackIgnore: true */ './ignore.mjs');
 import(/* turbopackIgnore: true */ './ignore.mjs');
@@ -48,7 +48,8 @@ module.exports = 'turbopack';
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
-// `__turbopack_require__`d by the generated web-worker loader code.
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated web-worker loader.
 //
 // The chunk-URL builder, the chunk base path and the asset suffix are read from
 // the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`

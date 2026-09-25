@@ -2151,6 +2151,22 @@ where
                         } else {
                             ResolveErrorMode::Error
                         };
+                        let helper = if tracing_only {
+                            None
+                        } else {
+                            Some(
+                                add_create_worker_reference(
+                                    analysis,
+                                    origin,
+                                    if is_shared {
+                                        WorkerType::SharedWebWorker
+                                    } else {
+                                        WorkerType::WebWorker
+                                    },
+                                )
+                                .await?,
+                            )
+                        };
                         analysis.add_reference_code_gen(
                             WorkerAssetReference::new_web_worker(
                                 origin,
@@ -2159,22 +2175,11 @@ where
                                 error_mode,
                                 tracing_only,
                                 is_shared,
+                                helper,
                             ),
                             analysis.intern_path(ast_path),
                             link_context,
                         );
-                        if !tracing_only {
-                            add_create_worker_reference(
-                                analysis,
-                                origin,
-                                if is_shared {
-                                    WorkerType::SharedWebWorker
-                                } else {
-                                    WorkerType::WebWorker
-                                },
-                            )
-                            .await?;
-                        }
                     }
 
                     return Ok(());
@@ -2267,6 +2272,18 @@ where
                     } else {
                         get_traced_project_dirs().await?
                     };
+                    let helper = if tracing_only {
+                        None
+                    } else {
+                        Some(
+                            add_create_worker_reference(
+                                analysis,
+                                origin,
+                                WorkerType::NodeWorkerThread,
+                            )
+                            .await?,
+                        )
+                    };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
@@ -2277,14 +2294,11 @@ where
                             get_issue_source(),
                             error_mode,
                             tracing_only,
+                            helper,
                         ),
                         analysis.intern_path(ast_path),
                         link_context,
                     );
-                    if !tracing_only {
-                        add_create_worker_reference(analysis, origin, WorkerType::NodeWorkerThread)
-                            .await?;
-                    }
 
                     return Ok(());
                 }
@@ -3928,33 +3942,33 @@ fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource 
 
 /// Declares a reference to the `createWorker` runtime helper for `worker_type`.
 ///
-/// The `WorkerLoaderModule` whose generated code `require()`s this helper is created during
-/// chunking, after the module graph is built, so its own `references()` are never traversed and
-/// it cannot put the helper into the graph itself. Declaring it here — on the module that
-/// contains the `new Worker(...)` call, right next to the `WorkerAssetReference` — makes the
-/// helper reachable during graph construction (so it gets a module id) and chunks it into the
-/// same chunk group that ends up holding the loader.
+/// The `WorkerLoaderModule` is created during chunking, after the module graph is built, so
+/// its own `references()` are never traversed and cannot put the helper into the graph. Declaring
+/// it here — on the module containing `new Worker(...)` — makes the helper reachable during
+/// graph construction and chunks it into the same group as the loader. Caller codegen requires
+/// that helper and passes its exported function to the loader at runtime.
 ///
-/// It resolves through `origin.asset_context()`, which is the same context the worker reference
-/// itself resolved with; the loader recovers that context from its inner module via
-/// [`ResolveOrigin`], so both reach the identical memoized `Vc` and therefore the identical
-/// chunk item id.
+/// Return the same resolved module to worker-call codegen: it passes the helper's exported
+/// function to the late loader at runtime. The loader itself has no module dependencies.
 async fn add_create_worker_reference(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     worker_type: WorkerType,
-) -> Result<()> {
+) -> Result<ResolvedVc<Box<dyn Module>>> {
     let asset_context = origin.into_trait_ref().await?.asset_context();
+    let helper = create_worker_module(*asset_context, worker_type)
+        .to_resolved()
+        .await?;
     analysis.add_reference(
         SingleChunkableModuleReference::new(
-            create_worker_module(*asset_context, worker_type),
+            *helper,
             rcstr!("createWorker"),
             ExportUsage::named(rcstr!("default")),
         )
         .to_resolved()
         .await?,
     );
-    Ok(())
+    Ok(helper)
 }
 
 async fn analyze_amd_define(
