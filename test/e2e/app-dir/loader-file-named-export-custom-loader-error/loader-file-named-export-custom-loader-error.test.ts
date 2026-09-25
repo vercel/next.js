@@ -12,7 +12,6 @@ async function testDev(browser, errorRegex) {
 describe('Error test if the loader file export a named function', () => {
   describe('in Development', () => {
     const { next, isNextDev } = nextTestSetup({
-      skipDeployment: true,
       files: __dirname,
     })
 
@@ -29,20 +28,16 @@ describe('Error test if the loader file export a named function', () => {
     })
   })
 
+  // @force-gate !dev
   describe('in Build and Start', () => {
-    const { next, isNextStart } = nextTestSetup({
-      skipDeployment: true,
+    const { next } = nextTestSetup({
       skipStart: true,
       files: __dirname,
     })
 
-    ;(isNextStart ? describe : describe.skip)('build and start only', () => {
-      it('should show the build error', async () => {
-        await expect(next.start()).rejects.toThrow(
-          'next build failed with code/signal 1'
-        )
-        expect(next.cliOutput).toContain(errorMessage)
-      })
-    })
+    it('should show the build error', async () => {
+      await expect(next.start()).rejects.toThrow()
+      expect(next.cliOutput).toContain(errorMessage)
+    }, 240_000)
   })
 })

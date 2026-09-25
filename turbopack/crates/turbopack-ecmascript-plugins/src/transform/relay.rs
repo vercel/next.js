@@ -6,13 +6,11 @@ use bincode::{Decode, Encode};
 use serde::Deserialize;
 use swc_core::{common::FileName, ecma::ast::Program};
 use swc_relay::RelayLanguageConfig;
-use turbo_tasks::{NonLocalValue, OperationValue, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, OperationValue};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayConfig {
     pub src: String,
@@ -20,9 +18,7 @@ pub struct RelayConfig {
     pub language: Option<RelayLanguage>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(rename_all = "lowercase")]
 pub enum RelayLanguage {
     TypeScript,

@@ -9,7 +9,10 @@ import {
 } from '../utils'
 import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
-import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  EnsureStatic,
+} from '../../../build/segment-config/app/app-segment-config'
 
 const API_DOCS: Record<
   string,
@@ -159,19 +162,40 @@ const API_DOCS: Record<
   prefetch: {
     description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
     link: '(docs coming soon)',
-    type: `"auto" | "partial" | "unstable_eager" | "force-disabled"`,
+    type: `"auto" | "partial" | "force-disabled"`,
     options: {
       auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
       partial:
         'Enables Partial Prefetching for this segment. When a static prefetch is insufficient, Next.js may prefetch the segment with a runtime server request so it can access session data, such as cookies.',
-      unstable_eager:
-        'Like "partial", but adds an implied prop of prefetch={true} to ' +
-        'every Link. This option only exists to aid migration of apps that ' +
-        'adopted Partial Prefetching in canary before the behavior changed to ' +
-        'only fetch the shell by default.',
       'force-disabled': 'Never prefetch this segment.',
     },
     insertText: `prefetch = 'partial';`,
+  },
+  unstable_ensureStatic: {
+    description: `Controls which rendering phases require static output for this segment. This option is experimental and may change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "shell" | "prefetch" | "navigation" | false`,
+    options: {
+      '"auto"':
+        'Default. The shell, prefetch, or entire page will automatically be prerendered statically if possible.',
+      '"shell"': 'Force the shell for the route to be prerendered statically.',
+      '"prefetch"':
+        'Force both the shell and the prefetch (`<Link prefetch={true}>`) for the route to be prerendered statically.',
+      '"navigation"': 'Require the route to be fully static.',
+      false:
+        'Indicate that this segment must use the default behavior and should not have `ensureStatic = "shell" | "prefetch" | "navigation"` applied to it by another segment. Errors if another segment on the route uses `ensureStatic` with those values.',
+    } satisfies DocsOptionsObject<
+      FullAppSegmentConfig['unstable_ensureStatic']
+    >,
+    insertText: `unstable_ensureStatic = 'shell';`,
+    isValid: (value) => {
+      try {
+        const parsed: unknown = JSON.parse(value)
+        return (VALID_ENSURE_STATIC_VALUES as unknown[]).includes(parsed)
+      } catch {
+        return false
+      }
+    },
   },
   unstable_dynamicStaleTime: {
     description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`instant\`.`,
@@ -185,6 +209,14 @@ const API_DOCS: Record<
     },
   },
 }
+
+const VALID_ENSURE_STATIC_VALUES: EnsureStatic[] = [
+  'auto',
+  'shell',
+  'prefetch',
+  'navigation',
+  false,
+]
 
 type FullAppSegmentConfig = Required<AppSegmentConfig>
 

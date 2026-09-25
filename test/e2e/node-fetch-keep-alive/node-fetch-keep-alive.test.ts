@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer, Server } from 'http'
 
-describe('node-fetch-keep-alive', () => {
+describe('fetch-keep-alive', () => {
   let mockServer: Server
 
   const { next, skipped } = nextTestSetup({

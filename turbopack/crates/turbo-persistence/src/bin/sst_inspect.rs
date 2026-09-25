@@ -3,12 +3,11 @@
 //! This tool inspects SST files to report entry type statistics per family,
 //! useful for verifying that inline value optimization is being used.
 //!
-//! Entry types:
-//! - 0: Small value (stored in value block)
-//! - 1: Blob reference
-//! - 2: Deleted/tombstone
-//! - 3: Medium value
-//! - 8-255: Inline value where (type - 8) = value byte count
+//! Entry types are the `KEY_BLOCK_ENTRY_TYPE_*` constants in
+//! [`turbo_persistence::static_sorted_file`]; the `--help` output lists them with their current
+//! values. The two ranged kinds encode a size in the type byte: an inline value's byte count is
+//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`, and a key-value tombstone's deleted byte count is
+//! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -18,17 +17,20 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
 use fs_err::{self as fs, File};
-use lzzzz::lz4::decompress;
+use lz4_flex::block::decompress_into;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
+    read_current_version,
     sst_filter::SstFilter,
     static_sorted_file::{
-        BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
-        BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
+        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
+        key_block_table_stride,
     },
 };
 
@@ -95,10 +97,11 @@ struct SstStats {
 
     /// Value sizes by type (inline values track actual bytes)
     inline_value_bytes: u64,
-    small_value_refs: u64,  // Count of references to value blocks
-    medium_value_refs: u64, // Count of references to medium values
-    blob_refs: u64,         // Count of blob references
-    deleted_count: u64,     // Count of deleted entries
+    small_value_refs: u64,        // Count of references to value blocks
+    medium_value_refs: u64,       // Count of references to medium values
+    blob_refs: u64,               // Count of blob references
+    key_deleted_count: u64,       // Count of key tombstones
+    key_value_deleted_count: u64, // Count of key-value tombstones
 
     /// File size in bytes
     file_size: u64,
@@ -120,7 +123,8 @@ impl SstStats {
         self.small_value_refs += other.small_value_refs;
         self.medium_value_refs += other.medium_value_refs;
         self.blob_refs += other.blob_refs;
-        self.deleted_count += other.deleted_count;
+        self.key_deleted_count += other.key_deleted_count;
+        self.key_value_deleted_count += other.key_value_deleted_count;
         self.file_size += other.file_size;
     }
 }
@@ -129,6 +133,7 @@ impl SstStats {
 struct SstInfo {
     sequence_number: u32,
     block_count: u16,
+    compression: Compression,
 }
 
 /// Accumulates statistics for a single entry of the given type.
@@ -143,11 +148,15 @@ fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
             stats.blob_refs += 1;
         }
-        KEY_BLOCK_ENTRY_TYPE_DELETED => {
-            stats.deleted_count += 1;
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => {
+            stats.key_deleted_count += 1;
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             stats.medium_value_refs += 1;
+        }
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            stats.key_value_deleted_count += 1;
         }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as u64;
@@ -161,8 +170,13 @@ fn entry_type_description(ty: u8) -> String {
     match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => "small value (in value block)".to_string(),
         KEY_BLOCK_ENTRY_TYPE_BLOB => "blob reference".to_string(),
-        KEY_BLOCK_ENTRY_TYPE_DELETED => "deleted/tombstone".to_string(),
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => "key tombstone".to_string(),
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => "medium value".to_string(),
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            let size = ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN;
+            format!("key-value tombstone ({size} byte value)")
+        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN;
             format!("inline {} bytes", inline_size)
@@ -211,9 +225,9 @@ fn format_bytes(bytes: u64) -> String {
 /// and apply SstFilter to skip superseded entries.
 fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     // Read the CURRENT sequence number — only files with seq <= current are valid.
-    let current: u32 = File::open(db_path.join("CURRENT"))?
-        .read_u32::<BE>()
-        .context("Failed to read CURRENT file")?;
+    let current = read_current_version(db_path)?
+        .context("CURRENT file is missing")?
+        .max_sequence_number;
 
     // Read .del files to find sequences that were deleted but not yet cleaned up.
     let mut deleted_seqs: HashSet<u32> = HashSet::new();
@@ -250,10 +264,15 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
     meta_seqs.sort_unstable();
 
+    #[cfg(feature = "mmap")]
+    let access_mode = turbo_persistence::AccessMode::Mmap;
+    #[cfg(not(feature = "mmap"))]
+    let access_mode = turbo_persistence::AccessMode::File;
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq).with_context(|| format!("Failed to open {seq:08}.meta"))
+            MetaFile::open(db_path, seq, None, access_mode)
+                .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;
 
@@ -270,6 +289,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
+                compression: meta.compression(),
             });
         }
     }
@@ -291,6 +311,7 @@ fn read_block(
     block_offsets_start: usize,
     block_index: u16,
     sequence_number: u32,
+    compression: Compression,
 ) -> Result<RawBlock> {
     let offset = block_offsets_start + block_index as usize * size_of::<u32>();
 
@@ -330,7 +351,13 @@ fn read_block(
 
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
-        let bytes_written = decompress(compressed_data, &mut buffer)?;
+        let bytes_written = match compression {
+            Compression::Lz4 => {
+                decompress_into(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+            }
+            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                .context("zstd decompression failed")?,
+        };
         assert_eq!(
             bytes_written, uncompressed_length as usize,
             "Decompressed length does not match expected"
@@ -367,9 +394,24 @@ fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
 }
 
 /// Parsed header of a key block.
+#[derive(Clone, Copy)]
 enum KeyBlockHeader {
-    Variable { entry_count: u32 },
-    Fixed { entry_count: u32, value_type: u8 },
+    Variable {
+        entry_count: u32,
+        /// Bytes per offset table entry, wider when the block hoists hashes into the table.
+        table_stride: usize,
+    },
+    Fixed {
+        entry_count: u32,
+        value_type: u8,
+    },
+    /// Fixed-size layout whose entries share a value size but not a value type, so each carries
+    /// its own type byte ahead of its value in the block's tail region.
+    FixedMixedType {
+        entry_count: u32,
+        /// Where the block's search and tail regions sit, derived by the shared reader helper.
+        regions: FixedRegions,
+    },
 }
 
 /// Parses the header of a key block from the full decompressed block data.
@@ -377,50 +419,71 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
     assert!(block.len() >= 4, "Key block too small");
     let block_type = block[0];
     let entry_count = ((block[1] as u32) << 16) | ((block[2] as u32) << 8) | (block[3] as u32);
-    match block_type {
-        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-            Ok(KeyBlockHeader::Variable { entry_count })
-        }
-        BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-            assert!(block.len() >= 6, "Fixed key block header too small");
-            Ok(KeyBlockHeader::Fixed {
-                entry_count,
-                value_type: block[5],
-            })
-        }
-        _ => bail!("Invalid key block type: {block_type}"),
+    let Some((layout, fixed)) = KeyBlockLayout::from_block_type(block_type) else {
+        bail!("Invalid key block type: {block_type}");
+    };
+    if !fixed {
+        return Ok(KeyBlockHeader::Variable {
+            entry_count,
+            table_stride: key_block_table_stride(layout.hash_len()),
+        });
+    }
+    assert!(block.len() >= 6, "Fixed key block header too small");
+    if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+        assert!(block.len() >= 7, "Mixed-type key block header too small");
+        Ok(KeyBlockHeader::FixedMixedType {
+            entry_count,
+            // `FixedRegions` owns the search/tail split; `val_size` includes the per-entry type
+            // byte, which the header stores separately from the value size.
+            regions: FixedRegions::new(
+                entry_count as usize,
+                layout,
+                block[4] as usize,
+                block[6] as usize + 1,
+            ),
+        })
+    } else {
+        Ok(KeyBlockHeader::Fixed {
+            entry_count,
+            value_type: block[5],
+        })
     }
 }
 
 /// Iterates over entry type bytes in a key block.
 ///
-/// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry.
-/// For fixed-size key blocks, yields the single `value_type` repeated `entry_count` times.
+/// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry. For fixed-size
+/// key blocks, yields the single `value_type` repeated `entry_count` times, or reads the per-entry
+/// type byte when the block has mixed types.
 fn iter_key_block_entry_types(
     header: KeyBlockHeader,
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
-    let (entry_count, fixed_type) = match header {
-        KeyBlockHeader::Variable { entry_count } => (entry_count, None),
-        KeyBlockHeader::Fixed {
-            entry_count,
-            value_type,
-        } => (entry_count, Some(value_type)),
+    let entry_count = match header {
+        KeyBlockHeader::Variable { entry_count, .. }
+        | KeyBlockHeader::Fixed { entry_count, .. }
+        | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
     };
-    (0..entry_count).map(move |i| {
-        if let Some(vt) = fixed_type {
-            vt
-        } else {
-            // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
-            // each entry is 4 bytes, first byte is the entry type.
-            let header_offset = KEY_BLOCK_HEADER_SIZE + i as usize * 4;
-            block[header_offset]
+    (0..entry_count).map(move |i| match header {
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
+        // leads the trailing type/position word, which follows any hoisted hash.
+        KeyBlockHeader::Variable { table_stride, .. } => {
+            block[KEY_BLOCK_HEADER_SIZE
+                + i as usize * table_stride
+                + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
+        }
+        KeyBlockHeader::Fixed { value_type, .. } => value_type,
+        KeyBlockHeader::FixedMixedType { regions, .. } => {
+            // Entry data starts after the 7-byte mixed-type header; within the tail region the
+            // type byte precedes the value, after the key for `HashThenKey` blocks.
+            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
         }
     })
 }
 
 /// Analyze an SST file and return entry type statistics
 fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
+    let compression = info.compression;
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -446,6 +509,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         block_offsets_start,
         index_block_index,
         info.sequence_number,
+        compression,
     )?;
     let key_block_indices = parse_key_block_indices(&index_raw.data);
 
@@ -462,6 +526,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             block_offsets_start,
             block_index,
             info.sequence_number,
+            compression,
         ) {
             Ok(raw) => raw,
             Err(e) => {
@@ -501,7 +566,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
                     raw.was_compressed,
                 );
             }
-            KeyBlockHeader::Fixed { .. } => {
+            KeyBlockHeader::Fixed { .. } | KeyBlockHeader::FixedMixedType { .. } => {
                 stats.fixed_key_blocks.add(
                     raw.compressed_size,
                     raw.actual_size,
@@ -644,11 +709,18 @@ fn print_value_storage(stats: &SstStats, prefix: &str) {
             format_number(stats.blob_refs)
         );
     }
-    if stats.deleted_count > 0 {
+    if stats.key_deleted_count > 0 {
         println!(
-            "{}  Deleted: {} entries",
+            "{}  Key tombstones: {} entries",
             prefix,
-            format_number(stats.deleted_count)
+            format_number(stats.key_deleted_count)
+        );
+    }
+    if stats.key_value_deleted_count > 0 {
+        println!(
+            "{}  Key-value tombstones: {} entries",
+            prefix,
+            format_number(stats.key_value_deleted_count)
         );
     }
 }
@@ -829,14 +901,32 @@ fn main() -> Result<()> {
             eprintln!("  -v, --verbose    Show per-SST file details (default: family totals only)");
             eprintln!();
             eprintln!("Entry types:");
-            eprintln!("  0: Small value (stored in separate value block)");
-            eprintln!("  1: Blob reference");
-            eprintln!("  2: Deleted/tombstone");
-            eprintln!("  3: Medium value");
-            eprintln!("  8+: Inline value (size = type - 8)");
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_SMALL}: Small value (stored in separate value block)"
+            );
+            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_BLOB}: Blob reference");
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_KEY_DELETED}: Key tombstone (deletes all values for the \
+                 key)"
+            );
+            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_MEDIUM}: Medium value");
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN}-{}: Inline value (size = type - \
+                 {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})",
+                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8
+            );
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted \
+                 value size = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})",
+                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8
+            );
             eprintln!();
             eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
-            eprintln!("Expected entry type is 12 (8 + 4) for inline optimization.");
+            eprintln!(
+                "Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} + 4) for inline \
+                 optimization.",
+                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4
+            );
             std::process::exit(1);
         }
     };
@@ -855,7 +945,7 @@ fn main() -> Result<()> {
         db_path.display()
     );
 
-    // Analyze and report by family
+    // Analyze and report by family.
     for (family, sst_list) in &family_sst_info {
         let mut family_stats = SstStats::default();
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();

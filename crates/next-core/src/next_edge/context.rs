@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
@@ -139,6 +139,9 @@ pub async fn get_edge_resolve_options_context(
         fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
         browser: true,
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
 
         ..Default::default()
@@ -170,7 +173,7 @@ pub async fn get_edge_resolve_options_context(
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct EdgeChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

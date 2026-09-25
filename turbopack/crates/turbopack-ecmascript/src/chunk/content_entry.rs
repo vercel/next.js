@@ -29,7 +29,8 @@ impl EcmascriptChunkContentEntry {
         chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Self> {
-        let code = chunk_item.code(async_module_info).to_resolved().await?;
+        let factory = chunk_item.code(async_module_info).await?;
+        let code = factory.code.to_code().to_resolved().await?;
         Ok(EcmascriptChunkContentEntry {
             code,
             hash: code.source_code_hash().to_resolved().await?,
@@ -71,7 +72,7 @@ impl EcmascriptChunkContentEntries {
                             batch
                                 .chunk_items
                                 .iter()
-                                .map(|item| async move {
+                                .map(async |item| {
                                     Ok((
                                         item.chunk_item.id().await?,
                                         EcmascriptChunkContentEntry::new(

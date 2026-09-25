@@ -55,7 +55,7 @@ This approach works well when:
 
 ### Data Access Layer
 
-For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your render context.
+For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is an internal library that controls how and when data is fetched, and what gets passed to your render context.
 
 A Data Access Layer should:
 

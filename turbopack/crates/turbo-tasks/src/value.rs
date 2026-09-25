@@ -2,10 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 
 use anyhow::Result;
 
-use crate::{
-    SharedReference,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use crate::SharedReference;
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
@@ -31,12 +28,6 @@ impl<T> Deref for TransientValue<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
-    }
-}
-
-impl<T: TraceRawVcs> TraceRawVcs for TransientValue<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        self.inner.trace_raw_vcs(trace_context)
     }
 }
 
@@ -132,11 +123,5 @@ impl<T: 'static> Deref for TransientInstance<T> {
 
     fn deref(&self) -> &Self::Target {
         self.inner.0.downcast_ref().unwrap()
-    }
-}
-
-impl<T: TraceRawVcs + 'static> TraceRawVcs for TransientInstance<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        self.inner.downcast_ref::<T>().trace_raw_vcs(trace_context)
     }
 }

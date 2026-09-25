@@ -5,10 +5,6 @@ inputs:
     description: 'SCCACHE_BASE_DIR for path normalization (default: $GITHUB_WORKSPACE)'
     required: false
     default: ''
-  turbo-token:
-    description: 'Fallback TURBO_TOKEN if not set in environment (e.g. from secrets.TURBO_TOKEN)'
-    required: false
-    default: ''
 runs:
   using: 'node20'
   main: 'main.js'

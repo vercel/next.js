@@ -1,9 +1,5 @@
 import type { DynamicParamTypesShort } from '../shared/lib/app-router-types'
-import {
-  addSearchParamsIfPageSegment,
-  DEFAULT_SEGMENT_KEY,
-  PAGE_SEGMENT_KEY,
-} from '../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 import { ROOT_SEGMENT_REQUEST_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
@@ -11,6 +7,7 @@ import {
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
 import { hasBasePath } from './has-base-path'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 import { removeBasePath } from './remove-base-path'
 import type {
   NormalizedPathname,
@@ -18,8 +15,18 @@ import type {
 } from './components/segment-cache/cache-key'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 import type { ParsedUrlQuery } from 'querystring'
+import { getRenderedSearch as getRenderedSearchFromQuery } from '../shared/lib/router/utils/querystring'
 
 export type RouteParamValue = string | Array<string> | null
+
+export function normalizeRenderedSearch(search: string): NormalizedSearch {
+  // The same search params should produce the same string whether they came
+  // from the URL, a rewrite header, or the response (e.g. '+' vs '%20'). Only
+  // used for the rendered search. Request URLs keep their original form,
+  // since middleware and rewrites may depend on it.
+  const query = urlSearchParamsToParsedUrlQuery(new URLSearchParams(search))
+  return getRenderedSearchFromQuery(query) as NormalizedSearch
+}
 
 export function getRenderedSearch(
   response: RSCResponse<unknown> | Response
@@ -29,14 +36,13 @@ export function getRenderedSearch(
   // the response will include a header that gives the rewritten search query.
   const rewrittenQuery = response.headers.get(NEXT_REWRITTEN_QUERY_HEADER)
   if (rewrittenQuery !== null) {
-    return (
-      rewrittenQuery === '' ? '' : '?' + rewrittenQuery
-    ) as NormalizedSearch
+    return normalizeRenderedSearch(rewrittenQuery)
   }
   // If the header is not present, there was no rewrite, so we use the search
   // query of the response URL.
-  return urlToUrlWithoutFlightMarker(new URL(response.url))
-    .search as NormalizedSearch
+  return normalizeRenderedSearch(
+    urlToUrlWithoutFlightMarker(new URL(response.url)).search
+  )
 }
 
 export function getRenderedPathname(
@@ -56,6 +62,19 @@ export function getRenderedPathname(
   ) as NormalizedPathname
 }
 
+/**
+ * Like getRenderedPathname, but derived from the request URL rather than the
+ * response. Used in output: "export" mode, where the response URL has the
+ * segment filename appended to the pathname — and where rewrites don't
+ * exist, so the request pathname is always the rendered pathname.
+ */
+export function getPathnameFromRequestURL(url: URL): NormalizedPathname {
+  const pathname = url.pathname
+  return (
+    hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+  ) as NormalizedPathname
+}
+
 // Pathname parts come from `URL.pathname.split('/')`, so they are already
 // in the encoded form the URL parser produces. The server-side equivalent
 // (`get-dynamic-param.ts`) starts from a decoded param value and applies
@@ -64,7 +83,7 @@ export function getRenderedPathname(
 // `encodeURIComponent` percent-encodes them. To produce the same canonical
 // form on the client (and avoid double-encoding `%xx` sequences such as
 // `%2F` → `%252F`), we decode the URL part first and re-encode it.
-function canonicalizeURLPart(part: string): string {
+export function canonicalizeURLPart(part: string): string {
   try {
     return encodeURIComponent(decodeURIComponent(part))
   } catch {
@@ -167,7 +186,7 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
     // Otherwise, we wouldn't need this special case because pages are
     // always leaf nodes.
     // TODO: Investigate why the loader produces these fake page segments.
-    segment.startsWith(PAGE_SEGMENT_KEY) ||
+    segment === PAGE_SEGMENT_KEY ||
     // Route groups.
     (segment[0] === '(' && segment.endsWith(')')) ||
     segment === DEFAULT_SEGMENT_KEY ||
@@ -181,21 +200,13 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
 }
 
 export function getCacheKeyForDynamicParam(
-  paramValue: RouteParamValue,
-  renderedSearch: NormalizedSearch
+  paramValue: RouteParamValue
 ): string {
   // This needs to match the logic in get-dynamic-param.ts, until we're able to
   // unify the various implementations so that these are always computed on
   // the client.
   if (typeof paramValue === 'string') {
-    // TODO: Refactor or remove this helper function to accept a string rather
-    // than the whole segment type. Also we can probably just append the
-    // search string instead of turning it into JSON.
-    const pageSegmentWithSearchParams = addSearchParamsIfPageSegment(
-      paramValue,
-      urlSearchParamsToParsedUrlQuery(new URLSearchParams(renderedSearch))
-    ) as string
-    return pageSegmentWithSearchParams
+    return paramValue
   } else if (paramValue === null) {
     return ''
   } else {
@@ -212,9 +223,15 @@ export function urlToUrlWithoutFlightMarker(url: URL): URL {
       urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
       const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
+      // Undo the marker appended in `fetchServerResponse`, which is keyed on
+      // whether the requested pathname ended with a slash: `index.txt` for
+      // `/foo/`, `.txt` for `/foo`. Slicing off only `index.txt` keeps that
+      // slash, then `normalizePathTrailingSlash` applies the configured
+      // policy so we don't hand-roll a second one here.
+      const length = pathname.endsWith('/index.txt') ? 9 : 4
+      urlWithoutFlightParameters.pathname = normalizePathTrailingSlash(
+        pathname.slice(0, -length)
+      )
     }
   }
   return urlWithoutFlightParameters

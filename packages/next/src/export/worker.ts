@@ -36,7 +36,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -102,6 +101,8 @@ async function exportPageImpl(
 
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
+
+    _notFoundParams: notFoundParams,
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -280,6 +281,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -416,7 +418,8 @@ export async function exportPages(
     const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
           renderResumeDataCachesByPage[pageKey],
-          renderOpts.experimental.maxPostponedStateSizeBytes
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
         )
       : undefined
 
@@ -619,12 +622,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return

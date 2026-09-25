@@ -2,8 +2,6 @@ import type {
   NextConfigComplete,
   NextConfigRuntime,
 } from '../server/config-shared'
-import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
-import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
@@ -71,7 +69,10 @@ import { createIncrementalCache } from '../export/helpers/create-incremental-cac
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
-import type { PrerenderedRoute } from './static-paths/types'
+import type {
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+} from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
 import type {
@@ -84,6 +85,7 @@ import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -674,6 +676,7 @@ type PageIsStaticResult = {
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
+  prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -697,6 +700,7 @@ export async function isPageStatic({
   cacheComponents,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
@@ -705,7 +709,6 @@ export async function isPageStatic({
   cacheHandler,
   cacheHandlers,
   cacheLifeProfiles,
-  pprConfig,
   buildId,
   deploymentId,
   clientAssetToken,
@@ -717,6 +720,7 @@ export async function isPageStatic({
   cacheComponents: boolean
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -733,7 +737,6 @@ export async function isPageStatic({
   cacheHandlers?: Record<string, string | undefined>
   cacheLifeProfiles: import('../server/config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
-  pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
   deploymentId: string
   clientAssetToken: string
@@ -746,6 +749,7 @@ export async function isPageStatic({
       isRoutePPREnabled: false,
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
+      prerenderRouteMatchers: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -772,6 +776,7 @@ export async function isPageStatic({
 
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
+      let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -861,12 +866,10 @@ export async function isPageStatic({
 
         rootParamKeys = collectRootParamKeys(routeModule)
 
-        // A page supports partial prerendering if it is an app page and either
-        // the whole app has PPR enabled or this page has PPR enabled when we're
-        // in incremental mode.
+        // A page supports partial prerendering when it is an app page and
+        // Cache Components is enabled.
         isRoutePPREnabled =
-          routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig)
+          routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -893,29 +896,33 @@ export async function isPageStatic({
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
           } else {
-            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-              await buildAppStaticPaths({
-                dir,
-                page,
-                route,
-                cacheComponents,
-                authInterrupts,
-                useCacheTimeout,
-                staticPageGenerationTimeout,
-                segments,
-                distDir,
-                requestHeaders: {},
-                isrFlushToDisk,
-                cacheMaxMemorySize,
-                cacheHandler,
-                cacheLifeProfiles,
-                ComponentMod,
-                nextConfigOutput,
-                isRoutePPREnabled,
-                buildId,
-                deploymentId,
-                rootParamKeys,
-              }))
+            ;({
+              prerenderedRoutes,
+              prerenderRouteMatchers,
+              fallbackMode: prerenderFallbackMode,
+            } = await buildAppStaticPaths({
+              dir,
+              page,
+              route,
+              cacheComponents,
+              authInterrupts,
+              useCacheTimeout,
+              durableUseCacheEntries,
+              staticPageGenerationTimeout,
+              segments,
+              distDir,
+              requestHeaders: {},
+              isrFlushToDisk,
+              cacheMaxMemorySize,
+              cacheHandler,
+              cacheLifeProfiles,
+              ComponentMod,
+              nextConfigOutput,
+              isRoutePPREnabled,
+              buildId,
+              deploymentId,
+              rootParamKeys,
+            }))
           }
         }
       } else {
@@ -988,6 +995,7 @@ export async function isPageStatic({
         isRoutePPREnabled,
         prerenderFallbackMode,
         prerenderedRoutes,
+        prerenderRouteMatchers,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,
@@ -1262,59 +1270,102 @@ export async function copyTracedFiles(
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
+  const skippedTraceFiles = new Set<string>()
+
+  async function createTracedSymlink(
+    target: string,
+    linkPath: string,
+    sourcePath: string
+  ) {
+    let isDirectory = false
+    if (process.platform === 'win32') {
+      // Windows requires the target type when creating a symlink. Files are
+      // copied in an arbitrary order, so the target might not exist in the
+      // output yet. Inspect the original target through the source symlink
+      // instead.
+      try {
+        isDirectory = (await fs.stat(sourcePath)).isDirectory()
+      } catch (err: any) {
+        if (err.code !== 'ENOENT' && err.code !== 'ELOOP') {
+          throw err
+        }
+      }
+    }
+
+    try {
+      // the target type argument is ignored on non-windows platforms
+      await fs.symlink(target, linkPath, isDirectory ? 'dir' : 'file')
+    } catch (err: any) {
+      // Windows doesn't support creating symlinks without elevated privileges,
+      // unless "Developer Mode" is turned on. If we failed to create a symlink
+      // due to EPERM, try creating a junction point instead.
+      //
+      // Ideally we'd just preserve the input file type (junction point or
+      // symlink), but there's no API in node.js to differentiate between a
+      // junction point and a symlink, so we just try making a symlink first.
+      // Symlinks are preferred because they support relative paths and
+      // non-directory (file) targets.
+      //
+      // Note: Junction targets are stored as absolute paths, so this fallback
+      // is not relocatable even when the preferred symlink above is relative,
+      // but it's the best we can do.
+      if (process.platform === 'win32' && err.code === 'EPERM' && isDirectory) {
+        try {
+          await fs.symlink(
+            path.resolve(path.dirname(linkPath), target),
+            linkPath,
+            'junction'
+          )
+        } catch (junctionErr: any) {
+          if (junctionErr.code !== 'EEXIST') {
+            throw junctionErr
+          }
+        }
+      } else if (err.code !== 'EEXIST') {
+        throw err
+      }
+    }
+  }
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
-    ) as {
-      files: string[]
-    }
-    const copySema = new Sema(10, { capacity: traceData.files.length })
-    const traceFileDir = path.dirname(traceFilePath)
+    ) as NftJson
+    const entries = mapNftFileEntries(traceData, traceFilePath, tracingRoot, {
+      skipBaseRootEscapes: true,
+      onBaseRootEscape: (source) => skippedTraceFiles.add(source),
+    })
+    const copySema = new Sema(10, { capacity: entries.length })
 
     await Promise.all(
-      traceData.files.map(async (relativeFile) => {
+      entries.map(async (entry) => {
         await copySema.acquire()
 
-        const tracedFilePath = path.join(traceFileDir, relativeFile)
-        const fileOutputPath = path.join(
+        const tracedFilePath = entry.source
+        const fileOutputPath = resolveNftOutputPath(
           outputPath,
-          path.relative(tracingRoot, tracedFilePath)
+          entry.destination
         )
 
         if (!copiedFiles.has(fileOutputPath)) {
           copiedFiles.add(fileOutputPath)
 
           await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
-
-          if (symlink) {
-            try {
-              await fs.symlink(symlink, fileOutputPath)
-            } catch (err: any) {
-              // Windows doesn't support creating symlinks without elevated privileges, unless
-              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
-              // creating a junction point instead.
-              //
-              // Ideally we'd just preserve the input file type (junction point or symlink), but
-              // there's no API in node.js to differentiate between a junction point and a symlink,
-              // so we just try making a symlink first. Symlinks are preferred because they support
-              // relative paths and non-directory (file) targets.
-              if (
-                process.platform === 'win32' &&
-                err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
-              ) {
-                try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
-                } catch (junctionErr: any) {
-                  if (junctionErr.code !== 'EEXIST') {
-                    throw junctionErr
-                  }
-                }
-              } else if (err.code !== 'EEXIST') {
-                throw err
-              }
+          if (entry.symlinkTarget !== undefined) {
+            const targetOutputPath = resolveNftOutputPath(
+              outputPath,
+              entry.symlinkTarget
+            )
+            const target =
+              path.relative(path.dirname(fileOutputPath), targetOutputPath) ||
+              '.'
+            await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+          } else if (traceData.symlinks === undefined) {
+            const target = await fs.readlink(tracedFilePath).catch(() => null)
+            if (target) {
+              await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+            } else {
+              await fs.copyFile(tracedFilePath, fileOutputPath)
             }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
@@ -1466,6 +1517,23 @@ startServer({
   process.exit(1);
 });`
   )
+
+  if (skippedTraceFiles.size > 0) {
+    const count = skippedTraceFiles.size
+    const skippedFilesOutput = [...skippedTraceFiles]
+      .slice(0, 100)
+      .map((file) => `  - ${path.relative(tracingRoot, file)}`)
+      .join('\n')
+    const warning = [
+      `${count} traced files were not included in the standalone output`,
+      'because their paths are outside of `outputFileTracingRoot`.',
+      'First 100 skipped files:',
+      skippedFilesOutput,
+      'Set `outputFileTracingRoot` to a common parent directory',
+      'to include these files.',
+    ].join('\n')
+    Log.warn(warning)
+  }
 }
 
 export function isReservedPage(page: string) {

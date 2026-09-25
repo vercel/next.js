@@ -1,29 +1,71 @@
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
 import type {
-  FlightDataPath,
-  FlightDataSegment,
   FlightRouterState,
   PrefetchHints,
   Segment,
   HeadData,
 } from '../../shared/lib/app-router-types'
+import type { PartialTransportNode } from '../../shared/lib/rsc-transport'
+import {
+  createSkippedSegmentData,
+  segmentToTransportSegment,
+} from '../../shared/lib/rsc-transport'
 import type { PreloadCallbacks } from './types'
-import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import {
-  createFlightRouterStateFromLoaderTree,
+  computeSegmentPrefetchHints,
+  createTransportTreeFromLoaderTree,
   createRouteTreePrefetch,
-} from './create-flight-router-state-from-loader-tree'
+} from './create-transport-tree-from-loader-tree'
 import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
+
+/**
+ * The result of rendering a navigation (or refresh/action) response: the
+ * transport tree, plus the head (viewport/metadata). The head is returned
+ * separately rather than as part of a TransportSegmentData because its vary
+ * params are accumulated during the render; the caller assembles the
+ * response-level head field once the walk has completed.
+ */
+export type NavigationResponseTree = {
+  tree: PartialTransportNode
+  head: HeadData
+  isHeadPartial: boolean
+}
+
+function didRouteOrPathParamChange(
+  actualSegment: Segment,
+  requestedSegment: Segment
+): boolean {
+  // The caller handles the page's search params separately.
+  if (
+    typeof actualSegment === 'string' ||
+    typeof requestedSegment === 'string'
+  ) {
+    // Static segments have to match exactly.
+    return actualSegment !== requestedSegment
+  }
+
+  // Both segments are dynamic. Compare the param name, type, and value. The
+  // static sibling hints (index 3) aren't part of the segment's identity.
+  return (
+    actualSegment[0] !== requestedSegment[0] ||
+    actualSegment[2] !== requestedSegment[2] ||
+    actualSegment[1] !== requestedSegment[1]
+  )
+}
 
 /**
  * Use router state to decide at what common layout to render the page.
  * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
+ *
+ * Returns the response's transport tree, anchored at the segment this walk
+ * started from, or null when nothing below this segment produced output (the
+ * response carries no information about this position).
  */
 export async function walkTreeWithFlightRouterState({
   loaderTreeToFilter,
@@ -51,9 +93,9 @@ export async function walkTreeWithFlightRouterState({
   rootLayoutIncluded: boolean
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  MetadataOutlet: React.ComponentType
+  MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
   hintTree: PrefetchHints | null
-}): Promise<FlightDataPath[]> {
+}): Promise<NavigationResponseTree | null> {
   const {
     renderOpts: { nextFontManifest, experimental },
     query,
@@ -62,7 +104,7 @@ export async function walkTreeWithFlightRouterState({
     parsedRequestHeaders,
   } = ctx
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const partialPrefetching = ctx.renderOpts.partialPrefetching
+  const partialPrefetching = Boolean(ctx.renderOpts.partialPrefetching)
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
@@ -91,10 +133,9 @@ export async function walkTreeWithFlightRouterState({
           [segmentParam.param]: segmentParam.value,
         }
       : parentParams
-  const actualSegment: Segment = addSearchParamsIfPageSegment(
-    segmentParam ? segmentParam.treeSegment : segment,
-    query
-  )
+  const actualSegment: Segment = segmentParam
+    ? segmentParam.treeSegment
+    : segment
 
   /**
    * Decide if the current segment is where rendering has to start.
@@ -102,8 +143,13 @@ export async function walkTreeWithFlightRouterState({
   const renderComponentsOnThisLevel =
     // No further router state available
     !flightRouterState ||
-    // Segment in router state does not match current segment
-    !matchSegment(actualSegment, flightRouterState[0]) ||
+    // Route structure or path param changed
+    didRouteOrPathParamChange(actualSegment, flightRouterState[0]) ||
+    // Normal requests leave out the page's search params, so treat a missing
+    // value as empty. HMR requests include them.
+    (actualSegment === PAGE_SEGMENT_KEY &&
+      getRenderedSearch(query) !==
+        (flightRouterState[5] === undefined ? '' : flightRouterState[5])) ||
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
@@ -143,16 +189,7 @@ export async function walkTreeWithFlightRouterState({
     // because they do not contain any render data (neither segment data nor
     // the head). They can be made even more cacheable once we move the route
     // params into a separate data structure.
-    const overriddenSegment =
-      flightRouterState &&
-      // TODO: Why does canSegmentBeOverridden exist? Why don't we always just
-      // use `actualSegment`? Is it to avoid overwriting some state that's
-      // tracked by the client? Dig deeper to see if we can simplify this.
-      canSegmentBeOverridden(actualSegment, flightRouterState[0])
-        ? flightRouterState[0]
-        : actualSegment
-
-    const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
+    const tree = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? // Route tree prefetch requests contain some extra information
         await createRouteTreePrefetch(
           loaderTreeToFilter,
@@ -161,92 +198,61 @@ export async function walkTreeWithFlightRouterState({
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
           getDynamicParamFromSegment,
+          ctx.renderOpts.notFoundParams,
           rootLayoutIncluded
         )
-      : await createFlightRouterStateFromLoaderTree(
+      : await createTransportTreeFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
           getDynamicParamFromSegment,
-          query,
+          ctx.renderOpts.notFoundParams,
           rootLayoutIncluded
         )
 
-    return [
-      [
-        overriddenSegment,
-        routerState,
-        null,
-        [null, null],
-        true,
-      ] satisfies FlightDataSegment,
-    ]
+    return {
+      tree,
+      head: [null, null],
+      isHeadPartial: true,
+    }
   }
 
   // Similar to the previous branch. This flag is sent by the client to request
   // only the metadata for a page. No segment data.
   if (flightRouterState && flightRouterState[3] === 'metadata-only') {
-    const overriddenSegment =
-      flightRouterState &&
-      canSegmentBeOverridden(actualSegment, flightRouterState[0])
-        ? flightRouterState[0]
-        : actualSegment
-    const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
+    const tree = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? await createRouteTreePrefetch(
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
-          getDynamicParamFromSegment
+          getDynamicParamFromSegment,
+          ctx.renderOpts.notFoundParams
         )
-      : await createFlightRouterStateFromLoaderTree(
+      : await createTransportTreeFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
           partialPrefetching,
           getDynamicParamFromSegment,
-          query,
+          ctx.renderOpts.notFoundParams,
           rootLayoutIncluded
         )
-    return [
-      [
-        overriddenSegment,
-        routerState,
-        null,
-        rscHead,
-        false,
-      ] satisfies FlightDataSegment,
-    ]
+    return {
+      tree,
+      head: rscHead,
+      isHeadPartial: false,
+    }
   }
 
   if (renderComponentsOnThisLevel) {
-    const overriddenSegment =
-      flightRouterState &&
-      // TODO: Why does canSegmentBeOverridden exist? Why don't we always just
-      // use `actualSegment`? Is it to avoid overwriting some state that's
-      // tracked by the client? Dig deeper to see if we can simplify this.
-      canSegmentBeOverridden(actualSegment, flightRouterState[0])
-        ? flightRouterState[0]
-        : actualSegment
-
-    const routerState = await createFlightRouterStateFromLoaderTree(
-      // Create router state using the slice of the loaderTree
-      loaderTreeToFilter,
-      hintTree,
-      prefetchInliningEnabled,
-      ctx.missingPrefetchHintPolicy,
-      partialPrefetching,
-      getDynamicParamFromSegment,
-      query,
-      rootLayoutIncluded
-    )
-
-    // Create component tree using the slice of the loaderTree
-    const seedData = await createComponentTree(
+    // Render the component tree for this slice of the loaderTree, returned
+    // as the response's transport tree.
+    const tree = await createComponentTree(
       // This ensures flightRouterPath is valid and filters down the tree
       {
         ctx,
@@ -263,18 +269,15 @@ export async function walkTreeWithFlightRouterState({
         authInterrupts: experimental.authInterrupts,
         MetadataOutlet,
         isPrerendering: false,
+        hintTree,
       }
     )
 
-    return [
-      [
-        overriddenSegment,
-        routerState,
-        seedData,
-        rscHead,
-        false,
-      ] satisfies FlightDataSegment,
-    ]
+    return {
+      tree,
+      head: rscHead,
+      isHeadPartial: false,
+    }
   }
 
   // If we are not rendering on this level we need to check if the current
@@ -300,13 +303,16 @@ export async function walkTreeWithFlightRouterState({
     )
   }
 
-  const paths: FlightDataPath[] = []
+  // Walk through all parallel routes, collecting the subtrees of the slots
+  // that produced output. A slot that produced nothing is omitted from the
+  // children map: the response carries no information about it.
+  let children: Map<string, PartialTransportNode> | undefined
+  let firstSubtree: NavigationResponseTree | null = null
 
-  // Walk through all parallel routes.
   for (const parallelRouteKey of parallelRoutesKeys) {
     const parallelRoute = parallelRoutes[parallelRouteKey]
 
-    const subPaths = await walkTreeWithFlightRouterState({
+    const subtreeResult = await walkTreeWithFlightRouterState({
       ctx,
       loaderTreeToFilter: parallelRoute,
       parentParams: currentParams,
@@ -323,20 +329,55 @@ export async function walkTreeWithFlightRouterState({
       hintTree: hintTree?.slots?.[parallelRouteKey] ?? null,
     })
 
-    for (const subPath of subPaths) {
-      paths.push([actualSegment, parallelRouteKey, ...subPath])
+    if (subtreeResult === null) {
+      continue
+    }
+    if (children === undefined) {
+      children = new Map()
+    }
+    children.set(parallelRouteKey, subtreeResult.tree)
+    if (firstSubtree === null) {
+      firstSubtree = subtreeResult
     }
   }
 
-  return paths
+  if (children === undefined || firstSubtree === null) {
+    // Nothing below this segment produced output.
+    return null
+  }
+
+  return {
+    // This segment is skipped: it's on the path from the root down to the
+    // rendered subtrees, so the client is expected to already have it.
+    tree: {
+      s: segmentToTransportSegment(actualSegment),
+      // The UI is shared, but route-specific restrictions may have changed
+      // (e.g. an open sibling navigating to a dynamicParams=false page).
+      h: await computeSegmentPrefetchHints(
+        loaderTreeToFilter,
+        hintTree,
+        prefetchInliningEnabled,
+        ctx.missingPrefetchHintPolicy,
+        partialPrefetching,
+        !rootLayoutIncluded,
+        ctx.renderOpts.notFoundParams
+      ),
+      d: createSkippedSegmentData(),
+      c: children,
+    },
+    // The head is identical across all the subtrees of a response; take the
+    // first one.
+    head: firstSubtree.head,
+    isHeadPartial: firstSubtree.isHeadPartial,
+  }
 }
 
 /**
- * A simplified version of `walkTreeWithFlightRouterState` that doesn't skip any layouts
- * but returns a result of the same shape.
+ * A simplified version of `walkTreeWithFlightRouterState` that doesn't skip
+ * any layouts but returns a result of the same shape.
  * Intended to be used for instant validation, where we need the complete tree.
  */
-export async function createFullTreeFlightDataForNavigation({
+export async function createFullTreeForNavigation({
   loaderTree,
   rscHead,
   injectedCSS,
@@ -354,30 +395,17 @@ export async function createFullTreeFlightDataForNavigation({
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  MetadataOutlet: React.ComponentType
-}): Promise<[rootSegment: FlightDataPath]> {
+  MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
+}): Promise<NavigationResponseTree> {
   const {
     renderOpts: { experimental },
-    query,
-    getDynamicParamFromSegment,
     pagePath,
   } = ctx
 
   const hintTreeForInitialRender =
     ctx.renderOpts.prefetchHints?.[pagePath] ?? null
 
-  const routerState = await createFlightRouterStateFromLoaderTree(
-    loaderTree,
-    hintTreeForInitialRender,
-    Boolean(experimental.prefetchInlining),
-    ctx.missingPrefetchHintPolicy,
-    ctx.renderOpts.partialPrefetching,
-    getDynamicParamFromSegment,
-    query
-  )
-  const rootSegment = routerState[0]
-
-  const seedData = await createComponentTree({
+  const tree = await createComponentTree({
     ctx,
     loaderTree,
     parentParams: {},
@@ -391,32 +419,12 @@ export async function createFullTreeFlightDataForNavigation({
     authInterrupts: experimental.authInterrupts,
     MetadataOutlet,
     isPrerendering: false,
+    hintTree: hintTreeForInitialRender,
   })
 
-  return [
-    [
-      // TODO: app-render slices this Segment off.
-      // why is that valid, and why are we including it in the first place?
-      rootSegment,
-      routerState,
-      seedData,
-      rscHead,
-      false,
-    ] satisfies FlightDataSegment,
-  ]
-}
-
-/*
- * This function is used to determine if an existing segment can be overridden
- * by the incoming segment.
- */
-const canSegmentBeOverridden = (
-  existingSegment: Segment,
-  segment: Segment
-): boolean => {
-  if (Array.isArray(existingSegment) || !Array.isArray(segment)) {
-    return false
+  return {
+    tree,
+    head: rscHead,
+    isHeadPartial: false,
   }
-
-  return getSegmentParam(existingSegment)?.paramName === segment[0]
 }

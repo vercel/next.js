@@ -27,6 +27,7 @@ import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
@@ -83,6 +84,7 @@ async function requestHandler(
     nextConfig,
     buildManifest,
     prerenderManifest,
+    previewProps,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
@@ -99,10 +101,11 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
-  const botType = getBotType(req.headers.get('User-Agent') || '')
+  const userAgent = req.headers.get('User-Agent') || ''
+  const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
     req.headers,
-    prerenderManifest.preview
+    previewProps
   )
 
   const closeController = new CloseController()
@@ -130,7 +133,10 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      serveStreamingMetadata: true,
+      serveStreamingMetadata: shouldServeStreamingMetadata(
+        userAgent,
+        nextConfig.htmlLimitedBots
+      ),
       supportsDynamicResponse: true,
       buildManifest,
       nextFontManifest,
@@ -149,9 +155,8 @@ async function requestHandler(
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
-      previewProps: prerenderManifest.preview,
+      previewProps: previewProps,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -170,13 +175,22 @@ async function requestHandler(
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
+        parallelRouteMetadata: Boolean(
+          nextConfig.experimental.parallelRouteMetadata
+        ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        reactBrowserBailout: Boolean(
+          nextConfig.experimental.reactBrowserBailout
+        ),
         // Edge has no Node response-close signal, so HMR cancellation is a
         // no-op.
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
@@ -185,14 +199,18 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          nextConfig.experimental.disableResumeDataCacheCompression ?? false,
         exposeTestingApi:
-          pageRouteModule.isDev === true ||
-          nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
+        previewProps,
         prerenderManifest,
         true
       ),

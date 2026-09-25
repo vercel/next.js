@@ -93,7 +93,7 @@ describe('create-next-app', () => {
       }
     })
   })
-  it('should create AGENTS.md and CLAUDE.md with --agents-md flag', async () => {
+  it('should create AGENTS.md with --agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'with-agents-md'
 
@@ -120,12 +120,12 @@ describe('create-next-app', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: ['AGENTS.md', 'CLAUDE.md'],
+        files: ['AGENTS.md'],
       })
     })
   })
 
-  it('should not create AGENTS.md and CLAUDE.md with --no-agents-md flag', async () => {
+  it('should not create AGENTS.md with --no-agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'without-agents-md'
 
@@ -152,7 +152,7 @@ describe('create-next-app', () => {
       projectFilesShouldNotExist({
         cwd,
         projectName,
-        files: ['AGENTS.md', 'CLAUDE.md'],
+        files: ['AGENTS.md'],
       })
     })
   })
@@ -187,6 +187,7 @@ describe('create-next-app', () => {
         "  --eslint                ESLint (use --biome for Biome, --no-eslint for None)
           --no-react-compiler     No React Compiler (use --react-compiler for React Compiler)
           --no-src-dir            No src/ directory (use --src-dir for src/ directory)
+          --no-cache-components   No Cache Components (use --cache-components for Cache Components)
           --agents-md             AGENTS.md (use --no-agents-md for No AGENTS.md)
           --import-alias          "@/*""
       `)
@@ -207,6 +208,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-cache-components',
           '--no-agents-md',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),

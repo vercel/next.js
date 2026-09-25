@@ -1,5 +1,6 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
+import type { PrerenderResult } from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
@@ -176,7 +177,7 @@ export class AppPageRouteModule extends RouteModule<
     req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
+  ): Promise<PrerenderResult> {
     return prerenderToHTMLOrFlight(
       req,
       res,

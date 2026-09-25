@@ -49,11 +49,11 @@ pub(crate) struct WorkerThreadPool {
     pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub(crate) assets_root: FileSystemPath,
     pub(crate) project_dir: FileSystemPath,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     state: Arc<PoolState>,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     bootup_semaphore: Arc<Semaphore>,
 }
 

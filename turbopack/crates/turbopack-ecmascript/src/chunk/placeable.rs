@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
@@ -50,9 +50,9 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent>;
 
-    /// Returns the content identity for cache invalidation.
-    /// Override this for modules whose content depends on more than just the module source
-    /// (e.g., async loaders that depend on available modules).
+    /// See [`ChunkItem::content_ident`]
+    ///
+    /// [`ChunkItem::content_ident`]: turbopack_core::chunk::ChunkItem::content_ident
     #[turbo_tasks::function]
     fn chunk_item_content_ident(
         self: Vc<Self>,
@@ -124,7 +124,7 @@ async fn side_effects_from_package_json(
                         })
                     }
                 })
-                .map(|glob| async move {
+                .map(async |glob| {
                     Ok(match glob {
                         Either::Left(glob) => {
                             match glob.to_resolved().await {
@@ -272,7 +272,10 @@ pub enum EcmascriptExports {
     /// A module using `__turbopack_export_namespace__`, used by custom module types.
     DynamicNamespace,
     /// A module using CommonJS exports.
-    CommonJs,
+    ///
+    /// Carries the static export names when statically analyzable, for scope hoisting.
+    /// `None` means that the exports were not analyzable by us.
+    CommonJs(Option<CjsStaticExports>),
     /// No exports at all, and falling back to CommonJS semantics.
     EmptyCommonJs,
     /// A value that is made available as both the CommonJS `exports` and the ESM default export.
@@ -285,10 +288,55 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// A view of these exports for a module that *borrows* them from another module, i.e. whose
+    /// `get_exports` hands out the exports value of some other module verbatim.
+    ///
+    /// Export mangling is decided per module: the producing side keys on the module whose code
+    /// generation emits the export object, and the consuming side on the module it imports from.
+    /// An exports value shared by two module identities would let those two sides compute
+    /// different keys for the same export, so a borrowed view is always unmangled — which both
+    /// sides agree on.
+    #[turbo_tasks::function]
+    pub async fn borrowed(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        let this = self.await?;
+        Ok(match &*this {
+            EcmascriptExports::EsmExports(exports) => {
+                let exports = exports.await?;
+                if !exports.mangle_export_names {
+                    return Ok(self);
+                }
+                EcmascriptExports::EsmExports(
+                    EsmExports {
+                        exports: exports.exports.clone(),
+                        star_exports: exports.star_exports.clone(),
+                        mangle_export_names: false,
+                    }
+                    .resolved_cell(),
+                )
+                .cell()
+            }
+            // Nothing else carries a mangling decision.
+            _ => self,
+        })
+    }
+
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
-    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
-    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
+    /// Splitting happens for either of two reasons:
+    ///
+    /// 1. The module has re-exports (star exports or imported bindings), which lets the
+    ///    tree-shaking optimization separate local definitions from re-exports.
+    /// 2. Its export names may be mangled. The facade then keeps the original names for whatever
+    ///    reads this module from outside, while the locals module carries the mangled ones — see
+    ///    the `references::esm::mangle` module.
+    ///
+    /// A module with **no exports at all** is never split, even when mangling is enabled: there is
+    /// nothing to mangle or tree shake, and splitting is actively unsafe. Such a facade's only edge
+    /// to the original code would be the `ExportUsage::evaluation` reference from
+    /// `EcmascriptModuleFacadeModule::specific_references`, which `BindingUsageInfo` prunes when
+    /// the target looks side-effect free — as a `"sideEffects": false` package declaration
+    /// makes it, even for a body that has side effects. Unsplit, the module runs as a chunk
+    /// group entry regardless.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
@@ -301,9 +349,24 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
-                Vc::cell(has_reexports)
+                // `has_reexports` already implies a non-empty export list, so the emptiness check
+                // only needs to guard the mangling case.
+                Vc::cell(
+                    has_reexports || (exports.mangle_export_names && !exports.exports.is_empty()),
+                )
             }
             _ => Vc::cell(false),
         })
     }
+}
+
+/// A statically-analyzable CommonJS module's named exports, for scope hoisting.
+/// See the analyzer's `CjsExportsCollector`.
+#[derive(Clone, Debug, Hash)]
+#[turbo_tasks::value(shared)]
+pub struct CjsStaticExports {
+    /// Recognized `exports.NAME` / `module.exports.NAME` names, in source order.
+    pub export_names: Vec<RcStr>,
+    /// Whether `exports.__esModule = true` is set.
+    pub has_es_module: bool,
 }

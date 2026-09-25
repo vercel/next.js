@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('styled-jsx dynamic styles SSR', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   // Dynamic styled-jsx (with interpolated expressions) produces numeric class

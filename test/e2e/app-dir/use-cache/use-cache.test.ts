@@ -19,17 +19,13 @@ const GENERIC_RSC_ERROR =
 
 const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
-    {
-      files: __dirname,
-      skipDeployment: true,
-    }
-  )
-
-  if (skipped) {
-    return
-  }
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
+    files: __dirname,
+  })
 
   let cliOutputLength: number
 
@@ -1064,7 +1060,7 @@ describe('use-cache', () => {
           const expectedErrorMessage = disableJavaScript
             ? 'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
             : isNextDev
-              ? 'Route /draft-mode/[mode] used `cookies()` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use `cookies()` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache'
+              ? 'Route "/draft-mode/[mode]": `cookies()` can\'t be read inside `"use cache"`. Read it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
               : GENERIC_RSC_ERROR
 
           expect(logs).toMatchObject(

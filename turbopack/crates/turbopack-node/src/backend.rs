@@ -30,7 +30,7 @@ mod sealed {
 #[turbo_tasks::value_impl]
 impl sealed::Sealed for crate::worker_pool::WorkerThreadsBackend {}
 
-#[cfg(feature = "process_pool")]
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 #[turbo_tasks::value_impl]
 impl sealed::Sealed for crate::process_pool::ChildProcessesBackend {}
 

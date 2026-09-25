@@ -22,11 +22,15 @@ env:
 
 jobs:
   optimize-ci:
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/pr_stack_optimizer.yml
-    secrets: inherit
 
   changes:
     name: Determine changes
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,6 +47,17 @@ jobs:
           echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
+      - name: check for turbopack only change
+        id: turbopack-change
+        run: |
+          set -euo pipefail
+          TURBOPACK_ONLY="$(node scripts/run-for-change.mjs --not --type turbopack --exec echo 'false')"
+          {
+            echo "TURBOPACK_ONLY<<EOF"
+            echo "$TURBOPACK_ONLY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -56,6 +71,12 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      # Pull requests only, so canary and release run all Webpack tests.
+      turbopack-only: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
+        }}
       rspack: >-
         ${{
           steps.is-release.outputs.IS_RELEASE == 'true' || (
@@ -110,6 +131,9 @@ jobs:
 
   build-native:
     name: build-native
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
@@ -121,6 +145,9 @@ jobs:
 
   build-native-windows:
     name: build-native-windows
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
@@ -134,6 +161,10 @@ jobs:
 
   build-next:
     name: build-next
+    needs: ['optimize-ci']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsPlaywright: 'no'
@@ -209,6 +240,9 @@ jobs:
   lint:
     name: lint
     needs: ['build-next']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsPlaywright: 'no'
@@ -222,11 +256,16 @@ jobs:
         # `*.browser.{ts,tsx}` sibling was added/removed without running
         # `pnpm generate-browser-variant-aliases` and committing the result.
         pnpm generate-browser-variant-aliases
+        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
+        pnpm --dir .github/actions/pr-stack-ci-gate types
+        pnpm --dir .github/actions/pr-stack-ci-gate build
+        pnpm --dir .github/actions/pr-stack-ci-gate test
         git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -249,6 +288,9 @@ jobs:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsPlaywright: 'no'
@@ -261,10 +303,14 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
       needsNextest: 'yes'
+      needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
@@ -278,11 +324,31 @@ jobs:
       runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
+  # Turbo Tasks' link-section registry is unavailable under Miri, so this runs the explicit
+  # low-level package allowlist in packages/next-swc/package.json instead of the whole workspace.
+  test-cargo-unit-miri:
+    name: test cargo unit (miri)
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      needsNextest: 'yes'
+      skipNativeBuild: 'yes'
+      skipInstallBuild: 'yes'
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-miri ${TURBO_ARGS}
+      stepName: 'test-cargo-unit-miri'
+    secrets: inherit
+
   test-bench:
     name: test cargo benches
     needs: ['optimize-ci', 'changes', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
     secrets: inherit
 
@@ -291,6 +357,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -305,6 +374,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -337,12 +409,15 @@ jobs:
       fail-fast: false
       matrix:
         mode:
-          - '--turbopack=false'
-          - '--turbopack=true'
+          - '-F turbopack=false'
+          - '-F turbopack=true'
         selector:
-          - '--scenario=heavy-npm-deps-dev --page=homepage'
-          - '--scenario=heavy-npm-deps-build --page=homepage'
-          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
+          - '--scenario=heavy-npm-deps-dev -F page=homepage'
+          - '--scenario=heavy-npm-deps-build -F page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled -F page=homepage'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -357,6 +432,9 @@ jobs:
     name: test devlow package
     needs: ['optimize-ci', 'changes']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -386,6 +464,9 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -394,7 +475,6 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js \
@@ -428,6 +508,9 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
@@ -437,7 +520,6 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
@@ -466,6 +548,9 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.19.x
@@ -474,7 +559,6 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -513,6 +597,9 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.19.x
@@ -521,7 +608,6 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -541,6 +627,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -560,23 +649,48 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
-  #[NOTE] currently this only checks building wasi target
+  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
+  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # See https://github.com/vercel/next.js/issues/96960.
+  #
+  # This compiles the bindings and runs the wasm test suites with the pinned emnapi v2 prerelease.
+  # A linked build is gated by the first stack layer that provides every required runtime hook.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
-    # TODO: Re-enable this when https://github.com/napi-rs/napi-rs/issues/2009 is addressed.
-    # Specifically, the `platform` value is now `threads` in
-    # https://github.com/napi-rs/napi-rs/blob/e4ad4767efaf093fdff3dc768856f6100a6e3f72/cli/src/api/build.ts#L530
-    if: false
-    # if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsRust: 'yes'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
-        rustup target add wasm32-wasip1-threads
-        pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi ${TURBO_ARGS}
+        set -euo pipefail
+
+        # Provisions the wasi-sdk, emnapi and the cross-compilation env. Shared with local
+        # builds so the two cannot drift; see contributing/core/building-wasm.md.
+        source scripts/setup-wasi-env.sh
+
+        # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
+        # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
+        # compile is simply never built.
+        cargo build -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # Run the crates whose tests can execute on wasm. This needs a host that supplies the
+        # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
+        # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform
+        # limitations behind the tests that are `ignore`d on wasm.
+        export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
+        cargo test \
+          -p turbo-rcstr \
+          -p turbo-tasks \
+          -p turbo-tasks-backend \
+          --lib \
+          --target wasm32-wasip1-threads
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
@@ -590,6 +704,9 @@ jobs:
       matrix:
         node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsPlaywright: 'no'
@@ -613,6 +730,9 @@ jobs:
         # https://github.com/microsoft/playwright/issues/40724
         node: [22, '24.15.0']
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
@@ -637,6 +757,9 @@ jobs:
         # pin once we update to playwright 1.60.0 or newer.
         node: [22, '24.15.0']
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
@@ -658,6 +781,9 @@ jobs:
       matrix:
         node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsPlaywright: 'no'
@@ -671,20 +797,20 @@ jobs:
   test-new-tests-dev:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
@@ -698,20 +824,20 @@ jobs:
   test-new-tests-start:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
@@ -734,14 +860,17 @@ jobs:
     needs: ['optimize-ci', 'changes']
     # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
     # resolves its deploy target to `skipped` and never publishes a tarball.
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
-    # test-new-tests-end-if
     runs-on: ubuntu-latest
     # Outer bound only. The script gives up first, so a tarball that never
     # arrives is reported by it rather than by the runner killing the job.
     timeout-minutes: 35
-    permissions: {}
+    permissions:
+      # contents: read is needed to check out in private repos (the mirror).
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -755,7 +884,7 @@ jobs:
       - name: Wait for preview tarball
         env:
           PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
-          PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
+          PREVIEW_BUILDS_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
         run: |
           set -euo pipefail
           node scripts/wait-for-preview-tarball.mjs \
@@ -765,15 +894,18 @@ jobs:
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
@@ -781,7 +913,6 @@ jobs:
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
@@ -794,15 +925,18 @@ jobs:
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -830,7 +964,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -841,6 +975,9 @@ jobs:
         group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -848,7 +985,6 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js \
           --timings \
@@ -865,12 +1001,14 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export NEXT_TEST_MODE=dev
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
 
@@ -878,6 +1016,7 @@ jobs:
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
+          test/e2e/app-dir/turbopack-additional-roots/turbopack-additional-roots.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
@@ -888,13 +1027,15 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -914,12 +1055,14 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -928,7 +1071,8 @@ jobs:
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/metadata-edge/index.test.ts \
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
-          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
+          test/e2e/incremental-cache-path-traversal/index.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
     secrets: inherit
@@ -943,7 +1087,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -954,6 +1098,9 @@ jobs:
         group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -961,7 +1108,6 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
@@ -974,6 +1120,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       browser: 'firefox webkit'
@@ -981,7 +1130,6 @@ jobs:
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
         export IS_TURBOPACK_TEST=1
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=firefox node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/production/chunk-load-failure/chunk-load-failure.test.ts
@@ -1021,6 +1169,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -1057,6 +1208,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -1106,6 +1260,7 @@ jobs:
       - rust-check
       - rustdoc-check
       - test-next-swc-wasm
+      - test-next-napi-bindings-wasi
       - test-turbopack-dev
       - test-new-tests-dev
       - test-new-tests-start
