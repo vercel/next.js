@@ -12,9 +12,12 @@ describe('unhandled-rejection-logging', () => {
     const outputIndex = next.cliOutput.length
     await next.fetch('/')
 
+    // Runtime logs arrive over the network, outside `retry()`'s 3s
+    // default. 30s is what `check()` gives the one deploy suite that
+    // already reads them successfully.
     await retry(async () => {
       expect(next.cliOutput.slice(outputIndex)).toContain('unhandledRejection')
-    })
+    }, 30_000)
 
     // Give the remaining listeners a chance to log before asserting.
     await waitFor(1000)
