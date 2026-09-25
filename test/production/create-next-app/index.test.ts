@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
   resolveNextTgzFilename,
@@ -13,6 +13,18 @@ describe('create-next-app', () => {
 
   beforeAll(() => {
     nextTgzFilename = resolveNextTgzFilename()
+  })
+
+  it('should list both agent feedback flags in help', async () => {
+    await useTempDir(async (cwd) => {
+      const res = await run(['--help'], nextTgzFilename, {
+        cwd,
+        stdio: 'pipe',
+      })
+
+      expect(res.stdout).toContain('--agent-feedback')
+      expect(res.stdout).toContain('--no-agent-feedback')
+    })
   })
 
   it('should not create if the target directory is not empty', async () => {
@@ -157,6 +169,37 @@ describe('create-next-app', () => {
     })
   })
 
+  it('should enable agent feedback with --agent-feedback', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agent-feedback'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--agent-feedback',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(
+        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
+    })
+  })
+
   it('should print assumed defaults when flags are partially provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'partial-flags'
@@ -189,6 +232,7 @@ describe('create-next-app', () => {
           --no-src-dir            No src/ directory (use --src-dir for src/ directory)
           --no-cache-components   No Cache Components (use --cache-components for Cache Components)
           --agents-md             AGENTS.md (use --no-agents-md for No AGENTS.md)
+          --no-agent-feedback     No agent feedback (use --agent-feedback for Agent feedback)
           --import-alias          "@/*""
       `)
     })
@@ -210,6 +254,7 @@ describe('create-next-app', () => {
           '--no-react-compiler',
           '--no-cache-components',
           '--no-agents-md',
+          '--no-agent-feedback',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
@@ -221,6 +266,9 @@ describe('create-next-app', () => {
       )
       expect(res.exitCode).toBe(0)
       expect(res.stdout).not.toContain('Using defaults for unprovided options')
+      expect(
+        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).not.toContain('agentFeedback')
     })
   })
 
