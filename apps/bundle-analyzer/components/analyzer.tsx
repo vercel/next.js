@@ -84,7 +84,7 @@ function SingleAnalyzerController() {
 
 export function CompareAnalyzer() {
   return (
-    <AnalyzerBoundary defaultView={CompareView.Table}>
+    <AnalyzerBoundary defaultView={CompareView.Treemap}>
       <CompareAnalyzerController />
     </AnalyzerBoundary>
   )
