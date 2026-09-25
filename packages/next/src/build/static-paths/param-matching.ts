@@ -20,16 +20,13 @@ export async function resolveParamMatching(
   segmentTree: readonly AppSegmentTree[],
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
 ): Promise<ParamMatching | undefined> {
-  const segments = new Set<AppSegment>()
+  const configuredSegments: AppSegment[] = []
   const nodes = [...segmentTree]
   for (let index = 0; index < nodes.length; index++) {
     const [segment, children] = nodes[index]
-    segments.add(segment)
+    if (segment.paramMatching !== undefined) configuredSegments.push(segment)
     nodes.push(...children)
   }
-  const configuredSegments = [...segments].filter(
-    (segment) => segment.paramMatching !== undefined
-  )
 
   if (configuredSegments.length === 0) return undefined
 
@@ -38,11 +35,8 @@ export async function resolveParamMatching(
   )
   const candidates = new Map<string, PolicyCandidate[]>()
   const paramsMissingPolicy = new Set<string>()
-  // A module can appear in multiple parallel slots in the loader tree. Those
-  // occurrences share an AppSegment, so invoke its generator once and reuse
-  // the result wherever that module occurs within this route evaluation.
-  // Other pages evaluate their shared layouts separately. Start independent
-  // generators together, before merging their results down each branch.
+  // Start independent generators together, before merging their results down
+  // each branch.
   const fragments = new Map<AppSegment, ParamMatching>()
   await Promise.all(
     configuredSegments.map(async (segment) => {

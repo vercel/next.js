@@ -165,9 +165,8 @@ export type AppSegment = {
   createEmptyParamsError?: () => Error
 }
 
-// Each occurrence has its own children, but occurrences of the same module
-// share an AppSegment. The flat list keeps one entry per module for parameter
-// generation.
+// Preserve parallel branches for parameter matching inheritance separately
+// from the flat list used by generateStaticParams.
 export type AppSegmentTree = [
   segment: AppSegment,
   parallelRoutes: AppSegmentTree[],
@@ -234,18 +233,19 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     // If this segment doesn't already exist, then add it to the segments array.
     // The list of segments is short so we just use a list traversal to check
     // for duplicates and spare us needing to maintain the string key.
-    const existingSegment = segments.find(
-      (s) =>
-        s.name === segment.name &&
-        s.paramName === segment.paramName &&
-        s.paramType === segment.paramType &&
-        s.filePath === segment.filePath
-    )
-    if (!existingSegment) {
+    if (
+      segments.every(
+        (s) =>
+          s.name !== segment.name ||
+          s.paramName !== segment.paramName ||
+          s.paramType !== segment.paramType ||
+          s.filePath !== segment.filePath
+      )
+    ) {
       segments.push(segment)
     }
     const children: AppSegmentTree[] = []
-    parentChildren.push([existingSegment ?? segment, children])
+    parentChildren.push([segment, children])
 
     // Add all parallel routes to the queue
     for (const parallelRoute of Object.values(parallelRoutes)) {

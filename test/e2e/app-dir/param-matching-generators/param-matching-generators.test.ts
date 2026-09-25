@@ -50,6 +50,15 @@ describe('param-matching-generators', () => {
     }
   })
 
+  it('validates the effective policy after the page overrides its layout', async () => {
+    for (const top of ['t1', 'novel']) {
+      const response = await next.fetch(`/composed/en/${top}`)
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('Composed policy')
+    }
+    expect((await next.fetch('/composed/fr/t1')).status).toBe(404)
+  })
+
   it.each(['document', 'navigation'])(
     'advertises closed parameters for an allowed %s, including in dev',
     async (requestKind) => {

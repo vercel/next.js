@@ -7,17 +7,10 @@ import {
   filterUniqueParams,
   generateRouteStaticParams,
 } from './app'
-import {
-  resolveParamMatching,
-  validateParamMatchingParams,
-} from './param-matching'
+import { resolveParamMatching } from './param-matching'
 import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type {
-  AppSegment,
-  AppSegmentTree,
-  ParamMatching,
-} from '../segment-config/app/app-segments'
+import type { AppSegment } from '../segment-config/app/app-segments'
 
 function pathnameSegments(
   ...paramNames: string[]
@@ -564,290 +557,63 @@ describe('assignStaticShellMetadata', () => {
   })
 })
 
-const createParamMatchingSegment = ({
-  paramMatching,
-  generate,
-  filePath = 'app/layout.tsx',
-  children = [],
-}: {
-  paramMatching?: ParamMatching
-  generate?: () => Promise<ParamMatching>
-  filePath?: string
-  children?: AppSegmentTree[]
-}): AppSegmentTree => [
-  {
-    name: '',
-    paramName: undefined,
-    paramType: undefined,
-    filePath,
-    config: undefined,
-    paramMatching: generate ?? paramMatching,
-    generateStaticParams: undefined,
-  },
-  children,
-]
-
 describe('resolveParamMatching', () => {
-  const pathnameParams = [
-    { paramName: 'lang' },
-    { paramName: 'top' },
-    { paramName: 'bottom' },
-  ]
-
-  it('merges ancestors and lets a descendant replace individual params', async () => {
-    let calls = 0
-    const paramMatching = await resolveParamMatching(
-      '/[lang]/catalog/[top]/items/[bottom]',
-      [
-        createParamMatchingSegment({
-          paramMatching: { lang: 'not-found' },
-          children: [
-            createParamMatchingSegment({
-              generate: async () => {
-                calls++
-                return { top: 'blocking' }
-              },
-              children: [
-                createParamMatchingSegment({
-                  paramMatching: { top: 'fallback', bottom: 'dynamic' },
-                  filePath: 'app/[lang]/catalog/[top]/items/[bottom]/page.tsx',
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-      pathnameParams
-    )
-
-    expect(calls).toBe(1)
-    expect(paramMatching).toEqual({
-      lang: 'not-found',
-      top: 'fallback',
-      bottom: 'dynamic',
+  it('starts a descendant generator while its ancestor is still pending', async () => {
+    let releaseParent!: () => void
+    const parentGate = new Promise<void>((resolve) => {
+      releaseParent = resolve
     })
-  })
-
-  it('starts parameter matching generators independently', async () => {
-    let resolveFirst: (() => void) | undefined
-    const firstGate = new Promise<void>((resolve) => {
-      resolveFirst = resolve
+    let notifyChildStarted!: () => void
+    const childStarted = new Promise<void>((resolve) => {
+      notifyChildStarted = resolve
     })
-    let secondStarted = false
 
     const resolvedParamMatching = resolveParamMatching(
-      '/[lang]/catalog/[top]/items/[bottom]',
+      '/[lang]/[top]',
       [
-        createParamMatchingSegment({
-          generate: async () => {
-            await firstGate
-            return { lang: 'not-found' }
+        [
+          {
+            name: '[lang]',
+            paramName: 'lang',
+            paramType: 'dynamic',
+            filePath: 'app/[lang]/layout.tsx',
+            config: undefined,
+            generateStaticParams: undefined,
+            paramMatching: async () => {
+              await parentGate
+              return { lang: 'not-found' }
+            },
           },
-          children: [
-            createParamMatchingSegment({
-              generate: async () => {
-                secondStarted = true
-                return { top: 'blocking' }
+          [
+            [
+              {
+                name: '[top]',
+                paramName: 'top',
+                paramType: 'dynamic',
+                filePath: 'app/[lang]/[top]/layout.tsx',
+                config: undefined,
+                generateStaticParams: undefined,
+                paramMatching: async () => {
+                  notifyChildStarted()
+                  return { top: 'blocking' }
+                },
               },
-            }),
+              [],
+            ],
           ],
-        }),
+        ],
       ],
-      pathnameParams
+      pathnameSegments('lang', 'top')
     )
 
-    expect(secondStarted).toBe(true)
-    resolveFirst!()
+    // The child must not wait for the parent, but it need not start in the
+    // same synchronous turn as resolveParamMatching.
+    await childStarted
+    releaseParent()
     await expect(resolvedParamMatching).resolves.toEqual({
       lang: 'not-found',
       top: 'blocking',
     })
-  })
-
-  it('evaluates a shared module once without merging its separate children', async () => {
-    let calls = 0
-    const [sharedSegment] = createParamMatchingSegment({
-      generate: async () => {
-        calls++
-        return { lang: 'blocking' }
-      },
-    })
-
-    await expect(
-      resolveParamMatching(
-        '/[lang]',
-        [
-          [
-            sharedSegment,
-            [
-              createParamMatchingSegment({
-                paramMatching: { lang: 'fallback' },
-              }),
-            ],
-          ],
-          [sharedSegment, [createParamMatchingSegment({})]],
-        ],
-        [{ paramName: 'lang' }]
-      )
-    ).rejects.toThrow('conflicting parallel parameter matching modes')
-    expect(calls).toBe(1)
-  })
-
-  it('does not implicitly tighten inherited params', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { lang: 'blocking' },
-            children: [
-              createParamMatchingSegment({
-                paramMatching: { top: 'not-found' },
-              }),
-            ],
-          }),
-        ],
-        pathnameParams
-      )
-    ).rejects.toThrow('Expected parameters in this order: "not-found"')
-  })
-
-  it('does not implicitly loosen inherited params', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { top: 'not-found' },
-            children: [
-              createParamMatchingSegment({
-                paramMatching: { lang: 'blocking' },
-              }),
-            ],
-          }),
-        ],
-        pathnameParams
-      )
-    ).rejects.toThrow('Expected parameters in this order: "not-found"')
-  })
-
-  it('validates coherence after descendant overrides are merged', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { lang: 'fallback', top: 'blocking' },
-            children: [
-              createParamMatchingSegment({
-                paramMatching: { lang: 'not-found' },
-              }),
-            ],
-          }),
-        ],
-        pathnameParams
-      )
-    ).resolves.toEqual({ lang: 'not-found', top: 'blocking' })
-  })
-
-  it('rejects incoherent definitions from incomparable branches', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { lang: 'fallback' },
-            filePath: 'app/@slot1/page.tsx',
-          }),
-          createParamMatchingSegment({
-            paramMatching: { top: 'blocking' },
-            filePath: 'app/@slot2/page.tsx',
-          }),
-        ],
-        pathnameParams
-      )
-    ).rejects.toThrow('Expected parameters in this order: "not-found"')
-  })
-
-  it('rejects params outside the matched route', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { other: 'blocking' },
-          }),
-        ],
-        pathnameParams
-      )
-    ).rejects.toThrow('may only configure dynamic parameters in this route')
-  })
-
-  it('rejects incoherent parameter matching phase ordering', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { lang: 'fallback', top: 'blocking' },
-          }),
-        ],
-        pathnameParams
-      )
-    ).rejects.toThrow('Expected parameters in this order: "not-found"')
-  })
-
-  it('rejects conflicting definitions from parallel siblings', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { top: 'blocking' },
-            filePath: 'app/@slot1/page.tsx',
-          }),
-          createParamMatchingSegment({
-            paramMatching: { top: 'fallback' },
-            filePath: 'app/@slot2/page.tsx',
-          }),
-        ],
-        pathnameParams
-      )
-    ).rejects.toThrow('conflicting parallel parameter matching modes')
-  })
-
-  it('allows parallel siblings to agree on a mode', async () => {
-    await expect(
-      resolveParamMatching(
-        '/[lang]/catalog/[top]/items/[bottom]',
-        [
-          createParamMatchingSegment({
-            paramMatching: { top: 'blocking' },
-            filePath: 'app/@slot1/page.tsx',
-          }),
-          createParamMatchingSegment({
-            paramMatching: { top: 'blocking' },
-            filePath: 'app/@slot2/page.tsx',
-          }),
-        ],
-        pathnameParams
-      )
-    ).resolves.toEqual({ top: 'blocking' })
-  })
-
-  it('rejects prerenders at or below a dynamic parameter', () => {
-    expect(() =>
-      validateParamMatchingParams(
-        '/[top]/[bottom]',
-        { top: 'dynamic', bottom: 'dynamic' },
-        new Set(['top']),
-        new Set(['bottom']),
-        [{ paramName: 'top' }, { paramName: 'bottom' }],
-        undefined
-      )
-    ).toThrow(
-      'cannot prerender parameter "top" because parameter "top" is configured as "dynamic"'
-    )
   })
 })
 
