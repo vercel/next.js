@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 describe('proxy-page-extensions', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should execute proxy.page.ts and set custom header', async () => {

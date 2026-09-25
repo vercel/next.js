@@ -5,7 +5,6 @@ describe('SCSS Support', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
   // Production only test
   ;(isNextDev ? describe.skip : describe)('Friendly Webpack Error', () => {

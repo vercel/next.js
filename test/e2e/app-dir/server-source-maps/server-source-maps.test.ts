@@ -18,15 +18,12 @@ describe('app-dir - server source maps', () => {
     'internal-pkg': `link:./internal-pkg`,
     'external-pkg': `file:./external-pkg`,
   }
-  const { skipped, next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
     // Deploy tests don't have access to runtime logs.
     // Manually verify that the runtime logs match.
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
     if (isNextDev) {

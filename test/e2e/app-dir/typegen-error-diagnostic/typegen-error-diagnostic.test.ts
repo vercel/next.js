@@ -2,16 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import { runNextCommand } from 'next-test-utils'
 
 describe('typegen error diagnostic', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     // We drive `next typegen` manually; no server needed.
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('fails loudly with an actionable message when route types cannot be generated', async () => {
     // `next typegen` runs with NODE_ENV=production, which makes the fixture's

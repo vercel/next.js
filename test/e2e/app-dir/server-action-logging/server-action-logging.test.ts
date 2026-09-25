@@ -3,12 +3,9 @@ import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('server-action-logging', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) return
 
   if (isNextStart) {
     it('should not log server actions in production mode', async () => {
@@ -189,15 +186,12 @@ describe('server-action-logging', () => {
 })
 
 describe('server-action-logging when logging.serverFunctions is disabled', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     env: {
       NEXT_TEST_SERVER_FUNCTION_LOGGING: 'false',
     },
   })
-
-  if (skipped) return
 
   it('should not log server actions', async () => {
     const browser = await next.browser('/')
