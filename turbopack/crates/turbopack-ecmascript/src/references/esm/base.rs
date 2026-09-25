@@ -90,12 +90,6 @@ pub enum ReferencedAssetIdent {
         namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
-        /// Whether the named export can be captured once instead of read through the namespace at
-        /// every use. This is false for namespace imports, live bindings, and circuit breakers.
-        can_value_bind: bool,
-        /// Whether calling the named export could observe `this`, in which case a member call has
-        /// to keep the namespace as the receiver. Conservatively true.
-        maybe_uses_this: bool,
         /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
@@ -141,6 +135,8 @@ impl ImportSource {
         Ok(match self {
             ImportSource::Module { asset } => {
                 let id = asset.chunk_item_id(chunking_context).await?;
+                // There are a number of places in `next` that match on this prefix.
+                // See `packages/next/src/shared/lib/magic-identifier.ts`
                 format!("imported module {id}")
             }
             ImportSource::External { request, ty } => format!("{ty} external {request}"),
@@ -171,8 +167,6 @@ impl ReferencedAssetIdent {
                 namespace_ident,
                 ctxt,
                 export,
-                can_value_bind: _,
-                maybe_uses_this: _,
                 import_source: _,
             } => {
                 if let Some(export) = export {
@@ -309,15 +303,11 @@ impl ReferencedAsset {
                                         // but in the module containing the reexport
                                         ctxt: None,
                                         export,
-                                        can_value_bind,
-                                        maybe_uses_this,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
-                                        can_value_bind,
-                                        maybe_uses_this,
                                         import_source,
                                     }),
                                     ident => ident,
@@ -332,11 +322,6 @@ impl ReferencedAsset {
                 }
 
                 let import_source = ImportSource::Module { asset: *asset };
-                let capture = if let Some(export) = &export {
-                    can_capture_export_value(**asset, export.clone(), chunking_context).await?
-                } else {
-                    ExportCapture::unknown().await?
-                };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
@@ -350,8 +335,6 @@ impl ReferencedAsset {
                         }
                         None => None,
                     },
-                    can_value_bind: capture.can_value_bind,
-                    maybe_uses_this: capture.maybe_uses_this,
                     import_source,
                 })
             }
@@ -364,9 +347,6 @@ impl ReferencedAsset {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
                     export,
-                    can_value_bind: false,
-                    // An external's value is opaque, so a member call keeps the receiver.
-                    maybe_uses_this: true,
                     import_source,
                 })
             }
@@ -401,23 +381,21 @@ impl ReferencedAsset {
             ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => None,
         })
     }
-
-    pub(crate) async fn get_ident_from_placeable(
-        asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<String> {
-        let id = asset.chunk_item_id(chunking_context).await?;
-        // There are a number of places in `next` that match on this prefix.
-        // See `packages/next/src/shared/lib/magic-identifier.ts`
-        Ok(magic_identifier::mangle(&format!("imported module {id}")))
-    }
 }
 
-/// Whether an imported export can be safely captured in a local value binding.
+/// Whether an imported export can be safely captured in a local value binding, see
+/// [`can_capture_export_value`].
 #[turbo_tasks::value]
 pub struct ExportCapture {
-    /// Whether the export can be read once into a local instead of at every use.
-    pub can_value_bind: bool,
+    /// The name of the local the export can be read into once instead of at every use, or `None`
+    /// when it cannot be captured.
+    ///
+    /// The name comes from the module that defines the binding and its export name there, so it
+    /// is unique to the value: the same name always holds the same value, whichever namespace or
+    /// re-export it was read through. That is what lets the local be declared without a syntax
+    /// context, even when scope hoisting puts several modules in one scope. It can surface in the
+    /// error overlay, so it names the import rather than hashing it.
+    pub value_binding_name: Option<RcStr>,
     /// Whether calling the export could observe `this`. Conservatively true.
     pub maybe_uses_this: bool,
 }
@@ -427,20 +405,27 @@ impl ExportCapture {
     /// with it as the receiver.
     fn unknown() -> Vc<Self> {
         ExportCapture {
-            can_value_bind: false,
+            value_binding_name: None,
             maybe_uses_this: true,
         }
         .cell()
     }
 }
 
+/// Whether `export` of `module` can be captured into a local value binding, and whether calling it
+/// could observe `this`.
+///
+/// `module` is where the import points, and re-exports are followed from there to the binding.
+/// `namespace_module` is the module whose namespace the capture reads, which is the one that must
+/// have finished evaluating before the capture runs. The two differ when scope hoisting has
+/// already resolved part of a re-export chain.
 #[turbo_tasks::function]
-async fn can_capture_export_value(
+pub(crate) async fn can_capture_export_value(
+    namespace_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export: RcStr,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ExportCapture>> {
-    let imported_module = module;
     let mut module = module;
     let mut export = export;
     let mut visited = FxHashSet::default();
@@ -482,10 +467,19 @@ async fn can_capture_export_value(
     }
 
     let export_usage = chunking_context
-        .module_export_usage(*ResolvedVc::upcast(imported_module))
+        .module_export_usage(*ResolvedVc::upcast(namespace_module))
         .await?;
+    let value_binding_name = if export_usage.is_circuit_breaker {
+        None
+    } else {
+        // `module` and `export` now name where the binding is defined.
+        let source = ImportSource::Module { asset: module }
+            .get_namespace_description(chunking_context)
+            .await?;
+        Some(magic_identifier::mangle(&format!("imported binding {export} from {source}")).into())
+    };
     Ok(ExportCapture {
-        can_value_bind: !export_usage.is_circuit_breaker,
+        value_binding_name,
         maybe_uses_this: binding.maybe_uses_this,
     }
     .cell())
@@ -1022,8 +1016,6 @@ impl EsmAssetReference {
                                     namespace_ident,
                                     ctxt,
                                     export: _,
-                                    can_value_bind: _,
-                                    maybe_uses_this: _,
                                     import_source,
                                 }) => {
                                     if subsumed_imports

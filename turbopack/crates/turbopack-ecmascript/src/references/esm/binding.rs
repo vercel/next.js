@@ -7,24 +7,27 @@ use swc_core::{
             ComputedPropName, Decl, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Pat,
             Prop, PropName, SimpleAssignTarget, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
-        visit::fields::{
-            CalleeField, ForInStmtField, ForOfStmtField, OptCallField, PropField, TaggedTplField,
-            UpdateExprField,
+        visit::{
+            AstParentKind,
+            fields::{
+                CalleeField, ExprField, OptCallField, ParenExprField, PatField, PropField,
+                TaggedTplField, UnaryExprField, UpdateExprField,
+            },
         },
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration, CodeGenerationHoistedStmt, HoistedStmtKey},
-    create_visitor, magic_identifier,
+    create_visitor,
     references::esm::{
         EsmAssetReference,
-        base::{ReferencedAsset, ReferencedAssetIdent},
+        base::{ImportSource, ReferencedAsset, ReferencedAssetIdent, can_capture_export_value},
     },
 };
 
@@ -33,7 +36,81 @@ pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,
     ast_path: AstPathId,
-    caller_propagates_this: bool,
+    namespace_access: NamespaceAccess,
+}
+
+/// How a namespace member access such as `ns.f` is used, which decides whether it can read a
+/// captured local or has to keep going through the namespace.
+///
+/// Decided during analysis from the position of the access. Whether a call needs the namespace
+/// also depends on the export, which is only known during code generation.
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+enum NamespaceAccess {
+    /// A plain read, or not a namespace member access at all. It can use a captured local.
+    Read,
+    /// `ns.f()`, which calls `f` with `ns` as the receiver. The namespace is kept when `f` may
+    /// observe `this`.
+    Call,
+    /// `ns.f = …` and similar. Source-level writes to ESM imports are illegal, but SWC still parses
+    /// them. The write has to reach the namespace so that writing to the read-only export still
+    /// throws, rather than silently writing to a local.
+    ///
+    /// Also any unary operand, for the sake of `delete ns.f`: `delete <identifier>` is a syntax
+    /// error in strict code, so a captured operand would break the whole chunk. The path does not
+    /// say which operator it is, and the other unary operators are not worth telling apart.
+    Write,
+}
+
+impl NamespaceAccess {
+    /// Classifies a namespace member access from its path, which ends at the namespace object
+    /// inside the member expression (`.., MemberExpr(Obj)`).
+    fn of_member_path(raw_path: &[AstParentKind]) -> Self {
+        let mut parents = raw_path.iter().rev().copied();
+        parents.next();
+        // Above that is the member expression itself.
+        match parents.next() {
+            // `ns.a = 1`, where the member expression is the assignment target itself.
+            Some(AstParentKind::SimpleAssignTarget(_)) => NamespaceAccess::Write,
+            // `ns?.f`: an `OptChainBase(Member)` inside `OptChainExpr(Base)` inside
+            // `Expr(OptChain)`.
+            Some(AstParentKind::OptChainBase(_)) => {
+                parents.next();
+                parents.next();
+                NamespaceAccess::of_position(enclosing_position(parents))
+            }
+            // `Expr(Member)`
+            _ => NamespaceAccess::of_position(enclosing_position(parents)),
+        }
+    }
+
+    /// Classifies the position a namespace member access sits in, from [`enclosing_position`].
+    fn of_position(enclosing: Option<AstParentKind>) -> Self {
+        if is_this_receiver_position(enclosing) {
+            return NamespaceAccess::Call;
+        }
+        match enclosing {
+            // `(ns.a) = 1`
+            Some(AstParentKind::SimpleAssignTarget(_))
+            // `ns.a++` and `ns.a--` write back to the export just as an assignment does.
+            | Some(AstParentKind::UpdateExpr(UpdateExprField::Arg))
+            // An expression in a pattern is a write target: destructuring assignments like
+            // `[ns.a] = v`, `({ k: ns.a } = o)` and `[...ns.a] = v`, and `for (ns.a of xs)`.
+            | Some(AstParentKind::Pat(PatField::Expr))
+            // `delete ns.a`, see `NamespaceAccess::Write`.
+            | Some(AstParentKind::UnaryExpr(UnaryExprField::Arg)) => NamespaceAccess::Write,
+            _ => NamespaceAccess::Read,
+        }
+    }
+
+    /// Whether the access has to go through the namespace rather than a captured local, given
+    /// whether calling the export could observe `this`.
+    fn keeps_namespace(self, maybe_uses_this: bool) -> bool {
+        match self {
+            NamespaceAccess::Read => false,
+            NamespaceAccess::Write => true,
+            NamespaceAccess::Call => maybe_uses_this,
+        }
+    }
 }
 
 impl EsmBinding {
@@ -46,36 +123,27 @@ impl EsmBinding {
             reference,
             export,
             ast_path,
-            caller_propagates_this: false,
+            namespace_access: NamespaceAccess::Read,
         }
     }
 
-    /// A binding using a namespace access such as `import * as ns from "m"; ns.f()`.
+    /// A binding using a namespace member access such as `import * as ns from "m"; ns.f`.
     ///
-    /// Static analysis determines whether we can capture the import into a local or need to
-    /// preserve the `ns` receiver to propagate `this`
-    pub fn new_maybe_keep_this(
+    /// Whether the access can read a captured local or has to keep going through `ns` depends on
+    /// how it is used, see [`NamespaceAccess`].
+    pub fn new_maybe_keep_namespace(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
         ast_path: AstPathId,
-        // The raw path, since the receiver question is about the position the member expression
-        // sits in and the trie is not readable during analysis.
-        raw_path: &[swc_core::ecma::visit::AstParentKind],
+        // The raw path, since the question is about the position the member expression sits in
+        // and the trie is not readable during analysis.
+        raw_path: &[AstParentKind],
     ) -> Self {
-        // `raw_path` ends at the namespace object inside the member expression
-        // (`.., <enclosing>, Expr(Member), MemberExpr(Obj)`). Drop those two trailing entries so
-        // the enclosing position is the last element.
-        let enclosing = raw_path
-            .len()
-            .checked_sub(3)
-            .and_then(|index| raw_path.get(index))
-            .copied();
-        let caller_propagates_this = is_this_receiver_position(enclosing);
         EsmBinding {
             reference,
             export,
             ast_path,
-            caller_propagates_this,
+            namespace_access: NamespaceAccess::of_member_path(raw_path),
         }
     }
 
@@ -94,7 +162,7 @@ impl EsmBinding {
         }
 
         let mut visitors = vec![];
-        let mut captures = vec![];
+        let mut capture = None;
         let imported_module = &self.reference.get_referenced_asset().await?;
         let export = self.export.clone();
 
@@ -106,6 +174,9 @@ impl EsmBinding {
             Unresolvable,
         }
 
+        // Whether calling the export could observe `this`, conservatively true until the capture
+        // analysis below says otherwise.
+        let mut maybe_uses_this = true;
         let imported_ident = match imported_module {
             ReferencedAsset::None => ImportedIdent::None,
             ReferencedAsset::Empty => {
@@ -122,52 +193,63 @@ impl EsmBinding {
                 .await?
             {
                 Some(imported_ident) => {
-                    // Capturing an import is only safe when it does not need the namespace as a
-                    // call receiver. Source-level assignments to ESM imports are illegal, but SWC
-                    // still parses them; retain namespace access for those assignment targets so
-                    // assigning to the non-writable export continues to throw.
-                    let value_binding =
-                        if !propagates_this(self.caller_propagates_this, &imported_ident)
-                            && let ReferencedAssetIdent::Module {
-                                namespace_ident,
-                                ctxt,
-                                export: Some(export),
-                                can_value_bind: true,
-                                import_source,
+                    let export_capture = match (imported_module, &imported_ident, &self.export) {
+                        // A write keeps the namespace whatever the export is, so it is not worth
+                        // asking.
+                        _ if self.namespace_access == NamespaceAccess::Write => None,
+                        (
+                            ReferencedAsset::Some(module),
+                            ReferencedAssetIdent::Module {
+                                import_source: ImportSource::Module { asset },
+                                export: Some(_),
                                 ..
-                            } = &imported_ident
-                            && !is_assignment_target(trie, self.ast_path)
-                        {
-                            // A readable, unique name for the local binding. It can surface in the
-                            // error overlay, so it names the import rather than hashing it.
-                            let binding_name = {
-                                let imported_name = self.export.as_deref().unwrap_or(export);
-                                let source = import_source
-                                    .get_namespace_description(chunking_context)
-                                    .await?;
-                                magic_identifier::mangle(&format!(
-                                    "imported binding {imported_name} from {source}"
-                                ))
-                                .into()
-                            };
-                            let binding_ident = Ident::new(
-                                binding_name,
-                                DUMMY_SP,
-                                // This is a synthetic local in the consuming module, not an export
-                                // of the module whose syntax
-                                // context the namespace accessor carries.
-                                Default::default(),
-                            );
-                            captures.push(ValueBindingCapture {
-                                namespace_ident: namespace_ident.as_str().into(),
-                                ctxt: *ctxt,
-                                export: export.clone(),
-                                binding: binding_ident.clone(),
-                            });
-                            Some(binding_ident)
-                        } else {
-                            None
-                        };
+                            },
+                            Some(export),
+                        ) => Some(
+                            can_capture_export_value(
+                                **asset,
+                                **module,
+                                export.clone(),
+                                chunking_context,
+                            )
+                            .await?,
+                        ),
+                        _ => None,
+                    };
+                    // Nothing is known about anything else, so it is read through the namespace
+                    // and called with it as the receiver.
+                    maybe_uses_this = export_capture.as_ref().is_none_or(|c| c.maybe_uses_this);
+                    // Capturing an import is only safe when the access does not need to go
+                    // through the namespace, see `NamespaceAccess`.
+                    let value_binding = if !self.namespace_access.keeps_namespace(maybe_uses_this)
+                        && let Some(binding_name) = export_capture
+                            .as_ref()
+                            .and_then(|c| c.value_binding_name.as_ref())
+                        && let ReferencedAssetIdent::Module {
+                            namespace_ident,
+                            ctxt,
+                            export: Some(export),
+                            ..
+                        } = &imported_ident
+                    {
+                        let binding_ident = Ident::new(
+                            binding_name.as_str().into(),
+                            DUMMY_SP,
+                            // The name is unique to the value, see
+                            // `ExportCapture::value_binding_name`, so it needs no syntax context
+                            // even when several merged modules declare it.
+                            Default::default(),
+                        );
+                        capture = Some(ValueBindingCapture {
+                            namespace_ident: namespace_ident.as_str().into(),
+                            ctxt: *ctxt,
+                            export: export.clone(),
+                            binding: binding_ident.clone(),
+                        });
+                        Some(binding_ident)
+                    } else {
+                        None
+                    };
                     ImportedIdent::Module(imported_ident, value_binding)
                 }
                 None => ImportedIdent::Unresolvable,
@@ -181,7 +263,7 @@ impl EsmBinding {
             match trie.get(ast_path) {
                 // Shorthand properties get special treatment because we need to rewrite them to
                 // normal key-value pairs.
-                Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
+                Some(AstParentKind::Prop(PropField::Shorthand)) => {
                     ast_path = trie.parent_or_root(ast_path);
                     visitors.push(create_visitor!(
                         exact,
@@ -223,16 +305,18 @@ impl EsmBinding {
                     break;
                 }
                 // Any other expression can be replaced with the import accessor.
-                Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
+                Some(AstParentKind::Expr(_)) => {
                     ast_path = trie.parent_or_root(ast_path);
-                    // `ast_path` no longer names the trailing `Expr`, so it already describes the
-                    // enclosing position that `is_this_receiver_position` inspects.
-                    let in_call = match &imported_ident {
-                        ImportedIdent::Module(imported_ident, _) => {
-                            !propagates_this(self.caller_propagates_this, imported_ident)
-                        }
-                        _ => !self.caller_propagates_this,
-                    } && is_this_receiver_position(trie.get(ast_path));
+                    // `ast_path` no longer names the trailing `Expr`, so it starts at the position
+                    // the expression sits in.
+                    let in_call =
+                        match &imported_ident {
+                            ImportedIdent::Module(..) => {
+                                !self.namespace_access.keeps_namespace(maybe_uses_this)
+                            }
+                            // Only the module case builds an expression that could be called.
+                            _ => false,
+                        } && is_this_receiver_position(enclosing_position(trie.iter_rev(ast_path)));
 
                     visitors.push(create_visitor!(
                         exact,
@@ -265,7 +349,7 @@ impl EsmBinding {
                 }
                 // We need to handle LHS because of code like
                 // (function (RouteKind1){})(RouteKind || RouteKind = {})
-                Some(swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)) => {
+                Some(AstParentKind::SimpleAssignTarget(_)) => {
                     ast_path = trie.parent_or_root(ast_path);
 
                     visitors.push(create_visitor!(
@@ -305,7 +389,10 @@ impl EsmBinding {
 
         Ok(CodeGeneration::new(
             visitors,
-            value_binding_stmts(captures),
+            capture
+                .map(ValueBindingCapture::into_hoisted_stmt)
+                .into_iter()
+                .collect(),
             vec![],
             vec![],
             vec![],
@@ -313,10 +400,7 @@ impl EsmBinding {
     }
 }
 
-/// The bindings captured from one namespace, as `(export name, local binding)` pairs.
-type NamespaceBindings = Vec<(RcStr, Ident)>;
-
-/// A named export captured into a local value binding by one or more use sites.
+/// A named export captured into a local value binding by a use site.
 struct ValueBindingCapture {
     namespace_ident: RcStr,
     ctxt: Option<SyntaxContext>,
@@ -324,121 +408,76 @@ struct ValueBindingCapture {
     binding: Ident,
 }
 
-/// Builds the hoisted declarations for the value bindings captured from one import.
-///
-/// All captures that read the same namespace share a single declaration, so an import whose
-/// bindings are each used once costs one declaration rather than one per binding.
-fn value_binding_stmts(captures: Vec<ValueBindingCapture>) -> Vec<CodeGenerationHoistedStmt> {
-    let mut buckets: FxIndexMap<(RcStr, Option<SyntaxContext>), NamespaceBindings> =
-        FxIndexMap::default();
-    for capture in captures {
-        let members = buckets
-            .entry((capture.namespace_ident, capture.ctxt))
-            .or_default();
-        // Several use sites of one binding capture it under the same name; declare it once.
-        if !members
-            .iter()
-            .any(|(_, binding)| binding.sym == capture.binding.sym)
-        {
-            members.push((capture.export, capture.binding));
-        }
-    }
-
-    buckets
-        .into_iter()
-        .map(|((namespace_ident, ctxt), members)| {
-            let namespace = Ident::new(
-                namespace_ident.as_str().into(),
-                DUMMY_SP,
-                ctxt.unwrap_or_default(),
-            );
-            // Always one declarator per binding. Declarations reading the same namespace are
-            // combined later, and only then is it known whether there are enough of them for a
-            // destructuring to be worth it.
-            let decl = VarDecl {
+impl ValueBindingCapture {
+    /// The hoisted `var <binding> = <namespace>["<export>"]` declaration.
+    fn into_hoisted_stmt(self) -> CodeGenerationHoistedStmt {
+        let namespace = Ident::new(
+            self.namespace_ident.as_str().into(),
+            DUMMY_SP,
+            self.ctxt.unwrap_or_default(),
+        );
+        // Always a single declarator. Declarations reading the same namespace are combined later,
+        // and only then is it known whether there are enough of them for a destructuring to be
+        // worth it.
+        let decl = VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Var,
+            declare: false,
+            ctxt: Default::default(),
+            decls: vec![VarDeclarator {
                 span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                declare: false,
-                ctxt: Default::default(),
-                decls: members
-                    .into_iter()
-                    .map(|(export, binding)| VarDeclarator {
+                name: Pat::Ident(self.binding.into()),
+                init: Some(Box::new(Expr::Member(MemberExpr {
+                    // Marked pure so the declaration can be dropped when the binding is unused.
+                    span: PURE_SP,
+                    obj: Box::new(Expr::Ident(namespace)),
+                    prop: MemberProp::Computed(ComputedPropName {
                         span: DUMMY_SP,
-                        name: Pat::Ident(binding.into()),
-                        init: Some(Box::new(Expr::Member(MemberExpr {
-                            // Marked pure so the declaration can be dropped when the binding is
-                            // unused.
-                            span: PURE_SP,
-                            obj: Box::new(Expr::Ident(namespace.clone())),
-                            prop: MemberProp::Computed(ComputedPropName {
-                                span: DUMMY_SP,
-                                expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                    span: DUMMY_SP,
-                                    value: export.as_str().into(),
-                                    raw: None,
-                                }))),
-                            }),
+                        expr: Box::new(Expr::Lit(Lit::Str(Str {
+                            span: DUMMY_SP,
+                            value: self.export.as_str().into(),
+                            raw: None,
                         }))),
-                        definite: false,
-                    })
-                    .collect(),
-            };
+                    }),
+                }))),
+                definite: false,
+            }],
+        };
 
-            // Keyed only by the namespace, so every declaration reading it merges into one
-            // statement — including those from sibling code gens, since one source import can be
-            // split into a separate reference per named export.
-            CodeGenerationHoistedStmt::new(
-                HoistedStmtKey::ValueBindings {
-                    namespace_ident,
-                    ctxt,
-                },
-                Stmt::Decl(Decl::Var(Box::new(decl))),
-            )
-        })
-        .collect()
+        // Keyed only by the namespace, so every declaration reading it merges into one statement,
+        // including those from other use sites and sibling code gens: one source import can be
+        // split into a separate reference per named export.
+        CodeGenerationHoistedStmt::new(
+            HoistedStmtKey::ValueBindings {
+                namespace_ident: self.namespace_ident,
+                ctxt: self.ctxt,
+            },
+            Stmt::Decl(Decl::Var(Box::new(decl))),
+        )
+    }
 }
 
-/// Whether a member call has to keep the namespace as the `this` receiver.
+/// The position an expression is used in, looking through parentheses.
 ///
-/// Only calls need a receiver at all, and only a callee that could observe `this` cares which one
-/// it gets.
-fn propagates_this(is_member_call: bool, imported_ident: &ReferencedAssetIdent) -> bool {
-    is_member_call
-        && match imported_ident {
-            ReferencedAssetIdent::Module {
-                maybe_uses_this, ..
-            } => *maybe_uses_this,
-            ReferencedAssetIdent::LocalBinding { .. } => true,
-        }
-}
-
-fn is_assignment_target(trie: &AstPathTrie, ast_path: AstPathId) -> bool {
-    use swc_core::ecma::visit::AstParentKind;
-
-    trie.iter_rev(ast_path).any(|parent| {
-        matches!(
+/// `parents` walks outwards from the position the expression sits in. Parentheses do not change
+/// what an expression is: `(ns.f)()` still calls `f` with `ns` as the receiver, and `(ns.a) = 1`
+/// still writes to `ns.a`.
+fn enclosing_position(parents: impl Iterator<Item = AstParentKind>) -> Option<AstParentKind> {
+    parents.into_iter().find(|parent| {
+        !matches!(
             parent,
-            // `ns.a = 1`, and the target of a destructuring assignment.
-            AstParentKind::SimpleAssignTarget(_)
-                // `ns.a++` and `ns.a--` write back to the export just as an assignment does.
-                | AstParentKind::UpdateExpr(UpdateExprField::Arg)
-                // `for (ns.a in o)` and `for (ns.a of xs)` assign on every iteration.
-                | AstParentKind::ForInStmt(ForInStmtField::Left)
-                | AstParentKind::ForOfStmt(ForOfStmtField::Left)
+            AstParentKind::ParenExpr(ParenExprField::Expr) | AstParentKind::Expr(ExprField::Paren)
         )
     })
 }
 
-/// Whether `parents` describes a position where the member expression is invoked with its object
-/// as the `this` receiver, i.e. `ns.f()` or ``ns.f`...` ``.
+/// Whether `enclosing` is a position where the member expression is invoked with its object as
+/// the `this` receiver, i.e. `ns.f()` or ``ns.f`...` ``.
 ///
-/// `parents` must be the path of the enclosing node, with any trailing entries that describe the
-/// member expression itself already removed. Both the `caller_propagates_this` decision made when
-/// the binding is created and the `in_call` decision made during code generation go through this
-/// function so the two can never disagree.
-fn is_this_receiver_position(enclosing: Option<swc_core::ecma::visit::AstParentKind>) -> bool {
-    use swc_core::ecma::visit::AstParentKind;
-
+/// `enclosing` comes from [`enclosing_position`]. Both the [`NamespaceAccess`] decided when the
+/// binding is created and the `in_call` decision made during code generation go through both
+/// functions so the two can never disagree.
+fn is_this_receiver_position(enclosing: Option<AstParentKind>) -> bool {
     matches!(
         enclosing,
         // `ns.f()` calls `f` with `ns` as the receiver.
@@ -454,5 +493,121 @@ fn is_this_receiver_position(enclosing: Option<swc_core::ecma::visit::AstParentK
 impl From<EsmBinding> for CodeGen {
     fn from(val: EsmBinding) -> Self {
         CodeGen::EsmBinding(val)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use swc_core::{
+        common::{FileName, SourceMap, pass::AstNodePath},
+        ecma::{
+            ast::{EsVersion, Ident},
+            parser::parse_file_as_module,
+            visit::{
+                AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
+                fields::MemberExprField,
+            },
+        },
+    };
+
+    use super::NamespaceAccess::{self, Call, Read, Write};
+
+    /// Classifies every `ns.<member>` access in `source`, in source order.
+    ///
+    /// The path is built the way the analyzer builds it for a namespace member effect: the path to
+    /// the `ns` identifier with its last entry dropped, so it ends at `MemberExpr(Obj)`.
+    fn classify(source: &str) -> Vec<NamespaceAccess> {
+        struct Finder(Vec<NamespaceAccess>);
+
+        impl VisitAstPath for Finder {
+            fn visit_ident<'ast: 'r, 'r>(
+                &mut self,
+                ident: &'ast Ident,
+                ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+            ) {
+                let kinds = ast_path.kinds();
+                // Only `ns` as the object of a member expression becomes a namespace member
+                // effect, see `member_access_parent` in the analyzer.
+                if &*ident.sym == "ns"
+                    && let Some(member_index) = kinds.len().checked_sub(2)
+                    && kinds[member_index] == AstParentKind::MemberExpr(MemberExprField::Obj)
+                {
+                    self.0
+                        .push(NamespaceAccess::of_member_path(&kinds[..kinds.len() - 1]));
+                }
+            }
+        }
+
+        let source_map = SourceMap::default();
+        let file = source_map.new_source_file(FileName::Anon.into(), source.to_string());
+        let module = parse_file_as_module(
+            &file,
+            Default::default(),
+            EsVersion::latest(),
+            None,
+            &mut vec![],
+        )
+        .unwrap_or_else(|err| panic!("failed to parse {source:?}: {err:?}"));
+        let mut finder = Finder(Vec::new());
+        module.visit_with_ast_path(&mut finder, &mut Default::default());
+        finder.0
+    }
+
+    #[rstest]
+    // Reads.
+    #[case::read("ns.a", &[Read])]
+    #[case::read_assigned("x = ns.a", &[Read])]
+    #[case::read_argument("f(ns.a)", &[Read])]
+    #[case::read_template("`${ns.a}`", &[Read])]
+    #[case::read_condition("x = ns.a ? 1 : 2", &[Read])]
+    #[case::read_array_literal("[ns.a]", &[Read])]
+    #[case::read_object_literal("({ k: ns.a })", &[Read])]
+    // `new` does not pass `ns` as `this`.
+    #[case::read_new("new ns.C()", &[Read])]
+    // An indirect call drops the receiver.
+    #[case::read_indirect_call("(0, ns.f)()", &[Read])]
+    // The receiver of the call is `ns.a`, not `ns`.
+    #[case::read_nested_member_call("ns.a.b()", &[Read])]
+    // Writing a property of the export, or using it as a key, is not a write to it.
+    #[case::read_property_write("ns.a.b = 1", &[Read])]
+    #[case::read_computed_key_write("obj[ns.a] = 1", &[Read])]
+    // A default value in a pattern is read, not written.
+    #[case::read_array_pattern_default("[x = ns.a] = arr", &[Read])]
+    #[case::read_object_pattern_default("({ k: x = ns.a } = obj)", &[Read])]
+    // Only what is iterated over, not the loop head.
+    #[case::read_for_of_iterable("for (x of ns.a);", &[Read])]
+    // Calls that pass `ns` as the receiver.
+    #[case::call("ns.f()", &[Call])]
+    #[case::call_optional("ns.f?.()", &[Call])]
+    // `ns` cannot be nullish, so this calls `f` with `ns` as the receiver.
+    #[case::call_optional_namespace("ns?.f()", &[Call])]
+    // Parentheses keep `ns.f` a reference.
+    #[case::call_parenthesized("(ns.f)()", &[Call])]
+    #[case::call_double_parenthesized("((ns.f))()", &[Call])]
+    #[case::call_tagged_template("ns.tag`x`", &[Call])]
+    #[case::call_with_read_argument("ns.f(ns.a)", &[Call, Read])]
+    // Writes to the export itself.
+    #[case::write("ns.a = 1", &[Write])]
+    #[case::write_compound("ns.a += 1", &[Write])]
+    #[case::write_logical("ns.a ??= 1", &[Write])]
+    #[case::write_postfix_update("ns.a++", &[Write])]
+    #[case::write_prefix_update("--ns.a", &[Write])]
+    #[case::write_parenthesized("(ns.a) = 1", &[Write])]
+    #[case::write_array_pattern("[ns.a] = arr", &[Write])]
+    #[case::write_rest_pattern("[...ns.a] = arr", &[Write])]
+    #[case::write_pattern_with_default("[ns.a = 1] = arr", &[Write])]
+    #[case::write_object_pattern("({ k: ns.a } = obj)", &[Write])]
+    #[case::write_for_of_head("for (ns.a of xs);", &[Write])]
+    #[case::write_for_in_head("for (ns.a in obj);", &[Write])]
+    #[case::write_from_read("ns.a = ns.b", &[Write, Read])]
+    // Any unary operand, since the path does not say whether the operator is `delete`.
+    #[case::unary_delete("delete ns.a", &[Write])]
+    #[case::unary_parenthesized_delete("delete (ns.a)", &[Write])]
+    #[case::unary_typeof("typeof ns.a", &[Write])]
+    #[case::unary_not("!ns.a", &[Write])]
+    #[case::unary_void("void ns.a", &[Write])]
+    fn classifies_namespace_access(#[case] source: &str, #[case] expected: &[NamespaceAccess]) {
+        assert_eq!(classify(source), expected);
     }
 }
