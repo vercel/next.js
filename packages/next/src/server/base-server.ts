@@ -154,6 +154,7 @@ import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
@@ -2768,11 +2769,15 @@ export default abstract class Server<
           pathsResults.prerenderedRoutes?.length ||
           pathsResults.prerenderRouteMatchers?.length
         ) {
+          // Build-time pathnames are decoded. Match the decoded rewrite
+          // destination, not the original encoded URL, just as in production.
+          const decodedPathname = decodePathParams(resolvedUrlPathname)
+
           // Match both build-time prerenders and routes that have no
           // build-time output, such as an explicit blocking match.
           let matchedRoute: PrerenderedRoute | PrerenderRouteMatcher | undefined
           for (const route of pathsResults.prerenderedRoutes ?? []) {
-            if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
+            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
               continue
             }
             if (
@@ -2784,7 +2789,9 @@ export default abstract class Server<
             }
           }
           for (const route of pathsResults.prerenderRouteMatchers ?? []) {
-            if (!getRouteRegex(route.pathname).re.test(urlPathname)) continue
+            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
+              continue
+            }
             if (
               matchedRoute === undefined ||
               route.fallbackRouteParams.length <

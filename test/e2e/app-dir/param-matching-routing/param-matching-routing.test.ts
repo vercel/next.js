@@ -51,6 +51,37 @@ describe('param-matching-routing', () => {
     ])
   })
 
+  describe('resolved matching paths', () => {
+    it.each([
+      ['/en/closed/hello%20world', 'en/hello%20world'],
+      ['/en/closed/100%25', 'en/100%25'],
+      ['/en/closed/literal%2520value', 'en/literal%2520value'],
+      ['/en/closed/alias', 'en/known'],
+      ['/en/closed/encoded-alias', 'en/hello%20world'],
+      ['/en/closed/percent-alias', 'en/100%25'],
+      [
+        '/fr/catalog/alias/items/rewritten-bottom',
+        'en/novel-top/rewritten-bottom',
+      ],
+    ])('admits an allowed resolved path: %s', async (pathname, params) => {
+      await render(pathname, params)
+    })
+
+    it.each([
+      '/en/closed/not%20generated',
+      // Decoding twice would turn this different value into "hello world".
+      '/en/closed/hello%2520world',
+      '/en/closed/missing-alias',
+      '/en/catalog/blocked-alias/items/rewritten-bottom',
+    ])('rejects an unlisted resolved path: %s', async (pathname) => {
+      const res = await next.fetch(pathname)
+      expect(res.status).toBe(404)
+      const $ = cheerio.load(await res.text())
+      expect($('#root-not-found').text()).toBe('Route not found')
+      expect($('#closed-page, #catalog-page').length).toBe(0)
+    })
+  })
+
   it.each([
     '/fr/catalog/t1/items/b1',
     '/fr/catalog/new-top/items/new-bottom',
