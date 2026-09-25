@@ -1918,7 +1918,7 @@ export async function fetchRouteOnCacheMiss(
     if (!response || !response.ok || !response.body) {
       if (response && response.body) {
         try {
-          response.body.cancel()
+          response.body.cancel().catch(() => {})
         } catch {}
       }
       // Server responded with an error, or with a miss. We should still cache
@@ -2251,7 +2251,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   ) {
     if (response && response.body) {
       try {
-        response.body.cancel()
+        response.body.cancel().catch(() => {})
       } catch {}
     }
     // Server responded with an error or a miss — fetched but not usable.
@@ -2612,7 +2612,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     if (!response || !response.ok || !response.body) {
       if (response && response.body) {
         try {
-          response.body.cancel()
+          response.body.cancel().catch(() => {})
         } catch {}
       }
       // Server responded with an error, or with a miss. We should still cache
@@ -2628,7 +2628,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     if (renderedSearch !== route.renderedSearch) {
       if (response.body) {
         try {
-          response.body.cancel()
+          response.body.cancel().catch(() => {})
         } catch {}
       }
       // The search params that were used to render the target page are
@@ -3698,7 +3698,7 @@ async function fetchPrefetchResponse<T>(
   if (!response.ok) {
     if (response.body) {
       try {
-        response.body.cancel()
+        response.body.cancel().catch(() => {})
       } catch {}
     }
     return null
@@ -3717,7 +3717,7 @@ async function fetchPrefetchResponse<T>(
     if (!isFlightResponse) {
       if (response.body) {
         try {
-          response.body.cancel()
+          response.body.cancel().catch(() => {})
         } catch {}
       }
       return null

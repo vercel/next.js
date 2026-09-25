@@ -228,7 +228,7 @@ export async function fetchServerResponse(
     if (!isFlightResponse || !res.ok || !res.body) {
       if (res && res.body) {
         try {
-          res.body.cancel()
+          res.body.cancel().catch(() => {})
         } catch {}
       }
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
@@ -834,7 +834,7 @@ export async function createFetch<T>(
       // fetch again.
       if (browserResponse.body) {
         try {
-          browserResponse.body.cancel()
+          browserResponse.body.cancel().catch(() => {})
         } catch {}
       }
       fetchUrl = new URL(responseUrl)

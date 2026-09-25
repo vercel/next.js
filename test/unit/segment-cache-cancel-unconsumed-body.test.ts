@@ -136,4 +136,96 @@ describe('segment cache response body cancellation', () => {
     const result = await fetchRouteOnCacheMiss(entry, key)
     expect(result).toBeNull()
   })
+
+  it('gracefully handles async rejection when cancelling response.body (e.g. locked ReadableStream)', async () => {
+    const mockCancel = jest
+      .fn()
+      .mockRejectedValue(
+        new TypeError('Cannot cancel a stream that already has a reader')
+      )
+    const mockBody = {
+      cancel: mockCancel,
+    } as unknown as ReadableStream
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: new Headers({
+        'content-type': 'text/x-component',
+      }),
+      body: mockBody,
+      url: 'http://localhost:3000/locked-stream',
+      redirected: false,
+    })
+
+    const entry = {
+      canonicalUrl: null,
+      status: 0,
+      blockedTasks: null,
+      root: null,
+      couldBeIntercepted: true,
+      supportsPerSegmentPrefetching: false,
+      predictedFrom: null,
+      renderedSearch: null,
+      ref: null,
+      size: 0,
+      staleAt: Infinity,
+      version: 0,
+    } as any
+
+    const key = {
+      pathname: '/locked-stream',
+      search: '',
+      nextUrl: null,
+    }
+
+    const result = await fetchRouteOnCacheMiss(entry, key)
+    expect(result).toBeNull()
+    expect(mockCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('gracefully handles synchronous exception when cancelling response.body', async () => {
+    const mockCancel = jest.fn().mockImplementation(() => {
+      throw new Error('sync cancel error')
+    })
+    const mockBody = {
+      cancel: mockCancel,
+    } as unknown as ReadableStream
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: new Headers({
+        'content-type': 'text/x-component',
+      }),
+      body: mockBody,
+      url: 'http://localhost:3000/sync-error',
+      redirected: false,
+    })
+
+    const entry = {
+      canonicalUrl: null,
+      status: 0,
+      blockedTasks: null,
+      root: null,
+      couldBeIntercepted: true,
+      supportsPerSegmentPrefetching: false,
+      predictedFrom: null,
+      renderedSearch: null,
+      ref: null,
+      size: 0,
+      staleAt: Infinity,
+      version: 0,
+    } as any
+
+    const key = {
+      pathname: '/sync-error',
+      search: '',
+      nextUrl: null,
+    }
+
+    const result = await fetchRouteOnCacheMiss(entry, key)
+    expect(result).toBeNull()
+    expect(mockCancel).toHaveBeenCalledTimes(1)
+  })
 })
