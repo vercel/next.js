@@ -1,6 +1,5 @@
 import path from 'path'
 import { appendFile, readFile } from 'fs/promises'
-import { createRequire } from 'module'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
@@ -169,6 +168,7 @@ let pendingBindings: Promise<Binding> | undefined
 // The cached loaded bindings
 let loadedBindings: Binding | undefined = undefined
 let downloadWasmPromise: any
+let downloadWasiPromise: Promise<void> | undefined
 let swcTraceFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
@@ -241,7 +241,7 @@ export async function loadBindings(
   }
 
   if (useWasiBinary) {
-    pendingBindings = loadWasiNapiBinding()
+    pendingBindings = loadWasiNapiWithFallback()
     try {
       loadedBindings = await pendingBindings
       return loadedBindings
@@ -325,7 +325,41 @@ export async function loadBindings(
   return loadedBindings
 }
 
-async function loadWasiNapiBinding(): Promise<Binding> {
+async function loadWasiNapiWithFallback(): Promise<Binding> {
+  const packageName = '@next/swc-wasm-wasi'
+  const testDirectory = process.env.NEXT_TEST_WASI_DIR
+  if (testDirectory) return loadWasiNapiBinding()
+
+  const attempts: unknown[] = []
+  try {
+    return await loadWasiNapiBinding()
+  } catch (error) {
+    attempts.push(error)
+  }
+
+  const wasmDirectory = path.join(
+    path.dirname(require.resolve('next/package.json')),
+    'wasm'
+  )
+  try {
+    if (!downloadWasiPromise) {
+      downloadWasiPromise = (
+        require('../../lib/download-swc') as typeof import('../../lib/download-swc')
+      ).downloadWasmSwc(nextVersion, wasmDirectory, 'wasi')
+    }
+    await downloadWasiPromise
+    return await loadWasiNapiBinding(wasmDirectory)
+  } catch (error) {
+    attempts.push(error)
+  }
+
+  throw new Error(
+    `Failed to load ${packageName}@${nextVersion} from the installed package or the on-demand download.`,
+    { cause: new AggregateError(attempts) }
+  )
+}
+
+async function loadWasiNapiBinding(importPath = ''): Promise<Binding> {
   const packageName = '@next/swc-wasm-wasi'
   const testDirectory = process.env.NEXT_TEST_WASI_DIR
   let packageDirectory: string
@@ -333,7 +367,9 @@ async function loadWasiNapiBinding(): Promise<Binding> {
   try {
     packageDirectory = testDirectory
       ? path.resolve(testDirectory)
-      : path.dirname(require.resolve(`${packageName}/package.json`))
+      : importPath
+        ? path.join(importPath, packageName)
+        : path.dirname(require.resolve(`${packageName}/package.json`))
   } catch (error) {
     throw new Error(
       `Failed to load ${packageName}@${nextVersion}: the package is not installed.`,
@@ -342,28 +378,19 @@ async function loadWasiNapiBinding(): Promise<Binding> {
   }
 
   const wasmPath = path.join(packageDirectory, 'next-swc.wasm32-wasi.wasm')
-  const packageRequire = createRequire(
-    path.join(packageDirectory, 'package.json')
-  )
 
   try {
     if (!testDirectory) {
-      checkVersionMismatch(packageRequire('./package.json'))
+      checkVersionMismatch(require(path.join(packageDirectory, 'package.json')))
     }
-    const coreDirectory = path.dirname(
-      packageRequire.resolve('@emnapi/core/package.json')
-    )
     const coreUrl = pathToFileURL(
-      path.join(coreDirectory, 'dist/emnapi-core.full.js')
+      path.join(packageDirectory, 'emnapi-core.mjs')
     ).href
-    const runtimeDirectory = path.dirname(
-      packageRequire.resolve('@emnapi/runtime/package.json')
-    )
     const runtimeUrl = pathToFileURL(
-      path.join(runtimeDirectory, 'dist/emnapi.js')
+      path.join(packageDirectory, 'emnapi-runtime.mjs')
     ).href
     const wasiThreadsUrl = pathToFileURL(
-      packageRequire.resolve('@emnapi/wasi-threads')
+      path.join(packageDirectory, 'wasi-threads.mjs')
     ).href
     const [{ createNapiModule }, { getDefaultContext }] = await Promise.all([
       import(coreUrl),

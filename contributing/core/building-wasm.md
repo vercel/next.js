@@ -1,8 +1,8 @@
 # Building Turbopack for WebAssembly
 
 Turbopack's napi bindings (`crates/next-napi-bindings`) can be compiled for
-`wasm32-wasip1-threads`. This is the target that would let Turbopack run where no native binding
-exists — unusual CPU architectures and operating systems we do not publish artifacts for.
+`wasm32-wasip1-threads`. Next.js publishes that architecture-independent build as
+`@next/swc-wasm-wasi` for the experimental `next build --wasi` command.
 
 > This is distinct from the `@next/swc-wasm-*` packages, which are built with `wasm-pack` from
 > `crates/wasm` for `wasm32-unknown-unknown` and contain SWC only, not Turbopack.
@@ -15,7 +15,14 @@ provisions both.
 
 ## Building on Linux
 
-The setup script supports Linux systems directly. Source it, then build as usual:
+The setup script supports Linux systems directly. Use the package build for the stripped release
+artifact that Next.js consumes:
+
+```sh
+scripts/build-next-swc-wasi.sh
+```
+
+For a faster development build, source the environment and invoke Cargo directly:
 
 ```sh
 source scripts/setup-wasi-env.sh
@@ -39,9 +46,9 @@ variables (`WASI_SDK_PATH`, `EMNAPI_NODE_MODULES`, `EMNAPI_LINK_DIR`, and the
 `~/.cache/next-wasi-toolchain`, so re-sourcing in a new shell is fast. Set `WASI_SETUP_CACHE_DIR` to
 move the cache.
 
-CI sources the same script, so local and CI builds cannot drift apart. The Node host passes its
-effective CPU allowance into WASI, which sizes the bindings' multi-threaded Tokio runtime; set
-`TURBO_TASKS_AVAILABLE_PARALLELISM` before invoking the host to override it.
+CI sources the same script, so local and CI builds cannot drift apart. `next build --wasi` defaults
+the multi-threaded Tokio runtime to two workers; set `TURBO_TASKS_AVAILABLE_PARALLELISM` before
+invoking Next to override it for diagnostics.
 
 ## Building with Docker
 
@@ -56,11 +63,10 @@ docker run --rm -it \
   next-wasi-builder
 ```
 
-Inside the container, use the same commands as CI:
+Inside the container, use the same package build as CI:
 
 ```sh
-source scripts/setup-wasi-env.sh
-cargo build -p next-napi-bindings --target wasm32-wasip1-threads
+scripts/build-next-swc-wasi.sh
 ```
 
 The named volume preserves the wasi-sdk and emnapi downloads between runs. Mount a second volume at
@@ -92,14 +98,26 @@ benchmark targets, which depend on `criterion` (and so rayon) and cannot build f
 cargo clippy -p turbo-tasks --lib --tests --target wasm32-wasip1-threads -- -D warnings
 ```
 
+## Running a Next.js build
+
+The CLI downloads the matching `@next/swc-wasm-wasi` version on demand and caches it with the other
+SWC packages:
+
+```sh
+next build --wasi
+```
+
+This trusted build module receives host root as guest `/` so absolute project, workspace, package,
+and cache paths preserve their native meaning. This is not a security sandbox.
+
 ## Known limitations
 
 - **emnapi v2 is a prerelease.** `napi-build` needs the `emnapi_create_env` / `emnapi_delete_env`
-  exports, which exist only in v2, so the script pins `emnapi@2.0.0-alpha.4`. Move to the stable
-  release once it ships.
-- **A publishable N-API wasm package is not wired up yet.** CI links the raw wasm artifact, but does
-  not produce an `@next/swc-wasm-wasi` package.
-- **The JS loader is not connected to the SWC fallback yet.** The loader hooks and module
-  initialization exist, but no published package consumes them.
-- Some features are unavailable on wasm and report an error when configured: SWC wasm plugins, and
-  anything requiring the child-process pool.
+  exports, which exist only in v2, so the package build pins `emnapi@2.0.0-alpha.4`. Move to the
+  stable release once it ships.
+- Only the default Turbopack production `next build` is supported. Development/HMR, Webpack builds,
+  Jest, and analyze commands do not expose a WASI mode yet.
+- Turbopack filesystem persistence is disabled. WASI file descriptors belong to one pthread module
+  instance and cannot safely move to another instance during parallel persistence commits.
+- Features unavailable on WASI report actionable errors: SWC wasm plugins, HTTP fetches such as
+  `next/font/google`, trace-server sockets, and the child-process plugin pool.

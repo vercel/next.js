@@ -649,9 +649,8 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
-  # Guards that Turbopack keeps compiling and linking for wasm, so the wasm fallback Next.js loads
-  # when the native bindings are unavailable can eventually support Turbopack and not just SWC.
-  # See https://github.com/vercel/next.js/issues/96960.
+  # Builds, packages, and tests the N-API/WASI binding used by `next build --wasi`. This is distinct
+  # from the SWC-only wasm-bindgen fallback. See https://github.com/vercel/next.js/issues/96960.
   #
   # setup-wasi-env.sh pins the exact emnapi v2 prerelease needed for linking.
   test-next-napi-bindings-wasi:
@@ -665,6 +664,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
+      nodeVersion: '22'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
@@ -674,16 +674,29 @@ jobs:
         # builds so the two cannot drift; see contributing/core/building-wasm.md.
         source scripts/setup-wasi-env.sh
 
-
         # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
         # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
         # compile is simply never built.
         cargo build -p next-napi-bindings --target wasm32-wasip1-threads
         timeout 60 node scripts/wasi-test-host/napi-async-smoke.mjs
-        timeout 300 node scripts/wasi-test-host/next-build-smoke.mjs
-        cargo build --release -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # Build the same stripped release artifact that is published, then exercise its error path,
+        # package shape, download/cache behavior, and the real Next CLI.
+        scripts/build-next-swc-wasi.sh
+        wasi_binary=packages/next-swc-wasm-wasi/next-swc.wasm32-wasi.wasm
         timeout 120 node scripts/wasi-test-host/napi-async-smoke.mjs \
-          target/wasm32-wasip1-threads/release/next_napi_bindings.wasm --error-path
+          "$wasi_binary" --error-path
+        pack_dir="$RUNNER_TEMP/next-swc-wasm-wasi-pack"
+        mkdir -p "$pack_dir"
+        pnpm --filter @next/swc-wasm-wasi pack --pack-destination "$pack_dir"
+        wasi_version="$(node -p "require('./packages/next-swc-wasm-wasi/package.json').version")"
+        node scripts/wasi-test-host/download-wasi-package-smoke.mjs \
+          "$pack_dir/next-swc-wasm-wasi-$wasi_version.tgz"
+        timeout 300 node scripts/wasi-test-host/next-build-smoke.mjs
+        NEXT_TEST_WASI_DIR="$PWD/packages/next-swc-wasm-wasi" \
+          NEXT_TEST_MODE=start \
+          NEXT_SKIP_ISOLATE=1 \
+          node run-tests.js test/production/app-dir/next-build-wasi/next-build-wasi.test.ts
 
         # Run the crates whose tests can execute on wasm. This needs a host that supplies the
         # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock

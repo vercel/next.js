@@ -16,6 +16,8 @@ pub enum FetchErrorKind {
     Timeout,
     Status(u16),
     Other,
+    #[cfg(target_family = "wasm")]
+    Unsupported,
 }
 
 #[turbo_tasks::value(shared)]
@@ -27,6 +29,9 @@ pub struct FetchError {
 
 impl FetchError {
     pub(crate) fn from_reqwest_error(error: &reqwest::Error, url: &str) -> FetchError {
+        #[cfg(target_family = "wasm")]
+        let kind = FetchErrorKind::Unsupported;
+        #[cfg(not(target_family = "wasm"))]
         let kind = if error.is_connect() {
             FetchErrorKind::Connect
         } else if error.is_timeout() {
@@ -97,6 +102,8 @@ impl Issue for FetchIssue {
     async fn description(&self) -> Result<Option<StyledString>> {
         let url = &*self.url.await?;
         let kind = &*self.kind.await?;
+        #[cfg(target_family = "wasm")]
+        let detail = &*self.detail.await?;
 
         Ok(Some(match kind {
             FetchErrorKind::Connect => StyledString::Line(vec![
@@ -115,6 +122,8 @@ impl Issue for FetchIssue {
                 StyledString::Text(rcstr!("Connection timed out when requesting ")),
                 StyledString::Code(url.clone()),
             ]),
+            #[cfg(target_family = "wasm")]
+            FetchErrorKind::Unsupported => detail.clone(),
             FetchErrorKind::Other => StyledString::Line(vec![
                 StyledString::Text(rcstr!("There was an issue requesting ")),
                 StyledString::Code(url.clone()),

@@ -255,7 +255,10 @@ async function createNextInstall({
       } else {
         pkgPaths = await packPackages(rootSpan)
 
-        if (process.env.NEXT_TEST_WASM) {
+        if (process.env.NEXT_TEST_WASI_DIR) {
+          // The dedicated N-API/WASI test job supplies an architecture-independent package and
+          // deliberately has no native addon artifact to install.
+        } else if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
           const hasWasmBinary = fs.existsSync(
             path.join(wasmPath, 'package.json')
