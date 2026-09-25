@@ -1370,6 +1370,19 @@ export async function copyTracedFiles(
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }
+
+          if (
+            !entry.symlinkTarget &&
+            tracedFilePath.startsWith(distDir) &&
+            /\.(?:c|m)?js$/.test(tracedFilePath)
+          ) {
+            const mapSourcePath = `${tracedFilePath}.map`
+            const mapOutputPath = `${fileOutputPath}.map`
+            if (!copiedFiles.has(mapOutputPath)) {
+              copiedFiles.add(mapOutputPath)
+              await fs.copyFile(mapSourcePath, mapOutputPath).catch(() => {})
+            }
+          }
         }
 
         await copySema.release()
@@ -1387,6 +1400,11 @@ export async function copyTracedFiles(
       )
       await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
       await fs.copyFile(originalPath, fileOutputPath)
+      if (/\.(?:c|m)?js$/.test(originalPath)) {
+        await fs
+          .copyFile(`${originalPath}.map`, `${fileOutputPath}.map`)
+          .catch(() => {})
+      }
     }
     await Promise.all([
       page.files.map(handleFile),
