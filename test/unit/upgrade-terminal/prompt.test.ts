@@ -23,10 +23,16 @@ describe('upgrade menu', () => {
       value: input,
     })
     screen = ''
-    jest.spyOn(process.stdout, 'write').mockImplementation((data: any) => {
-      screen += data.toString()
-      return true
-    })
+    jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((data: any, callback?: any) => {
+        screen += data.toString()
+        // The prompt waits for its screen-exit write to finish before replay.
+        if (typeof callback === 'function') {
+          callback()
+        }
+        return true
+      })
   })
   afterEach(() => {
     for (const [name, descriptor] of [
@@ -152,15 +158,20 @@ describe('upgrade menu', () => {
 
   it('handles a resize emitted while the menu is being drawn', async () => {
     let resized = false
-    jest.spyOn(process.stdout, 'write').mockImplementation((data: any) => {
-      screen += data.toString()
-      if (!resized && data.toString().includes('Upgrade now')) {
-        resized = true
-        process.stdout.columns = 60
-        process.stdout.emit('resize')
-      }
-      return true
-    })
+    jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((data: any, callback?: any) => {
+        screen += data.toString()
+        if (!resized && data.toString().includes('Upgrade now')) {
+          resized = true
+          process.stdout.columns = 60
+          process.stdout.emit('resize')
+        }
+        if (typeof callback === 'function') {
+          callback()
+        }
+        return true
+      })
     const pending = promptUpgrade('Reminder', new AbortController().signal)
     await new Promise<void>(queueMicrotask)
     expect(screen.split('Reminder')).toHaveLength(3)
@@ -226,13 +237,18 @@ describe('upgrade menu', () => {
   it('restores the terminal if rendering the reminder fails', async () => {
     const exits = process.listenerCount('exit')
     const resizes = process.stdout.listenerCount('resize')
-    jest.spyOn(process.stdout, 'write').mockImplementation((data: any) => {
-      if (data.toString().includes('Shared recommendation')) {
-        throw new Error('Rendering failed')
-      }
-      screen += data.toString()
-      return true
-    })
+    jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((data: any, callback?: any) => {
+        if (data.toString().includes('Shared recommendation')) {
+          throw new Error('Rendering failed')
+        }
+        screen += data.toString()
+        if (typeof callback === 'function') {
+          callback()
+        }
+        return true
+      })
     await expect(
       promptUpgrade('Shared recommendation', new AbortController().signal)
     ).rejects.toThrow('Rendering failed')
