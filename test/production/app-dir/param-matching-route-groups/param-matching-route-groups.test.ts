@@ -26,3 +26,24 @@ describe.each(['aligned', 'grouped-sidebar', 'grouped-children'])(
     })
   }
 )
+
+describe.each([
+  ['incompatible', 'blocking'],
+  ['inherited-not-found', 'not-found'],
+])('param-matching incoherent composition: %s', (fixture, bottomMode) => {
+  const { next } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'fixtures', fixture)),
+      'next.config.ts': new FileRef(join(__dirname, 'next.config.ts')),
+    },
+    skipStart: true,
+  })
+
+  it('rejects policies that become incoherent through composition', async () => {
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).toBe(1)
+    expect(cliOutput).toContain(
+      `parameter "bottom" uses "${bottomMode}" after parameter "top" uses a later matching phase`
+    )
+  })
+})
