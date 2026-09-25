@@ -39,6 +39,7 @@ use turbopack_core::{
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         ResolveErrorMode,
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
         origin::PlainResolveOrigin,
         parse::Request,
@@ -315,7 +316,53 @@ async fn build_dependency_requests_changed(
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<Completion>> {
     for (request, is_directory) in requests {
-        let path = cwd.join(&request)?;
+        let request_path = cwd.join(&request)?;
+        if matches!(
+            &*request_path.get_type().await?,
+            FileSystemEntryType::Symlink
+        ) {
+            BuildDependencyIssue {
+                source: IssueSource::from_source_only(source),
+                path: request_path,
+            }
+            .resolved_cell()
+            .emit();
+            continue;
+        }
+        let path = if is_directory {
+            request_path.clone()
+        } else {
+            let parsed_request = Request::parse(Pattern::Constant(request.clone()));
+            let options = if request.ends_with(".mjs") {
+                node_esm_resolve_options()
+            } else {
+                node_cjs_resolve_options()
+            };
+            let resolved = resolve(
+                cwd.clone(),
+                ReferenceType::Undefined,
+                parsed_request,
+                options,
+            );
+            let (resolved_source, error) = match resolved.await {
+                Ok(result) => {
+                    assert!(result.primary_sources().count() <= 1);
+                    (result.first_source(), None)
+                }
+                Err(error) => (None, Some(format!("{error:#}").into())),
+            };
+            let Some(resolved_source) = resolved_source else {
+                UnresolvedBuildDependencyIssue {
+                    source: IssueSource::from_source_only(source),
+                    request,
+                    error,
+                }
+                .resolved_cell()
+                .emit();
+                continue;
+            };
+            resolved_source.ident().await?.path.clone()
+        };
         let entry_type = path.get_type().await?;
         let supported = match &*entry_type {
             FileSystemEntryType::File if !is_directory => {
@@ -1157,11 +1204,58 @@ impl Issue for BuildDependencyIssue {
             StyledString::Text(rcstr!("The path at ")),
             StyledString::Code(self.path.to_string().into()),
             StyledString::Text(
-                " is not an exact existing file or explicit directory build dependency. \
-                 Unsupported inputs may require restarting the development server."
+                " is not a supported file or explicit directory build dependency. Unsupported \
+                 inputs may require restarting the development server."
                     .into(),
             ),
         ])))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub struct UnresolvedBuildDependencyIssue {
+    pub request: RcStr,
+    pub error: Option<RcStr>,
+    pub source: IssueSource,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnresolvedBuildDependencyIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Unable to resolve webpack loader build dependency"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut description = vec![
+            StyledString::Text(rcstr!("The build dependency request ")),
+            StyledString::Code(self.request.clone()),
+            StyledString::Text(rcstr!(" could not be resolved to a file.")),
+        ];
+        if let Some(error) = &self.error {
+            description.push(StyledString::Text(
+                format!(" Resolver error: {error}").into(),
+            ));
+        }
+        Ok(Some(StyledString::Line(description)))
     }
 
     fn source(&self) -> Option<IssueSource> {
