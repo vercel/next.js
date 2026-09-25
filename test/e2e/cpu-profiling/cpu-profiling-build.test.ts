@@ -1,20 +1,17 @@
-import { nextTestSetup, isNextDeploy } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { pathExists, readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
+// CPU profiling only works with a local `next build`: dev never builds, and
+// deploy builds remotely.
+// @force-gate !deploy && !dev
 describe('CPU Profiling - next build', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     buildCommand: 'pnpm next build --experimental-cpu-prof',
     dependencies: {},
     skipStart: true,
   })
-
-  // CPU profiling only works with local `next build`, not dev or deploy modes
-  if (isNextDev || isNextDeploy) {
-    it('skip for development/deploy mode', () => {})
-    return
-  }
 
   beforeAll(async () => {
     // Run the build with CPU profiling enabled
