@@ -206,7 +206,8 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .option('--turbo', 'Builds using Turbopack.')
   .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using webpack.')
+  .option('--webpack', 'Builds using the bundled webpack.')
+  .option('--custom-webpack', 'Builds using your project-installed webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -250,6 +251,9 @@ program
     }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    if (options.customWebpack) {
+      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
     }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
@@ -341,7 +345,11 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using webpack.')
+  .option('--webpack', 'Starts development mode using the bundled webpack.')
+  .option(
+    '--custom-webpack',
+    'Starts development mode using your project-installed webpack.'
+  )
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -405,6 +413,9 @@ program
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.customWebpack) {
+        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
