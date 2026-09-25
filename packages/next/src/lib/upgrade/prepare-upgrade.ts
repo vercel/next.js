@@ -129,8 +129,24 @@ export async function getUpgradeAssessment(
   }
   // Prerelease version ordering does not establish which security fixes it
   // contains, but stable promotion targets still need advisory validation.
-  const snapshot =
-    channel === 'canary' ? null : await readAdvisorySnapshot(installedVersion)
+  let snapshot: { ranges: string[]; reference: string } | null = null
+  if (channel !== 'canary') {
+    try {
+      snapshot = {
+        ranges: await readNpmAdvisories([installedVersion]),
+        reference: NPM_ADVISORIES,
+      }
+    } catch {
+      return {
+        affected: null,
+        reference: null,
+        upgrade: {
+          status: 'unknown',
+          reason: 'Could not check for security updates. Please try again.',
+        },
+      }
+    }
+  }
   const affected =
     snapshot && !channel
       ? snapshot.ranges.some((range) =>
@@ -138,13 +154,6 @@ export async function getUpgradeAssessment(
         )
       : null
   const assessment = { affected, reference: snapshot?.reference ?? null }
-
-  if (snapshot && snapshot.targetError !== null) {
-    return {
-      ...assessment,
-      upgrade: { status: 'unknown', reason: snapshot.targetError },
-    }
-  }
 
   // A dismissed release reminder still checks advisories, but does not need
   // target metadata unless an advisory applies.
@@ -164,15 +173,22 @@ export async function getUpgradeAssessment(
     let references: string[]
     if (policy === 'security' && snapshot) {
       const registryURL = `${NPM_REGISTRY}next`
-      const registry = snapshot.registry ?? (await fetchJSON(registryURL)).value
+      const registry = (await fetchJSON(registryURL)).value
       const releases = parseReleases(registry)
       references = [snapshot.reference, registryURL]
+      const candidates = securityCandidates(installedVersion, releases)
+      const ranges = [
+        ...snapshot.ranges,
+        ...(candidates.length
+          ? await readNpmAdvisories(candidates.map(({ version }) => version))
+          : []),
+      ]
       try {
-        targetVersion = selectSecurityTarget(installedVersion, {
-          ranges: snapshot.ranges,
+        targetVersion = selectSecurityTarget(
+          installedVersion,
           releases,
-          references,
-        })!.version
+          ranges
+        )!.version
       } catch (error) {
         return {
           ...assessment,
@@ -206,29 +222,12 @@ export async function getUpgradeAssessment(
         }
       }
 
-      // The tag can advance after npm's published-version snapshot was read.
-      // Include that exact target in the fallback query as well.
+      const targetRanges =
+        snapshot && targetVersion !== installedVersion
+          ? await readNpmAdvisories([targetVersion])
+          : snapshot?.ranges
       if (
-        snapshot &&
-        snapshot.registry !== null &&
-        !advisoryVersions(snapshot.registry, installedVersion).includes(
-          targetVersion
-        )
-      ) {
-        snapshot.ranges = affectedRanges(
-          await readNpmAdvisories([
-            ...advisoryVersions(snapshot.registry, installedVersion),
-            targetVersion,
-          ])
-        )
-        if (!channel) {
-          assessment.affected ||= snapshot.ranges.some((range) =>
-            semver.satisfies(installedVersion, range)
-          )
-        }
-      }
-      if (
-        snapshot?.ranges.some((range) => semver.satisfies(targetVersion, range))
+        targetRanges?.some((range) => semver.satisfies(targetVersion, range))
       ) {
         return {
           ...assessment,
@@ -268,33 +267,17 @@ export async function getUpgradeAssessment(
   }
 }
 
-type Advisory = {
-  withdrawn_at: string | null
-  vulnerabilities: {
-    package: { ecosystem: string; name: string }
-    vulnerable_version_range: string
-  }[]
-}
-
 type PackageRelease = {
   version: string
 }
 
-type SecuritySnapshot = {
-  ranges: string[]
-  releases: PackageRelease[]
-  references: string[]
-}
-
-const ADVISORIES =
-  'https://api.github.com/advisories?ecosystem=npm&affects=next&type=reviewed&per_page=100'
 const NPM_REGISTRY = 'https://registry.npmjs.org/'
 const NPM_ADVISORIES = `${NPM_REGISTRY}-/npm/v1/security/advisories/bulk`
 
 async function fetchJSON(
   url: string,
   init: RequestInit | undefined = undefined
-): Promise<{ value: unknown; headers: Headers }> {
+): Promise<{ value: unknown }> {
   try {
     const response = await fetch(url, {
       ...init,
@@ -307,7 +290,7 @@ async function fetchJSON(
       throw new Error(`HTTP ${response.status}`)
     }
 
-    return { value: await response.json(), headers: response.headers }
+    return { value: await response.json() }
   } catch (error) {
     throw new Error('Could not fetch upgrade metadata. Please try again.', {
       cause: error,
@@ -325,7 +308,7 @@ export function getPrereleaseChannel(version: string): string | null {
     : null
 }
 
-function parseReleases(value: unknown): SecuritySnapshot['releases'] {
+function parseReleases(value: unknown): PackageRelease[] {
   const data = value as {
     versions:
       | Record<
@@ -352,58 +335,6 @@ function parseReleases(value: unknown): SecuritySnapshot['releases'] {
 
     return [{ version }]
   })
-}
-
-function affectedRanges(advisories: Advisory[]): string[] {
-  const ranges: string[] = []
-
-  for (const advisory of advisories) {
-    if (
-      !advisory ||
-      !Array.isArray(advisory.vulnerabilities) ||
-      !('withdrawn_at' in advisory)
-    ) {
-      throw new Error('Could not check for security updates.')
-    }
-
-    if (advisory.withdrawn_at) {
-      continue
-    }
-
-    for (const finding of advisory.vulnerabilities) {
-      if (
-        !finding.package ||
-        typeof finding.package.name !== 'string' ||
-        typeof finding.package.ecosystem !== 'string'
-      ) {
-        throw new Error('Could not check for security updates.')
-      }
-
-      if (
-        finding.package.ecosystem !== 'npm' ||
-        finding.package.name !== 'next'
-      ) {
-        continue
-      }
-
-      if (
-        typeof finding.vulnerable_version_range !== 'string' ||
-        !finding.vulnerable_version_range.trim()
-      ) {
-        throw new Error('Could not check for security updates.')
-      }
-
-      const range = finding.vulnerable_version_range.replace(/,\s*/g, ' ')
-
-      if (!semver.validRange(range)) {
-        throw new Error('Could not check for security updates.')
-      }
-
-      ranges.push(range)
-    }
-  }
-
-  return ranges
 }
 
 export function getLatestUpgradeVersion(
@@ -459,60 +390,22 @@ async function fetchLatestRelease(installedVersion: string): Promise<{
   return { version: release.version, reference }
 }
 
-async function readGitHubAdvisories(version: string | null) {
-  const advisories: Advisory[] = []
-  const visited = new Set<string>()
-  const affects = version === null ? 'next' : `next@${version}`
-  const firstPage = new URL(ADVISORIES)
-  firstPage.searchParams.set('affects', affects)
-  let url: string | undefined = firstPage.href
-
-  for (let page = 0; url; page++) {
-    if (page === 100) {
-      throw new Error('Could not check for security updates.')
-    }
-
-    visited.add(url)
-    const { value, headers } = await fetchJSON(url)
-
-    if (!Array.isArray(value)) {
-      throw new Error('Could not check for security updates.')
-    }
-
-    advisories.push(...value)
-    const next = headers
-      .get('link')
-      ?.split(',')
-      .find((part) => /rel="next"/.test(part))
-      ?.match(/<([^>]+)>/)?.[1]
-
-    if (next) {
-      const parsed = new URL(next)
-
-      if (
-        parsed.origin !== 'https://api.github.com' ||
-        parsed.pathname !== '/advisories' ||
-        parsed.searchParams.get('ecosystem') !== 'npm' ||
-        parsed.searchParams.get('affects') !== affects ||
-        parsed.searchParams.get('type') !== 'reviewed' ||
-        visited.has(next)
-      ) {
-        throw new Error('Could not check for security updates.')
-      }
-    }
-
-    url = next
+// TODO: Record whether each advisory lookup succeeded or failed in upgrade telemetry.
+async function readNpmAdvisories(versions: string[]): Promise<string[]> {
+  let value: unknown
+  try {
+    value = (
+      await fetchJSON(NPM_ADVISORIES, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ next: versions }),
+      })
+    ).value
+  } catch (error) {
+    throw new Error('Could not check for security updates. Please try again.', {
+      cause: error,
+    })
   }
-
-  return { advisories, reference: firstPage.href }
-}
-
-async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
-  const { value } = await fetchJSON(NPM_ADVISORIES, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ next: versions }),
-  })
 
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Could not check for security updates.')
@@ -533,136 +426,55 @@ async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
     throw new Error('Could not check for security updates.')
   }
 
-  const advisories: Advisory[] = data.next.map((finding) => {
-    if (!finding || typeof finding.vulnerable_versions !== 'string') {
+  return data.next.map((finding) => {
+    if (
+      !finding ||
+      typeof finding.vulnerable_versions !== 'string' ||
+      !finding.vulnerable_versions.trim()
+    ) {
       throw new Error('Could not check for security updates.')
     }
-
-    return {
-      // npm's active advisory feed does not expose withdrawal metadata.
-      withdrawn_at: null,
-      vulnerabilities: [
-        {
-          package: { ecosystem: 'npm', name: 'next' },
-          vulnerable_version_range: finding.vulnerable_versions,
-        },
-      ],
+    const range = finding.vulnerable_versions.replace(/,\s*/g, ' ')
+    if (!semver.validRange(range)) {
+      throw new Error('Could not check for security updates.')
     }
+    return range
   })
-  return advisories
 }
 
-function advisoryVersions(value: unknown, checkedVersion: string): string[] {
-  const data = value as { versions: Record<string, unknown> | undefined }
-  if (
-    !data?.versions ||
-    typeof data.versions !== 'object' ||
-    Array.isArray(data.versions)
-  ) {
-    throw new Error('Could not check for security updates.')
-  }
-
-  // Include all published versions to retrieve advisories affecting candidates,
-  // not only the installed version.
-  const versions = Object.keys(data.versions).filter((version) =>
-    semver.valid(version)
-  )
-  if (!versions.includes(checkedVersion)) {
-    versions.push(checkedVersion)
-  }
-  return versions
-}
-
-// TODO: Replace provider-specific requests with a Next.js-maintained endpoint
-// that returns advisory ranges and exact safe targets for each major.
-async function readAdvisorySnapshot(installedVersion: string): Promise<{
-  ranges: string[]
-  reference: string
-  registry: unknown | null
-  targetError: string | null
-}> {
-  // Accept GitHub evidence only after every page and range validates. On
-  // failure, npm replaces the entire set, including candidate advisories.
-  try {
-    const { advisories, reference } = await readGitHubAdvisories(null)
-    return {
-      ranges: affectedRanges(advisories),
-      reference,
-      registry: null,
-      targetError: null,
-    }
-  } catch (githubFailure) {
-    try {
-      const { value } = await fetchJSON(`${NPM_REGISTRY}next`)
-      const ranges = affectedRanges(
-        await readNpmAdvisories(advisoryVersions(value, installedVersion))
-      )
-      return {
-        ranges,
-        reference: NPM_ADVISORIES,
-        registry: value,
-        targetError: null,
-      }
-    } catch (error) {
-      // A source-only response can still establish a warning, but cannot
-      // establish target safety.
-      try {
-        const ranges = affectedRanges(
-          await readNpmAdvisories([installedVersion])
-        )
-        if (ranges.some((range) => semver.satisfies(installedVersion, range))) {
-          return {
-            ranges,
-            reference: NPM_ADVISORIES,
-            registry: null,
-            targetError: 'Could not assess upgrade targets. Please try again.',
-          }
-        }
-      } catch {
-        // Neither provider could establish even a source-only warning.
-      }
-      throw new Error(
-        'Could not check for security updates. Please try again.',
-        { cause: [githubFailure, error] }
-      )
-    }
-  }
-}
-
-function selectSecurityTarget(
+function securityCandidates(
   source: string,
-  snapshot: SecuritySnapshot
-): PackageRelease | undefined {
-  const ranges = snapshot.ranges
-
-  if (!ranges.some((range) => semver.satisfies(source, range))) {
-    return
-  }
-
-  const releases = snapshot.releases
-  // Consider only the latest stable release of each major, not an older safe patch.
+  releases: PackageRelease[]
+): PackageRelease[] {
+  // Only the newest stable release of each eligible major is considered.
   const latest = new Map<number, PackageRelease>()
-
   for (const release of releases) {
     const major = semver.major(release.version)
     const previous = latest.get(major)
-
     if (!previous || semver.gt(release.version, previous.version)) {
       latest.set(major, release)
     }
   }
+  return [...latest.entries()]
+    .sort(([a], [b]) => a - b)
+    .filter(
+      ([major, release]) =>
+        major >= semver.major(source) && semver.gt(release.version, source)
+    )
+    .map(([, release]) => release)
+}
 
-  for (const major of [...latest.keys()].sort((a, b) => a - b)) {
-    if (major < semver.major(source)) {
-      continue
-    }
+function selectSecurityTarget(
+  source: string,
+  releases: PackageRelease[],
+  ranges: string[]
+): PackageRelease | undefined {
+  if (!ranges.some((range) => semver.satisfies(source, range))) {
+    return
+  }
 
-    const candidate = latest.get(major)!
-
-    if (
-      semver.gt(candidate.version, source) &&
-      !ranges.some((range) => semver.satisfies(candidate.version, range))
-    ) {
+  for (const candidate of securityCandidates(source, releases)) {
+    if (!ranges.some((range) => semver.satisfies(candidate.version, range))) {
       return candidate
     }
   }
