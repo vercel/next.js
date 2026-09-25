@@ -98,18 +98,23 @@ export function createSearchParamsFromClient(
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
-export function createServerSearchParamsForMetadata(
-  underlyingSearchParams: SearchParams
-): Promise<SearchParams> {
-  const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
+export function createServerSearchParamsForMetadata(): Promise<SearchParams> {
   return createServerSearchParamsForServerPage(
-    underlyingSearchParams,
-    metadataVaryParamsAccumulator
+    getMetadataVaryParamsAccumulator()
   )
 }
 
+/**
+ * Resolves the ambient scope's `searchParams` into the promise a server page
+ * (or `generateMetadata`) receives. The raw values are read from the work unit
+ * store (`workUnitStore.searchParams` — the single source of truth), so the
+ * caller supplies only the vary-params accumulator to record access into (the
+ * segment's, or metadata's head accumulator). What a read means is decided per
+ * scope: real values in a request render or runtime prerender; and hang /
+ * postpone / interrupt / error in the scopes where the values are never
+ * observable.
+ */
 export function createServerSearchParamsForServerPage(
-  underlyingSearchParams: SearchParams,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
   const workStore = workAsyncStorage.getStore()
@@ -139,14 +144,14 @@ export function createServerSearchParamsForServerPage(
         )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
-          underlyingSearchParams,
+          workUnitStore.searchParams,
           workStore,
           workUnitStore,
           varyParamsAccumulator
         )
       case 'request':
         return createRenderSearchParams(
-          underlyingSearchParams,
+          workUnitStore.searchParams,
           workStore,
           workUnitStore
         )

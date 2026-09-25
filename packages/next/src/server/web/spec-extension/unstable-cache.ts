@@ -12,6 +12,7 @@ import {
   getDraftModeProviderForCacheScope,
   willConsumerServerCache,
   workUnitAsyncStorage,
+  EMPTY_SEARCH_PARAMS,
 } from '../../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -160,6 +161,7 @@ export function unstable_cache<T extends Callback>(
 
       const innerCacheStore: UnstableCacheStore = {
         type: 'unstable-cache',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         consumerWillServerCache: true,
         implicitTags,

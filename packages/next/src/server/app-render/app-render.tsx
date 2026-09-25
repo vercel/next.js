@@ -249,6 +249,7 @@ import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   getHmrRefreshHash,
   workUnitAsyncStorage,
+  EMPTY_SEARCH_PARAMS,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
 import { consoleAsyncStorage } from './console-async-storage.external'
@@ -749,7 +750,6 @@ async function generateDynamicRSCPayload(
 
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
-      parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       interpolatedParams: ctx.interpolatedParams,
@@ -1732,6 +1732,7 @@ async function prospectiveRuntimeServerPrerender(
     type: 'prerender-runtime',
     phase: 'render',
     rootParams,
+    searchParams: ctx.query,
     implicitTags,
     segmentStore: null,
     metadataSegmentStore: null,
@@ -1764,6 +1765,7 @@ async function prospectiveRuntimeServerPrerender(
     headers: HeadersAdapter.fresh(headers),
     cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
+    url: ctx.url,
   }
 
   const { clientModules } = getClientReferenceManifest()
@@ -1929,6 +1931,7 @@ async function finalRuntimeServerPrerender(
     type: 'prerender-runtime',
     phase: 'render',
     rootParams,
+    searchParams: ctx.query,
     implicitTags,
     segmentStore: null,
     metadataSegmentStore: null,
@@ -1953,6 +1956,7 @@ async function finalRuntimeServerPrerender(
     headers: HeadersAdapter.fresh(headers),
     cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
+    url: ctx.url,
   }
 
   trackStaleTime(finalServerPrerenderStore, staleTimeIterable, selectStaleTime)
@@ -2244,7 +2248,6 @@ async function getRSCPayload(
     // metadata from the not-found.js boundary.
     // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
     errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
-    parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     interpolatedParams: ctx.interpolatedParams,
@@ -2387,7 +2390,6 @@ async function getErrorRSCPayload(
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
       tree,
-      parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       errorType,
@@ -3118,6 +3120,10 @@ async function renderAppPage(
     req,
     res,
     url,
+    // The router's resolved query for this render, which reflects any
+    // rewrite. `url` reflects the original request, so its search string may
+    // differ.
+    ctx.query,
     rootParams,
     implicitTags,
     renderOpts.onUpdateCookies,
@@ -6934,6 +6940,7 @@ export async function runValidationInDevFromSnapshot(
       pathname: message.request.urlPathname,
       search: message.request.urlSearch,
     },
+    searchParams: message.query,
     rootParams: message.request.rootParams,
     implicitTags,
     resumeDataCache: null,
@@ -7240,6 +7247,7 @@ async function warmupClientModulesForStagedValidation(
       type: 'prerender-client',
       phase: 'render',
       rootParams,
+      searchParams: EMPTY_SEARCH_PARAMS,
       fallbackRouteParams,
       implicitTags,
       segmentStore: null,
@@ -7266,6 +7274,7 @@ async function warmupClientModulesForStagedValidation(
       type: 'validation-client',
       phase: 'render',
       rootParams,
+      searchParams: EMPTY_SEARCH_PARAMS,
       implicitTags,
       segmentStore: null,
       metadataSegmentStore: null,
@@ -7422,6 +7431,7 @@ async function validateStagedShell(
     type: 'prerender-client',
     phase: 'render',
     rootParams,
+    searchParams: EMPTY_SEARCH_PARAMS,
     fallbackRouteParams,
     implicitTags,
     segmentStore: null,
@@ -7876,6 +7886,7 @@ async function validateInstantConfigs(
       type: 'validation-client',
       phase: 'render',
       rootParams,
+      searchParams: EMPTY_SEARCH_PARAMS,
       implicitTags,
       segmentStore: null,
       metadataSegmentStore: null,
@@ -8676,6 +8687,7 @@ async function validateInstantConfigInBuildWithSample(
         userspaceMutableCookies: unusedMutableCookies,
         draftMode,
         rootParams: sampleRootParams,
+        searchParams: sampleQuery,
         validationSamples,
         validationSampleTracking: createValidationSampleTracking(),
         // This will be set when rendering
@@ -9189,6 +9201,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         fallbackRouteParams,
         implicitTags,
         segmentStore: null,
@@ -9237,6 +9250,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         fallbackRouteParams,
         implicitTags,
         segmentStore: null,
@@ -9369,6 +9383,7 @@ async function prerenderToStream(
           type: 'prerender-client',
           phase: 'render',
           rootParams,
+          searchParams: EMPTY_SEARCH_PARAMS,
           fallbackRouteParams,
           implicitTags,
           segmentStore: null,
@@ -9497,6 +9512,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         fallbackRouteParams,
         implicitTags,
         segmentStore: null,
@@ -9562,6 +9578,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         fallbackRouteParams,
         implicitTags,
         segmentStore: null,
@@ -9821,6 +9838,7 @@ async function prerenderToStream(
         type: 'prerender-client',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         fallbackRouteParams,
         implicitTags,
         segmentStore: null,
@@ -10060,6 +10078,7 @@ async function prerenderToStream(
         type: 'prerender-legacy',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         implicitTags,
         segmentStore: null,
         metadataSegmentStore: null,
@@ -10323,6 +10342,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        searchParams: EMPTY_SEARCH_PARAMS,
         fallbackRouteParams,
         implicitTags,
         segmentStore: null,
@@ -10420,6 +10440,7 @@ async function prerenderToStream(
           type: 'prerender-client',
           phase: 'render',
           rootParams,
+          searchParams: EMPTY_SEARCH_PARAMS,
           fallbackRouteParams,
           implicitTags,
           segmentStore: null,
@@ -10657,6 +10678,7 @@ async function prerenderToStream(
       type: 'prerender-legacy',
       phase: 'render',
       rootParams,
+      searchParams: EMPTY_SEARCH_PARAMS,
       implicitTags: implicitTags,
       segmentStore: null,
       metadataSegmentStore: null,
