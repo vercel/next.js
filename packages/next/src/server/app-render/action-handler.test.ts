@@ -1,4 +1,15 @@
-import { parseHostHeader } from './action-handler'
+import {
+  createForwardedActionResponse,
+  parseHostHeader,
+} from './action-handler'
+import { addRequestMeta } from '../request-meta'
+import { NodeNextRequest, NodeNextResponse } from '../base-http/node'
+import {
+  NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
+} from '../../lib/constants'
+import { EventEmitter } from 'node:events'
+import type { ServerResponse } from 'node:http'
 import {
   getServerModuleMap,
   setManifestsSingleton,
@@ -153,5 +164,115 @@ describe('parseHostHeader', () => {
         'www.bar.com'
       )
     ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
+  })
+})
+
+describe('createForwardedActionResponse', () => {
+  const originalFetch = global.fetch
+
+  afterEach(() => {
+    global.fetch = originalFetch
+    jest.restoreAllMocks()
+  })
+
+  function createMockReqRes({ withActionBody }: { withActionBody: boolean }) {
+    const rawReq = new EventEmitter() as EventEmitter & {
+      method: string
+      url: string
+      headers: Record<string, string>
+    }
+    rawReq.method = 'POST'
+    rawReq.url = '/b'
+    rawReq.headers = {
+      host: 'example.com',
+      [NEXT_RESUME_HEADER]: '1',
+      [NEXT_RESUME_STATE_LENGTH_HEADER]: '123',
+    }
+
+    const req = new NodeNextRequest(rawReq as any)
+    addRequestMeta(req, 'initURL', 'http://example.com/a')
+    if (withActionBody) {
+      // Simulates app-page-runtime.ts having already read the request
+      // stream to extract the postponed state, stashing the remaining
+      // action body for later use (either by the local action handler, or
+      // by createForwardedActionResponse when forwarding to another
+      // worker).
+      addRequestMeta(req, 'actionBody', Buffer.from('the-action-body'))
+    }
+
+    const rawRes = {
+      getHeaders: () => ({}),
+    } as unknown as ServerResponse
+    const res = new NodeNextResponse(rawRes)
+
+    return { req, res }
+  }
+
+  it('forwards the stashed action body and drops resume headers instead of re-reading the exhausted request stream', async () => {
+    const { req, res } = createMockReqRes({ withActionBody: true })
+    const streamSpy = jest.spyOn(req, 'stream')
+
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }))
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const host = parseHostHeader({ host: 'example.com' })
+
+    await createForwardedActionResponse(
+      req,
+      res,
+      host,
+      '/b',
+      '',
+      '00' + 'a'.repeat(40)
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, init] = fetchMock.mock.calls[0]
+
+    // The forwarded body should be the stashed action body, not a (already
+    // exhausted) re-read of the request stream, which would otherwise hang
+    // forever waiting for data that will never arrive.
+    expect(init.body).toEqual(new Uint8Array(Buffer.from('the-action-body')))
+
+    // Once the body no longer starts with the postponed state, the resume
+    // headers no longer apply, and must not be forwarded, or the receiving
+    // worker will fail trying to read postponed state from the body.
+    const forwardedHeaders = init.headers as Headers
+    expect(forwardedHeaders.has(NEXT_RESUME_HEADER)).toBe(false)
+    expect(forwardedHeaders.has(NEXT_RESUME_STATE_LENGTH_HEADER)).toBe(false)
+
+    // The request stream must never be read in this case, since it was
+    // already consumed upstream.
+    expect(streamSpy).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the request stream when there is no stashed action body', async () => {
+    const { req, res } = createMockReqRes({ withActionBody: false })
+    const streamSpy = jest.spyOn(req, 'stream')
+
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }))
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const host = parseHostHeader({ host: 'example.com' })
+
+    await createForwardedActionResponse(
+      req,
+      res,
+      host,
+      '/b',
+      '',
+      '00' + 'a'.repeat(40)
+    )
+
+    expect(streamSpy).toHaveBeenCalledTimes(1)
+
+    const [, init] = fetchMock.mock.calls[0]
+    const forwardedHeaders = init.headers as Headers
+    expect(forwardedHeaders.has(NEXT_RESUME_HEADER)).toBe(true)
+    expect(forwardedHeaders.has(NEXT_RESUME_STATE_LENGTH_HEADER)).toBe(true)
   })
 })

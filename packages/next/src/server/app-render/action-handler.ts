@@ -44,6 +44,8 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
@@ -217,7 +219,7 @@ function addRevalidationHeader(
 /**
  * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
  */
-async function createForwardedActionResponse(
+export async function createForwardedActionResponse(
   req: BaseNextRequest,
   res: BaseNextResponse,
   host: Host,
@@ -278,7 +280,22 @@ async function createForwardedActionResponse(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      body = req.stream()
+      // If the action body was already stashed (and consumed from the
+      // request stream) so it could be replayed for the local action
+      // handler (e.g. when resume state was read from the body first),
+      // forward that stashed body instead of re-reading the now-exhausted
+      // stream, which would otherwise hang forever. Since the forwarded
+      // body no longer starts with the postponed state, the resume headers
+      // no longer apply and must be dropped so the receiving worker doesn't
+      // try to read postponed state from it.
+      const actionBody = getRequestMeta(req, 'actionBody')
+      if (actionBody) {
+        body = new Uint8Array(actionBody)
+        forwardedHeaders.delete(NEXT_RESUME_HEADER)
+        forwardedHeaders.delete(NEXT_RESUME_STATE_LENGTH_HEADER)
+      } else {
+        body = req.stream()
+      }
     } else {
       throw new Error('Invariant: Unknown request type.')
     }
