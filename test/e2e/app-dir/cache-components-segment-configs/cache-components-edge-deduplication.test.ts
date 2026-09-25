@@ -33,11 +33,7 @@ describe('cache-components-edge-deduplication', () => {
   it('should not duplicate errors when layout is compiled for both edge and non-edge contexts', async () => {
     if (isNextDev) {
       await next.start()
-    } else {
-      await expect(next.start()).rejects.toThrow()
-    }
 
-    if (isNextDev) {
       const browser = await next.browser('/edge-with-layout/edge')
       waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
@@ -62,6 +58,8 @@ describe('cache-components-edge-deduplication', () => {
       // We don't show an error stack, just the individual error messages at each location
       expect(layoutErrorMatches.length).toBe(1)
     } else {
+      await expect(next.start()).rejects.toThrow()
+
       // Check that both the layout and edge page errors appear
       expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
       expect(next.cliOutput).toContain('./app/edge-with-layout/edge/page.tsx')

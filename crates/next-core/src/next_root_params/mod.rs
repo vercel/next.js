@@ -1,6 +1,6 @@
 use std::iter;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, ensure};
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
@@ -28,17 +28,19 @@ use crate::{
     next_shared::resolve::InvalidImportModuleIssue,
 };
 
+// The resolver extracts queries from module subpaths.
+const ROOT_PARAM_GETTER_MODULE: &str = "private-next-root-params/getter";
+
 pub async fn insert_next_root_params_mapping(
     import_map: &mut ImportMap,
     ty: Either<ServerContextType, ClientContextType>,
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<()> {
-    import_map.insert_exact_alias(
-        "next/root-params",
-        get_next_root_params_mapping(EitherTaskInput(ty), collected_root_params)
-            .to_resolved()
-            .await?,
-    );
+    let mapping = get_next_root_params_mapping(EitherTaskInput(ty), collected_root_params)
+        .to_resolved()
+        .await?;
+    import_map.insert_exact_alias("next/root-params", mapping);
+    import_map.insert_exact_alias(ROOT_PARAM_GETTER_MODULE, mapping);
     Ok(())
 }
 
@@ -84,7 +86,10 @@ impl NextRootParamsMapper {
     }
 
     #[turbo_tasks::function]
-    async fn import_map_result(self: Vc<Self>) -> Result<Vc<ImportMapResult>> {
+    async fn import_map_result(
+        self: Vc<Self>,
+        param_name: Option<RcStr>,
+    ) -> Result<Vc<ImportMapResult>> {
         let this = self.await?;
         Ok(match &this.context_type {
             Either::Left(server_ty) => match &server_ty {
@@ -96,7 +101,7 @@ impl NextRootParamsMapper {
                             server_ty.clone()
                         )
                     })?;
-                    Self::valid_import_map_result(collected_root_params)
+                    Self::valid_import_map_result(collected_root_params, param_name)
                 }
                 ServerContextType::PagesApi { .. }
                 | ServerContextType::Instrumentation { .. }
@@ -134,35 +139,44 @@ impl NextRootParamsMapper {
     #[turbo_tasks::function]
     async fn valid_import_map_result(
         collected_root_params: ResolvedVc<CollectedRootParams>,
+        param_name: Option<RcStr>,
     ) -> Result<Vc<ImportMapResult>> {
         let collected_root_params = collected_root_params.await?;
 
-        // Generate a virtual 'next/root-params' module based on the root params we collected.
-        let module_content =
-            // If there's no root params, export nothing.
-            if collected_root_params.is_empty() {
-                "export {}".to_string()
-            } else {
-                iter::once(formatdoc!(
+        let (filename, module_content) = if let Some(param_name) = param_name {
+            ensure!(
+                collected_root_params.contains(&param_name),
+                "Unknown root parameter in generated getter request: {param_name}"
+            );
+            (
+                format!("root-params/{param_name}.js").into(),
+                formatdoc!(
                     r#"
                         import {{ getRootParam }} from 'next/dist/server/request/root-params';
+                        export function {param_name}() {{
+                            return getRootParam('{param_name}');
+                        }}
                     "#,
-                ))
-                .chain(collected_root_params.iter().map(|param_name| {
-                    formatdoc!(
-                        r#"
-                            export function {PARAM_NAME}() {{
-                                return getRootParam('{PARAM_NAME}');
-                            }}
-                        "#,
-                        PARAM_NAME = param_name,
-                    )
-                }))
-                .join("\n")
-            };
+                ),
+            )
+        } else {
+            // The generated `next/root-params` module only re-exports getters.
+            // The side-effect-free directive lets Turbopack resolve named
+            // imports without including unrelated getter modules.
+            let module_content =
+                iter::once("'use turbopack: no side effects';\nexport {};".to_string())
+                    .chain(collected_root_params.iter().map(|param_name| {
+                        format!(
+                            "export {{ {param_name} }} from \
+                             '{ROOT_PARAM_GETTER_MODULE}?{param_name}';"
+                        )
+                    }))
+                    .join("\n");
+            ("root-params.js".into(), module_content)
+        };
 
         let virtual_source = VirtualSource::new(
-            next_js_file_path("root-params.js".into()).owned().await?,
+            next_js_file_path(filename).owned().await?,
             AssetContent::file(FileContent::Content(module_content.into()).cell()),
         )
         .to_resolved()
@@ -218,10 +232,25 @@ impl ImportMappingReplacement for NextRootParamsMapper {
     async fn result(
         self: Vc<Self>,
         _lookup_path: FileSystemPath,
-        _request: Vc<Request>,
-    ) -> Vc<ImportMapResult> {
-        // Delegate to an inner function that only depends on `self` --
-        // we want to return the same cell regardless of the arguments we received here.
-        self.import_map_result()
+        request: Vc<Request>,
+    ) -> Result<Vc<ImportMapResult>> {
+        let request = request.await?;
+        let param_name = match &*request {
+            Request::Module { query, .. }
+                if request.request().as_deref() == Some(ROOT_PARAM_GETTER_MODULE) =>
+            {
+                Some(
+                    query
+                        .strip_prefix('?')
+                        .ok_or_else(|| {
+                            anyhow!("Missing root parameter in generated getter request")
+                        })?
+                        .into(),
+                )
+            }
+            _ => None,
+        };
+        // Share generated sources across importers with the same root name.
+        Ok(self.import_map_result(param_name))
     }
 }

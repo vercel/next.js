@@ -116,6 +116,7 @@ export async function startTurboTraceServerCli(
   port: number | undefined,
   mcpPort: number | undefined
 ) {
+  process.title = `next internal trace (v${process.env.__NEXT_VERSION})`
   const wsPort = port ?? DEFAULT_WS_PORT
   const httpPort = mcpPort ?? wsPort + 1
 

@@ -77,7 +77,15 @@ function coreMock() {
 }
 
 function githubMock(pulls, checks, options) {
-  const calls = { get: 0, list: 0, checks: 0, refs: [] }
+  const calls = {
+    get: 0,
+    list: 0,
+    checks: 0,
+    refs: [],
+    getAt: [],
+    listAt: [],
+    checksAt: [],
+  }
   const route = () => {}
   const github = {
     rest: {
@@ -85,6 +93,7 @@ function githubMock(pulls, checks, options) {
         list: route,
         async get({ pull_number }) {
           calls.get++
+          calls.getAt.push(Date.now())
           const error = options.getError?.(pull_number, calls.get)
           if (error) throw error
           const result = pulls.find((item) => item.number === pull_number)
@@ -95,7 +104,10 @@ function githubMock(pulls, checks, options) {
       checks: {
         async listForRef({ ref }) {
           calls.checks++
+          calls.checksAt.push(Date.now())
           calls.refs.push(ref)
+          const error = options.checkError?.(ref, calls.checks)
+          if (error) throw error
           const value =
             typeof checks === 'function'
               ? checks(ref, calls.checks)
@@ -122,6 +134,7 @@ function githubMock(pulls, checks, options) {
     async paginate(input, params) {
       expect(input).toBe(route)
       calls.list++
+      calls.listAt.push(Date.now())
       let result = pulls.filter((item) => item.state === 'open')
       if (params.base)
         result = result.filter((item) => item.base.ref === params.base)
@@ -146,10 +159,14 @@ async function run({
   checks = {},
   eventName = 'pull_request',
   getError,
+  checkError,
 } = {}) {
   jest.useFakeTimers({ now: new Date(0) })
   const core = coreMock()
-  const { github, calls } = githubMock(pulls, checks, { getError })
+  const { github, calls } = githubMock(pulls, checks, {
+    getError,
+    checkError,
+  })
   const context = {
     repo: { owner: 'vercel', repo: 'next.js' },
     eventName,
@@ -345,28 +362,33 @@ test('a failed predecessor may succeed on a later rerun', async () => {
   )
 })
 
-test('steady pending polls save three REST requests without losing topology refresh', async () => {
-  const snapshots = []
-  const stack = linearStack(5)
+test('only checks run on intervening five-minute polls; topology refreshes at twenty', async () => {
+  const minute = 60 * 1000
   const result = await run({
-    pulls: stack,
+    pulls: linearStack(5),
     current: 4,
-    checks: (ref, nth) => {
-      if (nth % 3 === 0) snapshots.push(nth)
-      // After two full waiting polls, release on the third poll.
-      return nth > 6 && ref === 'head-2' ? check(2, 'success') : null
-    },
+    checks: (ref, nth) =>
+      nth > 15 && ref === 'head-2' ? check(2, 'success') : null,
   })
-  expect(snapshots).toEqual([3, 6, 9])
-  // Three initial/fresh topology polls: 1 PR GET + 4 lists + 3 checks each.
-  // A decisive poll intentionally adds extra validation calls.
-  expect(result.calls.get).toBe(5)
-  expect(result.calls.list).toBe(12)
-  expect(result.calls.checks).toBe(10)
+  // t=0 and t=20: one current PR GET, four branch-list calls and three checks.
+  // t=5/10/15: only three checks. t=25: three checks and decisive revalidation.
+  expect(result.calls.getAt).toEqual([0, 20 * minute, 25 * minute, 25 * minute])
+  expect(result.calls.listAt).toEqual([
+    ...Array(4).fill(0),
+    ...Array(4).fill(20 * minute),
+  ])
+  expect(result.calls.checksAt).toEqual([
+    ...Array(3).fill(0),
+    ...Array(3).fill(5 * minute),
+    ...Array(3).fill(10 * minute),
+    ...Array(3).fill(15 * minute),
+    ...Array(3).fill(20 * minute),
+    ...Array(4).fill(25 * minute),
+  ])
   expect(result.core.failures).toEqual([])
 })
 
-test('closing a successor makes a waiting middle PR a leaf', async () => {
+test('closing a successor makes a waiting middle PR a leaf at the next twenty-minute refresh', async () => {
   const stack = linearStack(5)
   const result = await run({
     pulls: stack,
@@ -379,9 +401,13 @@ test('closing a successor makes a waiting middle PR a leaf', async () => {
   expect(result.core.summaries.join('\n')).toContain(
     'no open PR is based on this head branch'
   )
+  expect(result.calls.listAt).toEqual([...Array(4).fill(0), 20 * 60 * 1000])
+  expect(result.calls.checksAt).toEqual(
+    [0, 5, 10, 15].flatMap((minute) => Array(3).fill(minute * 60 * 1000))
+  )
 })
 
-test('closing or changing a predecessor rebuilds the chain on the next poll', async () => {
+test('closing or changing a predecessor rebuilds the chain on the next refresh', async () => {
   const stack = linearStack(5)
   const result = await run({
     pulls: stack,
@@ -394,9 +420,10 @@ test('closing or changing a predecessor rebuilds the chain on the next poll', as
   expect(result.core.summaries.join('\n')).toContain(
     'only 1 open predecessor PR(s) are reachable'
   )
+  expect(result.calls.getAt.at(-1)).toBe(20 * 60 * 1000)
 })
 
-test('a retargeted current PR opens on the next poll', async () => {
+test('a retargeted current PR opens on the next topology refresh', async () => {
   const stack = linearStack(5)
   const result = await run({
     pulls: stack,
@@ -409,6 +436,7 @@ test('a retargeted current PR opens on the next poll', async () => {
   expect(result.core.summaries.join('\n')).toContain(
     'only 0 open predecessor PR(s) are reachable'
   )
+  expect(result.calls.getAt.at(-1)).toBe(20 * 60 * 1000)
 })
 
 test('an outdated head/base cannot pass decisive revalidation', async () => {
@@ -437,6 +465,24 @@ test('an outdated head/base cannot pass decisive revalidation', async () => {
   expect(result.core.summaries.join('\n')).not.toContain('PR #2 passed')
 })
 
+test('a stale failure refreshes topology immediately instead of failing the gate', async () => {
+  const stack = linearStack(5)
+  const result = await run({
+    pulls: stack,
+    current: 4,
+    checks: (ref, nth) => {
+      if (nth === 3) stack[3].base.ref = 'canary'
+      return check(nth, 'failure')
+    },
+  })
+  expect(result.core.failures).toEqual([])
+  expect(result.core.logs.join('\n')).toContain('changed during verification')
+  expect(result.core.summaries.join('\n')).toContain(
+    'only 0 open predecessor PR(s) are reachable'
+  )
+  expect(result.calls.listAt.every((time) => time === 0)).toBe(true)
+})
+
 test('a predecessor head update invalidates an apparent success', async () => {
   const stack = linearStack(5)
   const result = await run({
@@ -449,6 +495,9 @@ test('a predecessor head update invalidates an apparent success', async () => {
   })
   expect(result.core.logs.join('\n')).toContain('changed during verification')
   expect(result.calls.refs).toContain('rebased-head')
+  expect(result.calls.checksAt[result.calls.refs.indexOf('rebased-head')]).toBe(
+    0
+  )
   expect(result.core.summaries.join('\n')).toContain(
     'Five-hour waiting deadline reached'
   )
@@ -466,6 +515,28 @@ test('a failure rerun during decisive revalidation prevents false failure', asyn
   expect(result.core.failures).toEqual([])
   expect(result.core.logs.join('\n')).toContain('changed during verification')
   expect(result.core.summaries.join('\n')).toContain('PR #3 passed')
+  expect(result.calls.listAt.slice(0, 8)).toEqual(Array(8).fill(0))
+})
+
+test('a transient status-only API failure retries without early topology reads', async () => {
+  const unavailable = Object.assign(new Error('temporary GitHub outage'), {
+    status: 500,
+  })
+  const result = await run({
+    pulls: linearStack(5),
+    current: 4,
+    checkError: (_ref, nth) => (nth === 4 ? unavailable : null),
+    checks: (ref, nth) =>
+      nth > 4 && ref === 'head-2' ? check(2, 'success') : null,
+  })
+  expect(result.core.failures).toEqual([])
+  expect(result.core.warnings.join('\n')).toContain('retrying in five minutes')
+  expect(result.calls.listAt).toEqual(Array(4).fill(0))
+  expect(result.calls.checksAt).toEqual([
+    ...Array(3).fill(0),
+    5 * 60 * 1000,
+    ...Array(4).fill(10 * 60 * 1000),
+  ])
 })
 
 test('five-hour unresolved wait fails open and transient API errors retry', async () => {
@@ -576,4 +647,19 @@ test('workflow keeps expensive work gated, forks isolated and action pinned to t
   }
   expect(build).not.toContain('node --test .github/actions/pr-stack-ci-gate')
   expect(build).toContain("needs: ['optimize-ci', 'changes', 'build-next'")
+})
+
+test('the isolated Jest setup uses ts-jest with the action TypeScript config', () => {
+  const config = require('./jest.config.cjs')
+  const packageJson = require('./package.json')
+  const tsconfig = require('./tsconfig.json')
+  expect(config.transform['^.+\\.ts$'][0]).toBe('ts-jest')
+  expect(packageJson.devDependencies['ts-jest']).toBe('29.4.5')
+  expect(packageJson.devDependencies.jest).toBe('29.7.0')
+  expect(require('jest/package.json').version).toBe('29.7.0')
+  expect(packageJson.devDependencies.typescript).toBe('6.0.2')
+  expect(tsconfig.compilerOptions.isolatedModules).toBe(true)
+  expect(
+    fs.existsSync(path.join(__dirname, 'jest-typescript-transform.cjs'))
+  ).toBe(false)
 })

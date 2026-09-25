@@ -261,6 +261,16 @@ export const invalid = ;`
             'parse-error-proves-target-was-analyzed'
           )
         })
+        const source = browser
+          .locateRedbox()
+          .locator('[data-nextjs-codeframe], [data-nextjs-terminal]', {
+            hasText: 'parse-error-proves-target-was-analyzed',
+          })
+        await retry(async () => {
+          expect(await source.innerText()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
       } finally {
         await next.patchFile(targetPath, originalTarget)
         await next.patchFile(demoPath, originalDemo)

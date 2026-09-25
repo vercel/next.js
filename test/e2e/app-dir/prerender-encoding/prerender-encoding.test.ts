@@ -44,9 +44,10 @@ describe('prerender-encoding', () => {
     )
   })
 
-  // Vercel decodes the captured slash before splitting catch-all values, whereas
-  // next start preserves it within a single value.
-  // @gate !deploy
+  // The Vercel adapter deployment path decodes the captured slash before
+  // splitting catch-all values, whereas next start and plain Vercel deploys
+  // preserve it within a single value.
+  // @gate !deploy || !adapter
   it('should preserve an encoded slash in an open catch-all fallback', async () => {
     const pathname = '/open/docs/space%20here/with%2Fslash/fallback%25'
     for (let i = 0; i < 2; i++) {
