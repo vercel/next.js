@@ -115,7 +115,8 @@ The `analyze.data` JSON header contains:
 - `source_roots[]`: Indices of source-tree roots.
 - `output_file_chunk_parts`, `source_chunk_parts`, `source_children`: Edge references: output → part indices, source → part indices, source → child source indices.
 - `output_file_modules` (v1): binary adjacency with **one row per `output_files[]` item**, containing indices into that snapshot's `modules.data.modules[]`. `output_file_module_coverage[]` has the same length: `exact` means all enumerated JS/CSS chunk items joined; `unsupported` means the row might be partial or empty because the output wrapper or member cannot be enumerated/joined; `not_a_chunk` means it has no module-chunk membership. Check `unjoined_modules[]` for `{output_file_index, module_ident, reason}`; an unsupported row does not prove there are no modules. These are **module contents of a chunk**, not source-part attribution or an initial-load verdict.
-- This version has no route-specific chunk-load groups or typed output-load edges; output membership is not a label for initial, async, worker or prefetched requests.
+- `chunk_groups[]` (newer v1 artifacts only): route-local `{id, kind, trigger_module_index?, unjoined_trigger_ident?, output_file_indices[]}`. `bootstrap` comes from direct App shared or Pages evaluated client group assets; `render_dependent` is App layout/client-reference group output whose load depends on rendering. Async and worker load relationships are not classified in this version. An output can be in **multiple** groups. A layout group may be cumulative; its output list is not the exact modules contributed by one reference. A trigger index refers to the same `modules.data` as `output_file_modules` when the version/hash match. If this field is absent in an earlier v1 snapshot, group membership is **unknown**, not empty.
+  There is no observed `initial` or `prefetched` label; absence of a group or edge does not establish that an asset cannot load.
 
 `modules.data` contains `modules[]` with `{ident, path}` plus **six** edge
 references: `module_dependencies`, `async_module_dependencies`,
@@ -126,8 +127,8 @@ back to its importers. Ordinary dependency edges are synchronous; async edges
 mark async boundaries; traced edges describe file-tracing relationships and
 should not be treated as browser imports. Before v1, module indices were local
 to `modules.data` and could **never** be joined to route indices; v1 alone
-explicitly permits the `output_file_modules` join after checking matching
-version and ordered-index hash. Numeric indices are not stable across
+explicitly permits the `output_file_modules` / trigger-index join after checking
+matching version and ordered-index hash. Numeric indices are not stable across
 builds. Source indices and chunk-part indices are local to one route's
 `analyze.data`. `ident` distinguishes module variants; `path` is not unique,
 and a source path is not necessarily an exact module identity. **The new
@@ -172,20 +173,25 @@ to a model context.
    whole-app; intersect candidate paths with route output sources and inspect
    application source. A source path can map to multiple module identities.
 4. In v1, verify the **version and module-index hash** before reading
-   `output_file_modules`. Traverse output → module rows to find exact chunk
-   membership; check coverage and unmatched identities before using an empty
-   row. An `unsupported` empty row never proves that a chunk contains no
-   modules. A client reference is not itself an endpoint graph root, and
-   output membership does not tell you whether its chunk loads initially.
+   `output_file_modules` or a group/edge trigger index. Traverse the output →
+   module rows to find exact chunk membership; check coverage and unmatched
+   identities before using an empty row. An `unsupported` empty row never
+   proves that a chunk contains no modules. When present, inspect
+   `chunk_groups` to distinguish build-time bootstrap assets from
+   render-dependent references; missing groups mean unknown load scope,
+   async and worker outputs are not classified here. A client reference is not itself an endpoint graph root; do
+   not assign all of a cumulative layout group's chunks to that reference.
    Continue to use `chunk_parts` for size attribution; membership is **not**
    a byte-saving estimate. Older artifacts have no route-output → module join.
-5. **Initial browser requests still require more evidence.** The module graph
-   and output membership identify possible import paths and emitted contents,
-   not route-specific initial/async/worker chunk loads. Use a verified client
-   root set and cold browser network trace when request timing matters; neither
-   a synchronous path nor chunk membership alone proves initial loading or
-   exact savings. An already-async module edge is not a candidate for another
-   dynamic split merely because its target appears in route data.
+5. **Initial browser requests still require more evidence.** A `bootstrap`
+   group identifies a direct client build group, not every request on a cold
+   navigation; `render_dependent` chunks can load in the first render or
+   later. Async targets, workers, prefetch policy and transfer bytes need
+   further evidence. A group may support a **conditional build-time** cut for a chosen route
+   and render scenario, but it does not prove request timing or exact saved
+   bytes. Corroborate initial-load claims with a cold browser network trace.
+   An already-async edge is not a candidate for another dynamic split solely
+   because its target appears in route data.
 
 ### Rank a useful candidate
 
@@ -208,18 +214,25 @@ bundler: only a measured artifact delta supports a bundle win.
 
 ### When a graph strategy helps
 
-- **Min cut:** Select a route, render scenario, verified client entry roots and
-  target, then traverse the directed _synchronous_ module graph. Matching v1
-  output→module rows can check emitted membership, not when chunks load.
-  **Completeness gate:** Inspect all known alternate root→target paths, unknown
-  roots, `unsupported` membership and unjoined modules. Route-specific
-  bootstrap/render scopes and output load edges are not provided, so refuse a
-  definitive initial-load or exhaustive emitted-chunk cut. A cut of the **known
-  module subgraph** may still be useful if labeled _provisional_ with
-  missing evidence and how to verify it. Do not make unrelated unsupported
-  outputs elsewhere in the snapshot a blanket blocker. Verify actual requested
-  entry/chunk sets with a cold network trace before claiming an initial-load
-  cut. Add a super-source
+- **Min cut:** Select the route, render scenario, all known client entry roots,
+  and the target heavy subgraph; start with the directed _synchronous_ module
+  dependency graph. Use matching v1 output→module rows and typed groups to
+  scope build-time bootstrap and **explicitly selected** render-dependent
+  groups. **Completeness gate:** A missing `chunk_groups` field in an earlier
+  v1 snapshot is unknown coverage, not an empty group list. Check the selected
+  roots, their reachable outputs and every possible alternate root→target path for unknown roles,
+  `unsupported` membership and unjoined modules. Async and worker output
+  relationships are not classified, so do not claim a complete load graph. If a
+  cumulative group cannot isolate a selected reference's outputs, do not
+  assign that group's chunks to the reference. If any potentially relevant
+  path remains incomplete, **refuse a definitive or exhaustive cut**; absence
+  of a recorded edge is not proof no path exists. Unrelated unsupported outputs
+  elsewhere in the snapshot need not block a scoped result. You may still
+  show a cut of the **known subgraph**, explicitly labeled _provisional_, with
+  the missing evidence and a way to verify it. A sufficiently covered result
+  remains conditional on the selected route/render scenario, not a proven
+  cold browser-load claim. Verify actual requested entry/chunk sets with a
+  cold network trace before claiming an initial-load cut. Add a super-source
   connecting **all** selected client entries and a sink connecting targets;
   find a separating set of import edges (or use node splitting if boundaries
   are modules). Define capacity deliberately: a unit cut minimizes edge count;
@@ -250,8 +263,8 @@ These are _procedures_, not precomputed answers; run them against the selected
 route and report actual paths and values:
 
 - **What contributes most to `/dashboard` client output?** Decode that route's `analyze.data`; filter output filenames after verifying the client convention; group `chunk_parts` by reconstructed source path or package; sum each part once. Report the largest paths, uncompressed/compressed attribution and the selected output files. This ranks **route output**, not proven initial requests.
-- **Why is a large editor included?** Find it in v1 output→module rows (or use source paths as ambiguous leads in legacy artifacts); check the containing chunk's membership coverage. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. A browser trace is needed to verify requests.
-- **Where might a lazy boundary isolate the editor?** Select client entry nodes and a conditional render scenario (or observe a real initial-request set), check the available module/output coverage, then search for **all** synchronous paths to the editor. If an unknown reference or unsupported chunk might supply another path, report only a provisional cut of the known graph and the evidence needed to complete it. For instance, two independent entry→editor paths need both severed, not only the apparent import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
+- **Why is a large editor included?** Find it in v1 output→module rows (or use source paths as ambiguous leads in legacy artifacts); check the containing chunk's coverage and group roles. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. A browser trace is needed to verify requests.
+- **Where might a lazy boundary isolate the editor?** Select client entry nodes and a conditional render scenario (or observe a real initial-request set), check the group/edge coverage, then search for **all** synchronous paths to the editor. If an unknown reference or unsupported chunk might supply another path, report only a provisional cut of the known graph and the evidence needed to complete it. For instance, two independent entry→editor paths need both severed, not only the apparent import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
 
 As a small validation example, imagine a folder source 0 with no direct parts and a
 child source 1 owning one 100-byte part (40 attributed compressed bytes). The

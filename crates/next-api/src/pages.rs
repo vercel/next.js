@@ -80,8 +80,8 @@ use crate::{
     },
     project::Project,
     route::{
-        AnalyzeClientEntries, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route,
-        Routes,
+        AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, Endpoint, EndpointOutput,
+        EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
@@ -1779,6 +1779,26 @@ impl Endpoint for PageEndpoint {
             references: vec![],
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn analyze_chunk_groups(self: Vc<Self>) -> Result<Vc<AnalyzeChunkGroups>> {
+        let this = self.await?;
+        if this.ty != PageEndpointType::Html {
+            return Ok(Vc::cell(vec![]));
+        }
+        let client = self.client_chunk_group().await?;
+        let bootstrap = self
+            .client_evaluatable_assets()
+            .await?
+            .first()
+            .map(|module| ResolvedVc::upcast(*module));
+        Ok(Vc::cell(vec![AnalyzeChunkGroup {
+            kind: rcstr!("bootstrap"),
+            trigger: bootstrap,
+            assets: client.assets,
+            pages_html: true,
+        }]))
     }
 
     #[turbo_tasks::function]

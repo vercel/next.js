@@ -62,6 +62,20 @@ pub struct AnalyzeClientReference {
     pub kind: RcStr,
 }
 
+/// Direct emitted assets of a build-time chunk group. Groups may overlap: an
+/// App layout group can include chunks shared with other client references.
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeChunkGroup {
+    pub kind: RcStr,
+    pub trigger: Option<ResolvedVc<Box<dyn Module>>>,
+    pub assets: ResolvedVc<OutputAssets>,
+    /// Only Pages HTML endpoints inherit the shared _app client group.
+    pub pages_html: bool,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeChunkGroups(Vec<AnalyzeChunkGroup>);
+
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     #[turbo_tasks::function]
@@ -78,6 +92,11 @@ pub trait Endpoint {
     #[turbo_tasks::function]
     fn analyze_client_entries(self: Vc<Self>) -> Vc<AnalyzeClientEntries> {
         AnalyzeClientEntries::default().cell()
+    }
+    /// Build-time client chunk groups, not observed browser requests.
+    #[turbo_tasks::function]
+    fn analyze_chunk_groups(self: Vc<Self>) -> Vc<AnalyzeChunkGroups> {
+        Vc::cell(vec![])
     }
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
