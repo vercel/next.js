@@ -97,6 +97,24 @@ impl BindingUsageInfo {
         }
         .cell())
     }
+
+    pub async fn used_exports_or_unknown(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsage>> {
+        let Some(exports) = self.used_exports.get(&module).await? else {
+            return Ok(ModuleExportUsage::unknown());
+        };
+        let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
+        let namespace_object_may_escape =
+            self.partial_namespace_modules.contains_key(&module).await?;
+        Ok(ModuleExportUsage {
+            export_usage: (*exports).clone().resolved_cell(),
+            is_circuit_breaker,
+            namespace_object_may_escape,
+        }
+        .cell())
+    }
 }
 
 #[turbo_tasks::value_impl]

@@ -3,10 +3,16 @@
 // Type aliases for better readability
 export type ModuleIndex = number
 export type SourceIndex = number
+export type UsedExports = 'all' | 'evaluation' | string[]
+export type OwnSideEffects = 'free' | 'evaluation-free' | 'effectful'
+export type TransitiveSideEffects = 'free' | 'effectful'
 
 export interface AnalyzeModule {
   ident: string
   path: string
+  used_exports?: UsedExports
+  own_side_effects?: OwnSideEffects
+  transitive_side_effects?: TransitiveSideEffects
 }
 
 export interface AnalyzeSource {

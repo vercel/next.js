@@ -31,7 +31,7 @@ use crate::{
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
-        binding_usage_info::BindingUsageInfo,
+        binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
         collect::{CollectedModules, collect_graph},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
@@ -61,7 +61,8 @@ pub mod style_groups_graph;
 pub mod style_groups_loose;
 mod traced_di_graph;
 
-pub use self::module_batches::BatchingConfig;
+use self::side_effect_module_info::compute_side_effect_free_module_info;
+pub use self::{module_batches::BatchingConfig, side_effect_module_info::SideEffectFreeModules};
 
 #[derive(
     Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, Encode, Decode,
@@ -849,6 +850,24 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn collected_modules(self: Vc<Self>) -> Result<Vc<CollectedModules>> {
         collect_graph(self).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_export_usage(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsage>> {
+        let this = self.await?;
+        if let Some(binding_usage) = &this.binding_usage {
+            binding_usage.used_exports_or_unknown(module).await
+        } else {
+            Ok(ModuleExportUsage::unknown())
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub fn side_effect_free_modules(self: Vc<Self>) -> Vc<SideEffectFreeModules> {
+        compute_side_effect_free_module_info(self)
     }
 
     #[turbo_tasks::function]
