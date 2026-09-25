@@ -1733,6 +1733,8 @@ async function prospectiveRuntimeServerPrerender(
     phase: 'render',
     rootParams,
     implicitTags,
+    segmentStore: null,
+    metadataSegmentStore: null,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     // During the initial prerender we need to track all cache reads to ensure
@@ -1928,6 +1930,8 @@ async function finalRuntimeServerPrerender(
     phase: 'render',
     rootParams,
     implicitTags,
+    segmentStore: null,
+    metadataSegmentStore: null,
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // All caches we could read must already be filled so no tracking is necessary
@@ -7238,6 +7242,8 @@ async function warmupClientModulesForStagedValidation(
       rootParams,
       fallbackRouteParams,
       implicitTags,
+      segmentStore: null,
+      metadataSegmentStore: null,
       renderSignal: initialClientRenderController.signal,
       controller: initialClientPrerenderController,
       // For HTML Generation the only cache tracked activity
@@ -7261,6 +7267,8 @@ async function warmupClientModulesForStagedValidation(
       phase: 'render',
       rootParams,
       implicitTags,
+      segmentStore: null,
+      metadataSegmentStore: null,
       renderSignal: initialClientRenderController.signal,
       controller: initialClientPrerenderController,
       // For HTML Generation the only cache tracked activity
@@ -7416,6 +7424,8 @@ async function validateStagedShell(
     rootParams,
     fallbackRouteParams,
     implicitTags,
+    segmentStore: null,
+    metadataSegmentStore: null,
     renderSignal: clientRenderController.signal,
     controller: clientReactController,
     // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
@@ -7867,6 +7877,8 @@ async function validateInstantConfigs(
       phase: 'render',
       rootParams,
       implicitTags,
+      segmentStore: null,
+      metadataSegmentStore: null,
       renderSignal: renderController.signal,
       controller: reactController,
       cacheSignal: null,
@@ -8652,6 +8664,8 @@ async function validateInstantConfigInBuildWithSample(
         type: 'request',
         phase: 'render',
         implicitTags: outerCtx.implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         url: {
           pathname: sampleUrl.pathname,
           search: sampleUrl.search,
@@ -9177,6 +9191,8 @@ async function prerenderToStream(
         rootParams,
         fallbackRouteParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         // While this render signal isn't going to be used to abort a React render while getting the RSC payload
         // various request data APIs bind to this controller to reject after completion.
         renderSignal: initialServerRenderController.signal,
@@ -9223,6 +9239,8 @@ async function prerenderToStream(
         rootParams,
         fallbackRouteParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         renderSignal: initialServerRenderController.signal,
         controller: initialServerPrerenderController,
         stagedRendering: null, // We don't need staging in the initial render
@@ -9353,6 +9371,8 @@ async function prerenderToStream(
           rootParams,
           fallbackRouteParams,
           implicitTags,
+          segmentStore: null,
+          metadataSegmentStore: null,
           renderSignal: initialClientRenderController.signal,
           controller: initialClientPrerenderController,
           // For HTML Generation the only cache tracked activity
@@ -9479,6 +9499,8 @@ async function prerenderToStream(
         rootParams,
         fallbackRouteParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         // While this render signal isn't going to be used to abort a React render while getting the RSC payload
         // various request data APIs bind to this controller to reject after completion.
         renderSignal: finalServerRenderController.signal,
@@ -9542,6 +9564,8 @@ async function prerenderToStream(
         rootParams,
         fallbackRouteParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         renderSignal: finalServerRenderController.signal,
         controller: finalServerReactController,
         stagedRendering: finalStageController,
@@ -9799,6 +9823,8 @@ async function prerenderToStream(
         rootParams,
         fallbackRouteParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         renderSignal: finalClientRenderController.signal,
         controller: finalClientReactController,
         // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
@@ -10035,6 +10061,8 @@ async function prerenderToStream(
         phase: 'render',
         rootParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -10297,6 +10325,8 @@ async function prerenderToStream(
         rootParams,
         fallbackRouteParams,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         renderSignal: errorServerRenderController.signal,
         controller: errorServerReactController,
         stagedRendering: null,
@@ -10392,6 +10422,8 @@ async function prerenderToStream(
           rootParams,
           fallbackRouteParams,
           implicitTags,
+          segmentStore: null,
+          metadataSegmentStore: null,
           renderSignal: errorClientRenderController.signal,
           controller: errorClientReactController,
           cacheSignal: null,
@@ -10626,6 +10658,8 @@ async function prerenderToStream(
       phase: 'render',
       rootParams,
       implicitTags: implicitTags,
+      segmentStore: null,
+      metadataSegmentStore: null,
       revalidate:
         typeof prerenderStore?.revalidate !== 'undefined'
           ? prerenderStore.revalidate

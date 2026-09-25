@@ -3,7 +3,10 @@ import type { SearchParams } from '../request/search-params'
 import {
   getVaryParamsAccumulator,
   workUnitAsyncStorage,
+  type WorkUnitStore,
 } from './work-unit-async-storage.external'
+import { getMetadataSegmentStore, getSegmentStore } from './segment-store'
+import type { LoaderTree } from '../lib/app-dir-module'
 
 /**
  * Accumulates vary params for a single segment (or for metadata/rootParams).
@@ -90,11 +93,23 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
  * metadata about the response itself.
  */
 export type ResponseVaryParamsAccumulator = {
-  /** Vary params accumulator for metadata/viewport (the "head" segment) */
-  head: VaryParamsAccumulator
   /** Vary params accumulator for root params access */
   rootParams: VaryParamsAccumulator
-  /** Vary params accumulators for each route segment */
+  /**
+   * Vary params accumulator for the page-wide metadata segment (see
+   * `getMetadataSegmentStore` in segment-store.ts). `null` until first
+   * requested. Like `rootParams`, it's serialized once at the response level
+   * (in the payload's head), so like `rootParams` it lives on the response
+   * accumulator: the payload is constructed and rendered under different
+   * work unit stores, and the object we serialize must be the same object
+   * metadata's tracking writes into. Also registered in `segments`, which
+   * owns closing it.
+   */
+  metadata: VaryParamsAccumulator | null
+  /**
+   * Vary params accumulators for each segment, including the page-wide
+   * metadata segment once it's created.
+   */
   segments: Set<VaryParamsAccumulator>
 }
 
@@ -116,15 +131,15 @@ export const emptyVaryParamsAccumulator: VaryParamsAccumulator =
 emptyVaryParamsAccumulator.close()
 
 export function createResponseVaryParamsAccumulator(): ResponseVaryParamsAccumulator {
-  // Create the head and rootParams accumulators as top-level fields.
-  // Segment accumulators are added to the segments set as they are created.
-  const head = new VaryParamsAccumulator()
+  // Create the rootParams accumulator as a top-level field. Segment
+  // accumulators (including the metadata segment's) are added to the segments
+  // set as they are created.
   const rootParams = new VaryParamsAccumulator()
   const segments = new Set<VaryParamsAccumulator>()
 
   return {
-    head,
     rootParams,
+    metadata: null,
     segments,
   }
 }
@@ -137,7 +152,7 @@ export function createResponseVaryParamsAccumulator(): ResponseVaryParamsAccumul
  * accessed. The iterable can be passed directly to React Flight for
  * serialization.
  */
-export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
+function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (!workUnitStore) {
     return null
@@ -151,12 +166,80 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
   return accumulator
 }
 
+/**
+ * Like `createVaryParamsAccumulator`, but for the page-wide metadata segment:
+ * get-or-creates the response's single metadata accumulator rather than
+ * allocating a fresh one, since every work unit store a response spans must
+ * write into the accumulator that was serialized into the payload.
+ */
+function createMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (!workUnitStore) {
+    return null
+  }
+  const responseAccumulator = getVaryParamsAccumulator(workUnitStore)
+  if (!responseAccumulator) {
+    return null
+  }
+  if (responseAccumulator.metadata === null) {
+    const accumulator = new VaryParamsAccumulator()
+    responseAccumulator.segments.add(accumulator)
+    responseAccumulator.metadata = accumulator
+  }
+  return responseAccumulator.metadata
+}
+
+/**
+ * The single source of truth for a segment's vary-params accumulator. Created
+ * lazily on first access and memoized on the segment's `SegmentStore`, so
+ * every consumer that tracks the segment's param access shares the one
+ * accumulator that ends up embedded in the segment's transport node. Returns
+ * `null` when the current render doesn't track vary params.
+ *
+ * `segment` is the segment's stable key (see `SegmentStore`): its loader tree
+ * node.
+ */
+export function getSegmentVaryParamsAccumulator(
+  workUnitStore: WorkUnitStore,
+  segment: LoaderTree
+): VaryParamsAccumulator | null {
+  const segmentStore = getSegmentStore(workUnitStore, segment)
+  if (segmentStore.varyParamsAccumulator === null) {
+    // `createVaryParamsAccumulator` returns `null` when the ambient render
+    // isn't tracking vary params. Caching a non-null accumulator keeps it a
+    // single create-once (and a single registration into the response
+    // accumulator); the `null` case has no side effect, so re-running it on a
+    // later access is harmless.
+    segmentStore.varyParamsAccumulator = createVaryParamsAccumulator()
+  }
+  return segmentStore.varyParamsAccumulator
+}
+
+/**
+ * The metadata segment's vary-params accumulator: same as
+ * `getSegmentVaryParamsAccumulator`, but for the page-wide metadata segment
+ * (see `getMetadataSegmentStore`). Reads from the ambient work unit store
+ * because metadata's consumers don't hold one.
+ *
+ * Unlike a route segment's accumulator — which is embedded in the rendered
+ * tree, so it's created and written under the same work unit store — the
+ * metadata accumulator is serialized once at the response level, and the
+ * payload is constructed and rendered under different work unit stores. So
+ * the underlying object is response-scoped
+ * (`createMetadataVaryParamsAccumulator` get-or-creates the response's
+ * single metadata accumulator, exactly like root params); the segment store
+ * just caches the per-store pointer to it.
+ */
 export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (!workUnitStore) {
     return null
   }
-  return getVaryParamsAccumulator(workUnitStore)?.head ?? null
+  const segmentStore = getMetadataSegmentStore(workUnitStore)
+  if (segmentStore.varyParamsAccumulator === null) {
+    segmentStore.varyParamsAccumulator = createMetadataVaryParamsAccumulator()
+  }
+  return segmentStore.varyParamsAccumulator
 }
 
 // The metadata and viewport are always delivered in a single payload, so they
@@ -300,7 +383,6 @@ export function createVaryingSearchParams(
 export function finishAccumulatingVaryParams(
   responseAccumulator: ResponseVaryParamsAccumulator
 ): void {
-  responseAccumulator.head.close()
   responseAccumulator.rootParams.close()
   for (const segmentAccumulator of responseAccumulator.segments) {
     segmentAccumulator.close()
