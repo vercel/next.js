@@ -51,7 +51,6 @@ use crate::{
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
-    trace::TraceRawVcs,
     util::{IdFactory, StaticOrArc},
 };
 
@@ -965,7 +964,29 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.schedule(id, TaskPriority::initial());
     }
 
-    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
+    /// Runs `future` as a top-level task and returns its result.
+    ///
+    /// # Returned values must not contain `Vc` or `ResolvedVc` or if they do they should be covered by a pin
+    ///
+    /// `T` is deliberately unconstrained for ergonomics, but a `Vc`/`ResolvedVc` that escapes this
+    /// call is **not** protected against garbage collection. It can be collected, and
+    /// dereferencing the stale handle then fails.
+    ///    ///
+    /// To hand a computation out of a top-level task, return the [`OperationVc`] and pin it:
+    ///
+    /// ```ignore
+    /// let (resolved, op) = tt.run_once(async move {
+    ///     let op = my_operation(args);
+    ///     let resolved = op.resolve().strongly_consistent().await?;
+    ///     // Return the operation too, so it can be pinned below.
+    ///     Ok((resolved, op))
+    /// }).await?;
+    /// let _gc_root = GcRoot::pin(tt.clone(), op);  // unpins on drop
+    /// ```
+    ///
+    /// Returning owned data -- [`ReadRef`](crate::ReadRef), `RcStr`, plain values -- is always
+    /// fine.
+    pub async fn run_once<T: Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
@@ -981,8 +1002,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
         rx.await?
     }
 
+    /// Runs `future` as a top-level task and returns its result.
+    ///
+    /// The same constraint as [`run_once`](Self::run_once) applies to `T`: a `Vc`/`ResolvedVc`
+    /// returned from here is not anchored against garbage collection. See that method's docs for
+    /// why, and for the pin-the-`OperationVc` idiom.
     #[tracing::instrument(level = "trace", skip_all, name = "turbo_tasks::run")]
-    pub async fn run<T: TraceRawVcs + Send + 'static>(
+    pub async fn run<T: Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T, TurboTasksExecutionError> {
@@ -1419,6 +1445,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 }
             }
             self.backend.stop(self);
+            // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
+            // to subscribers before returning, then close the queue so subscriptions end after
+            // draining.
+            self.compilation_events.flush_and_close().await;
         })
         .await;
     }
@@ -2329,12 +2359,6 @@ impl<T: ?Sized> Hash for GcRoot<T> {
 impl<T: ?Sized> Borrow<OperationVc<T>> for GcRoot<T> {
     fn borrow(&self) -> &OperationVc<T> {
         &self.vc
-    }
-}
-
-impl<T: ?Sized> TraceRawVcs for GcRoot<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.vc.trace_raw_vcs(trace_context);
     }
 }
 

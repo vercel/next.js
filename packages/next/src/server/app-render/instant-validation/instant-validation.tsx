@@ -10,7 +10,11 @@ import {
   type FullTransportNode,
   type TransportSegmentData,
 } from '../../../shared/lib/rsc-transport'
-import { RenderStage } from '../staged-rendering'
+import {
+  RENDER_STAGE_ADVANCE_ORDER,
+  RenderStage,
+  type AdvanceableRenderStage,
+} from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
 import { runInSequentialTasks } from '../app-render-render-utils'
 import { workAsyncStorage } from '../work-async-storage.external'
@@ -50,7 +54,6 @@ import type { FlightComponentMod } from '../stream-ops'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
 import {
-  addSearchParamsIfPageSegment,
   isGroupSegment,
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
@@ -60,7 +63,6 @@ import {
   isFrameworkErrorRoute,
   isImplicitValidationSegment,
 } from './instant-config'
-import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
@@ -130,8 +132,6 @@ function traverseTransportNodeSegments(
     return
   }
   for (const [parallelRouteKey, childNode] of children) {
-    // NOTE: if this is a __PAGE__ segment, it might have search params appended.
-    // Whoever reads from the cache needs to append them as well.
     const childPath = createChildSegmentPath(
       path,
       parallelRouteKey,
@@ -166,12 +166,7 @@ function stringifySegment(segment: Segment): SegmentPath {
 // 2. Separating a stream into segments
 //===============================================================
 
-export type SegmentStage =
-  | RenderStage.Static
-  | RenderStage.ShellRuntime
-  | RenderStage.Runtime
-  | RenderStage.NavigationRuntime
-  | RenderStage.Dynamic
+export type SegmentStage = AdvanceableRenderStage
 
 /** The stages that a prefetched segment can be in. */
 export type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
@@ -206,7 +201,16 @@ export async function collectStagedSegmentData(
 
   let partialStages: SegmentStage[]
   switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
+    case ValidationPrefetchKind.StaticAppShell: {
+      partialStages = [
+        RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic,
+        RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
+        RenderStage.Runtime,
+      ]
+      break
+    }
+    case ValidationPrefetchKind.RuntimeAppShell: {
       partialStages = [
         RenderStage.ShellRuntime,
         RenderStage.Runtime,
@@ -283,7 +287,10 @@ async function collectSegmentDataForStage(
     const currentStage = controller.currentStage
     switch (currentStage) {
       case RenderStage.Before:
+      case RenderStage.ShellStatic:
+      case RenderStage.PrefetchStatic:
       case RenderStage.Static:
+      case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
       case RenderStage.Runtime:
@@ -794,13 +801,11 @@ function createSegmentCache(): SegmentCache {
 }
 
 function createSegmentCacheItem(): SegmentCacheItem {
-  return {
-    [RenderStage.Static]: null,
-    [RenderStage.ShellRuntime]: null,
-    [RenderStage.Runtime]: null,
-    [RenderStage.NavigationRuntime]: null,
-    [RenderStage.Dynamic]: null,
+  const result: Partial<SegmentCacheItem> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    result[stage] = null
   }
+  return result as SegmentCacheItem
 }
 
 function createSegmentCacheItemStageEntry(
@@ -884,7 +889,7 @@ function segmentConsumesURLDepth(segment: Segment): boolean {
   if (typeof segment !== 'string') return true
   // Route groups, pages, defaults, and not-found don't consume a depth.
   if (
-    segment.startsWith(PAGE_SEGMENT_KEY) ||
+    segment === PAGE_SEGMENT_KEY ||
     isGroupSegment(segment) ||
     segment === DEFAULT_SEGMENT_KEY ||
     segment === NOT_FOUND_SEGMENT_KEY
@@ -998,10 +1003,10 @@ export type ValidationPayloadResult = {
 }
 
 export enum ValidationPrefetchKind {
-  /** App Shells, for `<Link>` without `prefetch={true}` */
-  Shell = 1,
-  // TODO(app-shells): validate speculative prefetches
-  // Speculative = 2,
+  /** App Shells, for `<Link>` without `prefetch={true}`, including session data */
+  RuntimeAppShell = 1,
+  /** App Shells, for `<Link>` without `prefetch={true}`, only static data */
+  StaticAppShell = 2,
   /** Behavior when Partial Prefetching is not enabled. */
   LegacySpeculative = 3,
 }
@@ -1012,7 +1017,6 @@ export async function createCombinedPayloadAtDepth(
   cache: SegmentCache,
   initialLoaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  query: NextParsedUrlQuery | null,
   depth: number,
   groupDepth: number,
   releaseSignal: AbortSignal,
@@ -1065,8 +1069,7 @@ export async function createCombinedPayloadAtDepth(
     if (dynamicParam) {
       return dynamicParam.treeSegment
     }
-    const segment = loaderTree[0]
-    return query ? addSearchParamsIfPageSegment(segment, query) : segment
+    return loaderTree[0]
   }
 
   async function buildSharedTransportTree(
@@ -1308,7 +1311,11 @@ export async function createCombinedPayloadAtDepth(
 
     let stage: PrefetchedSegmentStage
     switch (prefetchKind) {
-      case ValidationPrefetchKind.Shell: {
+      case ValidationPrefetchKind.StaticAppShell: {
+        stage = overrideStageForPartialSegments ?? RenderStage.ShellStatic
+        break
+      }
+      case ValidationPrefetchKind.RuntimeAppShell: {
         stage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
         break
       }
@@ -1431,7 +1438,11 @@ export async function createCombinedPayloadAtDepth(
 
   let headStage: PrefetchedSegmentStage
   switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
+    case ValidationPrefetchKind.StaticAppShell: {
+      headStage = overrideStageForPartialSegments ?? RenderStage.ShellStatic
+      break
+    }
+    case ValidationPrefetchKind.RuntimeAppShell: {
       headStage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
       break
     }

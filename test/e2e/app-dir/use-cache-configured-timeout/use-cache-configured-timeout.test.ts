@@ -9,15 +9,10 @@ function expectedTimeoutErrorMessage(route: string) {
 }
 
 describe('use-cache-configured-timeout', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     describe('when a "use cache" fill is below the configured dev `useCacheTimeout`', () => {
@@ -67,11 +62,7 @@ describe('use-cache-configured-timeout', () => {
   } else {
     describe('when `experimental.useCacheTimeout` exceeds `staticPageGenerationTimeout` during prerendering', () => {
       it('should clamp the build timeout and fail both pages with a timeout error', async () => {
-        try {
-          await next.start()
-        } catch {
-          // expected
-        }
+        await expect(next.start()).rejects.toThrow()
 
         expect(next.cliOutput).toContain(timeoutErrorMessage)
         expect(next.cliOutput).toContain(
@@ -80,7 +71,7 @@ describe('use-cache-configured-timeout', () => {
         expect(next.cliOutput).toContain(
           'Error occurred prerendering page "/above-dev-timeout"'
         )
-      })
+      }, 240_000)
     })
   }
 })

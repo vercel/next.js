@@ -38,14 +38,10 @@ function createExpectError(cliOutput: string) {
 
 describe(`Request Promises`, () => {
   describe('On Prerender Completion', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-static',
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextDev) {
       it('does not run in dev', () => {})
@@ -79,15 +75,10 @@ describe(`Request Promises`, () => {
     })
   })
   describe('On Prerender Interruption', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-dynamic',
       skipStart: true,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextDev) {
       it('does not run in dev', () => {})
@@ -95,9 +86,7 @@ describe(`Request Promises`, () => {
     }
 
     it('should reject request APIs after the prerender is interrupted with synchronously dynamic APIs', async () => {
-      try {
-        await next.start()
-      } catch {}
+      await expect(next.start()).rejects.toThrow()
       const expectError = createExpectError(next.cliOutput)
 
       expectError(
@@ -116,6 +105,6 @@ describe(`Request Promises`, () => {
       expectError(
         'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )
-    })
+    }, 240_000)
   })
 })

@@ -280,7 +280,7 @@ struct StructWithVec {
 struct StructWithIgnore {
     dont_ignore: u32,
     // We're using a `Mutex` instead of a `T: Debug` type to ensure we support `T: !Debug`.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     ignore: Mutex<()>,
 }
 

@@ -4,6 +4,7 @@
         export: Some(
             "useMemo",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -182,73 +183,9 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Module,
-                            ),
-                            Module(
-                                Body(
-                                    4,
-                                ),
-                            ),
-                            ModuleItem(
-                                ModuleDecl,
-                            ),
-                            ModuleDecl(
-                                ExportDefaultDecl,
-                            ),
-                            ExportDefaultDecl(
-                                Decl,
-                            ),
-                            DefaultDecl(
-                                Fn,
-                            ),
-                            FnExpr(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            ArrowFunctionBody(
-                                Expr,
-                            ),
-                        ],
+                        AstPathId(
+                            28,
+                        ),
                     ),
                 },
             ),
@@ -319,6 +256,7 @@
         export: Some(
             "jsx",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -475,6 +413,7 @@
             ),
         ],
         span: 366..379,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -851,6 +790,7 @@
                             export: Some(
                                 "fooBar",
                             ),
+                            member: None,
                             ast_path: [
                                 Program(
                                     Module,
@@ -1195,73 +1135,9 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Module,
-                            ),
-                            Module(
-                                Body(
-                                    5,
-                                ),
-                            ),
-                            ModuleItem(
-                                Stmt,
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Class,
-                            ),
-                            ClassDecl(
-                                Class,
-                            ),
-                            Class(
-                                Body(
-                                    0,
-                                ),
-                            ),
-                            ClassMember(
-                                Method,
-                            ),
-                            ClassMethod(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Expr,
-                            ),
-                            ExprStmt(
-                                Expr,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            ArrowFunctionBody(
-                                FunctionBody,
-                            ),
-                        ],
+                        AstPathId(
+                            46,
+                        ),
                     ),
                 },
             ),

@@ -1,15 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Lazy Module Init', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/lazy-module-init',
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     it('does not run in dev', () => {})

@@ -1,6 +1,8 @@
 #![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![feature(once_cell_try)]
 #![feature(sync_unsafe_cell)]
+// Miri compiles a reduced test subset, leaving helpers from disabled tests intentionally unused.
+#![cfg_attr(miri, allow(dead_code, unused_imports))]
 
 mod arc_bytes;
 pub(crate) mod be;
@@ -15,6 +17,7 @@ mod lookup_entry;
 mod merge_iter;
 pub mod meta_file;
 mod meta_file_builder;
+#[cfg(feature = "mmap")]
 pub mod mmap_helper;
 mod parallel_scheduler;
 mod rc_bytes;
@@ -40,6 +43,7 @@ pub use db::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccessMode {
     /// Memory-map the file and access blocks via the mapped region.
+    #[cfg(feature = "mmap")]
     Mmap,
     /// Read blocks directly from the file via pread (no mmap).
     File,
@@ -78,8 +82,32 @@ pub struct DbConfig<const FAMILIES: usize> {
     pub access_mode: AccessMode,
 }
 
-/// Reads the `TURBO_PERSISTENCE_MMAP` env var (cached). Returns `AccessMode::File` when the var
-/// is set to `"0"`, `AccessMode::Mmap` otherwise.
+/// Returns the default access mode for this execution environment.
+///
+/// Builds without mmap support always use file I/O. Builds with mmap support honor
+/// `TURBO_PERSISTENCE_MMAP=0`; mmap remains the default otherwise.
+fn default_access_mode() -> AccessMode {
+    #[cfg(not(feature = "mmap"))]
+    return AccessMode::File;
+
+    #[cfg(feature = "mmap")]
+    access_mode_env_var()
+}
+
+/// Returns mmap mode when the feature is enabled, and file mode otherwise.
+///
+/// Call sites that specifically want mmap use this helper because `AccessMode::Mmap` does not
+/// exist without the feature; they fall back to file I/O and still exercise surrounding logic.
+#[cfg(any(test, feature = "verify_sst_content"))]
+pub(crate) fn mmap_access_mode() -> AccessMode {
+    #[cfg(not(feature = "mmap"))]
+    return AccessMode::File;
+
+    #[cfg(feature = "mmap")]
+    AccessMode::Mmap
+}
+
+#[cfg(feature = "mmap")]
 fn access_mode_env_var() -> AccessMode {
     static ACCESS_MODE_ENV: std::sync::LazyLock<AccessMode> = std::sync::LazyLock::new(|| {
         if std::env::var("TURBO_PERSISTENCE_MMAP")
@@ -95,8 +123,7 @@ fn access_mode_env_var() -> AccessMode {
 }
 
 impl<const FAMILIES: usize> DbConfig<FAMILIES> {
-    /// Returns a config with all defaults, reading the `TURBO_PERSISTENCE_MMAP` env var
-    /// to determine the access mode.
+    /// Returns a config with all defaults, using the execution environment's default access mode.
     pub fn new() -> Self {
         Self {
             family_configs: [FamilyConfig {
@@ -104,7 +131,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             }; FAMILIES],
-            access_mode: access_mode_env_var(),
+            access_mode: default_access_mode(),
         }
     }
 }

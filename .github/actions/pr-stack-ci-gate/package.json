@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "description": "Read-only CI gate for branch-based pull request stacks",
+  "scripts": {
+    "build": "ncc build src/index.ts -m -o dist --license licenses.txt",
+    "types": "tsc --noEmit",
+    "test": "../../../node_modules/.bin/jest --config jest.config.cjs --runInBand"
+  },
+  "dependencies": {
+    "@actions/core": "1.11.1",
+    "@actions/github": "6.0.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.38.4",
+    "typescript": "6.0.2"
+  }
+}

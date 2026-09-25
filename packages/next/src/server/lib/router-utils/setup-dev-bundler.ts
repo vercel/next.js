@@ -30,6 +30,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
+import { getConventionFileBaseName } from '../../../build/get-convention-file-base-name'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
@@ -87,7 +88,6 @@ import {
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
-import { normalizePath } from '../../../lib/normalize-path'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
@@ -98,6 +98,11 @@ import { parseUrl } from '../../../lib/url'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app-pages-error'
+import { MissingCanonicalInterceptionRoutesError } from '../../../shared/lib/errors/missing-canonical-interception-routes-error'
+import { IncompatibleParallelRouteSlotsError } from '../../../shared/lib/errors/incompatible-parallel-route-slots-error'
+import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
+import { getStrictRouteMatchingDefaultWarning } from './strict-route-matching-config'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -462,6 +467,7 @@ async function startWatcher(
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
+    let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
 
@@ -502,6 +508,7 @@ async function startWatcher(
       const duplicatePagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const appRouteFilePaths = new Map<string, string>()
+      const parallelRouteLayoutFiles = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
       const appRouteHandlers: Array<RouteInfo & { page: string }> = []
       const pageApiRoutes: RouteInfo[] = []
@@ -538,7 +545,8 @@ async function startWatcher(
           continue
         }
 
-        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+        const { base: fileBase, dir: fileDir } = path.parse(fileName)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const isAtConventionLevel =
           fileDir === dir || fileDir === path.join(dir, 'src')
@@ -749,6 +757,11 @@ async function startWatcher(
 
           // Handle layouts separately - they don't get added to appPaths
           if (validFileMatcher.isAppLayoutPage(fileName)) {
+            const layoutPath =
+              normalizedPageName
+                .replace(/%5F/g, '_')
+                .replace(/\/layout$/, '') || '/'
+            parallelRouteLayoutFiles.set(layoutPath, fileName)
             const layoutRoute = ensureLeadingSlash(
               normalizeAppPath(normalizedPageName).replace(/\/layout$/, '')
             )
@@ -929,10 +942,6 @@ async function startWatcher(
             opts.fsChecker.rewrites.beforeFiles.length > 0 ||
             opts.fsChecker.rewrites.fallback.length > 0
 
-          const rootPath =
-            opts.nextConfig.turbopack?.root ||
-            opts.nextConfig.outputFileTracingRoot ||
-            opts.dir
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
@@ -948,8 +957,6 @@ async function startWatcher(
               projectPath: opts.dir,
               rewrites: opts.fsChecker.rewrites,
             }),
-            rootPath,
-            projectPath: normalizePath(path.relative(rootPath, dir)),
           })
         } else {
           let tsconfigResult:
@@ -1087,10 +1094,76 @@ async function startWatcher(
         }
       }
 
-      normalizeCatchAllRoutes(appPagePaths, undefined, {
-        strictRouteMatching: nextConfig.experimental.strictRouteMatching,
-        defaultAppPaths,
-      })
+      const { unmatchedAppPages, incompatibleParallelRouteSlots } =
+        normalizeCatchAllRoutes(appPagePaths, undefined, {
+          strictRouteMatching: nextConfig.experimental.strictRouteMatching,
+          defaultAppPaths,
+        })
+      const missingCanonicalInterceptionRoutes = nextConfig.experimental
+        .strictRouteMatching
+        ? findMissingCanonicalInterceptionRoutes(appPagePaths)
+        : []
+      const routeMatchingErrors: Error[] = []
+      if (missingCanonicalInterceptionRoutes.length > 0) {
+        routeMatchingErrors.push(
+          new MissingCanonicalInterceptionRoutesError(
+            missingCanonicalInterceptionRoutes
+          )
+        )
+      }
+      if (incompatibleParallelRouteSlots.length > 0) {
+        routeMatchingErrors.push(
+          new IncompatibleParallelRouteSlotsError(
+            incompatibleParallelRouteSlots.map((incompatibleRoute) => ({
+              ...incompatibleRoute,
+              layoutFile: path.relative(
+                dir,
+                parallelRouteLayoutFiles.get(incompatibleRoute.layoutPath) ??
+                  path.join(appDir!, incompatibleRoute.layoutPath, 'layout')
+              ),
+            }))
+          )
+        )
+      }
+      if (unmatchedAppPages.length > 0) {
+        routeMatchingErrors.push(
+          new UnmatchedAppPagesError(
+            unmatchedAppPages.map((appPath) => {
+              const filePath = appRouteFilePaths.get(appPath)
+              return filePath
+                ? normalizePathSep(path.relative(dir, filePath))
+                : appPath
+            })
+          )
+        )
+      }
+      const routeMatchingError = routeMatchingErrors[0] ?? null
+      const routeMatchingErrorsKey =
+        routeMatchingErrors.map((error) => error.message).join('\n\n') || null
+      if (
+        numConflicting === 0 &&
+        routeMatchingErrorsKey !== null &&
+        routeMatchingErrorsKey !== previousRouteMatchingErrors
+      ) {
+        for (const error of routeMatchingErrors) {
+          Log.error(error.message)
+        }
+        const warning = getStrictRouteMatchingDefaultWarning(nextConfig)
+        if (warning) {
+          Log.warnOnce(warning)
+        }
+      }
+      // Turbopack reports route-matching failures as app-structure issues.
+      // Webpack needs an HMR server error so dev can finish booting and surface
+      // the problem to connected clients instead of throwing from this watcher.
+      if (!opts.turbo) {
+        if (numConflicting === 0 && routeMatchingError) {
+          hotReloader.setHmrServerError(routeMatchingError)
+        } else if (numConflicting === 0 && previousRouteMatchingErrors) {
+          hotReloader.clearHmrServerError()
+        }
+      }
+      previousRouteMatchingErrors = routeMatchingErrorsKey
       for (const pageAppPaths of Object.values(appPagePaths)) {
         pageAppPaths.sort(compareAppPaths)
       }

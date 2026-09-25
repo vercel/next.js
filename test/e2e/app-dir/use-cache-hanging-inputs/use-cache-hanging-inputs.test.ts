@@ -18,15 +18,10 @@ function expectedTimeoutErrorMessage(route: string) {
 }
 
 describe('use-cache-hanging-inputs', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     // TODO(restart-on-cache-miss): reenable when fixed
@@ -174,7 +169,8 @@ describe('use-cache-hanging-inputs', () => {
   } else {
     // TODO: Be more precise about the expected error messages and stacks.
     it('should fail the build with errors after a timeout', async () => {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/error'))
       expect(cliOutput).toInclude('Error: kaputt!')
@@ -199,7 +195,7 @@ describe('use-cache-hanging-inputs', () => {
       expect(cliOutput).toInclude(
         createExpectedBuildErrorMessage('/uncached-promise-nested')
       )
-    }, 180_000)
+    }, 240_000)
   }
 })
 

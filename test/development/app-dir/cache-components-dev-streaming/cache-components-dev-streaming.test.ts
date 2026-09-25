@@ -423,44 +423,77 @@ describe('cache-components-dev-streaming', () => {
 
     // TODO(app-shells): for some reason we can't observe the fallback here
     // even though all the stream unblocking logic seems to work as intended.
-    it.failing(
-      'shows a Suspense fallback for link data on a client navigation (auto prefetch)',
-      async () => {
-        const browser = await next.browser('/')
+    // NOTE: Deliberately doesn't use `it.failing` because it's too coarse-grained
+    // and we want to document existing behavior.
+    it('[FAILING] shows a Suspense fallback for session data on a client navigation when `ensureStatic = "shell"` is set (auto prefetch)', async () => {
+      const browser = await next.browser('/')
 
-        // Record whether each Suspense fallback ever enters the DOM during the
-        // upcoming navigation.
-        const fallbackObserver = observeNodeAppearances(browser, [
-          'session-fallback',
-          'link-fallback',
-          'dynamic-fallback',
-        ])
-        await fallbackObserver.observe()
+      // Record whether each Suspense fallback ever enters the DOM during the
+      // upcoming navigation.
+      const fallbackObserver = observeNodeAppearances(browser, [
+        'session-fallback',
+        'dynamic-fallback',
+      ])
+      await fallbackObserver.observe()
 
-        await browser
-          .elementByCss(
-            'a[href="/partial-prefetching/link-data?prefetch=auto"]'
-          )
-          .click()
+      await browser
+        .elementByCss(
+          'a[href="/partial-prefetching/session-data-ensure-static"]'
+        )
+        .click()
 
-        // Wait for the navigation to fully settle.
-        expect(
-          await browser.elementByCss('#link-data', { waitUntil: false }).text()
-        ).toBe('link content')
-        expect(
-          await browser
-            .elementByCss('#dynamic-data', { waitUntil: false })
-            .text()
-        ).toBe('dynamic content')
+      // Wait for the navigation to fully settle.
+      expect(
+        await browser.elementByCss('#session-data', { waitUntil: false }).text()
+      ).toBe('session content')
+      expect(
+        await browser.elementByCss('#dynamic-data', { waitUntil: false }).text()
+      ).toBe('dynamic content')
 
-        const appearanceCounts = await fallbackObserver.getResult()
-        expect(appearanceCounts).toEqual({
-          'session-fallback': 0,
-          'link-fallback': 1,
-          'dynamic-fallback': 1,
-        })
-      }
-    )
+      const appearanceCounts = await fallbackObserver.getResult()
+      expect(appearanceCounts).toEqual({
+        // 'session-fallback': 1, // FAILING: expected behavior, doesn't currently work
+        'session-fallback': 0,
+        'dynamic-fallback': 1,
+      })
+    })
+
+    // TODO(app-shells): for some reason we can't observe the fallback here
+    // even though all the stream unblocking logic seems to work as intended.
+    // NOTE: Deliberately doesn't use `it.failing` because it's too coarse-grained
+    // and we want to document existing behavior.
+    it('[FAILING] shows a Suspense fallback for link data on a client navigation (auto prefetch)', async () => {
+      const browser = await next.browser('/')
+
+      // Record whether each Suspense fallback ever enters the DOM during the
+      // upcoming navigation.
+      const fallbackObserver = observeNodeAppearances(browser, [
+        'session-fallback',
+        'link-fallback',
+        'dynamic-fallback',
+      ])
+      await fallbackObserver.observe()
+
+      await browser
+        .elementByCss('a[href="/partial-prefetching/link-data?prefetch=auto"]')
+        .click()
+
+      // Wait for the navigation to fully settle.
+      expect(
+        await browser.elementByCss('#link-data', { waitUntil: false }).text()
+      ).toBe('link content')
+      expect(
+        await browser.elementByCss('#dynamic-data', { waitUntil: false }).text()
+      ).toBe('dynamic content')
+
+      const appearanceCounts = await fallbackObserver.getResult()
+      expect(appearanceCounts).toEqual({
+        'session-fallback': 0,
+        // 'link-fallback': 1, // FAILING: expected behavior, doesn't currently work
+        'link-fallback': 0,
+        'dynamic-fallback': 1,
+      })
+    })
   })
 })
 

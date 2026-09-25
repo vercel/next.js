@@ -150,6 +150,9 @@ pub enum Effect<'a> {
         prop: BumpBox<'a, JsValue<'a>>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        // Whether this value from this member access only ends up being used as a truthiness check
+        // (and the full value doesn't escape).
+        in_truthiness_context: bool,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
@@ -168,6 +171,8 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
+        /// A single member read from a named import (`z.member`), used only to narrow the part.
+        member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },

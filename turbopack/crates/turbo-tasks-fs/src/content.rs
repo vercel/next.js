@@ -8,19 +8,19 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ReadRef, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
 };
 
 use crate::{
-    FileSystemEntryType, FileSystemPath, RealPathErrorType,
+    DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -168,10 +168,13 @@ pub(crate) enum FileComparison {
 /// Every variant carries the `resolved` path the link points at, computed once by
 /// [`crate::FileSystem::read_link`], which is also what guarantees the target stays inside the
 /// filesystem root — a link whose target leaves the root is [`LinkContent::Invalid`] instead.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.
-    Absolute { resolved: FileSystemPath },
+    Absolute {
+        raw: RcStr,
+        resolved: FileSystemPath,
+    },
     Relative {
         /// The value read from the link. The path is lexically converted to a [unix-style
         /// path][turbo_unix_path::sys_to_unix], but it may contain `..` relative to the *directory
@@ -186,7 +189,9 @@ impl LinkTarget {
     /// The path this link points at.
     pub fn file_system_path(&self) -> &FileSystemPath {
         match self {
-            LinkTarget::Absolute { resolved } | LinkTarget::Relative { resolved, .. } => resolved,
+            LinkTarget::Absolute { resolved, .. } | LinkTarget::Relative { resolved, .. } => {
+                resolved
+            }
         }
     }
 
@@ -243,56 +248,8 @@ pub enum LinkContent {
     Invalid { reason: RcStr },
 }
 
-#[turbo_tasks::value_impl]
-impl LinkContent {
-    /// Hashes the link itself (its target and type), not the content of whatever the link points
-    /// at. This mirrors [`FileContent::hash`] and is the right content hash for consumers that
-    /// re-create a symlink as a symlink instead of copying the resolved file.
-    #[turbo_tasks::function]
-    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
-        #[derive(DeterministicHash)]
-        enum SimplifiedLinkContent<'a> {
-            Absolute(&'a RcStr),
-            Relative(&'a RcStr),
-            NotFound,
-            Invalid, // the actual error message doesn't matter for this API
-        }
-        let simplified = match self {
-            LinkContent::Link { target } => match target {
-                LinkTarget::Absolute { resolved } => {
-                    SimplifiedLinkContent::Absolute(&resolved.path)
-                }
-                LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(raw),
-            },
-            LinkContent::NotFound => SimplifiedLinkContent::NotFound,
-            LinkContent::Invalid { reason: _ } => SimplifiedLinkContent::Invalid,
-        };
-        Ok(Vc::cell(RcStr::from(deterministic_hash(
-            &salt.await?,
-            simplified,
-            algorithm,
-        ))))
-    }
-}
-
-/// The target of a symbolic link to create, used by [`WriteLinkContent`].
-///
-/// Unlike [`LinkTarget`] this carries only the raw path: the write side never needs the target
-/// resolved, and the link being created may not even exist yet.
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
-)]
-pub enum WriteLinkTarget {
-    /// Normalized and relative to the *filesystem root*.
-    Absolute(RcStr),
-    /// Written verbatim, relative to the *directory containing the link*.
-    Relative(RcStr),
-}
-
 /// The file type of the target of a newly written link. This value is only used on Windows.
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
-)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, NonLocalValue, DeterministicHash, Encode, Decode)]
 pub enum WriteLinkTargetType {
     /// Represents a link to a file or a symbolic link that is not a junction point. This is likely
     /// to fail on Windows, where symbolic links are not enabled by default.
@@ -308,10 +265,30 @@ pub enum WriteLinkTargetType {
 /// directories, because symlink creation may fail if "developer mode" is not enabled and we're
 /// running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug)]
 pub struct WriteLinkContent {
-    pub target: WriteLinkTarget,
+    pub target: FileSystemPath,
     pub target_type: WriteLinkTargetType,
+}
+
+impl WriteLinkContent {
+    /// Hashes the link target and target type, not the target's contents. Returns a hash that is
+    /// stable across builds.
+    pub async fn hash(&self, salt: &RcStr, algorithm: HashAlgorithm) -> Result<RcStr> {
+        // convert the fs Vc (which is not stable across cold builds therefore cannot implement
+        // DeterministicHash) to the configured name, which should be globally unique and stable
+        // across cold builds.
+        let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.target.fs)
+            .context("link target must use a disk filesystem")?
+            .await?;
+        let target_fs_name = target_fs.name();
+
+        Ok(RcStr::from(deterministic_hash(
+            salt,
+            (target_fs_name, &self.target.path, &self.target_type),
+            algorithm,
+        )))
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -452,8 +429,8 @@ pub struct FileMeta {
     // Size of the file
     // len: u64,
     pub(crate) permissions: Permissions,
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::mime_option")]
-    #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
 }
 
@@ -748,7 +725,7 @@ impl FileLine {
 
 #[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileLinesContent {
-    Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
+    Lines(#[turbo_tasks(unsafe_ignore)] Vec<FileLine>),
     Unparsable,
     NotFound,
 }

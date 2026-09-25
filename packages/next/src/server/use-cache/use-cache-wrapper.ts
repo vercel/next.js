@@ -12,13 +12,13 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
 import { prerender } from 'react-server-dom-webpack/static'
-/* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type {
   PrerenderStoreModernClient,
   PrerenderStoreModernRuntime,
+  PrerenderStoreModernServer,
   PrivateUseCacheStore,
   RequestStore,
   RevalidateStore,
@@ -29,6 +29,7 @@ import type {
 import {
   getHmrRefreshHash,
   getResumeDataCache,
+  getVaryParamsAccumulator,
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
   getCacheSignal,
@@ -36,22 +37,30 @@ import {
   getServerComponentsHmrCache,
   willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
+import { accumulateVaryParam } from '../app-render/vary-params'
 
 import {
   applyOwnerStack,
   makeDevtoolsIOAwarePromise,
   makeDynamicHangingPromise,
-  makeRuntimeHangingPromise,
-  makePrefetchHangingPromise,
+  makeFallbackParamsHangingPromise,
   makeUntrackedHangingPromise,
+  makeSessionDataHangingPromise,
+  makeURLDataHangingPromise,
+  makePrefetchHangingPromise,
+  makeUnknownRuntimeDataHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
+  trackFallbackParamsAccessed,
+  trackURLDataAccessed,
   trackIncompatibleShellContent,
+  trackPromiseUsed,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
   getClientReferenceManifest,
+  getRscModuleMappingForUseCache,
   getServerActionsManifest,
   getServerModuleMap,
   normalizeWorkerPageName,
@@ -113,8 +122,17 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import {
+  FALLBACK_PARAMS,
+  RUNTIME_DATA,
+  SESSION_DATA,
+} from '../resume-data-cache/cache-store'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import {
+  abortOnDynamicAccess,
+  dynamicAccessAsyncStorage,
+  type DynamicAccessAsyncStore,
+} from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
 import {
   RenderStage,
@@ -218,18 +236,31 @@ class SharedCacheEntry {
   private stream: ReadableStream<Uint8Array>
 
   /**
-   * The pending metadata promise. Cross-request joiners need to await this for
-   * root param verification BEFORE calling fork(). Intra-request joiners chain
-   * .then() for fire-and-forget propagation.
+   * Resolves when collection finishes, without waiting for handler writes.
    */
   public readonly pendingMetadata: Promise<CacheResultMetadata>
 
+  /**
+   * Resolves with collected metadata after any handler writes settle. Write
+   * failures do not discard the metadata. Collection failures still reject this
+   * promise.
+   */
+  public readonly pendingCompletion: Promise<CacheResultMetadata>
+
   constructor(
     stream: ReadableStream<Uint8Array>,
-    pendingMetadata: Promise<CacheResultMetadata>
+    pendingMetadata: Promise<CacheResultMetadata>,
+    pendingWrite: Promise<void> | undefined
   ) {
     this.stream = stream
     this.pendingMetadata = pendingMetadata
+    this.pendingCompletion =
+      pendingWrite === undefined
+        ? pendingMetadata
+        : pendingWrite.then(
+            () => pendingMetadata,
+            () => pendingMetadata
+          )
   }
 
   /**
@@ -251,6 +282,10 @@ export type SharedCacheResult =
     }
   | {
       readonly type: 'prerender-dynamic'
+      readonly reason:
+        | typeof FALLBACK_PARAMS
+        | typeof RUNTIME_DATA
+        | typeof SESSION_DATA
       readonly hangingPromise: Promise<never>
     }
 
@@ -260,10 +295,9 @@ function ignoreReject() {}
  * Manages the deferred promise for a shared cache result, tracks which maps
  * it's registered in, and drives cleanup from resolve/reject.
  *
- * For 'cached' results, cleanup is lazy: entries stay in the maps until
- * metadata/collection resolves, giving late-arriving invocations a chance to
- * join while the leader streams. For 'prerender-dynamic' and errors, cleanup
- * is immediate.
+ * Cached results stay in the maps until collection finishes and handler writes
+ * settle. Later invocations can join while either remains pending. For
+ * 'prerender-dynamic' and errors, cleanup is immediate.
  */
 class ResolvableSharedCacheResult {
   private readonly deferred = createPromiseWithResolvers<SharedCacheResult>()
@@ -296,7 +330,7 @@ class ResolvableSharedCacheResult {
       // Retain only an entry that collected successfully. A failed collection
       // leaves metadata a later invocation cannot read, so it is dropped like
       // any other failure and the next invocation regenerates.
-      result.entry.pendingMetadata.then(
+      result.entry.pendingCompletion.then(
         () => this.cleanupAndRetain(),
         () => this.cleanup()
       )
@@ -349,6 +383,10 @@ const crossRequestPendingCacheInvocations = new Map<
   string,
   Promise<SharedCacheResult>
 >()
+
+// Prevent duplicate background revalidations for the same key until generation
+// and cache writes finish.
+const backgroundRevalidations = new Map<string, Promise<void>>()
 
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
@@ -520,9 +558,9 @@ function saveToResumeDataCache(
  * resume from the entry. Constructs a `CollectedCacheResult` from a forked
  * stream branch of the shared entry and the awaited metadata.
  *
- * The `cache.has()` guard avoids redundant saves when the intra-request leader
- * already saved to the same RDC. Without it, this would needlessly tee the
- * stream and overwrite an equivalent RDC entry.
+ * An existing entry avoids redundant saves when the intra-request leader
+ * already saved to the same RDC. A marker, however, can be replaced by a
+ * successful fill.
  */
 function saveSharedCacheEntryToResumeDataCache(
   serializedCacheKey: string,
@@ -530,9 +568,16 @@ function saveSharedCacheEntryToResumeDataCache(
   resumeDataCache: ResumeDataCache | null,
   logPrefix: string
 ): void {
+  if (!resumeDataCache?.mutable) {
+    return
+  }
+
+  const existingEntry = resumeDataCache.cache.get(serializedCacheKey)
   if (
-    !resumeDataCache?.mutable ||
-    resumeDataCache.cache.has(serializedCacheKey)
+    existingEntry !== undefined &&
+    existingEntry !== FALLBACK_PARAMS &&
+    existingEntry !== RUNTIME_DATA &&
+    existingEntry !== SESSION_DATA
   ) {
     return
   }
@@ -588,39 +633,35 @@ function serveJoinedCacheEntry(
     logPrefix
   )
 
-  // End the cache signal read when the result is fully collected, not when the
-  // stream is available. A failed collection has no metadata to propagate but
-  // must still balance the read, so both settlements end it; leaving it open
-  // would stall a prerender waiting for its cache reads. The trailing .catch()
-  // covers propagation itself throwing after the rendering stream resolved.
+  // End the cache read after collection and metadata propagation, not when the
+  // value stream becomes available. This does not wait for handler persistence.
+  // A failed collection or propagation must still end the read so it cannot
+  // stall prerendering. The catch prevents an unhandled rejection after the
+  // stream has been returned.
   sharedCacheEntry.pendingMetadata
-    .then(
-      (metadata) => {
-        cacheSignal?.endRead()
-        maybePropagateCacheEntryMetadata(cacheContext, metadata)
-      },
-      () => {
-        cacheSignal?.endRead()
-      }
-    )
-    .catch(() => {})
+    .then((metadata) => {
+      maybePropagateCacheEntryMetadata(cacheContext, metadata)
+    })
+    .finally(() => {
+      cacheSignal?.endRead()
+    })
+    .catch(ignoreReject)
 
   return stream
 }
 
 function saveToCacheHandler(
   cacheHandler: CacheReadWriteHandler,
-  workStore: WorkStore,
   id: string,
   cacheHandlerKeyBase: string,
   savedCacheResult: Promise<CollectedCacheResult>,
   rootParams: Params | undefined
-): Promise<CollectedCacheResult> {
+): Promise<void> {
   // Write the entry to the cache handler. With root params, this is a redirect
   // entry at the coarse key plus the actual entry at the specific key;
   // otherwise just the entry at the coarse key. Both set calls are fired
   // together and awaited in parallel.
-  const combinedSetPromise = savedCacheResult.then(async (collectedResult) => {
+  return savedCacheResult.then(async (collectedResult) => {
     const { entry: fullEntry, readRootParamNames } = collectedResult
 
     // Use the combined set (union of all historically observed reads) for both
@@ -644,7 +685,10 @@ function saveToCacheHandler(
         computeRootParamsCacheKeySuffix(rootParams, rootParamNames)
 
       setPromises.push(
-        cacheHandler.set(specificKey, Promise.resolve(fullEntry))
+        // Capture synchronous `set()` throws as rejected write promises.
+        new Promise<void>((resolve) => {
+          resolve(cacheHandler.set(specificKey, Promise.resolve(fullEntry)))
+        })
       )
 
       // The coarse key gets a redirect entry instead. On a cold server (empty
@@ -671,25 +715,22 @@ function saveToCacheHandler(
     }
 
     setPromises.push(
-      cacheHandler.set(cacheHandlerKeyBase, Promise.resolve(coarseEntry))
+      // Capture synchronous `set()` throws as rejected write promises.
+      new Promise<void>((resolve) => {
+        resolve(
+          cacheHandler.set(cacheHandlerKeyBase, Promise.resolve(coarseEntry))
+        )
+      })
     )
 
-    await Promise.all(setPromises)
+    // A failed write must not finish the operation while another write is
+    // pending.
+    for (const result of await Promise.allSettled(setPromises)) {
+      if (result.status === 'rejected') {
+        throw result.reason
+      }
+    }
   })
-
-  workStore.pendingRevalidateWrites ??= []
-  workStore.pendingRevalidateWrites.push(combinedSetPromise)
-
-  // A cross-request joiner reads its recomputed specific key only after it has
-  // awaited this entry's metadata, so gate the metadata on the writes landing:
-  // that guarantees the entry is present when the joiner re-reads. A failed
-  // write shouldn't reject the metadata (the joiner just misses and
-  // regenerates), so settle either way; a collection failure still propagates
-  // through `savedCacheResult`.
-  return combinedSetPromise.then(
-    () => savedCacheResult,
-    () => savedCacheResult
-  )
 }
 
 function generateCacheEntry(
@@ -776,7 +817,7 @@ function createUseCacheStore(
         outerWorkUnitStore
       ),
       rootParams: outerWorkUnitStore.rootParams,
-      readRootParamNames: process.env.__NEXT_DEV_SERVER ? new Set() : undefined,
+      readRootParamNames: new Set<string>(),
       // Every private cache scope is its own work unit. Any cache keyed on
       // headers() or cookies() needs to be invalidated. Otherwise some
       // Next.js API semantics leak across render passes.
@@ -798,15 +839,32 @@ function createUseCacheStore(
       case 'prerender':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         outerWorkUnitStore satisfies never
     }
 
+    let fallbackRootParamsPrerender: PrerenderStoreModernServer | null = null
+    if (outerWorkUnitStore.type === 'cache') {
+      fallbackRootParamsPrerender =
+        outerWorkUnitStore.fallbackRootParamsPrerender
+    } else if (outerWorkUnitStore.type === 'prerender') {
+      const { fallbackRouteParams } = outerWorkUnitStore
+      if (
+        fallbackRouteParams !== null &&
+        Object.keys(outerWorkUnitStore.rootParams).some((name) =>
+          fallbackRouteParams.has(name)
+        )
+      ) {
+        fallbackRootParamsPrerender = outerWorkUnitStore
+      }
+    }
+
     return {
       type: 'cache',
       phase: 'render',
+      fallbackRootParamsPrerender,
       consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore.implicitTags,
       revalidate: defaultCacheLife.revalidate,
@@ -860,7 +918,7 @@ function captureOuterOwnerStack(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never
@@ -911,7 +969,7 @@ function generateCacheEntryWithCacheContext(
 
   return workUnitAsyncStorage.run(cacheStore, () =>
     dynamicAccessAsyncStorage.run(
-      { abortController: new AbortController() },
+      { abortController: new AbortController(), reason: null },
       generateCacheEntryImpl,
       workStore,
       cacheContext,
@@ -965,8 +1023,14 @@ function propagateCacheEntryMetadata(
 ): void {
   if (cacheContext.kind === 'private') {
     switch (cacheContext.outerWorkUnitStore.type) {
-      case 'prerender-runtime':
       case 'private-cache':
+        if (metadata.readRootParamNames) {
+          for (const paramName of metadata.readRootParamNames) {
+            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
+          }
+        }
+      // fallthrough
+      case 'prerender-runtime':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
           metadata
@@ -986,11 +1050,6 @@ function propagateCacheEntryMetadata(
   } else {
     switch (cacheContext.outerWorkUnitStore.type) {
       case 'cache':
-        if (metadata.readRootParamNames) {
-          for (const paramName of metadata.readRootParamNames) {
-            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
-          }
-        }
         // If this entry's cache life is dynamic, record this invocation as the
         // origin to use as `cause` when the outer cache surfaces the
         // nested-dynamic cache error. `??=` keeps the first occurrence so the
@@ -1005,6 +1064,12 @@ function propagateCacheEntryMetadata(
         }
       // fallthrough
       case 'private-cache':
+        if (metadata.readRootParamNames) {
+          for (const paramName of metadata.readRootParamNames) {
+            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
+          }
+        }
+      // fallthrough
       case 'prerender':
       case 'prerender-runtime':
       case 'prerender-legacy':
@@ -1020,10 +1085,21 @@ function propagateCacheEntryMetadata(
         )
         break
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         cacheContext.outerWorkUnitStore satisfies never
+    }
+  }
+
+  if (metadata.readRootParamNames) {
+    const varyParamsAccumulator = getVaryParamsAccumulator(
+      cacheContext.outerWorkUnitStore
+    )
+    if (varyParamsAccumulator) {
+      for (const paramName of metadata.readRootParamNames) {
+        accumulateVaryParam(varyParamsAccumulator.rootParams, paramName)
+      }
     }
   }
 }
@@ -1038,10 +1114,11 @@ function propagateCacheEntryMetadata(
  * `propagateCacheEntryMetadata` is called unconditionally (after the omission
  * checks have already filtered out short-lived entries).
  *
- * Note: Root param names are only propagated when the outer context is a
- * `cache` store (i.e. an enclosing `"use cache"` function), which is never
- * deferred. For prerender contexts, root param names are tracked separately
- * via `addKnownRootParamNames` in the resume data cache read path.
+ * Nested caches propagate root param names into the enclosing cache's
+ * `readRootParamNames` set. This propagation is never deferred. Prerender
+ * contexts also register known root param names when they read the resume
+ * data cache. A response accumulator records the consumed entry's root vary
+ * params to prevent segment reuse across different values.
  */
 function maybePropagateCacheEntryMetadata(
   cacheContext: CacheContext,
@@ -1075,7 +1152,7 @@ function maybePropagateCacheEntryMetadata(
       propagateCacheEntryMetadata(cacheContext, metadata)
       break
     }
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default: {
       outerWorkUnitStore satisfies never
@@ -1224,10 +1301,7 @@ async function collectResult(
     entry,
     hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
     hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
-    readRootParamNames:
-      innerCacheStore.type === 'cache' || isPrivateCacheInDev
-        ? innerCacheStore.readRootParamNames
-        : undefined,
+    readRootParamNames: innerCacheStore.readRootParamNames,
     // The store accumulates this from nested public caches that propagated a
     // dynamic life into us.
     dynamicNestedCacheError:
@@ -1266,6 +1340,7 @@ type GenerateCacheEntryResult =
     }
   | {
       readonly type: 'prerender-dynamic'
+      readonly reason: typeof FALLBACK_PARAMS | typeof RUNTIME_DATA
       readonly hangingPromise: Promise<never>
     }
 
@@ -1320,7 +1395,7 @@ async function generateCacheEntryImpl(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   outerWorkUnitStore satisfies never
@@ -1368,19 +1443,40 @@ async function generateCacheEntryImpl(
   let devTimeoutAbortController: AbortController | undefined
 
   switch (outerWorkUnitStore.type) {
+    case 'cache':
     case 'prerender-runtime':
     case 'prerender': {
+      const prerenderStore =
+        outerWorkUnitStore.type === 'cache'
+          ? outerWorkUnitStore.fallbackRootParamsPrerender
+          : outerWorkUnitStore
+
+      if (prerenderStore === null) {
+        stream = renderToReadableStream(
+          resultPromise,
+          clientReferenceManifest.clientModules,
+          {
+            environmentName: 'Cache',
+            filterStackFrame,
+            temporaryReferences,
+            onError: handleError,
+          }
+        )
+        break
+      }
+
       const timeoutAbortController = new AbortController()
       const timer = setTimeout(
         () => {
           workStore.invalidDynamicUsageError = timeoutError
           timeoutAbortController.abort(timeoutError)
         },
-        getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+        getUseCacheFillTimeoutMs(workStore, prerenderStore.type)
       )
 
+      const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
       const dynamicAccessAbortSignal =
-        dynamicAccessAsyncStorage.getStore()?.abortController.signal
+        dynamicAccessStore?.abortController.signal
 
       const abortSignal = dynamicAccessAbortSignal
         ? AbortSignal.any([
@@ -1427,22 +1523,78 @@ async function generateCacheEntryImpl(
           },
         })
       } else if (dynamicAccessAbortSignal?.aborted) {
+        const reason = dynamicAccessStore?.reason ?? 'runtime'
+        const makeHangingPromise =
+          reason === 'fallback-params'
+            ? makeFallbackParamsHangingPromise
+            : makeURLDataHangingPromise
+        if (
+          innerCacheStore.type === 'cache' &&
+          innerCacheStore.fallbackRootParamsPrerender !== null
+        ) {
+          // No entry is collected for an aborted fill. Still remember the
+          // roots actually read so a concrete request won't join this result
+          // under the coarse key. Propagate them through aborted parents too.
+          addKnownRootParamNames(
+            cacheContext.functionId,
+            innerCacheStore.readRootParamNames
+          )
+          const hangingPromise = trackPromiseUsed(
+            makeHangingPromise<never>(
+              prerenderStore.renderSignal,
+              workStore.route,
+              'dynamic "use cache"',
+              // The single wrapper below tracks access when consumed.
+              null
+            ),
+            () => {
+              if (reason === 'fallback-params') {
+                trackFallbackParamsAccessed(
+                  prerenderStore,
+                  'dynamic "use cache"'
+                )
+              } else {
+                trackURLDataAccessed(prerenderStore, 'dynamic "use cache"')
+              }
+              // The result may also be consumed by a deduped invocation, so
+              // record dependencies against the cache consuming it now.
+              const consumer = workUnitAsyncStorage.getStore()
+              if (consumer !== undefined && consumer.type === 'cache') {
+                for (const name of innerCacheStore.readRootParamNames) {
+                  consumer.readRootParamNames.add(name)
+                }
+              }
+              // Only a cache consuming this result must suspend. Do not share
+              // cancellation with independent sibling cache fills.
+              abortOnDynamicAccess(reason, dynamicAccessAbortSignal.reason)
+            }
+          )
+          getCacheSignal(outerWorkUnitStore)?.endRead()
+          return {
+            type: 'prerender-dynamic',
+            reason:
+              reason === 'fallback-params' ? FALLBACK_PARAMS : RUNTIME_DATA,
+            hangingPromise,
+          }
+        }
+
         // If the prerender is aborted because of dynamic access (e.g. reading
         // fallback params), we return a hanging promise. This essentially makes
         // the "use cache" function dynamic.
-        // The dynamic access is a fallback params read, which is runtime data.
-        const hangingPromise = makeRuntimeHangingPromise<never>(
-          outerWorkUnitStore.renderSignal,
+        const hangingPromise = makeHangingPromise<never>(
+          prerenderStore.renderSignal,
           workStore.route,
           'dynamic "use cache"',
           outerWorkUnitStore
         )
 
-        if (outerWorkUnitStore.cacheSignal) {
-          outerWorkUnitStore.cacheSignal.endRead()
-        }
+        getCacheSignal(outerWorkUnitStore)?.endRead()
 
-        return { type: 'prerender-dynamic', hangingPromise }
+        return {
+          type: 'prerender-dynamic',
+          reason: reason === 'fallback-params' ? FALLBACK_PARAMS : RUNTIME_DATA,
+          hangingPromise,
+        }
       } else {
         stream = prelude
       }
@@ -1577,10 +1729,9 @@ async function generateCacheEntryImpl(
       }
     // fallthrough
     case 'prerender-legacy':
-    case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       stream = renderToReadableStream(
         resultPromise,
         clientReferenceManifest.clientModules,
@@ -1770,7 +1921,7 @@ export async function cache(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never
@@ -1856,8 +2007,11 @@ export async function cache(
     switch (workUnitStore.type) {
       // "use cache: private" is dynamic in prerendering contexts.
       case 'prerender':
-        // Private caches can read request data, which is runtime data.
-        return makeRuntimeHangingPromise(
+        // Private caches can read request data. At this point we don't know
+        // Whether it's going to use session data or URL data.
+        // TODO(app-shells): This could be narrowed (and thus optimized) if we checked whether URL data
+        // is included in the cache key, because it can only be passed in as arguments.
+        return makeUnknownRuntimeDataHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
           expression,
@@ -1896,9 +2050,12 @@ export async function cache(
           handlerKind: kind,
         }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateOutsideRequestContextError(workStore.route)
+          createUseCachePrivateOutsideRequestContextError(
+            workStore.route,
+            workUnitStore.functionName
+          )
         )
       default:
         workUnitStore satisfies never
@@ -1947,7 +2104,7 @@ export async function cache(
       // TODO: We should probably forbid nesting "use cache" inside
       // unstable_cache. (fallthrough)
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         cacheContext = {
           kind: 'public',
           outerWorkUnitStore: workUnitStore,
@@ -2119,20 +2276,19 @@ export async function cache(
 
   const temporaryReferences = createClientTemporaryReferenceSet()
 
-  // The base serialized cache key doesn't include the cookies or headers that
-  // private caches are allowed to read. In production this is because private
-  // cache entries aren't stored in a cache handler, only in the Resume Data
-  // Cache (RDC): private caches are only used during dynamic requests and
-  // runtime prefetches; for dynamic requests the RDC is immutable and excludes
-  // private caches, and for runtime prefetches it's mutable but lives only as
-  // long as the request. In development private caches are persisted across
-  // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
-  // key by the request's cookies and headers.
-  const cacheKeyParts: CacheKeyParts = [
-    id,
-    args,
-    await computeCacheKeyImplementationPart(workStore, workUnitStore, id),
-  ]
+  // The base serialized cache key doesn't include runtime env var state or the
+  // cookies and headers that private caches are allowed to read. Env var state
+  // only scopes the cache handler because the RDC must reuse entries across
+  // rendering phases. In production private cache entries aren't stored in a
+  // cache handler, only in the Resume Data Cache (RDC): private caches are only
+  // used during dynamic requests and runtime prefetches; for dynamic requests
+  // the RDC is immutable and excludes private caches, and for runtime prefetches
+  // it's mutable but lives only as long as the request. In development private
+  // caches are persisted across requests, so `cacheHandlerKeyBase` (below)
+  // additionally scopes the handler key by the request's cookies and headers.
+  const { implementationPart, runtimeEnvVarStateHash } =
+    await computeCacheKeyImplementationPart(workStore, workUnitStore, id)
+  const cacheKeyParts: CacheKeyParts = [id, args, implementationPart]
 
   const encodeCacheKeyParts = () =>
     encodeReply(cacheKeyParts, {
@@ -2157,17 +2313,22 @@ export async function cache(
         // layout), we assume that the params are also accessed. This allows
         // us to abort early, and treat the function as dynamic, instead of
         // waiting for the timeout to be reached.
-        const dynamicAccessAbortController = new AbortController()
+        const dynamicAccessStore: DynamicAccessAsyncStore = {
+          abortController: new AbortController(),
+          reason: null,
+        }
 
         encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
-          { abortController: dynamicAccessAbortController },
+          dynamicAccessStore,
           encodeCacheKeyParts
         )
 
-        if (dynamicAccessAbortController.signal.aborted) {
-          // The dynamic access is a fallback params read, which is runtime
-          // data.
-          return makeRuntimeHangingPromise(
+        if (dynamicAccessStore.abortController.signal.aborted) {
+          const makeHangingPromise =
+            dynamicAccessStore.reason === 'fallback-params'
+              ? makeFallbackParamsHangingPromise
+              : makeURLDataHangingPromise
+          return makeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             'dynamic "use cache"',
@@ -2186,7 +2347,7 @@ export async function cache(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
     case undefined:
       encodedCacheKeyParts = await encodeCacheKeyParts()
       break
@@ -2267,19 +2428,19 @@ export async function cache(
 
   // The coarse cache-handler key. With no root params read, it locates the
   // entry directly; otherwise it locates a redirect entry from which the
-  // specific key (this key + root params, computed below) is derived. For
-  // private caches in development (persisted in the built-in in-memory handler)
-  // it's additionally scoped by the request's cookies and headers, so entries
-  // for requests with different request data don't collide; keys derived from
-  // it inherit that scoping.
+  // specific key (this key + root params, computed below) is derived. It's
+  // scoped by runtime env var state and, for private caches in development
+  // (persisted in the built-in in-memory handler), the request's cookies and
+  // headers. Keys derived from it inherit that scoping.
   const cacheHandlerKeyBase =
-    process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
-      ? serializedCacheKey +
-        computePrivateCacheKeyRequestSuffix(
+    serializedCacheKey +
+    (runtimeEnvVarStateHash ?? '') +
+    (process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
+      ? computePrivateCacheKeyRequestSuffix(
           cacheContext.outerWorkUnitStore.cookies,
           cacheContext.outerWorkUnitStore.headers
         )
-      : serializedCacheKey
+      : '')
   // If we already know which root params this function reads, include them in
   // the cache handler key for a direct hit (skipping the redirect entry).
   // rootParams is undefined when nested inside unstable_cache.
@@ -2306,28 +2467,43 @@ export async function cache(
     // prospective prerender (e.g. because it accessed fallback params), we
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
-    if (resumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+    let rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
+    if (
+      rdcEntry === FALLBACK_PARAMS ||
+      rdcEntry === RUNTIME_DATA ||
+      rdcEntry === SESSION_DATA
+    ) {
       switch (workUnitStore.type) {
         case 'prerender':
-        case 'prerender-runtime':
-          // The cache key was marked dynamic because it depends on fallback
-          // params, which are runtime data.
-          return makeRuntimeHangingPromise(
+        case 'prerender-runtime': {
+          let makeHangingPromise
+          if (rdcEntry === FALLBACK_PARAMS) {
+            makeHangingPromise = makeFallbackParamsHangingPromise
+          } else if (rdcEntry === SESSION_DATA) {
+            makeHangingPromise = makeSessionDataHangingPromise
+          } else {
+            makeHangingPromise = makeURLDataHangingPromise
+          }
+          return makeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             'dynamic "use cache"',
             workUnitStore
           )
+        }
         case 'prerender-legacy':
         case 'request':
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
-        case 'generate-static-params':
+        case 'build-time-generator':
           break
         default:
           workUnitStore satisfies never
       }
+      // Requests may receive the in-memory cache too. Unlike a prerender, they
+      // can resolve these holes, so treat a marker as an ordinary cache miss.
+      rdcEntry = undefined
     }
 
     const cacheSignal = getCacheSignal(workUnitStore)
@@ -2335,7 +2511,6 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
     if (rdcEntry !== undefined) {
       let rdcResult: CollectedCacheResult | undefined = await rdcEntry
 
@@ -2433,9 +2608,9 @@ export async function cache(
                 cacheSignal.endRead()
               }
               // The entry is only excluded from *static* prerenders — the
-              // 'prerender-runtime' case below serves it — so a runtime
-              // prefetch would include this content.
-              return makeRuntimeHangingPromise(
+              // 'prerender-runtime' case below serves it.
+              // TODO(app-shells): Does this handle the MIN_SHELL_STALE case below correctly?
+              return makeSessionDataHangingPromise(
                 workUnitStore.renderSignal,
                 workStore.route,
                 'dynamic "use cache"',
@@ -2506,7 +2681,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -2613,7 +2788,6 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-
                 let stage: AdvanceableRenderStage
                 if (!isPrefetchable) {
                   // An unprefetchable entry is excluded from prerenders, so it
@@ -2628,7 +2802,7 @@ export async function cache(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsAppShell
+                  stage = workUnitStore.needsRuntimeShell
                     ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                     : RENDER_STAGES_BY_DATA_KIND.staticLinkData
                 }
@@ -2651,7 +2825,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -2733,9 +2907,8 @@ export async function cache(
             // also do here, this covers the case where params are transformed
             // with an async function before being passed into the "use cache"
             // function, which escapes the instrumentation.
-            // The cache key depends on fallback params, which are runtime
-            // data.
-            return makeRuntimeHangingPromise(
+            // The cache key depends on fallback params, which are URL data.
+            return makeURLDataHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
               'dynamic "use cache"',
@@ -2755,10 +2928,8 @@ export async function cache(
             // broken cache entry that gets aborted.
             console.warn(new UnexpectedCacheMissError(workStore.route))
             // This is an anomaly (non-deterministic cache key), so we can't
-            // know whether a runtime prerender would resolve it. Treat it as
-            // runtime data, conservatively: the cost is at most a redundant
-            // runtime prefetch request.
-            return makeRuntimeHangingPromise(
+            // know whether a runtime prerender would resolve it.
+            return makeUnknownRuntimeDataHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
               'dynamic "use cache"',
@@ -2771,7 +2942,7 @@ export async function cache(
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
-        case 'generate-static-params':
+        case 'build-time-generator':
           break
         default:
           workUnitStore satisfies never
@@ -2814,6 +2985,15 @@ export async function cache(
           'joined invocation is prerender-dynamic',
           serializedCacheKey
         )
+        if (resumeDataCache?.mutable) {
+          // A nested-cache leader has no RDC. This consumer must carry the
+          // omission reason into the final prerender instead of leaving an
+          // unexplained miss that loses the fallback's prefetch hint.
+          resumeDataCache.cache.set(
+            serializedCacheKey,
+            sharedCacheResult.reason
+          )
+        }
         cacheSignal?.endRead()
         return sharedCacheResult.hangingPromise
       }
@@ -2939,10 +3119,11 @@ export async function cache(
           const sharedCacheResult = await crossRequestPendingCacheInvocation
 
           if (sharedCacheResult.type === 'cached') {
-            // Root param verification: wait for metadata, then check key. MUST
-            // happen before fork() — if key mismatches, we retry without having
-            // used the stream.
-            const metadata = await sharedCacheResult.entry.pendingMetadata
+            // Verify root params before forking the stream. The shared
+            // invocation must complete first, including collection and write
+            // settlement. A changed key retries the handler lookup, which must
+            // not run before the write settles.
+            const metadata = await sharedCacheResult.entry.pendingCompletion
 
             // Ensure known root param names are up-to-date before verifying the
             // key, since the leader's save path may not have updated them yet
@@ -3029,7 +3210,10 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+              resumeDataCache.cache.set(
+                serializedCacheKey,
+                sharedCacheResult.reason
+              )
             }
             cacheSignal?.endRead()
             resolvableSharedCacheResult.resolve(sharedCacheResult)
@@ -3064,9 +3248,14 @@ export async function cache(
         }
 
         let entry: CacheEntry | undefined
+        let observedRevalidation: Promise<void> | undefined
 
         // We ignore existing cache entries when force revalidating.
         if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
+          // Record an existing revalidation before `get()` so a stale result
+          // does not start another revalidation. The existing revalidation may
+          // finish and remove its map entry before the lookup returns.
+          observedRevalidation = backgroundRevalidations.get(cacheHandlerKey)
           entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
 
           // Check if this is a redirect entry (coarse key → specific key).
@@ -3084,6 +3273,8 @@ export async function cache(
               cacheHandlerKey =
                 cacheHandlerKeyBase +
                 computeRootParamsCacheKeySuffix(rootParams, paramNames)
+              observedRevalidation =
+                backgroundRevalidations.get(cacheHandlerKey)
               entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
             }
           }
@@ -3160,10 +3351,10 @@ export async function cache(
                 cacheSignal.endRead()
               }
 
-              // The entry is only excluded from *static* prerenders — the
-              // 'prerender-runtime' case below serves it — so a runtime
-              // prefetch would include this content.
-              const hangingPromise = makeRuntimeHangingPromise<never>(
+              // The entry is only excluded from *static* prerenders. A runtime
+              // shell or prefetch would include this content.
+              // TODO(app-shells): Does this handle the MIN_SHELL_STALE case below correctly?
+              const hangingPromise = makeSessionDataHangingPromise<never>(
                 workUnitStore.renderSignal,
                 workStore.route,
                 'dynamic "use cache"',
@@ -3176,6 +3367,7 @@ export async function cache(
               )
               resolvableSharedCacheResult.resolve({
                 type: 'prerender-dynamic',
+                reason: SESSION_DATA,
                 hangingPromise,
               })
               return hangingPromise
@@ -3212,7 +3404,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -3249,7 +3441,7 @@ export async function cache(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsAppShell
+                  stage = workUnitStore.needsRuntimeShell
                     ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                     : RENDER_STAGES_BY_DATA_KIND.staticLinkData
                 }
@@ -3274,7 +3466,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               // A handler read in a prerender context is a cache-filling read.
               // The stale exclusions for those are applied when the RDC is
               // read in the final prerender, so there's nothing to do here.
@@ -3361,7 +3553,7 @@ export async function cache(
               cacheHandlerKey
             )
             if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+              resumeDataCache.cache.set(serializedCacheKey, result.reason)
             }
             resolvableSharedCacheResult.resolve(result)
             return result.hangingPromise
@@ -3369,12 +3561,7 @@ export async function cache(
 
           const { stream: newStream, pendingCacheResult } = result
 
-          // Cross-request joiners derive their metadata from this promise. By
-          // default it's the collected result, but when we write to a cache
-          // handler we swap in a promise that resolves only after the write has
-          // landed, so a joiner that re-reads its recomputed key finds the
-          // entry.
-          let metadataSource: Promise<CollectedCacheResult> = pendingCacheResult
+          let pendingWrite: Promise<void> | undefined
 
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
@@ -3386,14 +3573,15 @@ export async function cache(
             )
 
             if (cacheHandler) {
-              metadataSource = saveToCacheHandler(
+              pendingWrite = saveToCacheHandler(
                 cacheHandler,
-                workStore,
                 id,
                 cacheHandlerKeyBase,
                 savedCacheResult,
                 rootParams
               )
+              workStore.pendingRevalidateWrites ??= []
+              workStore.pendingRevalidateWrites.push(pendingWrite)
             }
           }
 
@@ -3404,7 +3592,7 @@ export async function cache(
           )
 
           const pendingMetadata: Promise<CacheResultMetadata> =
-            metadataSource.then((collected) => ({
+            pendingCacheResult.then((collected) => ({
               tags: collected.entry.tags,
               revalidate: collected.entry.revalidate,
               expire: collected.entry.expire,
@@ -3418,7 +3606,8 @@ export async function cache(
 
           const sharedCacheEntry = new SharedCacheEntry(
             newStream,
-            pendingMetadata
+            pendingMetadata,
+            pendingWrite
           )
           stream = sharedCacheEntry.fork()
           resolvableSharedCacheResult.resolve({
@@ -3490,7 +3679,8 @@ export async function cache(
 
           const sharedCacheEntry = new SharedCacheEntry(
             stream,
-            Promise.resolve(entryMetadata)
+            Promise.resolve(entryMetadata),
+            undefined
           )
           stream = sharedCacheEntry.fork()
           resolvableSharedCacheResult.resolve({
@@ -3529,30 +3719,39 @@ export async function cache(
               case 'prerender-runtime':
               case 'prerender-legacy':
               case 'unstable-cache':
-              case 'generate-static-params':
+              case 'build-time-generator':
                 break
               default:
                 workUnitStore satisfies never
             }
           }
 
-          if (shouldTriggerBackgroundRevalidation) {
+          if (
+            shouldTriggerBackgroundRevalidation &&
+            // The revalidation observed before the lookup may have finished.
+            observedRevalidation === undefined &&
+            // A new revalidation may have started since the lookup began.
+            !backgroundRevalidations.has(cacheHandlerKey)
+          ) {
             const revalidateCacheHandlerKey = cacheHandlerKey
-            const revalidatePromise = generateCacheEntry(
-              workStore,
-              // The background revalidation preserves the outer store for
-              // reading (e.g. implicitTags) but skips propagation of cache life
-              // and tags back to the outer scope.
-              {
-                ...cacheContext,
-                skipPropagation: true,
-              },
-              clientReferenceManifest,
-              encodedCacheKeyParts,
-              fn,
-              timeoutError,
-              deadlockError
-            )
+            // Defer the call so synchronous setup errors reject the background
+            // task instead of failing the stale response. This also lets us
+            // register the task before generation starts.
+            const revalidatePromise = Promise.resolve()
+              .then(() =>
+                generateCacheEntry(
+                  workStore,
+                  // The background revalidation preserves the outer store for
+                  // reading (e.g. implicitTags) but skips propagation of cache
+                  // life and tags back to the outer scope.
+                  { ...cacheContext, skipPropagation: true },
+                  clientReferenceManifest,
+                  encodedCacheKeyParts,
+                  fn,
+                  timeoutError,
+                  deadlockError
+                )
+              )
               .then(async (result) => {
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
@@ -3564,28 +3763,46 @@ export async function cache(
                     logPrefix
                   )
 
-                  if (cacheHandler) {
-                    saveToCacheHandler(
-                      cacheHandler,
-                      workStore,
-                      id,
-                      cacheHandlerKeyBase,
-                      savedCacheResult,
-                      rootParams
-                    )
-                  }
+                  const pendingWrite = cacheHandler
+                    ? saveToCacheHandler(
+                        cacheHandler,
+                        id,
+                        cacheHandlerKeyBase,
+                        savedCacheResult,
+                        rootParams
+                      )
+                    : savedCacheResult.then(() => {})
 
-                  await ignoredStream.cancel()
+                  for (const completion of await Promise.allSettled([
+                    ignoredStream.cancel(),
+                    pendingWrite,
+                  ])) {
+                    if (completion.status === 'rejected') {
+                      throw completion.reason
+                    }
+                  }
                 }
               })
-              .catch((error) => {
-                debug?.(
-                  logPrefix,
-                  'background cache revalidation failed for',
-                  revalidateCacheHandlerKey,
-                  error
-                )
+              .finally(() => {
+                if (
+                  backgroundRevalidations.get(revalidateCacheHandlerKey) ===
+                  revalidatePromise
+                ) {
+                  backgroundRevalidations.delete(revalidateCacheHandlerKey)
+                }
               })
+            backgroundRevalidations.set(
+              revalidateCacheHandlerKey,
+              revalidatePromise
+            )
+            revalidatePromise.catch((error) => {
+              debug?.(
+                logPrefix,
+                'background cache revalidation failed for',
+                revalidateCacheHandlerKey,
+                error
+              )
+            })
             workStore.pendingRevalidateWrites ??= []
             workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
@@ -3611,7 +3828,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: clientReferenceManifest.rscModuleMapping,
+    moduleMap: getRscModuleMappingForUseCache(),
     serverModuleMap: getServerModuleMap(),
   }
 
@@ -3625,15 +3842,18 @@ export async function cache(
 }
 
 /**
- * This returns a cache key that has to cover everything that can affect the result of the cached
- * function (apart from the arguments). So
+ * This returns cache key parts that cover everything that can affect the result of the cached
+ * function (apart from the arguments). The implementation part is used by both the RDC and cache
+ * handler, while the runtime env var state hash is only used by the cache handler. The RDC is
+ * per-page and must reuse entries across rendering phases even if an env var changes between them.
+ *
+ * The parts cover:
  * - codeHash: the code itself that generates the return value
- *    - Notably, this excludes the following modules.  Those are included via the Next.js version
- *      anyway:
+ *    - Notably, this excludes the following modules.  Those are included via the Next.js version anyway:
  *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
- * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
- *   not inlined)
- * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts
+ * - runtimeEnvVarsRead: the keys and values of runtime environment variables that the code reads
+ * - runtimeEnvVarExistence: the unset/falsy/truthy state of runtime environment variables used in boolean contexts
+ * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts changes)
  *
  * In case that granular information isn't available, fall back to
  * buildId/deploymentId/hmrRefreshHash, which is a correct hash but over-invalidates way too often.
@@ -3642,34 +3862,42 @@ async function computeCacheKeyImplementationPart(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore,
   id: string
-): Promise<unknown> {
+): Promise<{
+  implementationPart: unknown
+  runtimeEnvVarStateHash: string | undefined
+}> {
   let durability = workStore.durableUseCacheEntries
     ? getServerActionsManifest().node[id].workers?.[
         normalizeWorkerPageName(workStore.page)
       ]?.durability
     : undefined
-  if (
-    durability &&
-    // TODO replace this with more granular tracking: a list of all imported client components
-    durability.referencesClientComponent !== true
-  ) {
+  if (durability) {
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto
       // Hash the env var values, to not leak secrets into the cache key.
       .createHash('sha256')
       .update(
-        durability.runtimeEnvVars
-          .map((k) => {
+        [
+          ...durability.runtimeEnvVarsRead.map((k) => {
             // Make sure not to stringify `undefined` and `"undefined"` to the same value.
-            return process.env[k] != null ? `${k}=${process.env[k]}` : k
-          })
-          .join('\0') ?? ''
+            return process.env[k] != null ? `${k}==${process.env[k]}` : k
+          }),
+          ...durability.runtimeEnvVarsExistence.map((k) => {
+            const value = process.env[k]
+            const state = value == null ? 'unset' : value ? 'truthy' : 'falsy'
+            return `${k}~=${state}`
+          }),
+        ].join('\0') ?? ''
       )
       .digest('hex')
 
-    // When more accurate analysis information is available, use codeHash + runtimeEnvVars
-    return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
+    // The env var state is added to the cache handler key separately so it
+    // doesn't affect RDC lookups between rendering phases.
+    return {
+      implementationPart: [durability.codeHash, nextVersion],
+      runtimeEnvVarStateHash,
+    }
   } else {
     // Because the Action ID is not yet unique per implementation of that Action we can't
     // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -3685,7 +3913,12 @@ async function computeCacheKeyImplementationPart(
     const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
 
     // otherwise fall back to buildId and/or the HMR hash.
-    return hmrRefreshHash ? [buildId, hmrRefreshHash] : [buildId]
+    return {
+      implementationPart: hmrRefreshHash
+        ? [buildId, hmrRefreshHash]
+        : [buildId],
+      runtimeEnvVarStateHash: undefined,
+    }
   }
 }
 
@@ -3757,7 +3990,7 @@ function shouldForceRevalidate(
       case 'validation-client':
       case 'prerender-legacy':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -3805,7 +4038,7 @@ function shouldDiscardCacheEntry(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never

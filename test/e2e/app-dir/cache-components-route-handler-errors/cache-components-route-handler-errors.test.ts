@@ -6,21 +6,16 @@ import {
 } from 'next-test-utils'
 
 describe('cache-components-route-handler-errors', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
   it("should error when route handlers use segment configs that aren't supported by cacheComponents", async () => {
-    try {
+    if (isNextDev) {
       await next.start()
-    } catch {
-      // we expect the build to fail
+    } else {
+      await expect(next.start()).rejects.toThrow()
     }
 
     if (isNextDev) {
@@ -61,5 +56,5 @@ describe('cache-components-route-handler-errors', () => {
         '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     }
-  })
+  }, 240_000)
 })

@@ -5,8 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbo_tasks, turbobail,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, turbo_tasks, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -19,9 +18,7 @@ use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBui
 
 use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists};
 
-#[derive(
-    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode)]
 struct MapEntry {
     assets_operation: OperationVc<ExpandedOutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
@@ -34,7 +31,7 @@ unsafe impl OperationValue for MapEntry {}
 #[turbo_tasks::value(transparent, operation)]
 struct OptionMapEntry(Option<MapEntry>);
 
-#[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
 pub struct PathToOutputOperation(
     /// We need to use an operation for outputs as it's stored for later usage and we want to
     /// reconnect this operation when it's received from the map again.
@@ -46,16 +43,14 @@ pub struct PathToOutputOperation(
 );
 
 /// The operations that produce the assets at one path.
-#[derive(Clone, Default, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
+#[derive(Clone, Default, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
 struct ExpandedOutputAssetsOperationSet(FxIndexSet<GcRoot<ExpandedOutputAssets>>);
 
 // HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
 unsafe impl OperationValue for PathToOutputOperation {}
 
 /// The pinned assets operation and the compute entry derived from it.
-#[derive(
-    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, OperationValue,
-)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, OperationValue)]
 struct ComputeEntry {
     assets_operation: GcRoot<ExpandedOutputAssets>,
     compute_entry: GcRoot<OptionMapEntry>,
