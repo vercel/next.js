@@ -208,6 +208,122 @@ export function createDynamicOrRuntimeMetadataError(route: string): Error {
   )
 }
 
+//====================================================
+// Static routes (with `ensureStatic = "navigation"`)
+//====================================================
+
+export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered runtime data on a route that must be fully static.\n\n` +
+      `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` prevent the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static-params] For \`params\`: specify a static set of params to be prerendered using \`generateStaticParams\`\n` +
+      `  - [client] For \`searchParams\`: read on the client with \`useSearchParams()\`\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createDynamicBodyErrorInStaticRoute(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached data on a route that must be fully static.\n\n` +
+      `\`fetch(...)\` or \`connection()\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createNonPrerenderableBodyErrorInStaticRoute(
+  route: string
+): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached or runtime data on a route that must be fully static.\n\n` +
+      `\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createRuntimeMetadataErrorInStaticRoute(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
+      `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
+      `  - [static-params] For \`params\`: specify a static set of params to be prerendered using \`generateStaticParams\`\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createDynamicMetadataErrorInStaticRoute(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
+      `\`fetch(...)\` or \`connection()\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
+      `  - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (only applies to uncached data)\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createNonPrerenderableMetadataErrorInStaticRoute(
+  route: string
+): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
+      `\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
+      `  - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (only applies to uncached data)\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createRuntimeViewportErrorInStaticRoute(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered runtime data in \`generateViewport()\` on a route that must be fully static.\n\n` +
+      `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
+      `  - [static-params] For \`params\`: specify a static set of params to be prerendered using \`generateStaticParams\`\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createDynamicViewportErrorInStaticRoute(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static.\n\n` +
+      `\`fetch(...)\` or \`connection()\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
+      `  - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (only applies to uncached data)\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
+export function createNonPrerenderableViewportErrorInStaticRoute(
+  route: string
+): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static.\n\n` +
+      `\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` prevents the route from being prerendered.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
+      `  - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (only applies to uncached data)\n`
+    // TODO(ensure-static): docs for "navigation"-specific messages
+    // + `Learn more: <TODO>`
+  )
+}
+
 export function logBuildDebugHint(route: string): void {
   if (process.env.NODE_ENV !== 'development') {
     console.error(
