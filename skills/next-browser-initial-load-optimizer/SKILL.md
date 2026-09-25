@@ -63,7 +63,7 @@ dist directory):
   `/dashboard`. For a nested route use its path without the leading slash.
   Verify the file exists; route names, dynamic routes, and special endpoints
   may differ from the browser URL.
-- `data/metadata.json`, `history/index.json`, and
+- `data/metadata.json`, `history/history.json`, and
   `history/<snapshot-id>/`: current metadata and historical copies of the
   `data/` contents, including the route files and `modules.data`. Read the
   actual snapshot ID rather than assuming a name is a directory.
