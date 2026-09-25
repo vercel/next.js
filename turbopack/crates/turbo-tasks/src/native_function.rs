@@ -217,6 +217,9 @@ pub struct NativeFunction {
     /// re-executed when restored from persistent cache because they depend on external state
     /// (filesystem, environment, network) that may change between sessions.
     pub is_session_dependent: bool,
+
+    /// Whether an in-flight execution may be aborted when invalidated or no longer active.
+    pub is_cancelable: bool,
 }
 impl_ptr_identity!(NativeFunction);
 
@@ -245,6 +248,7 @@ impl NativeFunction {
         ty: RegistryType::new::<()>("", ""),
         is_root: false,
         is_session_dependent: false,
+        is_cancelable: true,
     };
 
     pub const fn new<T: TaskFn>(
@@ -254,6 +258,7 @@ impl NativeFunction {
         implementation: &'static T,
         is_root: bool,
         is_session_dependent: bool,
+        is_cancelable: bool,
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(name, global_name),
@@ -261,6 +266,7 @@ impl NativeFunction {
             implementation,
             is_root,
             is_session_dependent,
+            is_cancelable,
         }
     }
 

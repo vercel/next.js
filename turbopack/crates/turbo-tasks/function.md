@@ -145,6 +145,16 @@ Note: `session_dependent` should be applied to the **leaf task** that directly r
 Tasks that transitively depend on a session-dependent task do not need this attribute — they will
 naturally re-execute when the session-dependent task they depend on produces a new result.
 
+### `non_cancelable`
+
+Prevents an in-flight execution from being aborted when the task is invalidated or becomes
+inactive. Turbo-task functions are cancelable by default.
+
+Use this only when dropping the function's future can leave external state inconsistent or lose an
+operation that cannot be replayed. Prefer making the unsafe section cancellation-safe or moving it
+into separately spawned work that the task awaits. For example, a request/response bridge may need
+this marker if cancellation can consume a response without recording it for the next execution.
+
 [`OperationVc<T>`]: crate::OperationVc
 
 ## Methods and Self

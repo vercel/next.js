@@ -83,6 +83,21 @@ async fn blocking_task(
     Ok(Vc::cell(value))
 }
 
+#[turbo_tasks::function(root, non_cancelable)]
+async fn non_cancelable_blocking_task(
+    input: ResolvedVc<ChangingInput>,
+    control: TransientInstance<ExecutionControl>,
+) -> Result<Vc<u32>> {
+    let value = *input.await?.state.get();
+    let generation = control.started.fetch_add(1, Ordering::AcqRel);
+    control.started_notify.notify_waiters();
+    let _drop_guard = ExecutionDropGuard {
+        control: control.clone(),
+    };
+    control.releases[generation].notified().await;
+    Ok(Vc::cell(value))
+}
+
 #[turbo_tasks::function]
 async fn blocking_middle(
     child_input: ResolvedVc<ChangingInput>,
@@ -142,6 +157,54 @@ async fn invalidation_aborts_in_flight_execution() {
     })
     .await;
 
+    tt.stop_and_wait().await;
+    result.unwrap();
+}
+
+/// A cancellation-unsafe task opts out: invalidation marks it stale but lets the current future
+/// finish before the fresh execution starts.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn non_cancelable_execution_runs_to_completion() {
+    let (tt, _persistence_dir) = create_tt("non_cancelable_execution_runs_to_completion");
+    let control = TransientInstance::new(ExecutionControl::new());
+    let control_for_run = control.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let input = ReadRef::resolved_cell(ReadRef::new_owned(ChangingInput {
+            state: State::new(0),
+        }));
+        let output = non_cancelable_blocking_task(*input, control_for_run.clone());
+
+        let read_output = output.strongly_consistent();
+        let drive_invalidation = async {
+            control_for_run.wait_for_started(1).await;
+            input.await?.state.set(1);
+
+            assert!(
+                tokio::time::timeout(
+                    Duration::from_millis(250),
+                    control_for_run.wait_for_dropped(1),
+                )
+                .await
+                .is_err(),
+                "non-cancelable execution was aborted"
+            );
+
+            control_for_run.releases[0].notify_one();
+            control_for_run.wait_for_started(2).await;
+            control_for_run.releases[1].notify_one();
+            anyhow::Ok(())
+        };
+
+        let (value, ()) = tokio::try_join!(read_output, drive_invalidation)?;
+        assert_eq!(*value, 1);
+        assert_eq!(control_for_run.started.load(Ordering::Acquire), 2);
+        anyhow::Ok(())
+    })
+    .await;
+
+    control.releases[0].notify_one();
+    control.releases[1].notify_one();
     tt.stop_and_wait().await;
     result.unwrap();
 }

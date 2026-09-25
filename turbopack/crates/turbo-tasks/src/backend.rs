@@ -795,6 +795,7 @@ mod cached_task_type_tests {
         &into_task_fn(dummy_fn_a),
         false,
         false,
+        true,
     );
 
     static FN_B: NativeFunction = NativeFunction::new(
@@ -804,6 +805,7 @@ mod cached_task_type_tests {
         &into_task_fn(dummy_fn_b),
         false,
         false,
+        true,
     );
 
     /// Build a `u64` hash for a `CachedTaskType` using its `Hash` impl and a `RandomState`.
