@@ -1,4 +1,4 @@
-import useSWR, { type Fetcher, type SWRConfiguration } from 'swr'
+import useSWR, { type SWRConfiguration } from 'swr'
 import { AnalyzeData, ModulesData } from './analyze-data'
 import type { HistoryIndex } from './snapshot'
 import { fetchStrict, jsonFetcher } from './utils'
@@ -20,12 +20,11 @@ export function useHistoryIndex() {
   })
 }
 
-export function useSuspenseData<Data>(
+export function useSuspenseJsonData<Data>(
   key: string,
-  fetcher: Fetcher<Data, string>,
   options: SWRConfiguration<Data> = {}
 ): Data {
-  const { data } = useSWR<Data>(key, fetcher, {
+  const { data } = useSWR<Data>(key, jsonFetcher, {
     ...options,
     suspense: true,
   })

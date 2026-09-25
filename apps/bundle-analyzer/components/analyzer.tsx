@@ -29,7 +29,7 @@ import {
   fetchAnalyzeData,
   fetchModulesData,
   useHistoryIndex,
-  useSuspenseData,
+  useSuspenseJsonData,
 } from '@/lib/analyzer-data'
 import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
 import { useRouteTotals } from '@/lib/use-route-totals'
@@ -37,7 +37,6 @@ import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
-import { jsonFetcher } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
 import { SizeMode } from '@/lib/treemap-layout'
 
@@ -172,20 +171,23 @@ function useAnalyzerModel(compare: boolean) {
   const comparisonBaseDir = comparisonSnapshot
     ? `/history/${comparisonSnapshot.id}`
     : '/data'
-  const modulesData = useSuspenseData<ModulesData>(
-    `${comparisonBaseDir}/modules.data`,
-    fetchModulesData
+  const modulesPath = `${comparisonBaseDir}/modules.data`
+  const { data: modulesData } = useSWR<ModulesData>(
+    modulesPath,
+    fetchModulesData,
+    {
+      suspense: true,
+    }
   )
+  if (modulesData === undefined) {
+    throw new Error(`SWR did not resolve data for ${modulesPath}`)
+  }
 
   // Routes for comparison side B. This is the live build by default, or an
   // independently selected historical snapshot.
-  const currentRoutes = useSuspenseData<string[]>(
+  const currentRoutes = useSuspenseJsonData<string[]>(
     `${comparisonBaseDir}/routes.json`,
-    jsonFetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
 
   // Whether the selected route exists on comparison side B. routes.json is
@@ -438,14 +440,21 @@ function ValidComparisonContent({
   baselineSnapshot: SnapshotMetadata
 }) {
   const baselineBaseDir = `/history/${baselineSnapshot.id}`
-  const baselineModulesData = useSuspenseData<ModulesData>(
-    `${baselineBaseDir}/modules.data`,
+  const baselineModulesPath = `${baselineBaseDir}/modules.data`
+  const { data: baselineModulesData } = useSWR<ModulesData>(
+    baselineModulesPath,
     fetchModulesData,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      suspense: true,
+    }
   )
-  const baselineRoutes = useSuspenseData<string[]>(
+  if (baselineModulesData === undefined) {
+    throw new Error(`SWR did not resolve data for ${baselineModulesPath}`)
+  }
+  const baselineRoutes = useSuspenseJsonData<string[]>(
     `${baselineBaseDir}/routes.json`,
-    jsonFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
   const { totals: baselineRouteTotals } = useRouteTotals(
@@ -510,11 +519,19 @@ function BaselineRouteComparison({
   selectedRoute: string
   layoutProps: ComparisonLayoutProps
 }) {
-  const baselineAnalyzeData = useSuspenseData<AnalyzeData>(
-    analyzeDataUrl(baselineBaseDir, selectedRoute),
+  const baselineAnalyzePath = analyzeDataUrl(baselineBaseDir, selectedRoute)
+  const { data: baselineAnalyzeData } = useSWR<AnalyzeData>(
+    baselineAnalyzePath,
     fetchAnalyzeData,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      suspense: true,
+    }
   )
+  if (baselineAnalyzeData === undefined) {
+    throw new Error(`SWR did not resolve data for ${baselineAnalyzePath}`)
+  }
 
   return (
     <ComparisonContent

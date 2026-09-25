@@ -3,7 +3,7 @@
 import { Check, ChevronsUpDown, Route } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { useSuspenseData } from '@/lib/analyzer-data'
+import { useSuspenseJsonData } from '@/lib/analyzer-data'
 import {
   Command,
   CommandEmpty,
@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { cn, jsonFetcher } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
 import {
   delta,
@@ -75,7 +75,7 @@ export function RouteTypeahead({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const routes = useSuspenseData<string[]>('/data/routes.json', jsonFetcher, {
+  const routes = useSuspenseJsonData<string[]>('/data/routes.json', {
     onSuccess: (routeNames) => {
       // Auto-select first route if none is selected
       if (routeNames.length > 0 && selectedRoute == null) {
