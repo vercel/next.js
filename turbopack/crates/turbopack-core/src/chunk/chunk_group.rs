@@ -346,15 +346,23 @@ async fn chunk_group_content_operation(
             active_page_entries.as_ref(),
             &mut state,
             |parent_info, &node, state| {
-                // Worker modules are collected here for late `WorkerLoaderModule`
-                // creation (see `make_chunk_group`) and excluded from this chunk
-                // group, since the worker runs in a separate context.
+                // A worker edge points at a `WorkerEntryModule` marker. Record it so
+                // `make_chunk_group` can create the real `WorkerLoaderModule` from it with this
+                // chunk group's availability info.
                 //
-                // This must run before both the `ModuleOrBatch::None` check and the
-                // chunkable downcast below: the target is a `WorkerEntryModule`
-                // marker, which is deliberately *not* chunkable and therefore shows
-                // up as `ModuleOrBatch::None`. The module itself is read off the
-                // edge rather than the node for the same reason.
+                // This runs before the `ModuleOrBatch::None` check and the chunkable downcast
+                // below because the marker is deliberately not chunkable: it is read off the
+                // edge, not the node. The node here is whatever the marker's pre-batch reduced
+                // to — typically the `createWorker` runtime helper the marker references,
+                // since the marker itself is dropped from the batch as non-chunkable.
+                //
+                // Traversal then falls through to the normal parallel handling rather than
+                // excluding, so those referenced modules are chunked into *this* group,
+                // alongside the loader that `make_chunk_group` adds. The loader's generated
+                // code embeds their chunk item ids, and the loader is not part of the module
+                // graph, so the marker is the only thing that can put them here. The marker's
+                // reference to the worker's own entry module is `ChunkingType::Isolated` and is
+                // still excluded further down, so the worker's modules do not leak in.
                 if let Some((
                     _,
                     ModuleBatchesGraphEdge {
@@ -367,7 +375,6 @@ async fn chunk_group_content_operation(
                     let worker_entry =
                         module.context("Module in worker chunking edge is missing")?;
                     state.worker_modules.insert(worker_entry);
-                    return Ok(GraphTraversalAction::Exclude);
                 }
 
                 if matches!(node, ModuleOrBatch::None(_)) {
@@ -418,9 +425,14 @@ async fn chunk_group_content_operation(
                 };
 
                 Ok(match edge.ty {
+                    // `Worker` behaves like `Parallel` for the *node*: the marker was recorded
+                    // above for late loader creation, and what remains here are the modules it
+                    // references (e.g. the `createWorker` helper), which must be chunked into
+                    // this group next to that loader.
                     ChunkingType::Parallel { .. }
                     | ChunkingType::Shared { .. }
-                    | ChunkingType::Collected { .. } => {
+                    | ChunkingType::Collected { .. }
+                    | ChunkingType::Worker { .. } => {
                         if is_available {
                             GraphTraversalAction::Exclude
                         } else if state
@@ -477,11 +489,6 @@ async fn chunk_group_content_operation(
                     ChunkingType::Isolated { .. } => {
                         // TODO currently not implemented
                         GraphTraversalAction::Exclude
-                    }
-                    ChunkingType::Worker { .. } => {
-                        // handled above before the sidecast, because the worker entry
-                        // module is not chunkable and would be dropped by it
-                        unreachable!();
                     }
                 })
             },
