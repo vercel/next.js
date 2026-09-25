@@ -658,6 +658,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: 1.1.1
         version: 1.1.1(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)
+      '@radix-ui/react-switch':
+        specifier: 1.1.1
+        version: 1.1.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922)
       '@radix-ui/react-toggle-group':
         specifier: 1.1.1
         version: 1.1.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922)
@@ -5920,6 +5923,19 @@ packages:
       '@types/react':
         optional: true
 
+  '@radix-ui/react-switch@1.1.1':
+    resolution: {integrity: sha512-diPqDDoBcZPSicYoMWdWx+bCPuTRH4QSp9J+65IvtdS0Kuzt67bI6n32vCj8q6NZmYW/ah+2orOtMwcX5eQwIg==}
+    peerDependencies:
+      '@types/react': 19.2.18
+      '@types/react-dom': 19.2.4
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+
   '@radix-ui/react-toggle-group@1.1.1':
     resolution: {integrity: sha512-OgDLZEA30Ylyz8YSXvnGqIHtERqnUt1KUYTKdw/y8u7Ci6zGiJfXc02jahmcSNK3YcErqioj/9flWC9S1ihfwg==}
     peerDependencies:
@@ -6033,6 +6049,15 @@ packages:
 
   '@radix-ui/react-use-layout-effect@1.1.1':
     resolution: {integrity: sha512-RbJRS4UWQFkzHTTwVymMTUv8EqYhOp8dOOviLj2ugtTiXRaRQS7GLGxZTLL1jWhMeoSCf5zmcZkqTl9IiYfXcQ==}
+    peerDependencies:
+      '@types/react': 19.2.18
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@radix-ui/react-use-previous@1.1.0':
+    resolution: {integrity: sha512-Z/e78qg2YFnnXcW88A4JmTtm4ADckLno6F7OXotmkQfeuCVaKuYzqAATPhVzl3delXE7CxIV8shofPn3jPc5Og==}
     peerDependencies:
       '@types/react': 19.2.18
       react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
@@ -23044,6 +23069,21 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
+  '@radix-ui/react-switch@1.1.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922)':
+    dependencies:
+      '@radix-ui/primitive': 1.1.0
+      '@radix-ui/react-compose-refs': 1.1.0(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)
+      '@radix-ui/react-context': 1.1.1(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)
+      '@radix-ui/react-primitive': 2.0.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922)
+      '@radix-ui/react-use-controllable-state': 1.1.0(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)
+      '@radix-ui/react-use-previous': 1.1.0(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)
+      '@radix-ui/react-use-size': 1.1.0(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)
+      react: 19.3.0-canary-8b0da1c6-20260922
+      react-dom: 19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922)
+    optionalDependencies:
+      '@types/react': 19.2.18
+      '@types/react-dom': 19.2.4(@types/react@19.2.18)
+
   '@radix-ui/react-toggle-group@1.1.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922)':
     dependencies:
       '@radix-ui/primitive': 1.1.1
@@ -23145,6 +23185,12 @@ snapshots:
       '@types/react': 19.2.18
 
   '@radix-ui/react-use-layout-effect@1.1.1(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)':
+    dependencies:
+      react: 19.3.0-canary-8b0da1c6-20260922
+    optionalDependencies:
+      '@types/react': 19.2.18
+
+  '@radix-ui/react-use-previous@1.1.0(@types/react@19.2.18)(react@19.3.0-canary-8b0da1c6-20260922)':
     dependencies:
       react: 19.3.0-canary-8b0da1c6-20260922
     optionalDependencies:
