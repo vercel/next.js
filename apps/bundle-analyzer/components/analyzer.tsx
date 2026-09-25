@@ -292,41 +292,26 @@ function useAnalyzerModel(compare: boolean) {
     `${comparisonBaseDir}/route-summaries.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const clientRouteTotals = useMemo(
-    () =>
-      new Map(
-        routeSummaries.map(({ route, client }) => [
-          route,
-          {
-            size: client.size,
-            compressedSize: client.compressed_size,
-          },
-        ])
-      ),
-    [routeSummaries]
+  const clientRouteTotals = new Map(
+    routeSummaries.map(({ route, client }) => [
+      route,
+      { size: client.size, compressedSize: client.compressed_size },
+    ])
   )
-  const serverRouteTotals = useMemo(
-    () =>
-      new Map(
-        routeSummaries.map(({ route, size, compressed_size, client }) => [
-          route,
-          {
-            size: size - client.size,
-            compressedSize: compressed_size - client.compressed_size,
-          },
-        ])
-      ),
-    [routeSummaries]
+  const serverRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size, client }) => [
+      route,
+      {
+        size: size - client.size,
+        compressedSize: compressed_size - client.compressed_size,
+      },
+    ])
   )
-  const currentRouteTotals = useMemo(
-    () =>
-      new Map(
-        routeSummaries.map(({ route, size, compressed_size }) => [
-          route,
-          { size, compressedSize: compressed_size },
-        ])
-      ),
-    [routeSummaries]
+  const currentRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size }) => [
+      route,
+      { size, compressedSize: compressed_size },
+    ])
   )
   return {
     analyzeData,
@@ -494,18 +479,14 @@ function ValidComparisonContent({
       shouldRetryOnError: false,
     }
   )
-  const baselineRouteTotals = useMemo(
-    () =>
-      baselineRouteSummaries
-        ? new Map(
-            baselineRouteSummaries.map(({ route, size, compressed_size }) => [
-              route,
-              { size, compressedSize: compressed_size },
-            ])
-          )
-        : null,
-    [baselineRouteSummaries]
-  )
+  const baselineRouteTotals = baselineRouteSummaries
+    ? new Map(
+        baselineRouteSummaries.map(({ route, size, compressed_size }) => [
+          route,
+          { size, compressedSize: compressed_size },
+        ])
+      )
+    : null
   const routeDiff =
     baselineRouteTotals && model.currentRouteTotals
       ? diffRoutesWithSizes(
@@ -693,17 +674,12 @@ function RouteOverview({ model }: { model: AnalyzerModel }) {
     }
   }, [])
 
-  const rankedRoutes = useMemo(
-    () =>
-      model.currentRoutes
-        .map((route) => ({
-          route,
-          compressedSize:
-            model.clientRouteTotals?.get(route)?.compressedSize ?? 0,
-        }))
-        .sort((left, right) => right.compressedSize - left.compressedSize),
-    [model.clientRouteTotals, model.currentRoutes]
-  )
+  const rankedRoutes = model.currentRoutes
+    .map((route) => ({
+      route,
+      compressedSize: model.clientRouteTotals?.get(route)?.compressedSize ?? 0,
+    }))
+    .sort((left, right) => right.compressedSize - left.compressedSize)
   const visibleRoutes = rankedRoutes.slice(0, visibleRouteCount)
   const remainingRouteCount = rankedRoutes.length - visibleRoutes.length
 
