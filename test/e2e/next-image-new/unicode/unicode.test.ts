@@ -3,7 +3,6 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 describe('Image Component Unicode Image URL', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should load static unicode image', async () => {
@@ -60,6 +59,8 @@ describe('Image Component Unicode Image URL', () => {
   })
 
   if (!isNextDev) {
+    // Deployment mode has no local generated manifest to read.
+    // @force-gate !deploy
     it('should build correct images-manifest.json', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/images-manifest.json')

@@ -8,7 +8,6 @@ import {
 describe('Image localPatterns config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   async function getSrc(browser: Playwright, id: string) {
@@ -52,6 +51,8 @@ describe('Image localPatterns config', () => {
   })
 
   if (!isNextDev) {
+    // Deployment mode has no local generated manifest to read.
+    // @force-gate !deploy
     it('should build correct images-manifest.json', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/images-manifest.json')
