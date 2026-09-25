@@ -426,8 +426,7 @@ export async function spawnNextUpgrade(
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
-      const releaseKind =
-        prerelease(result.targetVersion)?.[0] === 'canary' ? 'canary' : 'stable'
+      const releaseKind = prerelease(result.targetVersion)?.[0] ?? 'stable'
       const reason =
         upgradeType === 'security'
           ? 'the installed version is affected by a published security advisory'

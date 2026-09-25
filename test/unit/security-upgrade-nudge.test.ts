@@ -45,6 +45,9 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+  getPrereleaseChannel: jest.requireActual(
+    'next/dist/lib/upgrade/prepare-upgrade'
+  ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
     'next/dist/lib/upgrade/prepare-upgrade'
   ).getLatestUpgradeVersion,
@@ -349,6 +352,11 @@ describe('latest nudge release selection', () => {
     ['17.2.0-canary.4', '17.1.0-canary.99', null],
     ['17.2.0-canary.4', '17.3.0-rc.1', null],
     ['17.2.0-rc.1', '17.3.0', null],
+    ['17.2.0-rc.1', '17.3.0-rc.1', '17.3.0-rc.1'],
+    ['17.2.0-beta.1', '17.3.0-beta.1', '17.3.0-beta.1'],
+    ['17.2.0-preview.1', '17.3.0-preview.1', '17.3.0-preview.1'],
+    ['17.2.0-rc.1', '17.3.0-beta.1', null],
+    ['16.4.0-preview-84cee7e6-20260917', '17.0.0', null],
   ])(
     'selects %s → %s for a nudge only across major/minor versions',
     async (installed, latest, expected) => {
@@ -385,6 +393,22 @@ describe('latest upgrade nudge', () => {
           'Reference: https://registry.npmjs.org/next/canary'
         )
       )
+    }
+  )
+
+  it.each(['rc', 'beta', 'preview'] as const)(
+    'links a configured %s reminder to its dist-tag',
+    async (channel) => {
+      process.env.__NEXT_VERSION = `17.2.0-${channel}.1`
+      mockUpgrade(`17.3.0-${channel}.1`)
+      await expect(
+        nudgeUpgrade(directory, config('latest'), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(
+          `Reference: https://registry.npmjs.org/next/${channel}`
+        ),
+      })
     }
   )
 
