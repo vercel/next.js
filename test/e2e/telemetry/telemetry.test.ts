@@ -10,10 +10,12 @@ import { findAllTelemetryEvents } from 'next-test-utils'
 // skipping under React 18 is fine until the underlying build/server lifecycle
 // race is fixed.
 ;(isReact18 ? describe.skip : describe)('Telemetry CLI', () => {
-  const { next, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
+  if (skipped) return
 
   it('can print telemetry status', async () => {
     const { stdout } = await next.runCommand(['telemetry'])
