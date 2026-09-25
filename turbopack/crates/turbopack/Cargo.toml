@@ -24,6 +24,7 @@ serde_json = { workspace = true }
 semver = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
 
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
