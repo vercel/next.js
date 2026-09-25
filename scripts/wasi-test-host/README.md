@@ -23,14 +23,15 @@ The other missing host feature is
 memory and atomics, but Node's `WASI#getImportObject()` exposes only `wasi_snapshot_preview1`, not the
 proposal's `wasi` namespace. `@emnapi/wasi-threads` bridges that import to Node Workers.
 
-The same hook will be needed by the Next.js wasm loader for Turbopack itself, so the
-`read_custom_section` implementation here is a first cut of that work rather than test-only
-scaffolding.
+The Next.js production loader needs the same hooks. Their single implementation now lives in
+`packages/next/src/build/swc/wasi-runtime.ts`; this runner imports the compiled copy instead of
+maintaining test-only versions that could drift.
 
 ## Usage
 
 ```sh
 pnpm install
+pnpm --filter next build
 export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node scripts/wasi-test-host/run.mjs"
 cargo test -p turbo-tasks --lib --target wasm32-wasip1-threads
 cargo test -p turbo-tasks-backend --lib --target wasm32-wasip1-threads
@@ -40,14 +41,22 @@ Building for that target also needs a WASI C toolchain, because `lz4-sys` and `z
 scripts — see the `test-next-napi-bindings-wasi` job in `.github/workflows/build_and_test.yml` for the
 wasi-sdk setup.
 
+Its own tests run against the same compiled production support:
+
+```sh
+node --test packages/next/src/build/swc/wasi-loader.test.mjs
+```
+
+(Pass the file. `node --test <dir>` tries to resolve the directory as a module and fails.)
+
 ## What it provides
 
 | Import | Source |
 |---|---|
 | `wasi_snapshot_preview1.*` | `node:wasi` |
-| `wasi.thread-spawn` | `@emnapi/wasi-threads` over `node:worker_threads` (`spawn.mjs`) |
-| `env.memory` | a shared `WebAssembly.Memory` matching the explicit linker limits in `.cargo/config.toml` |
-| `env.read_custom_section` | `WebAssembly.Module.customSections` (`lib.mjs`) |
+| `wasi.thread-spawn` | `@emnapi/wasi-threads` over `node:worker_threads` |
+| `env.memory` | shared `WebAssembly.Memory` created by `packages/next/dist/build/swc/wasi-runtime.js` |
+| `env.read_custom_section` | `WebAssembly.Module.customSections`, from the same shared runtime |
 | filesystem | working directory at `/`; the system `os.tmpdir()` at `/tmp`, also exported as `TMPDIR` |
 
 `@emnapi/wasi-threads` owns Worker lifecycle, compiled-module transfer, load/start ordering, and
@@ -57,8 +66,8 @@ uses for that ABI.
 
 The imported shared memory uses 8,192 initial pages (512 MiB) and 65,536 maximum pages (4 GiB).
 Those values are also explicit `wasm32-wasip1-threads` linker flags in `.cargo/config.toml`; keep the
-host constants and linker byte values in sync. A shared WebAssembly memory must declare a maximum,
-and 65,536 pages is the wasm32 architectural ceiling.
+shared runtime constants and linker byte values in sync. A shared WebAssembly memory must declare a
+maximum, and 65,536 pages is the wasm32 architectural ceiling.
 
 ### `read_custom_section`
 
@@ -95,7 +104,7 @@ module's `wasi_thread_start` export. Three details are worth knowing:
   shared memory so they stay unique across all of them.
 - **`wasi.initialize()` refuses a module exporting `_start`**, since that marks a command whose
   `_start` must run exactly once, on the main thread. A spawned thread hides that export to get the
-  WASI binding, then calls `wasi_thread_start` itself.
+  WASI binding; `ThreadMessageHandler` then calls `wasi_thread_start`.
 
 ## Tests that cannot run on wasm
 
