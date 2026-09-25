@@ -29,7 +29,7 @@ pub enum TaskDirtyCause {
     DependencyTornDown,
     Unknown,
     /// An in-flight execution was aborted because no active work needed it anymore.
-    ExecutionAborted,
+    BecameInactive,
 }
 
 // NOTE: `TaskDirtyCause` is formatted for tracing inside `make_task_dirty_internal`, which
@@ -91,7 +91,9 @@ impl std::fmt::Display for TaskDirtyCause {
                 )
             }
             TaskDirtyCause::Invalidator => write!(f, "invalidator"),
-            TaskDirtyCause::ExecutionAborted => write!(f, "execution aborted"),
+            TaskDirtyCause::BecameInactive => {
+                write!(f, "execution aborted after becoming inactive")
+            }
             TaskDirtyCause::Resurrected => write!(f, "resurrected"),
             TaskDirtyCause::DependencyTornDown => write!(f, "dependency torn down"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
