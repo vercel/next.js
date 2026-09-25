@@ -3,14 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort, initNextServerScript, killApp } from 'next-test-utils'
 
 describe('Trailing Slash Rewrite Proxying', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // Spawns a custom proxy server in front of `next.start()`; deploy mode
     // doesn't run a local server.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let proxyServer: any
 

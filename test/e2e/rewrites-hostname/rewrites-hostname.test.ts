@@ -3,15 +3,10 @@ import { findPort } from 'next-test-utils'
 import createTargetServer from './target-server'
 
 describe('rewrites hostname', () => {
-  const { skipped, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let targetPort: number | null = null
   let closeTargetServer: (() => Promise<void>) | null = null

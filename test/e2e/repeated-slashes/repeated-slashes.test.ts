@@ -424,18 +424,16 @@ describe('404 handling', () => {
     describe('server mode', () => {
       const { next, isNextDeploy } = nextTestSetup({
         files: path.join(__dirname, 'app'),
-        skipDeployment: true,
       })
       if (isNextDeploy) return
 
       runTests({ next, isDev: isNextDev, isPages404: false })
     })
     ;(isNextStart ? describe : describe.skip)('export mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
       })
-      if (skipped) return
 
       let staticServer: any
       let staticPort: number
@@ -474,12 +472,10 @@ describe('404 handling', () => {
 
   describe('pages/404', () => {
     describe('server mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       beforeAll(async () => {
         await next.deleteFile('pages/_error.js')
@@ -504,11 +500,10 @@ describe('404 handling', () => {
       runTests({ next, isDev: isNextDev, isPages404: true })
     })
     ;(isNextStart ? describe : describe.skip)('pages/404 export mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
       })
-      if (skipped) return
 
       let staticServer: any
       let staticPort: number

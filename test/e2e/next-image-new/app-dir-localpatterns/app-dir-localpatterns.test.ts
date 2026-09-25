@@ -8,7 +8,6 @@ import {
 describe('Image localPatterns config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   async function getSrc(browser: Playwright, id: string) {

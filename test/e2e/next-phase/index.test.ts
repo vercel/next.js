@@ -1,10 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-phase', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     // This test is skipped when deployed because it asserts against runtime
     // logs that cannot be queried in a deployed environment.
-    skipDeployment: true,
     files: {
       'app/layout.js': `export default function Layout({ children }) {
         return <html><body>{children}</body></html>
@@ -19,8 +18,6 @@ describe('next-phase', () => {
       `,
     },
   })
-
-  if (skipped) return
 
   it('should render page with next phase correctly', async () => {
     await next.fetch('/')

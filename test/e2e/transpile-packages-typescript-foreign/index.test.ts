@@ -2,18 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('transpile-packages-typescript-foreign', () => {
   describe('without transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should fail', async () => {
       try {

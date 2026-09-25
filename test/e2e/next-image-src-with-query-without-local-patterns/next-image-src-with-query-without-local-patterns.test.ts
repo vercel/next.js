@@ -1,15 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-image-src-with-query-without-local-patterns', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should throw error for relative image with query without localPatterns', async () => {
     if (isNextDev) {

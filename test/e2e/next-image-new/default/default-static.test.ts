@@ -5,7 +5,6 @@ describe('Build Error Tests', () => {
   const { next, isNextDeploy, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
   if (isNextDeploy) return
@@ -38,12 +37,10 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   let browser: Playwright
   let $: ReturnType<typeof cheerio.load>

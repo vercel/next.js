@@ -5,12 +5,9 @@ import { nextTestSetup } from 'e2e-utils'
 ;(process.env.IS_TURBOPACK_TEST && !process.env.__NEXT_CACHE_COMPONENTS
   ? describe
   : describe.skip)('turbopack-emit-collect', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   function formatId(id: string) {
     return id.slice(id.lastIndexOf('/src/') + 5).replace(' (ecmascript)', '')

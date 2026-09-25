@@ -3,14 +3,9 @@ import { retry } from 'next-test-utils'
 import { getOutputLogJson } from '../_testing/utils'
 
 describe('on-request-error - basic', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   const outputLogPath = 'output-log.json'
 

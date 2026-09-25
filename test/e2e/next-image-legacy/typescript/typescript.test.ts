@@ -3,12 +3,10 @@ import fs from 'fs-extra'
 import { join } from 'path'
 
 describe('TypeScript Image Component', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   if (isNextStart) {
     it('should fail to build invalid usage of the Image component', async () => {
