@@ -40,6 +40,7 @@ export function TableSkeleton() {
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-3 w-24" />
       </div>
+      {/* Placeholder rows fill the viewport; this is not the table's page size. */}
       {Array.from({ length: 12 }, (_, index) => (
         <div
           key={index}

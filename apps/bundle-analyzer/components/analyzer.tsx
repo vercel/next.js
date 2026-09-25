@@ -73,12 +73,6 @@ function AnalyzerBoundary({
   children: ReactNode
   defaultView: CompareView
 }) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
-
-  if (!mounted) return <AnalyzerFallback view={defaultView} />
-
   return (
     <AnalyzerErrorBoundary>
       <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
@@ -171,17 +165,11 @@ function useAnalyzerModel(compare: boolean) {
   const comparisonBaseDir = comparisonSnapshot
     ? `/history/${comparisonSnapshot.id}`
     : '/data'
-  const modulesPath = `${comparisonBaseDir}/modules.data`
-  const { data: modulesData } = useSWR<ModulesData>(
-    modulesPath,
+  const { data: modulesData } = useSWR(
+    `${comparisonBaseDir}/modules.data`,
     fetchModulesData,
-    {
-      suspense: true,
-    }
+    { suspense: true }
   )
-  if (modulesData === undefined) {
-    throw new Error(`SWR did not resolve data for ${modulesPath}`)
-  }
 
   // Routes for comparison side B. This is the live build by default, or an
   // independently selected historical snapshot.
@@ -440,9 +428,8 @@ function ValidComparisonContent({
   baselineSnapshot: SnapshotMetadata
 }) {
   const baselineBaseDir = `/history/${baselineSnapshot.id}`
-  const baselineModulesPath = `${baselineBaseDir}/modules.data`
-  const { data: baselineModulesData } = useSWR<ModulesData>(
-    baselineModulesPath,
+  const { data: baselineModulesData } = useSWR(
+    `${baselineBaseDir}/modules.data`,
     fetchModulesData,
     {
       revalidateOnFocus: false,
@@ -450,9 +437,6 @@ function ValidComparisonContent({
       suspense: true,
     }
   )
-  if (baselineModulesData === undefined) {
-    throw new Error(`SWR did not resolve data for ${baselineModulesPath}`)
-  }
   const baselineRoutes = useSuspenseJsonData<string[]>(
     `${baselineBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
@@ -519,9 +503,8 @@ function BaselineRouteComparison({
   selectedRoute: string
   layoutProps: ComparisonLayoutProps
 }) {
-  const baselineAnalyzePath = analyzeDataUrl(baselineBaseDir, selectedRoute)
-  const { data: baselineAnalyzeData } = useSWR<AnalyzeData>(
-    baselineAnalyzePath,
+  const { data: baselineAnalyzeData } = useSWR(
+    analyzeDataUrl(baselineBaseDir, selectedRoute),
     fetchAnalyzeData,
     {
       revalidateOnFocus: false,
@@ -529,9 +512,6 @@ function BaselineRouteComparison({
       suspense: true,
     }
   )
-  if (baselineAnalyzeData === undefined) {
-    throw new Error(`SWR did not resolve data for ${baselineAnalyzePath}`)
-  }
 
   return (
     <ComparisonContent

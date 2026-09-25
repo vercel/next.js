@@ -24,14 +24,10 @@ export function useSuspenseJsonData<Data>(
   key: string,
   options: SWRConfiguration<Data> = {}
 ): Data {
-  const { data } = useSWR<Data>(key, jsonFetcher, {
+  const { data } = useSWR(key, jsonFetcher<Data>, {
     ...options,
     suspense: true,
   })
-
-  if (data === undefined) {
-    throw new Error(`SWR did not resolve data for ${key}`)
-  }
 
   return data
 }
