@@ -1,18 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !dev
 describe('typescript-version-warning', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     dependencies: {
       typescript: '4.0.6',
     },
   })
-
-  if (isNextDev) {
-    it('should skip', () => {})
-    return
-  }
 
   it('should print warning when old typescript version is used with next build', async () => {
     await next.start().catch(() => {})
