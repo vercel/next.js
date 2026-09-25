@@ -18,7 +18,10 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+    },
     time::SystemTime,
 };
 
@@ -68,9 +71,9 @@ use crate::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            capture_all_edges, connect_children, get_aggregation_number, get_uppers,
-            make_task_dirty_internal, prepare_new_children,
+            LeafDistanceUpdateQueue, MakeTaskDirtyOptions, Operation, OutdatedEdge, TaskGuard,
+            TaskType, TaskTypeRef, capture_all_edges, connect_children, get_aggregation_number,
+            get_uppers, make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -2116,13 +2119,14 @@ impl TurboTasksBackend {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         make_task_dirty_internal(
             &mut task,
-            // The aborted execution's in-progress state was already taken above, so there is
-            // nothing left to mark stale.
-            /* make_stale */
-            false,
-            /* schedule_when_active */ false,
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::BecameInactive,
+            MakeTaskDirtyOptions {
+                // The aborted execution's in-progress state was already taken above, so there is
+                // nothing left to mark stale.
+                make_stale: false,
+                schedule_when_active: false,
+                #[cfg(feature = "task_dirty_cause")]
+                cause: TaskDirtyCause::BecameInactive,
+            },
             &mut queue,
             &mut ctx,
         );
@@ -2814,10 +2818,12 @@ impl TurboTasksBackend {
             }
             make_task_dirty_internal(
                 &mut dependent,
-                make_stale,
-                /* schedule_when_active */ true,
-                #[cfg(feature = "task_dirty_cause")]
-                cause.clone(),
+                MakeTaskDirtyOptions {
+                    make_stale,
+                    schedule_when_active: true,
+                    #[cfg(feature = "task_dirty_cause")]
+                    cause: cause.clone(),
+                },
                 queue,
                 ctx,
             );
