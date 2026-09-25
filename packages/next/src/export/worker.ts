@@ -189,9 +189,8 @@ async function exportPageImpl(
     req.url += '/'
   }
 
-  // Set the resolved pathname without trailing slash as request metadata.
+  // Resolve the pathname without a trailing slash for app page rendering.
   const resolvedPathname = removeTrailingSlash(updatedPath)
-  addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
   if (
     locale &&

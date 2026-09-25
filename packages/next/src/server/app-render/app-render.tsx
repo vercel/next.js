@@ -33,7 +33,10 @@ import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
 import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
-import type { AppPageModule } from '../route-modules/app-page/module'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import * as ReactClient from 'react'
@@ -3344,12 +3347,6 @@ async function prerenderToHTMLOrFlightImpl(
     }
   )
   return prerenderAppPage(prepared)
-}
-
-export type RouteMatch = {
-  // The pathname produced by route preparation, including its delimiter-safe
-  // encoding for path parameters.
-  readonly resolvedPathname: string
 }
 
 export type AppPageRender = (

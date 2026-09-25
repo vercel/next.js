@@ -11,7 +11,6 @@ import {
   renderToHTMLOrFlight,
   runValidationInDevFromSnapshot,
   type AppSharedContext,
-  type RouteMatch,
 } from '../../app-render/app-render'
 import type { DevValidationWorkerMessage } from '../../app-render/dev-validation-worker-globals'
 import {
@@ -71,6 +70,12 @@ type AppPageUserlandModule = {
    * The tree created in next-app-loader that holds component segments and modules
    */
   loaderTree: LoaderTree
+}
+
+export type RouteMatch = {
+  // The pathname produced by route preparation, including its delimiter-safe
+  // encoding for path parameters.
+  readonly resolvedPathname: string
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
