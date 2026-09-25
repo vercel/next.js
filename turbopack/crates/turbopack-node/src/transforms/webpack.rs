@@ -806,6 +806,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 );
 
                 if let Some(source) = resolved.await?.first_source() {
+                    // Always return absolute paths from the resolve function.
                     let path = to_sys_path(source.ident().await?.path.clone())
                         .await?
                         .context("resolved path is not on a disk filesystem")?;
