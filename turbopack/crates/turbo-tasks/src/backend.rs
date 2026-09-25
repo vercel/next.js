@@ -273,6 +273,24 @@ impl CachedTaskType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TaskExecutionAbortReason {
+    Invalidation = 1,
+    Inactive = 2,
+    Gc = 3,
+}
+
+impl TaskExecutionAbortReason {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Invalidation => "invalidation",
+            Self::Inactive => "inactive",
+            Self::Gc => "gc",
+        }
+    }
+}
+
 pub struct TaskExecutionSpec<'a> {
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
     pub span: Span,
