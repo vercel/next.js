@@ -34,6 +34,7 @@ mod write_batch;
 mod tests;
 
 pub use arc_bytes::ArcBytes;
+pub use compaction::selector::{Compactable, MergeJob, plan_compaction};
 pub use compression::{Compression, checksum_block};
 pub use db::{
     CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
