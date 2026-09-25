@@ -429,9 +429,16 @@ program
       }
       setupProfilesDir(directory || process.cwd())
       const portSource = _optionValueSources.port
-      import('../cli/next-dev.js').then((mod) =>
-        mod.nextDev(options, portSource, directory)
-      )
+      // Check for a human upgrade prompt before entering nextDev so it can
+      // manage the terminal while dev runs. When no prompt applies, continue
+      // through the existing nextDev path without a PTY.
+      void import('../lib/upgrade/upgrade-prompt.js').then(async (mod) => {
+        if (await mod.runDevWithUpgradePrompt(directory)) {
+          return
+        }
+        const { nextDev } = await import('../cli/next-dev.js')
+        await nextDev(options, portSource, directory)
+      })
     }
   )
   .usage('[directory] [options]')

@@ -225,40 +225,21 @@ export async function initialize(opts: {
       developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE
     ) {
-      const { nudgeUpgrade, getUpgradeContext } =
+      const { nudgeUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
-      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
-        // TODO: Do not block dev startup while prompting for an upgrade.
-        // Preserve all logs for display after the prompt and stop dev before Update.
-        // The existing dev worker pauses here while its parent owns the menu.
-        await new Promise<void>((resolve) => {
-          const resume = (message: {
-            nextUpgradeContinue: boolean | undefined
-          }) => {
-            if (message.nextUpgradeContinue) {
-              process.off('message', resume)
-              resolve()
-            }
-          }
-          process.on('message', resume)
-          process.send!({
-            nextUpgradeContext: getUpgradeContext(developmentConfig),
-          })
-        })
-      } else {
-        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
-          const { printAndExit } =
-            require('./utils') as typeof import('./utils')
-          const exitCode =
-            error && typeof error === 'object'
-              ? Reflect.get(error, 'exitCode')
-              : undefined
-          printAndExit(
-            error instanceof Error ? error.message : String(error),
-            typeof exitCode === 'number' ? exitCode : 1
-          )
-        })
-      }
+      // The CLI owns the human menu. Without a prompt signal, this worker call
+      // only sends agent reminders and must not delay dev startup.
+      void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+        const { printAndExit } = require('./utils') as typeof import('./utils')
+        const exitCode =
+          error && typeof error === 'object'
+            ? Reflect.get(error, 'exitCode')
+            : undefined
+        printAndExit(
+          error instanceof Error ? error.message : String(error),
+          typeof exitCode === 'number' ? exitCode : 1
+        )
+      })
     }
 
     // Resolve the effective serverFastRefresh value.

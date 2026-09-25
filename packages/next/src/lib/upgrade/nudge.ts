@@ -459,7 +459,8 @@ export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null = null,
+  onHumanPromptStart: (() => void) | null = null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agenticAutoUpgrade
@@ -540,6 +541,7 @@ export async function nudgeUpgrade(
       preview
     )
   } else if (signal) {
+    onHumanPromptStart?.()
     return nudgeUpgradeForHuman(directory, reminder, signal, preview)
   }
 }
