@@ -16,7 +16,6 @@ use std::{
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use parking_lot::RwLockReadGuard;
-use smallvec::SmallVec;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -201,7 +200,7 @@ pub trait ExecuteContext<'e>: Sized {
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
     /// Records every candidate in the in-memory hash bucket, then returns the matching task and
-    /// its stored type, or `NotFound` when no candidate matches.
+    /// its stored type, if any.
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
@@ -209,14 +208,9 @@ pub trait ExecuteContext<'e>: Sized {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> TaskByType;
+    ) -> Option<(TaskId, CachedTaskTypeArc)>;
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
-}
-
-pub enum TaskByType {
-    Found(TaskId, CachedTaskTypeArc),
-    NotFound,
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -964,8 +958,9 @@ impl<'e> ExecuteContextImpl<'e> {
                 continue;
             }
             if let Some(task_type) = entry.task_type.as_ref() {
-                // Direct TaskId restoration bypasses normal type lookup. Perform that lookup now so
-                // the hash-keyed cache contains every collision candidate before GC can delete one.
+                // Call task_by_type to ensure the task id is in the task cache and avoid future
+                // lookups. Direct TaskId restoration bypasses normal type lookup, so this also
+                // completes the collision bucket before GC can delete one of its members.
                 let CachedTaskType {
                     native_fn,
                     this,
@@ -1404,12 +1399,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> TaskByType {
+    ) -> Option<(TaskId, CachedTaskTypeArc)> {
         if !self.backend.should_restore() {
-            return TaskByType::NotFound;
+            return None;
         }
 
-        // Get candidates from backing storage (hash-based lookup may return multiple)
+        // Get candidates from backing storage (hash-based lookup may return multiple).
         let (task_type_hash, candidates) = self
             .backend
             .backing_storage
@@ -1418,14 +1413,18 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
         // Restore every candidate's full type before locking the TaskCache bucket. This makes the
         // in-memory bucket complete even when the matching candidate appears first.
-        let restored_candidates = candidates
-            .into_iter()
-            .filter_map(|candidate_id| {
-                let task = self.task(candidate_id, TaskDataCategory::Data);
-                task.get_persistent_task_type()
-                    .map(|stored_type| (stored_type.clone(), candidate_id))
-            })
-            .collect::<SmallVec<[_; 3]>>();
+        let mut restored_candidates = Vec::with_capacity(candidates.len());
+        let mut matching_candidate = None;
+        for candidate_id in candidates {
+            let task = self.task(candidate_id, TaskDataCategory::Data);
+            if let Some(stored_type) = task.get_persistent_task_type() {
+                let stored_type = stored_type.clone();
+                if stored_type.eq_components(native_fn, this, arg) {
+                    matching_candidate = Some((candidate_id, stored_type.clone()));
+                }
+                restored_candidates.push((stored_type, candidate_id));
+            }
+        }
 
         let mut bucket = self
             .backend
@@ -1433,21 +1432,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             .task_cache
             .entry(task_type_hash)
             .or_default();
+        // This deduplication appears O(N²), but hash collisions are so rare that buckets almost
+        // always contain one item; more than four entries would be an effectively impossible event.
         for (stored_type, candidate_id) in restored_candidates {
-            if !bucket
-                .iter()
-                .any(|(candidate_type, _)| candidate_type == &stored_type)
-            {
-                bucket.push((stored_type, candidate_id));
-            }
+            bucket.insert(stored_type, candidate_id);
         }
-        bucket
-            .iter()
-            .find(|(stored_type, _)| stored_type.eq_components(native_fn, this, arg))
-            .map(|(stored_type, candidate_id)| {
-                TaskByType::Found(*candidate_id, stored_type.clone())
-            })
-            .unwrap_or(TaskByType::NotFound)
+        matching_candidate
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {

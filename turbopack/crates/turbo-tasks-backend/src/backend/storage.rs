@@ -11,7 +11,6 @@ use std::{
 
 use crossbeam_utils::CachePadded;
 use hashbrown::hash_table;
-use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
@@ -21,7 +20,9 @@ use crate::{
     backend::storage_schema::{
         DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
     },
-    backing_storage::{SnapshotItem, TaskTypeHash, compute_task_type_hash},
+    backing_storage::{
+        SnapshotItem, TaskCache, TaskIdBucket, TaskTypeHash, compute_task_type_hash,
+    },
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -217,7 +218,7 @@ pub struct Storage {
     /// synchronized source of truth.
     ///
     /// LockOrdering: See the comments on [map].
-    pub task_cache: FxDashMap<TaskTypeHash, SmallVec<[(CachedTaskTypeArc, TaskId); 3]>>,
+    pub task_cache: TaskCache,
 }
 
 impl Storage {
@@ -284,17 +285,18 @@ impl Storage {
         }
     }
 
-    /// Removes one task from its collision bucket and returns every surviving id.
-    pub fn unregister_task_cache_id(
-        &self,
-        task_type_hash: TaskTypeHash,
-        task_id: TaskId,
-    ) -> SmallVec<[TaskId; 3]> {
-        let Some(mut bucket) = self.task_cache.get_mut(&task_type_hash) else {
-            return SmallVec::new();
-        };
-        bucket.retain(|(_, candidate_id)| *candidate_id != task_id);
-        bucket.iter().map(|(_, task_id)| *task_id).collect()
+    pub fn task_cache_ids(&self, task_type_hash: TaskTypeHash) -> TaskIdBucket {
+        self.task_cache
+            .get(&task_type_hash)
+            .map(|bucket| bucket.task_ids())
+            .unwrap_or_default()
+    }
+
+    /// Removes one task from its collision bucket.
+    pub fn unregister_task_cache_id(&self, task_type_hash: TaskTypeHash, task_id: TaskId) {
+        if let Some(mut bucket) = self.task_cache.get_mut(&task_type_hash) {
+            bucket.remove_id(task_id);
+        }
     }
 
     /// Evicts a singleton TaskCache bucket. Collision buckets stay complete because GC deletion
@@ -306,7 +308,7 @@ impl Storage {
             if bucket.is_empty() {
                 return true;
             }
-            if bucket.len() == 1 && bucket[0].0 == *task_type {
+            if bucket.is_singleton_for(task_type) {
                 removed = true;
                 return true;
             }
@@ -1206,7 +1208,7 @@ mod tests {
             task_id,
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
-            task_cache: None,
+            task_type_hash: None,
         }
     }
 

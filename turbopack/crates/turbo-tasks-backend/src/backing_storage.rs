@@ -3,12 +3,59 @@ use std::cmp::max;
 use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
-    DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
+    DynTaskInputs, FxDashMap, RawVc, TaskId,
+    backend::{CachedTaskType, CachedTaskTypeArc},
+    macro_helpers::NativeFunction,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 pub type TaskTypeHash = [u8; 8];
 pub type TaskIdBucket = SmallVec<[TaskId; 3]>;
+pub type TaskCache = FxDashMap<TaskTypeHash, TaskCacheBucket>;
+
+/// All task types and IDs sharing one persistent task-type hash.
+///
+/// Hash collisions are exceptionally rare, so almost every bucket contains exactly one entry.
+/// Keeping the operations on this newtype ensures lookup, restore, snapshotting, eviction, and
+/// deletion all use the same collision semantics.
+#[derive(Clone, Default)]
+pub struct TaskCacheBucket(SmallVec<[(CachedTaskTypeArc, TaskId); 3]>);
+
+impl TaskCacheBucket {
+    pub fn find(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Option<(TaskId, CachedTaskTypeArc)> {
+        self.0
+            .iter()
+            .find(|(task_type, _)| task_type.eq_components(native_fn, this, arg))
+            .map(|(task_type, task_id)| (*task_id, task_type.clone()))
+    }
+
+    pub fn insert(&mut self, task_type: CachedTaskTypeArc, task_id: TaskId) {
+        if !self.0.iter().any(|(candidate, _)| candidate == &task_type) {
+            self.0.push((task_type, task_id));
+        }
+    }
+
+    pub fn remove_id(&mut self, task_id: TaskId) {
+        self.0.retain(|(_, candidate_id)| *candidate_id != task_id);
+    }
+
+    pub fn task_ids(&self) -> TaskIdBucket {
+        self.0.iter().map(|(_, task_id)| *task_id).collect()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn is_singleton_for(&self, task_type: &CachedTaskTypeArc) -> bool {
+        self.0.len() == 1 && self.0[0].0 == *task_type
+    }
+}
 
 /// A single item yielded by the snapshot iterator during persistence: either a put (persist a
 /// modified task's meta/data + optionally register a new task's type) or a delete (tombstone a
@@ -21,13 +68,14 @@ pub enum SnapshotItem {
         meta: Option<TurboBincodeBuffer>,
         /// Serialized task data, if modified
         data: Option<TurboBincodeBuffer>,
-        /// Complete TaskCache bucket for a newly created task.
-        task_cache: Option<(TaskTypeHash, TaskIdBucket)>,
+        /// TaskCache hash for a newly created task. The task ID is the enclosing `task_id`.
+        task_type_hash: Option<TaskTypeHash>,
     },
     Delete {
         task_id: TaskId,
-        /// The deleted task's `TaskCache` key and the bucket members that survive it.
-        task_cache: (TaskTypeHash, TaskIdBucket),
+        /// The deleted task's TaskCache hash. The authoritative in-memory bucket supplies the
+        /// surviving IDs during persistence.
+        task_type_hash: TaskTypeHash,
     },
 }
 

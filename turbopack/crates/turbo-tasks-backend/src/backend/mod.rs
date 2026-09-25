@@ -26,7 +26,6 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
-use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
@@ -1406,12 +1405,11 @@ impl TurboTasksBackend {
                             .get_persistent_task_type()
                             .expect("a GC-deleted task must have a task type"),
                     );
-                    let surviving_ids = self
-                        .storage
+                    self.storage
                         .unregister_task_cache_id(task_type_hash, task_id);
                     return SnapshotItem::Delete {
                         task_id,
-                        task_cache: (task_type_hash, surviving_ids),
+                        task_type_hash,
                     };
                 } else {
                     debug_assert!(
@@ -1450,7 +1448,7 @@ impl TurboTasksBackend {
             } else {
                 None
             };
-            let task_cache = if inner.flags.new_task() {
+            let task_type_hash = if inner.flags.new_task() {
                 let task_type = inner.get_persistent_task_type().expect(
                     "It is not possible for a new_task to not have a persistent_task_type.  Task \
                      creation for persistent tasks uses a single ExecutionContextImpl for \
@@ -1459,16 +1457,7 @@ impl TurboTasksBackend {
                      or suspend before we start snapshotting.  So task creation will always set \
                      the task_type.",
                 );
-                let task_type_hash = compute_task_type_hash(task_type);
-                let task_ids = self
-                    .storage
-                    .task_cache
-                    .get(&task_type_hash)
-                    .expect("new tasks must be registered in the task cache")
-                    .iter()
-                    .map(|(_, task_id)| *task_id)
-                    .collect();
-                Some((task_type_hash, task_ids))
+                Some(compute_task_type_hash(task_type))
             } else {
                 None
             };
@@ -1477,7 +1466,7 @@ impl TurboTasksBackend {
                 task_id,
                 meta,
                 data,
-                task_cache,
+                task_type_hash,
             }
         };
 
@@ -1512,6 +1501,7 @@ impl TurboTasksBackend {
             suspended_operations,
             gc_roots_to_persist,
             task_snapshots,
+            |task_type_hash| self.storage.task_cache_ids(task_type_hash),
         )?;
         span.record("snapshot_meta", display(snapshot_meta));
 
@@ -1776,9 +1766,8 @@ impl TurboTasksBackend {
             .get(&task_type_hash)
             .and_then(|bucket| {
                 bucket
-                    .iter()
-                    .find(|(task_type, _)| task_type.eq_components(native_fn, this, arg_ref))
-                    .map(|(_, task_id)| *task_id)
+                    .find(native_fn, this, arg_ref)
+                    .map(|(task_id, _)| task_id)
             });
         if let Some(task_id) = cached_task_id {
             self.track_cache_hit_by_fn(native_fn);
@@ -1796,10 +1785,7 @@ impl TurboTasksBackend {
         let restored_task = if transient {
             None
         } else {
-            match ctx.task_by_type(native_fn, this, arg_ref) {
-                operation::TaskByType::Found(task_id, stored_type) => Some((task_id, stored_type)),
-                operation::TaskByType::NotFound => None,
-            }
+            ctx.task_by_type(native_fn, this, arg_ref)
         };
 
         let task_id = if let Some((task_id, _stored_type)) = restored_task {
@@ -1810,9 +1796,8 @@ impl TurboTasksBackend {
             // be added concurrently without either overwriting the other's persisted candidate.
             let mut bucket = self.storage.task_cache.entry(task_type_hash).or_default();
             let existing_task_id = bucket
-                .iter()
-                .find(|(task_type, _)| task_type.eq_components(native_fn, this, arg.as_ref()))
-                .map(|(_, task_id)| *task_id);
+                .find(native_fn, this, arg.as_ref())
+                .map(|(task_id, _)| task_id);
             let (task_id, created) = if let Some(task_id) = existing_task_id {
                 (task_id, false)
             } else {
@@ -1830,7 +1815,7 @@ impl TurboTasksBackend {
                 // Initialize storage BEFORE making task_id visible in the cache.
                 self.storage
                     .initialize_new_task(task_id, Some(task_type.clone()));
-                bucket.push((task_type, task_id));
+                bucket.insert(task_type, task_id);
                 (task_id, true)
             };
             drop(bucket);

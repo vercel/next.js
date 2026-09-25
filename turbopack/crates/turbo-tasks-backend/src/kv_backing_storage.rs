@@ -12,7 +12,7 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use dashmap::DashMap;
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_persistence::CommitStats;
@@ -325,6 +325,7 @@ impl TurboBackingStorage {
         operations: Vec<Arc<AnyOperation>>,
         roots: Option<Vec<(TaskId, TtlCounter)>>,
         snapshots: Vec<I>,
+        task_cache_bucket: impl Fn(TaskTypeHash) -> TaskIdBucket + Sync,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
@@ -334,23 +335,21 @@ impl TurboBackingStorage {
 
         {
             let span = tracing::trace_span!("update task data");
-            // Collect every TaskCache intent by hash and emit exactly one final operation per
-            // hash. SingleValue families reject duplicate keys within one write batch.
-            let task_cache_changes: DashMap<TaskTypeHash, (TaskIdBucket, TaskIdBucket)> =
-                DashMap::new();
-            let mut snapshot_meta =
+            let shard_results =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let _span = span.clone().entered();
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
                     let mut meta_items = 0;
+                    let mut task_cache_changes =
+                        FxHashMap::<TaskTypeHash, (TaskIdBucket, TaskIdBucket)>::default();
                     for item in shard {
                         match item {
                             SnapshotItem::Put {
                                 task_id,
                                 meta,
                                 data,
-                                task_cache,
+                                task_type_hash,
                             } => {
                                 let key = IntKey::new(*task_id);
                                 let key = key.as_ref();
@@ -370,89 +369,113 @@ impl TurboBackingStorage {
                                     )?;
                                     data_items += 1;
                                 }
-                                // Register the complete hash bucket only for new tasks.
-                                if let Some((task_type_hash, task_ids)) = task_cache {
-                                    let mut change =
+                                if let Some(task_type_hash) = task_type_hash {
+                                    let (added_ids, _) =
                                         task_cache_changes.entry(task_type_hash).or_default();
-                                    for task_id in task_ids {
-                                        if !change.0.contains(&task_id) {
-                                            change.0.push(task_id);
-                                        }
+                                    if !added_ids.contains(&task_id) {
+                                        added_ids.push(task_id);
                                     }
                                     max_new_task_id = max_new_task_id.max(*task_id);
                                 }
                             }
                             SnapshotItem::Delete {
                                 task_id,
-                                task_cache: (task_type_hash, surviving_ids),
+                                task_type_hash,
                             } => {
                                 let key = IntKey::new(*task_id);
                                 let key = key.as_ref();
                                 batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
                                 batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
-                                let mut change =
+                                let (_, deleted_ids) =
                                     task_cache_changes.entry(task_type_hash).or_default();
-                                for surviving_id in surviving_ids {
-                                    if !change.0.contains(&surviving_id) {
-                                        change.0.push(surviving_id);
-                                    }
-                                }
-                                if !change.1.contains(&task_id) {
-                                    change.1.push(task_id);
+                                if !deleted_ids.contains(&task_id) {
+                                    deleted_ids.push(task_id);
                                 }
                             }
                         }
                     }
-                    Ok(SnapshotMeta {
-                        data_items,
-                        meta_items,
-                        // TaskCache operations are coalesced across all shards below.
-                        task_cache_items: 0,
-                        // The on-disk byte totals aren't known until the batch is committed
-                        // below; they're filled in from `CommitStats` after `batch.commit()`.
-                        bytes_written: 0,
-                        bytes_deleted: 0,
-                        max_next_task_id: max_new_task_id,
-                    })
-                })?
-                .into_iter()
-                .reduce(|t1, t2| t1.merge(t2))
-                .unwrap_or_default();
+                    Ok((
+                        SnapshotMeta {
+                            data_items,
+                            meta_items,
+                            // TaskCache operations are coalesced across all shards below.
+                            task_cache_items: 0,
+                            // The on-disk byte totals aren't known until the batch is committed
+                            // below; they're filled in from `CommitStats` after `batch.commit()`.
+                            bytes_written: 0,
+                            bytes_deleted: 0,
+                            max_next_task_id: max_new_task_id,
+                        },
+                        task_cache_changes,
+                    ))
+                })?;
 
-            for change in &task_cache_changes {
-                let (task_ids, deleted_ids) = change.value();
-                let surviving_ids = task_ids
-                    .iter()
-                    .copied()
-                    .filter(|task_id| !deleted_ids.contains(task_id))
-                    .collect::<TaskIdBucket>();
-                if surviving_ids.is_empty() {
-                    batch.delete(KeySpace::TaskCache, WriteBuffer::Borrowed(change.key()))?;
-                } else {
-                    batch.put(
-                        KeySpace::TaskCache,
-                        WriteBuffer::Borrowed(change.key()),
-                        WriteBuffer::Vec(encode_task_ids(&surviving_ids)?),
-                    )?;
+            let mut snapshot_meta = SnapshotMeta::default();
+            let mut task_cache_changes =
+                FxHashMap::<TaskTypeHash, (TaskIdBucket, TaskIdBucket)>::default();
+            for (meta, changes) in shard_results {
+                snapshot_meta = snapshot_meta.merge(meta);
+                for (hash, (added_ids, deleted_ids)) in changes {
+                    let combined = task_cache_changes.entry(hash).or_default();
+                    for task_id in added_ids {
+                        if !combined.0.contains(&task_id) {
+                            combined.0.push(task_id);
+                        }
+                    }
+                    for task_id in deleted_ids {
+                        if !combined.1.contains(&task_id) {
+                            combined.1.push(task_id);
+                        }
+                    }
                 }
             }
             snapshot_meta.task_cache_items = task_cache_changes.len();
 
             let span = tracing::trace_span!("flush task data");
-            parallel::try_for_each(
-                &[KeySpace::TaskMeta, KeySpace::TaskData, KeySpace::TaskCache],
-                |&key_space| {
-                    let _span = span.clone().entered();
-                    // Safety: `map_collect_owned` has returned, so no concurrent `put` or `delete`
-                    // on these key spaces are in-flight.
-                    unsafe { batch.flush(key_space) }
-                },
-            )?;
+            parallel::try_for_each(&[KeySpace::TaskMeta, KeySpace::TaskData], |&key_space| {
+                let _span = span.clone().entered();
+                // Safety: `map_collect_owned` has returned, so no concurrent `put` or `delete`
+                // on these key spaces are in-flight.
+                unsafe { batch.flush(key_space) }
+            })?;
+
+            {
+                let _span = tracing::trace_span!(
+                    "reconcile task cache",
+                    changed_buckets = task_cache_changes.len()
+                )
+                .entered();
+                for (hash, (added_ids, deleted_ids)) in &task_cache_changes {
+                    let mut task_ids = task_cache_bucket(*hash);
+                    for task_id in added_ids {
+                        if !task_ids.contains(task_id) {
+                            task_ids.push(*task_id);
+                        }
+                    }
+                    task_ids.retain(|task_id| !deleted_ids.contains(task_id));
+                    if task_ids.is_empty() {
+                        batch.delete(KeySpace::TaskCache, WriteBuffer::Borrowed(hash))?;
+                    } else {
+                        batch.put(
+                            KeySpace::TaskCache,
+                            WriteBuffer::Borrowed(hash),
+                            WriteBuffer::Vec(encode_task_ids(&task_ids)?),
+                        )?;
+                    }
+                }
+            }
 
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
-
             save_infra(&batch, next_task_id, operations, roots)?;
+
+            let span = tracing::trace_span!("flush task cache and infra");
+            parallel::try_for_each(&[KeySpace::TaskCache, KeySpace::Infra], |&key_space| {
+                let _span = span.clone().entered();
+                // Safety: TaskCache reconciliation and Infra writes above have completed.
+                unsafe { batch.flush(key_space) }
+            })?;
+
             {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
@@ -721,15 +744,16 @@ mod tests {
                     task_id: task_id_1,
                     meta: None,
                     data: None,
-                    task_cache: Some((collision_hash, bucket.clone())),
+                    task_type_hash: Some(collision_hash),
                 },
                 SnapshotItem::Put {
                     task_id: task_id_2,
                     meta: None,
                     data: None,
-                    task_cache: Some((collision_hash, bucket)),
+                    task_type_hash: Some(collision_hash),
                 },
             ]],
+            |_| bucket.clone(),
         )?;
 
         assert_eq!(
@@ -852,11 +876,9 @@ mod tests {
             None,
             vec![vec![SnapshotItem::Delete {
                 task_id: deleted_id,
-                task_cache: (
-                    collision_hash.to_le_bytes(),
-                    smallvec::smallvec![survivor_id],
-                ),
+                task_type_hash: collision_hash.to_le_bytes(),
             }]],
+            |_| smallvec::smallvec![survivor_id],
         )?;
 
         let db = &storage.inner.database;
@@ -879,8 +901,9 @@ mod tests {
             None,
             vec![vec![SnapshotItem::Delete {
                 task_id: survivor_id,
-                task_cache: (collision_hash.to_le_bytes(), SmallVec::new()),
+                task_type_hash: collision_hash.to_le_bytes(),
             }]],
+            |_| SmallVec::new(),
         )?;
         assert!(
             db.get(KeySpace::TaskCache, &collision_hash.to_le_bytes())?
