@@ -7,16 +7,14 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import json from './big.json'
 
 describe('API routes', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'http-proxy': 'latest',
       cors: 'latest',
     },
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   it('should not strip .json from API route', async () => {
     const res = await next.fetch('/api/hello.json')
@@ -596,17 +594,15 @@ describe('API routes', () => {
 })
 
 describe('API routes output export error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'http-proxy': 'latest',
       cors: 'latest',
     },
     skipStart: true,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   it('should show error with output export', async () => {
     if (isNextDev) return

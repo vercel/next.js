@@ -4,15 +4,13 @@ import { findPort } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('next/dynamic with assetPrefix', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     dependencies: {
       sass: '1.54.0',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let cdnPort: number
   let cdn: Server

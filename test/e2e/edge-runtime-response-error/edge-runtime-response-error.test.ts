@@ -1,13 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Edge runtime response error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-    skipDeployment: true,
   })
-  if (skipped) return
 
   describe.each([
     { title: 'Edge API', url: '/api/route' },
