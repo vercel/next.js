@@ -114,9 +114,9 @@ The `analyze.data` JSON header contains:
 - `route_entries[]` (newer artifacts only): Endpoint graph roots with `route_entry_id`, exact `module_ident`, `module_path`, `role` (`route` or `shared`) and optional `runtime`. `entry_kind` is `server` or `client_bootstrap` only when verified from the endpoint's build inputs; if absent, the kind is unknown. An App RSC root can contain `client_references[]` with `module_ident`, `module_path` and `reference_kind` (`ecmascript` or `css`). These nested references are **not** endpoint graph roots or proven initial browser requests. Some API artifacts include shared Pages roots because output files are merged; unannotated shared roots do not imply browser work for that API.
 - `source_roots[]`: Indices of source-tree roots.
 - `output_file_chunk_parts`, `source_chunk_parts`, `source_children`: Edge references: output → part indices, source → part indices, source → child source indices.
-- `output_file_modules` (v1): binary adjacency with **one row per `output_files[]` item**, containing indices into that snapshot's `modules.data.modules[]`. `output_file_module_coverage[]` has the same length: `exact` means all enumerated JS/CSS chunk items joined; `unsupported` means the row might be partial or empty because the output wrapper or member cannot be enumerated/joined; `not_a_chunk` means it has no module-chunk membership. Check `unjoined_modules[]` for `{output_file_index, module_ident, reason}`; an unsupported row does not prove there are no modules. These are **module contents of a chunk**, not source-part attribution or an initial-load verdict.
-- `chunk_groups[]` (newer v1 artifacts only): route-local `{id, kind, trigger_module_index?, unjoined_trigger_ident?, output_file_indices[]}`. `bootstrap` comes from direct App shared or Pages evaluated client group assets; `render_dependent` is App layout/client-reference group output whose load depends on rendering. Async and worker load relationships are not classified in this version. An output can be in **multiple** groups. A layout group may be cumulative; its output list is not the exact modules contributed by one reference. A trigger index refers to the same `modules.data` as `output_file_modules` when the version/hash match. If this field is absent in an earlier v1 snapshot, group membership is **unknown**, not empty.
-  There is no observed `initial` or `prefetched` label; absence of a group or edge does not establish that an asset cannot load.
+- `output_file_modules` (v1): binary adjacency with **one row per `output_files[]` item**, containing indices into that snapshot's `modules.data.modules[]`. `output_file_module_coverage[]` has the same length: `exact` means all enumerated JS/CSS chunk items joined; `unsupported` means the row might be partial or empty because the output wrapper or member cannot be enumerated/joined; `not_a_chunk` means it has no module-chunk membership. In artifacts that include it, `unresolved_output_references[]` aligns with outputs and counts reference wrappers without an explicit target/load kind; a positive count prevents assuming the typed edge list is exhaustive. Its absence in an earlier v1 snapshot means **unknown**, not zero. Check `unjoined_modules[]` for `{output_file_index, module_ident, reason}`; worker payloads compiled from separate graphs belong here, not in the whole-app index. These are **module contents of a chunk**, not source-part attribution or an initial-load verdict.
+- `chunk_groups[]` (newer v1 artifacts only): route-local `{id, kind, trigger_module_index?, unjoined_trigger_ident?, output_file_indices[]}`. `bootstrap` comes from direct App shared or Pages evaluated client group assets; `render_dependent` is App layout/client-reference group output whose load depends on rendering; `async` is a generated async loader/manifest's direct group output; `worker` is a separately compiled worker asset. An output can be in **multiple** groups. A layout group may be cumulative; its output list is not the exact modules contributed by one reference. A trigger index refers to the same `modules.data` as `output_file_modules` when the version/hash match. If this field is absent, route load grouping is **unknown**, not empty.
+- `chunk_load_edges[]` (newer v1 artifacts only): `{source_output_file_index, target_output_file_index, kind, trigger_module_index?, unjoined_trigger_ident?}`. `async` / `async_manifest` come from emitted loader/manifest chunk items, `worker_registration` from a registration importer traced synchronously to an emitted browser chunk; `asset_reference` records only a generic output reference and **does not prove a request**. `unjoined_chunk_load_edges[]` gives uncertain/out-of-route targets with reasons. If either edge field is absent, load relationships are **unknown**, not empty. There is no observed `initial` or `prefetched` label; absence of an edge/role does not establish that an asset cannot load.
 
 `modules.data` contains `modules[]` with `{ident, path}` plus **six** edge
 references: `module_dependencies`, `async_module_dependencies`,
@@ -177,17 +177,18 @@ to a model context.
    module rows to find exact chunk membership; check coverage and unmatched
    identities before using an empty row. An `unsupported` empty row never
    proves that a chunk contains no modules. When present, inspect
-   `chunk_groups` to distinguish build-time bootstrap assets from
-   render-dependent references; missing groups mean unknown load scope,
-   async and worker outputs are not classified here. A client reference is not itself an endpoint graph root; do
+   `chunk_groups` and typed `chunk_load_edges` to distinguish build-time bootstrap assets,
+   render-dependent references, async loader targets, workers and generic
+   references. A client reference is not itself an endpoint graph root; do
    not assign all of a cumulative layout group's chunks to that reference.
    Continue to use `chunk_parts` for size attribution; membership is **not**
    a byte-saving estimate. Older artifacts have no route-output → module join.
 5. **Initial browser requests still require more evidence.** A `bootstrap`
    group identifies a direct client build group, not every request on a cold
    navigation; `render_dependent` chunks can load in the first render or
-   later. Async targets, workers, prefetch policy and transfer bytes need
-   further evidence. A group may support a **conditional build-time** cut for a chosen route
+   later, and `worker_registration` happens only when its code executes.
+   Prefetch policy and transfer bytes require runtime evidence. A group or
+   typed edge may support a **conditional build-time** cut for a chosen route
    and render scenario, but it does not prove request timing or exact saved
    bytes. Corroborate initial-load claims with a cold browser network trace.
    An already-async edge is not a candidate for another dynamic split solely
@@ -216,13 +217,14 @@ bundler: only a measured artifact delta supports a bundle win.
 
 - **Min cut:** Select the route, render scenario, all known client entry roots,
   and the target heavy subgraph; start with the directed _synchronous_ module
-  dependency graph. Use matching v1 output→module rows and typed groups to
-  scope build-time bootstrap and **explicitly selected** render-dependent
-  groups. **Completeness gate:** A missing `chunk_groups` field in an earlier
-  v1 snapshot is unknown coverage, not an empty group list. Check the selected
-  roots, their reachable outputs and every possible alternate root→target path for unknown roles,
-  `unsupported` membership and unjoined modules. Async and worker output
-  relationships are not classified, so do not claim a complete load graph. If a
+  dependency graph. Use matching v1 output→module rows, typed groups and load
+  edges to scope build-time bootstrap and **explicitly selected**
+  render-dependent groups. **Completeness gate:** A missing group, edge or
+  unresolved-reference field in an earlier v1 snapshot is unknown coverage,
+  not an empty result. Check the selected roots,
+  their reachable outputs and every possible alternate root→target path for
+  unknown roles/triggers, `unsupported` membership, unjoined modules or load
+  edges, and nonzero unresolved reference counts on relevant outputs. If a
   cumulative group cannot isolate a selected reference's outputs, do not
   assign that group's chunks to the reference. If any potentially relevant
   path remains incomplete, **refuse a definitive or exhaustive cut**; absence
@@ -349,8 +351,8 @@ For each accepted change include:
 Always distinguish **attribution measurements**, **source facts**, and
 **heuristics** (especially entry detection and cuts). For a cut, state the
 selected route/render conditions, roots and target, whether the result covers
-only the known subgraph, and any unsupported, unjoined or otherwise unknown
-relationships that could alter the paths. If coverage is incomplete, say _provisional_ and name
+only the known subgraph, and any unsupported/unjoined/unresolved evidence that
+could alter the paths. If coverage is incomplete, say _provisional_ and name
 what would resolve it; do not call the cut exhaustive. Compressed source parts
 are estimates, not observed network transfer. Include exact output/module
 identifiers, assumptions and uncertainty; use a cold-browser trace/HAR for

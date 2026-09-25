@@ -29,7 +29,12 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 use turbopack_css::chunk::CssChunk;
-use turbopack_ecmascript::chunk::{EcmascriptChunk, EcmascriptChunkItemOrBatchWithAsyncInfo};
+use turbopack_ecmascript::{
+    async_chunk::module::AsyncLoaderModule,
+    chunk::{EcmascriptChunk, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
+    references::service_worker::{ServiceWorkerEntryModule, service_worker_chunk_filename},
+};
 
 use crate::route::AnalyzeChunkGroups;
 
@@ -120,6 +125,10 @@ pub struct AnalyzeClientReferenceEntry {
 #[turbo_tasks::value(transparent)]
 pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
 
+pub type AnalyzeGraphModule = ResolvedVc<Box<dyn Module>>;
+pub type AnalyzeSyncDependents = FxHashMap<AnalyzeGraphModule, Vec<AnalyzeGraphModule>>;
+pub type AnalyzeWorkerRegistration = (AnalyzeGraphModule, ResolvedVc<ServiceWorkerEntryModule>);
+
 /// Snapshot-scoped module order shared by both artifact writers. Never regenerate
 /// indices independently from a route graph or use them across analyzer snapshots.
 #[turbo_tasks::value(shared)]
@@ -128,17 +137,35 @@ pub struct AnalyzeModuleIndex {
     pub by_ident: FxHashMap<RcStr, u32>,
     /// Fingerprint of the exact ordered module identities serialized in modules.data.
     pub module_index_hash: RcStr,
+    /// Cached once for the whole application, not rebuilt for each route.
+    pub sync_dependents: AnalyzeSyncDependents,
+    pub worker_registrations: Vec<AnalyzeWorkerRegistration>,
 }
 
 #[turbo_tasks::function]
 pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<AnalyzeModuleIndex>> {
     let mut all_modules = FxIndexSet::default();
+    let mut sync_dependents: AnalyzeSyncDependents = FxHashMap::default();
+    let mut registrations = FxIndexSet::default();
     let graph = module_graph.await?;
     graph.traverse_edges_dfs(
         graph.all_entry_modules(),
         &mut (),
-        |_, node, _| {
+        |parent, node, _| {
             all_modules.insert(node);
+            if let Some((importer, reference)) = parent {
+                if !matches!(
+                    reference.chunking_type,
+                    ChunkingType::Async | ChunkingType::Traced { .. }
+                ) {
+                    sync_dependents.entry(node).or_default().push(importer);
+                }
+                if let Some(marker) =
+                    ResolvedVc::try_downcast_type::<ServiceWorkerEntryModule>(node)
+                {
+                    registrations.insert((importer, marker));
+                }
+            }
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
@@ -178,6 +205,8 @@ pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<An
         modules,
         by_ident,
         module_index_hash,
+        sync_dependents,
+        worker_registrations: registrations.into_iter().collect(),
     }
     .cell())
 }
@@ -209,8 +238,12 @@ struct AnalyzeDataHeader {
     /// Exact indices into this snapshot's modules.data.modules, one row per output file.
     pub output_file_modules: EdgesDataReference,
     pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
+    /// Non-asset reference wrappers whose direct runtime load type is unknown.
+    pub unresolved_output_references: Vec<u32>,
     pub unjoined_modules: Vec<AnalyzeUnjoinedModule>,
     pub chunk_groups: Vec<AnalyzeChunkGroupData>,
+    pub chunk_load_edges: Vec<AnalyzeChunkLoadEdge>,
+    pub unjoined_chunk_load_edges: Vec<AnalyzeUnjoinedChunkLoadEdge>,
     /// Exact endpoint roots; nested client references do not become roots.
     pub route_entries: Vec<AnalyzeRouteEntry>,
     /// Edges from chunks to chunk parts
@@ -270,11 +303,42 @@ struct AnalyzeChunkGroupData {
     output_file_indices: Vec<u32>,
 }
 
+#[derive(Serialize)]
+struct AnalyzeChunkLoadEdge {
+    source_output_file_index: u32,
+    target_output_file_index: u32,
+    kind: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trigger_module_index: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unjoined_trigger_ident: Option<RcStr>,
+}
+
+#[derive(Serialize)]
+struct AnalyzeUnjoinedChunkLoadEdge {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_output_file_index: Option<u32>,
+    target_path: RcStr,
+    kind: RcStr,
+    reason: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trigger_module_ident: Option<RcStr>,
+}
+
+struct ChunkLoadCandidate {
+    source: u32,
+    target: ResolvedVc<Box<dyn OutputAsset>>,
+    kind: RcStr,
+    trigger_module_index: Option<u32>,
+    unjoined_trigger_ident: Option<RcStr>,
+}
+
 struct AnalyzeOutputFileBuilder {
     output_file: AnalyzeOutputFile,
     chunk_part_indices: Vec<u32>,
     module_indices: Vec<u32>,
     module_coverage: AnalyzeOutputFileCoverage,
+    unresolved_references: u32,
 }
 
 struct AnalyzeSourceBuilder {
@@ -302,6 +366,8 @@ struct AnalyzeDataBuilder {
     module_index_hash: RcStr,
     unjoined_modules: Vec<AnalyzeUnjoinedModule>,
     chunk_groups: Vec<AnalyzeChunkGroupData>,
+    chunk_load_edges: Vec<AnalyzeChunkLoadEdge>,
+    unjoined_chunk_load_edges: Vec<AnalyzeUnjoinedChunkLoadEdge>,
 }
 
 struct ModulesDataBuilder {
@@ -338,6 +404,8 @@ impl AnalyzeDataBuilder {
             route_entries,
             unjoined_modules: vec![],
             chunk_groups: vec![],
+            chunk_load_edges: vec![],
+            unjoined_chunk_load_edges: vec![],
         }
     }
 
@@ -372,6 +440,7 @@ impl AnalyzeDataBuilder {
             chunk_part_indices: vec![],
             module_indices: vec![],
             module_coverage: AnalyzeOutputFileCoverage::NotAChunk,
+            unresolved_references: 0,
         });
         i
     }
@@ -426,6 +495,11 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.module_coverage)
                 .collect(),
             output_file_modules: binary_section.add_edges(&output_file_modules),
+            unresolved_output_references: self
+                .output_files
+                .iter()
+                .map(|of| of.unresolved_references)
+                .collect(),
             output_files: self
                 .output_files
                 .into_iter()
@@ -433,6 +507,8 @@ impl AnalyzeDataBuilder {
                 .collect(),
             unjoined_modules: self.unjoined_modules,
             chunk_groups: self.chunk_groups,
+            chunk_load_edges: self.chunk_load_edges,
+            unjoined_chunk_load_edges: self.unjoined_chunk_load_edges,
             route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
@@ -572,6 +648,43 @@ async fn join_chunk_item(
     Ok(())
 }
 
+/// The source chunk contains a loader/manifest item that explicitly references
+/// these async assets. Generic output references are not evidence of an async load.
+async fn chunk_item_load_candidates(
+    item: ResolvedVc<Box<dyn turbopack_ecmascript::chunk::EcmascriptChunkItem>>,
+    index: &AnalyzeModuleIndex,
+    source: u32,
+) -> Result<Vec<ChunkLoadCandidate>> {
+    let module = item.module().to_resolved().await?;
+    let kind = if ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module).is_some()
+        || ResolvedVc::try_downcast_type::<ManifestAsyncModule>(module).is_some()
+    {
+        "async"
+    } else if ResolvedVc::try_downcast_type::<ManifestLoaderModule>(module).is_some() {
+        "async_manifest"
+    } else {
+        return Ok(vec![]);
+    };
+    let ident = module.ident().to_string().owned().await?;
+    let (trigger_module_index, unjoined_trigger_ident) = match index.by_ident.get(&ident) {
+        Some(&i) => (Some(i), None),
+        None => (None, Some(ident)),
+    };
+    let references = item.references().await?;
+    let assets = references.assets.await?;
+    Ok(assets
+        .iter()
+        .copied()
+        .map(|target| ChunkLoadCandidate {
+            source,
+            target,
+            kind: kind.into(),
+            trigger_module_index,
+            unjoined_trigger_ident: unjoined_trigger_ident.clone(),
+        })
+        .collect())
+}
+
 /// Get exact constituent module identities only for chunk types whose items we
 /// can enumerate. Empty rows marked unsupported must not be treated as empty chunks.
 async fn output_chunk_modules(
@@ -583,9 +696,12 @@ async fn output_chunk_modules(
     Vec<u32>,
     AnalyzeOutputFileCoverage,
     Vec<AnalyzeUnjoinedModule>,
+    Vec<ChunkLoadCandidate>,
+    u32,
 )> {
     let mut indices = FxIndexSet::default();
     let mut unjoined = Vec::new();
+    let mut candidates = Vec::new();
     let mut enumerated = true;
     if let Some(browser_chunk) = ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(asset) {
         let chunk: ResolvedVc<Box<dyn Chunk>> = browser_chunk.chunk().to_resolved().await?;
@@ -603,6 +719,14 @@ async fn output_chunk_modules(
                         &mut unjoined,
                     )
                     .await?;
+                    candidates.extend(
+                        chunk_item_load_candidates(
+                            item.chunk_item,
+                            module_index,
+                            output_file_index,
+                        )
+                        .await?,
+                    );
                 }
                 EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
                     for item in &batch.await?.chunk_items {
@@ -614,6 +738,14 @@ async fn output_chunk_modules(
                             &mut unjoined,
                         )
                         .await?;
+                        candidates.extend(
+                            chunk_item_load_candidates(
+                                item.chunk_item,
+                                module_index,
+                                output_file_index,
+                            )
+                            .await?,
+                        );
                     }
                 }
             }
@@ -631,17 +763,48 @@ async fn output_chunk_modules(
             .await?;
         }
     } else if filename.ends_with(".js") || filename.ends_with(".css") {
-        // Other emitted JS/CSS wrappers cannot enumerate their module members.
+        // Other emitted JS/CSS wrappers (evaluate/runtime entries, workers) still
+        // record their generic references below, but their members are unknown.
         enumerated = false;
     } else {
-        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![]));
+        return Ok((
+            vec![],
+            AnalyzeOutputFileCoverage::NotAChunk,
+            vec![],
+            vec![],
+            0,
+        ));
+    }
+    let references = asset.references().await?;
+    let unresolved_references = references.references.await?.len() as u32;
+    for &target in references
+        .assets
+        .await?
+        .iter()
+        .chain(references.referenced_assets.await?.iter())
+    {
+        if target != asset {
+            candidates.push(ChunkLoadCandidate {
+                source: output_file_index,
+                target,
+                kind: "asset_reference".into(),
+                trigger_module_index: None,
+                unjoined_trigger_ident: None,
+            });
+        }
     }
     let coverage = if enumerated && unjoined.is_empty() {
         AnalyzeOutputFileCoverage::Exact
     } else {
         AnalyzeOutputFileCoverage::Unsupported
     };
-    Ok((indices.into_iter().collect(), coverage, unjoined))
+    Ok((
+        indices.into_iter().collect(),
+        coverage,
+        unjoined,
+        candidates,
+        unresolved_references,
+    ))
 }
 
 /// Merges two sets of output assets into one. Used to combine per-route output
@@ -685,6 +848,9 @@ pub async fn analyze_output_assets(
         AnalyzeDataBuilder::new(route_entries, module_index.module_index_hash.clone());
     let mut asset_indices: FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, Vec<u32>> =
         FxHashMap::default();
+    let mut candidates = Vec::new();
+    let mut browser_chunks = FxHashSet::default();
+
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
     // Process the output assets and extract chunk parts.
@@ -722,11 +888,16 @@ pub async fn analyze_output_assets(
                 .entry(*asset)
                 .or_default()
                 .push(output_file_index);
-            let (indices, coverage, unjoined) =
+            if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
+                browser_chunks.insert(output_file_index);
+            }
+            let (indices, coverage, unjoined, edges, unresolved) =
                 output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
+            candidates.extend(edges);
             let file = &mut builder.output_files[output_file_index as usize];
             file.module_indices = indices;
             file.module_coverage = coverage;
+            file.unresolved_references = unresolved;
             builder.unjoined_modules.extend(unjoined);
         }
         let chunk_parts = match asset {
@@ -758,6 +929,70 @@ pub async fn analyze_output_assets(
         }
     }
 
+    let mut async_groups = FxHashMap::default();
+    for candidate in candidates {
+        if let Some(target_indices) = asset_indices.get(&candidate.target) {
+            let load_targets = target_indices
+                .iter()
+                .copied()
+                .filter(|&target| target != candidate.source)
+                .collect::<Vec<_>>();
+            if load_targets.is_empty() {
+                continue;
+            }
+            if candidate.kind == "async" || candidate.kind == "async_manifest" {
+                let key = (
+                    candidate.source,
+                    candidate.trigger_module_index,
+                    candidate.unjoined_trigger_ident.clone(),
+                );
+                let group_index = *async_groups.entry(key).or_insert_with(|| {
+                    let index = builder.chunk_groups.len();
+                    builder.chunk_groups.push(AnalyzeChunkGroupData {
+                        id: index as u32,
+                        kind: "async".into(),
+                        trigger_module_index: candidate.trigger_module_index,
+                        unjoined_trigger_ident: candidate.unjoined_trigger_ident.clone(),
+                        output_file_indices: vec![],
+                    });
+                    index
+                });
+                for &target in &load_targets {
+                    if !builder.chunk_groups[group_index]
+                        .output_file_indices
+                        .contains(&target)
+                    {
+                        builder.chunk_groups[group_index]
+                            .output_file_indices
+                            .push(target);
+                    }
+                }
+            }
+            for &target in &load_targets {
+                builder.chunk_load_edges.push(AnalyzeChunkLoadEdge {
+                    source_output_file_index: candidate.source,
+                    target_output_file_index: target,
+                    kind: candidate.kind.clone(),
+                    trigger_module_index: candidate.trigger_module_index,
+                    unjoined_trigger_ident: candidate.unjoined_trigger_ident.clone(),
+                });
+            }
+        } else {
+            let target_path = candidate.target.path().await?.to_string_ref().await?;
+            if target_path.ends_with(".map") || target_path.ends_with(".nft.json") {
+                continue;
+            }
+            builder
+                .unjoined_chunk_load_edges
+                .push(AnalyzeUnjoinedChunkLoadEdge {
+                    source_output_file_index: Some(candidate.source),
+                    target_path,
+                    kind: candidate.kind,
+                    reason: "target_not_in_route_outputs",
+                    trigger_module_ident: candidate.unjoined_trigger_ident,
+                });
+        }
+    }
     for group in chunk_groups.await?.iter() {
         let id = builder.chunk_groups.len() as u32;
         let mut output_indices = FxIndexSet::default();
@@ -787,6 +1022,95 @@ pub async fn analyze_output_assets(
         });
     }
 
+    // A service-worker marker lives in the page graph, but its payload is compiled
+    // from a different graph. Join the registration importer to the worker output;
+    // never treat worker-internal modules as members of the page graph.
+    let worker_files: FxHashSet<u32> = builder
+        .chunk_groups
+        .iter()
+        .filter(|group| group.kind == "worker")
+        .flat_map(|group| group.output_file_indices.iter().copied())
+        .collect();
+    if !worker_files.is_empty() {
+        for &(importer, marker) in &module_index.worker_registrations {
+            let marker = marker.await?;
+            let filename = service_worker_chunk_filename(&marker.scope);
+            let importer_ident = importer.ident().to_string().owned().await?;
+            let importer_index = module_index.by_ident.get(&importer_ident).copied();
+            for target in &worker_files {
+                let output = &builder.output_files[*target as usize].output_file.filename;
+                if !output.ends_with(filename.as_str()) {
+                    continue;
+                }
+                builder.unjoined_modules.push(AnalyzeUnjoinedModule {
+                    output_file_index: *target,
+                    module_ident: marker.inner.ident().to_string().owned().await?,
+                    reason: "worker_compiled_in_separate_graph",
+                });
+                // A registration can live in a generated `<locals>` module, whereas
+                // the emitted chunk item belongs to its enclosing client module.
+                // Follow only synchronous dependents until an emitted browser item
+                // owns the source; never climb across an async/traced edge.
+                let mut sources = FxIndexSet::default();
+                let mut pending = vec![importer];
+                let mut seen = FxHashSet::default();
+                while let Some(module) = pending.pop() {
+                    if !seen.insert(module) {
+                        continue;
+                    }
+                    let ident = module.ident().to_string().owned().await?;
+                    let mut found = false;
+                    if let Some(&index) = module_index.by_ident.get(&ident) {
+                        for (i, file) in builder.output_files.iter().enumerate() {
+                            if browser_chunks.contains(&(i as u32))
+                                && file.module_indices.contains(&index)
+                            {
+                                sources.insert(i as u32);
+                                found = true;
+                            }
+                        }
+                    }
+                    if !found && let Some(parents) = module_index.sync_dependents.get(&module) {
+                        pending.extend(parents.iter().copied());
+                    }
+                }
+                if sources.is_empty() {
+                    builder
+                        .unjoined_chunk_load_edges
+                        .push(AnalyzeUnjoinedChunkLoadEdge {
+                            source_output_file_index: None,
+                            target_path: output.clone(),
+                            kind: "worker_registration".into(),
+                            reason: "importer_not_in_browser_chunk",
+                            trigger_module_ident: Some(importer_ident.clone()),
+                        });
+                } else {
+                    for source in sources {
+                        builder.chunk_load_edges.push(AnalyzeChunkLoadEdge {
+                            source_output_file_index: source,
+                            target_output_file_index: *target,
+                            kind: "worker_registration".into(),
+                            trigger_module_index: importer_index,
+                            unjoined_trigger_ident: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // One edge may be found by more than one item in a batch or registration;
+    // preserve distinct kinds but never duplicate the same typed relationship.
+    let mut seen_edges = FxHashSet::default();
+    builder.chunk_load_edges.retain(|edge| {
+        seen_edges.insert((
+            edge.source_output_file_index,
+            edge.target_output_file_index,
+            edge.kind.clone(),
+            edge.trigger_module_index,
+            edge.unjoined_trigger_ident.clone(),
+        ))
+    });
     let mut seen_unjoined = FxHashSet::default();
     builder.unjoined_modules.retain(|module| {
         seen_unjoined.insert((

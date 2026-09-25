@@ -2385,6 +2385,17 @@ impl Endpoint for AppEndpoint {
                 pages_html: false,
             });
         }
+        let workers = service_worker_output_assets(project, *graphs.base)
+            .to_resolved()
+            .await?;
+        if !workers.await?.is_empty() {
+            groups.push(AnalyzeChunkGroup {
+                kind: rcstr!("worker"),
+                trigger: None,
+                assets: workers,
+                pages_html: false,
+            });
+        }
         Ok(Vc::cell(groups))
     }
 
