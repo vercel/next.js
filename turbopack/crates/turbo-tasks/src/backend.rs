@@ -276,7 +276,7 @@ impl CachedTaskType {
 pub struct TaskExecutionSpec<'a> {
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
     pub span: Span,
-    pub abort_registration: AbortRegistration,
+    pub abort_registration: Option<AbortRegistration>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
