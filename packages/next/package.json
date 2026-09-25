@@ -108,7 +108,6 @@
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
-    "@module-federation/runtime-tools": "^2.9.0",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -117,9 +116,6 @@
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
-    "@module-federation/runtime-tools": {
-      "optional": true
-    },
     "babel-plugin-react-compiler": {
       "optional": true
     },

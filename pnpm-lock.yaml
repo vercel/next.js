@@ -1109,9 +1109,6 @@ importers:
 
   packages/next:
     dependencies:
-      '@module-federation/runtime-tools':
-        specifier: ^2.9.0
-        version: 2.9.1
       '@next/env':
         specifier: 16.4.0-canary.40
         version: link:../next-env
@@ -21840,7 +21837,8 @@ snapshots:
 
   '@module-federation/error-codes@0.21.6': {}
 
-  '@module-federation/error-codes@2.9.1': {}
+  '@module-federation/error-codes@2.9.1':
+    optional: true
 
   '@module-federation/runtime-core@0.21.6':
     dependencies:
@@ -21851,6 +21849,7 @@ snapshots:
     dependencies:
       '@module-federation/error-codes': 2.9.1
       '@module-federation/sdk': 2.9.1
+    optional: true
 
   '@module-federation/runtime-tools@0.21.6':
     dependencies:
@@ -21861,6 +21860,7 @@ snapshots:
     dependencies:
       '@module-federation/runtime': 2.9.1
       '@module-federation/webpack-bundler-runtime': 2.9.1
+    optional: true
 
   '@module-federation/runtime@0.21.6':
     dependencies:
@@ -21873,10 +21873,12 @@ snapshots:
       '@module-federation/error-codes': 2.9.1
       '@module-federation/runtime-core': 2.9.1
       '@module-federation/sdk': 2.9.1
+    optional: true
 
   '@module-federation/sdk@0.21.6': {}
 
-  '@module-federation/sdk@2.9.1': {}
+  '@module-federation/sdk@2.9.1':
+    optional: true
 
   '@module-federation/webpack-bundler-runtime@0.21.6':
     dependencies:
@@ -21888,6 +21890,7 @@ snapshots:
       '@module-federation/error-codes': 2.9.1
       '@module-federation/runtime': 2.9.1
       '@module-federation/sdk': 2.9.1
+    optional: true
 
   '@mswjs/cookies@1.1.0': {}
 

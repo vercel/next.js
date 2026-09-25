@@ -3,7 +3,7 @@ title: turbopackModuleFederation
 description: Configure Module Federation for Turbopack.
 ---
 
-The experimental `turbopackModuleFederation` option configures [Module Federation](https://webpack.js.org/concepts/module-federation/) as a first-class Turbopack feature. It uses the [Module Federation enhanced runtime](https://module-federation.io/guide/basic/runtime/runtime-api) by default. Install the optional peer dependency in each app that enables federation:
+The experimental `turbopackModuleFederation` option configures [Module Federation](https://webpack.js.org/concepts/module-federation/) as a first-class Turbopack feature. It uses the [Module Federation enhanced runtime](https://module-federation.io/guide/basic/runtime/runtime-api) by default. Install the runtime package in each app that enables federation; Next.js does not declare it as a peer dependency:
 
 ```bash
 pnpm add @module-federation/runtime-tools@^2.9.0
@@ -208,7 +208,7 @@ module.exports = {
 }
 ```
 
-The webpack `library` and `runtime` plugin options are not supported. Turbopack emits a global container and initializes the enhanced runtime. You can configure `runtimePlugins` as an ordered array of project-relative paths or installed package specifiers, or `[specifier, JSON-serializable options]` tuples. The runtime loads the default export of each module and calls it with the provided options in the browser. Use `implementation` to resolve a compatible runtime-tools implementation from your project instead of the default optional peer; it must provide the `./runtime` and `./webpack-bundler-runtime` entrypoints.
+The webpack `library` and `runtime` plugin options are not supported. Turbopack emits a global container and initializes the enhanced runtime. You can configure `runtimePlugins` as an ordered array of project-relative paths or installed package specifiers, or `[specifier, JSON-serializable options]` tuples. The runtime loads the default export of each module and calls it with the provided options in the browser. Use `implementation` to resolve a compatible runtime-tools implementation from your project instead of the default runtime package; it must provide the `./runtime` and `./webpack-bundler-runtime` entrypoints.
 
 For example, a runtime plugin can observe requests and use the upstream loaded-first strategy:
 
@@ -260,7 +260,7 @@ export async function loadCatalog(url: string) {
 }
 ```
 
-When multiple federated apps share a page, use `getInstance((instance) => instance.name === 'storefront')` to select your app's instance rather than relying on the no-argument accessor. If you set `implementation: 'custom-runtime'`, import these APIs from `custom-runtime/runtime` instead of the default peer package. Dynamic registration and `loadRemote()` support script entries. Upstream `preloadRemote()` requires a manifest; it does not preload a script-only webpack v1 remote without one.
+When multiple federated apps share a page, use `getInstance((instance) => instance.name === 'storefront')` to select your app's instance rather than relying on the no-argument accessor. If you set `implementation: 'custom-runtime'`, import these APIs from `custom-runtime/runtime` instead of the default runtime package. Dynamic registration and `loadRemote()` support script entries. Upstream `preloadRemote()` requires a manifest; it does not preload a script-only webpack v1 remote without one.
 
 ## Runtime behavior and limitations
 
