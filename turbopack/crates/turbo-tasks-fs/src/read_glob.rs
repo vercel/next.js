@@ -222,9 +222,6 @@ async fn track_glob_internal(
     match &*dir {
         DirectoryContent::Entries(entries) => {
             for (segment, entry) in entries.iter() {
-                if !include_dot_files && segment.starts_with('.') {
-                    continue;
-                }
                 // This is redundant with logic inside of `read_dir` but here we track it separately
                 // so we don't follow symlinks.
                 let entry_path = if prefix.is_empty() {
@@ -277,16 +274,18 @@ async fn track_glob_internal(
     Ok(Completion::new())
 }
 
+// This task shields callers that want to ignore dot files from being invalidated when they change
 #[turbo_tasks::function(fs)]
 async fn read_dir_for_track_glob(
     directory: FileSystemPath,
     include_dot_files: bool,
 ) -> Result<Vc<DirectoryContent>> {
+    let read_dir = directory.read_dir();
     if include_dot_files {
-        return Ok(directory.read_dir());
+        return Ok(read_dir);
     }
 
-    Ok(match &*directory.read_dir().await? {
+    Ok(match &*read_dir.await? {
         DirectoryContent::Entries(entries) => DirectoryContent::new(
             entries
                 .iter()
@@ -294,7 +293,7 @@ async fn read_dir_for_track_glob(
                 .map(|(segment, entry)| (segment.clone(), entry.clone()))
                 .collect::<AutoMap<_, _>>(),
         ),
-        DirectoryContent::NotFound => DirectoryContent::not_found(),
+        DirectoryContent::NotFound => read_dir,
     })
 }
 
