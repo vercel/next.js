@@ -1,7 +1,10 @@
 #![feature(deref_patterns)]
-#![cfg_attr(not(target_arch = "wasm32"), feature(bufreader_peek))]
+#![cfg_attr(
+    any(not(target_arch = "wasm32"), feature = "trace-server"),
+    feature(bufreader_peek)
+)]
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), feature = "trace-server"))]
 use std::path::PathBuf;
 use std::{
     hash::BuildHasherDefault,
@@ -14,7 +17,7 @@ use std::{
 
 use rustc_hash::FxHasher;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), feature = "trace-server"))]
 use self::{reader::TraceReader, server::serve};
 use self::{span_graph_ref::SpanGraphEventRef, span_ref::SpanRef, store_container::StoreContainer};
 
@@ -22,10 +25,10 @@ mod bottom_up;
 mod chunked_vec;
 mod lazy_sorted_vec;
 pub mod protocol;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), feature = "trace-server"))]
 mod reader;
 mod self_time_tree;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), feature = "trace-server"))]
 mod server;
 mod span;
 mod span_bottom_up_ref;
@@ -49,7 +52,7 @@ type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), feature = "trace-server"))]
 pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
     let store = Arc::new(StoreContainer::new());
 
