@@ -13,4 +13,5 @@ export const browserVariantModules = [
   'client/components/router-reducer/create-segment-key',
   'client/components/server-async-storage',
   'client/components/unstable-rethrow',
+  'client/image-placeholder-bootstrap',
 ] as const

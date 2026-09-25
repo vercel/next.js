@@ -17,4 +17,5 @@ pub static BROWSER_VARIANT_MODULES: &[&str] = &[
     "client/components/router-reducer/create-segment-key",
     "client/components/server-async-storage",
     "client/components/unstable-rethrow",
+    "client/image-placeholder-bootstrap",
 ];
