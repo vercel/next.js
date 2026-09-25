@@ -3,7 +3,6 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
-import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
@@ -28,25 +27,29 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { lookup } from 'dns/promises'
 import { isIP } from 'net'
 import { ALL } from 'dns'
+import type { ImageUpstream } from './image-optimizer/transform'
 import {
-  imageOptimizerTransform,
-  type ImageUpstream,
-} from './image-optimizer/transform'
+  BLUR_IMG_SIZE,
+  BLUR_QUALITY,
+  executeImageOptimizerOperation,
+  type ImageOptimizerOperation,
+  type ImageOptimizerOperationResult,
+} from './image-optimizer/operation'
 import { extractEtag, getHash } from './image-optimizer/extract-etag'
 import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
-import { getImageSize } from './image-optimizer/get-image-size'
 import { ImageError } from './image-optimizer/image-error'
 
 // `next-server.ts` destructures `ImageError` from this module to check
 // `instanceof` on errors thrown by the transform.
 export { ImageError } from './image-optimizer/image-error'
 
+export type ImageOptimizerOperationRunner = (
+  operation: ImageOptimizerOperation
+) => Promise<ImageOptimizerOperationResult>
+
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
 const CACHE_VERSION = 4
-const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
-const BLUR_QUALITY = 70 // should match `next-image-loader`
-
 async function initCacheEntries(
   cacheDir: string
 ): Promise<Array<{ key: string; size: number; expireAt: number }>> {
@@ -722,22 +725,6 @@ export async function fetchInternalImage(
   }
 }
 
-async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
-  // During `next dev`, we don't want to generate blur placeholders with webpack
-  // because it can delay starting the dev server. Instead, `next-image-loader.js`
-  // will inline a special url to lazily generate the blur placeholder at request time.
-  const meta = await getImageSize(buffer)
-  const blurOpts = {
-    blurWidth: meta.width,
-    blurHeight: meta.height,
-    blurDataURL: `data:${contentType};base64,${buffer.toString('base64')}`,
-  }
-  return {
-    buffer: Buffer.from(unescape(getImageBlurSvg(blurOpts))),
-    contentType: 'image/svg+xml',
-  }
-}
-
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
@@ -763,6 +750,7 @@ export async function imageOptimizer(
     isDev?: boolean
     silent?: boolean
     previousCacheEntry?: IncrementalResponseCacheEntry | null
+    runOperation?: ImageOptimizerOperationRunner
   }
 ): Promise<{
   buffer: Buffer
@@ -777,24 +765,48 @@ export async function imageOptimizer(
     opts.previousCacheEntry
   )
 
-  return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
-    previousOutput: previouslyCachedImage
-      ? {
-          buffer: previouslyCachedImage.buffer,
-          maxAge:
-            opts.previousCacheEntry?.cacheControl?.revalidate || undefined,
-          etag: previouslyCachedImage.etag,
-          upstreamEtag: previouslyCachedImage.upstreamEtag,
-        }
-      : undefined,
-    logger: opts.silent ? undefined : Log,
-    handleDevOutput:
-      opts.isDev &&
-      paramsResult.width <= BLUR_IMG_SIZE &&
-      paramsResult.quality === BLUR_QUALITY
-        ? makeBlurPlaceholder
+  const output = await (opts.runOperation ?? executeImageOptimizerOperation)({
+    imageUpstream,
+    params: paramsResult,
+    config: {
+      images: {
+        dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
+        minimumCacheTTL: nextConfig.images.minimumCacheTTL,
+      },
+      experimental: {
+        imgOptConcurrency: nextConfig.experimental.imgOptConcurrency,
+        imgOptOperationCache: nextConfig.experimental.imgOptOperationCache,
+        imgOptMaxInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+        imgOptSequentialRead: nextConfig.experimental.imgOptSequentialRead,
+        imgOptTimeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+        imgOptMozjpeg: nextConfig.experimental.imgOptMozjpeg,
+      },
+    },
+    options: {
+      isDev: opts.isDev,
+      previousOutput: previouslyCachedImage
+        ? {
+            buffer: previouslyCachedImage.buffer,
+            maxAge:
+              opts.previousCacheEntry?.cacheControl?.revalidate || undefined,
+            etag: previouslyCachedImage.etag,
+            upstreamEtag: previouslyCachedImage.upstreamEtag,
+          }
         : undefined,
+    },
   })
+
+  if (!opts.silent) {
+    for (const diagnostic of output.diagnostics) {
+      if (diagnostic.level === 'error') {
+        Log.error(...diagnostic.args)
+      } else {
+        Log.warnOnce(diagnostic.message)
+      }
+    }
+  }
+
+  return output.result
 }
 
 function getFileNameWithExtension(
