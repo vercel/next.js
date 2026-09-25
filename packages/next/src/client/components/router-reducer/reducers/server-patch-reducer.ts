@@ -59,7 +59,7 @@ export function serverPatchReducer(
     retrySeed,
     currentUrl,
     currentRenderedSearch,
-    state.cache,
+    state.root,
     action.freshnessPolicy,
     retryNextUrl,
     scrollBehavior,

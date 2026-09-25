@@ -365,7 +365,7 @@ export function serverActionReducer(
         // invalidate both caches until we have a way to detect cookie
         // mutations on the client.
         if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
-          invalidateEntirePrefetchCache(nextUrl, state.cache)
+          invalidateEntirePrefetchCache(nextUrl, state.root)
         }
 
         // Start a cooldown before re-prefetching to allow CDN cache
@@ -494,26 +494,24 @@ export function serverActionReducer(
           // tree, so there's no pathname to parse them from (nor a need to).
           null,
           flightDataRenderedSearch,
+          null,
           UnknownDynamicStaleTime
         )
 
         // Learn the route pattern so we can predict it for future navigations.
-        const metadataVaryPath = redirectSeed.metadataVaryPath
-        if (metadataVaryPath !== null) {
-          discoverKnownRoute(
-            now,
-            redirectUrl.pathname,
-            redirectUrl.search as NormalizedSearch,
-            nextUrl,
-            null, // No pending entry
-            redirectSeed.routeTree,
-            metadataVaryPath,
-            couldBeIntercepted,
-            redirectCanonicalUrl,
-            isPrerender,
-            false // hasDynamicRewrite
-          )
-        }
+        discoverKnownRoute(
+          now,
+          redirectUrl.pathname,
+          redirectUrl.search as NormalizedSearch,
+          nextUrl,
+          null, // No pending entry
+          redirectSeed.root,
+          couldBeIntercepted,
+          redirectCanonicalUrl,
+          redirectSeed.renderedSearch,
+          isPrerender,
+          false // hasDynamicRewrite
+        )
         const navigationLock = getCurrentNavigationLock()
 
         return navigateToKnownRoute(
@@ -524,7 +522,7 @@ export function serverActionReducer(
           redirectSeed,
           currentUrl,
           currentRenderedSearch,
-          state.cache,
+          state.root,
           freshnessPolicy,
           nextUrl,
           scrollBehavior,
@@ -550,7 +548,7 @@ export function serverActionReducer(
         redirectUrl,
         currentUrl,
         currentRenderedSearch,
-        state.cache,
+        state.root,
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
