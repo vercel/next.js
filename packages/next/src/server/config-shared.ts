@@ -642,6 +642,13 @@ export interface ExperimentalConfig {
   imgOptSequentialRead?: boolean | null
   imgOptMozjpeg?: boolean
   imgOptWorker?: boolean
+  /**
+   * Replaces the sandboxed image worker's default trusted runtime directories.
+   * Entries must be existing absolute paths without globs. All files beneath
+   * allowed directories are readable, including secrets. Worker code, Node,
+   * node_modules, and essential OS metadata remain automatically allowed.
+   */
+  imgOptWorkerReadAllowlist?: string[]
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -2573,6 +2580,7 @@ export interface NextConfigRuntime {
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
     | 'imgOptWorker'
+    | 'imgOptWorkerReadAllowlist'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2647,6 +2655,7 @@ export function getNextConfigRuntime(
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     imgOptMozjpeg: ex.imgOptMozjpeg,
     imgOptWorker: ex.imgOptWorker,
+    imgOptWorkerReadAllowlist: ex.imgOptWorkerReadAllowlist,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,

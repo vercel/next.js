@@ -797,7 +797,10 @@ export default class NextNodeServer extends BaseServer<
         if (!this.imageOptimizerWorker) {
           const { SandboxedImageOptimizerWorker } =
             require('./image-optimizer/sandbox-worker') as typeof import('./image-optimizer/sandbox-worker')
-          this.imageOptimizerWorker = new SandboxedImageOptimizerWorker()
+          this.imageOptimizerWorker = new SandboxedImageOptimizerWorker({
+            readAllowlist:
+              this.nextConfig.experimental.imgOptWorkerReadAllowlist,
+          })
           this.onServerClose(() => this.imageOptimizerWorker!.close())
         }
         runOperation = this.imageOptimizerWorker.runOperation.bind(

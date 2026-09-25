@@ -9,6 +9,11 @@ import {
   SandboxedImageOptimizerWorker,
 } from 'next/dist/server/image-optimizer/sandbox-worker'
 import type { ImageOptimizerOperation } from 'next/dist/server/image-optimizer/operation'
+import {
+  defaultConfig,
+  getNextConfigRuntime,
+  type NextConfigComplete,
+} from 'next/dist/server/config-shared'
 
 const fixtureWorker = join(__dirname, 'fixtures', 'sandbox-worker-fixture.js')
 const integrationWorker = join(
@@ -74,13 +79,77 @@ describe('SandboxedImageOptimizerWorker', () => {
     worker = undefined
   })
 
-  it('allows reads but restricts writes and network access', () => {
+  it('denies reads by default with explicit runtime exceptions', () => {
     const config = getImageOptimizerSandboxConfig()
-    expect(config.filesystem.denyRead).toEqual([])
+    expect(config.filesystem.denyRead).toEqual(['/'])
     expect(config.filesystem.allowWrite).toEqual([])
     expect(config.network.allowedDomains).toEqual([])
-    expect(config.filesystem.allowRead).toEqual([])
+    expect(config.filesystem.allowRead).toContain(process.execPath)
+    expect(config.filesystem.allowRead).not.toContain(process.cwd())
+    expect(config.filesystem.allowRead).not.toContain('/opt/homebrew')
+    expect(
+      config.filesystem.allowRead.every((path) => !path.includes('*'))
+    ).toBe(true)
     expect(config.enableWeakerNestedSandbox).not.toBe(true)
+  })
+
+  it('replaces default runtime directories with an explicit read allowlist', () => {
+    const config = getImageOptimizerSandboxConfig(fixtureWorker, [])
+    expect(config.filesystem.allowRead).not.toContain('/usr/lib')
+    expect(config.filesystem.allowRead).not.toContain('/System/Library')
+    expect(config.filesystem.allowRead).toContain(process.execPath)
+    expect(config.filesystem.allowRead).toContain(fixtureWorker)
+    expect(config.filesystem.denyRead).toEqual(['/'])
+  })
+
+  it.each(['relative/path', '/tmp/*', '/tmp/[abc]', '/tmp/file?'])(
+    'rejects ambiguous read allowance %s',
+    (path) => {
+      expect(() =>
+        getImageOptimizerSandboxConfig(fixtureWorker, [path])
+      ).toThrow('must be absolute without globs')
+    }
+  )
+
+  it('passes the read allowlist to sandbox initialization', async () => {
+    const initialize = jest.fn().mockResolvedValue(undefined)
+    worker = createWorker({
+      readAllowlist: [__dirname],
+      sandboxManager: { ...fakeSandboxManager, initialize } as never,
+    })
+    await worker.runOperation(operation('/echo'))
+    expect(initialize).toHaveBeenCalledWith(
+      getImageOptimizerSandboxConfig(fixtureWorker, [__dirname])
+    )
+  })
+
+  it('rejects nonexistent configured read paths', () => {
+    expect(() =>
+      getImageOptimizerSandboxConfig(fixtureWorker, [
+        join(__dirname, 'does-not-exist'),
+      ])
+    ).toThrow(/ENOENT/)
+  })
+
+  it('validates and preserves the read allowlist in runtime config', () => {
+    const { configSchema } = require('next/dist/server/config-schema')
+    const experimental = {
+      ...defaultConfig.experimental,
+      runtimeServerDeploymentId: true,
+      imgOptWorkerReadAllowlist: [__dirname],
+    }
+    expect(configSchema.safeParse({ experimental }).success).toBe(true)
+    expect(
+      configSchema.safeParse({
+        experimental: { imgOptWorkerReadAllowlist: [123] },
+      }).success
+    ).toBe(false)
+    expect(
+      getNextConfigRuntime({
+        ...defaultConfig,
+        experimental,
+      } as unknown as NextConfigComplete).experimental.imgOptWorkerReadAllowlist
+    ).toEqual([__dirname])
   })
 
   it('treats shell metacharacters in the worker path literally', async () => {
@@ -123,17 +192,26 @@ describe('SandboxedImageOptimizerWorker', () => {
       [integrationWorker],
       {
         cwd: process.cwd(),
-        timeout: 20_000,
+        timeout: 60_000,
       }
     )
     const match = stdout.match(/^SANDBOX_RESULT=(.+)$/m)
     expect(match).not.toBeNull()
     const result = JSON.parse(match![1])
     expect(result).toMatchObject({
-      read: 'read-allowed',
-      readHome: 'read-allowed',
-      readApplication: 'read-allowed',
+      read: expect.stringMatching(/^read-blocked:/),
+      readHome: expect.stringMatching(/^read-blocked:/),
+      readApplication: expect.stringMatching(/^read-blocked:/),
       readDependency: 'read-allowed',
+      libraries: Array(6).fill(expect.stringMatching(/^read-blocked:/)),
+      customRead: 'read-allowed',
+      customOutsideRead: expect.stringMatching(/^read-blocked:/),
+      envRead: expect.stringMatching(/^read-blocked:/),
+      libraryAliasRead: expect.stringMatching(/^read-blocked:/),
+      directoryRead: expect.stringMatching(/^read-blocked:/),
+      dependencyData: 'read-allowed',
+      dependencyLink: expect.stringMatching(/^read-blocked:/),
+      lateEnvRead: expect.stringMatching(/^read-blocked:/),
       // macOS denies the write. Bubblewrap may instead isolate it in the
       // child's mount namespace; in either case it must not reach the host.
       write: expect.stringMatching(/^write-(blocked|allowed)/),
@@ -143,9 +221,9 @@ describe('SandboxedImageOptimizerWorker', () => {
       serializedError: 'ImageError:fixture transform failed:422:FIXTURE_ERROR',
       crash: expect.stringContaining('exited with code 23'),
       afterCrash: 'image/png',
-      timeout: 'Image optimizer worker timed out after 2000ms',
+      timeout: 'Image optimizer worker timed out after 5000ms',
       afterTimeout: 'image/png',
-      malformed: 'Image optimizer worker timed out after 2000ms',
+      malformed: 'Image optimizer worker timed out after 5000ms',
       afterMalformed: 'image/png',
       contentType: 'image/webp',
     })
