@@ -465,10 +465,28 @@ export { workUnitAsyncStorageInstance as workUnitAsyncStorage }
  * scheduled during render that capture the AsyncLocalStorage store via Node.js
  * AsyncContextFrame do not retain render state and buffers until the timers fire.
  */
+function sanitizeAbortReason(signal: AbortSignal | null | undefined): void {
+  if (!signal) return
+  const reason = (signal as any).reason
+  if (reason && typeof reason === 'object') {
+    if ('stack' in reason) {
+      try {
+        reason.stack = `${reason.name || 'Error'}: ${reason.message || ''}`
+      } catch {}
+    }
+  }
+}
+
 export function releasePrerenderStore(
   store: PrerenderStore | null | undefined
 ): void {
   if (!store) return
+  if ('controller' in store && store.controller) {
+    sanitizeAbortReason(store.controller.signal)
+  }
+  if ('renderSignal' in store && store.renderSignal) {
+    sanitizeAbortReason(store.renderSignal)
+  }
   switch (store.type) {
     case 'prerender':
       store.resumeDataCache = null

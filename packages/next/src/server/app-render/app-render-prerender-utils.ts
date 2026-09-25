@@ -371,3 +371,15 @@ export async function processPrelude(
 
   return { prelude, preludeIsEmpty }
 }
+
+export const PrerenderCompleteName = 'PrerenderComplete'
+
+export class PrerenderComplete extends Error {
+  public readonly name = PrerenderCompleteName
+  constructor() {
+    super('This prerender completed successfully.')
+    this.stack = `${PrerenderCompleteName}: ${this.message}`
+  }
+}
+
+export const PRERENDER_COMPLETE = new PrerenderComplete()

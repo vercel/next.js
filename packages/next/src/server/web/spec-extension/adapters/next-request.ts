@@ -11,6 +11,10 @@ import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
 export const ResponseAbortedName = 'ResponseAborted'
 export class ResponseAborted extends Error {
   public readonly name = ResponseAbortedName
+  constructor() {
+    super('The response was aborted.')
+    this.stack = `${ResponseAbortedName}: ${this.message}`
+  }
 }
 
 /**

@@ -238,6 +238,7 @@ import {
   ReactServerResult,
   ReplayableNodeStream,
   createReactServerPrerenderResultFromRender,
+  PRERENDER_COMPLETE,
 } from './app-render-prerender-utils'
 import {
   Phase,
@@ -1826,8 +1827,8 @@ async function prospectiveRuntimeServerPrerender(
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
 
-    initialServerRenderController.abort()
-    initialServerPrerenderController.abort()
+    initialServerRenderController.abort(PRERENDER_COMPLETE)
+    initialServerPrerenderController.abort(PRERENDER_COMPLETE)
 
     // We don't need to continue the prerender process if we already
     // detected invalid dynamic usage in the initial prerender phase.
@@ -2122,9 +2123,8 @@ async function finalRuntimeServerPrerender(
           resultIsPartial = true
         }
 
-        workUnitAsyncStorage.run(
-          finalServerPrerenderStore,
-          finalServerController.abort.bind(finalServerController)
+        workUnitAsyncStorage.run(finalServerPrerenderStore, () =>
+          finalServerController.abort(PRERENDER_COMPLETE)
         )
       }
     )
@@ -7290,7 +7290,7 @@ async function warmupClientModulesForStagedValidation(
   initialClientReactSignal.addEventListener(
     'abort',
     () => {
-      initialClientRenderController.abort()
+      initialClientRenderController.abort(initialClientReactSignal.reason)
     },
     { once: true }
   )
@@ -7446,7 +7446,7 @@ async function validateStagedShell(
         clientReactSignal.addEventListener(
           'abort',
           () => {
-            clientRenderController.abort()
+            clientRenderController.abort(clientReactSignal.reason)
           },
           { once: true }
         )
@@ -7856,7 +7856,7 @@ async function validateInstantConfigs(
           reactSignal.addEventListener(
             'abort',
             () => {
-              renderController.abort()
+              renderController.abort(reactSignal.reason)
             },
             { once: true }
           )
@@ -8065,7 +8065,7 @@ async function renderWithRestartOnCacheMissInValidation(
     if (initialAbandonController.signal.aborted === true) {
       return
     } else if (cacheSignal.hasPendingReads()) {
-      initialAbandonController.abort()
+      initialAbandonController.abort(PRERENDER_COMPLETE)
     } else {
       initialStageController.advanceStage(stage)
     }
@@ -9171,8 +9171,12 @@ async function prerenderToStream(
         initialServerReactController.signal.addEventListener(
           'abort',
           () => {
-            initialServerRenderController.abort()
-            initialServerPrerenderController.abort()
+            initialServerRenderController.abort(
+              initialServerReactController.signal.reason
+            )
+            initialServerPrerenderController.abort(
+              initialServerReactController.signal.reason
+            )
           },
           { once: true }
         )
@@ -9181,7 +9185,7 @@ async function prerenderToStream(
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
 
-        initialServerReactController.abort()
+        initialServerReactController.abort(PRERENDER_COMPLETE)
 
         // We don't need to continue the prerender process if we already
         // detected invalid dynamic usage in the initial prerender phase.
@@ -9299,7 +9303,9 @@ async function prerenderToStream(
           initialClientReactController.signal.addEventListener(
             'abort',
             () => {
-              initialClientRenderController.abort()
+              initialClientRenderController.abort(
+                initialClientReactController.signal.reason
+              )
             },
             { once: true }
           )
@@ -9541,7 +9547,9 @@ async function prerenderToStream(
             finalServerReactController.signal.addEventListener(
               'abort',
               () => {
-                finalServerRenderController.abort()
+                finalServerRenderController.abort(
+                  finalServerReactController.signal.reason
+                )
               },
               { once: true }
             )
@@ -9611,9 +9619,8 @@ async function prerenderToStream(
               resultIsPartial = true
             }
 
-            workUnitAsyncStorage.run(
-              finalServerPrerenderStore,
-              finalServerReactController.abort.bind(finalServerReactController)
+            workUnitAsyncStorage.run(finalServerPrerenderStore, () =>
+              finalServerReactController.abort(PRERENDER_COMPLETE)
             )
           }
         )
@@ -9760,7 +9767,9 @@ async function prerenderToStream(
               finalClientReactController.signal.addEventListener(
                 'abort',
                 () => {
-                  finalClientRenderController.abort()
+                  finalClientRenderController.abort(
+                    finalClientReactController.signal.reason
+                  )
                 },
                 { once: true }
               )
@@ -10219,7 +10228,9 @@ async function prerenderToStream(
             errorServerReactController.signal.addEventListener(
               'abort',
               () => {
-                errorServerRenderController.abort()
+                errorServerRenderController.abort(
+                  errorServerReactController.signal.reason
+                )
               },
               { once: true }
             )
@@ -10229,11 +10240,8 @@ async function prerenderToStream(
           },
           () => {
             if (!errorServerReactController.signal.aborted) {
-              workUnitAsyncStorage.run(
-                errorPrerenderStore,
-                errorServerReactController.abort.bind(
-                  errorServerReactController
-                )
+              workUnitAsyncStorage.run(errorPrerenderStore, () =>
+                errorServerReactController.abort(PRERENDER_COMPLETE)
               )
             }
           }
@@ -10319,7 +10327,9 @@ async function prerenderToStream(
             errorClientReactController.signal.addEventListener(
               'abort',
               () => {
-                errorClientRenderController.abort()
+                errorClientRenderController.abort(
+                  errorClientReactController.signal.reason
+                )
               },
               { once: true }
             )
@@ -10327,9 +10337,8 @@ async function prerenderToStream(
             return pendingErrorHtmlResult
           },
           () => {
-            workUnitAsyncStorage.run(
-              errorClientPrerenderStore,
-              errorClientReactController.abort.bind(errorClientReactController)
+            workUnitAsyncStorage.run(errorClientPrerenderStore, () =>
+              errorClientReactController.abort(PRERENDER_COMPLETE)
             )
           }
         )

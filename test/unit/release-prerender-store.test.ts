@@ -133,4 +133,36 @@ describe('releasePrerenderStore', () => {
     expect(store.controller).toBeNull()
     expect(store.renderSignal).toBeNull()
   })
+
+  it('sanitizes abort reason stack frames on controller and renderSignal to prevent CallSite closure retention', () => {
+    const mockController = new AbortController()
+    const errorWithStack = new Error('Render aborted')
+    mockController.abort(errorWithStack)
+
+    const store: PrerenderStoreModernServer = {
+      type: 'prerender',
+      phase: 'render',
+      rootParams: {},
+      implicitTags: { tags: [] },
+      fallbackRouteParams: null,
+      renderSignal: mockController.signal,
+      controller: mockController,
+      stagedRendering: null,
+      cacheSignal: null,
+      dynamicTracking: null,
+      revalidate: 60,
+      expire: 300,
+      stale: 600,
+      tags: [],
+      resumeDataCache: null,
+      hmrRefreshHash: undefined,
+      varyParamsAccumulator: null,
+      prerenderDataTracking: null,
+      isFallbackUpgradeable: false,
+    }
+
+    releasePrerenderStore(store)
+
+    expect(errorWithStack.stack).toBe('Error: Render aborted')
+  })
 })
