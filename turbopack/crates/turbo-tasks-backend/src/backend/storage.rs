@@ -292,6 +292,7 @@ impl Storage {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
+        task.set_restore_found_task(true);
         task.gc_pin_for_construction();
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
@@ -781,6 +782,14 @@ impl Storage {
                 }
                 match value_evictability {
                     ValueEvictability::Evictable { meta, data } => {
+                        // Keep proof of existence through partial eviction, but clear it before
+                        // drop_partial checks for transient residue if no category remains
+                        // restored. The next open must then check backing storage again.
+                        if (data || !task.flags.data_restored())
+                            && (meta || !task.flags.meta_restored())
+                        {
+                            task.set_restore_found_task(false);
+                        }
                         match task.drop_partial(data, meta) {
                             DropPartialOutcome::Empty => {
                                 evicted.full += 1;

@@ -155,6 +155,12 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "transient", inline, default)]
     transient_ref_count: u32,
 
+    /// Whether a disk lookup or new-task initialization established this task's existence. An
+    /// absent key still sets `*_restored` to wake waiters, so those bits alone cannot prove it.
+    /// Cleared on full eviction.
+    #[field(storage = "direct", category = "transient", inline, default)]
+    pub restore_found_task: bool,
+
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
     // Persisted flags come first, then transient flags.
@@ -550,6 +556,14 @@ pub enum KeyEvictability {
 }
 
 impl TaskStorage {
+    /// A disk lookup or new-task initialization proves existence while any category remains
+    /// resident. Full eviction clears that proof so the next open must consult disk again.
+    pub fn is_known_present(&self) -> bool {
+        self.flags.new_task()
+            || ((self.flags.data_restored() || self.flags.meta_restored())
+                && self.restore_found_task)
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller

@@ -1948,9 +1948,10 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
         let mut ctx = self.execute_context(turbo_tasks);
-        // Diagnostic path: the caller may name any id, including one that no longer exists, so this
-        // must not assert existence. A nonexistent task falls through to the "unknown" case below.
-        let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
+        // A diagnostic may name a task that no longer exists; do not create a blank entry for it.
+        let Some(task) = ctx.try_get_task(task_id, TaskDataCategory::Data) else {
+            return "unknown".to_string();
+        };
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
