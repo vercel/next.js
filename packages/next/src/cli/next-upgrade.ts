@@ -391,10 +391,7 @@ ${references}`
         require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
       await handoffUpgrade(prompt, baseDir)
     } catch (error) {
-      Log.error(
-        'Could not prepare the upgrade:',
-        error instanceof Error ? error.message : error
-      )
+      Log.error('Could not prepare the upgrade:', error)
       process.exitCode = 1
     }
 

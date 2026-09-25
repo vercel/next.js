@@ -6,7 +6,11 @@ import { promisify } from 'util'
 import { updateInitialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
-import type { NextConfigComplete } from '../../server/config-shared'
+import {
+  defaultConfig,
+  type NextConfig,
+  type NextConfigComplete,
+} from '../../server/config-shared'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
@@ -132,13 +136,13 @@ type UpgradeReminder = {
   | { kind: 'future'; targetVersion: string; names: string[] }
 )
 
-export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
+export function getUpgradeContext(config: NextConfig): UpgradeContext {
   return {
-    distDir: config.distDir,
-    cacheComponents: config.cacheComponents,
+    distDir: config.distDir ?? defaultConfig.distDir,
+    cacheComponents: config.cacheComponents ?? defaultConfig.cacheComponents,
     experimental: {
       agenticAutoUpgrade:
-        getRequestedUpgrade() ?? config.experimental.agenticAutoUpgrade,
+        getRequestedUpgrade() ?? config.experimental?.agenticAutoUpgrade,
     },
   }
 }
@@ -459,7 +463,8 @@ export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null = null,
+  onHumanPromptStart: (() => void) | null = null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agenticAutoUpgrade
@@ -540,6 +545,7 @@ export async function nudgeUpgrade(
       preview
     )
   } else if (signal) {
+    onHumanPromptStart?.()
     return nudgeUpgradeForHuman(directory, reminder, signal, preview)
   }
 }

@@ -33,6 +33,7 @@ import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
+import { parseBundlerArgs } from '../lib/bundler'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
 
 /**
@@ -429,9 +430,20 @@ program
       }
       setupProfilesDir(directory || process.cwd())
       const portSource = _optionValueSources.port
-      import('../cli/next-dev.js').then((mod) =>
-        mod.nextDev(options, portSource, directory)
-      )
+      // Match the dev worker's bundler environment before evaluating config
+      // for the upgrade prompt. Rspack can still be selected later by
+      // next.config.js in the server worker.
+      const bundler = parseBundlerArgs(options)
+      // Check for a human upgrade prompt before entering nextDev so it can
+      // manage the terminal while dev runs. When no prompt applies, continue
+      // through the existing nextDev path without a PTY.
+      void import('../lib/upgrade/upgrade-prompt.js').then(async (mod) => {
+        if (await mod.runDevWithUpgradePrompt(directory)) {
+          return
+        }
+        const { nextDev } = await import('../cli/next-dev.js')
+        await nextDev(options, portSource, directory, bundler)
+      })
     }
   )
   .usage('[directory] [options]')
