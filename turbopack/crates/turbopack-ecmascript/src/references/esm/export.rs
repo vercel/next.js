@@ -36,7 +36,10 @@ use crate::{
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::{
-        base::{EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent},
+        base::{
+            EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent,
+            can_capture_export_value,
+        },
         mangle::mangled_export_names,
     },
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT},
@@ -1174,10 +1177,30 @@ impl EsmExports {
                 EsmExport::ImportedBinding(esm_ref, name, mutable) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
-                    referenced_asset
+                    let ident = referenced_asset
                         .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
+                        .await?;
+                    // Whether a re-export read through another module's namespace can be captured
+                    // as a value, see `can_capture_export_value`.
+                    let can_value_bind = match (&referenced_asset, &ident) {
+                        (
+                            ReferencedAsset::Some(module),
+                            Some(ReferencedAssetIdent::Module {
+                                import_source: ImportSource::Module { asset },
+                                ..
+                            }),
+                        ) => can_capture_export_value(
+                            **asset,
+                            **module,
+                            name.clone(),
+                            chunking_context,
+                        )
                         .await?
-                        .map(|ident| {
+                        .value_binding_name
+                        .is_some(),
+                        _ => false,
+                    };
+                    ident.map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
                             use crate::references::esm::base::ReferencedAssetIdent;
@@ -1210,10 +1233,10 @@ impl EsmExports {
                                         }
                                     }
                                 },
-                                ReferencedAssetIdent::Module { can_value_bind, .. } => {
+                                ReferencedAssetIdent::Module { .. } => {
                                     // See if we can capture the module export as a 'value' to re-export it
                                     if !*mutable
-                                        && *can_value_bind
+                                        && can_value_bind
                                         && !export_usage_info.is_circuit_breaker
                                     {
                                         return ExportBinding::Value(read_expr);
