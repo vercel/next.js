@@ -73,6 +73,11 @@ declare module 'react' {
   interface ImgHTMLAttributes<T> {
     fetchPriority?: 'high' | 'low' | 'auto' | undefined
   }
+  // <script fetchPriority=""> support
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
+  interface ScriptHTMLAttributes<T> {
+    fetchPriority?: 'high' | 'low' | 'auto' | undefined
+  }
 }
 
 export type Redirect =
