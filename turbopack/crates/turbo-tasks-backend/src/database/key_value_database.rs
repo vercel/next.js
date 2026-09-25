@@ -47,7 +47,6 @@ impl KeySpace {
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
-                // Hash collisions are encoded together in one list-valued record.
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             },

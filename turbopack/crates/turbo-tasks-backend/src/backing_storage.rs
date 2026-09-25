@@ -16,10 +16,14 @@ pub type TaskCache = FxDashMap<TaskTypeHash, TaskCacheBucket>;
 /// All task types and IDs sharing one persistent task-type hash.
 ///
 /// Hash collisions are exceptionally rare, so almost every bucket contains exactly one entry.
-/// Keeping the operations on this newtype ensures lookup, restore, snapshotting, eviction, and
-/// deletion all use the same collision semantics.
+/// One `(CachedTaskTypeArc, TaskId)` pair fits inline; a second, exceptionally rare collision
+/// spills to the heap. Complete buckets permit restore lookups without a persistence read.
 #[derive(Clone, Default)]
-pub struct TaskCacheBucket(SmallVec<[(CachedTaskTypeArc, TaskId); 3]>);
+pub struct TaskCacheBucket {
+    entries: SmallVec<[(CachedTaskTypeArc, TaskId); 1]>,
+    /// A by-type restore has read every on-disk candidate for this hash.
+    complete: bool,
+}
 
 impl TaskCacheBucket {
     pub fn find(
@@ -28,32 +32,46 @@ impl TaskCacheBucket {
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
     ) -> Option<(TaskId, CachedTaskTypeArc)> {
-        self.0
+        self.entries
             .iter()
             .find(|(task_type, _)| task_type.eq_components(native_fn, this, arg))
             .map(|(task_type, task_id)| (*task_id, task_type.clone()))
     }
 
     pub fn insert(&mut self, task_type: CachedTaskTypeArc, task_id: TaskId) {
-        if !self.0.iter().any(|(candidate, _)| candidate == &task_type) {
-            self.0.push((task_type, task_id));
+        if !self
+            .entries
+            .iter()
+            .any(|(candidate, _)| candidate == &task_type)
+        {
+            self.entries.push((task_type, task_id));
         }
     }
 
-    pub fn remove_id(&mut self, task_id: TaskId) {
-        self.0.retain(|(_, candidate_id)| *candidate_id != task_id);
+    pub fn task_ids(&self) -> TaskIdBucket {
+        self.entries.iter().map(|(_, task_id)| *task_id).collect()
     }
 
-    pub fn task_ids(&self) -> TaskIdBucket {
-        self.0.iter().map(|(_, task_id)| *task_id).collect()
+    pub fn remove_id(&mut self, task_id: TaskId) -> bool {
+        let len = self.entries.len();
+        self.entries.retain(|(_, id)| *id != task_id);
+        self.entries.len() != len
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.entries.is_empty()
     }
 
-    pub fn is_singleton_for(&self, task_type: &CachedTaskTypeArc) -> bool {
-        self.0.len() == 1 && self.0[0].0 == *task_type
+    pub fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    pub fn mark_complete(&mut self) {
+        self.complete = true;
+    }
+
+    pub fn is_singleton_id(&self, task_id: TaskId) -> bool {
+        self.entries.len() == 1 && self.entries[0].1 == task_id
     }
 }
 

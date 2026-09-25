@@ -16,6 +16,7 @@ use std::{
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use parking_lot::RwLockReadGuard;
+use smallvec::SmallVec;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -1404,6 +1405,17 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             return None;
         }
 
+        let task_type_hash =
+            crate::backing_storage::compute_task_type_hash_from_components(native_fn, this, arg);
+        // A complete in-memory bucket already includes every candidate on disk. In particular,
+        // direct-by-ID restores during eviction must not repeatedly read the DB or recurse into
+        // task storage; a partially populated bucket still needs a full restore.
+        if let Some(bucket) = self.backend.storage.task_cache.get(&task_type_hash)
+            && bucket.is_complete()
+        {
+            return bucket.find(native_fn, this, arg);
+        }
+
         // Get candidates from backing storage (hash-based lookup may return multiple).
         let (task_type_hash, candidates) = self
             .backend
@@ -1413,17 +1425,18 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
         // Restore every candidate's full type before locking the TaskCache bucket. This makes the
         // in-memory bucket complete even when the matching candidate appears first.
-        let mut restored_candidates = Vec::with_capacity(candidates.len());
+        let mut restored_candidates = SmallVec::<[(CachedTaskTypeArc, TaskId); 1]>::new();
         let mut matching_candidate = None;
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
-            if let Some(stored_type) = task.get_persistent_task_type() {
-                let stored_type = stored_type.clone();
-                if stored_type.eq_components(native_fn, this, arg) {
-                    matching_candidate = Some((candidate_id, stored_type.clone()));
-                }
-                restored_candidates.push((stored_type, candidate_id));
+            let stored_type = task
+                .get_persistent_task_type()
+                .expect("TaskCache candidate must have a persistent task type")
+                .clone();
+            if stored_type.eq_components(native_fn, this, arg) {
+                matching_candidate = Some((candidate_id, stored_type.clone()));
             }
+            restored_candidates.push((stored_type, candidate_id));
         }
 
         let mut bucket = self
@@ -1437,6 +1450,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         for (stored_type, candidate_id) in restored_candidates {
             bucket.insert(stored_type, candidate_id);
         }
+        bucket.mark_complete();
         matching_candidate
     }
 

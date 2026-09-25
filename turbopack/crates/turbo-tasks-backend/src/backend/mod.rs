@@ -15,7 +15,7 @@ use std::{
     borrow::Cow,
     fmt::Write,
     future::Future,
-    hash::BuildHasherDefault,
+    hash::{BuildHasher, BuildHasherDefault},
     mem::take,
     pin::Pin,
     sync::{Arc, LazyLock},
@@ -26,6 +26,7 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
+use hashbrown::hash_table;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
@@ -1406,7 +1407,7 @@ impl TurboTasksBackend {
                             .expect("a GC-deleted task must have a task type"),
                     );
                     self.storage
-                        .unregister_task_cache_id(task_type_hash, task_id);
+                        .note_task_cache_deletion(task_type_hash, task_id);
                     return SnapshotItem::Delete {
                         task_id,
                         task_type_hash,
@@ -1744,31 +1745,28 @@ impl TurboTasksBackend {
         let is_root = native_fn.is_root;
 
         let arg_ref = arg.as_ref();
-        let task_type_hash = if transient {
-            CachedTaskType::hash_from_components(
-                self.storage.task_cache.hasher(),
-                native_fn,
-                this,
-                arg_ref,
-            )
-            .to_le_bytes()
-        } else {
-            compute_task_type_hash_from_components(native_fn, this, arg_ref)
-        };
+        let task_type_hash =
+            (!transient).then(|| compute_task_type_hash_from_components(native_fn, this, arg_ref));
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut created_new = false;
-        // Step 1: Fast read-only cache lookup. The hash locates the collision bucket and the full
-        // task type selects its member. Release the bucket lock before connecting the child.
-        let cached_task_id = self
-            .storage
-            .task_cache
-            .get(&task_type_hash)
-            .and_then(|bucket| {
-                bucket
-                    .find(native_fn, this, arg_ref)
-                    .map(|(task_id, _)| task_id)
-            });
+        // Step 1: Read the transient type map or the persistent hash collision bucket without
+        // allocating an argument. Release the map lock before connecting the child.
+        let cached_task_id = if let Some(task_type_hash) = task_type_hash {
+            self.storage
+                .task_cache
+                .get(&task_type_hash)
+                .and_then(|bucket| bucket.find(native_fn, this, arg_ref).map(|(id, _)| id))
+        } else {
+            let cache = &self.storage.transient_task_cache;
+            let hash =
+                CachedTaskType::hash_from_components(cache.hasher(), native_fn, this, arg_ref);
+            let shard = &cache.shards()[cache.determine_shard(hash as usize)];
+            shard
+                .read()
+                .find(hash, |(key, _)| key.eq_components(native_fn, this, arg_ref))
+                .map(|(_, task_id)| *task_id)
+        };
         if let Some(task_id) = cached_task_id {
             self.track_cache_hit_by_fn(native_fn);
             operation::ConnectChildOperation::run(
@@ -1788,37 +1786,77 @@ impl TurboTasksBackend {
             ctx.task_by_type(native_fn, this, arg_ref)
         };
 
+        // Task exists in backing storage. task_by_type has inserted it into the in-memory cache.
         let task_id = if let Some((task_id, _stored_type)) = restored_task {
             self.track_cache_hit_by_fn(native_fn);
             task_id
         } else {
-            // Step 3: Serialize creation on the complete hash bucket. Two colliding task types can
-            // be added concurrently without either overwriting the other's persisted candidate.
-            let mut bucket = self.storage.task_cache.entry(task_type_hash).or_default();
-            let existing_task_id = bucket
-                .find(native_fn, this, arg.as_ref())
-                .map(|(task_id, _)| task_id);
-            let (task_id, created) = if let Some(task_id) = existing_task_id {
-                (task_id, false)
+            // Step 3: Serialize creation on the appropriate map shard. Another thread may have
+            // beaten us to creating this task while we checked backing storage. They will handle
+            // logging the new task as modified.
+            let (task_id, created) = if let Some(task_type_hash) = task_type_hash {
+                let mut bucket = self.storage.task_cache.entry(task_type_hash).or_default();
+                let result = if let Some((task_id, _)) = bucket.find(native_fn, this, arg.as_ref())
+                {
+                    (task_id, false)
+                } else {
+                    // Only now do we force the allocation.
+                    // NOTE: if our caller had to perform resolution, then this will have
+                    // already been boxed and take_box just takes it.
+                    let task_type = CachedTaskTypeArc::new(CachedTaskType {
+                        native_fn,
+                        this,
+                        arg: arg.take_box(),
+                    });
+                    let task_id = self.persisted_task_id_factory.get();
+                    // Initialize storage BEFORE making task_id visible to other threads. A cache
+                    // hit must always see the storage entry with restored flags set.
+                    self.storage
+                        .initialize_new_task(task_id, Some(task_type.clone()));
+                    bucket.insert(task_type, task_id);
+                    (task_id, true)
+                };
+                drop(bucket);
+                result
             } else {
-                // Only now do we force the allocation.
-                let task_type = CachedTaskTypeArc::new(CachedTaskType {
+                let cache = &self.storage.transient_task_cache;
+                let hash = CachedTaskType::hash_from_components(
+                    cache.hasher(),
                     native_fn,
                     this,
-                    arg: arg.take_box(),
-                });
-                let task_id = if transient {
-                    self.transient_task_id_factory.get()
-                } else {
-                    self.persisted_task_id_factory.get()
+                    arg.as_ref(),
+                );
+                let shard = &cache.shards()[cache.determine_shard(hash as usize)];
+                let mut shard = shard.write();
+                let result = match shard.entry(
+                    hash,
+                    |(key, _)| key.eq_components(native_fn, this, arg.as_ref()),
+                    |(key, _)| cache.hasher().hash_one(key),
+                ) {
+                    hash_table::Entry::Occupied(entry) => (entry.get().1, false),
+                    hash_table::Entry::Vacant(entry) => {
+                        // Only now do we force the allocation.
+                        // NOTE: if our caller had to perform resolution, the argument is already
+                        // boxed.
+                        let task_type = CachedTaskTypeArc::new(CachedTaskType {
+                            native_fn,
+                            this,
+                            arg: arg.take_box(),
+                        });
+                        let task_id = self.transient_task_id_factory.get();
+                        // Initialize storage BEFORE making task_id visible to other threads.
+                        // A cache hit must always see the storage entry with restored flags set.
+                        self.storage
+                            .initialize_new_task(task_id, Some(task_type.clone()));
+                        entry.insert((task_type, task_id));
+                        (task_id, true)
+                    }
                 };
-                // Initialize storage BEFORE making task_id visible in the cache.
-                self.storage
-                    .initialize_new_task(task_id, Some(task_type.clone()));
-                bucket.insert(task_type, task_id);
-                (task_id, true)
+                drop(shard);
+                result
             };
-            drop(bucket);
+            // The map shard lock is released before cache tracking or aggregation updates can
+            // re-enter the backend.
 
             created_new = created;
             if created {

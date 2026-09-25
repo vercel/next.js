@@ -6,15 +6,12 @@ use std::{
 };
 
 use anyhow::{Context, Result, ensure};
-use bincode::{
-    Decode, Encode,
-    de::Decoder,
-    enc::Encoder,
-    error::{DecodeError, EncodeError},
-};
+use bincode::{Decode, de::Decoder, error::DecodeError};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
-use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
+use turbo_bincode::{
+    TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
+};
 use turbo_persistence::CommitStats;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId,
@@ -88,47 +85,23 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
     Ok(n)
 }
 
-/// Bincode representation of one TaskCache collision bucket. The generic wrapper lets encoding
-/// borrow an existing slice while decoding directly into the inline `SmallVec` representation.
-struct TaskCacheBucket<T>(T);
-
-impl<T> Encode for TaskCacheBucket<T>
-where
-    T: AsRef<[TaskId]>,
-{
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        self.0.as_ref().encode(encoder)
-    }
-}
-
-impl<Context> Decode<Context> for TaskCacheBucket<TaskIdBucket> {
-    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let len = u64::decode(decoder)?;
-        let len = usize::try_from(len).map_err(|_| DecodeError::OutsideUsizeRange(len))?;
-        decoder.claim_container_read::<TaskId>(len)?;
-        let mut task_ids = TaskIdBucket::with_capacity(len);
-        for _ in 0..len {
-            decoder.unclaim_bytes_read(size_of::<TaskId>());
-            task_ids.push(TaskId::decode(decoder)?);
-        }
-        Ok(Self(task_ids))
-    }
-}
-
-fn encode_task_ids(task_ids: &[TaskId]) -> Result<Vec<u8>> {
-    Ok(bincode::encode_to_vec(
-        TaskCacheBucket(task_ids),
-        bincode::config::standard(),
-    )?)
+/// Bincode encodes the borrowed slice in the same format as a Vec, normally within 16 bytes.
+fn encode_task_ids(task_ids: &[TaskId]) -> Result<TurboBincodeBuffer> {
+    Ok(turbo_bincode_encode(&task_ids)?)
 }
 
 fn decode_task_ids(bytes: &[u8]) -> Result<TaskIdBucket> {
-    let (TaskCacheBucket(task_ids), consumed) = bincode::decode_from_slice::<
-        TaskCacheBucket<TaskIdBucket>,
-        _,
-    >(bytes, bincode::config::standard())?;
+    let mut decoder = new_turbo_bincode_decoder(bytes);
+    let len = u64::decode(&mut decoder)?;
+    let len = usize::try_from(len).map_err(|_| DecodeError::OutsideUsizeRange(len))?;
+    decoder.claim_container_read::<TaskId>(len)?;
+    let mut task_ids = TaskIdBucket::with_capacity(len);
+    for _ in 0..len {
+        decoder.unclaim_bytes_read(size_of::<TaskId>());
+        task_ids.push(TaskId::decode(&mut decoder)?);
+    }
     ensure!(
-        consumed == bytes.len(),
+        decoder.reader().buffer.is_empty(),
         "trailing bytes in TaskCache bucket"
     );
     ensure!(!task_ids.is_empty(), "empty TaskCache bucket");
@@ -410,25 +383,27 @@ impl TurboBackingStorage {
                     ))
                 })?;
 
-            let mut snapshot_meta = SnapshotMeta::default();
-            let mut task_cache_changes =
-                FxHashMap::<TaskTypeHash, (TaskIdBucket, TaskIdBucket)>::default();
-            for (meta, changes) in shard_results {
-                snapshot_meta = snapshot_meta.merge(meta);
-                for (hash, (added_ids, deleted_ids)) in changes {
-                    let combined = task_cache_changes.entry(hash).or_default();
-                    for task_id in added_ids {
-                        if !combined.0.contains(&task_id) {
-                            combined.0.push(task_id);
+            // Merge shard-local intents rather than replacing whole buckets: colliding tasks can
+            // live in different task-ID shards, so their additions and deletions must coexist.
+            let (mut snapshot_meta, task_cache_changes) = shard_results
+                .into_iter()
+                .reduce(|(meta, mut changes), (other_meta, other_changes)| {
+                    for (hash, (added_ids, deleted_ids)) in other_changes {
+                        let combined = changes.entry(hash).or_default();
+                        for task_id in added_ids {
+                            if !combined.0.contains(&task_id) {
+                                combined.0.push(task_id);
+                            }
+                        }
+                        for task_id in deleted_ids {
+                            if !combined.1.contains(&task_id) {
+                                combined.1.push(task_id);
+                            }
                         }
                     }
-                    for task_id in deleted_ids {
-                        if !combined.1.contains(&task_id) {
-                            combined.1.push(task_id);
-                        }
-                    }
-                }
-            }
+                    (meta.merge(other_meta), changes)
+                })
+                .unwrap_or_default();
             snapshot_meta.task_cache_items = task_cache_changes.len();
 
             let span = tracing::trace_span!("flush task data");
@@ -459,7 +434,7 @@ impl TurboBackingStorage {
                         batch.put(
                             KeySpace::TaskCache,
                             WriteBuffer::Borrowed(hash),
-                            WriteBuffer::Vec(encode_task_ids(&task_ids)?),
+                            WriteBuffer::SmallVec(encode_task_ids(&task_ids)?),
                         )?;
                     }
                 }
@@ -468,13 +443,6 @@ impl TurboBackingStorage {
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
             save_infra(&batch, next_task_id, operations, roots)?;
-
-            let span = tracing::trace_span!("flush task cache and infra");
-            parallel::try_for_each(&[KeySpace::TaskCache, KeySpace::Infra], |&key_space| {
-                let _span = span.clone().entered();
-                // Safety: TaskCache reconciliation and Infra writes above have completed.
-                unsafe { batch.flush(key_space) }
-            })?;
 
             {
                 let _span = tracing::trace_span!("commit").entered();
@@ -665,7 +633,7 @@ mod tests {
         batch.put(
             KeySpace::TaskCache,
             WriteBuffer::Borrowed(&hash.to_le_bytes()),
-            WriteBuffer::Vec(encode_task_ids(task_ids)?),
+            WriteBuffer::SmallVec(encode_task_ids(task_ids)?),
         )?;
         batch.commit()?;
         Ok(())
@@ -764,6 +732,44 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_merges_colliding_put_and_delete_across_shards() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let hash = 0xC0111DEu64;
+        let deleted = TaskId::try_from(100u32).unwrap();
+        let survivor = TaskId::try_from(200u32).unwrap();
+        let created = TaskId::try_from(300u32).unwrap();
+        write_task_cache_entry(&db, hash, &[deleted, survivor])?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        // These items live in separate task-ID shards and must merge into one final write.
+        storage.save_snapshot(
+            Vec::new(),
+            None,
+            vec![
+                vec![SnapshotItem::Put {
+                    task_id: created,
+                    meta: None,
+                    data: None,
+                    task_type_hash: Some(hash.to_le_bytes()),
+                }],
+                vec![SnapshotItem::Delete {
+                    task_id: deleted,
+                    task_type_hash: hash.to_le_bytes(),
+                }],
+            ],
+            // Match canary's in-memory lifecycle: deletion has not evicted the stale ID yet.
+            |_| smallvec::smallvec![deleted, survivor, created],
+        )?;
+        assert_eq!(
+            task_cache_ids(&storage.inner.database, hash)?,
+            vec![survivor, created]
+        );
+        storage.inner.database.shutdown()?;
+        Ok(())
+    }
+
     /// Tests that multiple distinct keys written in a single batch with flush can be read back.
     /// This mirrors the actual save_snapshot pattern: write many TaskCache entries, flush, commit.
     // This test is too slow to run under Miri.
@@ -788,10 +794,10 @@ mod tests {
                 batch.put(
                     KeySpace::TaskCache,
                     WriteBuffer::Borrowed(&hash.to_le_bytes()),
-                    WriteBuffer::Vec(encode_task_ids(&[*task_id])?),
+                    WriteBuffer::SmallVec(encode_task_ids(&[*task_id])?),
                 )?;
             }
-            // Flush TaskCache (like the new code does)
+            // Flush this standalone test batch before committing it.
             unsafe { batch.flush(KeySpace::TaskCache) }?;
             batch.commit()?;
 

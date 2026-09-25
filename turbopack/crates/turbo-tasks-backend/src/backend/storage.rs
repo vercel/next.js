@@ -219,6 +219,11 @@ pub struct Storage {
     ///
     /// LockOrdering: See the comments on [map].
     pub task_cache: TaskCache,
+    /// Transient task types do not participate in persisted hash-collision buckets.
+    pub transient_task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
+    /// GC tombstones retained until their IDs are evicted (or shutdown), so a later
+    /// collision-bucket write cannot re-persist a deleted ID when eviction was skipped.
+    task_cache_deleted: FxDashMap<TaskTypeHash, TaskIdBucket>,
 }
 
 impl Storage {
@@ -252,6 +257,8 @@ impl Storage {
             map,
             restored: Event::new(|| || "Storage::restored".to_string()),
             task_cache: FxDashMap::default(),
+            transient_task_cache: FxDashMap::default(),
+            task_cache_deleted: FxDashMap::default(),
         }
     }
 
@@ -286,34 +293,84 @@ impl Storage {
     }
 
     pub fn task_cache_ids(&self, task_type_hash: TaskTypeHash) -> TaskIdBucket {
-        self.task_cache
+        let mut ids = self
+            .task_cache
             .get(&task_type_hash)
             .map(|bucket| bucket.task_ids())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        self.filter_deleted_task_cache_ids(task_type_hash, &mut ids);
+        ids
     }
 
-    /// Removes one task from its collision bucket.
-    pub fn unregister_task_cache_id(&self, task_type_hash: TaskTypeHash, task_id: TaskId) {
-        if let Some(mut bucket) = self.task_cache.get_mut(&task_type_hash) {
-            bucket.remove_id(task_id);
+    fn filter_deleted_task_cache_ids(&self, hash: TaskTypeHash, ids: &mut TaskIdBucket) {
+        if let Some(deleted) = self.task_cache_deleted.get(&hash) {
+            ids.retain(|id| !deleted.contains(id));
         }
     }
 
-    /// Evicts a singleton TaskCache bucket. Collision buckets stay complete because GC deletion
-    /// uses them as its authoritative survivor set even after one member's task type is evictable.
-    fn evict_task_cache_type(&self, task_type: &CachedTaskTypeArc) -> bool {
-        let task_type_hash = compute_task_type_hash(task_type);
-        let mut removed = false;
-        self.task_cache.remove_if_mut(&task_type_hash, |_, bucket| {
-            if bucket.is_empty() {
-                return true;
-            }
-            if bucket.is_singleton_for(task_type) {
-                removed = true;
-                return true;
-            }
-            false
+    pub fn note_task_cache_deletion(&self, hash: TaskTypeHash, task_id: TaskId) {
+        let mut deleted = self.task_cache_deleted.entry(hash).or_default();
+        if !deleted.contains(&task_id) {
+            deleted.push(task_id);
+        }
+    }
+
+    fn clear_task_cache_deletion(&self, hash: TaskTypeHash, task_id: TaskId) {
+        self.task_cache_deleted.remove_if_mut(&hash, |_, ids| {
+            ids.retain(|id| *id != task_id);
+            ids.is_empty()
         });
+    }
+
+    /// Live key eviction removes only singleton buckets; GC-deleted IDs are removed individually.
+    /// Returns `None` when the cache shard is contended while we hold a task-storage shard.
+    fn try_evict_task_cache_id(
+        &self,
+        hash: TaskTypeHash,
+        task_id: TaskId,
+        deleted: bool,
+    ) -> Option<bool> {
+        let cache = &self.task_cache;
+        let table_hash = cache.hasher().hash_one(hash);
+        let shard = &cache.shards()[cache.determine_shard(table_hash as usize)];
+        let mut shard = shard.try_write()?;
+        let removed = if let Ok(mut entry) = shard.find_entry(table_hash, |(key, _)| *key == hash) {
+            if deleted {
+                let removed = entry.get_mut().1.remove_id(task_id);
+                if entry.get().1.is_empty() {
+                    entry.remove();
+                }
+                removed
+            } else if entry.get().1.is_singleton_id(task_id) {
+                entry.remove();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        drop(shard);
+        if deleted {
+            self.clear_task_cache_deletion(hash, task_id);
+        }
+        Some(removed)
+    }
+
+    fn evict_task_cache_id(&self, hash: TaskTypeHash, task_id: TaskId, deleted: bool) -> bool {
+        let mut removed = false;
+        self.task_cache.remove_if_mut(&hash, |_, bucket| {
+            if deleted {
+                removed = bucket.remove_id(task_id);
+                bucket.is_empty()
+            } else {
+                removed = bucket.is_singleton_id(task_id);
+                removed
+            }
+        });
+        if deleted {
+            self.clear_task_cache_deletion(hash, task_id);
+        }
         removed
     }
 
@@ -643,6 +700,8 @@ impl Storage {
     /// Drop the `task_cache` map, freeing its memory.
     pub(crate) fn drop_task_cache(&self) {
         drop_contents(&self.task_cache);
+        drop_contents(&self.transient_task_cache);
+        drop_contents(&self.task_cache_deleted);
     }
 
     /// Evict tasks from in-memory storage after a successful snapshot.
@@ -673,9 +732,21 @@ impl Storage {
         let counts: Vec<EvictionCounts> = parallel::map_collect(self.map.shards(), |shard| {
             let mut shard = shard.write();
             let mut evicted = EvictionCounts::default();
-            // Task creation locks `task_cache` before `map`; this loop already holds a `map`
-            // shard, so defer every task-cache mutation until after releasing the shard.
-            let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+            // Creation locks a task-cache shard before this map shard. Try the sharded cache
+            // lock without blocking; defer only contended removals to avoid a lock cycle.
+            let mut deferred_task_cache_removals: Vec<(TaskTypeHash, TaskId, bool)> = Vec::new();
+            let remove_from_task_cache = |evicted: &mut EvictionCounts,
+                                          deferred: &mut Vec<(TaskTypeHash, TaskId, bool)>,
+                                          task_id: TaskId,
+                                          task_type: &CachedTaskTypeArc,
+                                          deleted: bool| {
+                let hash = compute_task_type_hash(task_type);
+                match self.try_evict_task_cache_id(hash, task_id, deleted) {
+                    Some(true) => evicted.key_evictions += 1,
+                    Some(false) => {}
+                    None => deferred.push((hash, task_id, deleted)),
+                }
+            };
             shard.retain(|(task_id, task)| {
                 // Transient tasks can not be evicted at all, unless they are fully
                 // delete by the GC.
@@ -686,11 +757,16 @@ impl Storage {
                 // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
                 // can drop them fully now.
                 if task.flags.deleted() {
-                    if let Some(task_type) = task.get_persistent_task_type() {
+                    if !task_id.is_transient() {
+                        let task_type = task
+                            .get_persistent_task_type()
+                            .expect("GC deleted persistent tasks must have a task type");
                         remove_from_task_cache(
                             &mut evicted,
                             &mut deferred_task_cache_removals,
+                            *task_id,
                             task_type,
+                            true,
                         );
                     }
                     evicted.full += 1;
@@ -703,7 +779,13 @@ impl Storage {
                         // so task_cache is a pure perf cache. Remove it now; it will be
                         // re-populated by task_by_type() on the next cache miss.
                         let task_type = task.get_persistent_task_type().unwrap();
-                        deferred_task_cache_removals.push(task_type.clone());
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            *task_id,
+                            task_type,
+                            false,
+                        );
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                 }
@@ -742,8 +824,8 @@ impl Storage {
             // Release the map shard lock before draining deferred removals so that a thread
             // holding a task_cache shard lock and waiting on this map shard can make progress.
             drop(shard);
-            for task_type in deferred_task_cache_removals {
-                if self.evict_task_cache_type(&task_type) {
+            for (hash, task_id, deleted) in deferred_task_cache_removals {
+                if self.evict_task_cache_id(hash, task_id, deleted) {
                     evicted.key_evictions += 1;
                 }
             }
@@ -1195,6 +1277,30 @@ mod tests {
         let task = storage.access_mut(task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
         assert!(!task.gc_collectible());
+    }
+
+    #[test]
+    fn gc_tombstones_stay_filtered_across_snapshots_without_eviction() {
+        let storage = Storage::new(2, true);
+        let hash = 0xC0111DEu64.to_le_bytes();
+        let deleted = non_transient_task(1);
+        let survivor = non_transient_task(2);
+        let created_later = non_transient_task(3);
+        storage.note_task_cache_deletion(hash, deleted);
+
+        // The in-memory bucket still contains the deleted ID until eviction (as on canary),
+        // but both the initial delete and a later colliding put must filter it on disk.
+        let mut first = smallvec::smallvec![deleted, survivor];
+        storage.filter_deleted_task_cache_ids(hash, &mut first);
+        assert_eq!(first.as_slice(), &[survivor]);
+        let mut later = smallvec::smallvec![deleted, survivor, created_later];
+        storage.filter_deleted_task_cache_ids(hash, &mut later);
+        assert_eq!(later.as_slice(), &[survivor, created_later]);
+
+        // Once eviction removes the deleted task from the in-memory cache, its tombstone
+        // can be forgotten. A missing bucket is also safe: disk has already been filtered.
+        assert!(!storage.evict_task_cache_id(hash, deleted, true));
+        assert!(storage.task_cache_deleted.get(&hash).is_none());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't
