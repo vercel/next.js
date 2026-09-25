@@ -4725,9 +4725,13 @@ export default async function build(
         })
 
         // Write an index of routes for the route picker
-        const routes = routesManifest.dynamicRoutes
-          .map((r) => r.page)
-          .concat(routesManifest.staticRoutes.map((r) => r.page))
+        const routes = Array.from(
+          new Set(
+            routesManifest.dynamicRoutes
+              .map((r) => r.page)
+              .concat(routesManifest.staticRoutes.map((r) => r.page))
+          )
+        )
         await writeFile(
           path.join(analyzeDir, 'data/routes.json'),
           JSON.stringify(routes, null, 2)

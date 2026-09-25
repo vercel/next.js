@@ -102,7 +102,7 @@ export function TopBar({
   const isCompareMode = baselineSnapshot != null
   return (
     <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
-      <div className="flex-1 flex">
+      <div className="flex min-w-0 flex-1">
         <RouteTypeahead
           selectedRoute={selectedRoute}
           onRouteSelected={(route) => {
