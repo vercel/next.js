@@ -1,10 +1,10 @@
 ---
 title: How to prevent flash before hydration
 nav_title: Preventing Flash
-description: Learn how to correct server-rendered content before the browser paints, avoiding visible flash when the page hydrates.
+description: Learn how to prevent a flash of unstyled content (FOUC) by correcting server-rendered HTML, such as a dark mode theme, before the browser paints.
 ---
 
-User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it.
+User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it. Correcting it after the browser has painted produces a flash of unstyled content (FOUC).
 
 Some common approaches to this problem:
 
@@ -145,6 +145,8 @@ export function InlineScript({ html }) {
 }
 ```
 
+> **Good to know**: [`useServerInsertedHTML`](/docs/app/api-reference/functions/use-server-inserted-html) also avoids the warning, but it can't replace `InlineScript` here. It inserts the script ahead of the component's markup, so the script runs before the `<time>` element exists. It suits scripts that act on the document instead, such as the theme script in [Themes](#themes).
+
 ```tsx filename="app/components/local-date.tsx" switcher
 'use client'
 
@@ -243,7 +245,7 @@ export default async function Page() {
 
 ## Themes
 
-Your page may be server-rendered with a default theme (e.g. light), but the user has a saved preference in `localStorage`. The same inline script technique works: read the value and set a `data-theme` attribute on `<html>` before the browser paints.
+Your page may be server-rendered with a default theme (e.g. light), but the user has saved a dark mode preference in `localStorage`. The same inline script technique works: read the value and set a `data-theme` attribute on `<html>` before the browser paints.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({ children }: LayoutProps<'/'>) {
@@ -292,6 +294,8 @@ export default function RootLayout({ children }) {
 ```
 
 The script runs in `<head>`, so the correct theme is applied before any content is painted. The `try/catch` handles cases where `localStorage` is unavailable.
+
+> **Good to know**: You can also return the theme script from [`useServerInsertedHTML`](/docs/app/api-reference/functions/use-server-inserted-html) in a Client Component, with a `useRef` flag so it's only inserted once. This avoids the script warning, but the script runs on the initial document only. That's fine for a theme, because the attribute it sets on `<html>` persists across navigations.
 
 ### Storing the theme in a cookie
 
