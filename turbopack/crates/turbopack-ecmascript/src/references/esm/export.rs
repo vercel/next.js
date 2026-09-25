@@ -69,18 +69,6 @@ pub struct LocalBinding {
     pub maybe_uses_this: bool,
 }
 
-impl LocalBinding {
-    /// A binding whose value has not been analyzed, so it must be treated as live and as able to
-    /// observe `this`.
-    pub fn unanalyzed(name: RcStr) -> Self {
-        LocalBinding {
-            name,
-            liveness: Liveness::Live,
-            maybe_uses_this: true,
-        }
-    }
-}
-
 #[derive(Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
@@ -1057,10 +1045,10 @@ impl EsmExports {
             };
 
             for dynamic_export_asset in &expanded.dynamic_exports {
-                let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
-                    chunking_context,
-                )
+                let ident = ImportSource::Module {
+                    asset: *dynamic_export_asset,
+                }
+                .get_namespace_ident(chunking_context)
                 .await?;
 
                 if let Some(id) = &id {

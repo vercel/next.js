@@ -147,3 +147,5 @@ for (viaForOf of [
 ]) {
   // the loop head is the assignment
 }
+
+export const config = { count: 1 }

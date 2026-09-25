@@ -85,9 +85,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, turbofmt,
+    FxDashMap, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
+    SerializationInvalidator, TryJoinIterExt, Upcast, ValueToString, Vc,
+    get_serialization_invalidator, parking_lot_mutex_bincode, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -119,7 +119,9 @@ use crate::{
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    code_gen::{
+        CodeGeneration, CodeGenerationHoistedStmt, CodeGens, HoistedStmtKey, ModifiableAst,
+    },
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
@@ -2454,38 +2456,32 @@ async fn emit_content(
     .cell())
 }
 
-/// Merges `incoming` into `existing` when both are `var` declarations, so declarations that share
-/// a hoist key accumulate their declarators rather than the later ones being dropped.
+/// Appends the declarators of `incoming` to `existing` when both are `var` declarations, so
+/// declarations that share a hoist key accumulate rather than the later ones being dropped.
 ///
-/// Declarators that destructure the same initializer are combined into one pattern, so several
-/// bindings read from one namespace become `var { a: x, b: y } = ns` rather than a chain of
-/// separate destructurings.
-///
-/// Returns whether the merge happened.
-fn merge_var_decls(existing: &mut Stmt, incoming: &Stmt, supports_destructuring: bool) -> bool {
+/// `bound` holds the bindings `existing` already declares. Several uses of one import declare the
+/// same binding, and only the first declaration is kept.
+fn append_var_decls(existing: &mut Stmt, incoming: Stmt, bound: &mut FxIndexSet<Id>) {
     let (Stmt::Decl(Decl::Var(existing)), Stmt::Decl(Decl::Var(incoming))) = (existing, incoming)
     else {
-        return false;
+        return;
     };
     if existing.kind != incoming.kind {
-        return false;
+        return;
     }
-
-    for incoming_decl in incoming.decls.iter().cloned() {
-        // Several uses of one import declare the same binding, so skip anything already bound.
-        if bound_idents(&existing.decls).any(|bound| {
-            bound_idents(std::slice::from_ref(&incoming_decl))
-                .any(|incoming| bound.sym == incoming.sym && bound.ctxt == incoming.ctxt)
-        }) {
-            continue;
+    for decl in incoming.decls {
+        if !var_decl_binding(&decl).is_some_and(|id| !bound.insert(id)) {
+            existing.decls.push(decl);
         }
-        existing.decls.push(incoming_decl);
     }
+}
 
-    if supports_destructuring {
-        destructure_shared_namespaces(&mut existing.decls);
+/// The identifier a `var <binding> = …` declarator binds.
+fn var_decl_binding(decl: &VarDeclarator) -> Option<Id> {
+    match &decl.name {
+        Pat::Ident(binding) => Some(binding.to_id()),
+        _ => None,
     }
-    true
 }
 
 /// Rewrites runs of declarators that read properties of one object into a destructuring of it.
@@ -2499,17 +2495,11 @@ fn destructure_shared_namespaces(decls: &mut Vec<VarDeclarator>) {
     let mut rest = Vec::new();
 
     for decl in decls.drain(..) {
-        // Statements arrive one at a time, so a group may already have been rewritten into a
-        // pattern by an earlier merge. Take those apart again, or a binding arriving afterwards
-        // would not be able to join them.
-        match (as_namespace_read(&decl), as_namespace_destructuring(&decl)) {
-            (Some((namespace, key, binding)), _) => {
+        match as_namespace_read(&decl) {
+            Some((namespace, key, binding)) => {
                 grouped.entry(namespace).or_default().push((key, binding));
             }
-            (_, Some((namespace, members))) => {
-                grouped.entry(namespace).or_default().extend(members);
-            }
-            _ => rest.push(decl),
+            None => rest.push(decl),
         }
     }
 
@@ -2552,30 +2542,6 @@ fn destructure_shared_namespaces(decls: &mut Vec<VarDeclarator>) {
     *decls = rest;
 }
 
-/// Matches `{"<key>": <binding>, ..} = <namespace>`, the shape this function itself produces.
-fn as_namespace_destructuring(decl: &VarDeclarator) -> Option<(Id, Vec<(Str, Ident)>)> {
-    let Pat::Object(pat) = &decl.name else {
-        return None;
-    };
-    let Some(Expr::Ident(namespace)) = decl.init.as_deref() else {
-        return None;
-    };
-    let members = pat
-        .props
-        .iter()
-        .map(|prop| match prop {
-            ObjectPatProp::KeyValue(prop) => match (&prop.key, &*prop.value) {
-                (PropName::Str(key), Pat::Ident(binding)) => {
-                    Some((key.clone(), binding.id.clone()))
-                }
-                _ => None,
-            },
-            _ => None,
-        })
-        .collect::<Option<Vec<_>>>()?;
-    Some((namespace.to_id(), members))
-}
-
 /// Matches `<binding> = <namespace>["<key>"]`, the shape value binding declarations are built in.
 fn as_namespace_read(decl: &VarDeclarator) -> Option<(Id, Str, Ident)> {
     let Pat::Ident(binding) = &decl.name else {
@@ -2613,33 +2579,6 @@ fn namespace_read_decl(namespace: &Ident, key: Str, binding: Ident) -> VarDeclar
     }
 }
 
-/// The identifiers `decls` binds, whether directly or through an object pattern.
-///
-/// Only the shapes this merge produces are walked: a plain binding, and a destructuring whose
-/// properties each bind one identifier.
-fn bound_idents(decls: &[VarDeclarator]) -> impl Iterator<Item = &Ident> {
-    decls.iter().flat_map(|decl| {
-        let (ident, props) = match &decl.name {
-            Pat::Ident(ident) => (Some(&ident.id), None),
-            Pat::Object(pat) => (None, Some(pat.props.as_slice())),
-            _ => (None, None),
-        };
-        ident.into_iter().chain(
-            props
-                .unwrap_or_default()
-                .iter()
-                .filter_map(|prop| match prop {
-                    ObjectPatProp::KeyValue(prop) => match &*prop.value {
-                        Pat::Ident(ident) => Some(&ident.id),
-                        _ => None,
-                    },
-                    ObjectPatProp::Assign(prop) => Some(&prop.key.id),
-                    ObjectPatProp::Rest(_) => None,
-                }),
-        )
-    })
-}
-
 /// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
@@ -2653,17 +2592,28 @@ fn process_content_with_code_gens(
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
+    // The bindings each mergeable statement declares so far, to drop duplicates as they arrive.
+    let mut merged_bindings: FxIndexMap<HoistedStmtKey, FxIndexSet<Id>> = FxIndexMap::default();
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
             match hoisted_stmts.entry(key) {
                 indexmap::map::Entry::Vacant(entry) => {
+                    if entry.key().is_mergeable()
+                        && let Stmt::Decl(Decl::Var(decl)) = &stmt
+                    {
+                        merged_bindings.insert(
+                            entry.key().clone(),
+                            decl.decls.iter().filter_map(var_decl_binding).collect(),
+                        );
+                    }
                     entry.insert(stmt);
                 }
                 indexmap::map::Entry::Occupied(mut entry) => {
                     if entry.key().is_mergeable() {
-                        merge_var_decls(entry.get_mut(), &stmt, supports_destructuring);
+                        let bound = merged_bindings.entry(entry.key().clone()).or_default();
+                        append_var_decls(entry.get_mut(), stmt, bound);
                     }
                 }
             }
@@ -2682,6 +2632,20 @@ fn process_content_with_code_gens(
                 root_visitors.push(&**visitor);
             } else {
                 visitors.push((*path, &**visitor));
+            }
+        }
+    }
+
+    // Only once every declaration has arrived is it known how many bindings read each namespace,
+    // so destructuring happens once here rather than on every merge.
+    if supports_destructuring {
+        for (key, bound) in &merged_bindings {
+            // Each key is one namespace, and a lone binding stays a plain read.
+            if bound.len() < 2 {
+                continue;
+            }
+            if let Some(Stmt::Decl(Decl::Var(decl))) = hoisted_stmts.get_mut(key) {
+                destructure_shared_namespaces(&mut decl.decls);
             }
         }
     }
@@ -3590,7 +3554,92 @@ fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
 
 #[cfg(test)]
 mod tests {
+    use swc_core::ecma::ast::{VarDecl, VarDeclKind};
+
     use super::*;
+
+    /// `var <binding> = <namespace>["<key>"]`, the shape value binding declarations arrive in.
+    fn namespace_read_stmt(namespace: &str, key: &str, binding: &str) -> Stmt {
+        let ident = |sym: &str| Ident::new(sym.into(), DUMMY_SP, SyntaxContext::empty());
+        let key = Str {
+            span: DUMMY_SP,
+            value: key.into(),
+            raw: None,
+        };
+        Stmt::Decl(Decl::Var(Box::new(VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Var,
+            declare: false,
+            ctxt: Default::default(),
+            decls: vec![namespace_read_decl(&ident(namespace), key, ident(binding))],
+        })))
+    }
+
+    /// Merges `stmts` the way hoisted value bindings are merged, then destructures them.
+    fn merge_value_bindings(stmts: Vec<Stmt>) -> Vec<VarDeclarator> {
+        let mut stmts = stmts.into_iter();
+        let mut merged = stmts.next().unwrap();
+        let Stmt::Decl(Decl::Var(first)) = &merged else {
+            unreachable!()
+        };
+        let mut bound = first.decls.iter().filter_map(var_decl_binding).collect();
+        for stmt in stmts {
+            append_var_decls(&mut merged, stmt, &mut bound);
+        }
+        let Stmt::Decl(Decl::Var(mut decl)) = merged else {
+            unreachable!()
+        };
+        destructure_shared_namespaces(&mut decl.decls);
+        decl.decls
+    }
+
+    #[test]
+    fn value_bindings_of_one_namespace_destructure_once() {
+        let decls = merge_value_bindings(vec![
+            namespace_read_stmt("ns", "a", "x"),
+            namespace_read_stmt("ns", "b", "y"),
+            // A second use of `x` declares it again.
+            namespace_read_stmt("ns", "a", "x"),
+            namespace_read_stmt("other", "c", "z"),
+        ]);
+
+        assert_eq!(decls.len(), 2);
+        // Several bindings of `ns` share one destructuring, each declared once. Namespaces keep
+        // the order they were first read in.
+        let Pat::Object(pat) = &decls[0].name else {
+            panic!("expected a destructuring, got {:?}", decls[0].name);
+        };
+        let members: Vec<_> = pat
+            .props
+            .iter()
+            .map(|prop| match prop {
+                ObjectPatProp::KeyValue(KeyValuePatProp {
+                    key: PropName::Str(key),
+                    value,
+                }) => {
+                    let Pat::Ident(binding) = &**value else {
+                        panic!("expected a binding, got {value:?}");
+                    };
+                    (
+                        key.value.to_string_lossy().into_owned(),
+                        binding.sym.to_string(),
+                    )
+                }
+                prop => panic!("unexpected property {prop:?}"),
+            })
+            .collect();
+        assert_eq!(
+            members,
+            [("a".into(), "x".into()), ("b".into(), "y".into())] as [(String, String); 2]
+        );
+        assert!(matches!(decls[0].init.as_deref(), Some(Expr::Ident(ns)) if &*ns.sym == "ns"));
+
+        // A lone binding stays a plain read, which keeps its pure annotation.
+        assert!(matches!(&decls[1].name, Pat::Ident(binding) if &*binding.sym == "z"));
+        assert!(
+            matches!(decls[1].init.as_deref(), Some(Expr::Member(member)) if member.span == PURE_SP)
+        );
+    }
     fn bytepos_ensure_identical(modules_header_width: u32, pos: BytePos) {
         let module_count = 2u32.pow(modules_header_width);
         let lookup_table = Arc::new(Mutex::new(Vec::new()));

@@ -127,3 +127,49 @@ it('keeps the receiver for an opaque initializer with a later arrow assignment',
 it('keeps the receiver for a binding reassigned by a for-of head', () => {
   expect(ns.viaForOf()).toBe('has-this')
 })
+
+it('keeps the namespace as the receiver for parenthesized member calls', () => {
+  // Parentheses keep `ns.method` a reference, so `ns` is still the receiver.
+  // prettier-ignore
+  expect((ns.method)()).toBe('has-this')
+})
+
+it('keeps the namespace as the receiver when the namespace is optional-chained', () => {
+  expect(ns?.method()).toBe('has-this')
+})
+
+it('still throws when a destructuring assignment writes to a read-only export', () => {
+  expect(() => {
+    ;[ns.readOnly] = [2]
+  }).toThrow(TypeError)
+  expect(() => {
+    ;({ key: ns.readOnly } = { key: 2 })
+  }).toThrow(TypeError)
+  expect(() => {
+    ;[...ns.readOnly] = [2]
+  }).toThrow(TypeError)
+  expect(ns.readOnly).toBe(1)
+})
+
+it('still throws when a parenthesized assignment writes to a read-only export', () => {
+  expect(() => {
+    // prettier-ignore
+    (ns.readOnly) = 2
+  }).toThrow(TypeError)
+  expect(ns.readOnly).toBe(1)
+})
+
+it('captures a namespace member whose property is assigned', () => {
+  // Writing a property of the export is not a write to the export itself.
+  ns.config.count = 2
+  expect(ns.config.count).toBe(2)
+})
+
+it('keeps namespace access for the operand of delete', () => {
+  // `delete <identifier>` is a syntax error in strict code, so capturing the operand
+  // would break the whole chunk rather than just this statement.
+  expect(() => {
+    delete ns.readOnly
+  }).toThrow(TypeError)
+  expect(ns.readOnly).toBe(1)
+})

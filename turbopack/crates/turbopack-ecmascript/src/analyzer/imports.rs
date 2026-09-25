@@ -1900,12 +1900,6 @@ impl Visit for Analyzer<'_> {
             let unresolved_mark = self.unresolved_mark;
             if let Pat::Ident(binding) = &node.name {
                 self.merge_this_usage(binding.to_id(), || value_this_usage(init, unresolved_mark));
-                if matches!(unparen(init), Expr::Arrow(_) | Expr::Fn(_)) {
-                    self.enter_top_level_decl(&binding.id, |this| {
-                        node.visit_children_with(this);
-                    });
-                    return;
-                }
             } else {
                 // A destructuring pattern binds values this analysis does not track through.
                 for id in find_pat_ids::<_, Id>(&node.name) {
