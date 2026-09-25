@@ -22,6 +22,7 @@ import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
@@ -110,9 +111,10 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
+  const routeMatch: RouteMatch = { resolvedPathname }
   const renderContext: AppPageRouteHandlerContext = {
     page: normalizedSrcPage,
-    routeMatch: { resolvedPathname },
+    routeMatch,
     query,
     params,
 

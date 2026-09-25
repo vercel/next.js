@@ -26,10 +26,8 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
-import type {
-  AppSharedContext,
-  RouteMatch,
-} from '../../server/app-render/app-render'
+import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { RouteMatch } from '../../server/route-modules/app-page/module'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import {
   deflateResumeDataCache,
