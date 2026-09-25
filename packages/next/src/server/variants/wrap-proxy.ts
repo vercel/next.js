@@ -110,7 +110,7 @@ async function resolveVariants(
     const key = getVariantKey(variant)
     const value = await getVariantDecide(variant)(request)
 
-    values[key] = assertValidVariantValue(key, value)
+    values[key] = assertValidVariantValue(key, value, 'decide')
   }
 
   return encodeVariants(values)
