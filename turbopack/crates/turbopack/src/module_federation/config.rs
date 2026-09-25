@@ -334,6 +334,80 @@ pub enum ModuleFederationShareStrategy {
     OperationValue,
 )]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct UnnormalizedModuleFederationGenerateTypes {
+    pub ts_config_path: Option<RcStr>,
+    pub abort_on_error: Option<bool>,
+    pub extract_third_party: Option<bool>,
+    pub extract_remote_types: Option<bool>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationGenerateTypesConfig {
+    Enabled(bool),
+    Options(UnnormalizedModuleFederationGenerateTypes),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct UnnormalizedModuleFederationDtsOptions {
+    pub generate_types: UnnormalizedModuleFederationGenerateTypesConfig,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationDts {
+    Disabled(bool),
+    Options(UnnormalizedModuleFederationDtsOptions),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UnnormalizedModuleFederationConfig {
     pub name: Option<RcStr>,
     pub filename: Option<RcStr>,
@@ -344,6 +418,7 @@ pub struct UnnormalizedModuleFederationConfig {
     pub remote_type: Option<ModuleFederationRemoteType>,
     pub share_strategy: Option<ModuleFederationShareStrategy>,
     pub implementation: Option<RcStr>,
+    pub dts: Option<UnnormalizedModuleFederationDts>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub runtime_plugins: Option<Vec<serde_json::Value>>,
 }
@@ -359,6 +434,7 @@ pub struct ModuleFederationConfig {
     pub share_scope: RcStr,
     pub share_strategy: ModuleFederationShareStrategy,
     pub implementation: Option<RcStr>,
+    pub dts_enabled: bool,
     pub runtime_plugins: Vec<ModuleFederationRuntimePlugin>,
 }
 
@@ -466,6 +542,35 @@ impl UnnormalizedModuleFederationSharedEntries {
 
 impl UnnormalizedModuleFederationConfig {
     pub fn normalize(self) -> Result<ModuleFederationConfig> {
+        let dts_enabled = match self.dts {
+            None | Some(UnnormalizedModuleFederationDts::Disabled(false)) => false,
+            Some(UnnormalizedModuleFederationDts::Disabled(true)) => {
+                bail!("Module Federation dts must be false or an object with generateTypes")
+            }
+            Some(UnnormalizedModuleFederationDts::Options(options)) => {
+                match options.generate_types {
+                    UnnormalizedModuleFederationGenerateTypesConfig::Enabled(true) => {}
+                    UnnormalizedModuleFederationGenerateTypesConfig::Enabled(false) => {
+                        bail!(
+                            "Module Federation dts.generateTypes must be true or an options object"
+                        )
+                    }
+                    UnnormalizedModuleFederationGenerateTypesConfig::Options(options) => {
+                        if let Some(path) = options.ts_config_path {
+                            validate_dts_ts_config_path(&path)?;
+                        }
+                    }
+                }
+                if self
+                    .exposes
+                    .as_ref()
+                    .is_none_or(|exposes| exposes.clone().into_entries().is_empty())
+                {
+                    bail!("Module Federation dts.generateTypes requires exposed modules");
+                }
+                true
+            }
+        };
         let share_scope = self.share_scope.unwrap_or_else(|| "default".into());
         let runtime_plugins = self
             .runtime_plugins
@@ -499,6 +604,7 @@ impl UnnormalizedModuleFederationConfig {
             share_scope: share_scope.clone(),
             share_strategy: self.share_strategy.unwrap_or_default(),
             implementation: self.implementation,
+            dts_enabled,
             runtime_plugins,
             ..Default::default()
         };
@@ -814,6 +920,20 @@ fn parse_remote_external(external: &str) -> Result<ModuleFederationRemoteExterna
     })
 }
 
+fn validate_dts_ts_config_path(path: &str) -> Result<()> {
+    if path.is_empty()
+        || path.starts_with(['/', '\\'])
+        || path.contains(['\\', ':', '\0', '?', '#'])
+        || path.split('/').any(|part| part.is_empty() || part == "..")
+        || path.rsplit('/').next() == Some(".")
+    {
+        bail!(
+            "Module Federation dts.generateTypes.tsConfigPath must be a safe relative project path"
+        );
+    }
+    Ok(())
+}
+
 pub fn validate_output_filename(filename: &str) -> Result<()> {
     if filename.is_empty()
         || filename.starts_with('/')
@@ -982,6 +1102,42 @@ mod tests {
             r#"{"runtimePlugins":[""]}"#,
             r#"{"shareStrategy":"auto"}"#,
             r#"{"implementation":"  "}"#,
+        ] {
+            let result = serde_json::from_str::<UnnormalizedModuleFederationConfig>(json)
+                .and_then(|config| config.normalize().map_err(serde::de::Error::custom));
+            assert!(result.is_err(), "{json}");
+        }
+    }
+
+    #[test]
+    fn validates_dts_producer_options() {
+        for json in [
+            r#"{"name":"remote","exposes":{"./Widget":"./src/Widget.tsx"},"dts":{"generateTypes":true}}"#,
+            r#"{"name":"remote","exposes":{"./Widget":"./src/Widget.tsx"},"dts":{"generateTypes":{"tsConfigPath":"./configs/tsconfig.json","abortOnError":false,"extractThirdParty":true,"extractRemoteTypes":false}}}"#,
+        ] {
+            let config = serde_json::from_str::<UnnormalizedModuleFederationConfig>(json)
+                .unwrap()
+                .normalize()
+                .unwrap();
+            assert!(config.dts_enabled, "{json}");
+        }
+        let disabled =
+            serde_json::from_str::<UnnormalizedModuleFederationConfig>(r#"{"dts":false}"#)
+                .unwrap()
+                .normalize()
+                .unwrap();
+        assert!(!disabled.dts_enabled);
+
+        for json in [
+            r#"{"dts":true}"#,
+            r#"{"dts":{"generateTypes":true}}"#,
+            r#"{"name":"remote","exposes":{},"dts":{"generateTypes":true}}"#,
+            r#"{"name":"remote","exposes":{"./A":"./a.ts"},"dts":{"generateTypes":false}}"#,
+            r#"{"name":"remote","exposes":{"./A":"./a.ts"},"dts":{"consumeTypes":true,"generateTypes":true}}"#,
+            r#"{"name":"remote","exposes":{"./A":"./a.ts"},"dts":{"generateTypes":{"outputDir":"/tmp"}}}"#,
+            r#"{"name":"remote","exposes":{"./A":"./a.ts"},"dts":{"generateTypes":{"tsConfigPath":"../secret.json"}}}"#,
+            r#"{"name":"remote","exposes":{"./A":"./a.ts"},"dts":{"generateTypes":{"tsConfigPath":"/tmp/tsconfig.json"}}}"#,
+            r#"{"name":"remote","exposes":{"./A":"./a.ts"},"dts":{"generateTypes":{"tsConfigPath":"C:\\secret.json"}}}"#,
         ] {
             let result = serde_json::from_str::<UnnormalizedModuleFederationConfig>(json)
                 .and_then(|config| config.normalize().map_err(serde::de::Error::custom));
