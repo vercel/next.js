@@ -435,12 +435,10 @@ impl TurboTasksBackend {
         }
     }
 
-    /// The number of persistent (non-transient) tasks resident in the map. Test-only hook; see
-    /// [`Storage::resident_persistent_task_count_for_testing`] for why the metric excludes
-    /// transient tasks.
+    /// The number oftasks resident in the map.
     #[doc(hidden)]
-    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
-        self.storage.resident_persistent_task_count_for_testing()
+    pub fn resident_task_count_for_testing(&self) -> usize {
+        self.storage.resident_task_count_for_testing()
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only

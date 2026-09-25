@@ -66,7 +66,7 @@ async fn gc_re_rooting_stays_flat() {
         // independently of GC — including them would mask the real signal.
         (
             collected,
-            tt.backend().resident_persistent_task_count_for_testing(),
+            tt.backend().resident_task_count_for_testing(),
             interrupted,
         )
     }

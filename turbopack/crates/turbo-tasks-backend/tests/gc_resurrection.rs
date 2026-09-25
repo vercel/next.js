@@ -115,11 +115,11 @@ async fn gc_rebalances_aggregation_and_cascades_in_one_pass() {
     result.unwrap();
 
     // Baseline resident count with the reader subtree disconnected but not yet collected.
-    let baseline = tt2.backend().resident_persistent_task_count_for_testing();
+    let baseline = tt2.backend().resident_task_count_for_testing();
 
     let collected = tt2.backend().gc_for_testing(&tt2);
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let after = tt2.backend().resident_persistent_task_count_for_testing();
+    let after = tt2.backend().resident_task_count_for_testing();
 
     assert_eq!(
         collected,
@@ -172,11 +172,11 @@ async fn gc_diamond_forward_dep_no_resurrection() {
     .await;
     result.unwrap();
 
-    let baseline = tt2.backend().resident_persistent_task_count_for_testing();
+    let baseline = tt2.backend().resident_task_count_for_testing();
 
     let collected = tt2.backend().gc_for_testing(&tt2);
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let after = tt2.backend().resident_persistent_task_count_for_testing();
+    let after = tt2.backend().resident_task_count_for_testing();
 
     assert_eq!(
         collected,

@@ -160,27 +160,33 @@ impl CleanupOldEdgesOperation {
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
 
-                                let mut removed_persistent_children =
-                                    SmallVec::<[TaskId; 4]>::new();
+                                // Mirror `ConnectChildrenOperation`'s split exactly: an edge
+                                // counted as durable is released from `parent_count`, everything
+                                // else from `transient_ref_count`. Getting this wrong either
+                                // strands a task forever or underflows the count.
+                                let parent_is_transient = task_id.is_transient();
+                                let mut removed_durable = SmallVec::<[TaskId; 4]>::new();
+                                let mut removed_transient = SmallVec::<[TaskId; 4]>::new();
                                 for child_id in children.iter() {
-                                    if task.remove_children(child_id) && !child_id.is_transient() {
-                                        removed_persistent_children.push(*child_id);
+                                    if task.remove_children(child_id) {
+                                        if parent_is_transient || child_id.is_transient() {
+                                            removed_transient.push(*child_id);
+                                        } else {
+                                            removed_durable.push(*child_id);
+                                        }
                                     }
                                 }
-                                // Each removed persistent child loses a parent.
-                                if !removed_persistent_children.is_empty() {
-                                    let job = if task_id.is_transient() {
-                                        AggregationUpdateJob::AdjustTransientRefCount {
-                                            task_ids: removed_persistent_children,
-                                            delta: -1,
-                                        }
-                                    } else {
-                                        AggregationUpdateJob::AdjustParentCount {
-                                            task_ids: removed_persistent_children,
-                                            delta: -1,
-                                        }
-                                    };
-                                    queue.push(job);
+                                if !removed_durable.is_empty() {
+                                    queue.push(AggregationUpdateJob::AdjustParentCount {
+                                        task_ids: removed_durable,
+                                        delta: -1,
+                                    });
+                                }
+                                if !removed_transient.is_empty() {
+                                    queue.push(AggregationUpdateJob::AdjustTransientRefCount {
+                                        task_ids: removed_transient,
+                                        delta: -1,
+                                    });
                                 }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     drop(task);
