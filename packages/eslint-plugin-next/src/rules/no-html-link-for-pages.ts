@@ -37,6 +37,11 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
+type RuleOptions = {
+  pagesDir?: string | string[]
+  pageExtensions?: string[]
+}
+
 export default defineRule({
   meta: {
     docs: {
@@ -60,6 +65,34 @@ export default defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                type: 'array',
+                uniqueItems: true,
+                minItems: 1,
+                items: {
+                  type: 'string',
+                },
+              },
+            },
+            additionalProperties: false,
+          },
         ],
       },
     ],
@@ -69,8 +102,22 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: (string | string[] | RuleOptions)[] = context.options
+    const [firstOption] = ruleOptions
+
+    let customPagesDirectory: string | string[] | undefined
+    let pageExtensions: string[] | undefined
+
+    if (
+      typeof firstOption === 'object' &&
+      !Array.isArray(firstOption) &&
+      firstOption !== null
+    ) {
+      customPagesDirectory = firstOption.pagesDir
+      pageExtensions = firstOption.pageExtensions
+    } else {
+      customPagesDirectory = firstOption as string | string[] | undefined
+    }
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +154,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
