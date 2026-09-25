@@ -2,7 +2,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('app-dir edge SSR invalid reexport', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: {
       'app/layout.tsx': new FileRef(path.join(__dirname, 'app', 'layout.tsx')),
       'app/export': new FileRef(path.join(__dirname, 'app', 'export')),
@@ -10,18 +10,13 @@ describe('app-dir edge SSR invalid reexport', () => {
         "export { default, runtime, preferredRegion } from '../basic/page'",
     },
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
   it('should warn or error about the re-export of a pages runtime/preferredRegion config', async () => {
-    try {
+    if (isNextDev || !isTurbopack) {
       await next.start()
-    } catch (_) {
-      // We expect the build to fail
+    } else {
+      await expect(next.start()).rejects.toThrow()
     }
 
     if (isNextDev) {
@@ -50,5 +45,5 @@ describe('app-dir edge SSR invalid reexport', () => {
     expect(next.cliOutput).toInclude(
       `Next.js can't recognize the exported \`preferredRegion\` field in`
     )
-  })
+  }, 240_000)
 })

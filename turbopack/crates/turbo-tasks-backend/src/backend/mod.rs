@@ -13,7 +13,7 @@ pub mod storage_schema;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
-    fmt::{self, Write},
+    fmt::Write,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -25,9 +25,8 @@ use std::{
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
-pub use gc::{GcStats, TtlCounter};
+pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
-use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
@@ -51,7 +50,6 @@ use turbo_tasks::{
     registry::get_value_type,
     scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
-    trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 #[cfg(feature = "task_dirty_cause")]
@@ -70,7 +68,7 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            capture_all_outgoing_edges, connect_children, get_aggregation_number, get_uppers,
+            capture_all_edges, connect_children, get_aggregation_number, get_uppers,
             make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
@@ -269,30 +267,32 @@ pub struct TurboTasksBackend {
 
 /// What [`TurboTasksBackend::snapshot_and_evict_for_testing`] observed.
 #[doc(hidden)]
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct TestSnapshotOutcome {
     /// Whether the snapshot found modifications to persist.
     pub had_new_data: bool,
     /// Tasks evicted from memory at each level.
     pub eviction_counts: EvictionCounts,
-    /// The [`GcStats`] of the GC pass this snapshot ran, or `None` when GC is disabled for the
-    /// backend.
-    pub gc: Option<GcStats>,
+    /// The [`GcStats`] and [`GcPassResult`] of the GC pass this snapshot ran, or `None` when GC
+    /// is disabled for the backend.
+    pub gc: Option<(GcStats, GcPassResult)>,
 }
 
 impl TestSnapshotOutcome {
-    /// The [`GcStats`] for the GC pass, panicking if GC is disabled. For tests whose whole point
-    /// is the pass, so a misconfigured backend fails loudly rather than silently asserting
-    /// nothing.
+    /// The [`GcStats`] for the GC pass
     pub fn gc_stats(&self) -> &GcStats {
-        self.gc
+        &self
+            .gc
             .as_ref()
             .expect("no GC pass ran: the backend needs `BackendOptions::gc = Some(true)`")
+            .0
     }
 
     /// Whether the GC pass wound down early. `false` when GC is disabled.
     pub fn gc_interrupted(&self) -> bool {
-        self.gc.as_ref().is_some_and(|stats| stats.interrupted)
+        self.gc
+            .as_ref()
+            .is_some_and(|(_, result)| result.interrupted)
     }
 }
 
@@ -390,17 +390,11 @@ impl TurboTasksBackend {
         ))
     }
 
-    fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if self.should_persist() {
-            self.snapshot_coord.suspend_point(suspend);
-        }
-    }
-
-    pub(crate) fn start_operation(&self) -> OperationGuard<'_, AnyOperation> {
+    pub(crate) fn start_operation(&self) -> Option<OperationGuard<'_, AnyOperation>> {
         if !self.should_persist() {
-            return OperationGuard::noop();
+            return None;
         }
-        self.snapshot_coord.begin_operation()
+        Some(self.snapshot_coord.begin_operation())
     }
 
     fn should_persist(&self) -> bool {
@@ -412,12 +406,8 @@ impl TurboTasksBackend {
 
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
-    /// This is exposed for integration tests that need to verify the
-    /// snapshot → evict → restore cycle works correctly.
-    ///
-    /// Returns [`TestSnapshotOutcome`], which carries the GC pass's own [`GcStats`] alongside the
-    /// eviction counts. A test needs the pass's numbers because the resident task count can't
-    /// distinguish "GC collected it" from "GC skipped it and eviction dropped it to disk".
+    /// This is exposed for integration tests that need to verify the snapshot → evict → restore
+    /// cycle works correctly.
     #[doc(hidden)]
     pub fn snapshot_and_evict_for_testing(
         &self,
@@ -428,8 +418,8 @@ impl TurboTasksBackend {
             "snapshot_and_evict requires persistence"
         );
         let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
-        let (had_new_data, gc_stats) = match snapshot_result {
-            Ok((_, new_data, gc_stats)) => (new_data, gc_stats),
+        let (had_new_data, gc_outcome) = match snapshot_result {
+            Ok((_, new_data, gc_outcome)) => (new_data, gc_outcome),
             Err(_) => {
                 // Snapshot/persist failed — skip eviction since the data may not
                 // be on disk yet. Evicting now could lose in-memory state that
@@ -441,16 +431,14 @@ impl TurboTasksBackend {
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
-            gc: gc_stats,
+            gc: gc_outcome,
         }
     }
 
-    /// The number of persistent (non-transient) tasks resident in the map. Test-only hook; see
-    /// [`Storage::resident_persistent_task_count_for_testing`] for why the metric excludes
-    /// transient tasks.
+    /// The number oftasks resident in the map.
     #[doc(hidden)]
-    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
-        self.storage.resident_persistent_task_count_for_testing()
+    pub fn resident_task_count_for_testing(&self) -> usize {
+        self.storage.resident_task_count_for_testing()
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
@@ -631,7 +619,7 @@ impl TurboTasksBackend {
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<ReadOutcome<RawVc>> {
-        self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
+        self.assert_not_persistent_calling_transient(reader, task_id);
 
         let mut ctx = self.execute_context(turbo_tasks);
         let need_reader_task = reader.and_then(|reader_id| {
@@ -963,7 +951,7 @@ impl TurboTasksBackend {
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<ReadOutcome<TypedCellContent>> {
-        self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
+        self.assert_not_persistent_calling_transient(reader, task_id);
 
         fn add_cell_dependency(
             task_id: TaskId,
@@ -1140,16 +1128,17 @@ impl TurboTasksBackend {
 
     /// Runs a persistence cycle
     ///
-    /// Returns `(snapshot_start, had_new_data, gc_stats)`. `gc_stats` is `None` when GC is
+    /// Returns `(snapshot_start, had_new_data, gc_outcome)`. `gc_outcome` is `None` when GC is
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
     /// just triggered without the backend carrying test-only state. Production reads the same
     /// numbers off the `gc` span.
+    #[allow(clippy::type_complexity, reason = "only used for tests")]
     fn snapshot_and_persist(
         &self,
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<(Instant, bool, Option<GcStats>), anyhow::Error> {
+    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>)> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
@@ -1167,24 +1156,25 @@ impl TurboTasksBackend {
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
         let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
-        let (gc_elapsed, gc_roots_to_persist, gc_stats) = if self.gc_enabled {
+        let (gc_elapsed, gc_roots_to_persist, gc_outcome) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
-                parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
+                interrupted = tracing::field::Empty
             )
             .entered();
-            let (stats, roots) =
+            let (stats, result, roots) =
                 self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
             gc_span.record("stats", display(&stats));
-            if stats.interrupted {
+            gc_span.record("interrupted", result.interrupted);
+            if result.interrupted {
                 // If we were interrupted also abandon the persistence loop.
                 // This ensures that we don't persist roots that were not completely validated.
                 drop(snapshot_phase);
                 drop(gc_span);
-                return Ok((start, false, Some(stats)));
+                return Ok((start, false, Some((stats, result))));
             }
-            (Some(start.elapsed()), roots, Some(stats))
+            (Some(start.elapsed()), roots, Some((stats, result)))
         } else {
             (None, None, None)
         };
@@ -1203,7 +1193,7 @@ impl TurboTasksBackend {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
-            return Ok((start, false, gc_stats));
+            return Ok((start, false, gc_outcome));
         }
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1256,19 +1246,15 @@ impl TurboTasksBackend {
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
-            fn compressed_size(data: &[u8]) -> Result<usize> {
-                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
-                    data,
-                    &mut Vec::new(),
-                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
-                )?)
+            fn compressed_size(data: &[u8]) -> usize {
+                lz4_flex::block::compress(data).len()
             }
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.data_compressed += Self::compressed_size(data);
                 }
                 self.data_count += 1;
             }
@@ -1277,7 +1263,7 @@ impl TurboTasksBackend {
                 self.meta += data.len();
                 #[cfg(feature = "print_cache_item_size_with_compressed")]
                 {
-                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                    self.meta_compressed += Self::compressed_size(data);
                 }
                 self.meta_count += 1;
             }
@@ -1428,7 +1414,7 @@ impl TurboTasksBackend {
                     };
                 } else {
                     debug_assert!(
-                        !inner.gc_maybe_collectible(),
+                        !inner.gc_collectible(),
                         "tasks scheduled for persistent must not be collectible, this implies a \
                          missed task during GC"
                     );
@@ -1498,7 +1484,7 @@ impl TurboTasksBackend {
             // was present, and every modification that increments the count also failed
             // during encoding.
             std::hint::cold_path();
-            return Ok((snapshot_time, false, gc_stats));
+            return Ok((snapshot_time, false, gc_outcome));
         }
 
         let persist_start = Instant::now();
@@ -1603,29 +1589,21 @@ impl TurboTasksBackend {
             )));
         }
 
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            // as_millis_f64 is not stable yet
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms: f64 = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        let (persist_start_ms, persist_end_ms) = if let Some(gc_elapsed) = gc_elapsed {
-            let persist_begin_ms = wall_start_ms + gc_elapsed.as_secs_f64() * 1000.0;
-            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        let (persist_wall_start, persist_wall_duration) = if let Some(gc_elapsed) = gc_elapsed {
+            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
                 "turbopack-gc",
-                wall_start_ms,
-                persist_begin_ms,
+                wall_start,
+                gc_elapsed,
                 serde_json::json!([]),
             )));
-            (persist_begin_ms, wall_end_ms)
+            (wall_start + gc_elapsed, elapsed.saturating_sub(gc_elapsed))
         } else {
-            (wall_start_ms, wall_end_ms)
+            (wall_start, elapsed)
         };
-        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-persistence",
-            persist_start_ms,
-            persist_end_ms,
+            persist_wall_start,
+            persist_wall_duration,
             serde_json::json!([
                 ["reason", reason.as_str()],
                 [
@@ -1642,7 +1620,7 @@ impl TurboTasksBackend {
             ]),
         )));
 
-        Ok((snapshot_time, true, gc_stats))
+        Ok((snapshot_time, true, gc_outcome))
     }
 
     fn startup(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
@@ -1759,7 +1737,6 @@ impl TurboTasksBackend {
             self.panic_persistent_calling_transient(
                 self.debug_get_task_description(parent_task),
                 Some(&task_type),
-                /* cell_id */ None,
             );
         }
 
@@ -1896,97 +1873,6 @@ impl TurboTasksBackend {
         operation::ConnectChildOperation::run(parent_task, task_id, created_new, ctx);
 
         task_id
-    }
-
-    /// Generate an object that implements [`fmt::Display`] explaining why the given
-    /// [`CachedTaskType`] is transient.
-    fn debug_trace_transient_task(
-        &self,
-        task_type: &CachedTaskType,
-        cell_id: Option<CellId>,
-    ) -> DebugTraceTransientTask {
-        // it shouldn't be possible to have cycles in tasks, but we could have an exponential blowup
-        // from tracing the same task many times, so use a visited_set
-        fn inner_id(
-            backend: &TurboTasksBackend,
-            task_id: TaskId,
-            cell_type_id: Option<ValueTypeId>,
-            visited_set: &mut FxHashSet<TaskId>,
-        ) -> DebugTraceTransientTask {
-            if let Some(task_type) = backend.debug_get_cached_task_type(task_id) {
-                if visited_set.contains(&task_id) {
-                    let task_name = task_type.get_name();
-                    DebugTraceTransientTask::Collapsed {
-                        task_name,
-                        cell_type_id,
-                    }
-                } else {
-                    inner_cached(backend, &task_type, cell_type_id, visited_set)
-                }
-            } else {
-                DebugTraceTransientTask::Uncached { cell_type_id }
-            }
-        }
-        fn inner_cached(
-            backend: &TurboTasksBackend,
-            task_type: &CachedTaskType,
-            cell_type_id: Option<ValueTypeId>,
-            visited_set: &mut FxHashSet<TaskId>,
-        ) -> DebugTraceTransientTask {
-            let task_name = task_type.get_name();
-
-            let cause_self = task_type.this.and_then(|cause_self_raw_vc| {
-                let Some(task_id) = cause_self_raw_vc.try_get_task_id() else {
-                    // `task_id` should never be `None` at this point, as that would imply a
-                    // non-local task is returning a local `Vc`...
-                    // Just ignore if it happens, as we're likely already panicking.
-                    return None;
-                };
-                if task_id.is_transient() {
-                    Some(Box::new(inner_id(
-                        backend,
-                        task_id,
-                        cause_self_raw_vc.try_get_type_id(),
-                        visited_set,
-                    )))
-                } else {
-                    None
-                }
-            });
-            let cause_args = task_type
-                .arg
-                .get_raw_vcs()
-                .into_iter()
-                .filter_map(|raw_vc| {
-                    let Some(task_id) = raw_vc.try_get_task_id() else {
-                        // `task_id` should never be `None` (see comment above)
-                        return None;
-                    };
-                    if !task_id.is_transient() {
-                        return None;
-                    }
-                    Some((task_id, raw_vc.try_get_type_id()))
-                })
-                .collect::<IndexSet<_>>() // dedupe
-                .into_iter()
-                .map(|(task_id, cell_type_id)| {
-                    inner_id(backend, task_id, cell_type_id, visited_set)
-                })
-                .collect();
-
-            DebugTraceTransientTask::Cached {
-                task_name,
-                cell_type_id,
-                cause_self,
-                cause_args,
-            }
-        }
-        inner_cached(
-            self,
-            task_type,
-            cell_id.map(|c| c.type_id()),
-            &mut FxHashSet::default(),
-        )
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
@@ -3216,7 +3102,7 @@ impl TurboTasksBackend {
                                 Self::log_unrecoverable_persist_error();
                                 return;
                             }
-                            Ok((snapshot_start, new_data, _gc_stats)) => {
+                            Ok((snapshot_start, new_data, _gc_outcome)) => {
                                 // if we see 'new_data' then the next idle transition is 'fresh'
                                 fresh_idle = new_data;
                                 is_first = false;
@@ -3508,7 +3394,7 @@ impl TurboTasksBackend {
         parent_task: Option<TaskId>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
-        self.assert_not_persistent_calling_transient(parent_task, task, None);
+        self.assert_not_persistent_calling_transient(parent_task, task);
         ConnectChildOperation::run(
             parent_task,
             task,
@@ -3556,7 +3442,7 @@ impl TurboTasksBackend {
                 activeness_state.all_clean_event.notify(usize::MAX);
             }
             // Remove all the outgoing edges of this task.
-            let old_edges = capture_all_outgoing_edges(&task);
+            let old_edges = capture_all_edges(&task);
             drop(task);
 
             if !old_edges.is_empty() {
@@ -3755,12 +3641,7 @@ impl TurboTasksBackend {
         }
     }
 
-    fn assert_not_persistent_calling_transient(
-        &self,
-        parent_id: Option<TaskId>,
-        child_id: TaskId,
-        cell_id: Option<CellId>,
-    ) {
+    fn assert_not_persistent_calling_transient(&self, parent_id: Option<TaskId>, child_id: TaskId) {
         if let Some(parent_id) = parent_id
             && !parent_id.is_transient()
             && child_id.is_transient()
@@ -3768,7 +3649,6 @@ impl TurboTasksBackend {
             self.panic_persistent_calling_transient(
                 self.debug_get_task_description(parent_id),
                 self.debug_get_cached_task_type(child_id).as_deref(),
-                cell_id,
             );
         }
     }
@@ -3777,27 +3657,17 @@ impl TurboTasksBackend {
         &self,
         parent: String,
         child: Option<&CachedTaskType>,
-        cell_id: Option<CellId>,
     ) -> ! {
-        let transient_reason = if let Some(child) = child {
-            Cow::Owned(format!(
-                " The callee is transient because it depends on:\n{}",
-                self.debug_trace_transient_task(child, cell_id),
-            ))
-        } else {
-            Cow::Borrowed("")
-        };
         panic!(
-            "Persistent task {} is not allowed to call, read, or connect to transient tasks {}.{}",
+            "Persistent task {} is not allowed to call, read, or connect to transient task {}.",
             parent,
             child.map_or("unknown", |t| t.get_name()),
-            transient_reason,
         );
     }
 
     fn assert_valid_collectible(&self, task_id: TaskId, collectible: RawVc) {
         // these checks occur in a potentially hot codepath, but they're cheap
-        let Some((col_task_id, col_cell_id)) = collectible.as_task_cell() else {
+        let Some((col_task_id, _)) = collectible.as_task_cell() else {
             // This should never happen: The collectible APIs use ResolvedVc
             let task_info = if let Some(col_task_ty) = collectible
                 .try_get_task_id()
@@ -3810,19 +3680,10 @@ impl TurboTasksBackend {
             panic!("Collectible{task_info} must be a ResolvedVc")
         };
         if col_task_id.is_transient() && !task_id.is_transient() {
-            let transient_reason =
-                if let Some(col_task_ty) = self.debug_get_cached_task_type(col_task_id) {
-                    Cow::Owned(format!(
-                        ". The collectible is transient because it depends on:\n{}",
-                        self.debug_trace_transient_task(&col_task_ty, Some(col_cell_id)),
-                    ))
-                } else {
-                    Cow::Borrowed("")
-                };
             // this should never happen: How would a persistent function get a transient Vc?
             panic!(
-                "Collectible is transient, transient collectibles cannot be emitted from \
-                 persistent tasks{transient_reason}",
+                "Collectible is transient; transient collectibles cannot be emitted from \
+                 persistent tasks"
             )
         }
     }
@@ -4049,96 +3910,6 @@ impl Backend for TurboTasksBackend {
 
     fn get_task_name(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) -> String {
         self.get_task_name(task, turbo_tasks)
-    }
-}
-
-enum DebugTraceTransientTask {
-    Cached {
-        task_name: &'static str,
-        cell_type_id: Option<ValueTypeId>,
-        cause_self: Option<Box<DebugTraceTransientTask>>,
-        cause_args: Vec<DebugTraceTransientTask>,
-    },
-    /// This representation is used when this task is a duplicate of one previously shown
-    Collapsed {
-        task_name: &'static str,
-        cell_type_id: Option<ValueTypeId>,
-    },
-    Uncached {
-        cell_type_id: Option<ValueTypeId>,
-    },
-}
-
-impl DebugTraceTransientTask {
-    fn fmt_indented(&self, f: &mut fmt::Formatter<'_>, level: usize) -> fmt::Result {
-        let indent = "    ".repeat(level);
-        f.write_str(&indent)?;
-
-        fn fmt_cell_type_id(
-            f: &mut fmt::Formatter<'_>,
-            cell_type_id: Option<ValueTypeId>,
-        ) -> fmt::Result {
-            if let Some(ty) = cell_type_id {
-                write!(
-                    f,
-                    " (read cell of type {})",
-                    get_value_type(ty).ty.global_name
-                )
-            } else {
-                Ok(())
-            }
-        }
-
-        // write the name and type
-        match self {
-            Self::Cached {
-                task_name,
-                cell_type_id,
-                ..
-            }
-            | Self::Collapsed {
-                task_name,
-                cell_type_id,
-                ..
-            } => {
-                f.write_str(task_name)?;
-                fmt_cell_type_id(f, *cell_type_id)?;
-                if matches!(self, Self::Collapsed { .. }) {
-                    f.write_str(" (collapsed)")?;
-                }
-            }
-            Self::Uncached { cell_type_id } => {
-                f.write_str("unknown transient task")?;
-                fmt_cell_type_id(f, *cell_type_id)?;
-            }
-        }
-        f.write_char('\n')?;
-
-        // write any extra "cause" information we might have
-        if let Self::Cached {
-            cause_self,
-            cause_args,
-            ..
-        } = self
-        {
-            if let Some(c) = cause_self {
-                writeln!(f, "{indent}  self:")?;
-                c.fmt_indented(f, level + 1)?;
-            }
-            if !cause_args.is_empty() {
-                writeln!(f, "{indent}  args:")?;
-                for c in cause_args {
-                    c.fmt_indented(f, level + 1)?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Display for DebugTraceTransientTask {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_indented(f, 0)
     }
 }
 

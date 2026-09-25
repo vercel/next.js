@@ -2,6 +2,7 @@ import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { CacheControl, Revalidate } from '../lib/cache-control'
 import type { RouteKind } from '../route-kind'
+import type { PrerenderFailure } from '../render-result'
 
 export interface ResponseCacheBase {
   get(
@@ -28,7 +29,7 @@ export interface ResponseCacheBase {
        */
       isRoutePPREnabled?: boolean
     }
-  ): Promise<ResponseCacheEntry | null>
+  ): Promise<ResponseCacheResult>
 }
 
 // The server components HMR cache might store other data as well in the future,
@@ -182,6 +183,8 @@ export type ResponseCacheEntry = {
   isFallback?: boolean
 }
 
+export type ResponseCacheResult = ResponseCacheEntry | PrerenderFailure | null
+
 /**
  * @param hasResolved whether the responseGenerator has resolved it's promise
  * @param previousCacheEntry the previous cache entry if it exists or the current
@@ -200,7 +203,7 @@ export type ResponseGenerator = (state: {
    * dynamic RSC request.
    */
   forceStaticRender?: boolean
-}) => Promise<ResponseCacheEntry | null>
+}) => Promise<ResponseCacheResult>
 
 export const enum IncrementalCacheKind {
   APP_PAGE = 'APP_PAGE',

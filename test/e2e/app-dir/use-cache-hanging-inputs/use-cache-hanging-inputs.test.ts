@@ -17,9 +17,6 @@ function expectedTimeoutErrorMessage(route: string) {
   return `Route "${route}": ${timeoutErrorMessage}`
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('use-cache-hanging-inputs', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -172,7 +169,8 @@ describe('use-cache-hanging-inputs', () => {
   } else {
     // TODO: Be more precise about the expected error messages and stacks.
     it('should fail the build with errors after a timeout', async () => {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/error'))
       expect(cliOutput).toInclude('Error: kaputt!')
@@ -197,7 +195,7 @@ describe('use-cache-hanging-inputs', () => {
       expect(cliOutput).toInclude(
         createExpectedBuildErrorMessage('/uncached-promise-nested')
       )
-    }, 180_000)
+    }, 240_000)
   }
 })
 

@@ -86,7 +86,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
     TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    parking_lot_mutex_bincode, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -108,7 +108,10 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
+    analyzer::{
+        graph::EvalContext, imports::ExportRegistrationMode,
+        side_effects::compute_module_evaluation_side_effects,
+    },
     ast_path_trie::AstPathTrie,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -141,9 +144,7 @@ pub use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(
-    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
-)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy, Default, Deserialize, Encode, Decode)]
 pub enum SpecifiedModuleType {
     #[default]
     Automatic,
@@ -152,51 +153,53 @@ pub enum SpecifiedModuleType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
-pub enum AnalyzeMode {
-    /// For bundling only, no tracing of referenced files.
-    #[default]
-    CodeGeneration,
-    /// For bundling and finding references to external referenced files
-    CodeGenerationAndTracing,
-    /// For tracing transitive external references (i.e. no codegen).
-    Tracing,
+#[derive(PartialOrd, Ord, PartialEq, Eq, Hash, Debug, Clone, Copy, Deserialize, Encode, Decode)]
+pub struct AnalyzeMode {
+    /// Whether code generation will be performed after analyzing.
+    pub is_codegen: bool,
+    /// Whether references to external files should be traced.
+    pub trace_file_references: bool,
+}
+
+impl Default for AnalyzeMode {
+    fn default() -> Self {
+        Self::code_generation()
+    }
 }
 
 impl AnalyzeMode {
-    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
-    pub fn is_tracing_assets(self) -> bool {
-        match self {
-            AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
-            AnalyzeMode::CodeGeneration => false,
+    pub const fn code_generation() -> Self {
+        Self {
+            is_codegen: true,
+            trace_file_references: false,
         }
     }
 
-    pub fn is_code_gen(self) -> bool {
-        match self {
-            AnalyzeMode::CodeGeneration | AnalyzeMode::CodeGenerationAndTracing => true,
-            AnalyzeMode::Tracing => false,
+    pub const fn code_generation_and_tracing() -> Self {
+        Self {
+            is_codegen: true,
+            trace_file_references: true,
+        }
+    }
+
+    pub const fn tracing_import_only() -> Self {
+        Self {
+            is_codegen: false,
+            trace_file_references: false,
+        }
+    }
+
+    pub const fn tracing() -> Self {
+        Self {
+            is_codegen: false,
+            trace_file_references: true,
         }
     }
 }
 
 /// The constant to replace `typeof window` with.
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -356,7 +359,7 @@ impl EcmascriptModuleAssetBuilder {
 #[turbo_tasks::value(eq = "manual")]
 struct LastSuccessfulSource {
     #[bincode(with = "parking_lot_mutex_bincode")]
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     source: parking_lot::Mutex<Option<Rope>>,
     /// Notifies the backend when the in-memory `source` changes so that the
     /// serialized task state is written back to the persistence layer.
@@ -445,7 +448,7 @@ pub struct EnvVarInfo {
     // pub runtime_all: Option<IssueSource>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum EnvVarAccessMode {
     /// The value is read.
     Read,
@@ -684,6 +687,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             generate_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
+            // Derived from this module's own `ImportMap` during code generation.
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -851,7 +856,9 @@ impl EcmascriptModuleAsset {
             self.ty,
             *self.transforms,
             node_env,
-            options.analyze_mode == AnalyzeMode::Tracing,
+            // When not codegen-ing at all, turn string encoding and AST parsing issues into
+            // warnings instead.
+            !options.analyze_mode.is_codegen,
             options.inline_helpers,
         ))
     }
@@ -1054,7 +1061,40 @@ pub struct EcmascriptModuleContentOptions {
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
+    /// Set by synthetic modules that re-export but have no source of their own to analyze, so
+    /// there is no `ImportMap` to classify them from.
+    export_registration_mode: Option<ExportRegistrationMode>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+}
+
+/// Generate the code of a processed virtual module under the identity of the module in the
+/// graph. The code source supplies its parsed program, references, exports and async behavior;
+/// the graph module supplies the identity for export usage and other code generation.
+#[turbo_tasks::function]
+pub async fn chunk_item_content_with_code_from(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    code_source: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+) -> Result<Vc<EcmascriptChunkItemContent>> {
+    let Some(analyzable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(code_source)
+    else {
+        bail!("virtual ECMAScript code source must be analyzable");
+    };
+    let source_options = analyzable
+        .module_content_options(*chunking_context, async_module_info)
+        .await?;
+    let mut options = (*source_options).clone();
+    options.module = module;
+    let content = EcmascriptModuleContent::new(options.cell());
+    let async_module_options = code_source
+        .get_async_module()
+        .module_options(async_module_info);
+    Ok(EcmascriptChunkItemContent::new(
+        content,
+        *chunking_context,
+        async_module_options,
+    ))
 }
 
 impl EcmascriptModuleContentOptions {
@@ -1074,13 +1114,39 @@ impl EcmascriptModuleContentOptions {
             code_generation,
             async_module,
             exports,
+            export_registration_mode,
             async_module_info,
             ..
         } = self;
 
         async {
+            let async_module_ref = async_module.await?;
+            let esm_references_ref = esm_references.await?;
+            // The export registration is computed first: when it can spell the whole module's
+            // exports as one compact call, it also performs those imports, and reports which
+            // references it subsumed so they don't emit them a second time.
+            let (exports_code_gen, subsumed_imports) =
+                if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+                    let (code_gen, subsumed) = exports
+                        .code_generation(
+                            **chunking_context,
+                            scope_hoisting_context,
+                            eval_context,
+                            *module,
+                            export_registration_mode
+                                .unwrap_or_else(|| eval_context.imports.export_registration_mode()),
+                            export_registration_mode
+                                .map(|_| (&part_references[..], &esm_references_ref[..])),
+                            async_module_info.is_some(),
+                        )
+                        .await?;
+                    (Some(code_gen), subsumed)
+                } else {
+                    (None, Default::default())
+                };
+
             let additional_code_gens = [
-                if let Some(async_module) = &*async_module.await? {
+                if let Some(async_module) = &*async_module_ref {
                     Some(
                         async_module
                             .code_generation(
@@ -1093,32 +1159,30 @@ impl EcmascriptModuleContentOptions {
                 } else {
                     None
                 },
-                if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-                    Some(
-                        exports
-                            .code_generation(
-                                **chunking_context,
-                                scope_hoisting_context,
-                                eval_context,
-                                *module,
-                            )
-                            .await?,
-                    )
-                } else {
-                    None
-                },
+                exports_code_gen,
             ];
 
             let part_code_gens = part_references
                 .iter()
-                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
+                .map(|r| {
+                    r.code_generation(
+                        **chunking_context,
+                        scope_hoisting_context,
+                        &subsumed_imports.namespaces,
+                    )
+                })
                 .try_join()
                 .await?;
 
-            let esm_code_gens = esm_references
-                .await?
+            let esm_code_gens = esm_references_ref
                 .iter()
-                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
+                .map(|r| {
+                    r.code_generation(
+                        **chunking_context,
+                        scope_hoisting_context,
+                        &subsumed_imports,
+                    )
+                })
                 .try_join()
                 .await?;
 

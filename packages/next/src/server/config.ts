@@ -62,6 +62,7 @@ import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
+import { verifyDistDir } from '../lib/dist-dir'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -455,6 +456,9 @@ function assignDefaultsAndValidate(
       ...config.experimental,
     },
   }
+
+  result.experimental.strictRouteMatching =
+    !result.deprecated.looseRouteMatching
 
   // Pruning assumes that children only exists when it is backed by an
   // ordinary route branch. Restoring the legacy implicit children slot must
@@ -1261,6 +1265,8 @@ function assignDefaultsAndValidate(
   // Ensure both properties are set to the same value
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
+
+  verifyDistDir(resolve(dir, result.distDir), dir, repoRoot)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 

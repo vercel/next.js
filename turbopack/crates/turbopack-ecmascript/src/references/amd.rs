@@ -12,7 +12,6 @@ use swc_core::{
 };
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
@@ -84,9 +83,7 @@ impl ModuleReference for AmdDefineAssetReference {
     }
 }
 
-#[derive(
-    ValueDebugFormat, Debug, PartialEq, Eq, TraceRawVcs, Clone, NonLocalValue, Hash, Encode, Decode,
-)]
+#[derive(ValueDebugFormat, Debug, PartialEq, Eq, Clone, NonLocalValue, Hash, Encode, Decode)]
 pub enum AmdDefineDependencyElement {
     Request {
         request: ResolvedVc<Request>,
@@ -98,17 +95,7 @@ pub enum AmdDefineDependencyElement {
 }
 
 #[derive(
-    ValueDebugFormat,
-    Debug,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Copy,
-    Clone,
-    NonLocalValue,
-    Hash,
-    Encode,
-    Decode,
+    ValueDebugFormat, Debug, PartialEq, Eq, Copy, Clone, NonLocalValue, Hash, Encode, Decode,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -116,9 +103,7 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,

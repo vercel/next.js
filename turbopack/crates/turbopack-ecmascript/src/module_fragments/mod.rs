@@ -383,13 +383,16 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
     let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
-        ModulePart::Export(export) => Key::Export(export.clone()),
+        ModulePart::Export(export) | ModulePart::PartialExport { export, .. } => {
+            Key::Export(export.clone())
+        }
         ModulePart::Exports => Key::Exports,
         ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
-        | ModulePart::RenamedNamespace { .. } => {
+        | ModulePart::RenamedNamespace { .. }
+        | ModulePart::RenamedPartialNamespace { .. } => {
             bail!("invalid module part")
         }
     };
@@ -408,7 +411,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = part
+    if part.get_export().is_some()
         && let Some(&v) = entrypoints
             .get(&Key::StarExports)
             .or_else(|| entrypoints.get(&Key::Exports))
@@ -443,16 +446,14 @@ pub(crate) enum SplitResult {
         asset_ident: ResolvedVc<AssetIdent>,
 
         /// `u32` is a index to `modules`.
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore)]
         modules: Vec<ResolvedVc<ParseResult>>,
-
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
-
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         star_reexports: Vec<ExportAll>,
     },
     Failed {

@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
-describe('next experimental-analyze', () => {
+describe('next analyze', () => {
   if (!shouldUseTurbopack()) {
     // Test suites require at least one test
     it('skips in non-Turbopack tests', () => {})
@@ -38,7 +38,7 @@ describe('next experimental-analyze', () => {
     }, 30000)
 
     const exit = next
-      .runCommand(['experimental-analyze', '--port', '0'], {
+      .runCommand(['analyze', '--port', '0'], {
         onStdout(msg) {
           stdoutBuffer += msg
           const urlMatch = stdoutBuffer.match(/http:\/\/[^\s]+/)
@@ -75,7 +75,7 @@ describe('next experimental-analyze', () => {
         )
 
         const { exitCode, stderr, stdout } = await next.runCommand([
-          'experimental-analyze',
+          'analyze',
           flag,
         ])
 

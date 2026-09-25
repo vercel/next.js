@@ -3654,12 +3654,10 @@ describe('Custom routes solo types', () => {
   })
 })
 ;(isNextStart ? describe : describe.skip)('Custom routes export', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (isNextDeploy) return
 
   it('should not show warning for custom routes when not next export', async () => {
     await next.patchFile('next.config.js', (content) =>

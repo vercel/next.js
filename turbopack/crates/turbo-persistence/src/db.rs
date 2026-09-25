@@ -17,9 +17,11 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+#[cfg(feature = "mmap")]
 use either::Either;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
@@ -29,8 +31,10 @@ use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
+#[cfg(feature = "mmap")]
+use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
-    AccessMode, DbConfig, FamilyKind, QueryKey,
+    DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::{Compression, checksum_block, decompress_into_arc},
@@ -43,7 +47,6 @@ use crate::{
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
-    mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
     sst_filter::SstFilter,
@@ -703,7 +706,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
+        #[cfg(feature = "mmap")]
         let file = File::open(&path)?;
+        #[cfg(feature = "mmap")]
         let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
@@ -722,10 +727,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             AccessMode::File => Either::Right(fs::read(&path)?),
         };
+        #[cfg(feature = "mmap")]
         let mut reader: &[u8] = match &data {
             Either::Left(mmap) => mmap,
             Either::Right(bytes) => bytes,
         };
+        // Without mmap support, read the whole blob into memory.
+        #[cfg(not(feature = "mmap"))]
+        let data = fs::read(&path)?;
+        #[cfg(not(feature = "mmap"))]
+        let mut reader: &[u8] = &data;
         let uncompressed_length = reader
             .read_u32::<BE>()
             .context("Failed to read uncompressed length from blob file")?;
@@ -1753,6 +1764,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     Ok(())
                                 }
 
+                                /// Cancels an active writer without finalizing its partial SST.
+                                fn cancel(&mut self) {
+                                    if let Some((_, writer)) = self.writer.take() {
+                                        writer.cancel();
+                                    }
+                                }
+
                                 /// Adds an entry to the collector. Only splits the SST file at
                                 /// key boundaries to avoid breaking key groups for MultiValue
                                 /// families.
@@ -1777,7 +1795,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                     self.last_hash = Some(entry.hash);
                                     let writer = self.ensure_writer(path, sequence_number)?;
-                                    writer.add(entry)?;
+                                    if let Err(err) = writer.add(entry) {
+                                        self.cancel();
+                                        return Err(err);
+                                    }
                                     Ok(())
                                 }
                             }
@@ -1817,90 +1838,101 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             > = AutoSet::default();
                             let family_config = &self.config.family_configs[family as usize];
 
-                            for entry in iter {
-                                let entry = entry?;
-                                if current_key.as_ref() != Some(&entry.key) {
-                                    // we changed keys so undo this flag
-                                    skip_remaining_for_this_key = false;
-                                    deleted_values_for_this_key.clear();
-                                    current_key = Some(entry.key.clone());
-                                }
-                                // Key-value tombstones sort first within a group, so each is
-                                // recorded before the values it might delete.
-                                // See: `crate::collector_entry::sort_rank`
-                                if let IterValue::KeyValueDeleted { value } = &entry.value {
-                                    deleted_values_for_this_key.insert(value.clone());
-                                    // Applied to this job's values above; keep it only if an SST
-                                    // outside the job could still hold a matching key.
-                                    if tombstone_is_dead(entry.hash) {
-                                        continue;
+                            let result: Result<_> = (|| {
+                                for entry in iter {
+                                    let entry = entry?;
+                                    if current_key.as_ref() != Some(&entry.key) {
+                                        // we changed keys so undo this flag
+                                        skip_remaining_for_this_key = false;
+                                        deleted_values_for_this_key.clear();
+                                        current_key = Some(entry.key.clone());
                                     }
-                                } else if !deleted_values_for_this_key.is_empty()
+                                    // Key-value tombstones sort first within a group, so each is
+                                    // recorded before the values it might delete.
+                                    // See: `crate::collector_entry::sort_rank`
+                                    if let IterValue::KeyValueDeleted { value } = &entry.value {
+                                        deleted_values_for_this_key.insert(value.clone());
+                                        // Applied to this job's values above; keep it only
+                                        // if an SST outside the job could still hold a
+                                        // matching key.
+                                        if tombstone_is_dead(entry.hash) {
+                                            continue;
+                                        }
+                                    } else if !deleted_values_for_this_key.is_empty()
                                     // Deleted values cannot match blobs, just normal payloads.
                                     && let IterValue::Slice { value } = &entry.value
                                     && deleted_values_for_this_key.contains(value)
-                                {
-                                    // Deleted by a key-value tombstone seen earlier in this group.
-                                    continue;
-                                }
-                                if !skip_remaining_for_this_key {
-                                    let is_used = used_key_hashes
-                                        .as_ref()
-                                        .is_some_and(|amqf| amqf.contains_fingerprint(entry.hash));
-                                    let collector = if is_used {
-                                        &mut used_collector
-                                    } else {
-                                        &mut unused_collector
-                                    };
-                                    match family_config.kind {
-                                        FamilyKind::MultiValue => {
-                                            // For MultiValue families we only skip remaining if we
-                                            // see a key tombstone. Key-value tombstones are
-                                            // handled above and never reach here.
-                                            if matches!(entry.value, IterValue::KeyDeleted) {
+                                    {
+                                        // Deleted by a key-value tombstone seen earlier in this
+                                        // key group.
+                                        continue;
+                                    }
+                                    if !skip_remaining_for_this_key {
+                                        let is_used =
+                                            used_key_hashes.as_ref().is_some_and(|amqf| {
+                                                amqf.contains_fingerprint(entry.hash)
+                                            });
+                                        let collector = if is_used {
+                                            &mut used_collector
+                                        } else {
+                                            &mut unused_collector
+                                        };
+                                        match family_config.kind {
+                                            FamilyKind::MultiValue => {
+                                                // For MultiValue families we only skip remaining
+                                                // if we see a key tombstone. Key-value tombstones
+                                                // are handled above and never reach here.
+                                                if matches!(entry.value, IterValue::KeyDeleted) {
+                                                    skip_remaining_for_this_key = true;
+                                                }
+                                            }
+                                            FamilyKind::SingleValue => {
+                                                // Since MergeItr is in newest to oldest order
+                                                // anything else that comes out must be skipped
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
-                                        FamilyKind::SingleValue => {
-                                            // Since MergeItr is in newest to oldest order anything
-                                            // else that comes out must be skipped
-                                            skip_remaining_for_this_key = true;
+                                        // If this is a tombstone, see if we need to retain it
+                                        // or not.
+                                        if matches!(entry.value, IterValue::KeyDeleted)
+                                            && tombstone_is_dead(entry.hash)
+                                        {
+                                            continue;
+                                        }
+                                        collector.add_entry(
+                                            entry,
+                                            path,
+                                            sequence_number,
+                                            &mut keys_written,
+                                        )?;
+                                    } else {
+                                        // Entry is being dropped (superseded by newer entry or
+                                        // pruned by tombstone). If it references a blob file,
+                                        // mark that blob for deletion.
+                                        if let IterValue::Blob { sequence_number } = &entry.value {
+                                            blob_seq_numbers_to_delete.push(*sequence_number);
                                         }
                                     }
-                                    // If this is a tombstone, see if we need to retain it or not.
-                                    if matches!(entry.value, IterValue::KeyDeleted)
-                                        && tombstone_is_dead(entry.hash)
-                                    {
-                                        continue;
-                                    }
-                                    collector.add_entry(
-                                        entry,
-                                        path,
-                                        sequence_number,
-                                        &mut keys_written,
-                                    )?;
-                                } else {
-                                    // Entry is being dropped (superseded by newer entry or
-                                    // pruned by tombstone). If it references a blob file,
-                                    // mark that blob for deletion.
-                                    if let IterValue::Blob { sequence_number } = &entry.value {
-                                        blob_seq_numbers_to_delete.push(*sequence_number);
-                                    }
                                 }
+
+                                // Close remaining writers
+                                used_collector.close_sst_file(&mut keys_written)?;
+                                unused_collector.close_sst_file(&mut keys_written)?;
+
+                                let mut new_sst_files = take(&mut unused_collector.new_sst_files);
+                                new_sst_files.append(&mut used_collector.new_sst_files);
+                                Ok(PartialMergeResult::Merged {
+                                    new_sst_files,
+                                    blob_seq_numbers_to_delete,
+                                    keys_written,
+                                    indices,
+                                })
+                            })();
+                            if result.is_err() {
+                                used_collector.cancel();
+                                unused_collector.cancel();
                             }
-
-                            // Close remaining writers
-                            used_collector.close_sst_file(&mut keys_written)?;
-                            unused_collector.close_sst_file(&mut keys_written)?;
-
-                            let mut new_sst_files = take(&mut unused_collector.new_sst_files);
-                            new_sst_files.append(&mut used_collector.new_sst_files);
-                            Ok(PartialMergeResult::Merged {
-                                new_sst_files,
-                                blob_seq_numbers_to_delete,
-                                keys_written,
-                                indices,
-                            })
+                            result
                         })
                         .with_context(|| {
                             format!("Failed to merge database files for family {family}")

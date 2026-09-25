@@ -74,9 +74,6 @@ describe(`Request Promises`, () => {
       )
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
-  // @force-gate !deploy
   describe('On Prerender Interruption', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-dynamic',
@@ -89,9 +86,7 @@ describe(`Request Promises`, () => {
     }
 
     it('should reject request APIs after the prerender is interrupted with synchronously dynamic APIs', async () => {
-      try {
-        await next.start()
-      } catch {}
+      await expect(next.start()).rejects.toThrow()
       const expectError = createExpectError(next.cliOutput)
 
       expectError(
@@ -110,6 +105,6 @@ describe(`Request Promises`, () => {
       expectError(
         'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )
-    })
+    }, 240_000)
   })
 })

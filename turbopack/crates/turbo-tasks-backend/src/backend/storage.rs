@@ -520,6 +520,20 @@ impl Storage {
         }
     }
 
+    /// Like [`Self::access_mut`], but keeps the map entry so the caller can still remove it.
+    pub fn access_entry_mut(&self, key: TaskId) -> TaskEntryGuard<'_> {
+        let entry = match self.map.entry(key) {
+            dashmap::mapref::entry::Entry::Occupied(e) => e,
+            dashmap::mapref::entry::Entry::Vacant(e) => {
+                e.insert_entry(Box::new(TaskStorage::new()))
+            }
+        };
+        TaskEntryGuard {
+            storage: self,
+            entry,
+        }
+    }
+
     /// Read-only access to an already resident task. Returns `None` if the task isnt in memory
     /// resident. The closure runs while a shard read lock is held, so it must be cheap and must
     /// not re-enter the map.
@@ -528,21 +542,10 @@ impl Storage {
         Some(f(task.value()))
     }
 
-    /// The number of **persistent** (non-transient) tasks resident in the map. Use this to assert
-    /// GC returns to a flat baseline across re-rooting: GC never collects transient tasks (e.g.
-    /// `run_once`/Once roots), so their count is not expected to settle.
+    /// The number of tasks resident in the map.
     #[doc(hidden)]
-    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
-        let mut persistent = 0;
-        for shard in self.map.shards() {
-            let shard = shard.read();
-            for (task_id, _) in shard.iter() {
-                if !task_id.is_transient() {
-                    persistent += 1;
-                }
-            }
-        }
-        persistent
+    pub fn resident_task_count_for_testing(&self) -> usize {
+        self.map.len()
     }
 
     /// The number of shards in the resident map. GC seeds one `ScanShard` job per index; the slice
@@ -552,30 +555,15 @@ impl Storage {
         self.map.shards().len()
     }
 
-    /// Iterates the non-transient tasks of a **single** shard of the resident map by index, under
-    /// that shard's read lock.
-    fn for_each_resident_persistent_in_shard(
-        &self,
-        index: usize,
-        mut f: impl FnMut(TaskId, &TaskStorage),
-    ) {
+    /// Scans a **single** shard by index, invoking `on_candidate` for each resident task whose
+    /// storage passes [`TaskStorage::gc_collectible`].
+    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
         let shard = self.map.shards()[index].read();
         for (task_id, task) in shard.iter() {
-            if task_id.is_transient() {
-                continue;
+            if task.gc_collectible() {
+                on_candidate(*task_id);
             }
-            f(*task_id, task);
         }
-    }
-
-    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
-    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter.
-    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
-        self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
-            if storage.gc_maybe_collectible() {
-                on_candidate(task_id);
-            }
-        });
     }
 
     /// Return the set of all known live roots.
@@ -583,15 +571,15 @@ impl Storage {
         let per_shard: Vec<Vec<TaskId>> =
             parallel::map_collect(&(0..self.shard_count()).collect::<Vec<_>>(), |&index| {
                 let mut roots = Vec::new();
-                self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
-                    if storage.gc_is_root() {
-                        // The `is_root` criteria is conservative, in debug assert that we aren't m
-                        storage.gc_debug_assert_root_held_by_transient_pin();
-                        roots.push(task_id);
+                let shard = self.map.shards()[index].read();
+                for (task_id, task) in shard.iter() {
+                    if !task_id.is_transient() && task.gc_is_root() {
+                        roots.push(*task_id);
                     }
-                });
+                }
                 roots
             });
+
         per_shard.into_iter().flatten()
     }
 
@@ -677,20 +665,22 @@ impl Storage {
                     }
                 };
             shard.retain(|(task_id, task)| {
-                if task_id.is_transient() {
+                // Transient tasks can not be evicted at all, unless they are fully
+                // delete by the GC.
+                if task_id.is_transient() && !task.flags.deleted() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
                 }
-                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
+                // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
+                // can drop them fully now.
                 if task.flags.deleted() {
-                    let task_type = task
-                        .get_persistent_task_type()
-                        .expect("GC deleted tasks must have a task type");
-                    remove_from_task_cache(
-                        &mut evicted,
-                        &mut deferred_task_cache_removals,
-                        task_type,
-                    );
+                    if let Some(task_type) = task.get_persistent_task_type() {
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
+                    }
                     evicted.full += 1;
                     return false;
                 }
@@ -776,6 +766,44 @@ impl Storage {
         span.record("counts", tracing::field::display(&totals));
 
         totals
+    }
+}
+
+/// A write guard that still owns its map entry, so the task can be removed under the lock that is
+/// already held.
+///
+/// Use [`Storage::access_entry_mut`] to obtain one. Convert it with [`Self::into_write_guard`] once
+/// removal is no longer a possibility, or call [`Self::discard`] to drop the entry outright.
+pub struct TaskEntryGuard<'a> {
+    storage: &'a Storage,
+    entry: dashmap::mapref::entry::OccupiedEntry<'a, TaskId, Box<TaskStorage>>,
+}
+
+impl<'a> TaskEntryGuard<'a> {
+    /// Removes this task's entry.
+    pub fn discard(self) {
+        self.entry.remove();
+    }
+
+    /// Gives up the ability to remove the entry, yielding an ordinary write guard.
+    pub fn into_write_guard(self) -> StorageWriteGuard<'a> {
+        StorageWriteGuard {
+            storage: self.storage,
+            inner: self.entry.into_ref().into(),
+        }
+    }
+}
+
+impl Deref for TaskEntryGuard<'_> {
+    type Target = TaskStorage;
+    fn deref(&self) -> &Self::Target {
+        self.entry.get()
+    }
+}
+
+impl DerefMut for TaskEntryGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.entry.get_mut()
     }
 }
 
@@ -1163,7 +1191,7 @@ mod tests {
 
         let task = storage.access_mut(task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
-        assert!(!task.gc_maybe_collectible());
+        assert!(!task.gc_collectible());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't

@@ -87,7 +87,7 @@ async fn select_diamond(
 /// The **aggregation-graph rebalance** in GC: when the `reader` subtree is disconnected cleanly and
 /// collected, GC must remove `reader` from each `sd_leaf`'s `upper` set so the leaves — now
 /// parentless *and* upper-less — cascade-collect in the same pass. Without the rebalance a leaf
-/// keeps a dangling `upper` edge to the deleted `reader`, fails `gc_maybe_collectible`, and leaks
+/// keeps a dangling `upper` edge to the deleted `reader`, fails `gc_collectible`, and leaks
 /// until eviction hides it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn gc_rebalances_aggregation_and_cascades_in_one_pass() {
@@ -115,11 +115,11 @@ async fn gc_rebalances_aggregation_and_cascades_in_one_pass() {
     result.unwrap();
 
     // Baseline resident count with the reader subtree disconnected but not yet collected.
-    let baseline = tt2.backend().resident_persistent_task_count_for_testing();
+    let baseline = tt2.backend().resident_task_count_for_testing();
 
     let collected = tt2.backend().gc_for_testing(&tt2);
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let after = tt2.backend().resident_persistent_task_count_for_testing();
+    let after = tt2.backend().resident_task_count_for_testing();
 
     assert_eq!(
         collected,
@@ -132,10 +132,10 @@ async fn gc_rebalances_aggregation_and_cascades_in_one_pass() {
         "resident count must drop by exactly the collected subtree"
     );
 
-    // Only the three top-level `(operation, root)` tasks may be tracked as roots. A leaf that
-    // reached the post-drain scan still holding a dangling `upper` edge to the deleted `reader`
-    // would land in the map as `MostRecent`, which never ages out. If this fires it is a finding
-    // about the aggregation graph, not a reason to narrow `gc_is_root`.
+    // Only the three top-level `(operation, root)` tasks may be tracked as roots -- they are the
+    // ones held by a transient pin. A leaf still holding a dangling `upper` edge to the deleted
+    // `reader` is not a root (it fails `gc_unreferenced`), so it silently leaks rather than being
+    // tracked; the resident-count assertions above are what catch that.
     let roots = tt2.backend().persisted_gc_roots_for_testing();
     assert_eq!(roots.len(), 3, "unexpected roots tracked: {roots:?}");
 
@@ -172,11 +172,11 @@ async fn gc_diamond_forward_dep_no_resurrection() {
     .await;
     result.unwrap();
 
-    let baseline = tt2.backend().resident_persistent_task_count_for_testing();
+    let baseline = tt2.backend().resident_task_count_for_testing();
 
     let collected = tt2.backend().gc_for_testing(&tt2);
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let after = tt2.backend().resident_persistent_task_count_for_testing();
+    let after = tt2.backend().resident_task_count_for_testing();
 
     assert_eq!(
         collected,
@@ -230,7 +230,6 @@ async fn gc_resurrect_on_reconnect() {
 
     // Reconnect the subtree (selector back to false) BEFORE any snapshot. Reading `reader` again
     // connects it, which must resurrect it (and its leaves, as it re-reads them).
-    let tt3 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
@@ -244,7 +243,6 @@ async fn gc_resurrect_on_reconnect() {
             expected,
             "resurrected reader must recompute the correct value"
         );
-        let _ = &tt3;
         anyhow::Ok(())
     })
     .await;
@@ -252,7 +250,6 @@ async fn gc_resurrect_on_reconnect() {
 
     // A snapshot+evict now must NOT have tombstoned/hard-deleted the resurrected subtree.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let tt4 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
@@ -260,7 +257,6 @@ async fn gc_resurrect_on_reconnect() {
         let constant_vc = constant_op.resolve().strongly_consistent().await?;
         let output = select_reader(selector_vc, constant_vc);
         assert_eq!(*output.read_strongly_consistent().await?, expected);
-        let _ = &tt4;
         anyhow::Ok(())
     })
     .await;
@@ -319,7 +315,6 @@ async fn select_imm_reader(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_resurrect_immutable_recomputes() {
     let (tt, _persistence_dir) = create_tt("gc_resurrect_immutable_recomputes");
-    let tt2 = tt.clone();
     let expected: u32 = (0..IMM_FANOUT).fold(0u32, |a, b| a.wrapping_add(b * 3));
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
@@ -349,7 +344,7 @@ async fn gc_resurrect_immutable_recomputes() {
 
     // Collect the disconnected subtree. The entries stay resident (no snapshot yet), so the tasks
     // are soft-deleted rather than gone.
-    let collected = tt2.backend().gc_for_testing(&tt2);
+    let collected = tt.backend().gc_for_testing(&tt);
     assert_eq!(
         collected,
         IMM_FANOUT as usize + 1,
@@ -360,10 +355,8 @@ async fn gc_resurrect_immutable_recomputes() {
     // This must recompute it rather than serve a stale value. Done before the reconnect below,
     // while the subtree is still collected — afterwards the leaves are live again and a read would
     // legitimately hit a fresh cell, proving nothing.
-    let tt_direct = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         assert_eq!(*read_imm_leaf(0).read_strongly_consistent().await?, 0);
-        let _ = &tt_direct;
         anyhow::Ok(())
     })
     .await;
@@ -377,7 +370,6 @@ async fn gc_resurrect_immutable_recomputes() {
 
     // Reconnect BEFORE any snapshot. These tasks were never persisted, so there is nothing on disk
     // to restore — the only way back to a correct value is re-execution.
-    let tt3 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
@@ -389,7 +381,7 @@ async fn gc_resurrect_immutable_recomputes() {
             expected,
             "a resurrected immutable task must recompute the correct value"
         );
-        let _ = &tt3;
+
         anyhow::Ok(())
     })
     .await;
@@ -404,14 +396,12 @@ async fn gc_resurrect_immutable_recomputes() {
 
     // A snapshot + evict must not have tombstoned the resurrected subtree, and the restored data
     // must survive the round trip.
-    tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let tt4 = tt.clone();
+    tt.backend().snapshot_and_evict_for_testing(&tt);
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
         let output = select_imm_reader(selector_vc);
         assert_eq!(*output.read_strongly_consistent().await?, expected);
-        let _ = &tt4;
         anyhow::Ok(())
     })
     .await;

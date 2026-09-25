@@ -7,7 +7,6 @@ use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
     FxIndexSet, JoinIterExt, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
 };
 
 use super::{
@@ -199,7 +198,7 @@ pub async fn make_chunk_group(
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct ChunkGroupContentOptions {
     /// The availability info of the chunk group
     pub availability_info: AvailabilityInfo,

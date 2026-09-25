@@ -17,7 +17,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
 use fs_err::{self as fs, File};
-use lzzzz::lz4::decompress;
+use lz4_flex::block::decompress_into;
 use memmap2::Mmap;
 use turbo_persistence::{
     BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
@@ -264,10 +264,14 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
     meta_seqs.sort_unstable();
 
+    #[cfg(feature = "mmap")]
+    let access_mode = turbo_persistence::AccessMode::Mmap;
+    #[cfg(not(feature = "mmap"))]
+    let access_mode = turbo_persistence::AccessMode::File;
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq, None, turbo_persistence::AccessMode::Mmap)
+            MetaFile::open(db_path, seq, None, access_mode)
                 .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;
@@ -349,7 +353,7 @@ fn read_block(
         let mut buffer = vec![0u8; uncompressed_length as usize];
         let bytes_written = match compression {
             Compression::Lz4 => {
-                decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+                decompress_into(compressed_data, &mut buffer).context("LZ4 decompression failed")?
             }
             Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
                 .context("zstd decompression failed")?,

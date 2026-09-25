@@ -6,7 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -24,9 +24,7 @@ use crate::{
 /// initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ExportsInfoBinding {}
 
 impl ExportsInfoBinding {
@@ -123,9 +121,7 @@ impl From<ExportsInfoBinding> for CodeGen {
 ///
 /// There can be many references, and they appear at any nesting in the file. But all references
 /// refer to the same mutable object.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ExportsInfoRef {
     ast_path: AstPathId,
 }

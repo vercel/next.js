@@ -666,7 +666,7 @@ export default class NextNodeServer extends BaseServer<
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
 
-        return renderAppPage(
+        const result = await renderAppPage(
           req,
           res,
           pathname,
@@ -684,6 +684,10 @@ export default class NextNodeServer extends BaseServer<
               : this.deploymentId,
           }
         )
+        if ('error' in result) {
+          throw result.error
+        }
+        return result
       } else {
         // TODO: re-enable this once we've refactored to use implicit matches
         // throw new Error('Invariant: render should have used routeModule')
@@ -1066,6 +1070,10 @@ export default class NextNodeServer extends BaseServer<
             isFallback: false,
           }
         )
+
+        if (cacheEntry !== null && 'error' in cacheEntry) {
+          throw cacheEntry.error
+        }
 
         if (cacheEntry?.value?.kind !== CachedRouteKind.IMAGE) {
           throw new Error(

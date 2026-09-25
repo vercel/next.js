@@ -40,7 +40,7 @@ describe('warm-restart task statistics', () => {
     TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
     NEXT_TURBOPACK_TASK_STATISTICS: STATS_RELATIVE_PATH,
     // Wait for turbo-tasks to persist the cache before the dev process exits.
-    NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
+    __NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
   }
 
   const { next } = nextTestSetup({
