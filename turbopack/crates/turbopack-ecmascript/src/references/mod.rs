@@ -70,7 +70,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, JoinIterExt, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt,
     Upcast, ValueToString, Vc, turbofmt,
 };
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
@@ -2061,16 +2061,49 @@ where
 
     let get_traced_project_dir = async |pattern: Pattern| -> Result<(FileSystemPath, Pattern)> {
         // Relative filesystem references are resolved from the project root at runtime. Inside
-        // node_modules, only trace fully static alternatives from there: a dynamic pattern could
-        // otherwise include much or all of the project. Dynamic-only patterns continue to fall
-        // back to the package directory, preserving package-local tracing without exposing the
-        // project root.
+        // node_modules, only trace fully static alternatives naming files from there: even a
+        // static directory (e.g. `.`) could include the entire project. Missing alternatives
+        // don't disqualify an existing file, but a directory makes the whole pattern fall back
+        // to package-local tracing, as do patterns without any existing static files.
         if let Some(cwd) = compile_time_info.environment().cwd().owned().await? {
             if state.allow_project_root_tracing {
                 return Ok((cwd, pattern));
             }
             if let Some(static_pattern) = pattern.filter_static() {
-                return Ok((cwd, static_pattern));
+                let alternatives = match &static_pattern {
+                    Pattern::Alternatives(list) => list.iter().collect::<Vec<_>>(),
+                    _ => vec![&static_pattern],
+                };
+                let mut has_file = false;
+                let mut only_files_or_missing = true;
+                for alternative in alternatives {
+                    let Some(path) = alternative.as_constant_string() else {
+                        only_files_or_missing = false;
+                        break;
+                    };
+                    let Some(path) = cwd.try_join_inside(path) else {
+                        only_files_or_missing = false;
+                        break;
+                    };
+                    let file_type = match *path.get_type().await? {
+                        FileSystemEntryType::Symlink => match path.realpath().await? {
+                            Ok(path) => *path.get_type().await?,
+                            Err(_) => FileSystemEntryType::Error,
+                        },
+                        file_type => file_type,
+                    };
+                    match file_type {
+                        FileSystemEntryType::File => has_file = true,
+                        FileSystemEntryType::NotFound => {}
+                        _ => {
+                            only_files_or_missing = false;
+                            break;
+                        }
+                    }
+                }
+                if has_file && only_files_or_missing {
+                    return Ok((cwd, static_pattern));
+                }
             }
         }
         Ok((source.ident().await?.path.parent(), pattern))
@@ -3176,10 +3209,6 @@ where
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                // Every `includeDirs` entry below is a constant, so the traced directory is the
-                // same for all of them and can be computed once from a static pattern.
-                let (context_dir, _) =
-                    get_traced_project_dir(Pattern::Constant(rcstr!(""))).await?;
                 let resolved_dirs = parts
                     .iter()
                     .filter_map(|object_part| match object_part {
@@ -3192,14 +3221,20 @@ where
                         _ => None,
                     })
                     .flatten()
-                    .map(|dir| {
-                        DirAssetReference::new(
-                            context_dir.clone(),
-                            Pattern::new(Pattern::Constant(dir.into())),
-                            get_issue_source(),
-                            rcstr!("protobufjs.load"),
+                    .map(|dir| async move {
+                        // Classify the actual directory, not an empty placeholder pattern.
+                        let (context_dir, pattern) =
+                            get_traced_project_dir(Pattern::Constant(dir.into())).await?;
+                        Ok::<_, anyhow::Error>(
+                            DirAssetReference::new(
+                                context_dir,
+                                Pattern::new(pattern),
+                                get_issue_source(),
+                                rcstr!("protobufjs.load"),
+                            )
+                            .to_resolved()
+                            .await?,
                         )
-                        .to_resolved()
                     })
                     .join()
                     .await;
