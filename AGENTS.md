@@ -98,7 +98,7 @@ pnpm test-start-webpack test/path/to/test.ts
 
 **3. When done, kill the background watch process (if you started it).**
 
-**For type errors only:** Use `pnpm --filter=next types` (~10s) instead of `pnpm --filter=next build` (~60s).
+**For package declaration errors only:** Use `pnpm --filter=next types` (~10s) instead of `pnpm --filter=next build` (~60s). For changes to TypeScript tests, run `pnpm typescript` from the repository root too.
 
 After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build-all` for branch switches/bootstrap, before CI push, or when changes span multiple packages.
 
@@ -229,7 +229,7 @@ tail -5 /tmp/test-output.log             # Summary
 pnpm lint              # Full lint (types, prettier, eslint, ast-grep)
 pnpm lint-fix          # Auto-fix lint issues
 pnpm prettier-fix      # Fix formatting only
-pnpm types             # TypeScript type checking
+pnpm typescript        # Root TypeScript check, including tests
 ```
 
 Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
@@ -419,7 +419,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 **Batch edits before building:**
 
 - Group related edits across files, then run one build, not build-per-edit
-- Use `pnpm --filter=next types` (~10s) to check type errors without full rebuild
+- Use `pnpm --filter=next types` (~10s) for package declarations. If TypeScript tests changed, also run `pnpm typescript` from the repository root; the package command does not check them.
 
 **External API calls (gh, curl):**
 
