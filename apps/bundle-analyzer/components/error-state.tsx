@@ -8,7 +8,7 @@ interface ErrorStateProps {
   onRetry?: () => void
 }
 
-export function ErrorState({ error }: ErrorStateProps) {
+export function ErrorState({ error, onRetry }: ErrorStateProps) {
   const isNetwork = error instanceof NetworkError
   const title = isNetwork ? 'Server Connection Lost' : 'Error'
   const message = isNetwork
@@ -27,9 +27,7 @@ export function ErrorState({ error }: ErrorStateProps) {
           </h3>
           <p className="text-sm text-muted-foreground mb-4">{message}</p>
           <button
-            onClick={() => {
-              window.location.reload()
-            }}
+            onClick={onRetry ?? (() => window.location.reload())}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
           >
             <RefreshCw className="w-4 h-4" />
