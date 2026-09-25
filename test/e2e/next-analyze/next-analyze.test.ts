@@ -92,7 +92,6 @@ describe('next analyze', () => {
     expect(history.snapshots[0].snapshotName).toBe(name)
     expect(history.snapshots[0]).not.toHaveProperty('baselineName')
   })
-
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {
