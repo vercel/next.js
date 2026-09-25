@@ -559,6 +559,7 @@ fn main() -> Result<()> {
     let mut config = CompactConfig {
         // Matches `COMPACT_CONFIG` in turbo-tasks-backend.
         max_space_amplification: 0.5,
+        min_bottom_merge_bytes: MB,
         max_files_above_bottom: 4,
         max_rewrite_factor: 2.0,
         // Matches compaction on shutdown: one merge job per core.
@@ -578,6 +579,9 @@ fn main() -> Result<()> {
             "--segments" => config.max_merge_segment_count = value()?.parse()?,
             "--space-amp" => config.max_space_amplification = value()?.parse()?,
             "--max-files-above-bottom" => config.max_files_above_bottom = value()?.parse()?,
+            "--min-bottom-merge-mb" => {
+                config.min_bottom_merge_bytes = value()?.parse::<u64>()? * MB
+            }
             "--rewrite-factor" => config.max_rewrite_factor = value()?.parse()?,
             "--target-shard-mb" => shards.target_shard_size = value()?.parse::<u64>()? * MB,
             "--min-shards" => {
@@ -592,8 +596,8 @@ fn main() -> Result<()> {
     }
     let path = path.context(
         "usage: compaction_log <db dir or LOG> [--replay] [--events] [--validate] [--segments N] \
-         [--space-amp X] [--max-files-above-bottom N] [--rewrite-factor X] [--target-shard-mb N] \
-         [--min-shards A,B,C,D]",
+         [--space-amp X] [--min-bottom-merge-mb N] [--max-files-above-bottom N] [--rewrite-factor \
+         X] [--target-shard-mb N] [--min-shards A,B,C,D]",
     )?;
     let (log_path, db_path) = if path.is_dir() {
         (path.join("LOG"), Some(path))

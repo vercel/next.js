@@ -41,6 +41,7 @@ pub fn db_config() -> DbConfig<FAMILIES> {
 
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
     max_space_amplification: 0.5,
+    min_bottom_merge_bytes: 1024 * 1024,
     max_files_above_bottom: 4,
     max_rewrite_factor: 2.0,
     max_merge_segment_count: 16,
