@@ -670,6 +670,10 @@ mod tests {
     }
 
     /// Tests that one list-valued TaskCache entry returns every candidate for a colliding hash.
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
         let tempdir = test_temp_dir()?;
@@ -694,6 +698,10 @@ mod tests {
         Ok(())
     }
 
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn snapshot_coalesces_colliding_task_cache_puts() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
@@ -732,6 +740,10 @@ mod tests {
         Ok(())
     }
 
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn snapshot_merges_colliding_put_and_delete_across_shards() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
@@ -774,6 +786,10 @@ mod tests {
     /// This mirrors the actual save_snapshot pattern: write many TaskCache entries, flush, commit.
     // This test is too slow to run under Miri.
     #[cfg(not(miri))]
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_write_with_flush_and_reopen() -> Result<()> {
         let tempdir = test_temp_dir()?;
@@ -831,6 +847,10 @@ mod tests {
 
     /// `save_snapshot` delete path: a `Delete` item must erase the task's `TaskMeta` and
     /// `TaskData` entries and rewrite its list-valued `TaskCache` bucket with the survivors.
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_save_snapshot_delete_tombstones_task() -> Result<()> {
         let tempdir = test_temp_dir()?;
