@@ -37,8 +37,13 @@ export interface TurbopackProjectCallbacks {
   onBeforeDeferredEntries?: () => Promise<void>
 }
 
+export type BindingType = 'native' | 'wasm' | 'wasi'
+
 export interface Binding {
+  /** Runtime kind. `isWasm` remains true for both wasm-bindgen and N-API/WASI bindings. */
+  bindingType: BindingType
   isWasm: boolean
+  supportsTurbopack: boolean
   turbo: {
     createProject(
       options: ProjectOptions,

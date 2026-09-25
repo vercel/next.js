@@ -208,6 +208,7 @@ program
   .option('--turbopack', 'Builds using Turbopack.')
   .option('--webpack', 'Builds using the bundled webpack.')
   .option('--custom-webpack', 'Builds using your project-installed webpack.')
+  .option('--wasi', 'Builds using the experimental WASI bindings.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',

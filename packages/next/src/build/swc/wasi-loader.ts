@@ -7,8 +7,9 @@
  * import. The common host support lives in `./wasi-runtime`; `scripts/wasi-test-host/` consumes the
  * compiled copy so the production loader and test runner cannot drift.
  *
- * This is groundwork only — nothing here is wired into the SWC-only wasm fallback in `./index.ts`,
- * and packaging is deliberately out of scope, so loading Turbopack from wasm does not work yet.
+ * `next build --wasi` uses this N-API/WASI host. It is intentionally separate from the legacy
+ * SWC-only wasm-bindgen fallback in `./index.ts` because the two bindings have different ABIs and
+ * capabilities.
  */
 
 import path from 'node:path'

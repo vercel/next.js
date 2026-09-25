@@ -1,4 +1,6 @@
 import path from 'path'
+import { appendFile, readFile } from 'fs/promises'
+import { createRequire } from 'module'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
@@ -172,7 +174,7 @@ let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
-/** Access the native bindings which should already have been loaded via `installBindings.  Throws if they are not available. */
+/** Access bindings which should already have been loaded via `installBindings`. Throws if unavailable. */
 export function getBindingsSync(): Binding {
   if (!loadedBindings) {
     if (pendingBindings) {
@@ -188,17 +190,29 @@ export function getBindingsSync(): Binding {
 }
 
 /**
- * Loads the native or wasm binding.
+ * Loads a native, legacy wasm-bindgen, or explicitly requested N-API/WASI binding.
  *
- * By default, this first tries to use a native binding, falling back to a wasm binding if that
- * fails.
+ * By default, this first tries to use a native binding, falling back to a legacy wasm binding if
+ * that fails. N-API/WASI is selected only by the private state set for `next build --wasi`.
  *
  * This function is `async` as wasm requires an asynchronous import in browsers.
  */
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  const useWasiBinary = process.env.NEXT_PRIVATE_BUILD_WASI === '1'
+  if (useWasiBinary && useWasmBinary) {
+    throw new Error(
+      '`next build --wasi` cannot be combined with `experimental.useWasmBinary: true`.'
+    )
+  }
+
   if (loadedBindings) {
+    if (useWasiBinary && loadedBindings.bindingType !== 'wasi') {
+      throw new Error(
+        'The WASI binding was requested after a different SWC binding had already loaded.'
+      )
+    }
     return loadedBindings
   }
   if (pendingBindings) {
@@ -224,6 +238,16 @@ export async function loadBindings(
   if (process.stderr._handle != null) {
     // @ts-ignore
     process.stderr._handle.setBlocking?.(true)
+  }
+
+  if (useWasiBinary) {
+    pendingBindings = loadWasiNapiBinding()
+    try {
+      loadedBindings = await pendingBindings
+      return loadedBindings
+    } finally {
+      pendingBindings = undefined
+    }
   }
 
   pendingBindings = new Promise(async (resolve, reject) => {
@@ -299,6 +323,115 @@ export async function loadBindings(
   loadedBindings = await pendingBindings
   pendingBindings = undefined
   return loadedBindings
+}
+
+async function loadWasiNapiBinding(): Promise<Binding> {
+  const packageName = '@next/swc-wasm-wasi'
+  const testDirectory = process.env.NEXT_TEST_WASI_DIR
+  let packageDirectory: string
+
+  try {
+    packageDirectory = testDirectory
+      ? path.resolve(testDirectory)
+      : path.dirname(require.resolve(`${packageName}/package.json`))
+  } catch (error) {
+    throw new Error(
+      `Failed to load ${packageName}@${nextVersion}: the package is not installed.`,
+      { cause: error }
+    )
+  }
+
+  const wasmPath = path.join(packageDirectory, 'next-swc.wasm32-wasi.wasm')
+  const packageRequire = createRequire(
+    path.join(packageDirectory, 'package.json')
+  )
+
+  try {
+    if (!testDirectory) {
+      checkVersionMismatch(packageRequire('./package.json'))
+    }
+    const coreDirectory = path.dirname(
+      packageRequire.resolve('@emnapi/core/package.json')
+    )
+    const coreUrl = pathToFileURL(
+      path.join(coreDirectory, 'dist/emnapi-core.full.js')
+    ).href
+    const runtimeDirectory = path.dirname(
+      packageRequire.resolve('@emnapi/runtime/package.json')
+    )
+    const runtimeUrl = pathToFileURL(
+      path.join(runtimeDirectory, 'dist/emnapi.js')
+    ).href
+    const wasiThreadsUrl = pathToFileURL(
+      packageRequire.resolve('@emnapi/wasi-threads')
+    ).href
+    const [{ createNapiModule }, { getDefaultContext }] = await Promise.all([
+      import(coreUrl),
+      import(runtimeUrl),
+    ])
+    const napiModule = createNapiModule({
+      context: getDefaultContext(),
+      asyncWorkPoolSize: 0,
+    })
+    const environment = {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined
+        )
+      ),
+      // The current pthread runtime traps during Turbopack initialization at high host CPU counts.
+      // Keep real parallelism while defaulting to the configuration proven by the build fixture.
+      TURBO_TASKS_AVAILABLE_PARALLELISM:
+        process.env.TURBO_TASKS_AVAILABLE_PARALLELISM ?? '2',
+    }
+
+    const { instantiateWasiNapiModule } = await import('./wasi-loader.js')
+    await instantiateWasiNapiModule({
+      bytes: new Uint8Array(await readFile(wasmPath)),
+      napiModule,
+      args: process.argv,
+      env: environment,
+      // This trusted binding has the same host access as the native addon. Host-root preopening
+      // preserves absolute project and workspace paths; it is not a security sandbox.
+      preopens: { '/': '/' },
+      workerPath: path.join(__dirname, 'wasi-loader-worker.js'),
+      napiModuleSpecifier: coreUrl,
+      wasiThreadsModuleSpecifier: wasiThreadsUrl,
+      onThreadError(error, threadId) {
+        const suffix = threadId === undefined ? '' : ` ${threadId}`
+        Log.error(
+          `WASI binding thread${suffix} failed: ${error.stack ?? error}`
+        )
+      },
+    })
+
+    const rawBindings = napiModule.exports as RawBindings
+    const target = rawBindings.getTargetTriple()
+    if (target !== 'wasm32-wasip1-threads') {
+      throw new Error(
+        `Expected ${packageName} to target wasm32-wasip1-threads, received ${target ?? 'unknown'}.`
+      )
+    }
+    if (process.env.NEXT_TEST_WASI_TARGET_LOG) {
+      await appendFile(
+        process.env.NEXT_TEST_WASI_TARGET_LOG,
+        `${JSON.stringify({
+          pid: process.pid,
+          worker:
+            process.env.IS_NEXT_WORKER === 'true' ||
+            process.env.NEXT_PRIVATE_BUILD_WORKER === '1',
+          target,
+        })}\n`
+      )
+    }
+    infoLog(`next-swc build: WASI build ${packageDirectory}`)
+    return createNapiBinding(rawBindings, rawBindings, wasmPath, 'wasi')
+  } catch (error) {
+    throw new Error(
+      `Failed to initialize ${packageName}@${nextVersion} from ${packageDirectory}.`,
+      { cause: error }
+    )
+  }
 }
 
 async function tryLoadNativeWithFallback(attempts: Array<string>) {
@@ -379,6 +512,14 @@ async function tryLoadWasmWithFallback(
 }
 
 function loadBindingsSync(): Binding {
+  if (loadedBindings) return loadedBindings
+
+  if (process.env.NEXT_PRIVATE_BUILD_WASI === '1') {
+    throw new Error(
+      'WASI bindings require asynchronous initialization. Call and await installBindings() first.'
+    )
+  }
+
   let attempts: any[] = []
   try {
     return loadNative()
@@ -502,7 +643,7 @@ const normalizePathOnWindows = (p: string) =>
 function bindingToApi(
   binding: RawBindings,
   bindingPath: string,
-  _wasm: boolean
+  bindingType: 'native' | 'wasi'
 ): Binding['turbo']['createProject'] {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
@@ -650,17 +791,32 @@ function bindingToApi(
     return iterator
   }
 
+  function prepareNextConfig(config: NextConfigComplete): NextConfigComplete {
+    if (bindingType !== 'wasi') return config
+
+    return {
+      ...config,
+      experimental: {
+        ...config.experimental,
+        // Rust defaults to WorkerThreads on wasm. Omit Next's host default because the
+        // ChildProcesses variant is compiled out of the WASI binding.
+        turbopackPluginRuntimeStrategy: undefined,
+      },
+    }
+  }
+
   async function rustifyProjectOptions(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
+    const nextConfig = prepareNextConfig(options.nextConfig)
     const additionalRoots = Object.entries(
-      options.nextConfig.experimental.turbopackAdditionalRoots ?? {}
+      nextConfig.experimental.turbopackAdditionalRoots ?? {}
     ).map(([key, root]) => ({ key, ...root }))
     return {
       ...options,
       additionalRoots,
       nextConfig: await serializeNextConfig(
-        options.nextConfig,
+        nextConfig,
         path.join(options.rootPath, options.projectPath)
       ),
       env: rustifyEnv(options.env),
@@ -675,7 +831,10 @@ function bindingToApi(
       ...options,
       nextConfig:
         options.nextConfig &&
-        (await serializeNextConfig(options.nextConfig, projectPath)),
+        (await serializeNextConfig(
+          prepareNextConfig(options.nextConfig),
+          projectPath
+        )),
       env: options.env && rustifyEnv(options.env),
     }
   }
@@ -1420,7 +1579,9 @@ async function loadWasm(importPath = '') {
         },
       },
     },
+    bindingType: 'wasm' as const,
     isWasm: true,
+    supportsTurbopack: false,
     transform(src: string, options: any): Promise<any> {
       return rawBindings.transform(src.toString(), removeUndefined(options))
     },
@@ -1643,169 +1804,182 @@ function loadNative(importPath?: string): Binding {
     }
   }
 
-  if (bindings) {
-    loadedBindings = {
-      isWasm: false,
-      transform(src: string, options: any) {
-        const isModule =
-          typeof src !== 'undefined' &&
-          typeof src !== 'string' &&
-          !Buffer.isBuffer(src)
-        options = options || {}
-
-        if (options?.jsc?.parser) {
-          options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
-        }
-
-        return bindings.transform(
-          isModule ? JSON.stringify(src) : src,
-          isModule,
-          toBuffer(options)
-        )
-      },
-
-      transformSync(src: string, options: any) {
-        if (typeof src === 'undefined') {
-          throw new Error(
-            "transformSync doesn't implement reading the file from filesystem"
-          )
-        } else if (Buffer.isBuffer(src)) {
-          throw new Error(
-            "transformSync doesn't implement taking the source code as Buffer"
-          )
-        }
-        const isModule = typeof src !== 'string'
-        options = options || {}
-
-        if (options?.jsc?.parser) {
-          options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
-        }
-
-        return bindings.transformSync(
-          isModule ? JSON.stringify(src) : src,
-          isModule,
-          toBuffer(options)
-        )
-      },
-
-      minify(src: string, options: any) {
-        return bindings.minify(Buffer.from(src), toBuffer(options ?? {}))
-      },
-
-      minifySync(src: string, options: any) {
-        return bindings.minifySync(Buffer.from(src), toBuffer(options ?? {}))
-      },
-
-      parse(src: string, options: any) {
-        return bindings.parse(src, toBuffer(options ?? {}))
-      },
-
-      getTargetTriple: bindings.getTargetTriple,
-      turbopackCacheVersion: bindings.turbopackCacheVersion,
-      initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
-      teardownTraceSubscriber: bindings.teardownTraceSubscriber,
-      turbo: {
-        createProject: bindingToApi(
-          customBindings ?? bindings,
-          customBindingsPath ?? bindingsPath!,
-          false
-        ),
-        startTurbopackTraceServerHandle(traceFilePath, port) {
-          return (customBindings ?? bindings).startTurbopackTraceServerHandle(
-            traceFilePath,
-            port
-          )
-        },
-        queryTraceSpans(handle, options) {
-          return (customBindings ?? bindings).queryTraceSpans(handle, options)
-        },
-        databaseCompact(dbPath: string, dbNextVersion: string) {
-          return (customBindings ?? bindings).turbopackDatabaseCompact(
-            dbPath,
-            dbNextVersion
-          )
-        },
-      },
-      mdx: {
-        compile(src: string, options: any) {
-          return bindings.mdxCompile(src, toBuffer(getMdxOptions(options)))
-        },
-        compileSync(src: string, options: any) {
-          bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options)))
-        },
-      },
-      css: {
-        lightning: {
-          transform(transformOptions: any) {
-            return bindings.lightningCssTransform(transformOptions)
-          },
-          transformStyleAttr(transformAttrOptions: any) {
-            return bindings.lightningCssTransformStyleAttribute(
-              transformAttrOptions
-            )
-          },
-          featureNamesToMask(names: string[]) {
-            return bindings.lightningcssFeatureNamesToMaskNapi(names)
-          },
-        },
-      },
-      reactCompiler: {
-        isReactCompilerRequired: (filename: string) => {
-          return bindings.isReactCompilerRequired(filename)
-        },
-      },
-      rspack: {
-        getModuleNamedExports: function (
-          resourcePath: string
-        ): Promise<string[]> {
-          return bindings.getModuleNamedExports(resourcePath)
-        },
-        warnForEdgeRuntime: function (
-          source: string,
-          isProduction: boolean
-        ): Promise<NapiSourceDiagnostic[]> {
-          return bindings.warnForEdgeRuntime(source, isProduction)
-        },
-      },
-      expandNextJsTemplate(
-        content: Buffer,
-        templatePath: string,
-        nextPackageDirPath: string,
-        replacements: Record<`VAR_${string}`, string>,
-        injections: Record<string, string>,
-        imports: Record<string, string | null>
-      ): string {
-        return bindings.expandNextJsTemplate(
-          content,
-          templatePath,
-          nextPackageDirPath,
-          replacements,
-          injections,
-          imports
-        )
-      },
-      lockfileTryAcquire(filePath: string, content?: string | null) {
-        return bindings.lockfileTryAcquire(filePath, content)
-      },
-      lockfileTryAcquireSync(filePath: string, content?: string | null) {
-        return bindings.lockfileTryAcquireSync(filePath, content)
-      },
-      lockfileUnlock(lockfile: Lockfile) {
-        return bindings.lockfileUnlock(lockfile)
-      },
-      lockfileUnlockSync(lockfile: Lockfile) {
-        return bindings.lockfileUnlockSync(lockfile)
-      },
-      codeFrameColumns(source, location, options) {
-        // napi-rs translates Option::None as null but wasm-bindgen translates it to `null`
-        // convert here for consistency
-        return bindings.codeFrameColumns(source, location, options) ?? undefined
-      },
-    }
-    return loadedBindings!
+  if (!bindings) {
+    throw attempts
   }
 
-  throw attempts
+  return createNapiBinding(
+    bindings,
+    customBindings ?? bindings,
+    customBindingsPath ?? bindingsPath!,
+    'native'
+  )
+}
+
+function createNapiBinding(
+  bindings: RawBindings,
+  turbopackBindings: RawBindings,
+  turbopackBindingsPath: string,
+  bindingType: 'native' | 'wasi'
+): Binding {
+  loadedBindings = {
+    bindingType,
+    isWasm: bindingType === 'wasi',
+    supportsTurbopack: true,
+    transform(src: string, options: any) {
+      const isModule =
+        typeof src !== 'undefined' &&
+        typeof src !== 'string' &&
+        !Buffer.isBuffer(src)
+      options = options || {}
+
+      if (options?.jsc?.parser) {
+        options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+      }
+
+      return bindings.transform(
+        isModule ? JSON.stringify(src) : src,
+        isModule,
+        toBuffer(options)
+      )
+    },
+
+    transformSync(src: string, options: any) {
+      if (typeof src === 'undefined') {
+        throw new Error(
+          "transformSync doesn't implement reading the file from filesystem"
+        )
+      } else if (Buffer.isBuffer(src)) {
+        throw new Error(
+          "transformSync doesn't implement taking the source code as Buffer"
+        )
+      }
+      const isModule = typeof src !== 'string'
+      options = options || {}
+
+      if (options?.jsc?.parser) {
+        options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+      }
+
+      return bindings.transformSync(
+        isModule ? JSON.stringify(src) : src,
+        isModule,
+        toBuffer(options)
+      )
+    },
+
+    minify(src: string, options: any) {
+      return bindings.minify(Buffer.from(src), toBuffer(options ?? {}))
+    },
+
+    minifySync(src: string, options: any) {
+      return bindings.minifySync(Buffer.from(src), toBuffer(options ?? {}))
+    },
+
+    parse(src: string, options: any) {
+      return bindings.parse(src, toBuffer(options ?? {}))
+    },
+
+    getTargetTriple: bindings.getTargetTriple,
+    turbopackCacheVersion: bindings.turbopackCacheVersion,
+    initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
+    teardownTraceSubscriber: bindings.teardownTraceSubscriber,
+    turbo: {
+      createProject: bindingToApi(
+        turbopackBindings,
+        turbopackBindingsPath,
+        bindingType
+      ),
+      startTurbopackTraceServerHandle(traceFilePath, port) {
+        return turbopackBindings.startTurbopackTraceServerHandle(
+          traceFilePath,
+          port
+        )
+      },
+      queryTraceSpans(handle, options) {
+        return turbopackBindings.queryTraceSpans(handle, options)
+      },
+      databaseCompact(dbPath: string, dbNextVersion: string) {
+        return turbopackBindings.turbopackDatabaseCompact(dbPath, dbNextVersion)
+      },
+    },
+    mdx: {
+      compile(src: string, options: any) {
+        return bindings.mdxCompile(src, toBuffer(getMdxOptions(options)))
+      },
+      compileSync(src: string, options: any) {
+        bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options)))
+      },
+    },
+    css: {
+      lightning: {
+        transform(transformOptions: any) {
+          return bindings.lightningCssTransform(transformOptions)
+        },
+        transformStyleAttr(transformAttrOptions: any) {
+          return bindings.lightningCssTransformStyleAttribute(
+            transformAttrOptions
+          )
+        },
+        featureNamesToMask(names: string[]) {
+          return bindings.lightningcssFeatureNamesToMaskNapi(names)
+        },
+      },
+    },
+    reactCompiler: {
+      isReactCompilerRequired: (filename: string) => {
+        return bindings.isReactCompilerRequired(filename)
+      },
+    },
+    rspack: {
+      getModuleNamedExports: function (
+        resourcePath: string
+      ): Promise<string[]> {
+        return bindings.getModuleNamedExports(resourcePath)
+      },
+      warnForEdgeRuntime: function (
+        source: string,
+        isProduction: boolean
+      ): Promise<NapiSourceDiagnostic[]> {
+        return bindings.warnForEdgeRuntime(source, isProduction)
+      },
+    },
+    expandNextJsTemplate(
+      content: Buffer,
+      templatePath: string,
+      nextPackageDirPath: string,
+      replacements: Record<`VAR_${string}`, string>,
+      injections: Record<string, string>,
+      imports: Record<string, string | null>
+    ): string {
+      return bindings.expandNextJsTemplate(
+        content,
+        templatePath,
+        nextPackageDirPath,
+        replacements,
+        injections,
+        imports
+      )
+    },
+    lockfileTryAcquire(filePath: string, content?: string | null) {
+      return bindings.lockfileTryAcquire(filePath, content)
+    },
+    lockfileTryAcquireSync(filePath: string, content?: string | null) {
+      return bindings.lockfileTryAcquireSync(filePath, content)
+    },
+    lockfileUnlock(lockfile: Lockfile) {
+      return bindings.lockfileUnlock(lockfile)
+    },
+    lockfileUnlockSync(lockfile: Lockfile) {
+      return bindings.lockfileUnlockSync(lockfile)
+    },
+    codeFrameColumns(source, location, options) {
+      // napi-rs translates Option::None as null but wasm-bindgen translates it to `null`
+      // convert here for consistency
+      return bindings.codeFrameColumns(source, location, options) ?? undefined
+    },
+  }
+  return loadedBindings
 }
 
 /// Build a mdx options object contains default values that

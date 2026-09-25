@@ -128,7 +128,12 @@ async function handleCJS({
     // resulting loading Development React on Production
     const { loadBindings } = require('../swc') as typeof import('../swc')
     const bindings = await loadBindings()
-    const { code } = await bindings.transform(nextConfigString, swcOptions)
+    // emnapi's JavaScript async-work pool requires another host Worker ABI. The synchronous N-API
+    // transform uses the already-selected WASI binding and is sufficient for one config file.
+    const { code } =
+      bindings.bindingType === 'wasi'
+        ? bindings.transformSync(nextConfigString, swcOptions)
+        : await bindings.transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists
     if (code.includes('require(')) {
