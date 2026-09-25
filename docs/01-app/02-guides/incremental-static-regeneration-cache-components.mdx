@@ -218,45 +218,48 @@ After the first visit, Next.js renders the page in the background with the known
 
 Because links to these pages use `prefetch={true}`, each prefetch also prepares content that depends on `cookies` or `headers`. Consider showing each price in the visitor's currency. The currency comes from a cookie, and converting the price calls an exchange-rate service, so every prefetch of a product link would run that conversion. Use [`await navigation()`](/docs/app/api-reference/functions/navigation) before it. The prefetch leaves the converted price out, and it renders when the user navigates.
 
-```tsx filename="app/[category]/[product]/page.tsx" highlight={1-2,4,6-24,32-34}
+```tsx filename="app/[category]/[product]/page.tsx" highlight={3-5,7-16,32-34}
+import { Suspense } from 'react'
+import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { navigation } from 'next/cache'
-import { Suspense } from 'react'
 import { getProduct, getExchangeRate } from '../../lib/data'
 
-async function LocalPrice({
-  params,
-}: Pick<PageProps<'/[category]/[product]'>, 'params'>) {
+async function LocalPrice({ price }: { price: number }) {
   await navigation()
-  const { category, product } = await params
   const currency = (await cookies()).get('currency')?.value ?? 'USD'
-  const [data, rate] = await Promise.all([
-    getProduct(category, product),
-    getExchangeRate(currency),
-  ])
-
-  if (!data) return null
-
+  const rate = await getExchangeRate(currency)
   return (
     <p>
-      {(data.price * rate).toFixed(2)} {currency}
+      {(price * rate).toFixed(2)} {currency}
     </p>
   )
 }
 
-export default function ProductPage(props: PageProps<'/[category]/[product]'>) {
+async function ProductDetails(props: PageProps<'/[category]/[product]'>) {
+  const { category, product } = await props.params
+  const data = await getProduct(category, product)
+
+  if (!data) {
+    return <p>Product not found.</p>
+  }
+
   return (
-    <div>
-      <Suspense fallback={<div>Loading product...</div>}>
-        <ProductDetails {...props} />
-      </Suspense>
+    <>
+      <Link href={`/${category}`} prefetch={true}>
+        &larr; Back to products
+      </Link>
+      <h2>{data.name}</h2>
       <Suspense fallback={<p>Loading price...</p>}>
-        <LocalPrice params={props.params} />
+        <LocalPrice price={data.price} />
       </Suspense>
-    </div>
+      <p>{data.description}</p>
+    </>
   )
 }
 ```
+
+The prefetch still includes the product name and description. The converted price renders when the user navigates.
 
 The exchange rate comes from a new function in `app/lib/data.ts`, cached per currency by the file's `'use cache'` directive:
 
