@@ -43,7 +43,7 @@ import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
-import { formatBytes } from '@/lib/utils'
+import { formatBytes, jsonFetcher } from '@/lib/utils'
 import { SizeMode } from '@/lib/treemap-layout'
 import { ArrowRight, Monitor } from 'lucide-react'
 
@@ -288,9 +288,8 @@ function useAnalyzerModel(compare: boolean) {
     })
   }, [analyzeData, baselineSnapshot, filterSource])
 
-  const routeSummaries = useSuspenseData<RouteSummary[]>(
+  const routeSummaries = useSuspenseJsonData<RouteSummary[]>(
     `${comparisonBaseDir}/route-summaries.json`,
-    jsonFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
   const clientRouteTotals = useMemo(
