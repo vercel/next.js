@@ -70,7 +70,9 @@ test('caches the category data', () => {
 })
 
 test('does not use a navigation-stage boundary', () => {
-  expect(source).not.toMatch(/\bnavigation\b/)
+  expect(source).not.toMatch(
+    /import\s*\{[^}]*\bnavigation\b[^}]*\}\s*from\s*['"]next\/cache['"]/
+  )
 })
 
 test('prefetches the selected category and cached products', async () => {

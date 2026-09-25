@@ -63,7 +63,7 @@ test('opts the project link into per-link prefetching', () => {
 
 test('uses the navigation cache stage', () => {
   const navigationImport = source.match(
-    /\bnavigation(?:\s+as\s+([A-Za-z_$][\w$]*))?/
+    /import\s*\{[^}]*\bnavigation\b(?:\s+as\s+([A-Za-z_$][\w$]*))?[^}]*\}\s*from\s*['"]next\/cache['"]/
   )
   expect(navigationImport).not.toBeNull()
 

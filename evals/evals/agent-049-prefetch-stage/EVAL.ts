@@ -62,7 +62,7 @@ test('opts the featured product link into per-link prefetching', () => {
 
 test('uses the prefetch cache stage', () => {
   const prefetchImport = source.match(
-    /\bprefetch(?:\s+as\s+([A-Za-z_$][\w$]*))?/
+    /import\s*\{[^}]*\bprefetch\b(?:\s+as\s+([A-Za-z_$][\w$]*))?[^}]*\}\s*from\s*['"]next\/cache['"]/
   )
   expect(prefetchImport).not.toBeNull()
 
