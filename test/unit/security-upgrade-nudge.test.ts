@@ -778,7 +778,7 @@ describe('human upgrade nudge', () => {
     'does not force a %s nudge without a valid installed version',
     async (policy) => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
-      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      process.env.__NEXT_VERSION = 'not-a-version'
       processEnv([], directory)
       updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: policy })
       for (const configured of [false, 'future'] as const) {
@@ -802,7 +802,10 @@ describe('human upgrade nudge', () => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
       process.env.__NEXT_VERSION = '16.4.0-preview-test'
       processEnv([], directory)
-      updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: policy })
+      updateInitialEnv({
+        __NEXT_AGENTIC_AUTO_UPGRADE: policy,
+        __NEXT_VERSION: '16.4.0-preview-test',
+      })
       jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
         expect(process.env.__NEXT_AGENTIC_AUTO_UPGRADE).toBeUndefined()
         // Future upgrade preparation reloads config and resets the environment.
