@@ -117,7 +117,7 @@ Prefer declaring inline scripts in React Server Components. The hook is for node
 
 A script is included in `<head>` only while nothing above it has suspended, so a change to the tree can move it into `<body>` with no error.
 
-If you are already inside a Client Component module and cannot reach the root layout, the hook is a way to get a script into the document. Writing a `<script>` in that component's JSX is not an alternative, because React creates the element but never executes it on a client navigation, and logs an error in development saying so.
+Neither a script returned from the hook nor one written in JSX runs on a client navigation. React logs a warning in development for the JSX version, while the hook skips it silently. If you use the hook, guard the callback with a `useRef` flag so the script is inserted once, not on every flush.
 
 The inline script approach, including applying a stored theme before the browser paints, is developed in [Preventing a flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
