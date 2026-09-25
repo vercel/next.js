@@ -440,6 +440,25 @@ export function registerSuspenseBoundariesTests(
     }
   })
 
+  it('build selects staged params from the matching fallback shell', async () => {
+    if (isNextDev || partialPrefetching) return
+
+    const requiredPartialShell = await prerender(
+      '/suspense-in-root/static/missing-suspense-around-mixed-params/[top]/[bottom]'
+    )
+    expect(
+      extractBuildValidationError(requiredPartialShell.cliOutput)
+    ).toContain(
+      'Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-mixed-params/[top]/[bottom]".'
+    )
+    expect(requiredPartialShell.exitCode).toBe(1)
+
+    const completablePartialShell = await prerender(
+      '/suspense-in-root/static/valid-mixed-params/[top]/[bottom]'
+    )
+    expectNoBuildValidationErrors(completablePartialShell)
+  })
+
   it('invalid - runtime prefetch - missing suspense around params', async () => {
     if (isNextDev) {
       const browser = await navigateTo(
