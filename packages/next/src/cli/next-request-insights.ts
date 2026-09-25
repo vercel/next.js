@@ -1,3 +1,4 @@
+import { wait } from '../lib/wait'
 import path from 'path'
 import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -118,9 +119,7 @@ async function discoverDevServerUrl(directory?: string): Promise<URL> {
       return parseDevServerUrl(serverInfo.appUrl)
     }
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, DEV_SERVER_DISCOVERY_RETRY_MS)
-    )
+    await wait(DEV_SERVER_DISCOVERY_RETRY_MS)
   }
 
   return exitWithError(

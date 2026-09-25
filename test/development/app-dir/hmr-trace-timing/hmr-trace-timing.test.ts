@@ -1,3 +1,4 @@
+import { waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { existsSync } from 'fs'
@@ -22,7 +23,7 @@ describe('render-path tracing', () => {
       expect(await browser.elementByCss('p').text()).toBe('hello world')
       await browser.close()
       await next.stop('SIGTERM')
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitFor(500)
     }
 
     const traceStructure = parseTraceFile(tracePath)

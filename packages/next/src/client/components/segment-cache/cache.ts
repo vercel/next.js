@@ -1,5 +1,6 @@
 import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import type React from 'react'
+import { wait } from '../../../lib/wait'
 import {
   PrefetchHint,
   StaticAttemptHints,
@@ -2470,9 +2471,7 @@ async function retryUpgradeableFallbackPrefetch(
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): Promise<void> {
   for (let attempt = 0; attempt < MAX_FALLBACK_RETRIES; attempt++) {
-    await new Promise<void>((resolve) =>
-      setTimeout(resolve, FALLBACK_RETRY_DELAY_MS)
-    )
+    await wait(FALLBACK_RETRY_DELAY_MS)
     if (task.isCanceled) {
       break
     }
