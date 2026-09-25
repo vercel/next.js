@@ -2084,15 +2084,6 @@ impl TurboTasksBackend {
         self.task_statistics
             .map(|stats| stats.increment_abort_observed(native_fn, abort_reason));
         Span::current().record("abort_trigger", abort_reason.as_str());
-        tracing::event!(
-            name: "turbo_tasks::abort_observed",
-            target: "turbo_tasks::abort",
-            tracing::Level::TRACE,
-            event = "observed",
-            task_id = %task_id,
-            function = native_fn.name(),
-            trigger = abort_reason.as_str(),
-        );
         let aborted_as_unneeded = in_progress.abort_when_unneeded();
         // `outdated_collectibles` is generation-local bookkeeping initialized at execution start.
         // The aborted generation will never reach completion cleanup, so discard it before
@@ -2527,15 +2518,6 @@ impl TurboTasksBackend {
                 self.task_statistics
                     .map(|stats| stats.increment_abort_raced_completion(native_fn, reason));
                 Span::current().record("abort_trigger", reason.as_str());
-                tracing::event!(
-                    name: "turbo_tasks::abort_raced_completion",
-                    target: "turbo_tasks::abort",
-                    tracing::Level::TRACE,
-                    event = "raced_completion",
-                    task_id = %task_id,
-                    function = native_fn.name(),
-                    trigger = reason.as_str(),
-                );
             }
         }
         let is_recomputation = task.is_dirty().is_none();

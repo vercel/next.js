@@ -3301,12 +3301,7 @@ impl AggregationUpdateQueue {
         if is_zero && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress() {
             let native_fn = in_progress.native_fn;
             let outcome = in_progress.request_abort(TaskExecutionAbortReason::Inactive);
-            ctx.track_abort_request(
-                task_id,
-                native_fn,
-                TaskExecutionAbortReason::Inactive,
-                outcome,
-            );
+            ctx.track_abort_request(native_fn, TaskExecutionAbortReason::Inactive, outcome);
         }
         debug_assert!(
             !(is_new && is_zero),

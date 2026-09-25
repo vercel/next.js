@@ -278,7 +278,6 @@ impl CachedTaskType {
 pub enum TaskExecutionAbortReason {
     Invalidation = 1,
     Inactive = 2,
-    Gc = 3,
 }
 
 impl TaskExecutionAbortReason {
@@ -286,7 +285,6 @@ impl TaskExecutionAbortReason {
         match self {
             Self::Invalidation => "invalidation",
             Self::Inactive => "inactive",
-            Self::Gc => "gc",
         }
     }
 }

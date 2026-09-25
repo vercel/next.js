@@ -199,12 +199,7 @@ pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
         }
         let native_fn = in_progress.native_fn;
         let outcome = in_progress.request_abort(TaskExecutionAbortReason::Invalidation);
-        ctx.track_abort_request(
-            task.id(),
-            native_fn,
-            TaskExecutionAbortReason::Invalidation,
-            outcome,
-        );
+        ctx.track_abort_request(native_fn, TaskExecutionAbortReason::Invalidation, outcome);
     }
     let current = task.get_dirty();
     let parent_priority = ctx.get_current_task_priority();

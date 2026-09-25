@@ -65,7 +65,6 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| match reason {
             TaskExecutionAbortReason::Invalidation => stats.abort_requested_invalidation += 1,
             TaskExecutionAbortReason::Inactive => stats.abort_requested_inactive += 1,
-            TaskExecutionAbortReason::Gc => stats.abort_requested_gc += 1,
         })
     }
 
@@ -77,7 +76,6 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| match reason {
             TaskExecutionAbortReason::Invalidation => stats.abort_observed_invalidation += 1,
             TaskExecutionAbortReason::Inactive => stats.abort_observed_inactive += 1,
-            TaskExecutionAbortReason::Gc => stats.abort_observed_gc += 1,
         })
     }
 
@@ -91,7 +89,6 @@ impl TaskStatistics {
                 stats.abort_raced_completion_invalidation += 1
             }
             TaskExecutionAbortReason::Inactive => stats.abort_raced_completion_inactive += 1,
-            TaskExecutionAbortReason::Gc => stats.abort_raced_completion_gc += 1,
         })
     }
 
@@ -103,7 +100,6 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| match reason {
             TaskExecutionAbortReason::Invalidation => stats.abort_skipped_invalidation += 1,
             TaskExecutionAbortReason::Inactive => stats.abort_skipped_inactive += 1,
-            TaskExecutionAbortReason::Gc => stats.abort_skipped_gc += 1,
         })
     }
 
@@ -129,32 +125,24 @@ pub struct TaskFunctionStatistics {
     pub execution_completed: u64,
     pub abort_requested_invalidation: u64,
     pub abort_requested_inactive: u64,
-    pub abort_requested_gc: u64,
     pub abort_observed_invalidation: u64,
     pub abort_observed_inactive: u64,
-    pub abort_observed_gc: u64,
     pub abort_raced_completion_invalidation: u64,
     pub abort_raced_completion_inactive: u64,
-    pub abort_raced_completion_gc: u64,
     pub abort_skipped_invalidation: u64,
     pub abort_skipped_inactive: u64,
-    pub abort_skipped_gc: u64,
 }
 
 impl TaskFunctionStatistics {
     fn has_abort_activity(&self) -> bool {
         self.abort_requested_invalidation != 0
             || self.abort_requested_inactive != 0
-            || self.abort_requested_gc != 0
             || self.abort_observed_invalidation != 0
             || self.abort_observed_inactive != 0
-            || self.abort_observed_gc != 0
             || self.abort_raced_completion_invalidation != 0
             || self.abort_raced_completion_inactive != 0
-            || self.abort_raced_completion_gc != 0
             || self.abort_skipped_invalidation != 0
             || self.abort_skipped_inactive != 0
-            || self.abort_skipped_gc != 0
     }
 }
 
@@ -170,16 +158,12 @@ impl Serialize for TaskFunctionStatistics {
             len += [
                 self.abort_requested_invalidation,
                 self.abort_requested_inactive,
-                self.abort_requested_gc,
                 self.abort_observed_invalidation,
                 self.abort_observed_inactive,
-                self.abort_observed_gc,
                 self.abort_raced_completion_invalidation,
                 self.abort_raced_completion_inactive,
-                self.abort_raced_completion_gc,
                 self.abort_skipped_invalidation,
                 self.abort_skipped_inactive,
-                self.abort_skipped_gc,
             ]
             .into_iter()
             .filter(|value| *value != 0)
@@ -201,16 +185,12 @@ impl Serialize for TaskFunctionStatistics {
             }
             serialize_nonzero!(abort_requested_invalidation);
             serialize_nonzero!(abort_requested_inactive);
-            serialize_nonzero!(abort_requested_gc);
             serialize_nonzero!(abort_observed_invalidation);
             serialize_nonzero!(abort_observed_inactive);
-            serialize_nonzero!(abort_observed_gc);
             serialize_nonzero!(abort_raced_completion_invalidation);
             serialize_nonzero!(abort_raced_completion_inactive);
-            serialize_nonzero!(abort_raced_completion_gc);
             serialize_nonzero!(abort_skipped_invalidation);
             serialize_nonzero!(abort_skipped_inactive);
-            serialize_nonzero!(abort_skipped_gc);
         }
         state.end()
     }

@@ -267,8 +267,8 @@ pub struct InProgressStateInner {
     /// Aborts the currently executing native turbo-task function. Transient root/once tasks do not
     /// have a handle because their futures cannot necessarily be recreated.
     pub abort_handle: Option<AbortHandle>,
-    /// First-trigger-wins abort lifecycle state. Interior mutability lets GC collectibility checks
-    /// request abortion through a shared guard.
+    /// First-trigger-wins abort lifecycle state. Interior mutability lets invalidation and
+    /// activeness paths request abortion through a shared guard.
     pub abort_state: AtomicU8,
 }
 
@@ -295,9 +295,6 @@ impl InProgressStateInner {
             value if value == TaskExecutionAbortReason::Inactive as u8 => {
                 Some(TaskExecutionAbortReason::Inactive)
             }
-            value if value == TaskExecutionAbortReason::Gc as u8 => {
-                Some(TaskExecutionAbortReason::Gc)
-            }
             _ => None,
         }
     }
@@ -307,10 +304,7 @@ impl InProgressStateInner {
     }
 
     pub fn request_abort(&self, reason: TaskExecutionAbortReason) -> AbortRequestOutcome {
-        let unneeded = matches!(
-            reason,
-            TaskExecutionAbortReason::Inactive | TaskExecutionAbortReason::Gc
-        );
+        let unneeded = matches!(reason, TaskExecutionAbortReason::Inactive);
         let mut state = self.abort_state.load(Ordering::Acquire);
         loop {
             if state == ABORT_DISARMED {
@@ -331,8 +325,8 @@ impl InProgressStateInner {
                 return AbortRequestOutcome::Duplicate;
             }
 
-            // The first trigger owns telemetry attribution, but every later inactive/GC request
-            // still updates recovery behavior so an unneeded task is not rescheduled.
+            // The first trigger owns telemetry attribution, but a later inactive request still
+            // updates recovery behavior so an unneeded task is not rescheduled.
             let mut new_state = state;
             if unneeded {
                 new_state |= ABORT_UNNEEDED;
@@ -442,14 +436,17 @@ mod abort_state_tests {
     fn unabortable_execution_is_skipped_once() {
         let mut state = in_progress(false);
         assert_eq!(
-            state.request_abort(TaskExecutionAbortReason::Gc),
+            state.request_abort(TaskExecutionAbortReason::Inactive),
             AbortRequestOutcome::Skipped
         );
         assert_eq!(
             state.request_abort(TaskExecutionAbortReason::Invalidation),
             AbortRequestOutcome::Duplicate
         );
-        assert_eq!(state.abort_reason(), Some(TaskExecutionAbortReason::Gc));
+        assert_eq!(
+            state.abort_reason(),
+            Some(TaskExecutionAbortReason::Inactive)
+        );
         assert!(state.abort_when_unneeded());
         assert_eq!(state.disarm_abort(), None);
     }
@@ -463,7 +460,7 @@ mod abort_state_tests {
             AbortRequestOutcome::RacedCompletion
         );
         assert_eq!(
-            state.request_abort(TaskExecutionAbortReason::Gc),
+            state.request_abort(TaskExecutionAbortReason::Invalidation),
             AbortRequestOutcome::Duplicate
         );
     }

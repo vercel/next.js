@@ -373,16 +373,12 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
                 object.remove("execution_completed");
                 object.remove("abort_requested_invalidation");
                 object.remove("abort_requested_inactive");
-                object.remove("abort_requested_gc");
                 object.remove("abort_observed_invalidation");
                 object.remove("abort_observed_inactive");
-                object.remove("abort_observed_gc");
                 object.remove("abort_raced_completion_invalidation");
                 object.remove("abort_raced_completion_inactive");
-                object.remove("abort_raced_completion_gc");
                 object.remove("abort_skipped_invalidation");
                 object.remove("abort_skipped_inactive");
-                object.remove("abort_skipped_gc");
                 map.insert(k, v);
             }
         }

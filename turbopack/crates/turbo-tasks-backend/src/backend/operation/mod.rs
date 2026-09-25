@@ -197,7 +197,6 @@ pub trait ExecuteContext<'e>: Sized {
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
     fn track_abort_request(
         &self,
-        task_id: TaskId,
         native_fn: Option<&'static NativeFunction>,
         reason: TaskExecutionAbortReason,
         outcome: AbortRequestOutcome,
@@ -1383,34 +1382,15 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {
-        if let ExecutePhase::Gc(collector) = self.phase {
-            if task.is_gc_collectible() {
-                collector(task.id());
-            } else if task.is_gc_collectible_ignoring_in_progress()
-                && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress()
-            {
-                // This should be rare: activeness normally aborts disconnected work before GC
-                // reaches it. Don't enqueue collection yet; abort completion is asynchronous, so
-                // the collector's authoritative recheck would still reject the in-progress task.
-                // If the final root scan runs first, `gc_is_root` temporarily classifies the task
-                // as a root and its debug validation accepts the in-progress state as the transient
-                // pin. Once the abort settles it as dirty, a later pass drops that resident root
-                // entry and collects the task.
-                let native_fn = in_progress.native_fn;
-                let outcome = in_progress.request_abort(TaskExecutionAbortReason::Gc);
-                self.track_abort_request(
-                    task.id(),
-                    native_fn,
-                    TaskExecutionAbortReason::Gc,
-                    outcome,
-                );
-            }
+        if let ExecutePhase::Gc(collector) = self.phase
+            && task.is_gc_collectible()
+        {
+            collector(task.id());
         }
     }
 
     fn track_abort_request(
         &self,
-        task_id: TaskId,
         native_fn: Option<&'static NativeFunction>,
         reason: TaskExecutionAbortReason,
         outcome: AbortRequestOutcome,
@@ -1431,38 +1411,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                     }
                 }
             });
-            tracing::event!(
-                name: "turbo_tasks::abort_requested",
-                target: "turbo_tasks::abort",
-                tracing::Level::TRACE,
-                event = "requested",
-                task_id = %task_id,
-                function = native_fn.name(),
-                trigger = reason.as_str(),
-                cancelable = native_fn.is_cancelable,
-            );
-        }
-        match outcome {
-            AbortRequestOutcome::Skipped => tracing::event!(
-                name: "turbo_tasks::abort_skipped",
-                target: "turbo_tasks::abort",
-                tracing::Level::TRACE,
-                event = "skipped",
-                task_id = %task_id,
-                function = native_fn.name(),
-                trigger = reason.as_str(),
-                reason = "non_cancelable",
-            ),
-            AbortRequestOutcome::RacedCompletion => tracing::event!(
-                name: "turbo_tasks::abort_raced_completion",
-                target: "turbo_tasks::abort",
-                tracing::Level::TRACE,
-                event = "raced_completion",
-                task_id = %task_id,
-                function = native_fn.name(),
-                trigger = reason.as_str(),
-            ),
-            AbortRequestOutcome::Accepted | AbortRequestOutcome::Duplicate => {}
         }
     }
 
@@ -1664,11 +1612,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn is_gc_collectible(&self) -> bool {
         self.check_access(SpecificTaskDataCategory::Meta);
         self.typed().gc_collectible()
-    }
-
-    fn is_gc_collectible_ignoring_in_progress(&self) -> bool {
-        self.check_access(SpecificTaskDataCategory::Meta);
-        !self.id().is_transient() && self.typed().gc_maybe_collectible_ignoring_in_progress()
     }
 
     fn invalidate_serialization(&mut self);
