@@ -16,6 +16,15 @@ declare const __turbopack_chunk_relative_url__: (
 declare const __turbopack_chunk_base_path__: string
 declare const __turbopack_chunk_asset_suffix__: string
 
+// The JS chunks already loaded in the runtime that is creating this worker.
+// Worker chunk groups are built with normal (nested) availability info, so the
+// worker's own chunk list only contains what the creating runtime does *not*
+// already have. Passing the creating runtime's loaded chunks along gives the
+// worker realm its own copies of those module factories (functions cannot be
+// structured-cloned across realms). They are already in the browser cache, so
+// this is cheap.
+declare const __turbopack_get_loaded_chunk_paths__: (() => string[]) | undefined
+
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
 declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
 
@@ -32,7 +41,7 @@ type WorkerChunkData = string | { path: string }
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS, ...workerForwardedGlobals values]`
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -54,18 +63,42 @@ function createWorker(
   const workerBasePath =
     _TURBOPACK_WORKER_BASE_PATH_ ?? __turbopack_chunk_base_path__
 
-  const chunkUrls = moduleChunks
-    .map((chunk) =>
-      __turbopack_chunk_relative_url__(
-        typeof chunk === 'string' ? chunk : chunk.path,
-        workerBasePath
-      )
+  // The worker's own chunks. Kept in their original order (and reversed the
+  // same way as before) so the shared runtime chunk — emitted last by
+  // `evaluated_chunk_group` — ends up first and the bootstrap can `shift()` it
+  // off to load it after everything else.
+  const workerChunkPaths = moduleChunks.map((chunk) =>
+    typeof chunk === 'string' ? chunk : chunk.path
+  )
+  const workerChunkSet = new Set(workerChunkPaths)
+
+  // Chunks already loaded in the runtime creating this worker. Worker chunk
+  // groups use normal (nested) availability info, so modules the creating
+  // runtime already has are *not* in `moduleChunks`. The worker realm needs its
+  // own copies of those factories (functions can't be structured-cloned), so we
+  // hand over the chunk paths and let the worker re-import them — cheap, since
+  // the browser has them cached. These must be registered *before* the worker's
+  // evaluate chunk instantiates the entry module, so they travel in their own
+  // params slot that the bootstrap loads first.
+  const preloadChunkPaths = (
+    typeof __turbopack_get_loaded_chunk_paths__ === 'function'
+      ? __turbopack_get_loaded_chunk_paths__()
+      : []
+  ).filter((chunkPath) => !workerChunkSet.has(chunkPath))
+
+  const chunkUrls = workerChunkPaths
+    .map((chunkPath) =>
+      __turbopack_chunk_relative_url__(chunkPath, workerBasePath)
     )
     .reverse()
+  const preloadUrls = preloadChunkPaths.map((chunkPath) =>
+    __turbopack_chunk_relative_url__(chunkPath, workerBasePath)
+  )
   const params: unknown[] = [
     chunkUrls,
     __turbopack_chunk_asset_suffix__,
     workerBasePath,
+    preloadUrls,
   ]
   const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
   for (let i = 0; i < globals.length; i++) {

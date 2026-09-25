@@ -99,6 +99,29 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
+// Paths of every JS chunk whose module factories have been installed into this
+// runtime instance (page, worker, …), in registration order.
+//
+// Web workers get a fresh runtime realm, so module factories cannot be handed to
+// them directly (functions are not structured-cloneable). Instead `createWorker`
+// passes this list along with the worker's own chunks, and the worker re-imports
+// them — cheap, because the browser has them cached already. This is what lets
+// worker chunk groups use normal (nested) availability info instead of
+// `AvailabilityInfo::root()`, which is what breaks the self-referencing-worker
+// chunking cycle.
+const loadedJsChunkPaths: Set<ChunkPath> = new Set()
+
+function registerLoadedJsChunk(chunk: ChunkPath | ChunkScript): void {
+  loadedJsChunkPaths.add(getPathFromScript(chunk))
+}
+
+// Shared runtime primitive consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function getLoadedChunkPaths(): ChunkPath[] {
+  return Array.from(loadedJsChunkPaths)
+}
+
+
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents: Map<ChunkPath, ChunkPath[]> = new Map()
 
@@ -513,6 +536,10 @@ browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl
+
+// Shared runtime primitive: the JS chunks already loaded in this runtime, used
+// by the bundled worker helper so a child worker can re-import them.
+browserContextPrototype.G = getLoadedChunkPaths
 
 /**
  * Return the ChunkPath from a ChunkScript.
