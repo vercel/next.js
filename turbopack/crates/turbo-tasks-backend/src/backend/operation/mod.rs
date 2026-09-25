@@ -191,11 +191,6 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Only effective in a gc context see [`Self::collects_gc_candidates`].
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
-    /// Whether [`Self::note_maybe_collectible`] does anything, i.e. this is a GC context.
-    ///
-    /// Lets a caller skip work that only exists to feed the collector — in particular opening a
-    /// task with a wider [`TaskDataCategory`] than it would otherwise need.
-    fn collects_gc_candidates(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -1383,11 +1378,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             collector(task.id());
         }
     }
-
-    fn collects_gc_candidates(&self) -> bool {
-        matches!(self.phase, ExecutePhase::Gc(_))
-    }
-
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
@@ -2099,7 +2089,7 @@ pub use self::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
         is_aggregating_node, is_root_node,
     },
-    cleanup_old_edges::{OutdatedEdge, capture_all_outgoing_edges},
+    cleanup_old_edges::{OutdatedEdge, capture_all_edges},
     connect_children::connect_children,
     invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,

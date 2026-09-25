@@ -68,7 +68,7 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            capture_all_outgoing_edges, connect_children, get_aggregation_number, get_uppers,
+            capture_all_edges, connect_children, get_aggregation_number, get_uppers,
             make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
@@ -3442,7 +3442,7 @@ impl TurboTasksBackend {
                 activeness_state.all_clean_event.notify(usize::MAX);
             }
             // Remove all the outgoing edges of this task.
-            let old_edges = capture_all_outgoing_edges(&task);
+            let old_edges = capture_all_edges(&task);
             drop(task);
 
             if !old_edges.is_empty() {

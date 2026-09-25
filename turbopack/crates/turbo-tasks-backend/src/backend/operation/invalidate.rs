@@ -109,7 +109,7 @@ pub fn make_task_dirty(
 /// Marks a task dirty, doing nothing if it no longer exists.
 ///
 /// Intended for invalidation usecases.
-fn try_make_task_dirty(
+pub fn try_make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
