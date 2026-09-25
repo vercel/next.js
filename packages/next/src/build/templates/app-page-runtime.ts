@@ -893,6 +893,7 @@ export function createAppPageEntrypoint({
         const routeMatch: RouteMatch = { resolvedPathname }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
+          requestUrl: req.url!,
           query,
           params,
           page: normalizedSrcPage,

@@ -86,6 +86,9 @@ export type DevRenderContext = {
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+  // Exact path-relative URL (pathname plus search) after route preparation,
+  // preserving its encoded bytes for rendering and prerender request IDs.
+  requestUrl: string
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
@@ -179,6 +182,7 @@ export class AppPageRouteModule extends RouteModule<
     return renderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
@@ -202,6 +206,7 @@ export class AppPageRouteModule extends RouteModule<
     return prerenderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
