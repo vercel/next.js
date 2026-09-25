@@ -95,14 +95,6 @@ export async function resolveEnsureStaticLevel(
     }
   }
 
-  if (config === 'navigation') {
-    throw new Error(
-      `\`${formatEnsureStaticExport(config)}\` is not implemented yet.` +
-        `\n  (from: ${filePath})` +
-        ``
-    )
-  }
-
   return getEnsureStaticLevel(config)
 }
 

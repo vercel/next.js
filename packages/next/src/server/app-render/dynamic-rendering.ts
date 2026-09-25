@@ -62,6 +62,15 @@ import {
   createLinkMetadataError,
   createLinkViewportError,
   createNavigationMetadataError,
+  createNonPrerenderableMetadataErrorInStaticRoute,
+  createNonPrerenderableViewportErrorInStaticRoute,
+  createNonPrerenderableBodyErrorInStaticRoute,
+  createRuntimeBodyErrorInStaticRoute,
+  createDynamicBodyErrorInStaticRoute,
+  createRuntimeMetadataErrorInStaticRoute,
+  createDynamicMetadataErrorInStaticRoute,
+  createRuntimeViewportErrorInStaticRoute,
+  createDynamicViewportErrorInStaticRoute,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -625,6 +634,111 @@ function trackOutletSuspenseAboveBody(
   }
 }
 
+export function trackDynamicAccessInStaticRoute(
+  dynamicReason: unknown,
+  workStore: WorkStore,
+  componentStack: string,
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState,
+  isServerPartial: boolean,
+  kind: StaticValidationHoleKind
+) {
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
+
+  if (hasOutletRegex.test(componentStack)) {
+    trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
+    return
+  }
+  if (hasMetadataRegex.test(componentStack)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        createMetadataErrorInStaticRoute(kind, workStore.route),
+        componentStack,
+        null
+      )
+    )
+    return
+  }
+  if (hasViewportRegex.test(componentStack)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        createViewportErrorInStaticRoute(kind, workStore.route),
+        componentStack,
+        null
+      )
+    )
+    return
+  }
+
+  let hasSuspense = false
+  if (
+    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
+      componentStack
+    )
+  ) {
+    // this error had a Suspense boundary above it, and it's above the body as well.
+    dynamicValidation.hasSuspenseAboveBody = true
+    hasSuspense = true
+  } else if (hasSuspenseRegex.test(componentStack)) {
+    // this error had a Suspense boundary above it.
+    hasSuspense = true
+  }
+
+  if (hasSuspense) {
+    if (!isServerPartial) {
+      // If we don't have holes caused by server data, then any holes must be caused
+      // by client-only code, which is allowed.
+      dynamicValidation.hasAllowedDynamic = true
+      return
+    }
+
+    // We have holes that may be caused by server data.
+    if (syncDynamicError || isClientHookDynamicError(dynamicReason)) {
+      // We know this hole wasn't caused by server data, so it's allowed
+      // (because it's wrapped in a Suspense)
+      dynamicValidation.hasAllowedDynamic = true
+      return
+    }
+
+    // Any remaining hole may be caused by a server hole.
+    // These are not allowed even with Suspense.
+    // (NOTE: this may misreport valid client dynamic holes as server holes)
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        createBodyErrorInStaticRoute(kind, workStore.route),
+        componentStack,
+        null
+      )
+    )
+    return
+  }
+
+  if (syncDynamicError) {
+    dynamicValidation.dynamicErrors.push(syncDynamicError)
+    return
+  }
+
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
+    )
+    return
+  }
+
+  const error = addErrorContext(
+    isServerPartial
+      ? // This hole may be caused by server data.
+        // (NOTE: this may misreport client dynamic holes as server holes)
+        createBodyErrorInStaticRoute(kind, workStore.route)
+      : // TODO(ensure-static): this could be something client-specific because we know
+        // that server data is complete
+        createBodyError(kind, workStore.route),
+    componentStack,
+    null
+  )
+  dynamicValidation.dynamicErrors.push(error)
+}
+
 export function trackAllowedDynamicAccess(
   dynamicReason: unknown,
   workStore: WorkStore,
@@ -632,6 +746,8 @@ export function trackAllowedDynamicAccess(
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  const dynamicHoleKind = DynamicHoleKind.RuntimeOrDynamic
+
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
 
   if (hasOutletRegex.test(componentStack)) {
@@ -672,7 +788,7 @@ export function trackAllowedDynamicAccess(
   }
 
   const error = addErrorContext(
-    createDynamicOrRuntimeBodyError(workStore.route),
+    createBodyError(dynamicHoleKind, workStore.route),
     componentStack,
     null
   )
@@ -689,7 +805,22 @@ export enum DynamicHoleKind {
   Navigation = 3,
   /** We know that this hole is caused by dynamic data. */
   Dynamic = 4,
+  /** We know that this hole is caused by runtime or dynamic data, but don't know which. */
+  RuntimeOrDynamic = 5,
 }
+
+// In Instant Validation we can always discriminate between runtime and dynamic.
+export type InstantValidationHoleKind = Exclude<
+  DynamicHoleKind,
+  DynamicHoleKind.RuntimeOrDynamic
+>
+
+export type StaticValidationHoleKind =
+  // During dev-time static validation we can discriminate runtime and dynamic.
+  | DynamicHoleKind.Runtime
+  | DynamicHoleKind.Dynamic
+  // During build-time static validation we can't discriminate runtime and dynamic.
+  | DynamicHoleKind.RuntimeOrDynamic
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
 export type InstantValidationState = {
@@ -728,7 +859,7 @@ export function trackDynamicHoleInNavigation(
   componentStack: string,
   dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
-  kind: DynamicHoleKind,
+  kind: InstantValidationHoleKind,
   boundaryState: ValidationBoundaryTracking
 ) {
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
@@ -856,8 +987,19 @@ export function trackDynamicHoleInNavigation(
   return
 }
 
+function createBodyError(kind: StaticValidationHoleKind, route: string): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeBodyError(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicBodyError(route)
+    case DynamicHoleKind.RuntimeOrDynamic:
+      return createDynamicOrRuntimeBodyError(route)
+  }
+}
+
 function createBodyErrorInNavigation(
-  kind: DynamicHoleKind,
+  kind: InstantValidationHoleKind,
   route: string
 ): Error {
   switch (kind) {
@@ -882,6 +1024,8 @@ function createMetadataError(kind: DynamicHoleKind, route: string): Error {
       return createNavigationMetadataError(route)
     case DynamicHoleKind.Dynamic:
       return createDynamicMetadataError(route)
+    case DynamicHoleKind.RuntimeOrDynamic:
+      return createDynamicOrRuntimeMetadataError(route)
   }
 }
 
@@ -895,6 +1039,50 @@ function createViewportError(kind: DynamicHoleKind, route: string): Error {
       return createNavigationViewportError(route)
     case DynamicHoleKind.Dynamic:
       return createDynamicViewportError(route)
+    case DynamicHoleKind.RuntimeOrDynamic:
+      return createDynamicOrRuntimeViewportError(route)
+  }
+}
+
+function createBodyErrorInStaticRoute(
+  kind: StaticValidationHoleKind,
+  route: string
+): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeBodyErrorInStaticRoute(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicBodyErrorInStaticRoute(route)
+    case DynamicHoleKind.RuntimeOrDynamic:
+      return createNonPrerenderableBodyErrorInStaticRoute(route)
+  }
+}
+
+function createMetadataErrorInStaticRoute(
+  kind: StaticValidationHoleKind,
+  route: string
+) {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeMetadataErrorInStaticRoute(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicMetadataErrorInStaticRoute(route)
+    case DynamicHoleKind.RuntimeOrDynamic:
+      return createNonPrerenderableMetadataErrorInStaticRoute(route)
+  }
+}
+
+function createViewportErrorInStaticRoute(
+  kind: StaticValidationHoleKind,
+  route: string
+) {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeViewportErrorInStaticRoute(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicViewportErrorInStaticRoute(route)
+    case DynamicHoleKind.RuntimeOrDynamic:
+      return createNonPrerenderableViewportErrorInStaticRoute(route)
   }
 }
 
@@ -971,77 +1159,13 @@ export function trackThrownErrorInNavigation(
   }
 }
 
-export function trackDynamicHoleInRuntimeShell(
-  dynamicReason: unknown,
-  workStore: WorkStore,
-  componentStack: string,
-  dynamicValidation: DynamicValidationState,
-  clientDynamic: DynamicTrackingState
-) {
-  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
-
-  if (hasOutletRegex.test(componentStack)) {
-    trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
-    return
-  } else if (hasMetadataRegex.test(componentStack)) {
-    const error = addErrorContext(
-      createDynamicMetadataError(workStore.route),
-      componentStack,
-      null
-    )
-    dynamicValidation.dynamicMetadata = error
-    return
-  } else if (hasViewportRegex.test(componentStack)) {
-    const error = addErrorContext(
-      createDynamicViewportError(workStore.route),
-      componentStack,
-      null
-    )
-    dynamicValidation.dynamicErrors.push(error)
-    return
-  } else if (
-    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
-      componentStack
-    )
-  ) {
-    // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
-    // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
-    // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
-    dynamicValidation.hasAllowedDynamic = true
-    dynamicValidation.hasSuspenseAboveBody = true
-    return
-  } else if (hasSuspenseRegex.test(componentStack)) {
-    // this error had a Suspense boundary above it so we don't need to report it as a source
-    // of disallowed
-    dynamicValidation.hasAllowedDynamic = true
-    return
-  } else if (syncDynamicError) {
-    dynamicValidation.dynamicErrors.push(syncDynamicError)
-    return
-  }
-
-  if (isClientHookDynamicError(dynamicReason)) {
-    dynamicValidation.dynamicErrors.push(
-      addErrorContext(dynamicReason, componentStack, null)
-    )
-    return
-  }
-
-  const error = addErrorContext(
-    createDynamicBodyError(workStore.route),
-    componentStack,
-    null
-  )
-  dynamicValidation.dynamicErrors.push(error)
-  return
-}
-
 export function trackDynamicHoleInStaticShell(
   dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
-  clientDynamic: DynamicTrackingState
+  clientDynamic: DynamicTrackingState,
+  kind: DynamicHoleKind.Runtime | DynamicHoleKind.Dynamic
 ) {
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
 
@@ -1050,7 +1174,7 @@ export function trackDynamicHoleInStaticShell(
     return
   } else if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
-      createRuntimeMetadataError(workStore.route),
+      createMetadataError(kind, workStore.route),
       componentStack,
       null
     )
@@ -1058,7 +1182,7 @@ export function trackDynamicHoleInStaticShell(
     return
   } else if (hasViewportRegex.test(componentStack)) {
     const error = addErrorContext(
-      createRuntimeViewportError(workStore.route),
+      createViewportError(kind, workStore.route),
       componentStack,
       null
     )
@@ -1093,7 +1217,9 @@ export function trackDynamicHoleInStaticShell(
   }
 
   const error = addErrorContext(
-    createRuntimeBodyError(workStore.route),
+    kind === DynamicHoleKind.Runtime
+      ? createRuntimeBodyError(workStore.route)
+      : createDynamicBodyError(workStore.route),
     componentStack,
     null
   )
@@ -1159,6 +1285,8 @@ export function throwIfDisallowedDynamic(
   serverDynamic: DynamicTrackingState,
   allowEmptyStaticShell: boolean
 ): void {
+  const dynamicHoleKind = DynamicHoleKind.RuntimeOrDynamic
+
   throwIfSyncIOUsed(workStore, serverDynamic)
 
   // The dynamic metadata error is a mistake-detection signal. It fires when the
@@ -1171,7 +1299,7 @@ export function throwIfDisallowedDynamic(
     dynamicValidation.hasAllowedDynamic === false &&
     dynamicValidation.hasDynamicMetadata
   ) {
-    console.error(createDynamicOrRuntimeMetadataError(workStore.route).message)
+    console.error(createMetadataError(dynamicHoleKind, workStore.route).message)
     throw new StaticGenBailoutError()
   }
 
@@ -1204,7 +1332,7 @@ export function throwIfDisallowedDynamic(
     // to indicate your are ok with fully dynamic rendering.
     if (dynamicValidation.hasDynamicViewport) {
       console.error(
-        createDynamicOrRuntimeViewportError(workStore.route).message
+        createViewportError(dynamicHoleKind, workStore.route).message
       )
       throw new StaticGenBailoutError()
     }
@@ -1219,6 +1347,80 @@ export function throwIfDisallowedDynamic(
       throw new StaticGenBailoutError()
     }
   }
+}
+
+export function throwIfDisallowedDynamicInStaticRoute(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState,
+  serverDynamic: DynamicTrackingState,
+  allowEmptyStaticShell: boolean,
+  isServerPartial: boolean
+): void {
+  const reasons = getDisallowedReasonsInStaticRoute(
+    workStore,
+    prelude,
+    dynamicValidation,
+    serverDynamic,
+    allowEmptyStaticShell,
+    isServerPartial
+  )
+  if (reasons.length > 0) {
+    for (const reason of reasons) {
+      logDisallowedDynamicError(workStore, reason)
+    }
+    throw new StaticGenBailoutError()
+  }
+}
+
+export function getDisallowedReasonsInStaticRoute(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState,
+  serverDynamic: DynamicTrackingState | null,
+  allowEmptyStaticShell: boolean,
+  isServerPartial: boolean
+): Error[] {
+  if (serverDynamic && serverDynamic.syncDynamicErrorWithStack) {
+    return [serverDynamic.syncDynamicErrorWithStack]
+  }
+
+  // Suspense-above-body and `instant = false` bypass reporting
+  // that the shell is blocked. However, if we have non-prerenderable server
+  // data, we still have to error, regardless of those two.
+  if (
+    !isServerPartial &&
+    (allowEmptyStaticShell || dynamicValidation.hasSuspenseAboveBody)
+  ) {
+    return []
+  }
+
+  const { dynamicErrors } = dynamicValidation
+  if (dynamicErrors.length > 0) {
+    return dynamicErrors
+  }
+
+  // Dynamic data may have been passed into a client component without calling `use()`,
+  // in which case we wouldn't see it during the prerender, but still need to error.
+  // Fall back to a generic error message.
+  if (isServerPartial) {
+    return [
+      new Error(
+        `Route "${workStore.route}": Next.js encountered data that is not available during a static prerender, but is unable to provide a location.`
+      ),
+    ]
+  }
+
+  if (prelude === PreludeState.Empty || prelude === PreludeState.Errored) {
+    // We've somehow ended up with an empty prelude but no dynamic errors.
+    // We must've messed up the tracking somehow.
+    return [
+      new InvariantError(
+        `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason.`
+      ),
+    ]
+  }
+  return []
 }
 
 export function getStaticShellDisallowedDynamicReasons(
