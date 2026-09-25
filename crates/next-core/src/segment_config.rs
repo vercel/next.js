@@ -77,15 +77,13 @@ pub enum NextRevalidate {
     },
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum NextSegmentRegion {
     Single(RcStr),
     Multiple(Vec<RcStr>),
 }
 
-#[derive(
-    PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode, Serialize,
-)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NextSegmentRsc {
     Server,
@@ -157,6 +155,7 @@ impl NextSegmentConfig {
             // TODO what about these?
             instant: _,
             prefetch: _,
+            unstable_ensure_static: _,
             // Don't need merging
             middleware_matcher: _,
             unstable_allow_dynamic: _,
@@ -207,6 +206,7 @@ impl NextSegmentConfig {
             // TODO what about these?
             instant: _,
             prefetch: _,
+            unstable_ensure_static: _,
             // Don't need merging
             middleware_matcher: _,
             unstable_allow_dynamic: _,
