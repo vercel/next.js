@@ -1,3 +1,7 @@
+:root {
+  --root-layout-css-marker: 1;
+}
+
 p {
   color: yellow;
 }
