@@ -94,6 +94,11 @@ enum TaskAccess {
     AllowMissing,
 }
 
+#[cfg(test)]
+thread_local! {
+    static PAUSE_FIRST_RESTORE: std::cell::RefCell<Option<(Arc<std::sync::Barrier>, Arc<std::sync::Barrier>)>> = const { std::cell::RefCell::new(None) };
+}
+
 // TODO: consider removing this trait (and `TaskGuard`) in favor of the concrete types. Each has
 // exactly one implementation (`ExecuteContextImpl` / `TaskGuardImpl`), so the abstraction buys
 // nothing and just adds declaration overhead and extra generic plumbing.
@@ -540,6 +545,13 @@ impl<'e> ExecuteContextImpl<'e> {
             self.backend.should_restore(),
             "restore_task_data called when should_restore() is false"
         );
+        #[cfg(test)]
+        PAUSE_FIRST_RESTORE.with(|pause| {
+            if let Some((claimed, resume)) = pause.borrow_mut().take() {
+                claimed.wait();
+                resume.wait();
+            }
+        });
         self.backend
             .backing_storage
             .lookup_data(task_id, category)
@@ -2110,6 +2122,96 @@ pub use self::{
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };
+
+#[cfg(test)]
+mod weak_restore_tests {
+    use std::{
+        sync::{Arc, Barrier},
+        time::{Duration, Instant},
+    };
+
+    use turbo_tasks::{TaskId, TurboTasks};
+
+    use super::*;
+    use crate::{
+        BackendOptions, BackingStorageOptions, GitVersionInfo, StorageMode, turbo_backing_storage,
+    };
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn two_weak_opens_of_missing_task_both_return_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let (backing_storage, _) = turbo_backing_storage(
+            dir.path(),
+            &GitVersionInfo {
+                describe: "weak-restore-test",
+                dirty: false,
+            },
+            BackingStorageOptions {
+                is_short_session: true,
+                skip_compaction: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                num_workers: Some(2),
+                small_preallocation: true,
+                storage_mode: Some(StorageMode::ReadWriteOnShutdown),
+                ..Default::default()
+            },
+            backing_storage,
+        ));
+        let backend = tt.backend();
+        let task_id = TaskId::new(10_000).unwrap();
+
+        let claimed = Arc::new(Barrier::new(2));
+        let resume = Arc::new(Barrier::new(2));
+        std::thread::scope(|scope| {
+            let first = scope.spawn(|| {
+                PAUSE_FIRST_RESTORE.with(|pause| {
+                    *pause.borrow_mut() = Some((claimed.clone(), resume.clone()));
+                });
+                let mut ctx = ExecuteContextImpl::new(backend, &tt);
+                ctx.try_get_task(task_id, TaskDataCategory::All).is_some()
+            });
+            // The first reader has inserted the blank entry and claimed both categories, but
+            // cannot finish its disk lookup until the second reader has pinned that entry.
+            claimed.wait();
+            let waiter = scope.spawn(|| {
+                let mut ctx = ExecuteContextImpl::new(backend, &tt);
+                ctx.try_get_task(task_id, TaskDataCategory::All).is_some()
+            });
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let pinned = loop {
+                if backend
+                    .storage
+                    .with_task(task_id, |task| task.gc_transient_ref_count() == 1)
+                    .unwrap()
+                {
+                    break true;
+                }
+                if Instant::now() >= deadline {
+                    break false;
+                }
+                std::thread::yield_now();
+            };
+            // Always release the first reader, even if the pin assertion below fails.
+            resume.wait();
+            assert!(pinned, "second weak reader did not pin the task");
+            assert!(
+                !first.join().unwrap(),
+                "first weak reader returned an absent task"
+            );
+            assert!(
+                !waiter.join().unwrap(),
+                "waiting weak reader returned an absent task"
+            );
+        });
+        assert!(backend.storage.with_task(task_id, |_| ()).is_none());
+        tt.stop_and_wait().await;
+    }
+}
 
 #[cfg(test)]
 mod filter_transient_tracking_tests {
