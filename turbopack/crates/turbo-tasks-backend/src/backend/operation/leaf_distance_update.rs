@@ -55,6 +55,14 @@ pub struct LeafDistanceUpdateQueue {
 }
 
 impl LeafDistanceUpdateQueue {
+    /// Drops the updates for transient tasks, before the queue is persisted. See
+    /// [`AggregationUpdateQueue::retain_persistent`](super::aggregation_update::AggregationUpdateQueue::retain_persistent).
+    pub fn retain_persistent(&mut self) {
+        self.queue.retain(|(_, task_id)| !task_id.is_transient());
+        self.leaf_distance_updates
+            .retain(|task_id, _| !task_id.is_transient());
+    }
+
     pub fn new() -> Self {
         Self::default()
     }

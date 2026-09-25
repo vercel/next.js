@@ -354,6 +354,80 @@ fn unreachable_decode<T>() -> T {
 }
 
 impl AggregationUpdateJob {
+    /// Drops the references to transient tasks. Returns false if the job is left with nothing to
+    /// do. See [`AggregationUpdateQueue::retain_persistent`].
+    fn retain_persistent(&mut self) -> bool {
+        fn retain(ids: &mut TaskIdVec) -> bool {
+            ids.retain(|id| !id.is_transient());
+            !ids.is_empty()
+        }
+        fn retain_counted(ids: &mut TaskIdWithCountVec) -> bool {
+            ids.retain(|(id, _)| !id.is_transient());
+            !ids.is_empty()
+        }
+        match self {
+            Self::UpdateAggregationNumber { task_id, .. } => !task_id.is_transient(),
+            Self::InnerOfUpperHasNewFollower {
+                upper_id,
+                new_follower_id: follower_id,
+            }
+            | Self::InnerOfUpperLostFollower {
+                upper_id,
+                lost_follower_id: follower_id,
+                ..
+            }
+            | Self::BalanceEdge {
+                upper_id,
+                task_id: follower_id,
+            } => !upper_id.is_transient() && !follower_id.is_transient(),
+            Self::InnerOfUppersHasNewFollower {
+                upper_ids,
+                new_follower_id: follower_id,
+            }
+            | Self::InnerOfUppersLostFollower {
+                upper_ids,
+                lost_follower_id: follower_id,
+                ..
+            } => !follower_id.is_transient() && retain(upper_ids),
+            Self::InnerOfUppersHasNewFollowerWithCount {
+                upper_ids,
+                new_follower_id,
+            } => !new_follower_id.is_transient() && retain_counted(upper_ids),
+            Self::InnerOfUpperHasNewFollowers {
+                upper_id,
+                new_follower_ids: follower_ids,
+            }
+            | Self::InnerOfUpperLostFollowers {
+                upper_id,
+                lost_follower_ids: follower_ids,
+                ..
+            } => !upper_id.is_transient() && retain(follower_ids),
+            Self::InnerOfUpperHasNewFollowersWithCount {
+                upper_id,
+                new_follower_ids,
+            } => !upper_id.is_transient() && retain_counted(new_follower_ids),
+            Self::InnerOfUppersHasNewFollowers(job) => {
+                retain(&mut job.upper_ids) && retain(&mut job.new_follower_ids)
+            }
+            Self::InnerOfUppersLostFollowers(job) => {
+                retain(&mut job.upper_ids) && retain(&mut job.lost_follower_ids)
+            }
+            Self::AggregatedDataUpdate(job) => {
+                retain(&mut job.upper_ids) && job.update.retain_persistent()
+            }
+            Self::AdjustParentCount { task_ids, .. }
+            | Self::InvalidateDueToDependencyTornDown { task_ids }
+            | Self::InvalidateDueToCollectiblesChange { task_ids, .. } => retain(task_ids),
+            // Session-only bookkeeping.
+            Self::AdjustTransientRefCount { .. }
+            | Self::IncreaseActiveCount { .. }
+            | Self::IncreaseActiveCounts { .. }
+            | Self::DecreaseActiveCount { .. }
+            | Self::DecreaseActiveCounts { .. }
+            | Self::Noop => false,
+        }
+    }
+
     pub fn data_update(
         task: &mut impl TaskGuard,
         update: AggregatedDataUpdate,
@@ -660,6 +734,20 @@ impl AggregatedDataUpdate {
             }
         }
         result
+    }
+
+    /// Drops the parts that reference transient tasks. Returns false if nothing is left.
+    fn retain_persistent(&mut self) -> bool {
+        if self
+            .dirty_container_update
+            .as_ref()
+            .is_some_and(|(task_id, ..)| task_id.is_transient())
+        {
+            self.dirty_container_update = None;
+        }
+        self.collectibles_update
+            .retain(|(collectible, _)| !collectible.is_transient());
+        !self.is_empty()
     }
 
     /// Returns true, when the update is empty resp. a no-op.
@@ -973,6 +1061,23 @@ pub struct AggregationUpdateQueue {
 }
 
 impl AggregationUpdateQueue {
+    /// Drops the work that references transient tasks, before the queue is persisted. Transient
+    /// tasks do not outlive the session, and the persisted task graph already omits every edge to
+    /// them, so that work would only reach tasks that no longer exist.
+    pub fn retain_persistent(&mut self) {
+        self.jobs.retain_mut(|item| item.job.retain_persistent());
+        self.aggregation_number_updates
+            .retain(|task_id, _| !task_id.is_transient());
+        self.done_aggregation_number_updates
+            .retain(|task_id, _| !task_id.is_transient());
+        self.find_and_schedule
+            .retain(|job| !job.task_id.is_transient());
+        self.balance_queue
+            .retain(|job| !job.upper_id.is_transient() && !job.task_id.is_transient());
+        self.optimize_queue
+            .retain(|job| !job.task_id.is_transient());
+    }
+
     /// Creates a new empty queue.
     pub fn new() -> Self {
         Self {

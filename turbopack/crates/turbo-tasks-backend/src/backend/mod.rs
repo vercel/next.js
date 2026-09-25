@@ -1184,7 +1184,17 @@ impl TurboTasksBackend {
         // Checking after start_snapshot ensures no concurrent increments can race.
         let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
 
-        let suspended_operations = snapshot_phase.take_suspended_operations();
+        // Operations still reference the transient tasks they touched, which do not outlive this
+        // session, so strip those references before persisting.
+        let suspended_operations = snapshot_phase
+            .take_suspended_operations()
+            .into_iter()
+            .map(|op| {
+                let mut op = Arc::unwrap_or_clone(op);
+                op.retain_persistent();
+                Arc::new(op)
+            })
+            .collect::<Vec<_>>();
 
         let snapshot_time = Instant::now();
         drop(snapshot_phase);

@@ -34,6 +34,15 @@ pub enum InvalidateOperation {
 }
 
 impl InvalidateOperation {
+    /// Drops the references to transient tasks, before the operation is persisted.
+    pub fn retain_persistent(&mut self) {
+        match self {
+            Self::MakeDirty { task_ids, .. } => task_ids.retain(|task_id| !task_id.is_transient()),
+            Self::AggregationUpdate { queue } => queue.retain_persistent(),
+            Self::Done => {}
+        }
+    }
+
     pub fn run(
         task_ids: SmallVec<[TaskId; 4]>,
         #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
