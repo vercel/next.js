@@ -7,16 +7,11 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid SCSS in _document',
   () => {
-    const { next, skipped, isRspack } = nextTestSetup({
+    const { next, isRspack } = nextTestSetup({
       files: __dirname,
       skipStart: isNextStart,
-      skipDeployment: true,
       dependencies: { sass: '1.54.0' },
     })
-
-    if (skipped) {
-      return
-    }
 
     if (isNextStart) {
       it('should fail to build', async () => {

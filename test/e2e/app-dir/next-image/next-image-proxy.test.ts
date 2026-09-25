@@ -9,13 +9,10 @@ let proxyPort
 let proxyServer: https.Server
 
 describe('next-image-proxy', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     // This test is skipped when deployed because it relies on a proxy server
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     proxyPort = await findPort()

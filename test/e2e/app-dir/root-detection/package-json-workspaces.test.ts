@@ -16,7 +16,7 @@ import {
 // ├── shared/utils.ts        imported by the app
 // └── test/                  the Next.js app, with a lockfile of its own
 describe('root-detection - package.json workspaces', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'workspace-app')),
       '../package.json': packageJson('workspace-root', {
@@ -28,15 +28,10 @@ describe('root-detection - package.json workspaces', () => {
     },
     // So that the files written above don't leave the isolated testDir
     subDir: 'test',
-    skipDeployment: true,
     // The workspace file would make the app directory a workspace root of its
     // own, so the test wouldn't be exercising the `workspaces` field.
     deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should select the workspace root as the root', async () => {
     // the app imports a file from the workspace root, which is only reachable

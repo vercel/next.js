@@ -2,13 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('app-dir refresh', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     // We do not have access to runtime logs when deployed
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should refresh client cache when refresh() is called in a server action', async () => {
     const browser = await next.browser('/refresh')

@@ -2,14 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaRawHttp } from 'next-test-utils'
 
 describe('x-forwarded-headers', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     // This test is skipped because it sends requests with manipulated host headers
     // which doesn't work in a deployed environment
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should include x-forwarded-* headers', async () => {
     const res = await next.fetch('/')

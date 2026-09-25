@@ -9,7 +9,7 @@ import { packageJson, packageLock } from './test-utils'
 //     ├── package-lock.json
 //     └── app/                 the Next.js app
 describe('root-detection - git repository boundary', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       // a `.git` directory makes the parent directory a repository root.
@@ -21,15 +21,10 @@ describe('root-detection - git repository boundary', () => {
     },
     // So that the files written above don't leave the isolated testDir
     subDir: 'repo/app',
-    skipDeployment: true,
     // The workspace file would stop the search before the Git boundary does,
     // so the test wouldn't be exercising the boundary.
     deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not select a root above the repository', async () => {
     const repoDir = dirname(next.testDir)

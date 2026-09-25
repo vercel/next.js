@@ -4,16 +4,11 @@ import { isNextStart, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('CSS Import from node_modules', () => {
-  const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: isNextStart,
-    skipDeployment: true,
     dependencies: { sass: '1.54.0' },
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextStart) {
     it('should fail the build', async () => {
