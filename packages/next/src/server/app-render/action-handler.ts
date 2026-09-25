@@ -288,6 +288,8 @@ async function createForwardedActionResponse(
       // body no longer starts with the postponed state, the resume headers
       // no longer apply and must be dropped so the receiving worker doesn't
       // try to read postponed state from it.
+      // The platform can attach the target page's postponed state, including
+      // its RDC, to the forwarded request independently of these headers.
       const actionBody = getRequestMeta(req, 'actionBody')
       if (actionBody) {
         body = new Uint8Array(actionBody)
