@@ -64,6 +64,15 @@ describe('PostCSS config as a build dependency', () => {
   })
 
   it('should rebuild CSS when the PostCSS config is removed', async () => {
+    // Start from a cold cache that has the plugin's output in it.
+    await next.patchFile(
+      'postcss.config.js',
+      `module.exports = { plugins: { [require.resolve('./postcss-canary.js')]: {} } }`
+    )
+    await next.remove('.next/cache')
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).toContain('.postcss-canary')
+
     await next.deleteFile('postcss.config.js')
 
     expect((await next.build()).exitCode).toBe(0)
