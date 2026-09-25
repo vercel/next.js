@@ -521,7 +521,7 @@ impl DiskFileSystem {
     #[cfg(debug_assertions)]
     async fn ensure_path_is_realpath(&self, operation: &str, path: &Path) -> Result<()> {
         if let Ok(realpath) = retry_blocking(|| fs_err::canonicalize(path))
-            .instrument(tracing::info_span!("realpath for filesystem read", name = ?path))
+            .instrument(tracing::trace_span!("realpath for filesystem read", name = ?path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
             && realpath != path
