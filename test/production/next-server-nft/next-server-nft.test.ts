@@ -323,6 +323,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/metadata/types/twitter-types.js",
            "/node_modules/next/dist/lib/mime-type.js",
            "/node_modules/next/dist/lib/mkcert.js",
+           "/node_modules/next/dist/lib/module-federation-types.js",
            "/node_modules/next/dist/lib/multi-file-writer.js",
            "/node_modules/next/dist/lib/needs-experimental-react.js",
            "/node_modules/next/dist/lib/non-nullable.js",
