@@ -754,6 +754,7 @@ export default class DevServer extends Server {
           config: {
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
+            partialPrefetching: Boolean(this.nextConfig.partialPrefetching),
           },
           httpAgentOptions,
           locales,
