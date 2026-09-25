@@ -66,6 +66,11 @@ pub struct CompactConfig {
     /// this factor times the bottom run. `0.0` merges every shard that has files above the bottom.
     pub max_space_amplification: f32,
 
+    /// A shard is only merged into a new bottom run when at least this many bytes are above its
+    /// bottom run. Tiny families, which rewrite all their data with every commit, only get
+    /// intermediate merges.
+    pub min_bottom_merge_bytes: u64,
+
     /// The files above the bottom run of a shard are merged when there are more than this many.
     pub max_files_above_bottom: usize,
 
@@ -81,6 +86,7 @@ impl Default for CompactConfig {
     fn default() -> Self {
         Self {
             max_space_amplification: 0.5,
+            min_bottom_merge_bytes: 1024 * 1024,
             max_files_above_bottom: 4,
             max_rewrite_factor: 2.0,
             max_merge_segment_count: 8,
@@ -93,6 +99,7 @@ impl CompactConfig {
     pub fn full() -> Self {
         Self {
             max_space_amplification: 0.0,
+            min_bottom_merge_bytes: 0,
             max_files_above_bottom: usize::MAX,
             max_rewrite_factor: f32::INFINITY,
             max_merge_segment_count: usize::MAX,
@@ -112,7 +119,8 @@ pub struct MergeJob {
 /// A planned merge job and how urgent it is, before merge jobs are selected across families.
 struct Candidate {
     job: MergeJob,
-    /// Higher is more urgent.
+    /// How far the shard is over the limit that triggers the job, e.g. `2.0` for twice the allowed
+    /// space amplification or file count. Higher is more urgent.
     priority: f32,
 }
 
@@ -205,13 +213,15 @@ fn plan_family<T: Compactable>(
         } else {
             ((above_bytes + deleted_bytes) as f64 / bottom_bytes as f64) as f32
         };
-        if amplification > config.max_space_amplification {
+        if amplification > config.max_space_amplification
+            && above_bytes + deleted_bytes >= config.min_bottom_merge_bytes
+        {
             let candidate = Candidate {
                 job: MergeJob {
                     members: members.into_iter().collect(),
                     bottom: true,
                 },
-                priority: amplification,
+                priority: amplification / config.max_space_amplification.max(f32::EPSILON),
             };
             bottom_candidates.push((candidate, bottom_bytes + above_bytes, above));
         } else if above.len() > config.max_files_above_bottom {
@@ -263,12 +273,13 @@ pub fn plan_compaction<T: Compactable>(
                 .map(move |(order, candidate)| (family, order, candidate))
         })
         .collect::<Vec<_>>();
-    // Bottom merges first, then by priority. Ties keep each family's order, then family order.
+    // Most over its limit first, so that intermediate merges, which bound the files a lookup
+    // consults, are not starved by bottom merges. Ties prefer bottom merges, then keep each
+    // family's order, then family order.
     candidates.sort_by(|a, b| {
-        b.2.job
-            .bottom
-            .cmp(&a.2.job.bottom)
-            .then(b.2.priority.total_cmp(&a.2.priority))
+        b.2.priority
+            .total_cmp(&a.2.priority)
+            .then(b.2.job.bottom.cmp(&a.2.job.bottom))
             .then(a.1.cmp(&b.1))
             .then(a.0.cmp(&b.0))
     });
@@ -326,6 +337,14 @@ mod tests {
         }
     }
 
+    /// The default config without the byte floor, since test files are tiny.
+    fn test_config() -> CompactConfig {
+        CompactConfig {
+            min_bottom_merge_bytes: 0,
+            ..Default::default()
+        }
+    }
+
     fn plan(files: &[File], shard_count: u32, config: &CompactConfig) -> Vec<(Vec<usize>, bool)> {
         plan_compaction(&[(files, shard_count)], config)
             .remove(0)
@@ -337,15 +356,12 @@ mod tests {
     #[test]
     fn test_shard_without_bottom_run_gets_one() {
         let files = [file(0, 1, 100, false, true), file(0, 1, 100, false, true)];
-        assert_eq!(
-            plan(&files, 1, &CompactConfig::default()),
-            vec![(vec![0, 1], true)]
-        );
+        assert_eq!(plan(&files, 1, &test_config()), vec![(vec![0, 1], true)]);
     }
 
     #[test]
     fn test_bottom_merge_by_space_amplification() {
-        let config = CompactConfig::default();
+        let config = test_config();
         // 40% above the bottom run: nothing to do.
         let files = [file(0, 1, 1000, true, false), file(0, 1, 400, false, true)];
         assert_eq!(plan(&files, 1, &config), vec![]);
@@ -359,11 +375,11 @@ mod tests {
         let mut files = vec![file(0, 1, 1000, true, false)];
         files.extend((0..5).map(|_| file(0, 1, 10, false, true)));
         assert_eq!(
-            plan(&files, 1, &CompactConfig::default()),
+            plan(&files, 1, &test_config()),
             vec![(vec![1, 2, 3, 4, 5], false)]
         );
         files.pop();
-        assert_eq!(plan(&files, 1, &CompactConfig::default()), vec![]);
+        assert_eq!(plan(&files, 1, &test_config()), vec![]);
     }
 
     #[test]
@@ -376,12 +392,12 @@ mod tests {
         files.extend((0..4).map(|shard| file(shard, 4, 600 + u64::from(shard), false, true)));
         let config = CompactConfig {
             max_rewrite_factor: 0.1,
-            ..Default::default()
+            ..test_config()
         };
         assert_eq!(plan(&files, 4, &config), vec![(vec![3, 7], true)]);
         // With enough budget, all of them are merged.
         assert_eq!(
-            plan(&files, 4, &CompactConfig::default()),
+            plan(&files, 4, &test_config()),
             vec![
                 (vec![0, 4], true),
                 (vec![1, 5], true),
@@ -389,6 +405,38 @@ mod tests {
                 (vec![3, 7], true)
             ]
         );
+    }
+
+    #[test]
+    fn test_byte_floor_skips_bottom_merges_of_tiny_shards() {
+        // Every commit rewrites the whole (tiny) family: always amplified, but not worth a bottom
+        // merge. It only gets an intermediate merge once there are enough files.
+        let mut files = vec![file(0, 1, 50, true, false)];
+        files.push(file(0, 1, 50, false, true));
+        let config = CompactConfig {
+            min_bottom_merge_bytes: 1000,
+            ..test_config()
+        };
+        assert_eq!(plan(&files, 1, &config), vec![]);
+        files.extend((0..4).map(|_| file(0, 1, 50, false, true)));
+        assert_eq!(plan(&files, 1, &config), vec![(vec![1, 2, 3, 4, 5], false)]);
+    }
+
+    #[test]
+    fn test_intermediate_merges_are_not_starved() {
+        // One job slot: a family with far too many files above its bottom run wins over a family
+        // that is only slightly over the space amplification threshold.
+        let mut many_files = vec![file(0, 1, 1000, true, false)];
+        many_files.extend((0..8).map(|_| file(0, 1, 1, false, true)));
+        let amplified = [file(0, 1, 1000, true, false), file(0, 1, 600, false, true)];
+        let config = CompactConfig {
+            max_merge_segment_count: 1,
+            ..test_config()
+        };
+        let jobs = plan_compaction(&[(&many_files[..], 1), (&amplified[..], 1)], &config);
+        assert_eq!(jobs[0].len(), 1);
+        assert!(!jobs[0][0].bottom);
+        assert!(jobs[1].is_empty());
     }
 
     #[test]
@@ -401,10 +449,7 @@ mod tests {
             file(1, 4, 10, false, true),
             file(3, 4, 10, false, true),
         ];
-        assert_eq!(
-            plan(&files, 4, &CompactConfig::default()),
-            vec![(vec![0, 2, 3], true)]
-        );
+        assert_eq!(plan(&files, 4, &test_config()), vec![(vec![0, 2, 3], true)]);
     }
 
     #[test]
@@ -413,7 +458,7 @@ mod tests {
         let b = [file(0, 1, 100, false, true), file(0, 1, 100, false, true)];
         let config = CompactConfig {
             max_merge_segment_count: 1,
-            ..Default::default()
+            ..test_config()
         };
         let jobs = plan_compaction(&[(&a[..], 1), (&b[..], 1)], &config);
         assert_eq!(jobs.iter().map(Vec::len).sum::<usize>(), 1);
@@ -612,7 +657,7 @@ mod tests {
             max_space_amplification,
             max_rewrite_factor,
             max_merge_segment_count: usize::MAX,
-            ..Default::default()
+            ..test_config()
         }
     }
 

@@ -972,6 +972,7 @@ fn bench_compaction(c: &mut Criterion) {
                         // Timed: run normal compaction
                         db.compact(&CompactConfig {
                             max_space_amplification: 0.5,
+                            min_bottom_merge_bytes: 1024 * 1024,
                             max_files_above_bottom: 4,
                             max_rewrite_factor: 2.0,
                             max_merge_segment_count: 16,
