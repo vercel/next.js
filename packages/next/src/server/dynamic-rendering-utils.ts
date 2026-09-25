@@ -198,7 +198,7 @@ export function makeUnknownRuntimeDataHangingPromise<T>(
 
 /**
  * Constructs a promise that never resolves, standing in for data that is only
- * accessible in the prefetch, but not in the shell, e.g. `unstable_prefetch()`.
+ * accessible in the prefetch, but not in the shell, e.g. `prefetch()`.
  * This usage does *not* indicate that a runtime request is needed,
  * only that the data is not available in a shell.
  *

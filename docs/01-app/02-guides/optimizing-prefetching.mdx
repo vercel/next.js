@@ -198,15 +198,15 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 Optimizing a prefetch also means excluding content from it. Some subtrees are expensive enough to produce that you would rather not pay for them on every prefetch of the route.
 
-Awaiting [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
+Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
 
 ```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
 import { cookies } from 'next/headers'
-import { unstable_navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 
 async function Recommendations() {
   const session = (await cookies()).get('session')?.value
-  await unstable_navigation()
+  await navigation()
   const items = await rank(session)
   return <List items={items} />
 }
@@ -217,13 +217,13 @@ async function rank(session?: string) {
 }
 ```
 
-The session is read above `unstable_navigation()`, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
+The session is read above `navigation()`, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
 
-Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Awaiting `unstable_navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
+Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Awaiting `navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
 
-For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
+For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
 
-Unlike [`connection()`](/docs/app/api-reference/functions/connection), `unstable_navigation()` does not make the subtree request-dependent. This lets reusable content keep its cache lifetime while waiting for navigation. See [How `unstable_navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-unstable_navigation-differs-from-connection) for the full comparison.
+Unlike [`connection()`](/docs/app/api-reference/functions/connection), `navigation()` does not make the subtree request-dependent. This lets reusable content keep its cache lifetime while waiting for navigation. See [How `navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-navigation-differs-from-connection) for the full comparison.
 
 ## Test prefetched and deferred content
 
@@ -291,6 +291,6 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for how `<Link>` behaves under the new model and how to migrate existing apps.
 - [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
 - [`use cache: private` reference](/docs/app/api-reference/directives/use-cache-private) for per-user caching specifics.
-- [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) for the full behavior of each prefetch stage.
+- [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) for the full behavior of each prefetch stage.
 - [Instant navigation guide](/docs/app/guides/instant-navigation) for validating the route's caching structure.
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering.

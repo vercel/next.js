@@ -25,8 +25,8 @@ if (process.env.NEXT_RUNTIME === '') {
     refresh: notAvailableInClient('refresh'),
     cacheLife: notAvailableInClient('cacheLife'),
     cacheTag: notAvailableInClient('cacheTag'),
-    unstable_navigation: notAvailableInClient('unstable_navigation'),
-    unstable_prefetch: notAvailableInClient('unstable_prefetch'),
+    navigation: notAvailableInClient('navigation'),
+    prefetch: notAvailableInClient('prefetch'),
   }
 } else {
   // Keep server requires in this branch so browser builds can DCE them.
@@ -51,10 +51,8 @@ if (process.env.NEXT_RUNTIME === '') {
     io: require('next/dist/server/request/io').io,
     cacheLife: require('next/dist/server/use-cache/cache-life').cacheLife,
     cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
-    unstable_navigation: require('next/dist/server/request/cache-stages')
-      .unstable_navigation,
-    unstable_prefetch: require('next/dist/server/request/cache-stages')
-      .unstable_prefetch,
+    navigation: require('next/dist/server/request/cache-stages').navigation,
+    prefetch: require('next/dist/server/request/cache-stages').prefetch,
   }
 }
 
@@ -101,5 +99,5 @@ exports.cacheTag = cacheExports.cacheTag
 exports.unstable_cacheTag = cacheExports.unstable_cacheTag
 exports.refresh = cacheExports.refresh
 exports.io = cacheExports.io
-exports.unstable_navigation = cacheExports.unstable_navigation
-exports.unstable_prefetch = cacheExports.unstable_prefetch
+exports.navigation = cacheExports.navigation
+exports.prefetch = cacheExports.prefetch
