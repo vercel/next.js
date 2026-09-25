@@ -1,9 +1,11 @@
 use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbopack_core::reference_type::{ReferenceType, WorkerReferenceSubType};
+
+use crate::reference_type::{ReferenceType, WorkerReferenceSubType};
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum WorkerType {
     WebWorker,
     SharedWebWorker,
