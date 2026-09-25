@@ -113,6 +113,7 @@ async function requestHandler(
 
   const routeMatch: RouteMatch = { resolvedPathname }
   const renderContext: AppPageRouteHandlerContext = {
+    requestUrl: baseReq.url,
     page: normalizedSrcPage,
     routeMatch,
     query,

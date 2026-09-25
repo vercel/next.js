@@ -672,6 +672,7 @@ export default class NextNodeServer extends BaseServer<
         const result = await renderAppPage(
           req,
           res,
+          req.url,
           pathname,
           query,
           // This code path does not service revalidations for unknown param
