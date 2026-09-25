@@ -190,8 +190,28 @@ describe('searchparams-reuse-loading', () => {
         })
 
         let interceptRequests = false
+        let id3FullPrefetchResponse: Promise<void> | undefined
         const browser = await next.browser(path, {
           beforePageLoad(page) {
+            page.on('response', (response) => {
+              const requestHeaders = response.request().headers()
+              const url = new URL(response.url())
+              const normalizedPath = url.pathname.replace(/\/someValue$/, '')
+              const expectedPath =
+                path === '/' ? '/search-params' : `${path}/search-params`
+
+              if (
+                requestHeaders['next-router-prefetch'] &&
+                normalizedPath === expectedPath &&
+                url.searchParams.get('id') === '3' &&
+                response.ok()
+              ) {
+                id3FullPrefetchResponse = response.finished().then((error) => {
+                  if (error) throw error
+                })
+              }
+            })
+
             page.route(
               (url) => {
                 return url.pathname.includes('search-params')
@@ -308,10 +328,15 @@ describe('searchparams-reuse-loading', () => {
         // Dev mode doesn't perform full prefetches, so this test is conditional
         await browser.elementByCss(`[href='${path}']`).click()
 
-        // Wait for the full prefetch to finish before navigating. Otherwise a
-        // slow CI worker can click while the prefetch response is still in
-        // flight and time out waiting for the destination to render.
-        await browser.waitForIdleNetwork()
+        // Wait for this specific response rather than generic network idle.
+        // The full prefetch can be scheduled after the page first becomes idle.
+        await retry(
+          () => expect(id3FullPrefetchResponse).toBeDefined(),
+          30_000,
+          500,
+          'Waiting for id=3 full prefetch response'
+        )
+        await id3FullPrefetchResponse
 
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
