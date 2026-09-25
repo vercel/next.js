@@ -152,5 +152,5 @@ async fn spawns_detached_changing(
 #[turbo_tasks::function]
 async fn read_changing_input(changing_input: Vc<ChangingInput>) -> Vc<u32> {
     // when changing_input.set is called, it will trigger an invalidator for this task
-    Vc::cell(*changing_input.await.unwrap().state.get())
+    Vc::cell(changing_input.await.unwrap().state.get())
 }

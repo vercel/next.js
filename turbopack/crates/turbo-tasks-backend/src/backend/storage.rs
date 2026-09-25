@@ -837,8 +837,8 @@ impl StorageWriteGuard<'_> {
         #[cfg(feature = "trace_task_modification")] name: &str,
     ) -> TrackOutcome {
         // Transient tasks are never persisted, so tracking modifications is meaningless.
-        // All callers (TaskGuard, invalidate_serialization) already
-        // guard against this, but we enforce it here as defense-in-depth.
+        // All callers go through TaskGuard, which already guards against this, but we enforce it
+        // here as defense-in-depth.
         debug_assert!(
             !self.inner.key().is_transient(),
             "track_modification called on transient task {:?}",

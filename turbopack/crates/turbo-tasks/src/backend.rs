@@ -30,8 +30,8 @@ use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
-    TaskId, TaskIdSet, TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic,
-    ValueTypeId, ValueTypePersistence, VcValueTrait, VcValueType,
+    TaskId, TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
+    ValueTypePersistence, VcValueTrait, VcValueType,
     dyn_task_inputs::{DynTaskInputs, DynTaskInputsStorage},
     macro_helpers::NativeFunction,
     manager::{TaskPersistence, TurboTasks},
@@ -608,10 +608,24 @@ pub trait Backend: Sized + Sync + Send {
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>);
-    fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &TurboTasks<Self>);
-
-    fn invalidate_serialization(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>) {}
+    /// Runs `mutate`, which changes data owned by `task` outside of the backend's view (such as
+    /// the interior of a [`State`][crate::State] stored in one of its cells), and records that the
+    /// task's persisted form is out of date.
+    ///
+    /// A persisting backend must make the change and the record of it appear atomic to snapshots
+    /// and eviction: record the modification first, and don't let a snapshot begin until `mutate`
+    /// has returned. See [`crate::InteriorMutator::mutate`] for the caller's side.
+    ///
+    /// Backends that don't persist anything just run `mutate`.
+    #[allow(unused_variables)]
+    fn mutate_interior(
+        &self,
+        task: TaskId,
+        mutate: &mut dyn FnMut(),
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        mutate()
+    }
 
     fn try_start_task_execution<'a>(
         &'a self,

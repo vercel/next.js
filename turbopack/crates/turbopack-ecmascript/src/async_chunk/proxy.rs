@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, State, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TransientState, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType},
@@ -25,7 +25,7 @@ use crate::{
 
 #[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct LazyCompilationState {
-    active: State<bool>,
+    active: TransientState<bool>,
 }
 
 impl LazyCompilationState {
@@ -74,7 +74,7 @@ pub fn activation_key_from_chunk_path(path: &str) -> Option<RcStr> {
 pub fn lazy_compilation_state(key: RcStr) -> Vc<LazyCompilationState> {
     let _ = key;
     LazyCompilationState {
-        active: State::new(false),
+        active: TransientState::new(false),
     }
     .cell()
 }

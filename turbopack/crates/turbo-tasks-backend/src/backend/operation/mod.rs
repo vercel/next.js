@@ -262,6 +262,47 @@ impl TaskLockCounter {
     }
 }
 
+thread_local! {
+    /// Set while this thread runs an interior mutation; see [`InteriorMutationScope`].
+    #[cfg(debug_assertions)]
+    static IN_INTERIOR_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Marks the current thread as running an `InteriorMutator::mutate` closure, so that debug builds
+/// can catch the closure calling back into the backend.
+///
+/// The closure runs inside an operation, so creating a context from it would begin a nested one,
+/// which waits on a pending snapshot that is itself waiting on the outer one.
+pub(crate) struct InteriorMutationScope(());
+
+impl InteriorMutationScope {
+    pub(crate) fn enter() -> Self {
+        #[cfg(debug_assertions)]
+        IN_INTERIOR_MUTATION.with(|flag| {
+            assert!(!flag.get(), "interior mutations must not nest");
+            flag.set(true);
+        });
+        Self(())
+    }
+
+    fn assert_not_inside() {
+        #[cfg(debug_assertions)]
+        assert!(
+            !IN_INTERIOR_MUTATION.with(|flag| flag.get()),
+            "turbo-tasks was called from inside an `InteriorMutator::mutate` closure (such as a \
+             `State::update_conditionally` update), which must not call back into turbo-tasks: it \
+             would deadlock against a pending snapshot. Do that work before or after."
+        );
+    }
+}
+
+impl Drop for InteriorMutationScope {
+    fn drop(&mut self) {
+        #[cfg(debug_assertions)]
+        IN_INTERIOR_MUTATION.with(|flag| flag.set(false));
+    }
+}
+
 enum ExecutePhase<'e> {
     Normal {
         guard: Option<OperationGuard<'e, AnyOperation>>,
@@ -285,6 +326,7 @@ impl<'e> ExecuteContextImpl<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
+        InteriorMutationScope::assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -304,6 +346,7 @@ impl<'e> ExecuteContextImpl<'e> {
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
         shutdown_guard: RwLockReadGuard<'e, bool>,
     ) -> Self {
+        InteriorMutationScope::assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -1578,7 +1621,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.typed().gc_collectible()
     }
 
-    fn invalidate_serialization(&mut self);
     /// Determine which tasks to prefetch for a task.
     /// Only returns Some once per task.
     /// It returns a set of tasks and which info is needed.
@@ -1934,20 +1976,6 @@ impl TaskGuard for TaskGuardImpl<'_> {
 
     fn discard_modifications_for_gc_new_task(&mut self) {
         self.task.discard_modifications_for_gc_new_task();
-    }
-
-    fn invalidate_serialization(&mut self) {
-        // TODO this causes race conditions, since we never know when a value is changed. We can't
-        // "snapshot" the value correctly.
-        if !self.task_id.is_transient() {
-            // Unconditional track (no mutation to detect a no-op against): always mark dirty.
-            let _ = self
-                .task
-                .track_modification(SpecificTaskDataCategory::Data, "invalidate_serialization");
-            let _ = self
-                .task
-                .track_modification(SpecificTaskDataCategory::Meta, "invalidate_serialization");
-        }
     }
 
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>> {

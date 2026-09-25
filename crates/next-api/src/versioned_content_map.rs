@@ -4,7 +4,7 @@ use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State,
+    FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TransientState,
     TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, turbo_tasks, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
@@ -79,8 +79,8 @@ pub struct VersionedContentMap {
     // Keep those accesses inside this file. A plain `async fn` helper reading a `State` runs in
     // its *caller's* task frame, which silently pushes the `session_dependent` obligation onto
     // every transitive caller.
-    map_path_to_op: State<PathToOutputOperation>,
-    map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
+    map_path_to_op: TransientState<PathToOutputOperation>,
+    map_op_to_compute_entry: TransientState<OutputOperationToComputeEntry>,
 }
 
 impl VersionedContentMap {
@@ -88,8 +88,8 @@ impl VersionedContentMap {
     // should be a singleton for each project.
     pub fn new() -> ResolvedVc<Self> {
         VersionedContentMap {
-            map_path_to_op: State::new(PathToOutputOperation(FxHashMap::default())),
-            map_op_to_compute_entry: State::new(FxHashMap::default()),
+            map_path_to_op: TransientState::new(PathToOutputOperation(FxHashMap::default())),
+            map_op_to_compute_entry: TransientState::new(FxHashMap::default()),
         }
         .resolved_cell()
     }

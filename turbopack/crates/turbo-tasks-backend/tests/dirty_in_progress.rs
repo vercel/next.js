@@ -73,7 +73,7 @@ impl ValueToString for Collectible {
 #[turbo_tasks::function(operation, root)]
 async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("start inner_compute");
-    let value = *input.await?.state.get();
+    let value = input.await?.state.get();
     tokio::time::sleep(Duration::from_millis(200)).await;
     if value > 10 {
         let collectible: ResolvedVc<Box<dyn ValueToString>> =
