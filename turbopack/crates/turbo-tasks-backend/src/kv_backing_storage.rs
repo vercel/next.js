@@ -6,6 +6,12 @@ use std::{
 };
 
 use anyhow::{Context, Result, ensure};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use dashmap::DashMap;
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
@@ -21,7 +27,8 @@ use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
     backing_storage::{
-        SnapshotItem, SnapshotMeta, TaskTypeHash, compute_task_type_hash_from_components,
+        SnapshotItem, SnapshotMeta, TaskIdBucket, TaskTypeHash,
+        compute_task_type_hash_from_components,
     },
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -81,28 +88,51 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
     Ok(n)
 }
 
-fn encode_task_ids(task_ids: &[TaskId]) -> SmallVec<[u8; 16]> {
-    let mut bytes = SmallVec::with_capacity(task_ids.len() * size_of::<u32>());
-    for task_id in task_ids {
-        bytes.extend_from_slice(&(**task_id).to_le_bytes());
+/// Bincode representation of one TaskCache collision bucket. The generic wrapper lets encoding
+/// borrow an existing slice while decoding directly into the inline `SmallVec` representation.
+struct TaskCacheBucket<T>(T);
+
+impl<T> Encode for TaskCacheBucket<T>
+where
+    T: AsRef<[TaskId]>,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.0.as_ref().encode(encoder)
     }
-    bytes
 }
 
-fn decode_task_ids(bytes: &[u8]) -> Result<SmallVec<[TaskId; 1]>> {
+impl<Context> Decode<Context> for TaskCacheBucket<TaskIdBucket> {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let len = u64::decode(decoder)?;
+        let len = usize::try_from(len).map_err(|_| DecodeError::OutsideUsizeRange(len))?;
+        decoder.claim_container_read::<TaskId>(len)?;
+        let mut task_ids = TaskIdBucket::with_capacity(len);
+        for _ in 0..len {
+            decoder.unclaim_bytes_read(size_of::<TaskId>());
+            task_ids.push(TaskId::decode(decoder)?);
+        }
+        Ok(Self(task_ids))
+    }
+}
+
+fn encode_task_ids(task_ids: &[TaskId]) -> Result<Vec<u8>> {
+    Ok(bincode::encode_to_vec(
+        TaskCacheBucket(task_ids),
+        bincode::config::standard(),
+    )?)
+}
+
+fn decode_task_ids(bytes: &[u8]) -> Result<TaskIdBucket> {
+    let (TaskCacheBucket(task_ids), consumed) = bincode::decode_from_slice::<
+        TaskCacheBucket<TaskIdBucket>,
+        _,
+    >(bytes, bincode::config::standard())?;
     ensure!(
-        !bytes.is_empty() && bytes.len().is_multiple_of(size_of::<u32>()),
-        "invalid TaskCache bucket length {}",
-        bytes.len()
+        consumed == bytes.len(),
+        "trailing bytes in TaskCache bucket"
     );
-    bytes
-        .chunks_exact(size_of::<u32>())
-        .map(|bytes| {
-            let value = u32::from_le_bytes(bytes.try_into()?);
-            TaskId::new(value)
-                .ok_or_else(|| anyhow::anyhow!("invalid zero task id in TaskCache bucket"))
-        })
-        .collect()
+    ensure!(!task_ids.is_empty(), "empty TaskCache bucket");
+    Ok(task_ids)
 }
 
 // We want to invalidate the cache on panic for most users, but this is a band-aid to underlying
@@ -306,10 +336,8 @@ impl TurboBackingStorage {
             let span = tracing::trace_span!("update task data");
             // Collect every TaskCache intent by hash and emit exactly one final operation per
             // hash. SingleValue families reject duplicate keys within one write batch.
-            let task_cache_changes: DashMap<
-                TaskTypeHash,
-                (SmallVec<[TaskId; 1]>, SmallVec<[TaskId; 1]>),
-            > = DashMap::new();
+            let task_cache_changes: DashMap<TaskTypeHash, (TaskIdBucket, TaskIdBucket)> =
+                DashMap::new();
             let mut snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let _span = span.clone().entered();
@@ -397,14 +425,14 @@ impl TurboBackingStorage {
                     .iter()
                     .copied()
                     .filter(|task_id| !deleted_ids.contains(task_id))
-                    .collect::<SmallVec<[TaskId; 1]>>();
+                    .collect::<TaskIdBucket>();
                 if surviving_ids.is_empty() {
                     batch.delete(KeySpace::TaskCache, WriteBuffer::Borrowed(change.key()))?;
                 } else {
                     batch.put(
                         KeySpace::TaskCache,
                         WriteBuffer::Borrowed(change.key()),
-                        WriteBuffer::SmallVec(encode_task_ids(&surviving_ids)),
+                        WriteBuffer::Vec(encode_task_ids(&surviving_ids)?),
                     )?;
                 }
             }
@@ -442,7 +470,7 @@ impl TurboBackingStorage {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Result<(TaskTypeHash, SmallVec<[TaskId; 1]>)> {
+    ) -> Result<(TaskTypeHash, TaskIdBucket)> {
         let inner = &*self.inner;
         let hash = compute_task_type_hash_from_components(native_fn, this, arg);
         if inner.database.is_empty() {
@@ -614,7 +642,7 @@ mod tests {
         batch.put(
             KeySpace::TaskCache,
             WriteBuffer::Borrowed(&hash.to_le_bytes()),
-            WriteBuffer::SmallVec(encode_task_ids(task_ids)),
+            WriteBuffer::Vec(encode_task_ids(task_ids)?),
         )?;
         batch.commit()?;
         Ok(())
@@ -633,11 +661,20 @@ mod tests {
     }
 
     #[test]
-    fn single_task_id_decodes_inline() -> Result<()> {
-        let task_id = TaskId::try_from(42u32).unwrap();
-        let decoded = decode_task_ids(&encode_task_ids(&[task_id]))?;
-        assert_eq!(decoded.as_slice(), &[task_id]);
-        assert!(!decoded.spilled(), "single-id buckets must not allocate");
+    fn small_task_id_buckets_decode_inline() -> Result<()> {
+        let task_ids = (1..=4)
+            .map(|id| TaskId::try_from(id).unwrap())
+            .collect::<Vec<_>>();
+        for len in 1..=3 {
+            let decoded = decode_task_ids(&encode_task_ids(&task_ids[..len])?)?;
+            assert_eq!(decoded.as_slice(), &task_ids[..len]);
+            assert!(!decoded.spilled(), "{len}-id buckets must not allocate");
+        }
+        let decoded = decode_task_ids(&encode_task_ids(&task_ids)?)?;
+        assert!(
+            decoded.spilled(),
+            "a fourth id should exceed inline capacity"
+        );
         Ok(())
     }
 
@@ -727,7 +764,7 @@ mod tests {
                 batch.put(
                     KeySpace::TaskCache,
                     WriteBuffer::Borrowed(&hash.to_le_bytes()),
-                    WriteBuffer::SmallVec(encode_task_ids(&[*task_id])),
+                    WriteBuffer::Vec(encode_task_ids(&[*task_id])?),
                 )?;
             }
             // Flush TaskCache (like the new code does)

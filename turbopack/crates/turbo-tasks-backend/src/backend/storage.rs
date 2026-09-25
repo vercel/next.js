@@ -21,11 +21,10 @@ use crate::{
     backend::storage_schema::{
         DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
     },
-    backing_storage::{SnapshotItem, TaskTypeHash},
+    backing_storage::{SnapshotItem, TaskTypeHash, compute_task_type_hash},
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
-        dash_map_entry::{TryLockAndRemove, try_lock_and_remove},
         dash_map_multi::{RefMut, get_disjoint_mut},
     },
 };
@@ -213,15 +212,12 @@ pub struct Storage {
     /// Threads waiting for another thread's in-progress restore subscribe to this event,
     /// then re-check the specific task's `restoring`/`restored` bits after waking.
     pub(crate) restored: Event,
-    /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
-    /// This is backed by the TaskCache table in the database.
+    /// Maps a persistent task-type hash to every colliding `(task type, task id)` pair. Keeping
+    /// the full bucket in one entry makes type lookup, persistence and deletion share one
+    /// synchronized source of truth.
     ///
     /// LockOrdering: See the comments on [map].
-    pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
-    /// Complete TaskCache buckets for hashes modified since the last snapshot or known to collide.
-    /// Singleton modified buckets are discarded after persistence; collision buckets remain so GC
-    /// deletion can find their mates without scanning the full task cache.
-    pub task_cache_buckets: FxDashMap<TaskTypeHash, SmallVec<[TaskId; 1]>>,
+    pub task_cache: FxDashMap<TaskTypeHash, SmallVec<[(CachedTaskTypeArc, TaskId); 3]>>,
 }
 
 impl Storage {
@@ -255,7 +251,6 @@ impl Storage {
             map,
             restored: Event::new(|| || "Storage::restored".to_string()),
             task_cache: FxDashMap::default(),
-            task_cache_buckets: FxDashMap::default(),
         }
     }
 
@@ -289,35 +284,35 @@ impl Storage {
         }
     }
 
-    /// Records members of a bucket observed in the backing store or created in this session. Only
-    /// colliding buckets need to survive after a snapshot, but merging here also serializes racing
-    /// creations by hash.
-    pub fn record_task_cache_bucket(
-        &self,
-        task_type_hash: TaskTypeHash,
-        task_ids: impl IntoIterator<Item = TaskId>,
-    ) -> SmallVec<[TaskId; 1]> {
-        let mut bucket = self.task_cache_buckets.entry(task_type_hash).or_default();
-        for task_id in task_ids {
-            if !bucket.contains(&task_id) {
-                bucket.push(task_id);
-            }
-        }
-        bucket.clone()
-    }
-
-    /// Removes a task from a known collision bucket and returns its survivors. An absent bucket is
-    /// a singleton, so deleting it leaves no survivors.
+    /// Removes one task from its collision bucket and returns every surviving id.
     pub fn unregister_task_cache_id(
         &self,
         task_type_hash: TaskTypeHash,
         task_id: TaskId,
-    ) -> SmallVec<[TaskId; 1]> {
-        let Some(mut bucket) = self.task_cache_buckets.get_mut(&task_type_hash) else {
+    ) -> SmallVec<[TaskId; 3]> {
+        let Some(mut bucket) = self.task_cache.get_mut(&task_type_hash) else {
             return SmallVec::new();
         };
-        bucket.retain(|candidate_id| *candidate_id != task_id);
-        bucket.clone()
+        bucket.retain(|(_, candidate_id)| *candidate_id != task_id);
+        bucket.iter().map(|(_, task_id)| *task_id).collect()
+    }
+
+    /// Evicts a singleton TaskCache bucket. Collision buckets stay complete because GC deletion
+    /// uses them as its authoritative survivor set even after one member's task type is evictable.
+    fn evict_task_cache_type(&self, task_type: &CachedTaskTypeArc) -> bool {
+        let task_type_hash = compute_task_type_hash(task_type);
+        let mut removed = false;
+        self.task_cache.remove_if_mut(&task_type_hash, |_, bucket| {
+            if bucket.is_empty() {
+                return true;
+            }
+            if bucket.len() == 1 && bucket[0].0 == *task_type {
+                removed = true;
+                return true;
+            }
+            false
+        });
+        removed
     }
 
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
@@ -676,31 +671,9 @@ impl Storage {
         let counts: Vec<EvictionCounts> = parallel::map_collect(self.map.shards(), |shard| {
             let mut shard = shard.write();
             let mut evicted = EvictionCounts::default();
-            // task_cache removals that we couldn't perform inline because the target shard
-            // was contended. We defer them until after the map shard lock is released to
-            // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
-            // before map. Allocated lazily on first conflict.
+            // Task creation locks `task_cache` before `map`; this loop already holds a `map`
+            // shard, so defer every task-cache mutation until after releasing the shard.
             let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
-            // Remove a task type from `task_cache`, deferring on contention. Shared by the
-            // GC-deleted path below and the ordinary key eviction.
-            let remove_from_task_cache =
-                |evicted: &mut EvictionCounts,
-                 deferred: &mut Vec<CachedTaskTypeArc>,
-                 task_type: &CachedTaskTypeArc| {
-                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                        TryLockAndRemove::Removed => {
-                            evicted.key_evictions += 1;
-                        }
-                        TryLockAndRemove::NotFound => {
-                            // Generally this should be rare, it more or less implies something
-                            // else is concurrently holding the Arc
-                        }
-                        TryLockAndRemove::WouldBlock => {
-                            // Contention, to avoid a deadlock just defer
-                            deferred.push(task_type.clone());
-                        }
-                    }
-                };
             shard.retain(|(task_id, task)| {
                 // Transient tasks can not be evicted at all, unless they are fully
                 // delete by the GC.
@@ -728,15 +701,7 @@ impl Storage {
                         // so task_cache is a pure perf cache. Remove it now; it will be
                         // re-populated by task_by_type() on the next cache miss.
                         let task_type = task.get_persistent_task_type().unwrap();
-                        // Only try to acquire the lock, if we cannot just remove at the end
-                        // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
-                        // we do the opposite we need to be defensive here.  Attempting here is just
-                        // an optimization to avoid pushing into `deferred_task_cache_removals`
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
+                        deferred_task_cache_removals.push(task_type.clone());
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                 }
@@ -776,7 +741,7 @@ impl Storage {
             // holding a task_cache shard lock and waiting on this map shard can make progress.
             drop(shard);
             for task_type in deferred_task_cache_removals {
-                if self.task_cache.remove(task_type.as_ref()).is_some() {
+                if self.evict_task_cache_type(&task_type) {
                     evicted.key_evictions += 1;
                 }
             }
@@ -787,9 +752,8 @@ impl Storage {
         for evicted in counts {
             totals += evicted;
         }
-        // Shrink task_cache only when we evicted more entries than remain — i.e. the map
-        // is less than half full. Rehashing each surviving CachedTaskType isn't free, so
-        // we gate it on meaningful slack. Within that, walk shards in parallel and shrink
+        // Shrink task_cache only when we evicted more entries than buckets that remain. Within
+        // that, walk shards in parallel and shrink
         // each one independently if it is itself less than half full.
         if totals.key_evictions > self.task_cache.len() {
             parallel::for_each(self.task_cache.shards(), |shard| {
@@ -1208,8 +1172,6 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Barrier};
-
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
@@ -1219,54 +1181,6 @@ mod tests {
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
-    }
-
-    #[test]
-    fn colliding_task_cache_updates_are_merged_atomically() {
-        let storage = Arc::new(Storage::new(2, true));
-        let barrier = Arc::new(Barrier::new(3));
-        let task_type_hash = 42u64.to_le_bytes();
-        let ids = [non_transient_task(1), non_transient_task(2)];
-
-        std::thread::scope(|scope| {
-            for task_id in ids {
-                let storage = Arc::clone(&storage);
-                let barrier = Arc::clone(&barrier);
-                scope.spawn(move || {
-                    barrier.wait();
-                    storage.record_task_cache_bucket(task_type_hash, [task_id]);
-                });
-            }
-            barrier.wait();
-        });
-
-        let mut bucket = storage
-            .task_cache_buckets
-            .get(&task_type_hash)
-            .unwrap()
-            .clone();
-        bucket.sort_by_key(|id| **id);
-        assert_eq!(bucket.as_slice(), &ids);
-    }
-
-    #[test]
-    fn colliding_task_cache_deletes_track_survivors() {
-        let storage = Storage::new(2, true);
-        let task_type_hash = 42u64.to_le_bytes();
-        let ids = [non_transient_task(1), non_transient_task(2)];
-        storage.record_task_cache_bucket(task_type_hash, ids);
-
-        assert_eq!(
-            storage
-                .unregister_task_cache_id(task_type_hash, ids[0])
-                .as_slice(),
-            &[ids[1]]
-        );
-        assert!(
-            storage
-                .unregister_task_cache_id(task_type_hash, ids[1])
-                .is_empty()
-        );
     }
 
     #[test]

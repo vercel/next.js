@@ -22,7 +22,8 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
+    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::{CachedTaskType, CachedTaskTypeArc},
     macro_helpers::NativeFunction,
 };
 
@@ -35,7 +36,6 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::TaskTypeHash,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -200,8 +200,8 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns the matching task and its stored type, or the complete hash bucket on a miss so a
-    /// newly created task can persist the updated bucket without another database lookup.
+    /// Records every candidate in the in-memory hash bucket, then returns the matching task and
+    /// its stored type, or `NotFound` when no candidate matches.
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
@@ -216,7 +216,7 @@ pub trait ExecuteContext<'e>: Sized {
 
 pub enum TaskByType {
     Found(TaskId, CachedTaskTypeArc),
-    NotFound(TaskTypeHash, SmallVec<[TaskId; 1]>),
+    NotFound,
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -963,13 +963,15 @@ impl<'e> ExecuteContextImpl<'e> {
             if !entry.self_restored {
                 continue;
             }
-            if let Some(task_type) = entry.task_type.clone() {
-                // Insert into the task cache to avoid future lookups
-                self.backend
-                    .storage
-                    .task_cache
-                    .entry(task_type)
-                    .or_insert(entry.task_id);
+            if let Some(task_type) = entry.task_type.as_ref() {
+                // Direct TaskId restoration bypasses normal type lookup. Perform that lookup now so
+                // the hash-keyed cache contains every collision candidate before GC can delete one.
+                let CachedTaskType {
+                    native_fn,
+                    this,
+                    arg,
+                } = &**task_type;
+                let _ = self.task_by_type(native_fn, *this, arg.as_ref());
             }
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
@@ -1404,12 +1406,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         arg: &dyn DynTaskInputs,
     ) -> TaskByType {
         if !self.backend.should_restore() {
-            return TaskByType::NotFound(
-                crate::backing_storage::compute_task_type_hash_from_components(
-                    native_fn, this, arg,
-                ),
-                SmallVec::new(),
-            );
+            return TaskByType::NotFound;
         }
 
         // Get candidates from backing storage (hash-based lookup may return multiple)
@@ -1419,23 +1416,38 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             .lookup_task_candidates(native_fn, this, arg)
             .expect("Failed to lookup task ids");
 
-        if candidates.len() > 1 {
-            self.backend
-                .storage
-                .record_task_cache_bucket(task_type_hash, candidates.iter().copied());
-        }
+        // Restore every candidate's full type before locking the TaskCache bucket. This makes the
+        // in-memory bucket complete even when the matching candidate appears first.
+        let restored_candidates = candidates
+            .into_iter()
+            .filter_map(|candidate_id| {
+                let task = self.task(candidate_id, TaskDataCategory::Data);
+                task.get_persistent_task_type()
+                    .map(|stored_type| (stored_type.clone(), candidate_id))
+            })
+            .collect::<SmallVec<[_; 3]>>();
 
-        // Verify each candidate by comparing the stored persistent_task_type.
-        // Only rarely is there more than one candidate, so no need for parallelization.
-        for &candidate_id in &candidates {
-            let task = self.task(candidate_id, TaskDataCategory::Data);
-            if let Some(stored_type) = task.get_persistent_task_type()
-                && stored_type.eq_components(native_fn, this, arg)
+        let mut bucket = self
+            .backend
+            .storage
+            .task_cache
+            .entry(task_type_hash)
+            .or_default();
+        for (stored_type, candidate_id) in restored_candidates {
+            if !bucket
+                .iter()
+                .any(|(candidate_type, _)| candidate_type == &stored_type)
             {
-                return TaskByType::Found(candidate_id, stored_type.clone());
+                bucket.push((stored_type, candidate_id));
             }
         }
-        TaskByType::NotFound(task_type_hash, candidates)
+        bucket
+            .iter()
+            .find(|(stored_type, _)| stored_type.eq_components(native_fn, this, arg))
+            .map(|(stored_type, candidate_id)| {
+                TaskByType::Found(*candidate_id, stored_type.clone())
+            })
+            .unwrap_or(TaskByType::NotFound)
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {

@@ -8,6 +8,7 @@ use turbo_tasks::{
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 pub type TaskTypeHash = [u8; 8];
+pub type TaskIdBucket = SmallVec<[TaskId; 3]>;
 
 /// A single item yielded by the snapshot iterator during persistence: either a put (persist a
 /// modified task's meta/data + optionally register a new task's type) or a delete (tombstone a
@@ -21,12 +22,12 @@ pub enum SnapshotItem {
         /// Serialized task data, if modified
         data: Option<TurboBincodeBuffer>,
         /// Complete TaskCache bucket for a newly created task.
-        task_cache: Option<(TaskTypeHash, SmallVec<[TaskId; 1]>)>,
+        task_cache: Option<(TaskTypeHash, TaskIdBucket)>,
     },
     Delete {
         task_id: TaskId,
         /// The deleted task's `TaskCache` key and the bucket members that survive it.
-        task_cache: (TaskTypeHash, SmallVec<[TaskId; 1]>),
+        task_cache: (TaskTypeHash, TaskIdBucket),
     },
 }
 
