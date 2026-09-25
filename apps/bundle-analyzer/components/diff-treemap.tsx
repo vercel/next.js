@@ -1,27 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { AnalyzeData } from '@/lib/analyze-data'
 import type { DiffSummary, SourceDiffRow } from '@/lib/diff'
 import { delta, formatDelta } from '@/lib/diff'
+import { createDiffTreemapLayout } from '@/lib/diff-treemap-layout'
 import { SizeMode, type LayoutNode } from '@/lib/treemap-layout'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
-
-/**
- * Threshold (bytes) below which a row's delta is considered "noise" and the
- * row is rendered as neutral grey rather than a directional color. This keeps the
- * visualization legible when the build pipeline produces tiny non-deterministic
- * size deltas (e.g., source-map paths, comments).
- */
-const NEUTRAL_DELTA_THRESHOLD = 4
 
 /** Color-blind-safe blue/amber palette for bundle-size increases/decreases. */
 const COLOR_INCREASE = '#2563eb' // blue-600
 const COLOR_INCREASE_MUTED = 'rgba(37, 99, 235, 0.6)'
 const COLOR_DECREASE = '#d97706' // amber-600
 const COLOR_DECREASE_MUTED = 'rgba(217, 119, 6, 0.6)'
-const COLOR_NEUTRAL = '#9ca3af' // gray-400
 
 interface DiffTreemapProps {
   summary: DiffSummary<SourceDiffRow>
@@ -36,6 +28,7 @@ interface DiffTreemapProps {
    * removed (no B-side data) so we can still render the removed sources.
    */
   baselineAnalyzeData: AnalyzeData | null
+  searchQuery: string
   /**
    * Currently selected diff row (its `key`). Used so the compare sidebar
    * and treemap stay in sync when the user clicks elsewhere.
@@ -59,49 +52,31 @@ interface DiffTreemapProps {
  * - amber tint: same file, shrank since the baseline build
  * - neutral: same size in both builds
  *
- * Removed files don't exist in comparison build B's source tree so they
- * don't appear in the treemap; users can still see them in the table view.
+ * Tile area represents the absolute size delta. The tree is synthesized from
+ * the union of both builds, so additions and removals are both visible.
  */
 export function DiffTreemap({
   summary,
   useCompressed,
   analyzeData,
   baselineAnalyzeData,
+  searchQuery,
   selectedKey,
   onSelectKey,
 }: DiffTreemapProps) {
-  // Pick the side that drives the source tree. Prefer comparison build B;
-  // fall back to baseline A for the "removed route" case where there's no
-  // B-side data.
   const data = analyzeData ?? baselineAnalyzeData
-
-  // Index the diff rows by source index for tile lookups during canvas layout.
-  const rowBySourceIndex = new Map<number, SourceDiffRow>()
-  const side: 'A' | 'B' = analyzeData ? 'B' : 'A'
-  for (const row of summary.rows) {
-    const idx = side === 'B' ? row.sourceIndexB : row.sourceIndexA
-    if (idx != null) rowBySourceIndex.set(idx, row)
-  }
-
-  // The AnalyzeData tree can contain the same source path at multiple indices
-  // (e.g. one file included in several chunks). In the diff treemap we only
-  // want each unique path to appear once, using the canonical source index
-  // stored on the diff row. Passing this as `filterSource` removes all
-  // duplicate instances from the layout so there are no confusing gray tiles
-  // and clicking always resolves to a diff row.
-  const canonicalSourceIndices = new Set(rowBySourceIndex.keys())
-
-  // Reverse lookup so we can map a selected diff key (full source path) back
-  // to a source index in the active side's tree.
-  const sourceIndexByKey = new Map<string, number>()
-  for (const [idx, row] of rowBySourceIndex) {
-    sourceIndexByKey.set(row.key, idx)
-  }
+  // Building the diff tree is expensive, and stable layout callbacks avoid
+  // recomputing the canvas layout when only selection or hover changes.
+  const diffLayout = useMemo(
+    () => createDiffTreemapLayout(summary.rows, useCompressed),
+    [summary.rows, useCompressed]
+  )
+  const { rowBySourceIndex, sourceIndexByKey } = diffLayout
 
   const getFileColorOverride = (node: LayoutNode): string | undefined => {
     if (node.sourceIndex === undefined) return undefined
     const row = rowBySourceIndex.get(node.sourceIndex)
-    if (!row) return COLOR_NEUTRAL
+    if (!row) return undefined
     return colorForRow(row, useCompressed)
   }
 
@@ -117,7 +92,7 @@ export function DiffTreemap({
 
   // Focus state stays local: it controls drill-in/zoom, which is purely a
   // visual concern of the treemap and shouldn't affect the sidebar.
-  const initialRoot = data?.sourceRoots()[0] ?? 0
+  const initialRoot = diffLayout.rootIndex
   const [focusedSourceIndex, setFocusedSourceIndex] =
     useState<number>(initialRoot)
 
@@ -150,20 +125,22 @@ export function DiffTreemap({
       onSelectSourceIndex={handleSelectSourceIndex}
       focusedSourceIndex={focusedSourceIndex}
       onFocusSourceIndex={setFocusedSourceIndex}
-      filterSource={(idx) => canonicalSourceIndices.has(idx)}
       getFileSizeLabel={getFileSizeLabel}
       sizeMode={useCompressed ? SizeMode.Compressed : SizeMode.Uncompressed}
       getFileColorOverride={getFileColorOverride}
-      overlay={<DiffLegend hasRemoved={summary.counts.removed > 0} />}
+      computeLayout={diffLayout.computeLayout}
+      getParentSourceIndex={diffLayout.getParentSourceIndex}
+      getSourceName={diffLayout.getSourceName}
+      searchQuery={searchQuery}
+      overlay={<DiffLegend />}
     />
   )
 }
 
 /**
  * Picks a fill color for a diff row. Mirrors the previous DiffTreemap's
- * scheme: bright blue/amber for added/removed, lighter tints scaled by the
- * relative magnitude of the change for grew/shrank, and neutral grey for
- * sub-threshold changes.
+ * scheme: bright blue/amber for added/removed and lighter tints scaled by the
+ * relative magnitude of the change for grew/shrank.
  */
 function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
   if (row.status === 'added') return COLOR_INCREASE
@@ -171,9 +148,6 @@ function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
   const deltaValue = useCompressed
     ? row.compressedB - row.compressedA
     : row.sizeB - row.sizeA
-  if (Math.abs(deltaValue) <= NEUTRAL_DELTA_THRESHOLD) {
-    return COLOR_NEUTRAL
-  }
   // For changed rows, scale opacity by relative magnitude so a 1% change is
   // less alarming than a 50% change.
   const baseline = useCompressed ? row.compressedA : row.sizeA
@@ -186,12 +160,12 @@ function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
 }
 
 /** Static legend overlay so users can decode the color scheme at a glance. */
-function DiffLegend({ hasRemoved }: { hasRemoved: boolean }) {
+function DiffLegend() {
   const items: Array<{ label: string; color: string }> = [
     { label: 'Added', color: COLOR_INCREASE },
     { label: 'Grew', color: COLOR_INCREASE_MUTED },
-    { label: 'Unchanged', color: COLOR_NEUTRAL },
     { label: 'Shrank', color: COLOR_DECREASE_MUTED },
+    { label: 'Removed', color: COLOR_DECREASE },
   ]
   return (
     <div className="absolute bottom-2 left-2 flex items-center gap-3 rounded border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
@@ -205,11 +179,6 @@ function DiffLegend({ hasRemoved }: { hasRemoved: boolean }) {
           {item.label}
         </span>
       ))}
-      {hasRemoved ? (
-        <span className="border-l border-border pl-3 italic">
-          Removed sources are listed in the table view.
-        </span>
-      ) : null}
     </div>
   )
 }
