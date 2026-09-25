@@ -30,8 +30,9 @@ bitfield! {
     pub struct MetaEntryFlags(u32);
     impl Debug;
     impl From<u32>;
-    // Bit 0 is unused. It marked files of entries that were not accessed recently, when compaction
-    // stored them separately.
+    /// The SST file is part of the bottom run of its shard, i.e. it was written by merging all SST
+    /// files of the shard.
+    pub bottom, set_bottom: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
 }
@@ -39,12 +40,15 @@ bitfield! {
 impl MetaEntryFlags {
     pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b10);
     pub const COMPACTED: MetaEntryFlags = MetaEntryFlags(0b00);
+    pub const BOTTOM: MetaEntryFlags = MetaEntryFlags(0b01);
 }
 
 impl Display for MetaEntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.fresh() {
             f.pad_integral(true, "", "fresh")
+        } else if self.bottom() {
+            f.pad_integral(true, "", "bottom")
         } else {
             f.pad_integral(true, "", "compacted")
         }

@@ -68,7 +68,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 8 bytes max hash
     - 8 bytes SST file size
     - 4 bytes flags
-      - bit 0: unused
+      - bit 0: bottom (part of the bottom run of its shard, written by merging all SST files of the shard)
       - bit 1: fresh (not yet compacted)
     - 4 bytes entry count
     - 4 bytes tombstone count (entries that delete a key or a key-value pair), used by compaction to estimate reclaimable bytes
@@ -376,10 +376,14 @@ DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
 CURRENT: 17
 ```
 
-Configuration options for compactions are:
+### Choosing merge jobs
 
-- max number of SST files that are merged at once
-- coverage when compaction is triggered (otherwise calling compact is a noop)
+The key space of each family is split into a power-of-two number of shards by the leading bits of the key hash (`FamilyConfig::min_shard_count`, growing so that a shard holds about `DbConfig::target_shard_size` after compaction). Commits and merges split SST files at shard boundaries, so each shard is compacted on its own. A shard has a bottom run (SST files flagged `bottom`, written by merging all files of the shard) and the files written since, above it.
+
+- A bottom merge merges all files of a shard into a new bottom run, dropping superseded entries and tombstones. It runs when the files above the bottom run exceed `max_space_amplification` times the bottom run, counting each tombstone as an average bottom entry since it deletes one. This bounds the space amplification.
+- An intermediate merge merges only the files above the bottom run when there are more than `max_files_above_bottom`, to bound the number of files a lookup consults.
+
+Bottom merges of a family stop once they rewrote `max_rewrite_factor` times the size of the fresh (not yet compacted) files of the family, so compaction cost follows the amount of new data. Since keys are hashes, shards grow at the same rate; the budget spreads their bottom merges over multiple compactions. A skipped compaction leaves the fresh files in place, which increases the next budget.
 
 ## Opening
 
