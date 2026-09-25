@@ -258,10 +258,13 @@ function setupServerHmr(
     }
   }
 
-  function apply(
-    entryPaths: string[],
+  function apply({
+    entryPaths,
+    reEvaluateOnPartialUpdate,
+  }: {
+    entryPaths: string[]
     reEvaluateOnPartialUpdate: boolean
-  ): Promise<void> {
+  }): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
@@ -2158,7 +2161,10 @@ export async function createHotReloaderTurbopack(
             // The only server HMR pull, driven by the request being built — which
             // is what makes evaluating a changed module lazy.
             if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
-              await serverHmr?.apply(serverHmrEntryPaths, !serverOutputChanged)
+              await serverHmr?.apply({
+                entryPaths: serverHmrEntryPaths,
+                reEvaluateOnPartialUpdate: !serverOutputChanged,
+              })
             }
           } finally {
             finishBuilding()

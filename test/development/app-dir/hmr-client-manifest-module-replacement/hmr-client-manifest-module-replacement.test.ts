@@ -15,7 +15,7 @@ describe('client manifest after replacing a client component', () => {
     const appDir = join(next.testDir, 'app')
 
     // Write the new module before changing both routes, then remove the unused
-    // module. No Git checkout is needed to trigger the module-update race.
+    // module to trigger the module-update race.
     writeFileSync(
       join(appDir, `${file}.tsx`),
       `'use client'\nexport default function ${component}() {\n  return <button id="client-result">${text}</button>\n}`
