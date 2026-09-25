@@ -6,7 +6,6 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use fs_err::File;
-use qfilter::Filter;
 use zerocopy::IntoBytes;
 
 use crate::{
@@ -22,8 +21,6 @@ pub struct MetaFileBuilder<'a> {
     entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
     obsolete_sst_files: Vec<u32>,
-    /// Optional AMQF for used key hashes
-    used_key_hashes_amqf: Option<Filter>,
 }
 
 impl<'a> MetaFileBuilder<'a> {
@@ -33,7 +30,6 @@ impl<'a> MetaFileBuilder<'a> {
             compression,
             entries: Vec::new(),
             obsolete_sst_files: Vec::new(),
-            used_key_hashes_amqf: None,
         }
     }
 
@@ -43,10 +39,6 @@ impl<'a> MetaFileBuilder<'a> {
 
     pub fn add_obsolete_sst_file(&mut self, sequence_number: u32) {
         self.obsolete_sst_files.push(sequence_number);
-    }
-
-    pub fn set_used_key_hashes_amqf(&mut self, amqf: Filter) {
-        self.used_key_hashes_amqf = Some(amqf);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -82,25 +74,15 @@ impl<'a> MetaFileBuilder<'a> {
                 sst.max_hash,
                 sst.size,
                 sst.flags,
+                u32::try_from(sst.entries).unwrap_or(u32::MAX),
+                u32::try_from(sst.tombstones).unwrap_or(u32::MAX),
                 amqf_offset as u32,
             );
             file.write_all(header.as_bytes())?;
         }
-        let serialized_used_key_hashes = self
-            .used_key_hashes_amqf
-            .as_ref()
-            .map(|f| postcard::to_allocvec(f).expect("AMQF serialization failed"));
-        amqf_offset += serialized_used_key_hashes
-            .as_ref()
-            .map(|bytes| bytes.len())
-            .unwrap_or(0);
-        file.write_u32::<BE>(amqf_offset as u32)?;
 
         for (_, sst) in &self.entries {
             file.write_all(&sst.amqf)?;
-        }
-        if let Some(bytes) = &serialized_used_key_hashes {
-            file.write_all(bytes)?;
         }
         let bytes_written = file.bytes_written();
         let file = file.into_inner().into_inner()?;

@@ -21,7 +21,6 @@ use crate::{
 #[cfg(not(miri))]
 use crate::{
     constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
-    meta_file::MetaFile,
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
@@ -2873,11 +2872,6 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
 fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-    let access_mode = if mmap {
-        crate::mmap_access_mode()
-    } else {
-        AccessMode::File
-    };
     let db = open_db::<1>(path, mmap)?;
 
     const KEYS: u32 = 2_000;
@@ -2891,10 +2885,6 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
             )?;
         }
         db.commit_write_batch(batch)?;
-        if generation == 0 {
-            // Flush this access into the following commit's used-key-hash AMQF.
-            assert!(db.get(0, &0u32.to_be_bytes())?.is_some());
-        }
     }
     let before_meta_sequences = db
         .meta_info()?
@@ -2902,13 +2892,6 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
         .map(|meta| meta.sequence_number)
         .collect::<Vec<_>>();
     assert_eq!(before_meta_sequences.len(), 4);
-    assert!(before_meta_sequences.iter().any(|&seq| {
-        MetaFile::open(path, seq, None, access_mode)
-            .unwrap()
-            .deserialize_used_key_hashes_amqf()
-            .unwrap()
-            .is_some()
-    }));
 
     let partial = CompactConfig {
         min_merge_count: 2,
@@ -2944,12 +2927,6 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
     db.full_compact()?;
     let fully_compacted = db.meta_info()?;
     assert_eq!(fully_compacted.len(), 1);
-    let compacted_meta =
-        MetaFile::open(path, fully_compacted[0].sequence_number, None, access_mode)?;
-    assert!(
-        compacted_meta.deserialize_used_key_hashes_amqf()?.is_none(),
-        "used-key marks should expire instead of being copied into compaction output"
-    );
     drop(db);
 
     let reopened = open_db::<1>(path, mmap)?;

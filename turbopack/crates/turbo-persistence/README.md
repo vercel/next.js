@@ -54,7 +54,7 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4A)
+  - 4 bytes magic number (0xFE4ADA4C)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
   - 4 bytes count of obsolete SST files
@@ -68,13 +68,13 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 8 bytes max hash
     - 8 bytes SST file size
     - 4 bytes flags
-      - bit 0: cold (compacted and not recently accessed)
+      - bit 0: unused
       - bit 1: fresh (not yet compacted)
+    - 4 bytes entry count
+    - 4 bytes tombstone count (entries that delete a key or a key-value pair), used by compaction to estimate reclaimable bytes
     - 4 bytes end of AMQF offset relative to start of all AMQF data
-  - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
-- serialized "used key hashes" AMQF
 
 ### SST file
 
