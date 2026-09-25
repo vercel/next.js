@@ -243,7 +243,7 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
 
 #[turbo_tasks::function]
 async fn shared_target(constant: ResolvedVc<Constant>) -> Result<Vc<u32>> {
-    Ok(Vc::cell(*constant.await?.get() + 41))
+    Ok(Vc::cell(constant.await?.get() + 41))
 }
 
 /// Reads the shared target via an already-resolved `Vc`: a forward cell-dependency, no child edge.
@@ -270,7 +270,7 @@ async fn select_owning(
 ) -> Result<Vc<u32>> {
     // Pass the subtree's `Vc` through unchanged rather than re-celling it, so resolving this op
     // names `shared_target` itself -- that is the task the borrowing side must depend on.
-    if !*selector.await?.get() {
+    if !selector.await?.get() {
         Ok(owning_subtree(*constant))
     } else {
         Ok(Vc::cell(0))

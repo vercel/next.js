@@ -54,7 +54,7 @@ async fn emit_one(i: u32) -> Result<Vc<()>> {
 /// Emits `count` distinct collectibles, so changing `count` changes the collectible set.
 #[turbo_tasks::function]
 async fn emit_all(input: ResolvedVc<Input>) -> Result<Vc<()>> {
-    let count = *input.await?.count.get();
+    let count = input.await?.count.get();
     try_join_all((0..count).map(|i| emit_one(i).into_future())).await?;
     Ok(Vc::cell(()))
 }
@@ -74,7 +74,7 @@ async fn collector(
     counter.executions.fetch_add(1, Ordering::AcqRel);
     // Depend on the input directly, so that a change re-executes the collector right away, while
     // the source is still emitting.
-    let _ = *input.await?.count.get();
+    let _ = input.await?.count.get();
     let source = source(input);
     source.read_strongly_consistent().await?;
     let collectibles = if take {

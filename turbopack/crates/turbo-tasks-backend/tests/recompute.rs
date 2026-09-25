@@ -117,7 +117,7 @@ async fn compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
 ) -> Result<Vc<Output>> {
-    let state_value = *input.await?.state.get();
+    let state_value = input.await?.state.get();
     let state_value2 = if state_value < 5 {
         *compute2(*input2).await?
     } else {
@@ -135,7 +135,7 @@ async fn compute(
 
 #[turbo_tasks::function]
 async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
-    let state_value = *input.await?.state.get();
+    let state_value = input.await?.state.get();
     Ok(Vc::cell(state_value))
 }
 
@@ -221,7 +221,7 @@ struct DependencyOutput {
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     println!("inner_compute()");
-    let value = *input.await?.state.get();
+    let value = input.await?.state.get();
     // Combine value with random to detect re-execution
     // Value in lower 16 bits, random in upper 16 bits
     Ok(Vc::cell(value | (rand::random::<u32>() << 16)))

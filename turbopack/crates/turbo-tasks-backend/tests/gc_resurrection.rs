@@ -31,7 +31,7 @@ use crate::{
 /// leaves per reader give many chances for the racing interleaving.
 #[turbo_tasks::function]
 async fn sd_leaf(constant: ResolvedVc<Constant>, index: u32) -> Result<Vc<u32>> {
-    let base = *constant.await?.get();
+    let base = constant.await?.get();
     Ok(Vc::cell(base.wrapping_add(index)))
 }
 
@@ -59,7 +59,7 @@ async fn select_reader(
     selector: ResolvedVc<Selector>,
     constant: ResolvedVc<Constant>,
 ) -> Result<Vc<u32>> {
-    let use_reader = !*selector.await?.get();
+    let use_reader = !selector.await?.get();
     let value = if use_reader {
         *reader(*constant).await?
     } else {
@@ -75,7 +75,7 @@ async fn select_diamond(
     selector: ResolvedVc<Selector>,
     constant: ResolvedVc<Constant>,
 ) -> Result<Vc<u32>> {
-    let use_diamond = !*selector.await?.get();
+    let use_diamond = !selector.await?.get();
     let value = if use_diamond {
         *diamond_root(*constant, FANOUT).await?
     } else {
@@ -300,7 +300,7 @@ const IMM_FANOUT: u32 = 8;
 /// `parent_count 0`.
 #[turbo_tasks::function(operation, root)]
 async fn select_imm_reader(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
-    let use_reader = !*selector.await?.get();
+    let use_reader = !selector.await?.get();
     let value = if use_reader {
         *imm_reader().await?
     } else {

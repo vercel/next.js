@@ -209,7 +209,7 @@ async fn producer_operation(input: ResolvedVc<TestInput>) -> Result<()> {
     let shared = input.shared.clone();
     let spec = input.spec.get().clone();
     // Track `tick` so callers can force a producer rerun without mutating `spec`.
-    let _tick: u64 = *input.tick.get();
+    let _tick: u64 = input.tick.get();
     for (key, value_hash) in spec.pairs {
         TestEffect {
             key,

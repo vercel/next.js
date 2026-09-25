@@ -35,7 +35,7 @@ pub fn create_constant() -> Vc<Constant> {
 /// The forward-dependency target `B`.
 #[turbo_tasks::function]
 pub async fn diamond_target(constant: ResolvedVc<Constant>, index: u32) -> Result<Vc<u32>> {
-    let base = *constant.await?.get();
+    let base = constant.await?.get();
     Ok(Vc::cell(base.wrapping_add(index).wrapping_mul(7)))
 }
 
@@ -123,7 +123,7 @@ pub async fn live_parent(
     index: u32,
     span: u32,
 ) -> Result<Vc<u32>> {
-    let generation_value = *generation.await?.get();
+    let generation_value = generation.await?.get();
     Ok(Vc::cell(*subtree(generation_value, index, span).await?))
 }
 

@@ -43,7 +43,7 @@ async fn branch_b() -> Result<Vc<u32>> {
 /// previously-read branch (and its subtree), which should drop that branch's `parent_count` to 0.
 #[turbo_tasks::function(operation, root)]
 async fn select(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
-    let use_b = *selector.await?.get();
+    let use_b = selector.await?.get();
     let value = if use_b {
         *branch_b().await?
     } else {
@@ -127,7 +127,7 @@ async fn parent_count_tracks_connect_and_disconnect() {
 #[turbo_tasks::function(operation, root)]
 async fn stable_child_parent(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     // Read the selector so we re-execute when it flips...
-    let bump = if *selector.await?.get() { 100 } else { 0 };
+    let bump = if selector.await?.get() { 100 } else { 0 };
     // ...but always connect the SAME child regardless.
     let child = *leaf(30).await?;
     Ok(Vc::cell(bump + child))

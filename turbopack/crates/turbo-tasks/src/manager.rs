@@ -42,13 +42,13 @@ use crate::{
     dyn_task_inputs::DynTaskInputsStorage,
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
+    interior_mutation::InteriorMutator,
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
     priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
-    serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     util::{IdFactory, StaticOrArc},
@@ -126,7 +126,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
-    fn invalidate_serialization(&self, task: TaskId);
+    /// Runs `mutate` as a change to data owned by `task` that the backend must persist. See
+    /// [`Backend::mutate_interior`].
+    fn mutate_interior(&self, task: TaskId, mutate: &mut dyn FnMut());
 
     fn try_read_task_output(
         &self,
@@ -1797,8 +1799,8 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
-    fn invalidate_serialization(&self, task: TaskId) {
-        self.backend.invalidate_serialization(task, self);
+    fn mutate_interior(&self, task: TaskId, mutate: &mut dyn FnMut()) {
+        self.backend.mutate_interior(task, mutate, self)
     }
 
     #[track_caller]
@@ -2199,12 +2201,12 @@ pub fn mark_finished() {
     });
 }
 
-/// Returns a [`SerializationInvalidator`] that can be used to invalidate the
-/// serialization of the current task cells.
+/// Returns an [`InteriorMutator`] with which a value created by the current task can mutate its
+/// interior while keeping the task's persisted cells in sync.
 ///
 /// Also marks the current task as stateful when the `verify_determinism` feature is enabled,
 /// since State allocation implies interior mutability.
-pub fn get_serialization_invalidator() -> SerializationInvalidator {
+pub fn get_interior_mutator() -> InteriorMutator {
     CURRENT_TASK_STATE.with(|cell| {
         let CurrentTaskState {
             task_id,
@@ -2218,11 +2220,11 @@ pub fn get_serialization_invalidator() -> SerializationInvalidator {
         }
         let Some(task_id) = *task_id else {
             panic!(
-                "get_serialization_invalidator() can only be used in the context of a turbo_tasks \
-                 task execution"
+                "get_interior_mutator() can only be used in the context of a turbo_tasks task \
+                 execution"
             );
         };
-        SerializationInvalidator::new(task_id)
+        InteriorMutator::new(task_id)
     })
 }
 

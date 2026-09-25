@@ -124,7 +124,7 @@ async fn run_task(
     let mut task = &spec[task_index as usize];
     if task.change.is_some() {
         let iteration = iteration.await?;
-        let it = *iteration.get();
+        let it = iteration.get();
         for _ in 0..it {
             task = if let Some(change) = &task.change {
                 change

@@ -210,7 +210,7 @@ struct ChangingInput {
 
 #[turbo_tasks::function(operation, root)]
 async fn self_invalidating(input: ResolvedVc<ChangingInput>) -> Result<Vc<Value>> {
-    let value = *input.await?.state.get();
+    let value = input.await?.state.get();
     if value < 3 {
         // Invalidate ourselves: the execution that is running right now becomes stale and is
         // scheduled again.
