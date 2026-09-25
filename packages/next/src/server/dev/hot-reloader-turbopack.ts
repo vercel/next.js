@@ -258,13 +258,7 @@ function setupServerHmr(
     }
   }
 
-  function apply({
-    entryPaths,
-    reEvaluateOnPartialUpdate,
-  }: {
-    entryPaths: string[]
-    reEvaluateOnPartialUpdate: boolean
-  }): Promise<void> {
+  function apply({ entryPaths }: { entryPaths: string[] }): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
@@ -280,13 +274,6 @@ function setupServerHmr(
           versions.get(versionKey),
           entryPaths
         )
-        // A partial update without a corresponding endpoint output change can
-        // contain a new import before that module's factory enters the chunk
-        // list. Re-evaluate instead of mixing the two graph snapshots.
-        if (update.kind === 'partial' && reEvaluateOnPartialUpdate) {
-          await recover()
-          return
-        }
         if (update.version) {
           versions.set(versionKey, update.version)
         }
@@ -2116,7 +2103,6 @@ export async function createHotReloaderTurbopack(
           // same predicate as the require-cache handling rather than a second,
           // coarser reading of `route.type`.
           let shouldPullServerHmr = false
-          let serverOutputChanged = false
           let serverHmrEntryPaths: string[] = []
           try {
             await handleRouteType({
@@ -2149,11 +2135,9 @@ export async function createHotReloaderTurbopack(
                   if (result.value.serverHmrEntryPaths.length > 0) {
                     serverHmrEntryPaths = result.value.serverHmrEntryPaths
                   }
-                  const changed = clearRequireCache(id, result.value, {
+                  return clearRequireCache(id, result.value, {
                     force: forceDeleteCache,
                   })
-                  serverOutputChanged ||= changed
-                  return changed
                 },
               },
             })
@@ -2161,10 +2145,7 @@ export async function createHotReloaderTurbopack(
             // The only server HMR pull, driven by the request being built — which
             // is what makes evaluating a changed module lazy.
             if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
-              await serverHmr?.apply({
-                entryPaths: serverHmrEntryPaths,
-                reEvaluateOnPartialUpdate: !serverOutputChanged,
-              })
+              await serverHmr?.apply({ entryPaths: serverHmrEntryPaths })
             }
           } finally {
             finishBuilding()
