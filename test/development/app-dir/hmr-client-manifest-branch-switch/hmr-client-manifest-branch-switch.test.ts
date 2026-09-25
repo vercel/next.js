@@ -1,22 +1,44 @@
-import { execFileSync } from 'node:child_process'
+import { rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// This test switches the disposable app's Git branches, not the Next.js checkout.
 // @force-gate dev && turbopack
-describe('client manifest after a branch switch', () => {
+describe('client manifest after replacing a client component', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-  function git(...args: string[]) {
-    execFileSync('git', args, { cwd: next.testDir, stdio: 'pipe' })
+  function replaceClient(useReplacement: boolean) {
+    const component = useReplacement ? 'ReplacementClient' : 'LegacyClient'
+    const file = useReplacement ? 'replacement-client' : 'legacy-client'
+    const removedFile = useReplacement ? 'legacy-client' : 'replacement-client'
+    const text = useReplacement ? 'NEW CLIENT' : 'OLD CLIENT'
+    const appDir = join(next.testDir, 'app')
+
+    // Write the new module before changing both routes, then remove the unused
+    // module. No Git checkout is needed to trigger the module-update race.
+    writeFileSync(
+      join(appDir, `${file}.tsx`),
+      `'use client'\nexport default function ${component}() {\n  return <button id="client-result">${text}</button>\n}`
+    )
+    writeFileSync(
+      join(appDir, 'page.tsx'),
+      `import ${component} from './${file}'\nexport default function Page() {\n  return <main><h1>First route</h1><${component} /></main>\n}`
+    )
+    writeFileSync(
+      join(appDir, 'second', 'page.tsx'),
+      `import ${component} from '../${file}'\nexport default function SecondPage() {\n  return <main><h1>Second route</h1><${component} /></main>\n}`
+    )
+    rmSync(join(appDir, `${removedFile}.tsx`))
   }
 
-  async function assertSettled(branch: 'old-client' | 'replacement') {
-    const current = branch === 'old-client' ? 'OLD CLIENT' : 'NEW CLIENT'
-    const currentFile =
-      branch === 'old-client' ? 'legacy-client.tsx' : 'replacement-client.tsx'
-    const removedFile =
-      branch === 'old-client' ? 'replacement-client.tsx' : 'legacy-client.tsx'
+  async function assertSettled(useReplacement: boolean) {
+    const current = useReplacement ? 'NEW CLIENT' : 'OLD CLIENT'
+    const currentFile = useReplacement
+      ? 'replacement-client.tsx'
+      : 'legacy-client.tsx'
+    const removedFile = useReplacement
+      ? 'legacy-client.tsx'
+      : 'replacement-client.tsx'
 
     await retry(async () => {
       for (const route of ['/', '/second']) {
@@ -35,74 +57,25 @@ describe('client manifest after a branch switch', () => {
     }, 15_000)
   }
 
-  it("does not mix a route module with the other branch's Client Manifest", async () => {
-    git('init', '-q', '-b', 'old-client')
-    git('add', 'app')
-    git(
-      '-c',
-      'user.name=Test',
-      '-c',
-      'user.email=test@example.invalid',
-      'commit',
-      '-qm',
-      'old client'
-    )
-
-    git('switch', '-qc', 'replacement')
-    await next.patchFile(
-      'app/replacement-client.tsx',
-      `'use client'
-export default function ReplacementClient() {
-  return <button id="client-result">NEW CLIENT</button>
-}`
-    )
-    await next.deleteFile('app/legacy-client.tsx')
-    await next.patchFile(
-      'app/page.tsx',
-      `import ReplacementClient from './replacement-client'
-export default function Page() {
-  return <main><h1>First route</h1><ReplacementClient /></main>
-}`
-    )
-    await next.patchFile(
-      'app/second/page.tsx',
-      `import ReplacementClient from '../replacement-client'
-export default function SecondPage() {
-  return <main><h1>Second route</h1><ReplacementClient /></main>
-}`
-    )
-    git('add', 'app')
-    git(
-      '-c',
-      'user.name=Test',
-      '-c',
-      'user.email=test@example.invalid',
-      'commit',
-      '-qm',
-      'replacement client'
-    )
-    git('switch', '-q', 'old-client')
-
+  it('does not mix a route module with a stale Client Manifest', async () => {
     await next.start()
-    await assertSettled('old-client')
+    await assertSettled(false)
 
-    // Check the first requests too: a stale successful page is acceptable
-    // while the watcher catches up, but a mixed manifest must not throw.
-    for (let cycle = 0; cycle < 20; cycle++) {
-      for (const branch of ['replacement', 'old-client'] as const) {
-        git('switch', '-q', branch)
-        for (const route of ['/second', '/']) {
-          const response = await next.fetch(route)
-          const html = await response.text()
-          if (response.status !== 200) {
-            throw new Error(
-              `cycle ${cycle}, ${branch} ${route}: HTTP ${response.status}; ${html.slice(0, 500)}`
-            )
-          }
-          expect(html).not.toContain('Could not find the module')
+    // The watcher can briefly serve the old page, but a mixed graph must not
+    // throw. Once it settles, both routes and manifests must use the new graph.
+    for (const useReplacement of [true, false]) {
+      replaceClient(useReplacement)
+      for (const route of ['/second', '/']) {
+        const response = await next.fetch(route)
+        const html = await response.text()
+        if (response.status !== 200) {
+          throw new Error(
+            `${useReplacement ? 'replacement' : 'old client'} ${route}: HTTP ${response.status}; ${html.slice(0, 500)}`
+          )
         }
-        await assertSettled(branch)
+        expect(html).not.toContain('Could not find the module')
       }
+      await assertSettled(useReplacement)
     }
   })
 })

@@ -1,16 +1,8 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { readFileSync, realpathSync } from 'fs'
-import { execFileSync } from 'node:child_process'
+import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import {
-  join,
-  extname,
-  relative,
-  isAbsolute,
-  resolve as resolvePath,
-  sep,
-} from 'path'
+import { join, extname, relative, isAbsolute, sep } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -336,12 +328,6 @@ function setupServerHmr(
     return applyPromise
   }
 
-  function reEvaluate(): Promise<void> {
-    const reEvaluation = pending.then(recover, recover)
-    pending = reEvaluation
-    return reEvaluation
-  }
-
   function reset(): Promise<void> {
     const resetState = () => {
       versions.clear()
@@ -352,7 +338,7 @@ function setupServerHmr(
     return resetPromise
   }
 
-  return { apply, reset, reEvaluate }
+  return { apply, reset }
 }
 
 function getSourceMapFromTurbopack(
@@ -425,44 +411,6 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
   const lazyDynamicImports = nextConfig.experimental.turbopackLazyDynamicImports
-
-  // A branch checkout can replace an entire module graph before the file watcher
-  // has emitted all of its changes. Server HMR diffs are not safe to apply across
-  // that boundary, so fall back to loading the newly written chunks from disk.
-  let headPath: string | undefined
-  let previousHead: string | undefined
-  if (serverFastRefresh) {
-    try {
-      headPath = resolvePath(
-        projectPath,
-        execFileSync('git', ['rev-parse', '--git-path', 'HEAD'], {
-          cwd: projectPath,
-          encoding: 'utf8',
-          stdio: ['ignore', 'pipe', 'ignore'],
-          timeout: 2000,
-        }).trim()
-      )
-      previousHead = readFileSync(headPath, 'utf8')
-    } catch {
-      headPath = undefined
-    }
-  }
-  let branchReEvaluation: Promise<void> | undefined
-
-  async function reEvaluateOnBranchChange() {
-    if (!headPath) return
-    let head: string
-    try {
-      head = readFileSync(headPath, 'utf8')
-    } catch {
-      return
-    }
-    if (head !== previousHead) {
-      previousHead = head
-      branchReEvaluation = serverHmr?.reEvaluate()
-    }
-    await branchReEvaluation
-  }
 
   const bindings = getBindingsSync()
 
@@ -2036,7 +1984,6 @@ export async function createHotReloaderTurbopack(
           }
 
           await currentEntriesHandling
-          await reEvaluateOnBranchChange()
 
           // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
           let routeDef: Pick<
