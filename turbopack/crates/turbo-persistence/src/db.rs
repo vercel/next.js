@@ -47,7 +47,7 @@ use crate::{
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
-    shard::{shard_count_for, shard_index},
+    shard::{ShardIndex, shard_count_for, shard_index},
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
@@ -340,6 +340,9 @@ struct Inner<const FAMILIES: usize> {
     /// files. Each family's files are in ascending sequence order; there are no ordering
     /// constraints across families.
     meta_files_by_family: [Vec<MetaFile>; FAMILIES],
+    /// For each family, the SST files that can contain the keys of each shard. Must be rebuilt
+    /// whenever `meta_files_by_family` changes.
+    shard_index: [ShardIndex; FAMILIES],
     /// The current sequence number for the database.
     current_sequence_number: u32,
 }
@@ -480,6 +483,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             read_only,
             inner: RwLock::new(Inner {
                 meta_files_by_family: [(); FAMILIES].map(|_| Vec::new()),
+                shard_index: [(); FAMILIES].map(|_| ShardIndex::default()),
                 current_sequence_number: 0,
             }),
             is_empty: AtomicBool::new(true),
@@ -690,6 +694,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         #[cfg(debug_assertions)]
         inner.debug_assert_meta_invariants();
+        rebuild_shard_index(&self.config, inner);
         inner.current_sequence_number = current;
         self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
         Ok(true)
@@ -807,7 +812,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let guard = self.acquire_write_operation("write batch")?;
         // seq_before is already the current sequence number, no second read needed.
         let current = guard.seq_before;
-        let shard_counts = self.shard_counts(&self.inner.read().meta_files_by_family);
+        let shard_counts = shard_counts(&self.config, &self.inner.read().meta_files_by_family);
         Ok(WriteBatch::new(
             guard,
             self.path.clone(),
@@ -816,24 +821,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.config.family_configs,
             shard_counts,
         ))
-    }
-
-    /// The number of key hash shards of each family (see [`crate::shard`]). It follows the size of
-    /// the bottom runs, which is about the size of the live data after compaction.
-    fn shard_counts(&self, meta_files_by_family: &[Vec<MetaFile>; FAMILIES]) -> [u32; FAMILIES] {
-        std::array::from_fn(|family| {
-            let bottom_bytes = meta_files_by_family[family]
-                .iter()
-                .flat_map(|meta| meta.entries())
-                .filter(|entry| entry.flags().bottom())
-                .map(|entry| entry.size())
-                .sum::<u64>();
-            shard_count_for(
-                bottom_bytes,
-                self.config.target_shard_size,
-                self.config.family_configs[family].min_shard_count,
-            )
-        })
     }
 
     fn key_block_cache(&self) -> &BlockCache {
@@ -1287,6 +1274,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             #[cfg(debug_assertions)]
             inner.debug_assert_meta_invariants();
+            rebuild_shard_index(&self.config, &mut inner);
             inner.current_sequence_number = seq;
             self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
             // The write guard must be released after publishing the matching empty state.
@@ -1509,7 +1497,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             keys_written: u64,
         }
 
-        let shard_counts = self.shard_counts(meta_files_by_family);
+        let shard_counts = shard_counts(&self.config, meta_files_by_family);
         let planned = plan_compaction(
             &sst_by_family
                 .iter()
@@ -2134,14 +2122,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .all(|meta| meta.family() as usize == family),
             "meta file stored in the wrong family shard while querying family {family}"
         );
-        for meta in inner.meta_files_by_family[family].iter().rev() {
-            match meta.lookup::<K, FIND_ALL>(
-                family as u32,
-                hash,
-                key,
-                key_block_cache,
-                value_block_cache,
-            )? {
+        // Only the SST files of the key's shard can contain it, newest first.
+        let meta_files = &inner.meta_files_by_family[family];
+        let shard_files = inner.shard_index[family].candidates(hash);
+        for (range, &(meta_index, entry_index)) in
+            shard_files.ranges.iter().zip(&shard_files.locations)
+        {
+            let result = if range.contains(hash) {
+                meta_files[meta_index as usize].lookup_entry::<K, FIND_ALL>(
+                    entry_index,
+                    hash,
+                    key,
+                    key_block_cache,
+                    value_block_cache,
+                )?
+            } else {
+                MetaLookupResult::RangeMiss
+            };
+            match result {
                 MetaLookupResult::FamilyMiss => {
                     #[cfg(feature = "stats")]
                     self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
@@ -2263,7 +2261,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         )
         .entered();
         let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
-        let mut empty_cells = keys.len();
         for (index, key) in keys.iter().enumerate() {
             let hash = hash_key(key);
             cells.push((hash, index, None));
@@ -2278,47 +2275,37 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .all(|meta| meta.family() as usize == family),
             "meta file stored in the wrong family shard while querying family {family}"
         );
-        for meta in inner.meta_files_by_family[family].iter().rev() {
-            let _result = meta.batch_lookup(
-                family as u32,
-                keys,
-                &mut cells,
-                &mut empty_cells,
-                key_block_cache,
-                value_block_cache,
-            )?;
-
-            #[cfg(feature = "stats")]
+        // Cells are sorted by hash, so the keys of each shard are contiguous. Each run of cells is
+        // only looked up in the SST files of its shard.
+        let shard_index = &inner.shard_index[family];
+        let mut run_start = 0;
+        while run_start < cells.len() {
+            let shard = crate::shard::shard_index(cells[run_start].0, shard_index.shard_count());
+            let run_len = cells[run_start..].partition_point(|(hash, _, _)| {
+                crate::shard::shard_index(*hash, shard_index.shard_count()) == shard
+            });
+            let run = &mut cells[run_start..run_start + run_len];
+            run_start += run_len;
+            let mut empty_run_cells = run_len;
+            let shard_files = shard_index.shard(shard);
+            for (range, &(meta_index, entry_index)) in
+                shard_files.ranges.iter().zip(&shard_files.locations)
             {
-                let crate::meta_file::MetaBatchLookupResult {
-                    family_miss,
-                    range_misses,
-                    quick_filter_misses,
-                    sst_misses,
-                    hits: _,
-                } = _result;
-                if family_miss {
-                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                let _result = inner.meta_files_by_family[family][meta_index as usize]
+                    .batch_lookup_entry(
+                        entry_index,
+                        range,
+                        keys,
+                        run,
+                        &mut empty_run_cells,
+                        key_block_cache,
+                        value_block_cache,
+                    )?;
+                #[cfg(feature = "stats")]
+                self.record_batch_lookup_stats(_result);
+                if empty_run_cells == 0 {
+                    break;
                 }
-                if range_misses > 0 {
-                    self.stats
-                        .miss_range
-                        .fetch_add(range_misses as u64, Ordering::Relaxed);
-                }
-                if quick_filter_misses > 0 {
-                    self.stats
-                        .miss_amqf
-                        .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
-                }
-                if sst_misses > 0 {
-                    self.stats
-                        .miss_key
-                        .fetch_add(sst_misses as u64, Ordering::Relaxed);
-                }
-            }
-
-            if empty_cells == 0 {
-                break;
             }
         }
         let mut deleted = 0;
@@ -2370,6 +2357,35 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         span.record("deleted", deleted);
         span.record("result_size", result_size);
         Ok(results)
+    }
+
+    #[cfg(feature = "stats")]
+    fn record_batch_lookup_stats(&self, result: crate::meta_file::MetaBatchLookupResult) {
+        let crate::meta_file::MetaBatchLookupResult {
+            family_miss,
+            range_misses,
+            quick_filter_misses,
+            sst_misses,
+            hits: _,
+        } = result;
+        if family_miss {
+            self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+        }
+        if range_misses > 0 {
+            self.stats
+                .miss_range
+                .fetch_add(range_misses as u64, Ordering::Relaxed);
+        }
+        if quick_filter_misses > 0 {
+            self.stats
+                .miss_amqf
+                .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
+        }
+        if sst_misses > 0 {
+            self.stats
+                .miss_key
+                .fetch_add(sst_misses as u64, Ordering::Relaxed);
+        }
     }
 
     /// Returns database statistics.
@@ -2470,6 +2486,43 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             fs::remove_file(self.path.join(format!("{seq:08}.{ext}"))).is_err()
         });
     }
+}
+
+/// Rebuilds the shard index of every family after the meta files changed.
+fn rebuild_shard_index<const FAMILIES: usize>(
+    config: &DbConfig<FAMILIES>,
+    inner: &mut Inner<FAMILIES>,
+) {
+    let shard_counts = shard_counts(config, &inner.meta_files_by_family);
+    for ((index, meta_files), shard_count) in inner
+        .shard_index
+        .iter_mut()
+        .zip(&inner.meta_files_by_family)
+        .zip(shard_counts)
+    {
+        *index = ShardIndex::build(shard_count, meta_files.iter().map(MetaFile::hash_ranges));
+    }
+}
+
+/// The number of key hash shards of each family (see [`crate::shard`]). It follows the size of the
+/// bottom runs, which is about the size of the live data after compaction.
+fn shard_counts<const FAMILIES: usize>(
+    config: &DbConfig<FAMILIES>,
+    meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
+) -> [u32; FAMILIES] {
+    std::array::from_fn(|family| {
+        let bottom_bytes = meta_files_by_family[family]
+            .iter()
+            .flat_map(|meta| meta.entries())
+            .filter(|entry| entry.flags().bottom())
+            .map(|entry| entry.size())
+            .sum::<u64>();
+        shard_count_for(
+            bottom_bytes,
+            config.target_shard_size,
+            config.family_configs[family].min_shard_count,
+        )
+    })
 }
 
 fn range_to_str(min: u64, max: u64) -> String {
