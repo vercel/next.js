@@ -197,6 +197,7 @@ export default class NextNodeServer extends BaseServer<
   private imageResponseCache?: ResponseCache
   private imageCacheHandler?: ICacheHandler
   private imageOptimizerWorker?: import('./image-optimizer/sandbox-worker').SandboxedImageOptimizerWorker
+  private imageOptimizerWorkerEnabled = false
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -390,6 +391,13 @@ export default class NextNodeServer extends BaseServer<
 
   protected async prepareImpl() {
     await super.prepareImpl()
+    if (this.nextConfig.experimental.imgOptWorker !== false) {
+      const { resolveImageOptimizerWorker } =
+        require('./image-optimizer/sandbox-support') as typeof import('./image-optimizer/sandbox-support')
+      this.imageOptimizerWorkerEnabled = await resolveImageOptimizerWorker(
+        this.nextConfig.experimental.imgOptWorker
+      )
+    }
     await this.runInstrumentationHookIfAvailable()
   }
 
@@ -803,7 +811,7 @@ export default class NextNodeServer extends BaseServer<
       let runOperation:
         | import('./image-optimizer').ImageOptimizerOperationRunner
         | undefined
-      if (this.nextConfig.experimental.imgOptWorker) {
+      if (this.imageOptimizerWorkerEnabled) {
         if (!this.imageOptimizerWorker) {
           const { SandboxedImageOptimizerWorker } =
             require('./image-optimizer/sandbox-worker') as typeof import('./image-optimizer/sandbox-worker')
