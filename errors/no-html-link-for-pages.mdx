@@ -60,6 +60,21 @@ In some cases, you may also need to configure this rule directly by providing a 
 }
 ```
 
+#### `pageExtensions`
+
+If your project configures custom [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions) in `next.config.js`, provide the same value to this rule so it can recognize your page files. When using this option, pass an object with optional `pagesDir` and `pageExtensions` properties.
+
+```json filename="eslint.config.json"
+{
+  "rules": {
+    "@next/next/no-html-link-for-pages": [
+      "error",
+      { "pageExtensions": ["page.tsx", "page.ts"] }
+    ]
+  }
+}
+```
+
 ## Useful Links
 
 - [next/link API Reference](/docs/pages/api-reference/components/link)
