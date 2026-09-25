@@ -1460,7 +1460,7 @@ importers:
         version: 3.1.1
       ci-info:
         specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
-        version: git+https://github.com/watson/ci-info.git#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
+        version: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select:
         specifier: 1.1.2
         version: 1.1.2
@@ -8917,8 +8917,8 @@ packages:
     resolution: {integrity: sha512-TdHqgGf9odd8SXNuxtUBVx8Nv+qZOejE6qyqiy5NtbYYQOeFa6zmHkxlPzmaLxWWHsU6nJmB7AETdVPi+2NBUg==}
     engines: {node: '>=8'}
 
-  ci-info@git+https://github.com/watson/ci-info.git#f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
-    resolution: {commit: f43f6a1cefff47fb361c88cf4b943fdbcaafe540, repo: https://github.com/watson/ci-info.git, type: git}
+  ci-info@https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
+    resolution: {tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}
     version: 2.0.0
 
   cipher-base@1.0.4:
@@ -26551,7 +26551,7 @@ snapshots:
 
   ci-info@4.0.0: {}
 
-  ci-info@git+https://github.com/watson/ci-info.git#f43f6a1cefff47fb361c88cf4b943fdbcaafe540: {}
+  ci-info@https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540: {}
 
   cipher-base@1.0.4:
     dependencies:
