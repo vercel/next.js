@@ -641,6 +641,7 @@ export interface ExperimentalConfig {
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
   imgOptMozjpeg?: boolean
+  imgOptWorker?: boolean
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -2398,6 +2399,7 @@ export const defaultConfig = Object.freeze({
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
     imgOptMozjpeg: true,
+    imgOptWorker: false,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2570,6 +2572,7 @@ export interface NextConfigRuntime {
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
+    | 'imgOptWorker'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2643,6 +2646,7 @@ export function getNextConfigRuntime(
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     imgOptMozjpeg: ex.imgOptMozjpeg,
+    imgOptWorker: ex.imgOptWorker,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,
