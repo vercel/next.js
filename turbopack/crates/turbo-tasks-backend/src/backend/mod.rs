@@ -1955,6 +1955,8 @@ impl TurboTasksBackend {
         } else if let Some(value) = task.get_transient_task_type() {
             value.to_string()
         } else {
+            // A stale transient id may open a blank task without a type; diagnostics should not
+            // panic.
             "unknown".to_string()
         }
     }
