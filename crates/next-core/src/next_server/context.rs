@@ -1178,6 +1178,7 @@ pub async fn get_server_chunking_context(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        // TODO: Revisit this if we want to make more things lazy.
         lazy_dynamic_imports: _,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
