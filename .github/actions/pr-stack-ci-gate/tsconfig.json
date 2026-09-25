@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",
+    "strict": true,
+    "skipLibCheck": false,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts"]
+}
