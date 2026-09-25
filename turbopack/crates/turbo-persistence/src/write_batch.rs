@@ -356,10 +356,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn finish(
-        &mut self,
-        get_accessed_key_hashes: impl Fn(u32) -> qfilter::Filter + Send + Sync,
-    ) -> Result<FinishResult> {
+    pub(crate) fn finish(&mut self) -> Result<FinishResult> {
         let mut new_blob_files = Vec::new();
 
         // First, we flush all thread local collectors to the global collectors.
@@ -463,8 +460,6 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                         builder.add(seq, sst);
                     }
                     keys_written.fetch_add(entries, Ordering::Relaxed);
-                    let accessed_key_hashes = get_accessed_key_hashes(family);
-                    builder.set_used_key_hashes_amqf(accessed_key_hashes);
                     let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                     let (file, size) = builder.write(&self.db_path, seq)?;
                     Ok(NewFile { seq, file, size })

@@ -330,6 +330,8 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub flags: MetaEntryFlags,
     /// The number of entries in the SST file
     pub entries: u64,
+    /// The number of tombstone entries (`KeyDeleted` and `KeyValueDeleted`) in the SST file.
+    pub tombstones: u64,
 }
 
 /// Writes an SST file from a pre-sorted slice of entries.
@@ -609,6 +611,7 @@ pub struct StreamingSstWriter<E: Entry> {
     min_hash: u64,
     max_hash: u64,
     entry_count: u64,
+    tombstone_count: u64,
     flags: MetaEntryFlags,
 
     // Fullness tracking (for compaction callers)
@@ -678,6 +681,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             min_hash: u64::MAX,
             max_hash: 0,
             entry_count: 0,
+            tombstone_count: 0,
             flags,
             total_key_size: 0,
             total_value_size: 0,
@@ -811,8 +815,12 @@ impl<E: Entry> StreamingSstWriter<E> {
                 }
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
-            EntryValue::KeyDeleted => ValueRef::KeyDeleted,
+            EntryValue::KeyDeleted => {
+                self.tombstone_count += 1;
+                ValueRef::KeyDeleted
+            }
             EntryValue::KeyValueDeleted { value } => {
+                self.tombstone_count += 1;
                 // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
                 debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
                 let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
@@ -1150,6 +1158,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             size: file_size,
             flags: self.flags,
             entries: self.entry_count,
+            tombstones: self.tombstone_count,
         };
 
         let file = file.into_inner()?;
