@@ -129,7 +129,7 @@ export async function downloadNativeNextSwc(
 export async function downloadWasmSwc(
   version: string,
   wasmDirectory: string,
-  variant: 'nodejs' | 'web' = 'nodejs'
+  variant: 'nodejs' | 'web' | 'wasi' = 'nodejs'
 ) {
   const pkgName = `@next/swc-wasm-${variant}`
   const tarFileName = `${pkgName.substring(6)}-${version}.tgz`

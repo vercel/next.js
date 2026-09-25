@@ -494,7 +494,7 @@ jobs:
       - deploy-target
     strategy:
       matrix:
-        target: [web, nodejs]
+        target: [web, nodejs, wasi]
 
     runs-on: ubuntu-latest-16-core-oss
 
@@ -524,31 +524,50 @@ jobs:
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         with:
-          targets: wasm32-unknown-unknown
+          targets: ${{ matrix.target == 'wasi' && 'wasm32-wasip1-threads' || 'wasm32-unknown-unknown' }}
 
       - name: Install wasm-pack
+        if: ${{ matrix.target != 'wasi' }}
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: normalize versions
         run: node scripts/normalize-version-bump.js
 
-      - name: Build
+      - name: Build wasm-bindgen package
+        if: ${{ matrix.target != 'wasi' }}
         run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm ${TURBO_ARGS} -- --target ${{ matrix.target }}
 
+      - name: Build N-API/WASI package
+        if: ${{ matrix.target == 'wasi' }}
+        run: scripts/build-next-swc-wasi.sh
+
       - name: Add target to folder name
+        if: ${{ matrix.target != 'wasi' }}
         run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
 
       - name: Upload turbo summary artifact
+        if: ${{ matrix.target != 'wasi' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-wasm-${{matrix.target}}
           path: .turbo/runs
 
-      - name: Upload swc artifact
+      - name: Upload wasm-bindgen artifact
+        if: ${{ matrix.target != 'wasi' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wasm-binaries-${{matrix.target}}
           path: crates/wasm/pkg-*
+
+      - name: Upload N-API/WASI artifact
+        if: ${{ matrix.target == 'wasi' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wasm-binaries-${{matrix.target}}
+          path: |
+            packages/next-swc-wasm-wasi/*.mjs
+            packages/next-swc-wasm-wasi/LICENSE.emnapi
+            packages/next-swc-wasm-wasi/next-swc.wasm32-wasi.wasm
 
   deploy-tarball:
     if: ${{ needs.deploy-target.outputs.value != 'production' }}
@@ -598,6 +617,17 @@ jobs:
           pattern: wasm-binaries-*
           merge-multiple: true
           path: crates/wasm
+
+      - name: Move N-API/WASI artifact into its package
+        run: |
+          mkdir -p packages/next-swc-wasm-wasi
+          mv \
+            crates/wasm/LICENSE.emnapi \
+            crates/wasm/emnapi-core.mjs \
+            crates/wasm/emnapi-runtime.mjs \
+            crates/wasm/next-swc.wasm32-wasi.wasm \
+            crates/wasm/wasi-threads.mjs \
+            packages/next-swc-wasm-wasi/
 
       - name: Create tarballs
         # The tarballs are published under (upload_preview_tarballs.yml) and
@@ -669,6 +699,17 @@ jobs:
           pattern: wasm-binaries-*
           merge-multiple: true
           path: crates/wasm
+
+      - name: Move N-API/WASI artifact into its package
+        run: |
+          mkdir -p packages/next-swc-wasm-wasi
+          mv \
+            crates/wasm/LICENSE.emnapi \
+            crates/wasm/emnapi-core.mjs \
+            crates/wasm/emnapi-runtime.mjs \
+            crates/wasm/next-swc.wasm32-wasi.wasm \
+            crates/wasm/wasi-threads.mjs \
+            packages/next-swc-wasm-wasi/
 
       - name: Create GitHub App token
         id: release-app-token

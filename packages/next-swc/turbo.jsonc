@@ -50,7 +50,7 @@
     "build-native-wasi": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
-      "outputs": ["native/*"],
+      "outputs": ["../next-swc-wasm-wasi/*"],
     },
     "cache-build-native": {
       "dependsOn": ["rust-fingerprint"],

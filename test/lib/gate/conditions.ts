@@ -144,6 +144,10 @@ export const conditions: Record<string, Condition> = {
     'running on Windows',
     () => process.platform === 'win32'
   ),
+  wasiNapi: staticCondition(
+    'using the N-API/WASI binding (`NEXT_TEST_WASI_DIR`)',
+    () => Boolean(process.env.NEXT_TEST_WASI_DIR)
+  ),
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
   ),
