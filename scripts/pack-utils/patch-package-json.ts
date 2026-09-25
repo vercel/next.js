@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
+import semver from 'semver'
 
 export interface DependencyPaths {
   nextTarball: string
@@ -176,14 +177,13 @@ async function getNextPeerDeps(): Promise<NextPeerDeps> {
 function getPnpmMajorVersion(
   packageManager: string | undefined
 ): number | null {
-  const match =
-    /^pnpm@(\d+)\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.exec(
-      packageManager ?? ''
-    )
-  if (!match) return null
-
-  const major = Number(match[1])
-  return Number.isSafeInteger(major) ? major : null
+  if (
+    typeof packageManager !== 'string' ||
+    !packageManager.startsWith('pnpm@')
+  ) {
+    return null
+  }
+  return semver.parse(packageManager.slice('pnpm@'.length))?.major ?? null
 }
 
 async function shouldWritePnpmWorkspace(
