@@ -776,7 +776,7 @@ impl ChunkingContext for BrowserChunkingContext {
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
-            SourceMapsType::Partial | SourceMapsType::AnalyzeOnly => true,
+            SourceMapsType::Partial | SourceMapsType::ComputeOnly => true,
             SourceMapsType::None => false,
         })
     }
@@ -793,7 +793,7 @@ impl ChunkingContext for BrowserChunkingContext {
     fn emit_pure_import_annotations(&self) -> Vc<bool> {
         Vc::cell(!matches!(
             self.source_maps_type,
-            SourceMapsType::AnalyzeOnly
+            SourceMapsType::ComputeOnly
         ))
     }
 
@@ -801,7 +801,7 @@ impl ChunkingContext for BrowserChunkingContext {
     fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
-            SourceMapsType::Partial | SourceMapsType::AnalyzeOnly => true,
+            SourceMapsType::Partial | SourceMapsType::ComputeOnly => true,
             SourceMapsType::None => false,
         })
     }
