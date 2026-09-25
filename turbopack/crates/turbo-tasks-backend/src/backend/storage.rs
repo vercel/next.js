@@ -322,6 +322,37 @@ impl Storage {
         });
     }
 
+    /// Eviction holds a task-storage shard, while creation locks the transient cache first.
+    /// Try the matching cache shard without blocking and defer the removal on contention.
+    fn try_evict_transient_task_cache_id(
+        &self,
+        task_type: &CachedTaskTypeArc,
+        task_id: TaskId,
+    ) -> Option<bool> {
+        let cache = &self.transient_task_cache;
+        let hash = cache.hasher().hash_one(task_type);
+        let shard = &cache.shards()[cache.determine_shard(hash as usize)];
+        let mut shard = shard.try_write()?;
+        if let Ok(entry) = shard.find_entry(hash, |(key, id)| key == task_type && *id == task_id) {
+            entry.remove();
+            Some(true)
+        } else {
+            Some(false)
+        }
+    }
+
+    /// Remove a GC-collected transient task's type mapping after dropping its task-storage lock.
+    /// The ID check avoids removing a replacement that was created for the same type.
+    fn evict_transient_task_cache_id(
+        &self,
+        task_type: &CachedTaskTypeArc,
+        task_id: TaskId,
+    ) -> bool {
+        self.transient_task_cache
+            .remove_if_mut(task_type, |_, cached_id| *cached_id == task_id)
+            .is_some()
+    }
+
     /// Live key eviction removes only singleton buckets; GC-deleted IDs are removed individually.
     /// Returns `None` when the cache shard is contended while we hold a task-storage shard.
     fn try_evict_task_cache_id(
@@ -735,6 +766,8 @@ impl Storage {
             // Creation locks a task-cache shard before this map shard. Try the sharded cache
             // lock without blocking; defer only contended removals to avoid a lock cycle.
             let mut deferred_task_cache_removals: Vec<(TaskTypeHash, TaskId, bool)> = Vec::new();
+            let mut deferred_transient_cache_removals: Vec<(CachedTaskTypeArc, TaskId)> =
+                Vec::new();
             let remove_from_task_cache = |evicted: &mut EvictionCounts,
                                           deferred: &mut Vec<(TaskTypeHash, TaskId, bool)>,
                                           task_id: TaskId,
@@ -757,7 +790,16 @@ impl Storage {
                 // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
                 // can drop them fully now.
                 if task.flags.deleted() {
-                    if !task_id.is_transient() {
+                    if task_id.is_transient() {
+                        if let Some(task_type) = task.get_persistent_task_type() {
+                            match self.try_evict_transient_task_cache_id(task_type, *task_id) {
+                                Some(true) => evicted.key_evictions += 1,
+                                Some(false) => {}
+                                None => deferred_transient_cache_removals
+                                    .push((task_type.clone(), *task_id)),
+                            }
+                        }
+                    } else {
                         let task_type = task
                             .get_persistent_task_type()
                             .expect("GC deleted persistent tasks must have a task type");
@@ -826,6 +868,11 @@ impl Storage {
             drop(shard);
             for (hash, task_id, deleted) in deferred_task_cache_removals {
                 if self.evict_task_cache_id(hash, task_id, deleted) {
+                    evicted.key_evictions += 1;
+                }
+            }
+            for (task_type, task_id) in deferred_transient_cache_removals {
+                if self.evict_transient_task_cache_id(&task_type, task_id) {
                     evicted.key_evictions += 1;
                 }
             }

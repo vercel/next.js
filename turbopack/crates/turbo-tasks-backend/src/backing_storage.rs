@@ -17,12 +17,11 @@ pub type TaskCache = FxDashMap<TaskTypeHash, TaskCacheBucket>;
 ///
 /// Hash collisions are exceptionally rare, so almost every bucket contains exactly one entry.
 /// One `(CachedTaskTypeArc, TaskId)` pair fits inline; a second, exceptionally rare collision
-/// spills to the heap. Complete buckets permit restore lookups without a persistence read.
+/// spills to the heap. When persistence is enabled, buckets are populated after every
+/// on-disk candidate for the hash has been read, so lookups need no further persistence read.
 #[derive(Clone, Default)]
 pub struct TaskCacheBucket {
     entries: SmallVec<[(CachedTaskTypeArc, TaskId); 1]>,
-    /// A by-type restore has read every on-disk candidate for this hash.
-    complete: bool,
 }
 
 impl TaskCacheBucket {
@@ -60,14 +59,6 @@ impl TaskCacheBucket {
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.complete
-    }
-
-    pub fn mark_complete(&mut self) {
-        self.complete = true;
     }
 
     pub fn is_singleton_id(&self, task_id: TaskId) -> bool {

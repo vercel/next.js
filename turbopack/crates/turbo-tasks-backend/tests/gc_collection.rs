@@ -8,7 +8,7 @@ mod util;
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TaskId, Vc, prevent_gc};
+use turbo_tasks::{ResolvedVc, TaskId, TransientValue, Vc, prevent_gc};
 
 use crate::{
     gc_fixture::{Constant, Selector, create_constant, create_selector},
@@ -25,6 +25,11 @@ fn task_id_of<T>(vc: Vc<T>) -> TaskId {
 #[turbo_tasks::function(root)]
 fn leaf(n: u32) -> Vc<u32> {
     Vc::cell(n)
+}
+
+#[turbo_tasks::function(root)]
+fn transient_leaf(n: TransientValue<u32>) -> Vc<u32> {
+    Vc::cell(*n)
 }
 
 /// Resolves `leaf(n)` and returns the raw `TaskId` backing it, as a `u32`.
@@ -274,6 +279,117 @@ async fn dispose_root_task_releases_anchored_subgraph() {
     // `RootTask` finalized during Node worker teardown would be.
     tt.stop_and_wait().await;
     tt.dispose_root_task(root_id);
+}
+
+/// A GC-soft-deleted transient task can be resurrected before eviction; after eviction drops its
+/// storage entry, its type mapping must be gone so a fresh task is created for the same type.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn transient_type_resurrects_before_eviction_and_recreates_after() {
+    let (tt, _persistence_dir) = create_tt("transient_type_gc_lifecycle");
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+    let root_id = tt.spawn_root_task(move || {
+        let tx = tx.lock().unwrap().take();
+        Box::pin(async move {
+            let vc = transient_leaf(TransientValue::new(88));
+            let value = *vc.strongly_consistent().await?;
+            if let Some(tx) = tx {
+                let _ = tx.send(task_id_of(vc));
+            }
+            anyhow::Ok(Vc::<u32>::cell(value))
+        })
+    });
+    let old_id = rx.await.unwrap();
+    assert!(old_id.is_transient());
+    tt.dispose_root_task(root_id);
+    for _ in 0..100 {
+        if tt.backend().transient_ref_count_for_testing(old_id) == 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(tt.backend().transient_ref_count_for_testing(old_id), 0);
+    turbo_tasks::run_once(tt.clone(), async move { anyhow::Ok(()) })
+        .await
+        .unwrap();
+    let mut collected = 0;
+    for _ in 0..100 {
+        collected += tt.backend().gc_for_testing(&tt);
+        if collected >= 2 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert!(collected >= 2, "collected {collected} tasks");
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+    let root_id = tt.spawn_root_task(move || {
+        let tx = tx.lock().unwrap().take();
+        Box::pin(async move {
+            let vc = transient_leaf(TransientValue::new(88));
+            let value = *vc.strongly_consistent().await?;
+            if let Some(tx) = tx {
+                let _ = tx.send(task_id_of(vc));
+            }
+            anyhow::Ok(Vc::<u32>::cell(value))
+        })
+    });
+    let resurrected_id = rx.await.unwrap();
+    assert_eq!(
+        resurrected_id, old_id,
+        "soft-deleted transient task must be resurrected before eviction"
+    );
+    tt.dispose_root_task(root_id);
+    for _ in 0..100 {
+        if tt.backend().transient_ref_count_for_testing(old_id) == 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    turbo_tasks::run_once(tt.clone(), async move { anyhow::Ok(()) })
+        .await
+        .unwrap();
+    // GC soft-deletes the resurrected task. This time run eviction, which must drop both its
+    // storage entry and the transient cache mapping before the next creation.
+    let mut collected = 0;
+    for _ in 0..100 {
+        collected += tt
+            .backend()
+            .snapshot_and_evict_for_testing(&tt)
+            .gc_stats()
+            .collected;
+        if collected >= 2 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert!(
+        collected >= 2,
+        "collected {collected} tasks after resurrection"
+    );
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+    let root_id = tt.spawn_root_task(move || {
+        let tx = tx.lock().unwrap().take();
+        Box::pin(async move {
+            let vc = transient_leaf(TransientValue::new(88));
+            let value = *vc.strongly_consistent().await?;
+            if let Some(tx) = tx {
+                let _ = tx.send(task_id_of(vc));
+            }
+            anyhow::Ok(Vc::<u32>::cell(value))
+        })
+    });
+    let new_id = rx.await.unwrap();
+    assert!(new_id.is_transient());
+    assert_ne!(
+        new_id, old_id,
+        "evicted transient ID must not survive in the type cache"
+    );
+    tt.dispose_root_task(root_id);
+    tt.stop_and_wait().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

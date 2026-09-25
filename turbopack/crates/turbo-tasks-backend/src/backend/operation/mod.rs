@@ -1407,12 +1407,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
         let task_type_hash =
             crate::backing_storage::compute_task_type_hash_from_components(native_fn, this, arg);
-        // A complete in-memory bucket already includes every candidate on disk. In particular,
-        // direct-by-ID restores during eviction must not repeatedly read the DB or recurse into
-        // task storage; a partially populated bucket still needs a full restore.
-        if let Some(bucket) = self.backend.storage.task_cache.get(&task_type_hash)
-            && bucket.is_complete()
-        {
+        // With persistence enabled, a published bucket includes every on-disk candidate.
+        // Direct-by-ID restores during eviction must not repeatedly read the DB or recurse into
+        // task storage when that bucket is already in memory.
+        if let Some(bucket) = self.backend.storage.task_cache.get(&task_type_hash) {
             return bucket.find(native_fn, this, arg);
         }
 
@@ -1423,8 +1421,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             .lookup_task_candidates(native_fn, this, arg)
             .expect("Failed to lookup task ids");
 
-        // Restore every candidate's full type before locking the TaskCache bucket. This makes the
-        // in-memory bucket complete even when the matching candidate appears first.
+        // Restore every candidate's full type before locking the TaskCache bucket, even when
+        // the matching candidate appears first.
         let mut restored_candidates = SmallVec::<[(CachedTaskTypeArc, TaskId); 1]>::new();
         let mut matching_candidate = None;
         for candidate_id in candidates {
@@ -1450,7 +1448,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         for (stored_type, candidate_id) in restored_candidates {
             bucket.insert(stored_type, candidate_id);
         }
-        bucket.mark_complete();
         matching_candidate
     }
 
