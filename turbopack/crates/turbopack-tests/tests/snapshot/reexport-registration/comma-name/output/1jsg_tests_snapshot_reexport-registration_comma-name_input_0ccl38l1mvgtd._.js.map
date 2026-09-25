@@ -2,6 +2,6 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/comma-name/input/index.js"],"sourcesContent":["export { 'has,comma', plain } from './src'\n"],"names":[],"mappings":";;;;;;AAAA"}},
-    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/comma-name/input/src.js"],"sourcesContent":["const value = 'comma-value'\nconst plain = 'plain-value'\n\n// An export name containing a comma cannot be recovered by splitting the\n// compact single-string spelling, so this forces the pair encoding.\nexport { value as 'has,comma', plain }\n"],"names":["value","plain"],"mappings":";;;;;;AAAA,MAAMA,QAAQ;AACd,MAAMC,QAAQ"}}]
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/comma-name/input/index.js"],"sourcesContent":["export { 'has,comma', plain } from './src'\n"],"names":[],"mappings":";;;;;;;;AAAA"}},
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/comma-name/input/src.js"],"sourcesContent":["const value = 'comma-value'\nconst plain = 'plain-value'\n\n// An export name containing a comma cannot be recovered by splitting the\n// compact single-string spelling, so this forces the pair encoding.\nexport { value as 'has,comma', plain }\n"],"names":["value","plain"],"mappings":";;;;;;;;AAAA,MAAMA,QAAQ;AACd,MAAMC,QAAQ"}}]
 }

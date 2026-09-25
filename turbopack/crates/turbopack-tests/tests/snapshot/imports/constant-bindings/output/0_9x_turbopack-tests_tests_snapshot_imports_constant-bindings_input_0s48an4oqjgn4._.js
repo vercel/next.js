@@ -25,15 +25,13 @@ function setLive(value) {
 }
 __turbopack_context__.s([
     "v",
-    0,
     constant,
     "U",
-    0,
     constantDefault,
     "X",
+    0,
     ()=>live,
     "W",
-    0,
     setLive
 ]);
 }),

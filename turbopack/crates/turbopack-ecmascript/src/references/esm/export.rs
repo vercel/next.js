@@ -1303,17 +1303,20 @@ impl EsmExports {
                     .into(),
                 ));
                 match exprs {
+                    // Accessors carry the discriminator, values do not. Values are by far the
+                    // common case, and tagging the accessors is still unambiguous: the tag is
+                    // always followed by a function, while a value of `0` is followed by the next
+                    // binding's name or by the end of the array.
                     ExportBinding::Getter(getter) => {
+                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(getter.into()));
                     }
                     ExportBinding::GetterSetter(getter, setter) => {
+                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(getter.into()));
                         getters.push(Some(setter.into()));
                     }
                     ExportBinding::Value(value) => {
-                        // We need to push a discriminator in this case to make the fact that we are
-                        // binding a value unambiguous to the runtime.
-                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(value.into()));
                     }
                     ExportBinding::None => {}

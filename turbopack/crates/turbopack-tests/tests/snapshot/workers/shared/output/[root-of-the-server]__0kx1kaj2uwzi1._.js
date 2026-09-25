@@ -38,6 +38,7 @@ __turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/b
 // values are read from `globalThis`.
 __turbopack_context__.s([
     "default",
+    0,
     ()=>generateCreateWorker
 ]);
 /**

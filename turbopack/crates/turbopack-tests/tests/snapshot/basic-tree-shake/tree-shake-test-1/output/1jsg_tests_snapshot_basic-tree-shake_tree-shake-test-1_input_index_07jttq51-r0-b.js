@@ -4,12 +4,16 @@
 
 __turbopack_context__.s([
     "cat",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$exports$3e$__["cat"],
     "dogRef",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$exports$3e$__["dogRef"],
     "getChimera",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$exports$3e$__["getChimera"],
     "initialCat",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$exports$3e$__["initialCat"]
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__2$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 2>");
@@ -22,12 +26,16 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "cat",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__8$3e$__["cat"],
     "dogRef",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__3$3e$__["dogRef"],
     "getChimera",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__7$3e$__["getChimera"],
     "initialCat",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__6$3e$__["initialCat"]
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__3$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 3>");
@@ -44,6 +52,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "a",
+    0,
     ()=>dog,
     (new_dog)=>dog = new_dog
 ]);
@@ -79,15 +88,19 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "b",
+    0,
     ()=>getDog,
     (new_getDog)=>getDog = new_getDog,
     "c",
+    0,
     ()=>setDog,
     (new_setDog)=>setDog = new_setDog,
     "d",
+    0,
     ()=>dogRef,
     (new_dogRef)=>dogRef = new_dogRef,
     "dogRef",
+    0,
     ()=>dogRef
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 0>");
@@ -125,6 +138,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack
 
 __turbopack_context__.s([
     "e",
+    0,
     ()=>cat,
     (new_cat)=>cat = new_cat
 ]);
@@ -136,9 +150,11 @@ let cat = 'cat';
 
 __turbopack_context__.s([
     "f",
+    0,
     ()=>initialCat,
     (new_initialCat)=>initialCat = new_initialCat,
     "initialCat",
+    0,
     ()=>initialCat
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>");
@@ -152,9 +168,11 @@ const initialCat = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$
 
 __turbopack_context__.s([
     "g",
+    0,
     ()=>getChimera,
     (new_getChimera)=>getChimera = new_getChimera,
     "getChimera",
+    0,
     ()=>getChimera
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 0>");
@@ -174,6 +192,7 @@ function getChimera() {
 
 __turbopack_context__.s([
     "cat",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__["e"]
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>");

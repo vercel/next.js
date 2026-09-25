@@ -13,6 +13,7 @@ Promise.resolve().then(()=>__turbopack_context__.i("[project]/turbopack/crates/t
 
 __turbopack_context__.s([
     "x",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$scope$2d$hoisted$2d$shared$2f$input$2f$x$2e$js__$5b$test$5d$__$28$ecmascript$29$__["x"]
 ], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-scope-hoisted-shared/input/reexports.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-scope-hoisted-shared/input/reexports.js [test] (ecmascript)
@@ -27,6 +28,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "x",
+    0,
     ()=>x
 ]);
 const x = 'x';

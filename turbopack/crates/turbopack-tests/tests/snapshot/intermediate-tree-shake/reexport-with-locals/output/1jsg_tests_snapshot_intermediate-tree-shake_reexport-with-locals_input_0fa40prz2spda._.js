@@ -28,13 +28,10 @@ function namedFunction() {}
 function defaultFunction() {}
 __turbopack_context__.s([
     "default",
-    0,
     defaultFunction,
     "local",
-    0,
     local,
     "namedFunction",
-    0,
     namedFunction
 ]);
 }),
