@@ -1109,9 +1109,6 @@ importers:
 
   packages/next:
     dependencies:
-      '@module-federation/dts-plugin':
-        specifier: ^2.9.0
-        version: 2.9.1(typescript@6.0.2)
       '@next/env':
         specifier: 16.4.0-canary.40
         version: link:../next-env
@@ -4583,23 +4580,11 @@ packages:
     resolution: {integrity: sha512-d//GE8/Yh7aC3e7p+kZG8JqqEAwwDUmAfvH1quogtbk+ksS6E0RR6toKKESPYYZVre0meqkJb27zb+dhqE9Sgw==}
     engines: {node: '>=18'}
 
-  '@module-federation/dts-plugin@2.9.1':
-    resolution: {integrity: sha512-OnJQNRrjUfI1UJu+rIUzC0jl2uQcpRp/hIbMLZChSleFLlYpvvMzu/s33E7oiST421HAg9gilgYLj1WAn1SSOw==}
-    peerDependencies:
-      typescript: ^4.9.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
-      vue-tsc: '>=1.0.24'
-    peerDependenciesMeta:
-      vue-tsc:
-        optional: true
-
   '@module-federation/error-codes@0.21.6':
     resolution: {integrity: sha512-MLJUCQ05KnoVl8xd6xs9a5g2/8U+eWmVxg7xiBMeR0+7OjdWUbHwcwgVFatRIwSZvFgKHfWEiI7wsU1q1XbTRQ==}
 
   '@module-federation/error-codes@2.9.1':
     resolution: {integrity: sha512-5lqrIZTeMiKdn4uuX/+X8uN/4C0yqI8P3WO42DNRR7B9gCA4HMDCHrrxU8odQup9bzRsN5TJSz3av6d2iNmPgA==}
-
-  '@module-federation/managers@2.9.1':
-    resolution: {integrity: sha512-X20XDvkTbClfG8Ig0VQW2GcUCzLAopb7fxdrVyk3kqLVeB6fLoNLhzA8K/S5xhnkeY7YhrOxZBujMnK5wETxtA==}
 
   '@module-federation/runtime-core@0.21.6':
     resolution: {integrity: sha512-5Hd1Y5qp5lU/aTiK66lidMlM/4ji2gr3EXAtJdreJzkY+bKcI5+21GRcliZ4RAkICmvdxQU5PHPL71XmNc7Lsw==}
@@ -4624,9 +4609,6 @@ packages:
 
   '@module-federation/sdk@2.9.1':
     resolution: {integrity: sha512-JneBWSHr9ZCZHa5geNUleVK2vBTugWXLIXlV72UAhgHm1cTMYKZljnhRSX59n7Xssz4Yk+m+W3rYg6Eb4ouL8w==}
-
-  '@module-federation/third-party-dts-extractor@2.9.1':
-    resolution: {integrity: sha512-8H3/SWPD93EHmLG0F30J0ihsGI+LpCT7xdc6YXQWX+1lkgzwJoWTwm4j+LMQRP+1OtSxrpEW5ebcKqKeTZ2B+Q==}
 
   '@module-federation/webpack-bundler-runtime@0.21.6':
     resolution: {integrity: sha512-7zIp3LrcWbhGuFDTUMLJ2FJvcwjlddqhWGxi/MW3ur1a+HaO8v5tF2nl+vElKmbG1DFLU/52l3PElVcWf/YcsQ==}
@@ -7934,10 +7916,6 @@ packages:
 
   add-stream@1.0.0:
     resolution: {integrity: sha512-qQLMr+8o0WC4FZGQTcJiKBVC59JylcPSrTtk6usvmIDFUOCKegapy1VHQwRbFMOFyb/inzUVqHs+eMYKDM1YeQ==}
-
-  adm-zip@0.6.0:
-    resolution: {integrity: sha512-XleryMhbuksdKtofnWZ9Sk+4CUTbms4Mb/EU32SZwToAyZ5RgVos/ki8n+yr0LWHOGKuakbXTuuYNHLQjhddgg==}
-    engines: {node: '>=14.0'}
 
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
@@ -12526,11 +12504,6 @@ packages:
 
   isomorphic-unfetch@3.0.0:
     resolution: {integrity: sha512-V0tmJSYfkKokZ5mgl0cmfQMTb7MLHsBMngTkbLY0eXvKqiVRRoZP04Ly+KhKrJfKtzC9E6Pp15Jo+bwh7Vi2XQ==}
-
-  isomorphic-ws@5.0.0:
-    resolution: {integrity: sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==}
-    peerDependencies:
-      ws: '*'
 
   isstream@0.1.2:
     resolution: {integrity: sha512-Yljz7ffyPbrLpLngrMtZ7NduUgVvi6wG9RJ9IUcyCd59YQ911PBJphODUcbOVbqYfxe1wuYf/LJ8PauMRwsM/g==}
@@ -18095,10 +18068,6 @@ packages:
     resolution: {integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==}
     engines: {node: '>=20.18.1'}
 
-  undici@7.29.0:
-    resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
-    engines: {node: '>=20.18.1'}
-
   unfetch@4.2.0:
     resolution: {integrity: sha512-F9p7yYCn6cIW9El1zi0HI6vqpeIvBsr3dSuRO6Xuppb1u5rXpCPmMvLSyECLhybr9isec8Ohl0hPekMVrEinDA==}
 
@@ -18879,18 +18848,6 @@ packages:
     peerDependencies:
       bufferutil: ^4.0.1
       utf-8-validate: ^5.0.2
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
-  ws@8.21.3:
-    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
     peerDependenciesMeta:
       bufferutil:
         optional: true
@@ -21878,29 +21835,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@module-federation/dts-plugin@2.9.1(typescript@6.0.2)':
-    dependencies:
-      '@module-federation/error-codes': 2.9.1
-      '@module-federation/managers': 2.9.1
-      '@module-federation/sdk': 2.9.1
-      '@module-federation/third-party-dts-extractor': 2.9.1
-      adm-zip: 0.6.0
-      isomorphic-ws: 5.0.0(ws@8.21.3)
-      typescript: 6.0.2
-      undici: 7.29.0
-      ws: 8.21.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
   '@module-federation/error-codes@0.21.6': {}
 
   '@module-federation/error-codes@2.9.1':
     optional: true
-
-  '@module-federation/managers@2.9.1':
-    dependencies:
-      '@module-federation/sdk': 2.9.1
 
   '@module-federation/runtime-core@0.21.6':
     dependencies:
@@ -21941,8 +21879,6 @@ snapshots:
 
   '@module-federation/sdk@2.9.1':
     optional: true
-
-  '@module-federation/third-party-dts-extractor@2.9.1': {}
 
   '@module-federation/webpack-bundler-runtime@0.21.6':
     dependencies:
@@ -25405,8 +25341,6 @@ snapshots:
   acorn@8.8.0: {}
 
   add-stream@1.0.0: {}
-
-  adm-zip@0.6.0: {}
 
   agent-base@6.0.2:
     dependencies:
@@ -30965,10 +30899,6 @@ snapshots:
       unfetch: 4.2.0
     transitivePeerDependencies:
       - encoding
-
-  isomorphic-ws@5.0.0(ws@8.21.3):
-    dependencies:
-      ws: 8.21.3
 
   isstream@0.1.2: {}
 
@@ -38013,8 +37943,6 @@ snapshots:
 
   undici@7.22.0: {}
 
-  undici@7.29.0: {}
-
   unfetch@4.2.0: {}
 
   unherit@1.1.2:
@@ -39057,8 +38985,6 @@ snapshots:
   ws@8.18.0: {}
 
   ws@8.2.3: {}
-
-  ws@8.21.3: {}
 
   xdg-app-paths@5.1.0:
     dependencies:
