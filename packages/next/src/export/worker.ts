@@ -190,7 +190,8 @@ async function exportPageImpl(
   }
 
   // Set the resolved pathname without trailing slash as request metadata.
-  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
+  const resolvedPathname = removeTrailingSlash(updatedPath)
+  addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
   if (
     locale &&
@@ -310,7 +311,8 @@ async function exportPageImpl(
       debugOutput,
       isDynamicError,
       fileWriter,
-      sharedContext
+      sharedContext,
+      { resolvedPathname }
     )
   } else {
     const sharedContext: PagesSharedContext = {

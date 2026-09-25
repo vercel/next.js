@@ -11,6 +11,7 @@ import {
   renderToHTMLOrFlight,
   runValidationInDevFromSnapshot,
   type AppSharedContext,
+  type RouteMatch,
 } from '../../app-render/app-render'
 import type { DevValidationWorkerMessage } from '../../app-render/dev-validation-worker-globals'
 import {
@@ -74,6 +75,7 @@ type AppPageUserlandModule = {
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
+  routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
@@ -169,7 +171,8 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch
     )
   }
 
@@ -186,7 +189,8 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch
     )
   }
 

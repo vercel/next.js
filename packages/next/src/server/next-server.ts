@@ -659,6 +659,13 @@ export default class NextNodeServer extends BaseServer<
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.enabledDirectories.app && renderOpts.isAppPath) {
+        const resolvedPathname = getRequestMeta(req, 'resolvedPathname')
+        if (!resolvedPathname) {
+          throw new InvariantError(
+            'resolvedPathname must be set in request metadata'
+          )
+        }
+
         const renderAppPage =
           !renderOpts.supportsDynamicResponse &&
           !renderOpts.isDraftMode &&
@@ -682,7 +689,8 @@ export default class NextNodeServer extends BaseServer<
             clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? ''
               : this.deploymentId,
-          }
+          },
+          { resolvedPathname }
         )
         if ('error' in result) {
           throw result.error

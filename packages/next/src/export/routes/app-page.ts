@@ -26,7 +26,10 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
-import type { AppSharedContext } from '../../server/app-render/app-render'
+import type {
+  AppSharedContext,
+  RouteMatch,
+} from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import {
   deflateResumeDataCache,
@@ -53,7 +56,8 @@ export async function exportAppPage(
   debugOutput: boolean,
   isDynamicError: boolean,
   fileWriter: MultiFileWriter,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -86,7 +90,8 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      sharedContext
+      sharedContext,
+      routeMatch
     )
 
     if ('error' in result) {

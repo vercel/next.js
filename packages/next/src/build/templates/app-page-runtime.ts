@@ -859,6 +859,7 @@ export function createAppPageEntrypoint({
           query,
           params,
           page: normalizedSrcPage,
+          routeMatch: { resolvedPathname },
           sharedContext: {
             buildId,
             deploymentId,
