@@ -52,10 +52,13 @@ export function getImageOptimizerSandboxConfig(
   addPath('/bin/sh')
   addPath('/usr/bin/env')
   addPath(workerPath)
-  // In a source checkout Next itself is outside node_modules.
-  const nextPackageRoot = resolve(__dirname, '..', '..', '..')
-  addPath(join(nextPackageRoot, 'dist'))
-  addPath(join(nextPackageRoot, 'package.json'))
+  // Repository development opts into reading the checkout's build output.
+  // Installed applications must not receive this additional allowance.
+  if (process.env.NEXT_PRIVATE_LOCAL_DEV) {
+    const nextPackageRoot = resolve(__dirname, '..', '..', '..')
+    addPath(join(nextPackageRoot, 'dist'))
+    addPath(join(nextPackageRoot, 'package.json'))
+  }
 
   // Preserve Node resolution, including pnpm's physical store paths, without
   // granting the surrounding project or home directory.

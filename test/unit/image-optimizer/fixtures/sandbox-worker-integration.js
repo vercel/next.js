@@ -35,6 +35,7 @@ function operation(href, buffer = Buffer.from('image')) {
 }
 
 async function main() {
+  delete process.env.NEXT_PRIVATE_LOCAL_DEV
   let server
   const homeProbeDirectory = fs.mkdtempSync(
     path.join(os.homedir(), '.next-image-sandbox-')
@@ -93,6 +94,9 @@ async function main() {
       operation(
         `/read?path=${encodeURIComponent(require.resolve('next/package.json'))}`
       )
+    )
+    const readCheckout = await probeRead(
+      path.join(projectRoot, 'packages/next/dist/server/config.js')
     )
     const libraries = await Promise.all(
       libraryNames.map((name) => probeRead(path.join(homeProbeDirectory, name)))
@@ -173,6 +177,8 @@ async function main() {
     const customOutsideRead = await probeRead(envFile)
 
     await worker.close()
+    // The transform worker executes Next directly from its source checkout.
+    process.env.NEXT_PRIVATE_LOCAL_DEV = '1'
     worker = new SandboxedImageOptimizerWorker()
     const image = fs.readFileSync(
       path.join(projectRoot, 'test/unit/image-optimizer/images/test.png')
@@ -185,6 +191,7 @@ async function main() {
         readHome: readHome.diagnostics[0].message,
         readApplication: readApplication.diagnostics[0].message,
         readDependency: readDependency.diagnostics[0].message,
+        readCheckout,
         libraries,
         customRead,
         customOutsideRead,
