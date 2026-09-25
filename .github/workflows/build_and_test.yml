@@ -680,6 +680,7 @@ jobs:
         # compile is simply never built.
         cargo build -p next-napi-bindings --target wasm32-wasip1-threads
         timeout 60 node scripts/wasi-test-host/napi-async-smoke.mjs
+        timeout 300 node scripts/wasi-test-host/next-build-smoke.mjs
         cargo build --release -p next-napi-bindings --target wasm32-wasip1-threads
         timeout 120 node scripts/wasi-test-host/napi-async-smoke.mjs \
           target/wasm32-wasip1-threads/release/next_napi_bindings.wasm --error-path

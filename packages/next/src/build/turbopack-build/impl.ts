@@ -2,6 +2,7 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
 import { NextBuildContext } from '../build-context'
+import * as Log from '../output/log'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import {
   handleRouteType,
@@ -47,7 +48,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   const startTime = process.hrtime()
   const bindings = getBindingsSync() // our caller should have already loaded these
 
-  if (bindings.isWasm) {
+  if (!bindings.supportsTurbopack) {
     throw new Error(
       `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
         `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
@@ -64,8 +65,15 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   const hasDeferredEntries =
     (config.experimental.deferredEntries?.length ?? 0) > 0
 
-  const persistentCaching =
+  const configuredPersistentCaching =
     config.experimental?.turbopackFileSystemCacheForBuild || false
+  if (bindings.bindingType === 'wasi' && configuredPersistentCaching) {
+    Log.warn(
+      'Turbopack filesystem caching is disabled for --wasi because WASI file descriptors cannot be shared across pthread instances.'
+    )
+  }
+  const persistentCaching =
+    bindings.bindingType === 'wasi' ? false : configuredPersistentCaching
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
 
   // Shared options for createProject calls
