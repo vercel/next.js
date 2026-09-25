@@ -63,7 +63,7 @@ describe('--webpack without a webpack dependency', () => {
     startCommand: isNextDev ? 'pnpm next dev --webpack' : 'pnpm next start',
   })
 
-  it('uses bundled webpack without requiring the peer dependency', async () => {
+  it('uses bundled webpack without requiring a project webpack installation', async () => {
     const html = await next.render('/')
     expect(html).toContain('original module')
   })
