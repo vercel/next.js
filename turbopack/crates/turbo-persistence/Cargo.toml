@@ -52,6 +52,10 @@ name = "sst_inspect"
 path = "src/bin/sst_inspect.rs"
 required-features = ["mmap"]
 
+[[bin]]
+name = "compaction_log"
+path = "src/bin/compaction_log.rs"
+
 [lints]
 workspace = true
 
