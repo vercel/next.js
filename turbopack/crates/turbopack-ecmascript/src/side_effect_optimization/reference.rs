@@ -17,7 +17,7 @@ use turbopack_core::{
 use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, HoistedStmtKey},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
     rename::module::EcmascriptModuleRenameModule,
     runtime_functions::TURBOPACK_IMPORT,
@@ -190,7 +190,7 @@ impl EcmascriptModulePartReference {
             // Insert a placeholder to inline the merged module at the right place
             // relative to the other references (so to keep reference order).
             result.push(CodeGenerationHoistedStmt::new(
-                format!("hoisted {merged_index}").into(),
+                HoistedStmtKey::Named(format!("hoisted {merged_index}").into()),
                 quote!(
                     "__turbopack_merged_esm__($id);" as Stmt,
                     id: Expr = Lit::Num(merged_index.into()).into(),
@@ -229,7 +229,7 @@ impl EcmascriptModulePartReference {
                         // empty groups such as a facade's structural locals reference.
                         return Ok(CodeGeneration::hoisted_stmts(result));
                     }
-                    let key = sym.as_str().into();
+                    let key = HoistedStmtKey::Named(sym.as_str().into());
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 
                     let id = module.chunk_item_id(chunking_context).await?;

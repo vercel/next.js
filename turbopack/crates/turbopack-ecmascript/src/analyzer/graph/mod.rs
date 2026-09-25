@@ -7,9 +7,7 @@ use swc_core::{
 use turbopack_core::resolve::ExportUsage;
 
 pub use crate::analyzer::graph::{
-    effects::{
-        AssignmentScope, AssignmentScopes, ConditionalKind, Effect, EffectArg, EffectsBlock,
-    },
+    effects::{ConditionalKind, Effect, EffectArg, EffectsBlock},
     eval_context::EvalContext,
 };
 use crate::{

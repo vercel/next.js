@@ -59,12 +59,20 @@ pub enum Liveness {
     Mutable,
 }
 
+/// An exported local binding.
+#[derive(Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct LocalBinding {
+    /// The name the binding has inside the module.
+    pub name: RcStr,
+    pub liveness: Liveness,
+    /// Whether calling this export could maybe observe `this` passed by the caller.
+    pub maybe_uses_this: bool,
+}
+
 #[derive(Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
-    ///
-    /// Fields: (local_name, liveness)
-    LocalBinding(RcStr, Liveness),
+    LocalBinding(LocalBinding),
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// Fields: (module_reference, name, is_mutable)
@@ -440,10 +448,12 @@ pub async fn expand_star_exports(
                     }
                     if let Entry::Vacant(entry) = esm_exports.entry(key.clone()) {
                         entry.insert(match esm_export {
-                            EsmExport::LocalBinding(_, liveness) => EsmExport::ImportedBinding(
+                            // `maybe_uses_this` has no place on an imported binding, so the
+                            // conservative default applies again from here.
+                            EsmExport::LocalBinding(binding) => EsmExport::ImportedBinding(
                                 reference,
                                 key.clone(),
-                                *liveness == Liveness::Mutable,
+                                binding.liveness == Liveness::Mutable,
                             ),
                             _ => esm_export.clone(),
                         });
@@ -778,6 +788,7 @@ async fn build_compact_reexports(
             ctxt,
             export: Some(imported_key),
             import_source: ImportSource::Module { asset },
+            ..
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -1034,10 +1045,10 @@ impl EsmExports {
             };
 
             for dynamic_export_asset in &expanded.dynamic_exports {
-                let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
-                    chunking_context,
-                )
+                let ident = ImportSource::Module {
+                    asset: *dynamic_export_asset,
+                }
+                .get_namespace_ident(chunking_context)
                 .await?;
 
                 if let Some(id) = &id {
@@ -1112,7 +1123,7 @@ impl EsmExports {
                 EsmExport::Error => ExportBinding::Getter(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
-                EsmExport::LocalBinding(name, liveness) => {
+                EsmExport::LocalBinding(LocalBinding { name, liveness, .. }) => {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
