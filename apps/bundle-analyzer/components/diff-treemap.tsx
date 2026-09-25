@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import type { AnalyzeData } from '@/lib/analyze-data'
 import type { DiffSummary, SourceDiffRow } from '@/lib/diff'
@@ -75,17 +75,13 @@ export function DiffTreemap({
   // B-side data.
   const data = analyzeData ?? baselineAnalyzeData
 
-  // Map from this side's source index to its diff row. Used by the color
-  // override to look up the per-tile status.
-  const rowBySourceIndex = useMemo(() => {
-    const map = new Map<number, SourceDiffRow>()
-    const side: 'A' | 'B' = analyzeData ? 'B' : 'A'
-    for (const row of summary.rows) {
-      const idx = side === 'B' ? row.sourceIndexB : row.sourceIndexA
-      if (idx != null) map.set(idx, row)
-    }
-    return map
-  }, [summary, analyzeData])
+  // Index the diff rows by source index for tile lookups during canvas layout.
+  const rowBySourceIndex = new Map<number, SourceDiffRow>()
+  const side: 'A' | 'B' = analyzeData ? 'B' : 'A'
+  for (const row of summary.rows) {
+    const idx = side === 'B' ? row.sourceIndexB : row.sourceIndexA
+    if (idx != null) rowBySourceIndex.set(idx, row)
+  }
 
   // The AnalyzeData tree can contain the same source path at multiple indices
   // (e.g. one file included in several chunks). In the diff treemap we only
@@ -93,49 +89,35 @@ export function DiffTreemap({
   // stored on the diff row. Passing this as `filterSource` removes all
   // duplicate instances from the layout so there are no confusing gray tiles
   // and clicking always resolves to a diff row.
-  const canonicalSourceIndices = useMemo(
-    () => new Set(rowBySourceIndex.keys()),
-    [rowBySourceIndex]
-  )
+  const canonicalSourceIndices = new Set(rowBySourceIndex.keys())
 
   // Reverse lookup so we can map a selected diff key (full source path) back
   // to a source index in the active side's tree.
-  const sourceIndexByKey = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const [idx, row] of rowBySourceIndex.entries()) {
-      map.set(row.key, idx)
-    }
-    return map
-  }, [rowBySourceIndex])
+  const sourceIndexByKey = new Map<string, number>()
+  for (const [idx, row] of rowBySourceIndex) {
+    sourceIndexByKey.set(row.key, idx)
+  }
 
-  const getFileColorOverride = useMemo(() => {
-    return (node: LayoutNode): string | undefined => {
-      if (node.sourceIndex === undefined) return undefined
-      const row = rowBySourceIndex.get(node.sourceIndex)
-      if (!row) return COLOR_NEUTRAL
-      return colorForRow(row, useCompressed)
-    }
-  }, [rowBySourceIndex, useCompressed])
+  const getFileColorOverride = (node: LayoutNode): string | undefined => {
+    if (node.sourceIndex === undefined) return undefined
+    const row = rowBySourceIndex.get(node.sourceIndex)
+    if (!row) return COLOR_NEUTRAL
+    return colorForRow(row, useCompressed)
+  }
 
   // Show size deltas on tiles instead of absolute sizes. Identical files fall
   // back to the default (absolute size) since ±0 on every unchanged tile
   // would be noise.
-  const getFileSizeLabel = useMemo(() => {
-    return (node: LayoutNode): string | undefined => {
-      if (node.sourceIndex === undefined) return undefined
-      const row = rowBySourceIndex.get(node.sourceIndex)
-      if (!row || row.status === 'identical') return undefined
-      return formatDelta(delta(row, useCompressed))
-    }
-  }, [rowBySourceIndex, useCompressed])
+  const getFileSizeLabel = (node: LayoutNode): string | undefined => {
+    if (node.sourceIndex === undefined) return undefined
+    const row = rowBySourceIndex.get(node.sourceIndex)
+    if (!row || row.status === 'identical') return undefined
+    return formatDelta(delta(row, useCompressed))
+  }
 
   // Focus state stays local: it controls drill-in/zoom, which is purely a
   // visual concern of the treemap and shouldn't affect the sidebar.
-  const initialRoot = useMemo(() => {
-    if (!data) return 0
-    const roots = data.sourceRoots()
-    return roots.length > 0 ? roots[0] : 0
-  }, [data])
+  const initialRoot = data?.sourceRoots()[0] ?? 0
   const [focusedSourceIndex, setFocusedSourceIndex] =
     useState<number>(initialRoot)
 

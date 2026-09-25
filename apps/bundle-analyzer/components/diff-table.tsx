@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
 import { TableVirtuoso } from 'react-virtuoso'
 import {
   ArrowDown,
@@ -140,16 +140,14 @@ export function DiffTable<Row extends DiffRow>({
     })
   }
 
-  const sorted = useMemo(() => {
-    // The default `delta`/`desc` mode preserves the existing impact-ranked
-    // sort, which keeps `identical` rows pinned at the bottom regardless of
-    // direction. Other columns sort lexicographically (name) or numerically
-    // (A, B) using the user's chosen direction.
-    if (sortColumn === 'delta' && sortDirection === 'desc') {
-      return sortByImpact(summary.rows, useCompressed)
-    }
-    return sortRows(summary.rows, sortColumn, sortDirection, useCompressed)
-  }, [summary.rows, sortColumn, sortDirection, useCompressed])
+  // The default `delta`/`desc` mode preserves the existing impact-ranked
+  // sort, which keeps `identical` rows pinned at the bottom regardless of
+  // direction. Other columns sort lexicographically (name) or numerically
+  // (A, B) using the user's chosen direction.
+  const sorted =
+    sortColumn === 'delta' && sortDirection === 'desc'
+      ? sortByImpact(summary.rows, useCompressed)
+      : sortRows(summary.rows, sortColumn, sortDirection, useCompressed)
 
   const onHeaderClick = (column: SortColumn) => {
     if (column === sortColumn) {
@@ -162,32 +160,29 @@ export function DiffTable<Row extends DiffRow>({
     }
   }
 
-  const filtered = useMemo(() => {
-    const q = searchQuery?.trim().toLowerCase() ?? ''
-    return sorted.filter((row) => {
-      if (statusFilter !== 'all' && row.status !== statusFilter) return false
-      if (q !== '') {
-        const key = row.key.toLowerCase()
-        const name = row.name.toLowerCase()
-        if (!key.includes(q) && !name.includes(q)) return false
-      }
-      return true
-    })
-  }, [sorted, statusFilter, searchQuery])
+  const q = searchQuery?.trim().toLowerCase() ?? ''
+  const filtered = sorted.filter((row) => {
+    if (statusFilter !== 'all' && row.status !== statusFilter) return false
+    if (q !== '') {
+      const key = row.key.toLowerCase()
+      const name = row.name.toLowerCase()
+      if (!key.includes(q) && !name.includes(q)) return false
+    }
+    return true
+  })
 
   // Group filtered rows by package, preserving the user's chosen sort order.
   // Groups themselves are sorted by their aggregate using the same column +
   // direction so ranking is consistent whether you look at the package roll-up
   // or its contents. Rows without a `packageName` (project-relative paths)
   // render flat as before.
-  const renderItems = useMemo(
-    () => buildRenderItems(filtered, sortColumn, sortDirection, useCompressed),
-    [filtered, sortColumn, sortDirection, useCompressed]
+  const renderItems = buildRenderItems(
+    filtered,
+    sortColumn,
+    sortDirection,
+    useCompressed
   )
-  const visibleItems = useMemo(
-    () => expandRenderItems(renderItems, expandedPackages),
-    [renderItems, expandedPackages]
-  )
+  const visibleItems = expandRenderItems(renderItems, expandedPackages)
 
   const totalDelta = useCompressed
     ? summary.totalCompressedB - summary.totalCompressedA
