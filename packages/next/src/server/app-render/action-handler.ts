@@ -219,7 +219,7 @@ function addRevalidationHeader(
 /**
  * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
  */
-export async function createForwardedActionResponse(
+async function createForwardedActionResponse(
   req: BaseNextRequest,
   res: BaseNextResponse,
   host: Host,
