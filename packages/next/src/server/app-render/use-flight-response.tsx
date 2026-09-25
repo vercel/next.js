@@ -115,35 +115,36 @@ export function getFlightStream<T>(
   }
 
   // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
-  // that requires the nextTick behavior. This is why it is safe to access a node only API here
+  // that requires the nextTick behavior. This is why it is safe to access a node only API here.
+  // Note: workUnitStore might be undefined when getFlightStream is first accessed outside of an
+  // active work-unit scope (e.g. on stream backpressure resume or during abort unwind). In that case,
+  // we do not need the nextTick deferral required for client prerendering/validation.
   if (process.env.NEXT_RUNTIME !== 'edge') {
     const workUnitStore = workUnitAsyncStorage.getStore()
 
-    if (!workUnitStore) {
-      throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
-    }
-
-    switch (workUnitStore.type) {
-      case 'prerender-client':
-      case 'validation-client':
-        const responseOnNextTick = new Promise<T>((resolve) => {
-          process.nextTick(() => {
-            resolve(newResponse)
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender-client':
+        case 'validation-client':
+          const responseOnNextTick = new Promise<T>((resolve) => {
+            process.nextTick(() => {
+              resolve(newResponse)
+            })
           })
-        })
-        flightResponses.set(flightStream, responseOnNextTick)
-        return responseOnNextTick
-      case 'prerender':
-      case 'prerender-runtime':
-      case 'prerender-legacy':
-      case 'request':
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-      case 'build-time-generator':
-        break
-      default:
-        workUnitStore satisfies never
+          flightResponses.set(flightStream, responseOnNextTick)
+          return responseOnNextTick
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+        case 'build-time-generator':
+          break
+        default:
+          workUnitStore satisfies never
+      }
     }
   }
 
