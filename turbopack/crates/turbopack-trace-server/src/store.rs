@@ -75,19 +75,6 @@ impl Default for OutdatedSpans {
     }
 }
 
-#[cfg(test)]
-mod outdated_spans_tests {
-    use super::*;
-
-    #[test]
-    fn disabled_collector_does_not_retain_spans() {
-        let mut outdated = OutdatedSpans::with_capacity(8, false);
-        outdated.insert(SpanIndex::new(1).unwrap());
-
-        assert_eq!(outdated.iter().count(), 0);
-    }
-}
-
 pub struct Store {
     pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
@@ -551,5 +538,18 @@ impl Store {
                 is_graph,
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod outdated_spans_tests {
+    use super::*;
+
+    #[test]
+    fn disabled_collector_does_not_retain_spans() {
+        let mut outdated = OutdatedSpans::with_capacity(8, false);
+        outdated.insert(SpanIndex::new(1).unwrap());
+
+        assert_eq!(outdated.iter().count(), 0);
     }
 }

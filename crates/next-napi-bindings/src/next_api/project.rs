@@ -1,10 +1,11 @@
+#[cfg(not(target_arch = "wasm32"))]
+use std::thread;
 use std::{
     borrow::Cow,
     fs::{canonicalize, create_dir_all},
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
-    thread,
     time::{Duration, SystemTime},
 };
 
@@ -566,8 +567,10 @@ pub fn project_new<'env>(
                 .unwrap();
         });
 
-        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
-        if trace_server.is_some() {
+        // The file/WebSocket trace server is native-only; the WASI binding
+        // still supports writing traces, but cannot start a localhost server.
+        #[cfg(not(target_arch = "wasm32"))]
+        if std::env::var("NEXT_TURBOPACK_TRACE_SERVER").is_ok() {
             thread::spawn(move || {
                 turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
             });

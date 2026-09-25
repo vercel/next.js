@@ -1,9 +1,12 @@
-use std::{path::PathBuf, sync::Arc};
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use napi_derive::napi;
+#[cfg(not(target_arch = "wasm32"))]
+use turbopack_trace_server::start_turbopack_trace_server;
 use turbopack_trace_server::{
-    QueryOptions, SortMode, query_spans, start_turbopack_trace_server,
-    store_container::StoreContainer,
+    QueryOptions, SortMode, query_spans, store_container::StoreContainer,
 };
 
 /// An opaque handle to a running trace server instance.
@@ -87,6 +90,7 @@ pub struct TraceQueryResult {
 /// Starts the turbopack trace server on a background thread and returns a
 /// handle immediately (non-blocking). The WebSocket server will be available
 /// at `ws://127.0.0.1:<port>` (default port 5747).
+#[cfg(not(target_arch = "wasm32"))]
 #[napi]
 pub fn start_turbopack_trace_server_handle(path: String, port: Option<u16>) -> TraceServerHandle {
     let store = start_turbopack_trace_server(PathBuf::from(path), port);
