@@ -25,6 +25,7 @@ let DEV_BACKEND: DevRuntimeBackend
       const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
 
       if (isCss(chunkUrl)) {
+        unregisterLoadedChunk(chunkUrlToPath(chunkUrl))
         const links = document.querySelectorAll(
           `link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`
         )
@@ -101,8 +102,8 @@ let DEV_BACKEND: DevRuntimeBackend
           for (const previousLink of Array.from(previousLinks))
             previousLink.remove()
 
-          // CSS chunks do not register themselves, and as such must be marked as
-          // loaded instantly.
+          // CSS chunks do not register themselves; record the reloaded stylesheet.
+          registerLoadedChunk(chunkUrlToPath(chunkUrl))
           resolve()
         }
 

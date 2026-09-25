@@ -99,24 +99,41 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-// Paths of every JS chunk whose module factories have been installed into this
-// runtime instance (page, worker, …), in registration order.
-//
-// Nested web workers get a fresh runtime realm, so module factories cannot be
-// handed to them directly (functions are not structured-cloneable). `createWorker`
-// passes this list along only when one worker starts another: the child re-imports
-// its parent's chunks because its chunk group inherits the parent's availability.
-// A worker created by a page has a self-contained chunk group instead.
-const loadedJsChunkPaths: Set<ChunkPath> = new Set()
+// Paths of successfully loaded chunks in registration/load order. JS chunks
+// register their module factories; CSS chunks resolved by the runtime are recorded
+// when their stylesheet is available. CSS in initial HTML is included by the getter
+// below. Unlike CSS, JS factories remain installed after a script is removed.
+const loadedChunkPaths: Set<ChunkPath> = new Set()
 
-function registerLoadedJsChunk(chunk: ChunkPath | ChunkScript): void {
-  loadedJsChunkPaths.add(getPathFromScript(chunk))
+function registerLoadedChunk(chunk: ChunkPath | ChunkScript): void {
+  loadedChunkPaths.add(getPathFromScript(chunk))
 }
 
-// Shared runtime primitive consumed by the bundled `createWorker` helper,
-// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function unregisterLoadedChunk(chunkPath: ChunkPath): void {
+  loadedChunkPaths.delete(chunkPath)
+}
+
+// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths(): ChunkPath[] {
-  return Array.from(loadedJsChunkPaths)
+  const paths = new Set(loadedChunkPaths)
+  if (typeof document !== 'undefined') {
+    // Initial stylesheets can be inserted directly by the HTML before the
+    // runtime starts; they never go through the chunk loader.
+    for (const link of document.querySelectorAll<HTMLLinkElement>(
+      'link[rel="stylesheet"][href]'
+    )) {
+      const href = link.getAttribute('href')
+      if (
+        href &&
+        link.sheet &&
+        href.startsWith(RUNTIME_CHUNK_BASE_PATH) &&
+        isCss(href as ChunkUrl)
+      ) {
+        paths.add(chunkUrlToPath(href as ChunkUrl))
+      }
+    }
+  }
+  return Array.from(paths)
 }
 
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -534,8 +551,7 @@ browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl
 
-// Shared runtime primitive: the JS chunks already loaded in this runtime, used
-// by the bundled worker helper so a child worker can re-import them.
+// Shared runtime primitive: paths of all chunks loaded in this runtime.
 browserContextPrototype.G = getLoadedChunkPaths
 
 /**

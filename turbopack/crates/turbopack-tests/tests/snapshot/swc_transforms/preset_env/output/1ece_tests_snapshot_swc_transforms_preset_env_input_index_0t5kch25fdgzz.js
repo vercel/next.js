@@ -1077,22 +1077,48 @@ var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 var availableModules = new Map();
 var availableModuleChunks = new Map();
-// Paths of every JS chunk whose module factories have been installed into this
-// runtime instance (page, worker, …), in registration order.
-//
-// Nested web workers get a fresh runtime realm, so module factories cannot be
-// handed to them directly (functions are not structured-cloneable). `createWorker`
-// passes this list along only when one worker starts another: the child re-imports
-// its parent's chunks because its chunk group inherits the parent's availability.
-// A worker created by a page has a self-contained chunk group instead.
-var loadedJsChunkPaths = new Set();
-function registerLoadedJsChunk(chunk) {
-    loadedJsChunkPaths.add(getPathFromScript(chunk));
+// Paths of successfully loaded chunks in registration/load order. JS chunks
+// register their module factories; CSS chunks resolved by the runtime are recorded
+// when their stylesheet is available. CSS in initial HTML is included by the getter
+// below. Unlike CSS, JS factories remain installed after a script is removed.
+var loadedChunkPaths = new Set();
+function registerLoadedChunk(chunk) {
+    loadedChunkPaths.add(getPathFromScript(chunk));
 }
-// Shared runtime primitive consumed by the bundled `createWorker` helper,
-// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function unregisterLoadedChunk(chunkPath) {
+    loadedChunkPaths.delete(chunkPath);
+}
+// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
-    return Array.from(loadedJsChunkPaths);
+    var paths = new Set(loadedChunkPaths);
+    if (typeof document !== 'undefined') {
+        var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+        try {
+            // Initial stylesheets can be inserted directly by the HTML before the
+            // runtime starts; they never go through the chunk loader.
+            for(var _iterator = document.querySelectorAll('link[rel="stylesheet"][href]')[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                var link = _step.value;
+                var href = link.getAttribute('href');
+                if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
+                    paths.add(chunkUrlToPath(href));
+                }
+            }
+        } catch (err) {
+            _didIteratorError = true;
+            _iteratorError = err;
+        } finally{
+            try {
+                if (!_iteratorNormalCompletion && _iterator.return != null) {
+                    _iterator.return();
+                }
+            } finally{
+                if (_didIteratorError) {
+                    throw _iteratorError;
+                }
+            }
+        }
+    }
+    return Array.from(paths);
 }
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 var chunkComponents = new Map();
@@ -1494,8 +1520,7 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
-// Shared runtime primitive: the JS chunks already loaded in this runtime, used
-// by the bundled worker helper so a child worker can re-import them.
+// Shared runtime primitive: paths of all chunks loaded in this runtime.
 browserContextPrototype.G = getLoadedChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
@@ -1632,8 +1657,8 @@ function registerChunk(registration) {
     } else {
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
-        // Only factory-bearing registrations are useful to pass on to a worker.
-        registerLoadedJsChunk(chunk);
+        // Module factories are available as soon as their chunk registers.
+        registerLoadedChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -1889,6 +1914,11 @@ var BACKEND;
                 promise: promise,
                 resolve: function resolve1() {
                     resolver.resolved = true;
+                    // CSS chunks have no module factories and never call registerChunk.
+                    // Record them when the stylesheet is available instead.
+                    if (isCss(chunkUrl)) {
+                        registerLoadedChunk(chunkUrlToPath(chunkUrl));
+                    }
                     resolve();
                 },
                 reject: reject

@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="f3c697da-fd9c-5a23-a646-5217d25d9346")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="0cef8b86-9e08-8dec-aec0-3b96eb4a60a5")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -811,22 +811,31 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-// Paths of every JS chunk whose module factories have been installed into this
-// runtime instance (page, worker, …), in registration order.
-//
-// Nested web workers get a fresh runtime realm, so module factories cannot be
-// handed to them directly (functions are not structured-cloneable). `createWorker`
-// passes this list along only when one worker starts another: the child re-imports
-// its parent's chunks because its chunk group inherits the parent's availability.
-// A worker created by a page has a self-contained chunk group instead.
-const loadedJsChunkPaths = new Set();
-function registerLoadedJsChunk(chunk) {
-    loadedJsChunkPaths.add(getPathFromScript(chunk));
+// Paths of successfully loaded chunks in registration/load order. JS chunks
+// register their module factories; CSS chunks resolved by the runtime are recorded
+// when their stylesheet is available. CSS in initial HTML is included by the getter
+// below. Unlike CSS, JS factories remain installed after a script is removed.
+const loadedChunkPaths = new Set();
+function registerLoadedChunk(chunk) {
+    loadedChunkPaths.add(getPathFromScript(chunk));
 }
-// Shared runtime primitive consumed by the bundled `createWorker` helper,
-// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function unregisterLoadedChunk(chunkPath) {
+    loadedChunkPaths.delete(chunkPath);
+}
+// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
-    return Array.from(loadedJsChunkPaths);
+    const paths = new Set(loadedChunkPaths);
+    if (typeof document !== 'undefined') {
+        // Initial stylesheets can be inserted directly by the HTML before the
+        // runtime starts; they never go through the chunk loader.
+        for (const link of document.querySelectorAll('link[rel="stylesheet"][href]')){
+            const href = link.getAttribute('href');
+            if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
+                paths.add(chunkUrlToPath(href));
+            }
+        }
+    }
+    return Array.from(paths);
 }
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents = new Map();
@@ -1107,8 +1116,7 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
-// Shared runtime primitive: the JS chunks already loaded in this runtime, used
-// by the bundled worker helper so a child worker can re-import them.
+// Shared runtime primitive: paths of all chunks loaded in this runtime.
 browserContextPrototype.G = getLoadedChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
@@ -2258,8 +2266,8 @@ function registerChunk(registration) {
         let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
-        // Only factory-bearing registrations are useful to pass on to a worker.
-        registerLoadedJsChunk(chunk);
+        // Module factories are available as soon as their chunk registers.
+        registerLoadedChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -2359,6 +2367,11 @@ let BACKEND;
                 promise,
                 resolve: ()=>{
                     resolver.resolved = true;
+                    // CSS chunks have no module factories and never call registerChunk.
+                    // Record them when the stylesheet is available instead.
+                    if (isCss(chunkUrl)) {
+                        registerLoadedChunk(chunkUrlToPath(chunkUrl));
+                    }
                     resolve();
                 },
                 reject: reject
@@ -2530,6 +2543,7 @@ let DEV_BACKEND;
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
             if (isCss(chunkUrl)) {
+                unregisterLoadedChunk(chunkUrlToPath(chunkUrl));
                 const links = document.querySelectorAll(`link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
@@ -2588,8 +2602,8 @@ let DEV_BACKEND;
                     // flickering that would happen in-between removing the previous CSS and
                     // loading the new one.
                     for (const previousLink of Array.from(previousLinks))previousLink.remove();
-                    // CSS chunks do not register themselves, and as such must be marked as
-                    // loaded instantly.
+                    // CSS chunks do not register themselves; record the reloaded stylesheet.
+                    registerLoadedChunk(chunkUrlToPath(chunkUrl));
                     resolve();
                 };
                 if (previousLinks.length === 0) {
@@ -2632,5 +2646,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=f3c697da-fd9c-5a23-a646-5217d25d9346
+//# debugId=0cef8b86-9e08-8dec-aec0-3b96eb4a60a5
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
