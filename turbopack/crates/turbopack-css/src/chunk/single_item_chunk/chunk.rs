@@ -54,7 +54,11 @@ impl SingleItemCssChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
         // CSS chunks never have debug IDs
-        let mut code = CodeBuilder::new(source_maps, false);
+        let mut code = CodeBuilder::new_with_analysis(
+            source_maps,
+            *this.chunking_context.collect_analysis_source_maps().await?,
+            false,
+        );
 
         if matches!(
             &*this.chunking_context.minify_type().await?,
@@ -66,11 +70,14 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(&content.inner_code, content.source_map.clone());
+        code.push_source_with_analysis(
+            &content.inner_code,
+            content.source_map.clone().map(Into::into),
+            content.analysis_source_map.clone().map(Into::into),
+        );
         write!(code, "{close}")?;
 
-        let c = code.build().cell();
-        Ok(c)
+        Ok(code.build().cell_persisted().to_code())
     }
 
     #[turbo_tasks::function]
@@ -167,6 +174,11 @@ impl GenerateSourceMap for SingleItemCssChunk {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
+    }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().generate_analysis_source_map()
     }
 }
 

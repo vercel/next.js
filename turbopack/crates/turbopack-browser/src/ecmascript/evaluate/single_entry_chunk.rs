@@ -69,8 +69,9 @@ impl EcmascriptBrowserSingleEntryChunk {
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let mut code = CodeBuilder::new(
+        let mut code = CodeBuilder::new_with_analysis(
             source_maps,
+            *this.chunking_context.collect_analysis_source_maps().await?,
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
@@ -95,7 +96,7 @@ impl EcmascriptBrowserSingleEntryChunk {
             code.push_code(&*runtime_chunk.code().await?);
         }
 
-        Ok(Code::cell(code.build()))
+        Ok(code.build().cell_persisted().to_code())
     }
 
     #[turbo_tasks::function]
@@ -160,5 +161,10 @@ impl GenerateSourceMap for EcmascriptBrowserSingleEntryChunk {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
+    }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().generate_analysis_source_map()
     }
 }

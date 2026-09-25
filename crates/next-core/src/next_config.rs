@@ -188,17 +188,6 @@ pub struct NextConfig {
     // webpack: Option<serde_json::Value>,
 }
 
-#[turbo_tasks::value_impl]
-impl NextConfig {
-    #[turbo_tasks::function]
-    pub fn with_analyze_config(&self) -> Vc<Self> {
-        let mut new = self.clone();
-        new.experimental.turbopack_source_maps = Some(true);
-        new.experimental.turbopack_input_source_maps = Some(false);
-        new.cell()
-    }
-}
-
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -2517,16 +2506,21 @@ impl NextConfig {
                 NextMode::Development => true,
                 NextMode::Build => self.production_browser_source_maps,
             });
-        Ok(match (source_maps, input_source_maps) {
+        let maps = match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
             (false, _) => SourceMapsType::None,
+        };
+        Ok(if matches!(&*mode.await?, NextMode::Build) {
+            maps.with_analysis()
+        } else {
+            maps
         }
         .cell())
     }
 
     #[turbo_tasks::function]
-    pub fn server_source_maps(&self) -> Result<Vc<SourceMapsType>> {
+    pub async fn server_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<SourceMapsType>> {
         let input_source_maps = self
             .experimental
             .turbopack_input_source_maps
@@ -2536,10 +2530,15 @@ impl NextConfig {
             .turbopack_source_maps
             .or(self.experimental.server_source_maps)
             .unwrap_or(true);
-        Ok(match (source_maps, input_source_maps) {
+        let maps = match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
             (false, _) => SourceMapsType::None,
+        };
+        Ok(if matches!(&*mode.await?, NextMode::Build) {
+            maps.with_analysis()
+        } else {
+            maps
         }
         .cell())
     }

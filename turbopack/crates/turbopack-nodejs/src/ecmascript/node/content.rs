@@ -61,7 +61,11 @@ impl EcmascriptNodeChunkContent {
             .reference_chunk_source_maps(*ResolvedVc::upcast(self.chunk))
             .await?;
 
-        let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new_with_analysis(
+            true,
+            *self.chunking_context.collect_analysis_source_maps().await?,
+            *self.chunking_context.debug_ids_enabled().await?,
+        );
         let supports_arrow_functions = *self
             .chunking_context
             .environment()
@@ -95,7 +99,7 @@ impl EcmascriptNodeChunkContent {
             code = minify(code, source_maps, mangle)?;
         }
 
-        Ok(code.cell())
+        Ok(code.cell_persisted().to_code())
     }
 }
 
@@ -104,6 +108,11 @@ impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
+    }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().generate_analysis_source_map()
     }
 }
 

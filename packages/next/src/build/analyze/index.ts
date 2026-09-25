@@ -11,7 +11,9 @@ import { durationToString } from '../duration-to-string'
 import { cp, writeFile, mkdir } from 'node:fs/promises'
 import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import loadCustomRoutes from '../../lib/load-custom-routes'
+import loadCustomRoutes, { type Redirect } from '../../lib/load-custom-routes'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { writeAnalyzeSnapshot } from './snapshot'
@@ -65,12 +67,18 @@ export default async function analyze({
 
     Log.info('Analyzing a production build...')
 
+    const { routes, buildOptions } = await collectRoutesForAnalyze(
+      dir,
+      config,
+      appDirOnly
+    )
     const analyzeContext: AnalyzeContext = {
       config,
       dir,
       distDir,
       noMangling,
       appDirOnly,
+      buildOptions,
     }
 
     const { duration: analyzeDuration, shutdownPromise } =
@@ -80,8 +88,6 @@ export default async function analyze({
     const analyzeDir = path.join(distDir, 'diagnostics/analyze')
 
     await shutdownPromise
-
-    const routes = await collectRoutesForAnalyze(dir, config, appDirOnly)
 
     await cp(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
       recursive: true,
@@ -142,7 +148,10 @@ async function collectRoutesForAnalyze(
   dir: string,
   config: NextConfigComplete,
   appDirOnly: boolean
-): Promise<string[]> {
+): Promise<{
+  routes: string[]
+  buildOptions: AnalyzeContext['buildOptions']
+}> {
   const { pagesDir, appDir } = findPagesDir(dir)
 
   let appType: RoutesManifest['appType']
@@ -163,11 +172,11 @@ async function collectRoutesForAnalyze(
     isDev: false,
     baseDir: dir,
     isSrcDir: path.relative(dir, pagesDir || appDir || '').startsWith('src'),
-    appDirOnly,
+    appDirOnly: false,
   })
 
   const pageKeys = {
-    pages: Object.keys(discovery.mappedPages || {}),
+    pages: appDirOnly ? [] : Object.keys(discovery.mappedPages || {}),
     app: discovery.mappedAppPages
       ? Object.keys(discovery.mappedAppPages).map((key) =>
           normalizeAppPath(key)
@@ -199,9 +208,33 @@ async function collectRoutesForAnalyze(
     isAppPPREnabled,
   })
 
-  return routesManifest.dynamicRoutes
-    .map((r) => r.page)
-    .concat(routesManifest.staticRoutes.map((r) => r.page))
+  const appPaths = pageKeys.app
+  const hasRewrites =
+    rewrites.beforeFiles.length +
+      rewrites.afterFiles.length +
+      rewrites.fallback.length >
+    0
+  rewrites.beforeFiles.push(
+    ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
+  )
+  const clientRouterFilters = config.experimental.clientRouterFilter
+    ? createClientRouterFilter(
+        appPaths,
+        config.experimental.clientRouterFilterRedirects
+          ? (config._originalRedirects || []).filter(
+              (r: Redirect) => !r.internal
+            )
+          : [],
+        config.experimental.clientRouterFilterAllowedRate
+      )
+    : undefined
+
+  return {
+    routes: routesManifest.dynamicRoutes
+      .map((r) => r.page)
+      .concat(routesManifest.staticRoutes.map((r) => r.page)),
+    buildOptions: { hasRewrites, rewrites, clientRouterFilters },
+  }
 }
 
 function startServer(dir: string, port: number): Promise<void> {

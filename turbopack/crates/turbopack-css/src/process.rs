@@ -196,6 +196,7 @@ pub enum FinalCssResult {
         output_code: String,
 
         source_map: Option<StructuredSourceMap>,
+        analysis_source_map: Option<StructuredSourceMap>,
     },
     Unparsable,
     NotFound,
@@ -314,6 +315,24 @@ pub async fn finalize_css(
                 None
             };
 
+            let retain_analysis = *chunking_context.collect_analysis_source_maps().await?;
+            let analysis_source_map = if retain_analysis && origin_source_map.is_some() {
+                let (partial_result, partial_map) = stylesheet_to_css(
+                    &stylesheet,
+                    &code,
+                    minify_type,
+                    true,
+                    true,
+                    None,
+                    environment,
+                    feature_flags,
+                )
+                .await?;
+                Some((partial_result.code, partial_map))
+            } else {
+                None
+            };
+
             let (result, srcmap) = stylesheet_to_css(
                 &stylesheet,
                 &code,
@@ -325,10 +344,21 @@ pub async fn finalize_css(
                 feature_flags,
             )
             .await?;
+            let analysis_source_map = match analysis_source_map {
+                Some((partial_code, partial_map)) => {
+                    if partial_code != result.code {
+                        bail!("CSS output changed when composing an input source map");
+                    }
+                    partial_map
+                }
+                None if retain_analysis => srcmap.clone(),
+                None => None,
+            };
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
                 source_map: srcmap,
+                analysis_source_map,
             }
             .cell())
         }

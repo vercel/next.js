@@ -139,6 +139,11 @@ impl GenerateSourceMap for EcmascriptBuildNodeChunk {
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.own_content().generate_source_map()
     }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.own_content().generate_analysis_source_map()
+    }
 }
 
 #[turbo_tasks::value_impl]

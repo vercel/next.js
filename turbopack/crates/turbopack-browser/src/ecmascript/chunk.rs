@@ -195,6 +195,11 @@ impl GenerateSourceMap for EcmascriptBrowserChunk {
     }
 
     #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.own_content().generate_analysis_source_map()
+    }
+
+    #[turbo_tasks::function]
     fn by_section(self: Vc<Self>, section: RcStr) -> Vc<FileContent> {
         self.own_content().by_section(section)
     }

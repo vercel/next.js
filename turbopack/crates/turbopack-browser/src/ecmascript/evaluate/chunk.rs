@@ -158,8 +158,10 @@ impl EcmascriptBrowserEvaluateChunk {
         } else {
             Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
         };
-        let mut code = CodeBuilder::new(
+        let analysis_maps = *this.chunking_context.collect_analysis_source_maps().await?;
+        let mut code = CodeBuilder::new_with_analysis(
             source_maps,
+            analysis_maps,
             *this.chunking_context.debug_ids_enabled().await?,
         );
         writedoc! {
@@ -204,7 +206,7 @@ impl EcmascriptBrowserEvaluateChunk {
                         this.chunking_context.asset_suffix(),
                         runtime_type,
                         output_root_to_root_path,
-                        source_maps,
+                        (source_maps || analysis_maps, source_maps),
                         this.chunking_context.chunk_loading_global(),
                         this.chunking_context.cross_origin(),
                         this.chunking_context.chunk_load_retry(),
@@ -228,7 +230,7 @@ impl EcmascriptBrowserEvaluateChunk {
             code = minify(code, source_maps, mangle)?;
         }
 
-        Ok(code.cell())
+        Ok(code.cell_persisted().to_code())
     }
 
     #[turbo_tasks::function]
@@ -329,6 +331,11 @@ impl GenerateSourceMap for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
+    }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().generate_analysis_source_map()
     }
 }
 

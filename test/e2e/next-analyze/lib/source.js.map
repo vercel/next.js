@@ -1,0 +1,1 @@
+{"version":3,"file":"source.js","sources":["authored.ts"],"sourcesContent":["export function fromSourceMap(value: string) {\n  return value.split('').reverse().join('')\n}\n"],"names":[],"mappings":"AAAA;AACA;AACA"}

@@ -345,6 +345,7 @@ impl CssChunkItem for CssModuleChunkItem {
         if let FinalCssResult::Ok {
             output_code,
             source_map,
+            analysis_source_map,
         } = &*result
         {
             Ok(CssChunkItemContent {
@@ -352,6 +353,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 imports,
                 import_context: self.module.await?.import_context,
                 source_map: source_map.clone(),
+                analysis_source_map: analysis_source_map.clone(),
             }
             .cell())
         } else {
@@ -363,6 +365,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 imports: vec![],
                 import_context: None,
                 source_map: None,
+                analysis_source_map: None,
             }
             .cell())
         }

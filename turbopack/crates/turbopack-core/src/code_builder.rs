@@ -70,12 +70,14 @@ impl SectionMap {
 /// A mapping of byte-offset in the code string to an associated source map.
 pub type Mapping = (usize, Option<SectionMap>);
 
-/// Code stores combined output code and the source map of that output code.
+/// Combined output code with its public map and an optional, separately retained
+/// analysis map. Both mapping sets refer to the same output bytes.
 #[turbo_tasks::value(shared, serialization = "hash")]
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
     mappings: Arc<Vec<Mapping>>,
+    analysis_mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
 }
 
@@ -100,6 +102,24 @@ impl Code {
     /// Tests if any code in this Code contains an associated source map.
     pub fn has_source_map(&self) -> bool {
         !self.mappings.is_empty()
+    }
+
+    pub fn has_analysis_source_map(&self) -> bool {
+        !self.analysis_mappings.is_empty()
+    }
+
+    pub fn generate_analysis_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
+        if self.analysis_mappings.is_empty() {
+            self.generate_source_map_ref(debug_id)
+        } else {
+            Self {
+                code: self.code.clone(),
+                mappings: self.analysis_mappings.clone(),
+                analysis_mappings: Arc::new(Vec::new()),
+                should_generate_debug_id: self.should_generate_debug_id,
+            }
+            .generate_source_map_ref(debug_id)
+        }
     }
     // Whether this code should have a debug id generated for it
     pub fn should_generate_debug_id(&self) -> bool {
@@ -177,6 +197,7 @@ impl Code {
 pub struct CodeBuilder {
     code: RopeBuilder,
     mappings: Option<Vec<Mapping>>,
+    analysis_mappings: Option<Vec<Mapping>>,
     should_generate_debug_id: bool,
 }
 
@@ -185,6 +206,7 @@ impl Default for CodeBuilder {
         Self {
             code: RopeBuilder::default(),
             mappings: Some(Vec::new()),
+            analysis_mappings: None,
             should_generate_debug_id: false,
         }
     }
@@ -192,9 +214,18 @@ impl Default for CodeBuilder {
 
 impl CodeBuilder {
     pub fn new(collect_mappings: bool, should_generate_debug_id: bool) -> Self {
+        Self::new_with_analysis(collect_mappings, false, should_generate_debug_id)
+    }
+
+    pub fn new_with_analysis(
+        collect_mappings: bool,
+        collect_analysis_mappings: bool,
+        should_generate_debug_id: bool,
+    ) -> Self {
         Self {
             code: RopeBuilder::default(),
             mappings: collect_mappings.then(Vec::new),
+            analysis_mappings: collect_analysis_mappings.then(Vec::new),
             should_generate_debug_id,
         }
     }
@@ -207,41 +238,56 @@ impl CodeBuilder {
         self.code.push_static_bytes(code);
     }
 
-    /// Pushes original user code with an optional source map if one is
-    /// available. If it's not, this is no different than pushing Synthetic
-    /// code.
+    /// Pushes original code with a map shared by the public and analysis views.
+    /// If there is no map, this is equivalent to pushing synthetic code.
     pub fn push_source<M: Into<SectionMap>>(&mut self, code: &Rope, map: Option<M>) {
-        self.push_map(map.map(Into::into));
+        let map = map.map(Into::into);
+        self.push_source_with_analysis(code, map.clone(), map);
+    }
+
+    pub fn push_source_with_analysis(
+        &mut self,
+        code: &Rope,
+        map: Option<SectionMap>,
+        analysis_map: Option<SectionMap>,
+    ) {
+        Self::append_map(&mut self.mappings, map, self.code.len());
+        Self::append_map(&mut self.analysis_mappings, analysis_map, self.code.len());
         self.code += code;
     }
 
-    /// Copies the Synthetic/Original code of an already constructed Code into
-    /// this instance.
-    ///
-    /// This adjusts the source map to be relative to the new code object
+    /// Copies the code and both mapping views of an already constructed Code,
+    /// adjusting their offsets to be relative to the new code object.
     pub fn push_code(&mut self, prebuilt: &Code) {
-        if let Some((index, _)) = prebuilt.mappings.first() {
-            if *index > 0 {
-                // If the index is positive, then the code starts with a synthetic section. We
-                // may need to push an empty map in order to end the current
-                // section's mappings.
-                self.push_map(None);
-            }
+        let len = self.code.len();
+        Self::append_code_mappings(&mut self.mappings, &prebuilt.mappings, len);
+        Self::append_code_mappings(
+            &mut self.analysis_mappings,
+            if prebuilt.analysis_mappings.is_empty() {
+                &prebuilt.mappings
+            } else {
+                &prebuilt.analysis_mappings
+            },
+            len,
+        );
+        self.code += &prebuilt.code;
+    }
 
-            let len = self.code.len();
-            if let Some(mappings) = self.mappings.as_mut() {
-                mappings.extend(
-                    prebuilt
-                        .mappings
+    fn append_code_mappings(target: &mut Option<Vec<Mapping>>, source: &[Mapping], offset: usize) {
+        if let Some((index, _)) = source.first() {
+            if *index > 0 {
+                Self::append_map(target, None, offset);
+            }
+            if let Some(target) = target.as_mut() {
+                target.extend(
+                    source
                         .iter()
-                        .map(|(index, map)| (index + len, map.clone())),
+                        .map(|(index, map)| (index + offset, map.clone())),
                 );
             }
         } else {
-            self.push_map(None);
+            Self::append_map(target, None, offset);
         }
-
-        self.code += &prebuilt.code;
     }
 
     /// Setting breakpoints on synthetic code can cause weird behaviors
@@ -250,19 +296,22 @@ impl CodeBuilder {
     /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
     fn push_map(&mut self, map: Option<SectionMap>) {
-        let Some(mappings) = self.mappings.as_mut() else {
+        Self::append_map(&mut self.mappings, map.clone(), self.code.len());
+        Self::append_map(&mut self.analysis_mappings, map, self.code.len());
+    }
+
+    fn append_map(mappings: &mut Option<Vec<Mapping>>, map: Option<SectionMap>, offset: usize) {
+        let Some(mappings) = mappings.as_mut() else {
             return;
         };
         if map.is_none() && matches!(mappings.last(), None | Some((_, None))) {
-            // No reason to push an empty map directly after an empty map
             return;
         }
-
         debug_assert!(
             map.is_some() || !mappings.is_empty(),
             "the first mapping is never a None"
         );
-        mappings.push((self.code.len(), map));
+        mappings.push((offset, map));
     }
 
     /// Tests if any code in this CodeBuilder contains an associated source map.
@@ -276,6 +325,7 @@ impl CodeBuilder {
         Code {
             code: self.code.build(),
             mappings: Arc::new(self.mappings.unwrap_or_default()),
+            analysis_mappings: Arc::new(self.analysis_mappings.unwrap_or_default()),
             should_generate_debug_id: self.should_generate_debug_id,
         }
     }
@@ -326,6 +376,15 @@ impl GenerateSourceMap for Code {
     pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
         Ok(FileContent::Content(File::from(self.await?.generate_source_map_ref(debug_id))).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn generate_analysis_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
+        let debug_id = self.debug_id().owned().await?;
+        Ok(FileContent::Content(File::from(
+            self.await?.generate_analysis_source_map_ref(debug_id),
+        ))
+        .cell())
     }
 }
 

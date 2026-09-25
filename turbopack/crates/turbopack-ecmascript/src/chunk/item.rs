@@ -50,6 +50,7 @@ pub enum RewriteSourcePath {
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<StructuredSourceMap>,
+    pub analysis_source_map: Option<StructuredSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -94,6 +95,7 @@ impl EcmascriptChunkItemContent {
             },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map.clone(),
+            analysis_source_map: content.analysis_source_map.clone(),
             additional_ids: content.additional_ids.clone(),
             options: if content.is_esm {
                 EcmascriptChunkItemOptions {
@@ -125,7 +127,8 @@ impl EcmascriptChunkItemContent {
 
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
-        let mut code = CodeBuilder::default();
+        let mut code =
+            CodeBuilder::new_with_analysis(true, self.analysis_source_map.is_some(), false);
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
@@ -178,7 +181,21 @@ impl EcmascriptChunkItemContent {
             (_, map) => map.clone(),
         };
 
-        code.push_source(&self.inner_code, source_map);
+        let analysis_source_map = match (&self.rewrite_source_path, &self.analysis_source_map) {
+            (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
+                Some(absolute_fileify_source_map(map, path.clone()).await?)
+            }
+            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
+                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
+            }
+            (_, map) => map.clone(),
+        };
+
+        code.push_source_with_analysis(
+            &self.inner_code,
+            source_map.map(Into::into),
+            analysis_source_map.map(Into::into),
+        );
 
         if let Some(opts) = &self.options.async_module {
             write!(

@@ -76,8 +76,9 @@ impl CssChunk {
             .await?;
 
         // CSS chunks never have debug IDs
-        let mut code = CodeBuilder::new(source_maps, false);
-        let mut body = CodeBuilder::new(source_maps, false);
+        let analysis_maps = *this.chunking_context.collect_analysis_source_maps().await?;
+        let mut code = CodeBuilder::new_with_analysis(source_maps, analysis_maps, false);
+        let mut body = CodeBuilder::new_with_analysis(source_maps, analysis_maps, false);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let content = &css_item.content().await?;
@@ -120,7 +121,32 @@ impl CssChunk {
                 (_, map) => map.clone(),
             };
 
-            body.push_source(&content.inner_code, source_map);
+            let analysis_map = match (
+                *chunking_context.source_map_source_type().await?,
+                &content.analysis_source_map,
+            ) {
+                (SourceMapSourceType::AbsoluteFileUri, Some(map)) => Some(
+                    absolute_fileify_source_map(map, chunking_context.root_path().owned().await?)
+                        .await?,
+                ),
+                (SourceMapSourceType::RelativeUri, Some(map)) => Some(
+                    relative_fileify_source_map(
+                        map,
+                        chunking_context.root_path().owned().await?,
+                        chunking_context
+                            .relative_path_from_chunk_root_to_project_root()
+                            .owned()
+                            .await?,
+                    )
+                    .await?,
+                ),
+                (_, map) => map.clone(),
+            };
+            body.push_source_with_analysis(
+                &content.inner_code,
+                source_map.map(Into::into),
+                analysis_map.map(Into::into),
+            );
 
             if !close.is_empty() {
                 writeln!(body, "{close}")?;
@@ -135,8 +161,7 @@ impl CssChunk {
         let built = &body.build();
         code.push_code(built);
 
-        let c = code.build().cell();
-        Ok(c)
+        Ok(code.build().cell_persisted().to_code())
     }
 
     #[turbo_tasks::function]
@@ -428,6 +453,11 @@ impl GenerateSourceMap for CssChunk {
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().generate_analysis_source_map()
+    }
 }
 
 // TODO: remove
@@ -452,6 +482,7 @@ pub struct CssChunkItemContent {
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
     pub source_map: Option<StructuredSourceMap>,
+    pub analysis_source_map: Option<StructuredSourceMap>,
 }
 
 #[turbo_tasks::value_trait]

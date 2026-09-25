@@ -541,7 +541,7 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let source_maps = *next_config.server_source_maps().await?;
+    let source_maps = *next_config.server_source_maps(mode).await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),

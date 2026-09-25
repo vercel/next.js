@@ -478,6 +478,7 @@ pub trait EcmascriptAnalyzable: Module {
     async fn module_content_without_analysis(
         self: Vc<Self>,
         generate_source_map: bool,
+        emit_pure_annotations: bool,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 
     #[turbo_tasks::function]
@@ -645,6 +646,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     async fn module_content_without_analysis(
         self: Vc<Self>,
         generate_source_map: bool,
+        emit_pure_annotations: bool,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
@@ -655,6 +657,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             self.ident(),
             this.options.await?.specified_module_type,
             generate_source_map,
+            emit_pure_annotations,
         ))
     }
 
@@ -673,6 +676,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(*self))
             .await?;
+        let public_source_map = *chunking_context
+            .emit_module_source_maps(Vc::upcast(*self))
+            .await?;
+        let analysis_source_map = *chunking_context.collect_analysis_source_maps().await?;
 
         Ok(EcmascriptModuleContentOptions {
             parsed: Some(parsed),
@@ -685,6 +692,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             code_generation: analyze_ref.code_generation,
             async_module: analyze_ref.async_module,
             generate_source_map,
+            public_source_map,
+            analysis_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
             // Derived from this module's own `ImportMap` during code generation.
@@ -1041,6 +1050,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
     pub source_map: Option<StructuredSourceMap>,
+    pub analysis_source_map: Option<StructuredSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
@@ -1059,6 +1069,8 @@ pub struct EcmascriptModuleContentOptions {
     code_generation: ResolvedVc<CodeGens>,
     async_module: ResolvedVc<OptionAsyncModule>,
     generate_source_map: bool,
+    public_source_map: bool,
+    analysis_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     /// Set by synthetic modules that re-export but have no source of their own to analyze, so
@@ -1246,7 +1258,14 @@ impl EcmascriptModuleContent {
             None,
         )
         .await?;
-        emit_content(content, Default::default()).await
+        emit_content(
+            content,
+            Default::default(),
+            input.public_source_map,
+            input.analysis_source_map,
+            input.public_source_map,
+        )
+        .await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
@@ -1256,6 +1275,7 @@ impl EcmascriptModuleContent {
         ident: Vc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
         generate_source_map: bool,
+        emit_pure_annotations: bool,
     ) -> Result<Vc<Self>> {
         let content = process_parse_result(
             Some(parsed.to_resolved().await?),
@@ -1268,7 +1288,14 @@ impl EcmascriptModuleContent {
             None,
         )
         .await?;
-        emit_content(content, Default::default()).await
+        emit_content(
+            content,
+            Default::default(),
+            generate_source_map,
+            false,
+            emit_pure_annotations,
+        )
+        .await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] from multiple modules, performing scope
@@ -1355,6 +1382,7 @@ impl EcmascriptModuleContent {
                     modules_header_width,
                     lookup_table: lookup_table.clone(),
                     source_maps,
+                    emit_pure_annotations: true,
                 },
                 comments: CodeGenResultComments::ScopeHoisting {
                     modules_header_width,
@@ -1388,9 +1416,15 @@ impl EcmascriptModuleContent {
                 .await?
                 .into();
 
-            emit_content(content, additional_ids)
-                .instrument(tracing::info_span!("emit code"))
-                .await
+            emit_content(
+                content,
+                additional_ids,
+                options.public_source_map,
+                options.analysis_source_map,
+                options.public_source_map,
+            )
+            .instrument(tracing::info_span!("emit code"))
+            .await
         }
         .instrument(tracing::info_span!(
             "generate merged code",
@@ -2160,6 +2194,7 @@ async fn process_parse_result(
                 source_map: if generate_source_map {
                     CodeGenResultSourceMap::Single {
                         source_map: source_map.clone(),
+                        emit_pure_annotations: true,
                     }
                 } else {
                     CodeGenResultSourceMap::None
@@ -2345,10 +2380,13 @@ async fn with_consumed_parse_result<T>(
 async fn emit_content(
     content: CodeGenResult,
     additional_ids: SmallVec<[ModuleId; 1]>,
+    public_source_map: bool,
+    analysis_source_map: bool,
+    emit_pure_annotations: bool,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let CodeGenResult {
         program,
-        source_map,
+        mut source_map,
         comments,
         is_esm,
         strict,
@@ -2358,6 +2396,11 @@ async fn emit_content(
     } = content;
 
     let generate_source_map = source_map.is_some();
+    if !emit_pure_annotations {
+        // Collect internal mappings without introducing PURE annotations that were absent
+        // from the public, unmapped output. Those annotations would change the minifier's DCE.
+        source_map.suppress_pure_annotations();
+    }
 
     // Collect identifier names for source maps before emitting
     let source_map_names = if generate_source_map {
@@ -2402,36 +2445,73 @@ async fn emit_content(
         drop(program);
     }
 
-    let source_map = if generate_source_map {
-        let original_source_maps = original_source_map
-            .iter()
-            .map(|map| map.generate_source_map())
-            .try_join()
-            .await?;
-        let original_source_maps = original_source_maps
+    let (public_map, analysis_map) = if generate_source_map {
+        let original_map_files = if public_source_map {
+            original_source_map
+                .iter()
+                .map(|map| map.generate_source_map())
+                .try_join()
+                .await?
+        } else {
+            Vec::new()
+        };
+        let original_source_maps = original_map_files
             .iter()
             .filter_map(|map| map.as_content())
             .map(|map| map.content())
             .collect::<Vec<_>>();
-
-        Some(generate_js_source_map(
-            &*source_map,
-            mappings,
-            original_source_maps,
-            matches!(
-                original_source_map,
-                CodeGenResultOriginalSourceMap::Single(_)
-            ),
-            true,
-            source_map_names,
-        )?)
+        let is_single = matches!(
+            original_source_map,
+            CodeGenResultOriginalSourceMap::Single(_)
+        );
+        let analysis_map = if analysis_source_map {
+            Some(generate_js_source_map(
+                &*source_map,
+                mappings.clone(),
+                Vec::new(),
+                is_single,
+                true,
+                source_map_names.clone(),
+            )?)
+        } else {
+            None
+        };
+        let public_map = if public_source_map {
+            if original_source_maps.is_empty() {
+                if let Some(map) = &analysis_map {
+                    Some(map.clone())
+                } else {
+                    Some(generate_js_source_map(
+                        &*source_map,
+                        mappings,
+                        original_source_maps,
+                        is_single,
+                        true,
+                        source_map_names,
+                    )?)
+                }
+            } else {
+                Some(generate_js_source_map(
+                    &*source_map,
+                    mappings,
+                    original_source_maps,
+                    is_single,
+                    true,
+                    source_map_names,
+                )?)
+            }
+        } else {
+            None
+        };
+        (public_map, analysis_map)
     } else {
-        None
+        (None, None)
     };
 
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
-        source_map,
+        source_map: public_map,
+        analysis_source_map: analysis_map,
         is_esm,
         strict,
         additional_ids,
@@ -2580,6 +2660,7 @@ enum CodeGenResultSourceMap {
     None,
     Single {
         source_map: Arc<SourceMap>,
+        emit_pure_annotations: bool,
     },
     ScopeHoisting {
         /// The bitwidth of the modules header in the spans, see
@@ -2587,10 +2668,49 @@ enum CodeGenResultSourceMap {
         modules_header_width: u32,
         lookup_table: Arc<Mutex<Vec<ModulePosition>>>,
         source_maps: Vec<CodeGenResultSourceMap>,
+        emit_pure_annotations: bool,
     },
 }
 
 impl CodeGenResultSourceMap {
+    fn suppress_pure_annotations(&mut self) {
+        match self {
+            Self::None => {}
+            Self::Single {
+                emit_pure_annotations,
+                ..
+            }
+            | Self::ScopeHoisting {
+                emit_pure_annotations,
+                ..
+            } => *emit_pure_annotations = false,
+        }
+    }
+
+    fn map_raw_pos_for_emission(&self, pos: BytePos) -> BytePos {
+        let (pos, emit_pure_annotations) = match self {
+            Self::None => return BytePos::DUMMY,
+            Self::Single {
+                emit_pure_annotations,
+                ..
+            } => (pos, *emit_pure_annotations),
+            Self::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                emit_pure_annotations,
+                ..
+            } => (
+                CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
+                *emit_pure_annotations,
+            ),
+        };
+        if !emit_pure_annotations && pos.is_pure() {
+            BytePos::DUMMY
+        } else {
+            pos
+        }
+    }
+
     fn is_some(&self) -> bool {
         match self {
             CodeGenResultSourceMap::None => false,
@@ -2604,7 +2724,7 @@ impl Debug for CodeGenResultSourceMap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CodeGenResultSourceMap::None => write!(f, "CodeGenResultSourceMap::None"),
-            CodeGenResultSourceMap::Single { source_map } => {
+            CodeGenResultSourceMap::Single { source_map, .. } => {
                 write!(
                     f,
                     "CodeGenResultSourceMap::Single {{ source_map: {:?} }}",
@@ -2631,11 +2751,14 @@ impl Files for CodeGenResultSourceMap {
     ) -> Result<Option<Arc<SourceFile>>, SourceMapLookupError> {
         match self {
             CodeGenResultSourceMap::None => Ok(None),
-            CodeGenResultSourceMap::Single { source_map } => source_map.try_lookup_source_file(pos),
+            CodeGenResultSourceMap::Single { source_map, .. } => {
+                source_map.try_lookup_source_file(pos)
+            }
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, pos) =
                     CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
@@ -2660,15 +2783,7 @@ impl Files for CodeGenResultSourceMap {
     }
 
     fn map_raw_pos(&self, pos: BytePos) -> BytePos {
-        match self {
-            CodeGenResultSourceMap::None => BytePos::DUMMY,
-            CodeGenResultSourceMap::Single { .. } => pos,
-            CodeGenResultSourceMap::ScopeHoisting {
-                modules_header_width,
-                lookup_table,
-                ..
-            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
-        }
+        self.map_raw_pos_for_emission(pos)
     }
 }
 
@@ -2678,11 +2793,12 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => {
                 panic!("CodeGenResultSourceMap::None cannot lookup_char_pos")
             }
-            CodeGenResultSourceMap::Single { source_map } => source_map.lookup_char_pos(pos),
+            CodeGenResultSourceMap::Single { source_map, .. } => source_map.lookup_char_pos(pos),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, pos) =
                     CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
@@ -2695,11 +2811,12 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => {
                 panic!("CodeGenResultSourceMap::None cannot span_to_lines")
             }
-            CodeGenResultSourceMap::Single { source_map } => source_map.span_to_lines(sp),
+            CodeGenResultSourceMap::Single { source_map, .. } => source_map.span_to_lines(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, lo) = CodeGenResultComments::decode_bytepos(
                     *modules_header_width,
@@ -2723,11 +2840,12 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => {
                 panic!("CodeGenResultSourceMap::None cannot span_to_string")
             }
-            CodeGenResultSourceMap::Single { source_map } => source_map.span_to_string(sp),
+            CodeGenResultSourceMap::Single { source_map, .. } => source_map.span_to_string(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, lo) = CodeGenResultComments::decode_bytepos(
                     *modules_header_width,
@@ -2751,11 +2869,12 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => {
                 panic!("CodeGenResultSourceMap::None cannot span_to_filename")
             }
-            CodeGenResultSourceMap::Single { source_map } => source_map.span_to_filename(sp),
+            CodeGenResultSourceMap::Single { source_map, .. } => source_map.span_to_filename(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, lo) = CodeGenResultComments::decode_bytepos(
                     *modules_header_width,
@@ -2779,11 +2898,14 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => {
                 panic!("CodeGenResultSourceMap::None cannot merge_spans")
             }
-            CodeGenResultSourceMap::Single { source_map } => source_map.merge_spans(sp_lhs, sp_rhs),
+            CodeGenResultSourceMap::Single { source_map, .. } => {
+                source_map.merge_spans(sp_lhs, sp_rhs)
+            }
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module_lhs, lo_lhs) = CodeGenResultComments::decode_bytepos(
                     *modules_header_width,
@@ -2826,11 +2948,12 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => {
                 panic!("CodeGenResultSourceMap::None cannot call_span_if_macro")
             }
-            CodeGenResultSourceMap::Single { source_map } => source_map.call_span_if_macro(sp),
+            CodeGenResultSourceMap::Single { source_map, .. } => source_map.call_span_if_macro(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, lo) = CodeGenResultComments::decode_bytepos(
                     *modules_header_width,
@@ -2857,11 +2980,12 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => Err(Box::new(SpanSnippetError::SourceNotAvailable {
                 filename: FileName::Anon,
             })),
-            CodeGenResultSourceMap::Single { source_map } => source_map.span_to_snippet(sp),
+            CodeGenResultSourceMap::Single { source_map, .. } => source_map.span_to_snippet(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 lookup_table,
                 source_maps,
+                ..
             } => {
                 let (module, lo) = CodeGenResultComments::decode_bytepos(
                     *modules_header_width,
@@ -2881,15 +3005,7 @@ impl SourceMapper for CodeGenResultSourceMap {
         }
     }
     fn map_raw_pos(&self, pos: BytePos) -> BytePos {
-        match self {
-            CodeGenResultSourceMap::None => BytePos::DUMMY,
-            CodeGenResultSourceMap::Single { .. } => pos,
-            CodeGenResultSourceMap::ScopeHoisting {
-                modules_header_width,
-                lookup_table,
-                ..
-            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
-        }
+        self.map_raw_pos_for_emission(pos)
     }
 }
 impl SourceMapperExt for CodeGenResultSourceMap {
@@ -3380,6 +3496,19 @@ fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn internal_maps_do_not_introduce_pure_annotations() {
+        let mut map = CodeGenResultSourceMap::Single {
+            source_map: Arc::new(SourceMap::new(swc_core::common::FilePathMapping::empty())),
+            emit_pure_annotations: true,
+        };
+        assert_eq!(Files::map_raw_pos(&map, BytePos::PURE), BytePos::PURE);
+        map.suppress_pure_annotations();
+        assert_eq!(Files::map_raw_pos(&map, BytePos::PURE), BytePos::DUMMY);
+        assert_eq!(Files::map_raw_pos(&map, BytePos(123)), BytePos(123));
+    }
+
     fn bytepos_ensure_identical(modules_header_width: u32, pos: BytePos) {
         let module_count = 2u32.pow(modules_header_width);
         let lookup_table = Arc::new(Mutex::new(Vec::new()));

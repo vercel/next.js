@@ -124,6 +124,47 @@ async fn split_chunk() {
     .unwrap()
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn split_chunk_with_analysis_only_map() {
+    run_once(&REGISTRATION, async || {
+        let mut code = CodeBuilder::new_with_analysis(false, true, false);
+        code += "prefix\n";
+        code.push_source_with_analysis(
+            &Rope::from("module bytes\n"),
+            None,
+            Some(
+                Rope::from(serde_json::to_string(&json!({
+                    "version": 3,
+                    "mappings": "AAAA",
+                    "sources": ["module.js"],
+                    "names": []
+                }))?)
+                .into(),
+            ),
+        );
+        let code = code.build();
+        assert!(!code.has_source_map());
+        assert!(code.has_analysis_source_map());
+        let asset = TestAsset {
+            code: code.resolved_cell(),
+        }
+        .resolved_cell();
+        #[turbo_tasks::function(operation, root)]
+        fn split_analysis_parts(asset: ResolvedVc<TestAsset>) -> Vc<ChunkParts> {
+            split_output_asset_into_parts(Vc::upcast(*asset))
+        }
+        let parts = split_analysis_parts(asset)
+            .read_strongly_consistent()
+            .await?;
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].source, rcstr!("module.js"));
+        assert_eq!(parts[0].real_size, 12);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
 #[turbo_tasks::value]
 struct TestAsset {
     code: ResolvedVc<Code>,
@@ -159,5 +200,10 @@ impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
     pub fn generate_source_map(&self) -> Vc<FileContent> {
         self.code.generate_source_map()
+    }
+
+    #[turbo_tasks::function]
+    pub fn generate_analysis_source_map(&self) -> Vc<FileContent> {
+        self.code.generate_analysis_source_map()
     }
 }

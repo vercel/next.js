@@ -64,6 +64,45 @@ pub enum SourceMapsType {
     Partial,
     /// Ignores the existence of source maps and does not write source maps for output files.
     None,
+    /// Produces public Full maps and separately retains Partial mappings for analysis.
+    FullWithAnalysis,
+    /// Produces public Partial maps and retains the same mappings for analysis.
+    PartialWithAnalysis,
+    /// Retains Partial mappings for analysis without emitting public source maps.
+    NoneWithAnalysis,
+}
+
+impl SourceMapsType {
+    pub fn with_analysis(self) -> Self {
+        match self {
+            Self::Full => Self::FullWithAnalysis,
+            Self::Partial => Self::PartialWithAnalysis,
+            Self::None => Self::NoneWithAnalysis,
+            other => other,
+        }
+    }
+
+    pub fn emit(self) -> bool {
+        matches!(
+            self,
+            Self::Full | Self::Partial | Self::FullWithAnalysis | Self::PartialWithAnalysis
+        )
+    }
+
+    pub fn collect(self) -> bool {
+        self.emit() || matches!(self, Self::NoneWithAnalysis)
+    }
+
+    pub fn extract_input(self) -> bool {
+        matches!(self, Self::Full | Self::FullWithAnalysis)
+    }
+
+    pub fn retain_analysis(self) -> bool {
+        matches!(
+            self,
+            Self::FullWithAnalysis | Self::PartialWithAnalysis | Self::NoneWithAnalysis
+        )
+    }
 }
 
 /// Suffix to append to asset URLs.
@@ -371,13 +410,25 @@ pub trait ChunkingContext {
         extension: RcStr,
     ) -> Vc<FileSystemPath>;
 
-    /// Reference Source Map Assets for chunks
+    /// Emit public source-map assets and mapping comments for chunks.
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
 
-    /// Include Source Maps for modules
+    /// Collect mappings while generating module code, even if they are not emitted.
     #[turbo_tasks::function]
     fn reference_module_source_maps(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<bool>;
+
+    /// Whether a module's source map is part of the public output.
+    #[turbo_tasks::function]
+    fn emit_module_source_maps(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        self.reference_module_source_maps(module)
+    }
+
+    /// Retain a separate map that attributes output bytes to their immediate source modules.
+    #[turbo_tasks::function]
+    fn collect_analysis_source_maps(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.

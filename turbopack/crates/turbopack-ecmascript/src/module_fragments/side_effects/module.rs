@@ -188,6 +188,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             source_map: None,
+            analysis_source_map: None,
             rewrite_source_path: RewriteSourcePath::None,
             options: EcmascriptChunkItemOptions {
                 strict: true,

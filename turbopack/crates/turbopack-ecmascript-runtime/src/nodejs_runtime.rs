@@ -15,6 +15,7 @@ pub async fn get_nodejs_runtime_code(
     runtime_type: RuntimeType,
     include_async_module_runtime: bool,
     generate_source_map: bool,
+    emit_pure_annotations: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
 
@@ -22,22 +23,26 @@ pub async fn get_nodejs_runtime_code(
         asset_context,
         rcstr!("shared/runtime/runtime-utils.ts"),
         generate_source_map,
+        emit_pure_annotations,
     );
     let shared_base_external_utils_code = embed_static_code(
         asset_context,
         rcstr!("shared-node/base-externals-utils.ts"),
         generate_source_map,
+        emit_pure_annotations,
     );
     let shared_node_external_utils_code = embed_static_code(
         asset_context,
         rcstr!("shared-node/node-externals-utils.ts"),
         generate_source_map,
+        emit_pure_annotations,
     );
     // Runtime base is shared between production and development
     let runtime_base_code = embed_static_code(
         asset_context,
         rcstr!("nodejs/runtime/runtime-base.ts"),
         generate_source_map,
+        emit_pure_annotations,
     );
 
     let mut code = CodeBuilder::default();
@@ -48,6 +53,7 @@ pub async fn get_nodejs_runtime_code(
                 asset_context,
                 rcstr!("shared/runtime/async-module.ts"),
                 generate_source_map,
+                emit_pure_annotations,
             )
             .await?,
         );
@@ -63,6 +69,7 @@ pub async fn get_nodejs_runtime_code(
                     asset_context,
                     rcstr!("nodejs/runtime/build-base.ts"),
                     generate_source_map,
+                    emit_pure_annotations,
                 )
                 .await?,
             );
@@ -74,6 +81,7 @@ pub async fn get_nodejs_runtime_code(
                     asset_context,
                     rcstr!("shared/runtime/hmr-runtime.ts"),
                     generate_source_map,
+                    emit_pure_annotations,
                 )
                 .await?,
             );
@@ -84,6 +92,7 @@ pub async fn get_nodejs_runtime_code(
                     asset_context,
                     rcstr!("nodejs/runtime/dev-base.ts"),
                     generate_source_map,
+                    emit_pure_annotations,
                 )
                 .await?,
             );
@@ -94,6 +103,7 @@ pub async fn get_nodejs_runtime_code(
                     asset_context,
                     rcstr!("nodejs/dev/hmr-client.ts"),
                     generate_source_map,
+                    emit_pure_annotations,
                 )
                 .await?,
             );
@@ -104,6 +114,7 @@ pub async fn get_nodejs_runtime_code(
                     asset_context,
                     rcstr!("nodejs/dev/dev-nodejs.ts"),
                     generate_source_map,
+                    emit_pure_annotations,
                 )
                 .await?,
             );

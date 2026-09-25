@@ -58,8 +58,9 @@ async fn get_analyze_data_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
+    // Production projects retain their analysis mappings in the build cache, independently of
+    // the public source-map setting. Reuse that same project and its cached compilation tasks.
     let project = container.project();
-    let project = project.with_next_config(project.next_config().with_analyze_config());
 
     let analyze_output_root = project
         .node_root()

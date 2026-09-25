@@ -112,9 +112,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     fn module_content_without_analysis(
         &self,
         generate_source_map: bool,
+        emit_pure_annotations: bool,
     ) -> Vc<EcmascriptModuleContent> {
         self.module
-            .module_content_without_analysis(generate_source_map)
+            .module_content_without_analysis(generate_source_map, emit_pure_annotations)
     }
 
     #[turbo_tasks::function]
@@ -146,6 +147,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             code_generation: analyze_result.code_generation,
             async_module: analyze_result.async_module,
             generate_source_map,
+            public_source_map: *chunking_context
+                .emit_module_source_maps(Vc::upcast(*self))
+                .await?,
+            analysis_source_map: *chunking_context.collect_analysis_source_maps().await?,
             original_source_map: analyze_result.source_map,
             exports,
             export_registration_mode: None,

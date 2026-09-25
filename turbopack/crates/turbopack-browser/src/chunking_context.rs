@@ -774,20 +774,22 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
+        Vc::cell(self.source_maps_type.emit())
     }
 
     #[turbo_tasks::function]
     fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
+        Vc::cell(self.source_maps_type.collect())
+    }
+
+    #[turbo_tasks::function]
+    fn emit_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(self.source_maps_type.emit())
+    }
+
+    #[turbo_tasks::function]
+    fn collect_analysis_source_maps(&self) -> Vc<bool> {
+        Vc::cell(self.source_maps_type.retain_analysis())
     }
 
     #[turbo_tasks::function]

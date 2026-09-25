@@ -1358,7 +1358,12 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(*self.next_config().server_source_maps().await?)
+            .source_maps(
+                *self
+                    .next_config()
+                    .server_source_maps(self.next_mode())
+                    .await?,
+            )
             // This context is shared by every node-side transform that needs to evaluate JS at
             // build time (postcss configs, webpack loaders, next/font/google, ...). Each of those
             // builds its own module graph but they all emit the same `[turbopack]_runtime.js`, so
@@ -1806,7 +1811,7 @@ impl Project {
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_server_minify(self.next_mode()),
-            source_maps: self.next_config().server_source_maps(),
+            source_maps: self.next_config().server_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -1848,7 +1853,7 @@ impl Project {
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
             turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
-            turbo_source_maps: self.next_config().server_source_maps(),
+            turbo_source_maps: self.next_config().server_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self

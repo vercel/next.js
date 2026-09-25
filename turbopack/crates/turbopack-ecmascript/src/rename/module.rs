@@ -190,6 +190,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
     fn module_content_without_analysis(
         &self,
         _generate_source_map: bool,
+        _emit_pure_annotations: bool,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         bail!("EcmascriptModuleRenameModule::module_content_without_analysis shouldn't be called");
     }
@@ -216,6 +217,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             // contain spans from the original module, but the facade module itself doesn't have the
             // original module's swc_common::SourceMap in `parsed`.
             generate_source_map: false,
+            public_source_map: false,
+            analysis_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
             export_registration_mode: None,

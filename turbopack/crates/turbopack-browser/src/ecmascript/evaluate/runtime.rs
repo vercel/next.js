@@ -53,10 +53,15 @@ impl EcmascriptBrowserRuntimeChunk {
         let source_maps = *chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
+        let analysis_maps = *chunking_context.collect_analysis_source_maps().await?;
         let asset_context = turbopack::get_runtime_asset_context(environment);
         let runtime_type = *chunking_context.runtime_type().await?;
 
-        let mut code = CodeBuilder::new(source_maps, *chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new_with_analysis(
+            source_maps,
+            analysis_maps,
+            *chunking_context.debug_ids_enabled().await?,
+        );
 
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
@@ -66,7 +71,7 @@ impl EcmascriptBrowserRuntimeChunk {
                     chunking_context.asset_suffix(),
                     runtime_type,
                     output_root_to_root_path,
-                    source_maps,
+                    (source_maps || analysis_maps, source_maps),
                     chunking_context.chunk_loading_global(),
                     chunking_context.cross_origin(),
                     chunking_context.chunk_load_retry(),
@@ -89,7 +94,7 @@ impl EcmascriptBrowserRuntimeChunk {
             code = minify(code, source_maps, mangle)?;
         }
 
-        Ok(code.cell())
+        Ok(code.cell_persisted().to_code())
     }
 
     #[turbo_tasks::function]
@@ -170,5 +175,10 @@ impl GenerateSourceMap for EcmascriptBrowserRuntimeChunk {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
+    }
+
+    #[turbo_tasks::function]
+    fn generate_analysis_source_map(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().generate_analysis_source_map()
     }
 }

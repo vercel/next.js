@@ -39,7 +39,8 @@ pub async fn get_browser_runtime_code(
     asset_suffix: Vc<AssetSuffix>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
-    generate_source_map: bool,
+    // (collect mappings, preserve public PURE annotations)
+    source_map_options: (bool, bool),
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
@@ -47,6 +48,7 @@ pub async fn get_browser_runtime_code(
     chunk_loading: Vc<ChunkLoading>,
     support_component_chunks: bool,
 ) -> Result<Vc<Code>> {
+    let (generate_source_map, emit_pure_annotations) = source_map_options;
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
 
@@ -54,6 +56,7 @@ pub async fn get_browser_runtime_code(
         asset_context,
         rcstr!("shared/runtime/runtime-utils.ts"),
         generate_source_map,
+        emit_pure_annotations,
     );
 
     let mut runtime_base_code = vec!["browser/runtime/base/runtime-base.ts"];
@@ -236,13 +239,20 @@ pub async fn get_browser_runtime_code(
                 asset_context,
                 rcstr!("shared/runtime/async-module.ts"),
                 generate_source_map,
+                emit_pure_annotations,
             )
             .await?,
         );
     }
     for runtime_code in runtime_base_code {
         code.push_code(
-            &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
+            &*embed_static_code(
+                asset_context,
+                runtime_code.into(),
+                generate_source_map,
+                emit_pure_annotations,
+            )
+            .await?,
         );
     }
 
@@ -252,6 +262,7 @@ pub async fn get_browser_runtime_code(
                 asset_context,
                 rcstr!("shared-node/base-externals-utils.ts"),
                 generate_source_map,
+                emit_pure_annotations,
             )
             .await?,
         );
@@ -262,13 +273,20 @@ pub async fn get_browser_runtime_code(
                 asset_context,
                 rcstr!("shared-node/node-externals-utils.ts"),
                 generate_source_map,
+                emit_pure_annotations,
             )
             .await?,
         );
     }
     for backend_code in runtime_backend_code {
         code.push_code(
-            &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,
+            &*embed_static_code(
+                asset_context,
+                backend_code.into(),
+                generate_source_map,
+                emit_pure_annotations,
+            )
+            .await?,
         );
     }
 
@@ -312,6 +330,7 @@ pub fn get_worker_runtime_code(
     Ok(embed_static_code(
         asset_context,
         rcstr!("browser/runtime/base/worker-entrypoint.ts"),
+        generate_source_map,
         generate_source_map,
     ))
 }

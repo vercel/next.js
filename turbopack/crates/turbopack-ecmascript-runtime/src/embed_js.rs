@@ -29,11 +29,13 @@ pub async fn embed_static_code(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: RcStr,
     generate_source_map: bool,
+    emit_pure_annotations: bool,
 ) -> Result<Vc<Code>> {
     Ok(StaticEcmascriptCode::new(
         asset_context,
         embed_file_path(path).owned().await?,
         generate_source_map,
+        emit_pure_annotations,
     )
     .code())
 }

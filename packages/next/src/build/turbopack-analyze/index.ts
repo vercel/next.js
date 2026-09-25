@@ -2,6 +2,10 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 
 import path from 'path'
+import { readFile, stat } from 'node:fs/promises'
+import { getStorageDirectory } from '../../server/cache-dir'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
+import type { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { createDefineEnv, loadBindings } from '../swc'
 import { isCI } from '../../server/ci-info'
@@ -18,6 +22,55 @@ export type AnalyzeContext = {
   dir: string
   noMangling: boolean
   appDirOnly: boolean
+  buildOptions: {
+    hasRewrites: boolean
+    rewrites: CustomRoutes['rewrites']
+    clientRouterFilters?: ReturnType<typeof createClientRouterFilter>
+  }
+}
+
+// Read only the existing build cache. The key generators intentionally rotate or create
+// missing keys, which would no longer match the project that produced this cache.
+async function readCachedBuildInputs(distDir: string): Promise<{
+  buildId: string
+  encryptionKey: string
+  previewProps: __ApiPreviewProps
+} | null> {
+  const storageDir = getStorageDirectory(distDir)
+  if (!storageDir) return null
+  try {
+    await stat(path.join(storageDir, 'turbopack'))
+    const [buildId, encryptionData, previewData] = await Promise.all([
+      readFile(path.join(distDir, 'BUILD_ID'), 'utf8'),
+      readFile(path.join(storageDir, '.rscinfo'), 'utf8'),
+      readFile(path.join(storageDir, '.previewinfo'), 'utf8'),
+    ])
+    const encryption = JSON.parse(encryptionData)
+    const preview = JSON.parse(previewData)
+    const encryptionKey = encryption['encryption.key']
+    if (
+      !buildId ||
+      typeof encryptionKey !== 'string' ||
+      (process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY &&
+        process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY !== encryptionKey) ||
+      typeof preview.previewModeId !== 'string' ||
+      typeof preview.previewModeEncryptionKey !== 'string' ||
+      typeof preview.previewModeSigningKey !== 'string'
+    ) {
+      return null
+    }
+    return {
+      buildId,
+      encryptionKey,
+      previewProps: {
+        previewModeId: preview.previewModeId,
+        previewModeEncryptionKey: preview.previewModeEncryptionKey,
+        previewModeSigningKey: preview.previewModeSigningKey,
+      },
+    }
+  } catch {
+    return null
+  }
 }
 
 export async function turbopackAnalyze(
@@ -31,7 +84,7 @@ export async function turbopackAnalyze(
     configPhase: PHASE_PRODUCTION_BUILD,
   })
 
-  const { config, dir, distDir, noMangling } = analyzeContext
+  const { config, dir, distDir, noMangling, buildOptions } = analyzeContext
   const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
@@ -51,6 +104,9 @@ export async function turbopackAnalyze(
 
   const persistentCaching =
     config.experimental?.turbopackFileSystemCacheForBuild || false
+  const cachedBuildInputs = persistentCaching
+    ? await readCachedBuildInputs(distDir)
+    : null
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const projectResult = await bindings.turbo.createProject(
     {
@@ -70,35 +126,37 @@ export async function turbopackAnalyze(
         distDir,
         projectPath: dir,
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        hasRewrites: false,
+        clientRouterFilters: buildOptions.clientRouterFilters,
+        hasRewrites: buildOptions.hasRewrites,
         // Implemented separately in Turbopack, doesn't have to be passed here.
         middlewareMatchers: undefined,
-        rewrites: {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
-        },
+        rewrites: buildOptions.rewrites,
       }),
-      buildId: 'analyze-build',
-      encryptionKey: '',
-      previewProps: {
+      buildId: cachedBuildInputs?.buildId || 'analyze-build',
+      encryptionKey: cachedBuildInputs?.encryptionKey || '',
+      previewProps: cachedBuildInputs?.previewProps || {
         previewModeId: '',
         previewModeEncryptionKey: '',
         previewModeSigningKey: '',
       },
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
-      writeRoutesHashesManifest: false,
+      writeRoutesHashesManifest:
+        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
       isPersistentCachingEnabled: persistentCaching,
+      deferredEntries: config.experimental.deferredEntries,
       nextVersion: process.env.__NEXT_VERSION as string,
     },
     {
       turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
       gc: config.experimental.turbopackGcOptions,
-      dependencyTracking: persistentCaching,
+      dependencyTracking:
+        persistentCaching ||
+        (config.experimental.deferredEntries?.length ?? 0) > 0,
       isCi: isCI,
       isShortSession: true,
+      skipCompaction: process.env.NEXT_USE_POST_BUILD === '1',
     }
   )
   const project = projectResult.value
