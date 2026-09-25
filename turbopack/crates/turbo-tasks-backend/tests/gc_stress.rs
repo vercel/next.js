@@ -35,7 +35,6 @@ async fn gc_re_rooting_stays_flat() {
         tt: &Arc<TurboTasks<TurboTasksBackend>>,
         gen_value: u32,
     ) -> (usize, usize, bool) {
-        let tt_inner = tt.clone();
         turbo_tasks::run_once(tt.clone(), async move {
             // `create_generation` is a cached root operation, so this returns the same task each
             // round.
@@ -47,7 +46,6 @@ async fn gc_re_rooting_stays_flat() {
             }
             let output = wide_root(generation_vc, WIDTH);
             output.read_strongly_consistent().await?;
-            let _ = &tt_inner;
             anyhow::Ok(())
         })
         .await
@@ -119,14 +117,13 @@ async fn gc_re_rooting_stays_flat() {
     );
 
     // The live graph must still compute correctly after all the churn.
-    let tt3 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let generation_op = create_generation();
         let generation_vc = generation_op.resolve().strongly_consistent().await?;
         let output = wide_root(generation_vc, WIDTH);
         let expected: u32 = expected_value(ROUNDS, WIDTH);
         assert_eq!(*output.read_strongly_consistent().await?, expected);
-        let _ = &tt3;
+
         anyhow::Ok(())
     })
     .await;
