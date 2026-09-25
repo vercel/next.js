@@ -45,11 +45,12 @@ For one steadily waiting middle PR (assuming each PR list fits one page):
 | First and every 20 minutes | **8** | Current PR, successor, three predecessor links, three required checks |
 | At 5, 10 and 15 minutes between refreshes | **3** each | Three required checks only; same-SHA reruns are still detected |
 
-That is **8 + 3 + 3 + 3 = 17 reads per 20 minutes, or 51/hour**. The previous
-five-minute topology discovery used **8 × 12 = 96/hour**: roughly **47% fewer**
-normal pending reads. The `pulls.list` responses supply head/base metadata, so
-cached predecessors need no extra PR GETs on status-only ticks. Always check all
-three statuses: an older PR may pass while a nearer one is pending or failed.
+That is **8 + 3 + 3 + 3 = 17 reads per 20 minutes, or 51/hour**. Without this
+optimization, five-minute topology discovery would use **8 × 12 = 96/hour**,
+so the gate makes roughly **47% fewer** normal pending reads. The `pulls.list`
+responses supply head/base metadata, so cached predecessors need no extra PR
+GETs on status-only ticks. Always check all three statuses: an older PR may
+pass while a nearer one is pending or failed.
 A retarget, closure, or newly added leaf can take up to 20 minutes to be
 classified while waiting; no stale cache may *decide* the gate. Before opening
 or failing, re-read the current PR, decisive predecessor(s) and checks (up to
