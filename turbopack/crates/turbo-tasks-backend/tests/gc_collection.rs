@@ -8,7 +8,7 @@ mod util;
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TaskId, Vc, prevent_gc};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TaskId, Vc, prevent_gc};
 
 use crate::{
     gc_fixture::{Constant, Selector, create_constant, create_selector},
@@ -239,6 +239,18 @@ async fn dispose_root_task_releases_anchored_subgraph() {
     });
 
     let leaf_id = rx.await.unwrap();
+    // The oneshot is sent before the root future returns. Disposal during that window preserves
+    // the root until its in-progress execution settles, so a single GC pass may collect only the
+    // leaf. Wait for the root and its dependencies before testing disposal of a completed root.
+    let tt_for_wait = tt.clone();
+    turbo_tasks::run_once(tt.clone(), async move {
+        tt_for_wait
+            .wait_task_completion(root_id, ReadConsistency::Strong)
+            .await?;
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
     for _ in 0..100 {
         if tt.backend().transient_ref_count_for_testing(leaf_id) > 0 {
             break;
