@@ -98,13 +98,12 @@ Both use the same envelope:
 
 The `analyze.data` JSON header contains:
 
-| Field                                                              | Interpretation                                                                                                                                                           |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `sources[]`                                                        | `{parent_source_index: number \| null, path: string}`. Concatenate ancestor `path` strings to reconstruct a full source path; a parent may be a directory, not a module. |
-| `chunk_parts[]`                                                    | `{source_index, output_file_index, size, compressed_size}`; sizes are bytes attributed to an emitted part, not package install sizes.                                    |
-| `output_files[]`                                                   | `{filename}` of each emitted output.                                                                                                                                     |
-| `source_roots[]`                                                   | Indices of source-tree roots.                                                                                                                                            |
-| `output_file_chunk_parts`, `source_chunk_parts`, `source_children` | Edge references: output → part indices, source → part indices, source → child source indices.                                                                            |
+- `sources[]`: `{parent_source_index: number | null, path: string}`. Concatenate ancestor `path` strings to reconstruct a full source path; a parent may be a directory, not a module.
+- `chunk_parts[]`: `{source_index, output_file_index, size, compressed_size}`; sizes are bytes attributed to an emitted part, not package install sizes.
+- `output_files[]`: `{filename}` of each emitted output.
+- `route_entries[]` (newer artifacts only): Endpoint graph roots with `route_entry_id`, exact `module_ident`, `module_path`, `role` (`route` or `shared`) and optional `runtime`. `entry_kind` is `server` or `client_bootstrap` only when verified from the endpoint's build inputs; if absent, the kind is unknown. An App RSC root can contain `client_references[]` with `module_ident`, `module_path` and `reference_kind` (`ecmascript` or `css`). These nested references are **not** endpoint graph roots or proven initial browser requests. Some API artifacts include shared Pages roots because output files are merged; unannotated shared roots do not imply browser work for that API.
+- `source_roots[]`: Indices of source-tree roots.
+- `output_file_chunk_parts`, `source_chunk_parts`, `source_children`: Edge references: output → part indices, source → part indices, source → child source indices.
 
 `modules.data` contains `modules[]` with `{ident, path}` plus **six** edge
 references: `module_dependencies`, `async_module_dependencies`,
@@ -145,23 +144,26 @@ to a model context.
    conventions against the artifact before filtering; a source can appear in
    multiple files. Compressed sizes are per-part estimates, **not** measured
    transfer bytes or necessarily additive gzip of the entire output.
-3. For an import explanation, search `modules[]` by `path` **and** `ident`,
-   traverse relevant `module_dependents` backward from a candidate, and
-   `module_dependencies` forward from a known importer. Track visited indices
-   to handle cycles. Include async/traced edges only when the question calls
-   for them, labeling each type. The module graph is whole-app; intersect
-   candidate paths with route output sources and inspect application source
-   before asserting a route-specific cause. Mapping a source to more than one
-   module identity is ambiguous, not proof of an exact path.
-4. **Initial load requires more evidence.** The raw schema above does not
-   contain route entry IDs, exact initial/async `loadScopes`, request timing,
-   nearest client boundaries, or edge-cut counterfactuals. Do not claim that
-   `analyze.data` alone proves a module is initially requested. Identify entry
-   imports from application source or an independently verified entry map;
-   inspect emitted chunk references and, when timing matters, capture a cold
-   browser network trace. Mark any fallback entry/initial classification as a
-   heuristic. An already-async edge is not a candidate for another dynamic
-   split merely because its target appears in route data.
+3. For an import explanation, if available select the route's
+   `route_entries[]`, joining each `module_ident` (including nested client
+   references) to exactly one `modules[].ident` in the same snapshot. Treat a
+   missing/ambiguous join as an error or uncertainty, not a path-based match.
+   Otherwise search `modules[]` by `path` **and** `ident`. Traverse relevant
+   `module_dependents` backward from a candidate, and `module_dependencies`
+   forward from a known importer. Track visited indices to handle cycles;
+   label async/traced edges. Nested references are separate client graph inputs,
+   **not** additional synchronous roots of the server endpoint. The graph is
+   whole-app; intersect candidate paths with route output sources and inspect
+   application source. A source path can map to multiple module identities.
+4. **Initial load requires more evidence.** Older artifacts lack route entry
+   IDs. New `route_entries` records endpoint roots and verified client build
+   provenance, but neither `client_bootstrap` nor a nested client reference
+   proves a chunk was requested on cold navigation. The format still lacks
+   initial/async chunk load classifications, request timing, nearest client
+   boundaries and counterfactual cut answers. Inspect emitted chunks and, when
+   timing matters, a cold browser network trace. Label any inferred initial
+   classification as a heuristic. An already-async edge is not a candidate
+   for another dynamic split solely because its target appears in route data.
 
 ### Rank a useful candidate
 
@@ -185,7 +187,10 @@ bundler: only a measured artifact delta supports a bundle win.
 ### When a graph strategy helps
 
 - **Min cut:** For a known client entry set and a target heavy subgraph, start
-  with the directed _synchronous_ module dependency graph. Add a super-source
+  with the directed _synchronous_ module dependency graph. Typed bootstrap
+  entries alone do not supply a verified _initial_ client entry set; without
+  chunk-load provenance, do not call such a cut an initial-load result. Add a
+  super-source
   connecting **all** verified initial entries and a sink connecting targets;
   find a separating set of import edges (or use node splitting if boundaries
   are modules). Define capacity deliberately: a unit cut minimizes edge count;
@@ -215,11 +220,9 @@ bundler: only a measured artifact delta supports a bundle win.
 These are _procedures_, not precomputed answers; run them against the selected
 route and report actual paths and values:
 
-| Question                                               | Ad hoc analysis and honest answer                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "What contributes most to `/dashboard` client output?" | Decode that route's `analyze.data`; filter output filenames after verifying the client convention; group `chunk_parts` by reconstructed source path or package; sum each part once. Report the largest paths, uncompressed/compressed attribution and the selected output files. This ranks **route output**, not proven initial requests.                                                                                          |
-| "Why is a large editor included?"                      | Find its source path in route parts and matching `modules.data` paths; choose an exact `ident` if possible. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. A browser trace is needed before calling it initially loaded.                                                            |
-| "Where might a lazy boundary isolate the editor?"      | Only after establishing real client entry nodes, search for **all** synchronous paths to the editor; run a min cut on that scoped graph. For instance, two independent entry→editor paths need both severed, not just the visually obvious import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear. |
+- **What contributes most to `/dashboard` client output?** Decode that route's `analyze.data`; filter output filenames after verifying the client convention; group `chunk_parts` by reconstructed source path or package; sum each part once. Report the largest paths, uncompressed/compressed attribution and the selected output files. This ranks **route output**, not proven initial requests.
+- **Why is a large editor included?** Find its source path in route parts and matching `modules.data` paths; choose an exact `ident` if possible. Traverse synchronous `module_dependents` toward project importers (mark async and traced importers separately), inspect those import statements, and state if variants prevent a unique chain. A browser trace is needed before calling it initially loaded.
+- **Where might a lazy boundary isolate the editor?** Only after establishing real client entry nodes, search for **all** synchronous paths to the editor; run a min cut on that scoped graph. For instance, two independent entry→editor paths need both severed, not only the apparent import. Inspect each proposed edge for a safe interaction gate and rebuild; a cut alone does not measure saved bytes. Cluster nearby features separately if a cohesive split is unclear.
 
 As a small validation example, imagine a folder source 0 with no direct parts and a
 child source 1 owning one 100-byte part (40 attributed compressed bytes). The

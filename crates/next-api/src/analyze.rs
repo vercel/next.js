@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
 use next_core::app_structure::FileSystemPathVec;
@@ -8,7 +9,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, ResolvedVc, TryFlatJoinIterExt, ValueToString, ValueToStringRef, Vc,
+    FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
+    ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
@@ -86,6 +88,42 @@ pub struct AnalyzeOutputFile {
     pub filename: RcStr,
 }
 
+/// Exact endpoint graph root. Client roles and references are build-time
+/// provenance; neither establishes that a browser requested a chunk.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Serialize)]
+pub struct AnalyzeRouteEntry {
+    pub route_entry_id: RcStr,
+    pub module_ident: RcStr,
+    pub module_path: RcStr,
+    pub role: RcStr,
+    pub runtime: Option<RcStr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_kind: Option<RcStr>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub client_references: Vec<AnalyzeClientReferenceEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Serialize)]
+pub struct AnalyzeClientReferenceEntry {
+    pub module_ident: RcStr,
+    pub module_path: RcStr,
+    pub reference_kind: RcStr,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
+
+pub fn analyze_route_entry_id(
+    route: &str,
+    role: &str,
+    endpoint_index: usize,
+    sub_name: &str,
+    module_ident: &str,
+) -> RcStr {
+    format!("{route}|{role}|{endpoint_index}|{sub_name}|{module_ident}").into()
+}
+
 #[derive(Serialize)]
 struct EdgesDataReference {
     pub offset: u32,
@@ -97,6 +135,8 @@ struct AnalyzeDataHeader {
     pub sources: Vec<AnalyzeSource>,
     pub chunk_parts: Vec<AnalyzeChunkPart>,
     pub output_files: Vec<AnalyzeOutputFile>,
+    /// Exact endpoint roots; nested client references do not become roots.
+    pub route_entries: Vec<AnalyzeRouteEntry>,
     /// Edges from chunks to chunk parts
     pub output_file_chunk_parts: EdgesDataReference,
     /// Edges from sources to chunk parts
@@ -150,6 +190,7 @@ struct AnalyzeDataBuilder {
     source_index_map: FxHashMap<RcStr, u32>,
     chunk_parts: Vec<AnalyzeChunkPart>,
     output_files: Vec<AnalyzeOutputFileBuilder>,
+    route_entries: Vec<AnalyzeRouteEntry>,
 }
 
 struct ModulesDataBuilder {
@@ -175,12 +216,13 @@ impl EdgesDataSectionBuilder {
 }
 
 impl AnalyzeDataBuilder {
-    fn new() -> Self {
+    fn new(route_entries: Vec<AnalyzeRouteEntry>) -> Self {
         Self {
             sources: vec![],
             source_index_map: FxHashMap::default(),
             chunk_parts: vec![],
             output_files: vec![],
+            route_entries,
         }
     }
 
@@ -262,6 +304,7 @@ impl AnalyzeDataBuilder {
                 .into_iter()
                 .map(|of| of.output_file)
                 .collect(),
+            route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
@@ -405,10 +448,12 @@ pub async fn combine_traced_files(
 pub async fn analyze_output_assets(
     output_assets: Vc<OutputAssets>,
     traced_files: Vc<FileSystemPathVec>,
+    route_entries: Vc<AnalyzeRouteEntries>,
 ) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);
+    let route_entries = route_entries.await?.iter().cloned().collect();
 
-    let mut builder = AnalyzeDataBuilder::new();
+    let mut builder = AnalyzeDataBuilder::new(route_entries);
 
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
@@ -637,6 +682,7 @@ pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
     pub output_assets: ResolvedVc<OutputAssets>,
     pub traced_files: ResolvedVc<FileSystemPathVec>,
+    pub route_entries: ResolvedVc<AnalyzeRouteEntries>,
 }
 
 #[turbo_tasks::value_impl]
@@ -646,11 +692,13 @@ impl AnalyzeDataOutputAsset {
         path: FileSystemPath,
         output_assets: ResolvedVc<OutputAssets>,
         traced_files: ResolvedVc<FileSystemPathVec>,
+        route_entries: ResolvedVc<AnalyzeRouteEntries>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
             output_assets,
             traced_files,
+            route_entries,
         }
         .cell())
     }
@@ -660,7 +708,8 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets, *self.traced_files);
+        let file_content =
+            analyze_output_assets(*self.output_assets, *self.traced_files, *self.route_entries);
         AssetContent::file(file_content)
     }
 }
@@ -710,5 +759,60 @@ impl OutputAsset for ModulesDataOutputAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
         self.path.clone().cell()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AnalyzeClientReferenceEntry, AnalyzeRouteEntry, analyze_route_entry_id};
+
+    #[test]
+    fn client_references_are_nested_and_do_not_claim_initial_load() {
+        let entry = AnalyzeRouteEntry {
+            route_entry_id: "route|route|0||rsc".into(),
+            module_ident: "rsc".into(),
+            module_path: "[project]/app/page.tsx".into(),
+            role: "route".into(),
+            runtime: None,
+            entry_kind: Some("server".into()),
+            client_references: vec![AnalyzeClientReferenceEntry {
+                module_ident: "client".into(),
+                module_path: "[project]/app/client.tsx".into(),
+                reference_kind: "ecmascript".into(),
+            }],
+        };
+        let json = serde_json::to_value([entry]).unwrap();
+        assert_eq!(json.as_array().unwrap().len(), 1);
+        assert_eq!(json[0]["module_ident"], "rsc");
+        assert_eq!(json[0]["entry_kind"], "server");
+        assert_eq!(json[0]["client_references"][0]["module_ident"], "client");
+        assert!(json[0].get("initial").is_none());
+        assert!(json[0].get("load_scope").is_none());
+    }
+
+    #[test]
+    fn route_entry_ids_preserve_endpoint_variant_and_shared_role() {
+        let first = analyze_route_entry_id("/settings", "route", 0, "@main", "module");
+        let second = analyze_route_entry_id("/settings", "route", 1, "@modal", "module");
+        let shared = analyze_route_entry_id("_app", "shared", 0, "", "module");
+        assert_ne!(first, second);
+        assert_ne!(first, shared);
+        assert_ne!(second, shared);
+    }
+
+    #[test]
+    fn unavailable_client_provenance_does_not_gain_a_role() {
+        let entry = AnalyzeRouteEntry {
+            route_entry_id: "route|route|0||unknown".into(),
+            module_ident: "unknown".into(),
+            module_path: "[project]/app/route.ts".into(),
+            role: "route".into(),
+            runtime: None,
+            entry_kind: None,
+            client_references: vec![],
+        };
+        let json = serde_json::to_value(entry).unwrap();
+        assert!(json.get("entry_kind").is_none());
+        assert!(json.get("client_references").is_none());
     }
 }
