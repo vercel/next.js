@@ -8,8 +8,10 @@ import type { RouteTree } from './cache'
 import { Fallback, type FallbackType } from './cache-map'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 import {
+  readVaryParams,
   SEARCH_PARAMS_VARY_ID,
   type VaryParamId,
+  type VaryParams,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
 
 type Opaque<T, K> = T & { __brand: K }
@@ -322,6 +324,88 @@ export function getRenderedSearchFromVaryPath(
     node = node.parent
   }
   return null
+}
+
+/**
+ * The kind of param change between two vary paths for the same segment. A path
+ * param change takes precedence, because path params are part of
+ * LayoutRouter's React key: the segment remounts either way.
+ */
+export const enum ParamsChange {
+  None,
+  SearchParams,
+  PathParam,
+}
+
+export function compareParams(
+  currentVaryPath: VaryPath,
+  nextVaryPath: VaryPath
+): ParamsChange {
+  // Both vary paths are for the same segment, so they list the same params in
+  // the same order. Walk them together. This includes params inherited from
+  // parent layouts, since those may have changed, too.
+  let current: VaryPathNode | null = currentVaryPath
+  let next: VaryPathNode | null = nextVaryPath
+  let change = ParamsChange.None
+  while (current !== null && next !== null) {
+    if (current.value !== next.value) {
+      const id = current.id
+      if (id === null) {
+        // The request key. Callers check that the route structure matches
+        // first, so it's always the same.
+      } else if (id === SEARCH_PARAMS_VARY_ID) {
+        change = ParamsChange.SearchParams
+      } else {
+        return ParamsChange.PathParam
+      }
+    }
+    current = current.parent
+    next = next.parent
+  }
+  return change
+}
+
+export function didReadChangedParam(
+  currentVaryPath: VaryPath,
+  nextVaryPath: VaryPath,
+  varyParams: VaryParams | null
+): boolean {
+  // Returns true if the output rendered with `currentVaryPath` read a param
+  // whose value is different in `nextVaryPath`. `varyParams` is the set of
+  // params the output read, or null if we don't know.
+  //
+  // Same traversal as compareParams. Only read the set if a param changed.
+  let current: VaryPathNode | null = currentVaryPath
+  let next: VaryPathNode | null = nextVaryPath
+  let total: Set<VaryParamId> | null = null
+  while (current !== null && next !== null) {
+    if (current.value !== next.value) {
+      const id = current.id
+      if (id === null) {
+        // The request key. Callers check that the route structure matches
+        // first, so it's always the same.
+      } else {
+        if (total === null) {
+          if (varyParams === null) {
+            // We don't know. Assume it read the param.
+            return true
+          }
+          total = readVaryParams(varyParams)
+          if (total === null) {
+            // The render hasn't finished, or it aborted. Assume it read the
+            // param.
+            return true
+          }
+        }
+        if (total.has(id)) {
+          return true
+        }
+      }
+    }
+    current = current.parent
+    next = next.parent
+  }
+  return false
 }
 
 export function getFulfilledSegmentVaryPath(

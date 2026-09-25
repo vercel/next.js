@@ -170,9 +170,16 @@ export type FlightRouterState = [
   /**
    * Bitmask of PrefetchHint flags. Encodes route structure metadata:
    * root layout, loading boundaries, instant configs, and prefetch strategy
-   * hints. Only set when non-zero.
+   * hints. Only set when non-zero. JSON encodes an omitted slot as null when
+   * a later slot is present.
    */
-  prefetchHints?: number,
+  prefetchHints?: number | null,
+  /**
+   * The rendered search params of a page segment. An empty string means there
+   * are none. Only set on page nodes, and left out of request headers.
+   * TODO: Revisit this as part of the larger FlightRouterState refactor.
+   */
+  renderedSearch?: string,
 ]
 
 /**
