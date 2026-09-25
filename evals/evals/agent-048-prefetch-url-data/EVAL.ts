@@ -70,7 +70,7 @@ test('caches the category data', () => {
 })
 
 test('does not use a navigation-stage boundary', () => {
-  expect(source).not.toMatch(/\bunstable_navigation\b/)
+  expect(source).not.toMatch(/\bnavigation\b/)
 })
 
 test('prefetches the selected category and cached products', async () => {
@@ -79,6 +79,6 @@ test('prefetches the selected category and cached products', async () => {
 
 A correct solution preserves the existing /catalog?category=... URLs, enables Partial Prefetching globally or on the catalog route, and opts the category Links into per-link prefetching with prefetch={true} or the equivalent bare prefetch prop. The catalog route reads the category from searchParams beneath Suspense and renders both the matching heading and getProducts(category) result in the prefetched result. The category data must use a use cache scope, with either the default cache profile or an explicit cacheLife(); searchParams must remain outside that cache scope. Keep the Suspense boundary: the shared App Shell uses its fallback, while a completed per-link prefetch can resolve the cached content inside it before navigation.
 
-This is the basic URL-data inclusion case. Do not use unstable_navigation(), unstable_prefetch(), connection(), or an uncached request boundary to defer the category content. Reject solutions that only prefetch the reusable Catalog shell while leaving the selected heading or product list behind the loading fallback.`
+This is the basic URL-data inclusion case. Do not use navigation(), prefetch(), connection(), or an uncached request boundary to defer the category content. Reject solutions that only prefetch the reusable Catalog shell while leaving the selected heading or product list behind the loading fallback.`
   )
 })

@@ -5212,7 +5212,7 @@ async function prepareValidationInputsInPartialPrefetching(
   // (see `needsRuntimeShell` and callsites of `trackIncompatibleShellContent`)
   // This includes:
   // - static `params`
-  // - `unstable_navigation()` and `unstable_prefetch()`
+  // - `navigation()` and `prefetch()`
   // - caches with `stale < MIN_SHELL_STALE` are excluded from app shells
   //   but are included in static prerenders
   // If one of these APIs is used, the render can't be used for both Instant Validation and

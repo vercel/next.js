@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 
 export default function Page() {
   return (
@@ -12,6 +12,6 @@ export default function Page() {
 }
 
 async function PrefetchContent() {
-  await unstable_prefetch()
+  await prefetch()
   return <p id="page-content">Fully static page content (with prefetch())</p>
 }

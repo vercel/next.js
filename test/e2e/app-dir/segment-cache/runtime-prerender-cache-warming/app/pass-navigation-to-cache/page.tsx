@@ -1,4 +1,4 @@
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'

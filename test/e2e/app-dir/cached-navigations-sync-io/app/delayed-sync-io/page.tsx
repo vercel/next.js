@@ -1,11 +1,11 @@
-import { unstable_navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { Suspense } from 'react'
 import UncachedTimePage from '../uncached-time/page'
 
 async function Content() {
   // The navigation stage defers this subtree past the initial Flight rows. The
   // private cache in UncachedTimePage still resolves before the dynamic stage.
-  await unstable_navigation()
+  await navigation()
   return <UncachedTimePage />
 }
 

@@ -356,7 +356,7 @@ export function getGuidanceVariant(message: string): GuidanceVariant {
   // Discriminates between `createNavigationBodyErrorInNavigation`,
   // `createLinkBodyErrorInNavigation`, `createRuntimeBodyError`, and
   // `createDynamicBodyError` (and their in-navigation variants).
-  if (message.includes('encountered `unstable_navigation()`')) {
+  if (message.includes('encountered `navigation()`')) {
     return 'navigation'
   }
   if (
@@ -874,8 +874,7 @@ export function Errors({
         case 'navigation':
           errorMessage = (
             <>
-              Next.js encountered <code>unstable_navigation()</code> outside of
-              Suspense.
+              Next.js encountered <code>navigation()</code> outside of Suspense.
             </>
           )
           break
@@ -994,7 +993,7 @@ export function Errors({
         case 'navigation':
           errorMessage = (
             <>
-              Next.js encountered <code>unstable_navigation()</code> in{' '}
+              Next.js encountered <code>navigation()</code> in{' '}
               <code>generateMetadata()</code>.
             </>
           )
@@ -1069,7 +1068,7 @@ export function Errors({
         case 'navigation':
           errorMessage = (
             <>
-              Next.js encountered <code>unstable_navigation()</code> in{' '}
+              Next.js encountered <code>navigation()</code> in{' '}
               <code>generateViewport()</code>.
             </>
           )
