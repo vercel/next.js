@@ -147,6 +147,10 @@ export const conditions: Record<string, Condition> = {
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
   ),
+  windows: staticCondition(
+    'running on Windows',
+    () => process.platform === 'win32'
+  ),
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
   ),
