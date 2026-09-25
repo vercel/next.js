@@ -133,7 +133,7 @@ impl OutputAssetsReference for SingleFileEcmascriptOutput {
 
         let include_source_map = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?;
 
         let references = if include_source_map {

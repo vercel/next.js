@@ -123,7 +123,7 @@ impl OutputAssetsReference for EcmascriptBrowserRuntimeChunk {
 
         if *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?
         {
             references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
@@ -154,10 +154,17 @@ impl OutputAsset for EcmascriptBrowserRuntimeChunk {
 impl Asset for EcmascriptBrowserRuntimeChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = self.await?;
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *this
+                            .chunking_context
+                            .publish_chunk_source_maps(Vc::upcast(self))
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),

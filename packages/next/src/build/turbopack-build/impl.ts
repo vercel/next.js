@@ -99,6 +99,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     noMangling,
     writeRoutesHashesManifest:
       !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
+    analyze: NextBuildContext.analyze,
     currentNodeJsVersion,
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,

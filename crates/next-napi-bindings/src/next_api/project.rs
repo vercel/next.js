@@ -209,6 +209,9 @@ pub struct NapiProjectOptions {
     /// Whether to write the route hashes manifest.
     pub write_routes_hashes_manifest: bool,
 
+    /// Keep source mappings in memory for a build with bundle analysis.
+    pub analyze: Option<bool>,
+
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
 
@@ -312,6 +315,7 @@ impl NapiProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            analyze,
             current_node_js_version,
             debug_build_paths,
             deferred_entries,
@@ -341,6 +345,7 @@ impl NapiProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            analyze: analyze.unwrap_or(false),
             current_node_js_version,
             debug_build_paths: debug_build_paths.map(|p| DebugBuildPaths {
                 app: p.app,
