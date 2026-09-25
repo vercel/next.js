@@ -156,6 +156,7 @@ export async function initialize(opts: {
     opts.dir,
     {
       silent: false,
+      bundler: bundlerBeforeConfig,
       reportExperimentalFeatures(features) {
         experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
           a.localeCompare(b)

@@ -111,4 +111,42 @@ describe('experimental-lightningcss-features', () => {
       expect(css).not.toContain('--lightningcss-dark')
     })
   })
+
+  describe('without useLightningcss', () => {
+    const { next, isNextStart, isTurbopack } = nextTestSetup({
+      files: __dirname,
+      packageJson: {
+        browserslist: ['chrome 123'],
+      },
+      nextConfig: {
+        experimental: {
+          lightningCssFeatures: {
+            include: ['light-dark'],
+          },
+        },
+      },
+    })
+
+    const warning =
+      'experimental.lightningCssFeatures is set but experimental.useLightningcss is not enabled.'
+
+    if (isNextStart) {
+      it('should not warn, no bundler runs in `next start`', async () => {
+        await next.render('/')
+        expect(next.cliOutput).not.toContain(warning)
+      })
+    } else if (isTurbopack) {
+      it('should apply lightningCssFeatures without warning', async () => {
+        const css = await collectPageCss(next, '/')
+        expect(css).not.toContain('light-dark(')
+        expect(css).toContain('--lightningcss-light')
+        expect(next.cliOutput).not.toContain(warning)
+      })
+    } else {
+      it('should warn that lightningCssFeatures has no effect', async () => {
+        await next.render('/')
+        expect(next.cliOutput).toContain(warning)
+      })
+    }
+  })
 })
