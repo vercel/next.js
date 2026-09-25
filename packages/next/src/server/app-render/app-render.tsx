@@ -9001,24 +9001,38 @@ async function prerenderToStream(
   let reactServerRenderChunks: Array<Uint8Array> | null = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
-  const setMetadataHeader = (name: string) => {
-    metadata.headers ??= {}
-    metadata.headers[name] = res.getHeader(name)
-  }
   const setHeader = (name: string, value: string | string[]) => {
-    res.setHeader(name, value)
-    setMetadataHeader(name)
+    try {
+      res.setHeader(name, value)
+    } catch {}
+    metadata.headers ??= {}
+    metadata.headers[name] = value
     return res
   }
   const appendHeader = (name: string, value: string | string[]) => {
-    if (Array.isArray(value)) {
-      value.forEach((item) => {
-        res.appendHeader(name, item)
-      })
+    try {
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          res.appendHeader(name, item)
+        })
+      } else {
+        res.appendHeader(name, value)
+      }
+    } catch {}
+    metadata.headers ??= {}
+    const existing = metadata.headers[name]
+    const valuesToAdd = Array.isArray(value) ? value : [value]
+    if (existing !== undefined) {
+      const existingArray = (
+        Array.isArray(existing) ? existing : [existing]
+      ).map(String)
+      const newValues = valuesToAdd.filter((v) => !existingArray.includes(v))
+      if (newValues.length > 0) {
+        metadata.headers[name] = [...existingArray, ...newValues]
+      }
     } else {
-      res.appendHeader(name, value)
+      metadata.headers[name] = value
     }
-    setMetadataHeader(name)
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
