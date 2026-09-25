@@ -1782,10 +1782,15 @@ function assignDefaultsAndValidate(
  * consumers don't each need to know the current framework default (which may
  * evolve over time).
  */
-function finalizeConfig(
+async function finalizeConfig(
   config: NextConfigComplete,
   bundler: Bundler | undefined
-): NextConfigComplete {
+): Promise<NextConfigComplete> {
+  if (config.experimental.imgOptWorker === true) {
+    const { resolveImageOptimizerWorker } =
+      require('./image-optimizer/sandbox-support') as typeof import('./image-optimizer/sandbox-support')
+    await resolveImageOptimizerWorker(true)
+  }
   config.experimental.instantInsights = {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
@@ -2043,7 +2048,7 @@ async function loadConfigImpl(
     // Check deprecation warnings on the custom config before merging with defaults
     checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
 
-    const config = finalizeConfig(
+    const config = await finalizeConfig(
       await applyModifyConfig(
         assignDefaultsAndValidate(
           dir,
@@ -2282,7 +2287,7 @@ async function loadConfigImpl(
       phase
     )
 
-    const finalConfig = finalizeConfig(
+    const finalConfig = await finalizeConfig(
       await applyModifyConfig(completeConfig, phase, silent, dir),
       bundler
     )
@@ -2355,7 +2360,7 @@ async function loadConfigImpl(
 
   setHttpClientAndAgentOptions(completeConfig)
 
-  const finalConfig = finalizeConfig(
+  const finalConfig = await finalizeConfig(
     await applyModifyConfig(completeConfig, phase, silent, dir),
     bundler
   )

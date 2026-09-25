@@ -9,6 +9,7 @@ import {
   SandboxedImageOptimizerWorker,
 } from 'next/dist/server/image-optimizer/sandbox-worker'
 import type { ImageOptimizerOperation } from 'next/dist/server/image-optimizer/operation'
+import { resolveImageOptimizerWorker } from 'next/dist/server/image-optimizer/sandbox-support'
 import {
   defaultConfig,
   getNextConfigRuntime,
@@ -77,6 +78,65 @@ describe('SandboxedImageOptimizerWorker', () => {
   afterEach(async () => {
     await worker?.close()
     worker = undefined
+  })
+
+  it('enables subprocesses by default when sandboxing is supported', async () => {
+    await expect(
+      resolveImageOptimizerWorker(undefined, async () => undefined)
+    ).resolves.toBe(true)
+  })
+
+  it('disables subprocesses without probing when explicitly opted out', async () => {
+    const check = jest.fn()
+    await expect(resolveImageOptimizerWorker(false, check)).resolves.toBe(false)
+    expect(check).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'unsupported platform win32',
+    'bubblewrap not installed',
+    'sandbox creation denied',
+  ])('only auto mode falls back when %s', async (reason) => {
+    const check = async () => reason
+    await expect(resolveImageOptimizerWorker(undefined, check)).resolves.toBe(
+      false
+    )
+    await expect(resolveImageOptimizerWorker(true, check)).rejects.toThrow(
+      `experimental.imgOptWorker cannot be enabled: ${reason}`
+    )
+  })
+
+  it('enables explicitly requested subprocesses when supported', async () => {
+    await expect(
+      resolveImageOptimizerWorker(true, async () => undefined)
+    ).resolves.toBe(true)
+  })
+
+  it.each(['auto', 'false'])(
+    'starts with subprocesses disabled on an unsupported host (%s)',
+    async (requested) => {
+      const { stdout } = await execFileAsync(
+        process.execPath,
+        [join(__dirname, 'fixtures/sandbox-worker-unsupported.js'), requested],
+        { timeout: 10000 }
+      )
+      expect(stdout).toContain('WORKER_ENABLED=false')
+    }
+  )
+
+  it('fails config loading when subprocesses are explicitly enabled on an unsupported host', async () => {
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [join(__dirname, 'fixtures/sandbox-worker-unsupported.js'), 'true'],
+        { timeout: 10000 }
+      )
+    ).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining(
+        'experimental.imgOptWorker cannot be enabled: unsupported platform win32'
+      ),
+    })
   })
 
   it('shares shutdown listeners and removes them when workers close', async () => {
@@ -173,6 +233,25 @@ describe('SandboxedImageOptimizerWorker', () => {
     expect(config.filesystem.allowRead).toContain(process.execPath)
     expect(config.filesystem.allowRead).toContain(fixtureWorker)
     expect(config.filesystem.denyRead).toEqual(['/'])
+  })
+
+  it('only grants the source checkout allowance during local development', () => {
+    const previous = process.env.NEXT_PRIVATE_LOCAL_DEV
+    const dist = join(__dirname, '../../../packages/next/dist')
+    const packageJson = join(dist, '../package.json')
+    try {
+      delete process.env.NEXT_PRIVATE_LOCAL_DEV
+      const normal = getImageOptimizerSandboxConfig(fixtureWorker)
+      expect(normal.filesystem.allowRead).not.toContain(dist)
+      expect(normal.filesystem.allowRead).not.toContain(packageJson)
+      process.env.NEXT_PRIVATE_LOCAL_DEV = '1'
+      const local = getImageOptimizerSandboxConfig(fixtureWorker)
+      expect(local.filesystem.allowRead).toContain(dist)
+      expect(local.filesystem.allowRead).toContain(packageJson)
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PRIVATE_LOCAL_DEV
+      else process.env.NEXT_PRIVATE_LOCAL_DEV = previous
+    }
   })
 
   it.each(['relative/path', '/tmp/*', '/tmp/[abc]', '/tmp/file?'])(
@@ -275,7 +354,8 @@ describe('SandboxedImageOptimizerWorker', () => {
       read: expect.stringMatching(/^read-blocked:/),
       readHome: expect.stringMatching(/^read-blocked:/),
       readApplication: expect.stringMatching(/^read-blocked:/),
-      readDependency: 'read-allowed',
+      readDependency: expect.stringMatching(/^read-blocked:/),
+      readCheckout: expect.stringMatching(/^read-blocked:/),
       libraries: Array(6).fill(expect.stringMatching(/^read-blocked:/)),
       customRead: 'read-allowed',
       customOutsideRead: expect.stringMatching(/^read-blocked:/),
