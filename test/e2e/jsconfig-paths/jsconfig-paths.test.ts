@@ -3,12 +3,15 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 describe('jsconfig paths', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    deployBuildArtifacts: [
+      '.next/server/pages/single-alias.js.nft.json',
+      '.next/server/pages/resolve-order.js.nft.json',
+      '.next/server/pages/resolve-fallback.js.nft.json',
+      '.next/server/pages/basic-alias.js.nft.json',
+    ],
   })
-  if (skipped) return
-  if (isNextDeploy) return
 
   it('should alias components', async () => {
     const $ = await next.render$('/basic-alias')
@@ -52,7 +55,7 @@ describe('jsconfig paths', () => {
     })
   }
 
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should trace correctly', async () => {
       const singleAliasTrace = JSON.parse(
         await next.readFile('.next/server/pages/single-alias.js.nft.json')
