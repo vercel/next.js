@@ -11,6 +11,9 @@ import {
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
+import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import { OPEN_ROUTE_PICKER_EVENT } from '@/components/route-typeahead'
 import {
   CompareLayout,
   type CompareLayoutModel,
@@ -23,6 +26,7 @@ import { TreemapVisualizer } from '@/components/treemap-visualizer'
 import { Badge } from '@/components/ui/badge'
 import {
   AnalyzerChromeSkeleton,
+  RouteSummarySkeleton,
   TableSkeleton,
   TreemapSkeleton,
 } from '@/components/ui/skeleton'
@@ -34,20 +38,42 @@ import {
   useHistoryIndex,
   useSuspenseJsonData,
 } from '@/lib/analyzer-data'
-import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
-import { useRouteTotals } from '@/lib/use-route-totals'
+import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
-import { formatBytes } from '@/lib/utils'
+import { formatBytes, jsonFetcher } from '@/lib/utils'
 import { SizeMode } from '@/lib/treemap-layout'
+import { ArrowRight, Monitor } from 'lucide-react'
 
 export function SingleAnalyzer() {
   return (
     <AnalyzerBoundary defaultView={CompareView.Treemap}>
       <SingleAnalyzerController />
     </AnalyzerBoundary>
+  )
+}
+
+export function RouteSummaryPage() {
+  return (
+    <AnalyzerBoundary
+      defaultView={CompareView.Treemap}
+      fallback={<RouteSummarySkeleton />}
+    >
+      <RouteSummaryController />
+    </AnalyzerBoundary>
+  )
+}
+
+function RouteSummaryController() {
+  const model = useAnalyzerModel(false)
+  return (
+    <AnalyzerFrame
+      topBar={<AnalyzerTopBar model={model} showComparison={false} />}
+    >
+      <RouteOverview model={model} />
+    </AnalyzerFrame>
   )
 }
 
@@ -72,12 +98,14 @@ function CompareAnalyzerController() {
 function AnalyzerBoundary({
   children,
   defaultView,
+  fallback,
 }: {
   children: ReactNode
   defaultView: CompareView
+  fallback?: ReactNode
 }) {
   return (
-    <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
+    <Suspense fallback={fallback ?? <AnalyzerFallback view={defaultView} />}>
       {children}
     </Suspense>
   )
@@ -260,12 +288,30 @@ function useAnalyzerModel(compare: boolean) {
     })
   }, [analyzeData, baselineSnapshot, filterSource])
 
-  // Per-route totals for both sides, used to size the route-level diff so
-  // that routes whose modules changed can be reported as `changed` rather
-  // than `identical`. Only fetched in compare mode.
-  const { totals: currentRouteTotals } = useRouteTotals(
-    baselineSnapshot ? currentRoutes : null,
-    baselineSnapshot ? comparisonBaseDir : null
+  const routeSummaries = useSuspenseJsonData<RouteSummary[]>(
+    `${comparisonBaseDir}/route-summaries.json`,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
+  const clientRouteTotals = new Map(
+    routeSummaries.map(({ route, client }) => [
+      route,
+      { size: client.size, compressedSize: client.compressed_size },
+    ])
+  )
+  const serverRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size, client }) => [
+      route,
+      {
+        size: size - client.size,
+        compressedSize: compressed_size - client.compressed_size,
+      },
+    ])
+  )
+  const currentRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size }) => [
+      route,
+      { size, compressedSize: compressed_size },
+    ])
   )
   return {
     analyzeData,
@@ -284,6 +330,8 @@ function useAnalyzerModel(compare: boolean) {
     moduleDepthMap,
     modulesData,
     currentRouteTotals,
+    clientRouteTotals,
+    serverRouteTotals,
     searchQuery: searchInput,
     selectedRoute,
     selectedSourceIndex,
@@ -330,9 +378,11 @@ function AnalyzerFrame({
 function AnalyzerTopBar({
   model,
   routeDiff = null,
+  showComparison = true,
 }: {
   model: AnalyzerModel
   routeDiff?: CompareLayoutModel['routeDiff']
+  showComparison?: boolean
 }) {
   return (
     <TopBar
@@ -352,12 +402,19 @@ function AnalyzerTopBar({
       setSearchQuery={model.setSearchQuery}
       baselineSnapshot={model.baselineSnapshot}
       onBaselineChange={(snapshot) => {
-        if (snapshot) model.routeState.startComparison(snapshot)
-        else model.routeState.stopComparison()
+        if (snapshot) {
+          model.routeState.startComparison(snapshot)
+        } else model.routeState.stopComparison()
       }}
       comparisonSnapshot={model.comparisonSnapshot}
       onComparisonChange={model.routeState.setComparisonSnapshot}
       routeDiff={routeDiff}
+      routeTotals={
+        model.environmentFilter === Environment.Client
+          ? model.clientRouteTotals
+          : model.serverRouteTotals
+      }
+      showComparison={showComparison}
     />
   )
 }
@@ -413,18 +470,32 @@ function ValidComparisonContent({
     `${baselineBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const { totals: baselineRouteTotals } = useRouteTotals(
-    baselineRoutes,
-    baselineBaseDir
+  const { data: baselineRouteSummaries } = useSWR<RouteSummary[]>(
+    `${baselineBaseDir}/route-summaries.json`,
+    jsonFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    }
   )
-  const routeDiff = model.currentRouteTotals
-    ? diffRoutesWithSizes(
-        baselineRoutes,
-        model.currentRoutes,
-        baselineRouteTotals,
-        model.currentRouteTotals
+  const baselineRouteTotals = baselineRouteSummaries
+    ? new Map(
+        baselineRouteSummaries.map(({ route, size, compressed_size }) => [
+          route,
+          { size, compressedSize: compressed_size },
+        ])
       )
     : null
+  const routeDiff =
+    baselineRouteTotals && model.currentRouteTotals
+      ? diffRoutesWithSizes(
+          baselineRoutes,
+          model.currentRoutes,
+          baselineRouteTotals,
+          model.currentRouteTotals
+        )
+      : null
   const layoutProps = {
     baselineSnapshot,
     comparisonSnapshot: model.comparisonSnapshot,
@@ -575,7 +646,11 @@ function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
   const analyzeData = model.analyzeData
   const content = analyzeData ? (
     <SingleAnalyzerContent model={model} analyzeData={analyzeData} />
-  ) : null
+  ) : (
+    <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+      Select a route to analyze.
+    </div>
+  )
 
   const footer =
     analyzeData && model.compareView === CompareView.Treemap ? (
@@ -586,6 +661,97 @@ function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
     <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />} footer={footer}>
       {content}
     </AnalyzerFrame>
+  )
+}
+
+function RouteOverview({ model }: { model: AnalyzerModel }) {
+  const [visibleRouteCount, setVisibleRouteCount] = useState(15)
+  const [routePickerShortcut, setRoutePickerShortcut] = useState('⌘K')
+
+  useEffect(() => {
+    if (!/Mac|iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      setRoutePickerShortcut('Ctrl+K')
+    }
+  }, [])
+
+  const rankedRoutes = model.currentRoutes
+    .map((route) => ({
+      route,
+      compressedSize: model.clientRouteTotals?.get(route)?.compressedSize ?? 0,
+    }))
+    .sort((left, right) => right.compressedSize - left.compressedSize)
+  const visibleRoutes = rankedRoutes.slice(0, visibleRouteCount)
+  const remainingRouteCount = rankedRoutes.length - visibleRoutes.length
+
+  return (
+    <div className="flex flex-1 justify-center overflow-auto px-6 py-12">
+      <section
+        className="w-full max-w-3xl"
+        aria-labelledby="route-overview-title"
+      >
+        <div className="mb-6 flex items-start justify-between gap-6">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Monitor className="h-4 w-4" />
+              Client bundles
+            </div>
+            <h1 id="route-overview-title" className="text-2xl font-semibold">
+              Largest client payloads
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Start with the routes that send the most compressed code to the
+              browser.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {model.currentRoutes.length} routes
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                window.dispatchEvent(new Event(OPEN_ROUTE_PICKER_EVENT))
+              }
+            >
+              Find any route
+              <Kbd>{routePickerShortcut}</Kbd>
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-md border bg-card">
+          {visibleRoutes.map(({ route, compressedSize }, index) => (
+            <Link
+              key={route}
+              href={{ pathname: '/analyze', query: { route } }}
+              className="group flex w-full items-center gap-4 border-b px-4 py-3 text-left last:border-b-0 hover:bg-accent"
+            >
+              <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-mono text-sm">
+                {route}
+              </span>
+              <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                {formatBytes(compressedSize)}
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+            </Link>
+          ))}
+          {remainingRouteCount > 0 ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-center px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              onClick={() => setVisibleRouteCount((count) => count + 10)}
+            >
+              Show {Math.min(10, remainingRouteCount)} more
+            </button>
+          ) : null}
+        </div>
+      </section>
+    </div>
   )
 }
 
