@@ -6,13 +6,14 @@ version: draft
 
 ## Before changing files: check for duplicates
 
-- [ ] Identify the repository provider from `git remote -v`, then use its CLI or
-      API to list every open pull request. For GitHub, run
+- [ ] Check the app for an equivalent upgrade or Future Defaults adoption already
+      in progress.
+- [ ] If the app is in a Git repository, check local branches and commits. If it
+      has a remote, also check remote branches and commits.
+- [ ] If the repository has a provider remote, use its CLI or API to list every
+      open pull request. For GitHub, run
       `gh pr list --state open --limit 100 --json number,title,body,url,headRefName`.
-- [ ] Inspect the body and diff of likely matches. For GitHub, run
-      `gh pr diff <number>`.
-- [ ] Check local and remote branches and commits for an equivalent upgrade or
-      Future Defaults adoption.
+      Inspect the body and diff of likely matches with `gh pr diff <number>`.
 
 Look for unmarked work and these markers:
 
@@ -21,27 +22,31 @@ Look for unmarked work and these markers:
 <!-- next-upgrade: <type>; path="apps/web" -->
 ```
 
-Do not substitute Git history for the provider lookup. If any check is
-unavailable, fails, or finds existing work, stop before changing files and
-report it. Continue only when every check finds no equivalent work.
+Do not require Git to upgrade an app. Run each check that applies to the app's
+repository and remote. Do not substitute Git history for an available provider
+lookup. If an applicable check fails or finds equivalent work, stop before
+changing files and report it.
 
 ## After all upgrade and adoption steps: commit and deliver
 
-- [ ] Commit the verified version update before Future Defaults adoption. For a
-      different-major update, use one commit for each crossed major, containing
+- [ ] If the app is in a Git repository, commit the verified version update
+      before Future Defaults adoption. For a different-major update, use one
+      commit for each crossed major, containing
       that major's surviving final-target changes. Do not add transitional
       changes solely to make an intermediate version work. Include source and
       target versions in each commit message and explain why and how.
-- [ ] Group Future Defaults changes by the default adopted. Explain why and how
-      in each commit message.
-- [ ] With permission, recheck open pull requests for duplicates and publish one
-      draft PR with the app marker:
+- [ ] Group Future Defaults changes by the default adopted. If the app is in a
+      Git repository, explain why and how in each commit message.
+- [ ] If the repository has a provider remote, with permission, recheck open
+      pull requests for duplicates and publish one draft PR with the app marker:
 
 ```md
 <!-- next-upgrade: <type>; path="." -->
 <!-- next-upgrade: <type>; path="apps/web" -->
 ```
 
-- [ ] If permission to open a PR has not been granted, ask the user whether to
-      open one when reporting the completed work.
+- [ ] If the app has no Git repository or provider remote, deliver the verified
+      local changes and report that a PR requires a repository and remote.
+- [ ] If a PR is possible but permission has not been granted, ask the user
+      whether to open one when reporting the completed work.
 - [ ] If work is incomplete, report completed work, the blocker, and how to resume.
