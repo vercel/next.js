@@ -1,7 +1,8 @@
 use std::mem::take;
 
+use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxBuildHasher, FxHashSet};
 use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
@@ -52,10 +53,16 @@ pub enum OutdatedEdge {
     HashedCellDependency(CellRef, u64),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
+    /// Reverse cell and output edges: some other task reads a cell of the task being deleted by GC.
+    /// Not modeled as a reversed `CellDependency` since the cleanup is assymetric, one side is
+    /// being deleted so we just tear down the other side.
+    CellDependentOfDeleted(CellRef),
+    HashedCellDependentOfDeleted(CellRef, u64),
+    OutputDependentOfDeleted(TaskId),
 }
 
-/// Captures *all* of a task's outgoing edges as [`OutdatedEdge`]s
-pub fn capture_all_outgoing_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
+/// Captures *every* edge incident to a task -- both directions -- as [`OutdatedEdge`]s.
+pub fn capture_all_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
     let mut old_edges: Vec<OutdatedEdge> = Vec::new();
     old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
     old_edges.extend(
@@ -74,23 +81,37 @@ pub fn capture_all_outgoing_edges(task: &impl TaskStorageAccessors) -> Vec<Outda
         task.iter_collectibles_dependencies()
             .map(OutdatedEdge::CollectiblesDependency),
     );
+    // Reverse direction: the edges *into* this task.
+    old_edges.extend(
+        task.iter_cell_dependents()
+            .map(OutdatedEdge::CellDependentOfDeleted),
+    );
+    old_edges.extend(
+        task.iter_cell_dependents_hashed()
+            .map(|(r, k)| OutdatedEdge::HashedCellDependentOfDeleted(r, k)),
+    );
+    old_edges.extend(
+        task.iter_output_dependent()
+            .map(OutdatedEdge::OutputDependentOfDeleted),
+    );
     old_edges
-}
-
-/// The category to open a dependency *target* with when scrubbing its incoming edge.
-fn dependent_scrub_category<'e, C: ExecuteContext<'e>>(ctx: &C) -> TaskDataCategory {
-    if ctx.collects_gc_candidates() {
-        // Under GC we need to query meta fields so be sure to recover Meta also
-        TaskDataCategory::All
-    } else {
-        TaskDataCategory::Data
-    }
 }
 
 #[cfg(feature = "trace_aggregation_update_stats")]
 type Stats = super::aggregation_update::AggregationUpdateQueueStats;
 #[cfg(not(feature = "trace_aggregation_update_stats"))]
 type Stats = ();
+
+/// Work a GC-phase edge teardown produced but deliberately did not run, because it is unsafe while
+/// other collect workers are still running. The caller replays it once the pass is quiescent.
+#[derive(Default)]
+pub struct DeferredCleanup {
+    /// Rebalance jobs. `balance_edge` *adds* aggregation edges, which must not happen mid-cascade.
+    pub balance_edges: Vec<(TaskId, TaskId)>,
+    /// Dependents whose forward edge to the torn-down task was scrubbed. They must be dirtied: the
+    /// value they were derived from no longer exists, so their cached result cannot be trusted.
+    pub dirty_dependents: AutoSet<TaskId, FxBuildHasher, 2>,
+}
 
 impl CleanupOldEdgesOperation {
     pub fn run(
@@ -109,24 +130,23 @@ impl CleanupOldEdgesOperation {
 
     /// GC variant: tears down `outdated`, running only the edge deletions.
     ///
-    /// Returns the balance jobs that the deletions produced, for the caller to replay once the
-    /// parallel collect is quiescent. Deletion is safe to run concurrently, but `balance_edge`
-    /// *adds* edges, which is not while other workers are still collecting.
+    /// Returns the work the deletions produced but did not run, for the caller to replay once the
+    /// parallel collect is quiescent. Deletion is safe to run concurrently; the deferred work is
+    /// not. `balance_edge` *adds* edges, and dirtying propagates through the aggregation graph --
+    /// neither is safe while other workers are still collecting.
     pub fn run_edge_deletions_only<'a, C: ExecuteContext<'a>>(
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,
         ctx: &mut C,
-    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<C> {
+    ) -> DeferredCleanup {
         let op = CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,
             queue: AggregationUpdateQueue::new_without_optimizations(),
         };
-        op.execute_inner(ctx, true)
-            .1
-            .map(|mut queue| queue.take_deferred_balance_edges())
-            .into_iter()
-            .flatten()
+        let (_, stopped) = op.execute_inner(ctx, true);
+        // the option must be Some when stop_when_only_rebalance
+        stopped.unwrap()
     }
 
     fn execute_with_stats(self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
@@ -137,7 +157,8 @@ impl CleanupOldEdgesOperation {
         mut self,
         ctx: &mut impl ExecuteContext<'_>,
         stop_when_only_rebalance_remains: bool,
-    ) -> (Stats, Option<AggregationUpdateQueue>) {
+    ) -> (Stats, Option<DeferredCleanup>) {
+        let mut dirty_dependents = AutoSet::default();
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -266,15 +287,11 @@ impl CleanupOldEdgesOperation {
                                     cell,
                                 } = forward;
                                 {
-                                    let category = dependent_scrub_category(ctx);
-                                    let mut task = ctx.task(cell_task_id, category);
-                                    let removed = task.remove_cell_dependents(&CellRef {
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependents(&CellRef {
                                         task: task_id,
                                         cell,
                                     });
-                                    if removed && task.is_cell_dependents_empty() {
-                                        ctx.note_maybe_collectible(&task);
-                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -288,19 +305,14 @@ impl CleanupOldEdgesOperation {
                                     cell,
                                 } = forward;
                                 {
-                                    let category = dependent_scrub_category(ctx);
-                                    let mut task = ctx.task(cell_task_id, category);
-                                    let removed = task.remove_cell_dependents_hashed(&(
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependents_hashed(&(
                                         CellRef {
                                             task: task_id,
                                             cell,
                                         },
                                         key,
                                     ));
-
-                                    if removed && task.is_cell_dependents_hashed_empty() {
-                                        ctx.note_maybe_collectible(&task);
-                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -316,12 +328,8 @@ impl CleanupOldEdgesOperation {
                                 )
                                 .entered();
                                 {
-                                    let category = dependent_scrub_category(ctx);
-                                    let mut task = ctx.task(output_task_id, category);
-                                    let removed = task.remove_output_dependent(&task_id);
-                                    if removed && task.is_output_dependent_empty() {
-                                        ctx.note_maybe_collectible(&task);
-                                    }
+                                    let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
+                                    task.remove_output_dependent(&task_id);
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -333,15 +341,12 @@ impl CleanupOldEdgesOperation {
                                 task: dependent_task_id,
                             }) => {
                                 {
-                                    let category = dependent_scrub_category(ctx);
-                                    let mut task = ctx.task(dependent_task_id, category);
-                                    let removed = task.remove_collectibles_dependents(&(
+                                    let mut task =
+                                        ctx.task(dependent_task_id, TaskDataCategory::Meta);
+                                    task.remove_collectibles_dependents(&(
                                         collectible_type,
                                         task_id,
                                     ));
-                                    if removed && task.collectibles_dependents_len() == 0 {
-                                        ctx.note_maybe_collectible(&task);
-                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -351,7 +356,59 @@ impl CleanupOldEdgesOperation {
                                     });
                                 }
                             }
+                            // Handle reverse edges, we remove these when `task_id` is being
+                            // deleted.  The reverse dependents must exist and we dirty them as we
+                            // go.  We also don't bother removing cell_dependents from `task_id`
+                            // since that task is being deleted.
+                            OutdatedEdge::CellDependentOfDeleted(CellRef {
+                                task: dependent_task_id,
+                                cell,
+                            }) => {
+                                // Orientation flip: the stored entry names the dependent, the
+                                // forward entry we remove names `task_id`.
+                                let forward = CellRef {
+                                    task: task_id,
+                                    cell,
+                                };
+                                let mut task = ctx.task(dependent_task_id, TaskDataCategory::Data);
+                                task.remove_cell_dependencies(&forward);
+                                task.remove_outdated_cell_dependencies(&forward);
+                                drop(task);
+                                dirty_dependents.insert(dependent_task_id);
+                            }
+                            OutdatedEdge::HashedCellDependentOfDeleted(
+                                CellRef {
+                                    task: dependent_task_id,
+                                    cell,
+                                },
+                                key,
+                            ) => {
+                                let forward = CellRef {
+                                    task: task_id,
+                                    cell,
+                                };
+                                let mut task = ctx.task(dependent_task_id, TaskDataCategory::Data);
+                                task.remove_cell_dependencies_hashed(&(forward, key));
+                                task.remove_outdated_cell_dependencies_hashed(&(forward, key));
+                                drop(task);
+                                dirty_dependents.insert(dependent_task_id);
+                            }
+                            OutdatedEdge::OutputDependentOfDeleted(dependent_task_id) => {
+                                let mut task = ctx.task(dependent_task_id, TaskDataCategory::Data);
+                                task.remove_output_dependencies(&task_id);
+                                task.remove_outdated_output_dependencies(&task_id);
+                                drop(task);
+                                dirty_dependents.insert(dependent_task_id);
+                            }
                         }
+                    }
+
+                    // If we accumulated any dirty_dependents flush them to the aggregation update
+                    // queue before suspending.
+                    if !stop_when_only_rebalance_remains && !dirty_dependents.is_empty() {
+                        queue.push(AggregationUpdateJob::InvalidateDueToDependencyTornDown {
+                            task_ids: take(&mut dirty_dependents).into_iter().collect(),
+                        });
                     }
 
                     if outdated.is_empty() {
@@ -363,7 +420,13 @@ impl CleanupOldEdgesOperation {
                         // Edge removal is done; hand the rebalance back to the caller. Any
                         // other pending work would be dropped here, so `only_rebalance_remains`
                         // asserts that nothing else is left.
-                        return (Default::default(), Some(take(queue)));
+                        return (
+                            Default::default(),
+                            Some(DeferredCleanup {
+                                balance_edges: queue.take_deferred_balance_edges().collect(),
+                                dirty_dependents,
+                            }),
+                        );
                     }
                     if queue.process(ctx) {
                         self = CleanupOldEdgesOperation::Done {
