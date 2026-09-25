@@ -113,6 +113,7 @@ describe('next analyze', () => {
         for (const file of [
           'index.html',
           'data/routes.json',
+          'data/route-summaries.json',
           'data/modules.data',
           'data/analyze.data',
         ]) {
@@ -125,6 +126,39 @@ describe('next analyze', () => {
         )
         const routes = JSON.parse(routesJson)
         expect(routes).toEqual(['/', '/_not-found'])
+
+        const routeSummaries = JSON.parse(
+          readFileSync(
+            path.join(defaultOutputPath, 'data', 'route-summaries.json'),
+            'utf-8'
+          )
+        )
+        expect(
+          routeSummaries.map((summary: { route: string }) => summary.route)
+        ).toEqual(expect.arrayContaining(routes))
+        for (const summary of routeSummaries) {
+          expect(Number.isFinite(summary.size)).toBe(true)
+          expect(summary.size).toBeGreaterThanOrEqual(0)
+          expect(Number.isFinite(summary.compressed_size)).toBe(true)
+          expect(summary.compressed_size).toBeGreaterThanOrEqual(0)
+        }
+
+        const history = JSON.parse(
+          readFileSync(
+            path.join(defaultOutputPath, 'history', 'history.json'),
+            'utf-8'
+          )
+        )
+        const snapshotRouteSummaries = readFileSync(
+          path.join(
+            defaultOutputPath,
+            'history',
+            history.snapshots[0].id,
+            'route-summaries.json'
+          ),
+          'utf-8'
+        )
+        expect(JSON.parse(snapshotRouteSummaries)).toEqual(routeSummaries)
       })
     })
   })
