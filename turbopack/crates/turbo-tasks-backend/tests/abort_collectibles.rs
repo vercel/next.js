@@ -10,7 +10,7 @@ use tokio::sync::Notify;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, State, TransientInstance,
-    ValueToString, Vc, VcValueTrait, backend::Backend, emit, trace::TraceRawVcs,
+    ValueToString, Vc, VcValueTrait, backend::Backend, emit,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 
@@ -34,21 +34,17 @@ impl ValueToString for TestCollectible {
     }
 }
 
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(NonLocalValue)]
 struct ExecutionControl {
-    #[turbo_tasks(trace_ignore)]
     block_from_generation: usize,
-    #[turbo_tasks(trace_ignore)]
     started: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
     emitted: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     progress_notify: Notify,
-    #[turbo_tasks(trace_ignore)]
     dropped: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     dropped_notify: Notify,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     release: Notify,
 }
 

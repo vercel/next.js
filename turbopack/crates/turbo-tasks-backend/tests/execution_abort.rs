@@ -14,7 +14,7 @@ use std::{
 use anyhow::Result;
 use tokio::sync::Notify;
 use turbo_tasks::{
-    ReadRef, ResolvedVc, State, TransientInstance, TurboTasksApi, Vc, trace::TraceRawVcs,
+    NonLocalValue, ReadRef, ResolvedVc, State, TransientInstance, TurboTasksApi, Vc,
 };
 
 use crate::util::create_tt;
@@ -24,17 +24,15 @@ struct ChangingInput {
     state: State<u32>,
 }
 
-#[derive(TraceRawVcs)]
+#[derive(NonLocalValue)]
 struct ExecutionControl {
-    #[turbo_tasks(trace_ignore)]
     started: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     started_notify: Notify,
-    #[turbo_tasks(trace_ignore)]
     dropped: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     dropped_notify: Notify,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     releases: [Notify; 2],
 }
 
@@ -62,13 +60,12 @@ impl ExecutionControl {
     }
 }
 
-#[derive(TraceRawVcs)]
+#[derive(NonLocalValue)]
 struct CompletionRaceControl {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     started: Notify,
-    #[turbo_tasks(trace_ignore)]
     generation: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     first_poll_release: Barrier,
 }
 

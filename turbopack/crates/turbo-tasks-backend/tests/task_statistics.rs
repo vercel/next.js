@@ -379,6 +379,14 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
                 object.remove("abort_raced_completion_inactive");
                 object.remove("abort_skipped_invalidation");
                 object.remove("abort_skipped_inactive");
+                // Strongly reading the test operation executes its outer wrapper. Abort telemetry
+                // creates an entry for that execution, but after removing racy execution fields it
+                // has no cache activity and is irrelevant to these cache-statistics snapshots.
+                if object.get("cache_hit").and_then(serde_json::Value::as_u64) == Some(0)
+                    && object.get("cache_miss").and_then(serde_json::Value::as_u64) == Some(0)
+                {
+                    continue;
+                }
                 map.insert(k, v);
             }
         }
