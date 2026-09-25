@@ -2343,6 +2343,7 @@ export default async function build(
               distDir,
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
+              partialPrefetching: config.partialPrefetching,
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
@@ -2445,6 +2446,7 @@ export default async function build(
                 const actualPage = normalizePagePath(page)
 
                 let isRoutePPREnabled = false
+                let isEnsureStaticPage = false
                 let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
@@ -2577,6 +2579,7 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
+                            partialPrefetching: config.partialPrefetching,
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
@@ -2620,6 +2623,15 @@ export default async function build(
                             typeof workerResult.isRoutePPREnabled === 'boolean'
                           ) {
                             isRoutePPREnabled = workerResult.isRoutePPREnabled
+                            if (
+                              config.cacheComponents &&
+                              isRoutePPREnabled &&
+                              workerResult.appConfig
+                            ) {
+                              isEnsureStaticPage =
+                                workerResult.appConfig.unstable_ensureStatic ===
+                                'navigation'
+                            }
                           }
 
                           // If this route can be partially pre-rendered, then
@@ -2816,6 +2828,7 @@ export default async function build(
                   isStatic,
                   isSSG,
                   isRoutePPREnabled,
+                  isEnsureStaticPage,
                   ssgPageRoutes,
                   initialCacheControl: undefined,
                   runtime: pageRuntime,

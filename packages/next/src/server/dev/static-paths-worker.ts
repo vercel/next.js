@@ -27,6 +27,7 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 type RuntimeConfig = {
   configFileName: string
   cacheComponents: boolean
+  partialPrefetching: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -116,7 +117,11 @@ export async function loadStaticPaths({
     const segments = await collectSegments(
       // We know this is an app page or app route module because we checked
       // above that the page type is 'app'.
-      routeModule as AppPageRouteModule | AppRouteRouteModule
+      routeModule as AppPageRouteModule | AppRouteRouteModule,
+      {
+        cacheComponents: config.cacheComponents,
+        partialPrefetching: config.partialPrefetching,
+      }
     )
 
     const route = parseNormalizedAppRoute(pathname)

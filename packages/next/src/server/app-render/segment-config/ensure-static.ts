@@ -59,6 +59,15 @@ export async function resolveEnsureStaticLevel(
   tree: LoaderTree,
   partialPrefetching: boolean
 ): Promise<EnsureStaticLevel> {
+  return getEnsureStaticLevel(
+    await resolveEnsureStaticConfig(tree, partialPrefetching)
+  )
+}
+
+export async function resolveEnsureStaticConfig(
+  tree: LoaderTree,
+  partialPrefetching: boolean
+): Promise<Exclude<EnsureStatic, false>> {
   let { config, filePath } = await resolveEnsureStaticConfigImpl(tree)
 
   if (!partialPrefetching) {
@@ -95,7 +104,12 @@ export async function resolveEnsureStaticLevel(
     }
   }
 
-  return getEnsureStaticLevel(config)
+  if (config === false) {
+    // `false` and "auto" are equivalent once resolved.
+    return 'auto'
+  } else {
+    return config
+  }
 }
 
 type EnsureStaticWithSource = {
