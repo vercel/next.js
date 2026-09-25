@@ -6,7 +6,10 @@ mod util;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::Result;
-use tokio::sync::Notify;
+use tokio::{
+    sync::Notify,
+    time::{Duration, timeout},
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, State, TransientInstance,
@@ -151,6 +154,16 @@ async fn conditional_parent(
 }
 
 #[turbo_tasks::function(operation, root)]
+async fn collectible_observer(
+    producer_input: ResolvedVc<ChangingInput>,
+    control: TransientInstance<ExecutionControl>,
+) -> Result<Vc<u32>> {
+    let collectibles =
+        collectible_producer(producer_input, control).peek_collectibles::<Box<dyn ValueToString>>();
+    Ok(Vc::cell(collectibles.len() as u32))
+}
+
+#[turbo_tasks::function(operation, root)]
 async fn conditional_non_root_parent(
     selector: ResolvedVc<ChangingInput>,
     producer_input: ResolvedVc<ChangingInput>,
@@ -183,23 +196,36 @@ async fn aborted_first_execution_does_not_report_collectible() {
             control.wait_for_emitted(1).await;
             selector.state.set(1);
             control.wait_for_dropped(1).await;
-            // If reading collectibles revives the producer, its replacement emits nothing and
+            // If observing collectibles revives the producer, its replacement emits nothing and
             // therefore cannot hide the aborted generation's leaked collectible.
             producer_input.state.set(0);
             anyhow::Ok(())
         };
         tokio::try_join!(read_parent, disconnect)?;
 
-        let collectibles = collectible_producer(producer_input_vc, control.clone())
-            .peek_collectibles::<Box<dyn ValueToString>>();
+        let producer = collectible_producer(producer_input_vc, control.clone());
+        // The first read schedules the dirty producer. Starting its replacement proves the abort
+        // callback (including rollback) finished; waiting only for the old future's Drop is racy.
+        let _ = producer.peek_collectibles::<Box<dyn ValueToString>>();
+        timeout(Duration::from_secs(10), control.wait_for_started(2))
+            .await
+            .expect("replacement generation did not start");
         assert!(
-            collectibles.is_empty(),
-            "an aborted generation reported {} collectible(s)",
-            collectibles.len()
+            producer
+                .peek_collectibles::<Box<dyn ValueToString>>()
+                .is_empty(),
+            "an aborted generation reported a collectible"
         );
 
-        // Keep cleanup safe if a failure above leaves the execution parked.
+        // Let the non-emitting replacement finish, then verify through a strongly-consistent root.
         control.release.notify_one();
+        assert_eq!(
+            *collectible_observer(producer_input_vc, control.clone())
+                .read_strongly_consistent()
+                .await?,
+            0,
+            "a completed replacement reported the aborted generation's collectible"
+        );
         anyhow::Ok(())
     })
     .await

@@ -2042,22 +2042,6 @@ impl TurboTasksBackend {
         drop(in_progress_cells);
     }
 
-    fn rollback_aborted_collectibles(
-        &self,
-        task_id: TaskId,
-        collectible_deltas: FxHashMap<CollectibleRef, i32>,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
-        for (collectible, delta) in collectible_deltas {
-            operation::UpdateCollectibleOperation::run_rollback(
-                task_id,
-                collectible,
-                -delta,
-                self.execute_context(turbo_tasks),
-            );
-        }
-    }
-
     fn task_execution_aborted(
         &self,
         task_id: TaskId,
@@ -2084,7 +2068,7 @@ impl TurboTasksBackend {
         self.task_statistics
             .map(|stats| stats.increment_abort_observed(native_fn, abort_reason));
         Span::current().record("abort_trigger", abort_reason.as_str());
-        let aborted_as_unneeded = in_progress.abort_when_unneeded();
+        let aborted_dead = in_progress.abort_when_unneeded();
         // `outdated_collectibles` is generation-local bookkeeping initialized at execution start.
         // The aborted generation will never reach completion cleanup, so discard it before
         // reversing that generation's actual current-collectible deltas below.
@@ -2104,61 +2088,91 @@ impl TurboTasksBackend {
         } = *in_progress;
 
         // Only children that were not already connected received a speculative active-count
-        // increment during this execution.
+        // increment during this execution. See `ConnectChildOperation::run`.
         for child in task.iter_children() {
             new_children.remove(&child);
         }
 
-        let in_progress_cells = if aborted_as_unneeded {
+        let in_progress_cells = if aborted_dead {
             task.take_in_progress_cells()
         } else {
             None
         };
         if let Some(cells) = &in_progress_cells {
+            // A dead task discards these cell states. Wake every waiter first so it retries against
+            // the dirty task; otherwise it could hang or read stale/missing in-progress cell data.
             for state in cells.values() {
                 state.event.notify(usize::MAX);
             }
         }
 
-        if !aborted_as_unneeded {
-            debug_assert!(stale, "only stale or unneeded executions may be aborted");
+        enum Recovery {
+            Stale(TaskPriority),
+            Dead {
+                done_event: Event,
+                queue: Box<AggregationUpdateQueue>,
+            },
+        }
+        let recovery = if aborted_dead {
+            // Discard the aborted execution state and make the task dirty without scheduling it
+            // while it is disconnected. Queue child decrements first, but execute all recursive
+            // aggregation work only after releasing the parent guard.
+            let mut queue = AggregationUpdateQueue::new();
+            if !new_children.is_empty() {
+                queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                    task_ids: new_children.drain().collect(),
+                });
+            }
+            make_task_dirty_internal(
+                &mut task,
+                MakeTaskDirtyOptions {
+                    // The aborted execution's in-progress state was already taken above, so there
+                    // is nothing left to mark stale.
+                    make_stale: false,
+                    schedule_when_active: false,
+                    #[cfg(feature = "task_dirty_cause")]
+                    cause: TaskDirtyCause::BecameInactive,
+                },
+                &mut queue,
+                &mut ctx,
+            );
+            Recovery::Dead {
+                done_event,
+                queue: Box::new(queue),
+            }
+        } else {
+            debug_assert!(stale, "only stale or dead executions may be aborted");
             let priority = compute_stale_priority(&task);
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            drop(task);
-            self.rollback_aborted_collectibles(task_id, collectible_deltas, turbo_tasks);
-            decrease_active_counts_of_new_children(new_children, &mut ctx);
-            return Some(priority);
+            Recovery::Stale(priority)
+        };
+        drop(task);
+
+        // Restore the collectible state of the last completed generation before either branch
+        // propagates its task-graph updates. Rollback takes its own task guard.
+        for (collectible, delta) in collectible_deltas {
+            operation::UpdateCollectibleOperation::run_rollback(
+                task_id,
+                collectible,
+                -delta,
+                self.execute_context(turbo_tasks),
+            );
         }
 
-        // Discard the aborted execution state and make the task dirty without scheduling it while
-        // it is disconnected. Queue child decrements first, but execute all recursive aggregation
-        // work only after releasing the parent guard.
-        let mut queue = AggregationUpdateQueue::new();
-        if !new_children.is_empty() {
-            queue.push(AggregationUpdateJob::DecreaseActiveCounts {
-                task_ids: new_children.drain().collect(),
-            });
-        }
-        make_task_dirty_internal(
-            &mut task,
-            MakeTaskDirtyOptions {
-                // The aborted execution's in-progress state was already taken above, so there is
-                // nothing left to mark stale.
-                make_stale: false,
-                schedule_when_active: false,
-                #[cfg(feature = "task_dirty_cause")]
-                cause: TaskDirtyCause::BecameInactive,
-            },
-            &mut queue,
-            &mut ctx,
-        );
-        drop(task);
-        self.rollback_aborted_collectibles(task_id, collectible_deltas, turbo_tasks);
-        queue.execute(&mut ctx);
+        let done_event = match recovery {
+            Recovery::Stale(priority) => {
+                decrease_active_counts_of_new_children(new_children, &mut ctx);
+                return Some(priority);
+            }
+            Recovery::Dead { done_event, queue } => {
+                (*queue).execute(&mut ctx);
+                done_event
+            }
+        };
 
         // A connection may race with dropping the aborted future. Re-check liveness after the
         // dirty transition so a revived task is not left dirty but unscheduled.
