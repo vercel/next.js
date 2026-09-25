@@ -28,7 +28,10 @@ use crate::{
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::pattern_mapping::{PatternMapping, ResolveType},
+    references::{
+        pattern_mapping::{PatternMapping, ResolveType},
+        raw::resolve_static_files,
+    },
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
@@ -53,10 +56,10 @@ pub struct WorkerAssetReference {
 pub enum WorkerRequest {
     /// Web workers use Request (URLs)
     Url(ResolvedVc<Request>),
-    /// Node.js workers use Pattern (file paths) with a context directory that should be the server
-    /// working directory
+    /// Node.js workers resolve static project files and the complete request in the package.
     Pattern {
-        context_dir: FileSystemPath,
+        static_files_only_context_dir: Option<FileSystemPath>,
+        fallback_context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
     },
@@ -87,7 +90,8 @@ impl WorkerAssetReference {
 
     pub fn new_node_worker_thread(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        context_dir: FileSystemPath,
+        static_files_only_context_dir: Option<FileSystemPath>,
+        fallback_context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
@@ -98,7 +102,8 @@ impl WorkerAssetReference {
             worker_type: WorkerType::NodeWorkerThread,
             origin,
             request: WorkerRequest::Pattern {
-                context_dir,
+                static_files_only_context_dir,
+                fallback_context_dir,
                 path,
                 collect_affecting_sources,
             },
@@ -130,22 +135,36 @@ impl ModuleReference for WorkerAssetReference {
             (
                 WorkerType::NodeWorkerThread,
                 WorkerRequest::Pattern {
-                    context_dir,
+                    static_files_only_context_dir,
+                    fallback_context_dir,
                     path,
                     collect_affecting_sources,
                 },
             ) => {
-                // Node.js worker resolution uses resolve_raw
-                let result = resolve_raw(
-                    context_dir.clone(),
+                let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
+                let mut results = Vec::new();
+                if let Some(static_files) = resolve_static_files(
+                    static_files_only_context_dir,
+                    *path,
+                    *collect_affecting_sources,
+                )
+                .await?
+                {
+                    results.push(
+                        asset_context.process_resolve_result(static_files, reference_type.clone()),
+                    );
+                }
+                let fallback = resolve_raw(
+                    fallback_context_dir.clone(),
                     **path,
                     *collect_affecting_sources,
                     /* force_in_lookup_dir */ false,
                 );
-                let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
-                let result = asset_context.process_resolve_result(result, reference_type.clone());
+                results
+                    .push(asset_context.process_resolve_result(fallback, reference_type.clone()));
+                let result = ModuleResolveResult::concat(results);
 
-                // Report an error if we cannot resolve
+                // Report an error if neither location resolves
                 handle_resolve_error(
                     result,
                     reference_type.clone(),

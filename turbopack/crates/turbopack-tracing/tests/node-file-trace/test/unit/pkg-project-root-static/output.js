@@ -2,6 +2,11 @@
   'package.json',
   'test/unit/pkg-project-root-static/app-config.js',
   'test/unit/pkg-project-root-static/input.js',
+  'test/unit/pkg-project-root-static/linked-file-target.js',
+  'test/unit/pkg-project-root-static/linked-file.js',
   'test/unit/pkg-project-root-static/node_modules/some-pkg/index.js',
   'test/unit/pkg-project-root-static/node_modules/some-pkg/package.json',
+  'test/unit/pkg-project-root-static/node_modules/some-pkg/unrelated.js',
+  'test/unit/pkg-project-root-static/node_modules/some-pkg/worker.js',
+  'test/unit/pkg-project-root-static/worker.js',
 ]
