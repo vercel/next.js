@@ -11,7 +11,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use futures::future::AbortHandle;
 use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
@@ -260,6 +260,10 @@ pub struct InProgressStateInner {
     /// The executing native function, kept transiently so Meta-only liveness paths can attribute
     /// abort telemetry without restoring task data.
     pub native_fn: Option<&'static turbo_tasks::macro_helpers::NativeFunction>,
+    /// Actual changes made to the current collectible set by this execution, after re-emissions
+    /// reconciled against `outdated_collectibles`. Abortion reverses these deltas so only the last
+    /// completed generation remains visible.
+    pub collectible_deltas: FxHashMap<CollectibleRef, i32>,
     /// Aborts the currently executing native turbo-task function. Transient root/once tasks do not
     /// have a handle because their futures cannot necessarily be recreated.
     pub abort_handle: Option<AbortHandle>,
@@ -403,6 +407,7 @@ mod abort_state_tests {
             done_event: Event::new(|| || "abort state test".to_string()),
             new_children: FxHashSet::default(),
             native_fn: None,
+            collectible_deltas: FxHashMap::default(),
             abort_handle,
             abort_state: AtomicU8::new(ABORT_NONE),
         }
