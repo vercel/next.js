@@ -329,6 +329,7 @@ impl Operation for UpdateCellOperation {
                         make_task_dirty_internal(
                             &mut dependent,
                             make_stale,
+                            true,
                             #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id(),

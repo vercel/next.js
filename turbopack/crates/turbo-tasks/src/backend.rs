@@ -18,6 +18,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
+use futures::future::AbortRegistration;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::Span;
@@ -275,6 +276,7 @@ impl CachedTaskType {
 pub struct TaskExecutionSpec<'a> {
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
     pub span: Span,
+    pub abort_registration: AbortRegistration,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
@@ -621,6 +623,15 @@ pub trait Backend: Sized + Sync + Send {
     ) -> Option<TaskExecutionSpec<'a>>;
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
+
+    /// Called when an in-flight task execution is aborted because its result is no longer needed.
+    ///
+    /// Returns `Some(priority)` when the task remains live and must be re-run.
+    fn task_execution_aborted(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Option<TaskPriority>;
 
     /// Called when a task's execution finishes.
     ///

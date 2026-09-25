@@ -48,7 +48,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{ActivenessState, AggregationNumber, CollectibleRef},
+    data::{ActivenessState, AggregationNumber, CollectibleRef, InProgressState},
     utils::swap_retain,
 };
 
@@ -3293,6 +3293,9 @@ impl AggregationUpdateQueue {
         let is_empty = state.is_empty();
         if is_empty {
             task.take_activeness();
+        }
+        if is_zero && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress() {
+            in_progress.abort_unneeded();
         }
         debug_assert!(
             !(is_new && is_zero),

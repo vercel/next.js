@@ -1107,10 +1107,27 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     use std::mem::size_of;
 
-    use turbo_tasks::{CellId, TaskId};
+    use turbo_tasks::{CellId, TaskExecutionReason, TaskId, event::EventDescription};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::data::{AggregationNumber, CellRef, Dirtyness, InProgressState, OutputValue};
+
+    #[test]
+    fn gc_collectibility_can_ignore_only_in_progress_state() {
+        let mut storage = TaskStorage::new();
+        storage.flags.set_meta_restored(true);
+        assert!(storage.gc_maybe_collectible());
+
+        storage.set_in_progress(InProgressState::new_scheduled(
+            TaskExecutionReason::Root,
+            EventDescription::new(|| || "test task".to_string()),
+        ));
+        assert!(!storage.gc_maybe_collectible());
+        assert!(storage.gc_maybe_collectible_ignoring_in_progress());
+
+        storage.set_parent_count(1);
+        assert!(!storage.gc_maybe_collectible_ignoring_in_progress());
+    }
 
     #[test]
     fn test_accessors() {
