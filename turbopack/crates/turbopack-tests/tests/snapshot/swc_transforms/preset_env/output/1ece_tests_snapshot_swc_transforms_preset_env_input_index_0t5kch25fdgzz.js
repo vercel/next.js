@@ -1090,31 +1090,26 @@ function unregisterLoadedChunk(chunkPath) {
 }
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
+    var _ref;
+    var _BACKEND_getExtraLoadedChunkPaths, _BACKEND;
     var paths = new Set(loadedChunkPaths);
-    if (typeof document !== 'undefined') {
-        var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    try {
+        for(var _iterator = ((_ref = (_BACKEND_getExtraLoadedChunkPaths = (_BACKEND = BACKEND).getExtraLoadedChunkPaths) === null || _BACKEND_getExtraLoadedChunkPaths === void 0 ? void 0 : _BACKEND_getExtraLoadedChunkPaths.call(_BACKEND)) !== null && _ref !== void 0 ? _ref : [])[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+            var path = _step.value;
+            paths.add(path);
+        }
+    } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+    } finally{
         try {
-            // Initial stylesheets can be inserted directly by the HTML before the
-            // runtime starts; they never go through the chunk loader.
-            for(var _iterator = document.querySelectorAll('link[rel="stylesheet"][href]')[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                var link = _step.value;
-                var href = link.getAttribute('href');
-                if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
-                    paths.add(chunkUrlToPath(href));
-                }
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                _iterator.return();
             }
-        } catch (err) {
-            _didIteratorError = true;
-            _iteratorError = err;
         } finally{
-            try {
-                if (!_iteratorNormalCompletion && _iterator.return != null) {
-                    _iterator.return();
-                }
-            } finally{
-                if (_didIteratorError) {
-                    throw _iteratorError;
-                }
+            if (_didIteratorError) {
+                throw _iteratorError;
             }
         }
     }
@@ -1814,6 +1809,36 @@ var BACKEND;
  */ var chunkResolvers = new Map();
 (function() {
     BACKEND = {
+        getExtraLoadedChunkPaths: function getExtraLoadedChunkPaths() {
+            if (typeof document === 'undefined') return [];
+            // Initial stylesheets can be inserted directly by the HTML before the
+            // runtime starts; they never go through the chunk loader.
+            var paths = [];
+            var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+            try {
+                for(var _iterator = document.querySelectorAll('link[rel="stylesheet"][href]')[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                    var link = _step.value;
+                    var href = link.getAttribute('href');
+                    if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
+                        paths.push(chunkUrlToPath(href));
+                    }
+                }
+            } catch (err) {
+                _didIteratorError = true;
+                _iteratorError = err;
+            } finally{
+                try {
+                    if (!_iteratorNormalCompletion && _iterator.return != null) {
+                        _iterator.return();
+                    }
+                } finally{
+                    if (_didIteratorError) {
+                        throw _iteratorError;
+                    }
+                }
+            }
+            return paths;
+        },
         registerChunk: function registerChunk(chunk, params) {
             return _async_to_generator(function() {
                 var chunkPath, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;

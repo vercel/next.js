@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="0cef8b86-9e08-8dec-aec0-3b96eb4a60a5")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="07e74dbf-634e-db59-4e07-cd28b3cb7957")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -825,15 +825,8 @@ function unregisterLoadedChunk(chunkPath) {
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
     const paths = new Set(loadedChunkPaths);
-    if (typeof document !== 'undefined') {
-        // Initial stylesheets can be inserted directly by the HTML before the
-        // runtime starts; they never go through the chunk loader.
-        for (const link of document.querySelectorAll('link[rel="stylesheet"][href]')){
-            const href = link.getAttribute('href');
-            if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
-                paths.add(chunkUrlToPath(href));
-            }
-        }
+    for (const path of BACKEND.getExtraLoadedChunkPaths?.() ?? []){
+        paths.add(path);
     }
     return Array.from(paths);
 }
@@ -2319,6 +2312,19 @@ let BACKEND;
  */ const chunkResolvers = new Map();
 (()=>{
     BACKEND = {
+        getExtraLoadedChunkPaths () {
+            if (typeof document === 'undefined') return [];
+            // Initial stylesheets can be inserted directly by the HTML before the
+            // runtime starts; they never go through the chunk loader.
+            const paths = [];
+            for (const link of document.querySelectorAll('link[rel="stylesheet"][href]')){
+                const href = link.getAttribute('href');
+                if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
+                    paths.push(chunkUrlToPath(href));
+                }
+            }
+            return paths;
+        },
         async registerChunk (chunk, params) {
             // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
             let chunkPath;
@@ -2646,5 +2652,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=0cef8b86-9e08-8dec-aec0-3b96eb4a60a5
+//# debugId=07e74dbf-634e-db59-4e07-cd28b3cb7957
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

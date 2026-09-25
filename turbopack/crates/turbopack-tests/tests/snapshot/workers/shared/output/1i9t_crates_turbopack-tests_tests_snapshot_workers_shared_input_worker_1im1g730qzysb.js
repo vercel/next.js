@@ -824,15 +824,8 @@ function unregisterLoadedChunk(chunkPath) {
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
     const paths = new Set(loadedChunkPaths);
-    if (typeof document !== 'undefined') {
-        // Initial stylesheets can be inserted directly by the HTML before the
-        // runtime starts; they never go through the chunk loader.
-        for (const link of document.querySelectorAll('link[rel="stylesheet"][href]')){
-            const href = link.getAttribute('href');
-            if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
-                paths.add(chunkUrlToPath(href));
-            }
-        }
+    for (const path of BACKEND.getExtraLoadedChunkPaths?.() ?? []){
+        paths.add(path);
     }
     return Array.from(paths);
 }
@@ -2318,6 +2311,19 @@ let BACKEND;
  */ const chunkResolvers = new Map();
 (()=>{
     BACKEND = {
+        getExtraLoadedChunkPaths () {
+            if (typeof document === 'undefined') return [];
+            // Initial stylesheets can be inserted directly by the HTML before the
+            // runtime starts; they never go through the chunk loader.
+            const paths = [];
+            for (const link of document.querySelectorAll('link[rel="stylesheet"][href]')){
+                const href = link.getAttribute('href');
+                if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
+                    paths.push(chunkUrlToPath(href));
+                }
+            }
+            return paths;
+        },
         async registerChunk (chunk, params) {
             // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
             let chunkPath;
