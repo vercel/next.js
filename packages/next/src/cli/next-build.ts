@@ -23,7 +23,6 @@ export type NextBuildOptions = {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
-  customWebpack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
