@@ -254,11 +254,23 @@ export const invalid = ;`
           `)
         ).toBe(false)
 
+        const cliOutput = next.getCliOutputFromHere()
         await browser.elementByCss('#load-parse-error').click()
-        await waitForRedbox(browser)
-        expect(await getRedboxSource(browser)).toContain(
-          'parse-error-proves-target-was-analyzed'
-        )
+        await retry(async () => {
+          expect(cliOutput()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
+        const source = browser
+          .locateRedbox()
+          .locator('[data-nextjs-codeframe], [data-nextjs-terminal]', {
+            hasText: 'parse-error-proves-target-was-analyzed',
+          })
+        await retry(async () => {
+          expect(await source.innerText()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
       } finally {
         await next.patchFile(targetPath, originalTarget)
         await next.patchFile(demoPath, originalDemo)
@@ -283,6 +295,18 @@ export const invalid = ;`
       } finally {
         await next.patchFile(targetPath, originalTarget)
       }
+    })
+
+    it('preloads CSS for an SSR-rendered next/dynamic component', async () => {
+      const $ = await next.render$('/next-dynamic-css')
+      const href = $('link[rel="stylesheet"][data-precedence="dynamic"]').attr(
+        'href'
+      )
+
+      expect(href).toBeDefined()
+      expect(
+        await next.fetch(href!).then((response) => response.text())
+      ).toContain('next-dynamic-css-marker')
     })
 
     it('activates a pattern import without colliding with its target', async () => {

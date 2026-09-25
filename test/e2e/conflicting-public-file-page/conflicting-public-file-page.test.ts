@@ -1,12 +1,10 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('Errors on conflict between public file and page file', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   if (isNextDev) {
     it('should show conflict error during development', async () => {
@@ -24,9 +22,10 @@ describe('Errors on conflict between public file and page file', () => {
     })
   }
 
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should show conflict error during build', async () => {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
       const conflicts = ['/another/conflict', '/another', '/hello']
 
       expect(cliOutput).toMatch(/Conflicting public and page files were found/)
@@ -34,6 +33,6 @@ describe('Errors on conflict between public file and page file', () => {
       for (const conflict of conflicts) {
         expect(cliOutput.indexOf(conflict) > 0).toBe(true)
       }
-    })
+    }, 240_000)
   }
 })

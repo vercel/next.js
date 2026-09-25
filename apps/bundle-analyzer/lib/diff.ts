@@ -304,7 +304,7 @@ function collectLeaves(
  */
 export function diffSources(
   analyzeA: AnalyzeData | null,
-  analyzeB: AnalyzeData,
+  analyzeB: AnalyzeData | null,
   options: SourceDiffOptions = {}
 ): DiffSummary<SourceDiffRow> {
   const summary = emptySummary<SourceDiffRow>()
@@ -312,7 +312,9 @@ export function diffSources(
   const leavesA = analyzeA
     ? collectLeaves('A', analyzeA, options)
     : new Map<string, LeafEntry>()
-  const leavesB = collectLeaves('B', analyzeB, options)
+  const leavesB = analyzeB
+    ? collectLeaves('B', analyzeB, options)
+    : new Map<string, LeafEntry>()
 
   const allKeys = new Set<string>([...leavesA.keys(), ...leavesB.keys()])
   for (const key of allKeys) {

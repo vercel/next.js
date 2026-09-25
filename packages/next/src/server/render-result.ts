@@ -76,6 +76,20 @@ export type AppPageRenderResultMetadata = {
   renderResumeDataCache?: RenderResumeDataCache
 }
 
+export type PrerenderFailure = {
+  readonly error: Error
+  readonly result: RenderResult<
+    Pick<
+      AppPageRenderResultMetadata,
+      'headers' | 'flightData' | 'fetchMetrics' | 'postponed'
+    >
+  >
+}
+
+export type PrerenderResult =
+  | RenderResult<AppPageRenderResultMetadata>
+  | PrerenderFailure
+
 export type PagesRenderResultMetadata = {
   pageData?: any
   cacheControl?: CacheControl

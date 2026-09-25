@@ -15,6 +15,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyArgumentUseServer: string,
       keyPrerender: string,
       keyImportUseClient: string,
+      keyImportUseClientImage: string,
       keyImportUseClientNested: string,
       keyRoute: string,
       dataRoot: string,
@@ -24,8 +25,10 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataArgumentUseServer: string,
       dataPrerender: string,
       dataImportUseClient: string,
+      dataImportUseClientImage: string,
       dataImportUseClientNested: string,
-      dataRoute: string
+      dataRoute: string,
+      imageSrc: string
     {
       const match = next.cliOutput.match(
         /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/prerender\/layout","_N_T_\/prerender\/page","_N_T_\/prerender"\]\]$/m
@@ -51,6 +54,20 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       ]
       expect(matches).not.toBeEmpty()
       keyImportUseClient = matches.map((m) => m[0]).join('\n')
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/import-use-client-image`)
+      dataImportUseClientImage = await browser.elementById('data').text()
+      imageSrc = await browser.elementById('cached-image').getAttribute('src')
+      const matches = [
+        ...logs().matchAll(
+          /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/import-use-client-image\/layout","_N_T_\/import-use-client-image\/page","_N_T_\/import-use-client-image"\]\]$/gm
+        ),
+      ]
+      expect(matches).not.toBeEmpty()
+      keyImportUseClientImage = matches.map((m) => m[0]).join('\n')
     }
 
     {
@@ -145,6 +162,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyArgumentUseServer,
       keyPrerender,
       keyImportUseClient,
+      keyImportUseClientImage,
       keyImportUseClientNested,
       keyRoute,
       dataRoot,
@@ -154,8 +172,10 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataArgumentUseServer,
       dataPrerender,
       dataImportUseClient,
+      dataImportUseClientImage,
       dataImportUseClientNested,
       dataRoute,
+      imageSrc,
     }
   } finally {
     if (envKey !== 'default') {
@@ -189,6 +209,13 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
       expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
       expect(key1.dataImportUseClient).not.toBe(key2.dataImportUseClient)
+
+      expect(key1.keyImportUseClientImage).not.toBe(
+        key2.keyImportUseClientImage
+      )
+      expect(key1.dataImportUseClientImage).not.toBe(
+        key2.dataImportUseClientImage
+      )
 
       expect(key1.keyImportUseClientNested).not.toBe(
         key2.keyImportUseClientNested
@@ -268,6 +295,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
       expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
 
+      expect(key1.keyImportUseClientImage).toBe(key2.keyImportUseClientImage)
+      expect(key1.dataImportUseClientImage).toBe(key2.dataImportUseClientImage)
+      expect(key1.imageSrc).toContain('dpl=dpl-id-1')
+      expect(key2.imageSrc).toContain('dpl=dpl-id-2')
+
       expect(key1.keyImportUseClientNested).toBe(key2.keyImportUseClientNested)
       expect(key1.dataImportUseClientNested).toBe(
         key2.dataImportUseClientNested
@@ -297,6 +329,14 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
           expect(key1.dataImportUseClient).not.toBe(key2.dataImportUseClient)
           expect(key2.dataImportUseClient).toBe(value)
+
+          expect(key1.keyImportUseClientImage).not.toBe(
+            key2.keyImportUseClientImage
+          )
+          expect(key1.dataImportUseClientImage).not.toBe(
+            key2.dataImportUseClientImage
+          )
+          expect(key2.dataImportUseClientImage).toBe(value)
 
           expect(key1.keyImportUseClientNested).not.toBe(
             key2.keyImportUseClientNested

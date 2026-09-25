@@ -2,14 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
-// @force-gate !deploy
 describe('use-cache-segment-configs', () => {
-  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
-    files: __dirname,
-    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-  })
+  const { next, isNextDev, isTurbopack, isRspack, isNextDeploy } =
+    nextTestSetup({
+      files: __dirname,
+      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+    })
 
   it("it should error when using segment configs that aren't supported by useCache", async () => {
     if (isNextDev) {
@@ -70,11 +68,31 @@ describe('use-cache-segment-configs', () => {
         `)
       }
     } else {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
-      const buildOutput = getBuildOutput(cliOutput)
+      const buildOutput = getBuildOutput(cliOutput, isNextDeploy)
 
-      if (isTurbopack) {
+      if (isTurbopack && isNextDeploy) {
+        // Vercel removes code-frame indentation and may omit blank log lines.
+        expect(
+          buildOutput
+            .split('\n')
+            .filter((line) => line.trim())
+            .join('\n')
+        ).toMatchInlineSnapshot(`
+         "Error: Turbopack build failed with 1 error:
+         ./app/runtime/page.tsx:1:14
+         Error: Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         > 1 | export const runtime = 'edge'
+         |              ^^^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return <div>This page uses \`export const runtime\`.</div>
+         Ecmascript file had an error
+         at ignore-listed frames"
+        `)
+      } else if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 error:
          ./app/runtime/page.tsx:1:14
@@ -112,6 +130,27 @@ describe('use-cache-segment-configs', () => {
          > Build failed because of Rspack errors
          "
         `)
+      } else if (isNextDeploy) {
+        // Vercel strips code-frame indentation and trailing whitespace from
+        // the fetched build logs.
+        expect(buildOutput).toMatchInlineSnapshot(`
+         "
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         ,-[1:1]
+         1 | export const runtime = 'edge'
+         :              ^^^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return <div>This page uses \`export const runtime\`.</div>
+         \`----
+
+         Import trace for requested module:
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+
+
+         > Build failed because of webpack errors"
+        `)
       } else {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
@@ -134,14 +173,16 @@ describe('use-cache-segment-configs', () => {
         `)
       }
     }
-  })
+  }, 240_000)
 })
 
-function getBuildOutput(cliOutput: string): string {
+function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
   const lines: string[] = []
   let skipLines = true
 
   for (const line of cliOutput.split('\n')) {
+    // The command exit status and inspect metadata are not compiler output.
+    if (isNextDeploy && /^Error: Command .* exited with \d+$/.test(line)) break
     if (!skipLines) {
       if (line.includes('__next_edge_ssr_entry__')) {
         lines.push(

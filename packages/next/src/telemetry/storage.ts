@@ -59,7 +59,13 @@ export class Telemetry {
 
   private queue: Set<Promise<RecordObject>>
 
-  constructor({ distDir }: { distDir: string }) {
+  constructor({
+    distDir,
+    skipNotify = false,
+  }: {
+    distDir: string
+    skipNotify?: boolean
+  }) {
     // Read in the constructor so that .env can be loaded before reading
     const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
     this.NEXT_TELEMETRY_DISABLED = NEXT_TELEMETRY_DISABLED
@@ -78,7 +84,9 @@ export class Telemetry {
     this.sessionId = randomBytes(32).toString('hex')
     this.queue = new Set()
 
-    this.notify()
+    if (!skipNotify) {
+      this.notify()
+    }
   }
 
   private notify = () => {

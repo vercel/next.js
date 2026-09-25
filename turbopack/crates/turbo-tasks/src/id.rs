@@ -14,10 +14,7 @@ use bincode::{
 };
 use serde::{Deserialize, Serialize, de::Visitor};
 
-use crate::{
-    TaskPersistence, registry,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use crate::{TaskPersistence, registry};
 
 macro_rules! define_id {
     (
@@ -108,10 +105,6 @@ macro_rules! define_id {
             fn from(id: $name) -> Self {
                 id.to_non_zero_u64()
             }
-        }
-
-        impl TraceRawVcs for $name {
-            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
         }
     };
     (

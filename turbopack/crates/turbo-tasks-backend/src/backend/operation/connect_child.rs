@@ -11,6 +11,7 @@ use crate::{
             },
             invalidate::make_task_dirty_internal,
         },
+        storage::SpecificTaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
@@ -34,15 +35,21 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
     drop(guard);
 
     let mut task = ctx.task(task_id, TaskDataCategory::All);
-    // Double-check under the re-acquired guard: a concurrent connect may have already done this
+    // Double-check under the re-acquired guard: a concurrent connect may have already done this.
     if task.deleted() {
         task.set_deleted(false);
-        // Mark dirty so it is rescheduled, GC has already dropped its edges and data, so we need to
-        // re-execute them to bring it back
-        // NOTE: recovering from disk is technically sometimes possible but doesn't work for new
-        // tasks, and the snapshot may have already persisted a tombstone.  So it would at
-        // best be an optimistic way to recover data that is in the process of being deleted. It
-        // shouldn't matter for resolving this rare race condition.
+
+        // The GC snapshot may already have persisted this task's tombstone before the reconnect
+        // acquired its guard. Treat the resurrected task as new so the next snapshot restores the
+        // task-type index deleted by that tombstone, and persist Data so the type used to verify
+        // the index entry is restored too. A resident deleted task always has its type: GC
+        // restores All before marking it deleted, and eviction removes deleted tasks as
+        // whole entries.
+        task.set_new_task(true);
+        let _ = task.track_modification(SpecificTaskDataCategory::Data, "gc_resurrected");
+
+        // Mark dirty so it is rescheduled. GC has already dropped its edges and data, so it needs
+        // to re-execute to bring them back.
         make_task_dirty_internal(
             &mut task,
             /* make_stale */ true,
@@ -80,6 +87,14 @@ impl ConnectChildOperation {
         release_construction_ref: bool,
         mut ctx: impl ExecuteContext<'_>,
     ) {
+        if parent_task_id.is_none() {
+            // All parentless tasks receive a transient ref when connected: their lifetime cannot be
+            // constrained by turbo-tasks and needs to be managed by the caller. If the caller
+            // doesn't manage it, the GC root TTL handles it in a later session.
+            let mut child_task =
+                ctx.open_or_create_task_storage(child_task_id, TaskDataCategory::Meta);
+            child_task.update_and_get_transient_ref_count(1);
+        }
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =

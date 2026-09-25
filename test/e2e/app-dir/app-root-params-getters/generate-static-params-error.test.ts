@@ -2,17 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('app-root-param-getters - generateStaticParams error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'generate-static-params-error'),
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeAll(async () => {
-    try {
-      await next.start()
-    } catch {}
+    if (isNextDev) await next.start()
   })
 
   if (isNextDev) {
@@ -36,9 +32,10 @@ describe('app-root-param-getters - generateStaticParams error', () => {
     })
   } else {
     it('should error when reading a root param inside the generateStaticParams that defines it - build', async () => {
+      await expect(next.start()).rejects.toThrow()
       expect(next.cliOutput).toContain(
         "Route /[lang]/[locale] used `import('next/root-params').lang()` inside `generateStaticParams`, but the `lang` parameter was not provided by a parent `generateStaticParams`. In `generateStaticParams`, root params are only available for segments nested below the segment that provides them."
       )
-    })
+    }, 240_000)
   }
 })

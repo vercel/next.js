@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::resolve::ModulePart;
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum EcmascriptModuleCanonicalization {
     None,
     ModuleFragments(ModulePart),
@@ -39,7 +39,7 @@ pub async fn canonicalize_ecmascript_module(
                         ModulePart::Evaluation => {
                             Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                         }
-                        ModulePart::Export(_) => {
+                        ModulePart::Export(_) | ModulePart::PartialExport { .. } => {
                             apply_reexport_tree_shaking(
                                 Vc::upcast(
                                     *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
@@ -69,27 +69,36 @@ async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    if let ModulePart::Export(export) = &part {
-        let FollowExportsResult {
-            module: final_module,
-            export_name: new_export,
-            ..
-        } = &*follow_reexports(module, export.clone(), true).await?;
-        return Ok(if let Some(new_export) = new_export {
-            if *new_export == *export {
-                **final_module
-            } else {
-                Vc::upcast(EcmascriptModuleRenameModule::new(
-                    **final_module,
-                    ModulePart::renamed_export(new_export.clone(), export.clone()),
-                ))
-            }
+    // The namespace member is only applied if this export resolves to a namespace object.
+    let (export, namespace_member) = match &part {
+        ModulePart::Export(export) => (export, None),
+        ModulePart::PartialExport { export, member } => (export, Some(member)),
+        _ => return Ok(module),
+    };
+
+    let FollowExportsResult {
+        module: final_module,
+        export_name: new_export,
+        ..
+    } = &*follow_reexports(module, export.clone(), true).await?;
+    Ok(if let Some(new_export) = new_export {
+        if *new_export == *export {
+            **final_module
         } else {
             Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
-                ModulePart::renamed_namespace(export.clone()),
+                ModulePart::renamed_export(new_export.clone(), export.clone()),
             ))
-        });
-    }
-    Ok(module)
+        }
+    } else {
+        Vc::upcast(EcmascriptModuleRenameModule::new(
+            **final_module,
+            match namespace_member {
+                Some(member) => {
+                    ModulePart::renamed_partial_namespace(export.clone(), member.clone())
+                }
+                None => ModulePart::renamed_namespace(export.clone()),
+            },
+        ))
+    })
 }

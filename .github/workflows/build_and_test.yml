@@ -22,11 +22,15 @@ env:
 
 jobs:
   optimize-ci:
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/pr_stack_optimizer.yml
-    secrets: inherit
 
   changes:
     name: Determine changes
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,6 +161,7 @@ jobs:
 
   build-next:
     name: build-next
+    needs: ['optimize-ci']
     permissions:
       contents: read
       id-token: write
@@ -251,11 +256,16 @@ jobs:
         # `*.browser.{ts,tsx}` sibling was added/removed without running
         # `pnpm generate-browser-variant-aliases` and committing the result.
         pnpm generate-browser-variant-aliases
+        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
+        pnpm --dir .github/actions/pr-stack-ci-gate types
+        pnpm --dir .github/actions/pr-stack-ci-gate build
+        pnpm --dir .github/actions/pr-stack-ci-gate test
         git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -300,6 +310,7 @@ jobs:
     with:
       needsRust: 'yes'
       needsNextest: 'yes'
+      needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
@@ -311,6 +322,23 @@ jobs:
       # trace unusual packages, who may have since changed how they package
       # themselves.
       runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+    secrets: inherit
+
+  # Turbo Tasks' link-section registry is unavailable under Miri, so this runs the explicit
+  # low-level package allowlist in packages/next-swc/package.json instead of the whole workspace.
+  test-cargo-unit-miri:
+    name: test cargo unit (miri)
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      needsNextest: 'yes'
+      skipNativeBuild: 'yes'
+      skipInstallBuild: 'yes'
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-miri ${TURBO_ARGS}
+      stepName: 'test-cargo-unit-miri'
     secrets: inherit
 
   test-bench:
@@ -621,6 +649,12 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
+  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
+  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # See https://github.com/vercel/next.js/issues/96960.
+  #
+  # This compiles the bindings and runs the wasm test suites with the pinned emnapi v2 prerelease.
+  # A linked build is gated by the first stack layer that provides every required runtime hook.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
@@ -632,14 +666,31 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
-      skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
         set -euo pipefail
 
+        # Provisions the wasi-sdk, emnapi and the cross-compilation env. Shared with local
+        # builds so the two cannot drift; see contributing/core/building-wasm.md.
         source scripts/setup-wasi-env.sh
-        cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
+        # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
+        # compile is simply never built.
+        cargo build -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # Run the crates whose tests can execute on wasm. This needs a host that supplies the
+        # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
+        # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform
+        # limitations behind the tests that are `ignore`d on wasm.
+        export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
+        cargo test \
+          -p turbo-rcstr \
+          -p turbo-tasks \
+          -p turbo-tasks-backend \
+          --lib \
+          --target wasm32-wasip1-threads
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
@@ -965,6 +1016,7 @@ jobs:
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
+          test/e2e/app-dir/turbopack-additional-roots/turbopack-additional-roots.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'

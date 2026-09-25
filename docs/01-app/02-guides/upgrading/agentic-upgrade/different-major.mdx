@@ -1,0 +1,62 @@
+---
+title: Complete an agentic Next.js major upgrade
+description: Agent workflow for repository preflight, codemods, repairs, verification, and delivery across Next.js major versions.
+# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
+version: draft
+---
+
+Each section has a checklist of items to complete. Read line by line and complete
+each item before moving on to the next section.
+
+When a security gate stops a command during another task, rerun that command once
+as instructed so the original task can continue with a warning. Tell the user
+about the finding and ask whether they want to run the upgrade. Continue
+independent work while waiting. If approved, complete the upgrade.
+
+For `latest`, the CLI pins the release from the app's channel: npm's `latest`
+dist-tag for stable installations and `canary` for canary installations.
+
+Security upgrades and advisory checks are supported only for stable installations.
+Canary installations support `latest` and `future` without advisory assessment.
+
+## 1. Make a checklist
+
+- [ ] Read `../codemods.md` and `../version-<major>.md` for each crossed major
+      from version 14 onward. Include each **Review migration checklist**.
+- [ ] For crossed majors through version 13, read the Pages Router guide under
+      `docs/02-pages/02-guides/upgrading/` and derive the checklist from it.
+- [ ] Stop if a required guide is missing.
+
+## 2. Upgrade and repair
+
+- [ ] Run the exact command prepared for this upgrade:
+
+```text
+<codemod-command>
+```
+
+- [ ] Run the codemod once, directly to the exact target. Do not install
+      intermediate Next.js versions or rerun the codemod for each crossed
+      major.
+- [ ] If a required option is unavailable, correct the tool version or stop.
+- [ ] Complete the codemod's manual steps, resolve its review markers, and
+      complete every applicable migration item. Keep only changes required by
+      the final target.
+- [ ] Set `experimental.agenticAutoUpgrade` to the policy specified in the
+      prompt, preserving unrelated configuration. If the target Next.js version
+      does not support this option, skip the setting and report why.
+
+## 3. Verify
+
+**This is the most important step.**
+
+- [ ] Review the checklist created in step 1 and verify that every item has been
+      completed. Iterate until every item is addressed as applied or blocked
+      with a reason.
+- [ ] Run the repository's checks, build when supported, and test affected
+      runtime behavior.
+
+## Deliver
+
+- [ ] After verifying the migration and any requested Future Defaults adoption,
+      return to `shared.md` and complete its delivery checklist.

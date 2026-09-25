@@ -89,6 +89,10 @@ export async function exportAppPage(
       sharedContext
     )
 
+    if ('error' in result) {
+      throw result.error
+    }
+
     const html = result.toUnchunkedString()
 
     // TODO(after): if we abort a prerender because of an error in an after-callback

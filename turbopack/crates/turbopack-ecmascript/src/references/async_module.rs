@@ -6,10 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
@@ -25,7 +22,7 @@ use crate::{
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, NonLocalValue, Encode, Decode)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -153,6 +150,7 @@ impl AsyncModule {
                     ReferencedAsset::External(..) => None,
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => None,
                 })
             })
