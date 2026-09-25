@@ -51,6 +51,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
   process.on('SIGTERM', onTerminate)
   process.on('SIGINT', onInterrupt)
+  process.on('SIGHUP', onHangup)
 
   const {
     analyze,
@@ -127,14 +128,6 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     }).filter(([_, value]) => value !== undefined && value !== false)
   )
 
-  const { shouldPromptForUpgrade, runUpgrade } = await import(
-    '../lib/upgrade/nudge.js'
-  )
-  const humanUpgrade = await shouldPromptForUpgrade()
-  if (humanUpgrade) {
-    process.on('SIGHUP', onHangup)
-  }
-
   return build(
     dir,
     analyze || experimentalAnalyze,
@@ -147,20 +140,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl,
     debugBuildPathsPatterns,
-    enabledFeatures,
-    humanUpgrade
+    enabledFeatures
   )
-    .then(async (action) => {
-      if (action === 'interrupt') {
-        process.exit(130)
-      }
-      if (action) {
-        process.off('SIGTERM', onTerminate)
-        process.off('SIGINT', onInterrupt)
-        process.off('SIGHUP', onHangup)
-        process.exit(await runUpgrade(dir, action))
-      }
-    })
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()

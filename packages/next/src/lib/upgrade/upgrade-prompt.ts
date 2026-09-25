@@ -11,27 +11,44 @@ import { constants, tmpdir } from 'os'
 import { join } from 'path'
 import type { IPty } from 'node-pty'
 import { initialEnv, updateInitialEnv } from '@next/env'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+import type { NextBuildOptions } from '../../cli/next-build'
+import { parseBundlerArgs } from '../bundler'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../../shared/lib/constants'
 import { getProjectDir } from '../get-project-dir'
 import { getNodeDebugType, getParsedNodeOptions } from '../../server/lib/utils'
 
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024
 
 /**
- * Keep the human upgrade menu separate from a running `next dev` terminal.
+ * Keep the human upgrade menu separate from a running `next dev` or `next build`.
  *
- * 1. Leave non-interactive or unconfigured dev on its ordinary path.
- * 2. Run the same CLI in a PTY so dev still has a real terminal.
- * 3. Capture dev output while the parent shows the menu; dev keeps running.
- * 4. On a non-upgrade choice, replay all output and return to live dev. On
- *    Upgrade now, ask dev to stop and begin upgrading without waiting.
- *
- * The PTY and output lifecycle can also serve `next build`; its CLI wiring and
- * config phase belong to the build follow-up. Keep this dev entry point until
- * that behavior is implemented and tested.
+ * 1. Leave non-interactive or unconfigured commands on their ordinary path.
+ * 2. Run the same CLI in a PTY so it still has a real terminal.
+ * 3. Capture command output while the parent shows the menu; work continues.
+ * 4. On a non-upgrade choice, replay all output and return to live work. On
+ *    Upgrade now, ask the command to stop and begin upgrading without waiting.
  */
-export async function runDevWithUpgradePrompt(
-  directory: string
+type UpgradeCommand =
+  | { name: 'dev' }
+  | { name: 'build'; options: NextBuildOptions }
+
+export function runDevWithUpgradePrompt(directory: string): Promise<boolean> {
+  return runWithUpgradePrompt(directory, { name: 'dev' })
+}
+
+export function runBuildWithUpgradePrompt(
+  directory: string,
+  options: NextBuildOptions
+): Promise<boolean> {
+  return runWithUpgradePrompt(directory, { name: 'build', options })
+}
+
+async function runWithUpgradePrompt(
+  directory: string,
+  command: UpgradeCommand
 ): Promise<boolean> {
   // The PTY child runs this same CLI; this flag keeps it on the ordinary path.
   if (process.env.NEXT_PRIVATE_UPGRADE_SUPERVISED === '1') {
@@ -45,11 +62,11 @@ export async function runDevWithUpgradePrompt(
   }
 
   // Check basic eligibility before starting a PTY. The full offer assessment
-  // runs later so it cannot delay dev startup; config supplies the policy.
+  // runs later so it cannot delay command startup; config supplies the policy.
   // Import after the guard so the PTY child skips upgrade module initialization
-  // when it re-enters this CLI to run ordinary dev.
+  // when it re-enters this CLI to run the ordinary command.
   // Config loading reads .env into this process. Keep the original environment
-  // so the child can reload .env values when the file changes.
+  // so the child can load the app's own .env values.
   const childEnv = { ...process.env }
   const restoreEnv = () => {
     // Config can also change @next/env's baseline, which later resetEnv() uses.
@@ -68,8 +85,8 @@ export async function runDevWithUpgradePrompt(
     }
     Object.assign(process.env, childEnv)
   }
-  // Preflight must never replace ordinary dev's config error path. Let nextDev
-  // load and report an invalid config in the usual way.
+  // Preflight must never replace the command's config error path. Let dev or
+  // build load and report an invalid config in the usual way.
   let preflight: {
     dir: string
     context: ReturnType<(typeof import('./nudge.js'))['getUpgradeContext']>
@@ -86,18 +103,31 @@ export async function runDevWithUpgradePrompt(
     if (!(await shouldPromptForUpgrade())) {
       return false
     }
-    const dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
+    const dir = getProjectDir(
+      command.name === 'dev'
+        ? process.env.NEXT_PRIVATE_DEV_DIR || directory
+        : directory
+    )
     const loadConfig = (
       require('../../server/config') as typeof import('../../server/config')
     ).default
-    // TODO: Reuse this config in dev rather than loading it again in the child.
+    // TODO: Reuse this config in the child rather than loading it again there.
     let config: Awaited<ReturnType<typeof loadConfig>>
     try {
-      config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-        silent: true,
-      })
+      if (command.name === 'dev') {
+        config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+          silent: true,
+        })
+      } else {
+        config = await loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+          silent: true,
+          bundler: parseBundlerArgs(command.options),
+          reactProductionProfiling: command.options.profile,
+          debugPrerender: command.options.debugPrerender,
+        })
+      }
     } finally {
-      // Only the dev child should inherit the app's .env values. The parent
+      // Only the command child should inherit the app's .env values. The parent
       // may later spawn a package manager or coding agent for Upgrade now.
       restoreEnv()
     }
@@ -123,7 +153,7 @@ export async function runDevWithUpgradePrompt(
   }
 
   // node-pty is optional. If it, output capture, or PTY startup fails, the
-  // caller starts ordinary dev and reports why the menu could not be shown.
+  // caller starts the ordinary command and reports why the menu failed.
   let pty: typeof import('node-pty')
   try {
     pty = require('node-pty') as typeof import('node-pty')
@@ -138,7 +168,7 @@ export async function runDevWithUpgradePrompt(
   let capture: number
   try {
     captureDir = mkdtempSync(join(tmpdir(), 'next-upgrade-output-'))
-    capture = openSync(join(captureDir, 'dev.log'), 'w+', 0o600)
+    capture = openSync(join(captureDir, `${command.name}.log`), 'w+', 0o600)
   } catch (error) {
     if (captureDir) {
       rmSync(captureDir, { recursive: true, force: true })
@@ -150,7 +180,7 @@ export async function runDevWithUpgradePrompt(
   }
 
   // Relaunch the original command in a real PTY. Its output can be captured
-  // without changing what the dev process sees as its terminal.
+  // without changing what the child process sees as its terminal.
   let terminal: IPty
   try {
     terminal = pty.spawn(
@@ -226,7 +256,7 @@ export async function runDevWithUpgradePrompt(
     } else {
       let offset = 0
       try {
-        // Spool to disk so a busy dev server cannot exhaust the CLI's memory.
+        // Spool to disk so busy command output cannot exhaust CLI memory.
         while (offset < bytes.length) {
           const written = writeSync(
             capture,
@@ -235,7 +265,7 @@ export async function runDevWithUpgradePrompt(
             bytes.length - offset
           )
           if (written === 0) {
-            throw new Error('Dev output capture stopped making progress')
+            throw new Error('Upgrade output capture stopped making progress')
           }
           offset += written
           capturedBytes += written
@@ -257,7 +287,7 @@ export async function runDevWithUpgradePrompt(
       }
     }
   })
-  // The dev process may finish before a choice; the menu still owns the parent.
+  // The command may finish before a choice; the menu still owns the parent.
   const childExitCode = (code: number) => {
     if (terminationSignal) {
       return 128 + constants.signals[terminationSignal]
@@ -307,7 +337,7 @@ export async function runDevWithUpgradePrompt(
     onData.dispose()
     closeCapture()
   }
-  // Parent signals must reach the dev CLI, which owns its server worker. Keep
+  // Parent signals must reach the child CLI, which owns its workers. Keep
   // the parent alive until that child completes its normal shutdown.
   const terminate = (signal: 'SIGINT' | 'SIGTERM' | 'SIGHUP') => {
     if (terminationSignal) {
@@ -357,7 +387,7 @@ export async function runDevWithUpgradePrompt(
     const assessment = nudgeUpgrade(
       dir,
       context,
-      'dev',
+      command.name,
       promptController.signal,
       () => {
         humanPromptStarted = true
@@ -371,7 +401,7 @@ export async function runDevWithUpgradePrompt(
       promptAborted.then(() => undefined),
     ])
     // If the menu was on screen, wait for its own finally block to restore
-    // the terminal before printing a diagnostic or replaying dev output.
+    // the terminal before printing a diagnostic or replaying child output.
     if (humanPromptStarted && promptController.signal.aborted) {
       // A process signal does not replay output, so it must not wait for a
       // blocked terminal write while the child is shutting down.
@@ -383,12 +413,12 @@ export async function runDevWithUpgradePrompt(
 
   if (captureError) {
     process.stderr.write(
-      `Could not capture dev output: ${String(captureError)}\n`
+      `Could not capture ${command.name} output: ${String(captureError)}\n`
     )
   }
   if (captureLimitReached) {
     process.stderr.write(
-      'Upgrade prompt closed because dev output exceeded 64 MiB. Continuing dev.\n'
+      `Upgrade prompt closed because ${command.name} output exceeded 64 MiB. Continuing ${command.name}.\n`
     )
   }
 
@@ -407,7 +437,7 @@ export async function runDevWithUpgradePrompt(
   ) {
     cleanup()
     process.off('exit', onExit)
-    // Ctrl+C asks the foreground dev process and its worker to shut down.
+    // Ctrl+C asks the child process and its workers to shut down.
     if (exitCode === null) {
       terminal.write('\x03')
     }
@@ -418,7 +448,7 @@ export async function runDevWithUpgradePrompt(
     return true
   }
 
-  // Ctrl+C in the menu stops dev promptly. Its hidden logs need not be
+  // Ctrl+C in the menu stops the command promptly. Its hidden logs need not be
   // replayed; only Skip promises a full replay.
   if (action === 'interrupt') {
     menuInterrupted = true
@@ -503,14 +533,14 @@ export async function runDevWithUpgradePrompt(
   terminal.resume()
   closeCapture()
 
-  // Respect a menu interrupt, or return the child's exit status if dev already
+  // Respect a menu interrupt, or return the child's exit status if it already
   // finished while the menu was open.
   if (exitCode !== null) {
     process.exitCode = childExitCode(exitCode)
     return true
   }
 
-  // Once the menu is gone, forward terminal input to the still-running dev CLI.
+  // Once the menu is gone, forward input to the still-running child CLI.
   const wasRaw = process.stdin.isRaw ?? false
   restoreInput = () => {
     process.stdin.setRawMode(wasRaw)
@@ -548,7 +578,9 @@ export async function runDevWithUpgradePrompt(
         try {
           process.kill(-terminal.pid, 'SIGCONT')
         } catch (error) {
-          console.warn(`Could not resume dev after fg: ${String(error)}`)
+          console.warn(
+            `Could not resume ${command.name} after fg: ${String(error)}`
+          )
         }
       }
       process.stdin.setRawMode(true)

@@ -267,17 +267,20 @@ program
     }
     setupProfilesDir(directory || process.cwd())
 
-    // ensure process exits after build completes so open handles/connections
-    // don't cause process to hang
-    return import('../cli/next-build.js').then((mod) =>
-      mod.nextBuild(options, directory).then(async () => {
-        // Save CPU profile before exiting if enabled
-        if (options.experimentalCpuProf) {
-          await mod.saveCpuProfile()
-        }
-        process.exit(0)
-      })
-    )
+    // The human menu owns this terminal while the build runs in a PTY.
+    // The supervised child re-enters this action on the ordinary build path.
+    return import('../lib/upgrade/upgrade-prompt.js').then(async (mod) => {
+      if (await mod.runBuildWithUpgradePrompt(directory, options)) {
+        return
+      }
+      const { nextBuild, saveCpuProfile } = await import('../cli/next-build.js')
+      await nextBuild(options, directory)
+      // Ensure open handles do not keep a completed build alive.
+      if (options.experimentalCpuProf) {
+        await saveCpuProfile()
+      }
+      process.exit(0)
+    })
   })
   .usage('[directory] [options]')
 
