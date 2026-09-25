@@ -51,6 +51,7 @@ export function getRequiredScripts(
           integrity: preinitScriptCommands[i + 1],
           crossOrigin,
           nonce,
+          fetchPriority: 'high',
         })
       }
     }
@@ -68,6 +69,7 @@ export function getRequiredScripts(
           as: 'script',
           nonce,
           crossOrigin,
+          fetchPriority: 'high',
         })
       }
     }
