@@ -207,7 +207,19 @@ export async function initialize(opts: {
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
     const resetFetch = () => {
-      globalThis.fetch = originalFetch
+      // Unwrap only the Next.js patchFetch() + createDedupeFetch layers by
+      // restoring the fetch reference from before patchFetch() ran. This
+      // preserves any third-party instrumentation (e.g. OpenTelemetry) that
+      // wrapped globalThis.fetch before Next.js patched it, and avoids
+      // accumulating createDedupeFetch wrappers across HMR cycles.
+      const currentFetch: typeof globalThis.fetch & {
+        _nextPrePatchFetch?: typeof globalThis.fetch
+      } = globalThis.fetch
+      if (currentFetch._nextPrePatchFetch) {
+        globalThis.fetch = currentFetch._nextPrePatchFetch
+      } else {
+        globalThis.fetch = originalFetch
+      }
       ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
     }
 
