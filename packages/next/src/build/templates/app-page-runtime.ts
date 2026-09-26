@@ -1,5 +1,9 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type {
+  IncomingHttpHeaders,
+  IncomingMessage,
+  ServerResponse,
+} from 'node:http'
 import type { FallbackRouteParam } from '../static-paths/types'
 
 import {
@@ -696,6 +700,7 @@ export function createAppPageEntrypoint({
     // If this is a request for an app path that should be statically generated
     // and we aren't in the edge runtime, strip the flight headers so it will
     // generate the static response.
+    let staticRSCFlightHeaders: IncomingHttpHeaders | null = null
     if (
       !routeModule.isDev &&
       !isDraftMode &&
@@ -703,6 +708,14 @@ export function createAppPageEntrypoint({
       isRSCRequest &&
       !isDynamicRSCRequest
     ) {
+      if (
+        staticPrefetchDataRoute &&
+        isRoutePPREnabled &&
+        !isPrefetchRSCRequest &&
+        !isMinimalMode
+      ) {
+        staticRSCFlightHeaders = { ...req.headers }
+      }
       stripFlightHeaders(req.headers)
     }
 
@@ -2125,6 +2138,34 @@ export function createAppPageEntrypoint({
           isRSCRequest
         ) {
           res.statusCode = 200
+        }
+
+        if (didPostpone && staticRSCFlightHeaders) {
+          Object.assign(req.headers, staticRSCFlightHeaders)
+          const result = await doRender({
+            span,
+            postponed: cachedData.postponed,
+            fallbackRouteParams: null,
+            renderOperation: 'render',
+          })
+
+          if ('error' in result) {
+            throw result.error
+          }
+          if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
+            throw new InvariantError(
+              `Expected a page response, got ${result.value?.kind}`
+            )
+          }
+
+          return sendRenderResult({
+            req,
+            res,
+            generateEtags: nextConfig.generateEtags,
+            poweredByHeader: nextConfig.poweredByHeader,
+            result: result.value.html,
+            cacheControl: { revalidate: 0, expire: undefined },
+          })
         }
 
         // Mark that the request did postpone.
