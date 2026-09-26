@@ -105,10 +105,19 @@ type FetchServerActionResult = {
   couldBeIntercepted: boolean
 }
 
+// How many times a failed server-action fetch is replayed after connectivity
+// is restored when experimental.useOffline is enabled. Bounds the offline
+// retry loop so a deterministic failure can never loop forever.
+const MAX_OFFLINE_RETRIES = 2
+
 async function fetchServerAction(
   state: ReadonlyReducerState,
   nextUrl: ReadonlyReducerState['nextUrl'],
-  action: ServerActionAction
+  action: ServerActionAction,
+  // Number of times this action has already been replayed after connectivity
+  // was restored. Bounds the offline retry loop so a deterministic failure
+  // can never loop forever.
+  offlineRetryCount = 0
 ): Promise<FetchServerActionResult> {
   const { actionId, actionArgs } = action
   const temporaryReferences = createTemporaryReferenceSet()
@@ -157,7 +166,10 @@ async function fetchServerAction(
       notifyOnline()
     }
   } catch (err) {
-    if (process.env.__NEXT_USE_OFFLINE) {
+    if (
+      process.env.__NEXT_USE_OFFLINE &&
+      offlineRetryCount < MAX_OFFLINE_RETRIES
+    ) {
       const { checkOfflineError, getOffline, waitForConnection } =
         require('../../offline') as typeof import('../../offline')
       if (checkOfflineError(err)) {
@@ -168,7 +180,7 @@ async function fetchServerAction(
         if (offline !== null) {
           await waitForConnection(offline)
         }
-        return fetchServerAction(state, nextUrl, action)
+        return fetchServerAction(state, nextUrl, action, offlineRetryCount + 1)
       }
     }
     throw err
