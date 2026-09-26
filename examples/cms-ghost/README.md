@@ -9,7 +9,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Once you have access to [the environment variables you'll need](#step-2-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-ghost&env=ghost_BUCKET_SLUG,ghost_READ_KEY,ghost_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ghost&envLink=https://vercel.link/cms-ghost-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-ghost&env=GHOST_API_URL,GHOST_API_KEY,GHOST_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ghost&envLink=https://vercel.link/cms-ghost-env)
 
 ### Related examples
 
@@ -82,9 +82,10 @@ Once your keys are generated, copy them into the environment variables as follow
 ```bash
 GHOST_API_URL=...
 GHOST_API_KEY=...
+GHOST_PREVIEW_SECRET=...
 ```
 
-Make sure to use the Content API Key.
+Make sure to use the Content API Key. `GHOST_PREVIEW_SECRET` can be any random string and is used by the preview API route.
 
 ### Step 3. Set up Headless Ghost CMS
 
@@ -104,4 +105,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-ghost&env=GHOST_API_URL,GHOST_API_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20ghost&envLink=https://vercel.link/cms-ghost-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-ghost&env=GHOST_API_URL,GHOST_API_KEY,GHOST_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ghost&envLink=https://vercel.link/cms-ghost-env)
