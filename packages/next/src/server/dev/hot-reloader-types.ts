@@ -57,6 +57,15 @@ export const enum HMR_MESSAGE_SENT_TO_SERVER {
   RUNTIME_ERRORS = 'runtimeErrors',
   MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
   PING = 'ping',
+  REACT_DEBUG_TIMINGS = 'react-debug-timings',
+}
+
+export interface BrowserReactTimingsMessage {
+  event: HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS
+  requestId: string
+  decoderId: string
+  partial?: true
+  records: import('../../shared/lib/react-debug-timing').ReactTimingRecord[]
 }
 
 export interface ServerErrorMessage {

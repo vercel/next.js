@@ -2246,7 +2246,37 @@ export async function precompile(task, opts) {
 export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
-  await task.source('src/compiled/**/*').target('dist/compiled')
+  await task
+    .source('src/compiled/**/*')
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const match =
+        /^react-server-dom-(webpack|turbopack)-client\.browser\.development\.js$/.exec(
+          file.base
+        )
+      if (!match) return
+      const loader =
+        match[1] === 'webpack'
+          ? '__webpack_chunk_load__'
+          : '__turbopack_load_by_url__'
+      // Next owns the host bindings; the vendored decoder body stays verbatim.
+      // Keep a single module instance and its module/chunk caches in each runtime.
+      file.data = `var nextReactDecoderHost;
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS && typeof window !== 'undefined') {
+  nextReactDecoderHost = require('../../../client/dev/react-decoder-host');
+}
+(function(console, performance, setTimeout, Promise, ${loader}) {
+${file.data.toString()}
+})(
+  nextReactDecoderHost ? nextReactDecoderHost.decoderConsole : console,
+  nextReactDecoderHost ? nextReactDecoderHost.decoderPerformance : performance,
+  nextReactDecoderHost ? nextReactDecoderHost.decoderSetTimeout : setTimeout,
+  nextReactDecoderHost ? nextReactDecoderHost.DecoderPromise : Promise,
+  nextReactDecoderHost ? nextReactDecoderHost.bindReactDecoderChunkLoader((chunk) => ${loader}(chunk)) : (chunk) => ${loader}(chunk)
+);
+`
+    })
+    .target('dist/compiled')
 }
 
 export async function ncc(task, opts) {
