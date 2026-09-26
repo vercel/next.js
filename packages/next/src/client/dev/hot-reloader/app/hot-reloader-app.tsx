@@ -502,6 +502,10 @@ export function processMessage(
     case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.UPGRADE_ADVISORY: {
+      dispatcher.onUpgradeAdvisory(message.advisory)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
       dispatcher.onDevToolsConfig(message.data)
       return

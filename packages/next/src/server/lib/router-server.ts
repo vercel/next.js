@@ -1,5 +1,6 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
+import type { UpgradeAdvisory } from '../../next-devtools/shared/upgrade-advisory'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 
@@ -190,6 +191,7 @@ export async function initialize(opts: {
       }
     | undefined = undefined
 
+  let getUpgradeAdvisory: () => UpgradeAdvisory | null = () => null
   let originalFetch = globalThis.fetch
 
   if (opts.dev) {
@@ -218,6 +220,17 @@ export async function initialize(opts: {
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
 
+    const { nudgeUpgrade, getUpgradeContext } =
+      require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+    const { createUpgradeAdvisory } =
+      require('../../lib/upgrade/dev-advisory') as typeof import('../../lib/upgrade/dev-advisory')
+    const upgradeAdvisory = createUpgradeAdvisory(
+      opts.dir,
+      getUpgradeContext(developmentConfig),
+      process.env.__NEXT_VERSION || 'unknown'
+    )
+    getUpgradeAdvisory = upgradeAdvisory.getSnapshot
+
     // Check only development; production startup does not query advisories.
     if (
       developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
@@ -225,8 +238,6 @@ export async function initialize(opts: {
       developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE
     ) {
-      const { nudgeUpgrade, getUpgradeContext } =
-        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
         // TODO: Do not block dev startup while prompting for an upgrade.
         // Preserve all logs for display after the prompt and stop dev before Update.
@@ -246,7 +257,13 @@ export async function initialize(opts: {
           })
         })
       } else {
-        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+        void nudgeUpgrade(
+          opts.dir,
+          developmentConfig,
+          'dev',
+          null,
+          upgradeAdvisory.assessment
+        ).catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')
           const exitCode =
@@ -300,6 +317,24 @@ export async function initialize(opts: {
         serverFastRefresh: effectiveServerFastRefresh,
       })
     )
+
+    let closed = false
+    opts.onDevServerCleanup?.(async () => {
+      closed = true
+    })
+    void upgradeAdvisory.assessment
+      .then(() => {
+        if (!closed) {
+          developmentBundler.hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.UPGRADE_ADVISORY,
+            advisory: getUpgradeAdvisory(),
+          })
+        }
+      })
+      .catch((error) => {
+        const { printAndExit } = require('./utils') as typeof import('./utils')
+        printAndExit(error instanceof Error ? error.message : String(error))
+      })
 
     let devBundlerService = new DevBundlerService(
       developmentBundler,
@@ -1063,6 +1098,12 @@ export async function initialize(opts: {
             socket,
             head,
             (client, { isLegacyClient }) => {
+              client.send(
+                JSON.stringify({
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.UPGRADE_ADVISORY,
+                  advisory: getUpgradeAdvisory(),
+                })
+              )
               if (isLegacyClient) {
                 // Only send the ISR manifest to legacy clients, i.e. Pages
                 // Router clients, or App Router clients that have Cache

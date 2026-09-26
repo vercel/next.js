@@ -252,7 +252,7 @@ async function nudgeUpgradeForAgent(
   switch (reminder.kind) {
     case 'security':
       summary =
-        'Your version of Next.js is affected by a published security advisory.'
+        'Your version of Next.js is affected by a known security vulnerability.'
       recommendation = 'We strongly recommend you upgrade Next.js.'
       reference = reminder.reference
       break
@@ -442,7 +442,8 @@ export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null = null,
+  upgradeAssessment: ReturnType<typeof assessUpgrade> | undefined = undefined
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agenticAutoUpgrade
@@ -473,13 +474,14 @@ export async function nudgeUpgrade(
       return
     }
   }
-  const reminder = await assessUpgrade(
-    directory,
-    { ...config, experimental: { agenticAutoUpgrade: policy } },
-    installedVersion,
-    stopBefore,
-    requested !== null
-  )
+  const reminder = await (upgradeAssessment ??
+    assessUpgrade(
+      directory,
+      { ...config, experimental: { agenticAutoUpgrade: policy } },
+      installedVersion,
+      stopBefore,
+      requested !== null
+    ))
   if (!reminder || signal?.aborted) {
     return
   }

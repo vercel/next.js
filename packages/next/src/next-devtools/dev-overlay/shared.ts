@@ -8,6 +8,7 @@ import type {
   RuntimeErrorEvent,
 } from './container/runtime-error/render-error'
 import type { DebugInfo } from '../shared/types'
+import type { UpgradeAdvisory } from '../shared/upgrade-advisory'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
@@ -95,6 +96,7 @@ export interface OverlayState {
     showInternal: boolean
     verbose: boolean
   }>
+  readonly upgradeAdvisory: UpgradeAdvisory | null
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -131,6 +133,7 @@ export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+export const ACTION_UPGRADE_ADVISORY = 'upgrade-advisory'
 
 export function updateRequestInsights(
   currentRequests: readonly RequestInsight[],
@@ -314,6 +317,7 @@ export type DispatcherEvent =
   | InstantErrorsClearAction
   | RequestInsightsSnapshotAction
   | RequestInsightsUpdateAction
+  | { type: typeof ACTION_UPGRADE_ADVISORY; advisory: UpgradeAdvisory | null }
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -401,6 +405,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
   requestInsightsConfig: { showInternal: false, verbose: false },
+  upgradeAdvisory: null,
 }
 
 function getInitialState(
@@ -700,6 +705,9 @@ export function useErrorOverlayReducer(
         }
         case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
           return { ...state, requestInsights: action.snapshot.requests }
+        }
+        case ACTION_UPGRADE_ADVISORY: {
+          return { ...state, upgradeAdvisory: action.advisory }
         }
         case ACTION_REQUEST_INSIGHTS_UPDATE: {
           return {

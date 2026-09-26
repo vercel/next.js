@@ -1,3 +1,4 @@
+import type { UpgradeAdvisory } from './shared/upgrade-advisory'
 import type {
   RuntimeErrorMetadata,
   RuntimeErrorStateUpdate,
@@ -31,6 +32,7 @@ import {
   ACTION_INSTANT_NAVS_TOGGLE,
   ACTION_REQUEST_INSIGHTS_SNAPSHOT,
   ACTION_REQUEST_INSIGHTS_UPDATE,
+  ACTION_UPGRADE_ADVISORY,
 } from './dev-overlay/shared'
 
 import type { FlightRouterState } from '../shared/lib/app-router-types'
@@ -92,6 +94,7 @@ export interface Dispatcher {
   instantNavsToggle(): void
   onRequestInsightsSnapshot(snapshot: RequestInsightsSnapshot): void
   onRequestInsightsUpdate(insight: RequestInsight): void
+  onUpgradeAdvisory(advisory: UpgradeAdvisory | null): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -310,6 +313,11 @@ export const dispatcher: Dispatcher = {
   onRequestInsightsSnapshot: createQueuable(
     (dispatch: Dispatch, snapshot: RequestInsightsSnapshot) => {
       dispatch({ type: ACTION_REQUEST_INSIGHTS_SNAPSHOT, snapshot })
+    }
+  ),
+  onUpgradeAdvisory: createQueuable(
+    (dispatch: Dispatch, advisory: UpgradeAdvisory | null) => {
+      dispatch({ type: ACTION_UPGRADE_ADVISORY, advisory })
     }
   ),
   onRequestInsightsUpdate: createQueuable(
