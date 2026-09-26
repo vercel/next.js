@@ -206,7 +206,7 @@ Per route:
 ### loop notes
 
 - The [three blocker classes from background](#background) often get missed when fixing in place. Caching a downstream fetch (`getThing(id)`) doesn't clear an `await params` at the top of the page body — push the param promise into the `<Suspense>`-wrapped child.
-- Ambiguous calls are user check-ins, not agent judgment. When you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read [references/per-page-decisions.md](./references/per-page-decisions.md) before editing. Show the route while you ask by following `next-dev-loop`'s browser handoff: open the current URL in the harness's inline browser when available, or reopen the `agent-browser` session headed when its login or state must carry over. Use a screenshot when neither is possible. "Should this stay blocking?" is much easier to answer while looking at the page than at a file path.
+- Ambiguous calls are user check-ins, not agent judgment. When you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read [references/per-page-decisions.md](./references/per-page-decisions.md) before editing. Show the route while you ask using `next-dev-loop`'s browser handoff, with a screenshot as the fallback. "Should this stay blocking?" is much easier to answer while looking at the page than at a file path.
 - Don't narrate the refactor with comments. The only comment the codemod (or you) should leave is `// TODO: Cache Components adoption` on opt-outs, and the user's existing comments. Don't annotate every `<Suspense>` boundary or `"use cache"` call with what it does — the code says that. Drop a comment only when the _why_ isn't clear from the code (e.g. a deliberate Block with a reason).
 - For many routes with the same mechanical fix, verify one representative route first. Then batch disjoint route groups using the same recipe, and run the shared build and browser checks together.
 
@@ -226,7 +226,7 @@ Then check in with the user. Same rule as the pre-step: speak their language. Do
 
 - What you did: which routes you touched, and the user-visible result per route (e.g. "the post page now streams the article body behind a skeleton while the layout stays static").
 - What changed: opt-outs removed, fallbacks added, caching boundaries introduced.
-- Show, don't tell. When the harness has an inline browser, open the route there and drive it live so the user sees the static shell → fallback → final content sequence in real time. The inline browser is separate from the `agent-browser` session, so use a headed `agent-browser` handoff instead when its login or state must carry over. Otherwise, attach the before/after screenshots you captured.
+- Show, don't tell. Follow `next-dev-loop`'s browser handoff and drive the route live so the user sees the static shell → fallback → final content sequence. If live presentation is unavailable, attach the before/after screenshots you captured.
 - Give them the click-through: a short table of the feature's routes — the URL to open and what to look for (what renders instantly, which fallbacks appear, what streams in) — so they can verify each one themselves.
 - The question: "Want to open this feature as a PR and move on to the next, or stop here?" Wait for the answer.
 

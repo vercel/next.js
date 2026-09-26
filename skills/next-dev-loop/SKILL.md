@@ -75,28 +75,17 @@ Once per session, confirm both views are live.
    launch flags on `open`; agent-browser will reuse, relaunch, or restart
    its scoped background state as needed.
 
-   Keep routine verification headless. When the user asks to see the UI and
-   the coding harness has an inline browser, open the current URL there and
-   continue the user-visible interactions in that tab. The inline browser is
-   a separate browser context from `agent-browser`; do not claim that cookies,
-   local storage, or in-memory page state carry over. Stop driving the headless
-   session while the user-visible interaction is in progress.
-
-   When the user needs to log in to the `agent-browser` session, or the handoff
-   must preserve that session's existing state, reopen the same restored
-   session headed instead:
+   Keep routine verification headless. If the user asks to see the UI, open the
+   current URL in the coding harness's inline browser. It is a separate browser
+   context, so do not assume state carries over. When login or existing
+   `agent-browser` state must carry over, reopen that session headed instead:
 
    ```bash
    agent-browser --session "$SESSION" --restore --headed --enable react-devtools open <url>
    ```
 
-   `agent-browser` reconciles the changed launch flags and preserves restored
-   cookies and local storage across the relaunch. Pause while the user drives
-   the headed browser, then continue with the same session. Keep it headed for
-   the rest of the loop, including recovery opens, and keep passing
-   `--enable react-devtools`; another relaunch would preserve persisted auth
-   but can discard in-memory page state. An inline-browser handoff does not
-   change the `agent-browser` launch mode; it remains headless.
+   Pause while the user drives login, then continue with the same session and
+   keep it headed for the rest of the loop.
 
 2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
    lists `get_compilation_issues`. First read the port off the
@@ -164,9 +153,7 @@ manual rather than from memory.
   session" error — right after `open` or after a click (even if `open`
   reported the page) — is the browser dropping the page (a stale
   session), not a broken route. Reopen your session at the URL with the
-  same launch flags as the active loop, then re-snapshot. Before a user
-  handoff, use `--restore --enable react-devtools`; after a headed handoff,
-  use `--restore --headed --enable react-devtools`. If still blank, run
+  same launch flags as the active loop, then re-snapshot. If still blank, run
   `agent-browser --session "$SESSION" --restore close`, then reopen with
   those same flags. Don't fall back to `curl`; it bypasses the browser
   you're testing.
