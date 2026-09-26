@@ -12,6 +12,7 @@ import type {
 } from '../app-render/dev-validation-worker-globals'
 
 import { Worker } from 'next/dist/compiled/jest-worker'
+import { join, relative, sep } from 'path'
 import { setDevValidationWorker } from '../app-render/dev-validation-worker-globals'
 import { onCacheInvalidation } from './require-cache'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
@@ -82,6 +83,21 @@ export function dropDevValidationWorker(): void {
  */
 export function installDevValidationWorker(options: InstallOptions): void {
   const { distDir, buildId, deploymentId, nextConfig } = options
+  const appPageChunksDir = join(distDir, 'server', 'chunks', 'ssr') + sep
+
+  const getLoadedServerChunks = (): string[] => {
+    const chunks: string[] = []
+    for (const filePath of Object.keys(require.cache)) {
+      if (
+        filePath.startsWith(appPageChunksDir) &&
+        filePath.endsWith('.js') &&
+        Array.isArray(require.cache[filePath]?.exports)
+      ) {
+        chunks.push(relative(distDir, filePath).split(sep).join('/'))
+      }
+    }
+    return chunks
+  }
 
   // A single worker, not a pool. Validation for one navigation runs its depth
   // loop sequentially, and a newer navigation supersedes the previous one
@@ -218,6 +234,12 @@ export function installDevValidationWorker(options: InstallOptions): void {
       distDir,
       buildId,
       deploymentId,
+      // `loadComponents` in the worker registers the route entry's chunks, but
+      // a dynamic import during the main render can register additional RSC
+      // factories. Mirror every app-page chunk currently present in the main
+      // runtime so replaying that render's Flight payload sees the same module
+      // state. `loadChunk` deduplicates chunks the worker already registered.
+      loadedServerChunks: getLoadedServerChunks(),
       nextConfigSerializable: {
         httpAgentOptions: nextConfig.httpAgentOptions,
         cacheLifeProfiles: nextConfig.cacheLife,
