@@ -30,7 +30,7 @@ import {
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
-import type { Revalidate } from '../cache-control'
+import type { CacheControl, Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
@@ -54,6 +54,13 @@ export interface CacheHandlerValue {
   age?: number
   cacheState?: string
   value: IncrementalCacheValue | null
+  /**
+   * The entry's cache lifetime, as passed to `set()` in `ctx.cacheControl`.
+   * A cache handler that stores it and returns it here lets any instance serve
+   * the entry with its lifetime, including one that did not render it (another
+   * server sharing the cache, or the same server after a restart).
+   */
+  cacheControl?: CacheControl
 }
 
 function toHex(buffer: ArrayBufferView | ArrayBuffer): string {
@@ -632,7 +639,17 @@ export class IncrementalCache implements IncrementalCacheType {
 
     let entry: IncrementalResponseCacheEntry | null = null
     const { isFallback } = ctx
-    const cacheControl = this.cacheControls.get(toRoute(cacheKey))
+    let cacheControl = this.cacheControls.get(toRoute(cacheKey))
+
+    // This process only knows the lifetime of routes it rendered or that were
+    // prerendered. For any other entry (e.g. an on-demand page rendered by
+    // another instance, or by this one before a restart), use the lifetime the
+    // cache handler stored with the entry, and remember it for this route so the
+    // revalidation below uses it too.
+    if (!cacheControl && cacheData?.cacheControl) {
+      cacheControl = cacheData.cacheControl
+      this.cacheControls.set(toRoute(cacheKey), cacheControl)
+    }
 
     let isStale: boolean | -1 | undefined
     let revalidateAfter: Revalidate
