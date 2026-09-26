@@ -295,10 +295,15 @@ pub struct EcmascriptOptionsContext {
     /// Whether to scope-hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
 
-    /// Whether to enable cross-module constant inlining. Defaults to false.
+    /// Whether to use cross-module constants during analysis and code generation. Defaults to
+    /// false.
     pub cross_module_constants: bool,
     /// Whether dynamic import targets are compiled after their runtime proxy is activated.
     pub lazy_compilation: bool,
+
+    /// Whether to inline short, identity-free constant exports only during code generation.
+    /// Defaults to false.
+    pub inline_constant_exports: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
