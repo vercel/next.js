@@ -84,9 +84,8 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, turbofmt,
+    FxDashMap, FxIndexMap, InteriorMutator, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
+    Upcast, ValueToString, Vc, get_interior_mutator, parking_lot_mutex_bincode, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -354,17 +353,17 @@ impl EcmascriptModuleAssetBuilder {
 /// Cached as a turbo-tasks cell inside `failsafe_parse`: the always-equal
 /// `PartialEq` impl means that re-running the task does not replace the cell,
 /// so the interior `Mutex<Option<Rope>>` (and its stored rope) survive across
-/// task executions. A `SerializationInvalidator` keeps the persistence layer
+/// task executions. An `InteriorMutator` keeps the persistence layer
 /// in sync with the in-memory mutation.
 #[turbo_tasks::value(eq = "manual")]
 struct LastSuccessfulSource {
     #[bincode(with = "parking_lot_mutex_bincode")]
     #[turbo_tasks(debug_ignore)]
     source: parking_lot::Mutex<Option<Rope>>,
-    /// Notifies the backend when the in-memory `source` changes so that the
-    /// serialized task state is written back to the persistence layer.
+    /// Every change to `source` goes through this, so that the serialized task
+    /// state is written back to the persistence layer.
     #[turbo_tasks(debug_ignore)]
-    serialization_invalidator: SerializationInvalidator,
+    interior_mutator: InteriorMutator,
 }
 
 impl LastSuccessfulSource {
@@ -373,13 +372,14 @@ impl LastSuccessfulSource {
     }
 
     fn set(&self, rope: Rope) {
-        *self.source.lock() = Some(rope);
-        self.serialization_invalidator.invalidate();
+        // Hand the replaced rope out of `mutate` so it is dropped afterwards.
+        let _old = self
+            .interior_mutator
+            .mutate(|| self.source.lock().replace(rope));
     }
 
     fn clear(&self) {
-        *self.source.lock() = None;
-        self.serialization_invalidator.invalidate();
+        let _old = self.interior_mutator.mutate(|| self.source.lock().take());
     }
 }
 
@@ -387,7 +387,7 @@ impl Default for LastSuccessfulSource {
     fn default() -> Self {
         Self {
             source: parking_lot::Mutex::new(None),
-            serialization_invalidator: get_serialization_invalidator(),
+            interior_mutator: get_interior_mutator(),
         }
     }
 }

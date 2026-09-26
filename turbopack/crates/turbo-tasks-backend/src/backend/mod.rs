@@ -23,7 +23,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use auto_hash_map::{AutoMap, AutoSet};
+use auto_hash_map::AutoMap;
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
@@ -67,9 +67,9 @@ use crate::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            capture_all_edges, connect_children, get_aggregation_number, get_uppers,
-            make_task_dirty_internal, prepare_new_children,
+            InteriorMutationScope, LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard,
+            TaskType, TaskTypeRef, capture_all_edges, connect_children, get_aggregation_number,
+            get_uppers, make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -1887,45 +1887,30 @@ impl TurboTasksBackend {
         );
     }
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        if !self.should_track_dependencies() {
-            panic!("Dependency tracking is disabled so invalidation is not allowed");
-        }
-        operation::InvalidateOperation::run(
-            tasks.iter().copied().collect(),
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
-    fn invalidate_tasks_set(
-        &self,
-        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
-        if !self.should_track_dependencies() {
-            panic!("Dependency tracking is disabled so invalidation is not allowed");
-        }
-        operation::InvalidateOperation::run(
-            tasks.iter().copied().collect(),
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
-    fn invalidate_serialization(
+    fn mutate_interior(
         &self,
         task_id: TaskId,
+        mutate: &mut dyn FnMut(),
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         if task_id.is_transient() {
+            // Never persisted, so there is nothing to keep in sync.
+            mutate();
             return;
         }
+        // Eviction may run at any moment and trusts the modified flags alone, so the task must be
+        // marked modified before `mutate` changes anything in memory.
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        task.invalidate_serialization();
+        {
+            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let _ = task.track_modification(SpecificTaskDataCategory::Data, "mutate_interior");
+            let _ = task.track_modification(SpecificTaskDataCategory::Meta, "mutate_interior");
+        }
+        {
+            let _scope = InteriorMutationScope::enter();
+            mutate();
+        }
+        drop(ctx);
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
@@ -3726,20 +3711,13 @@ impl Backend for TurboTasksBackend {
         self.invalidate_task(task_id, turbo_tasks);
     }
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>) {
-        self.invalidate_tasks(tasks, turbo_tasks);
-    }
-
-    fn invalidate_tasks_set(
+    fn mutate_interior(
         &self,
-        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
+        task_id: TaskId,
+        mutate: &mut dyn FnMut(),
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.invalidate_tasks_set(tasks, turbo_tasks);
-    }
-
-    fn invalidate_serialization(&self, task_id: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.invalidate_serialization(task_id, turbo_tasks);
+        self.mutate_interior(task_id, mutate, turbo_tasks);
     }
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {

@@ -76,7 +76,7 @@ async fn inner_compute(
     input2: ResolvedVc<ChangingInput>,
 ) -> Result<Vc<u32>> {
     println!("inner_compute()");
-    Ok(inner_compute2(*input, *input2.await?.state.get()))
+    Ok(inner_compute2(*input, input2.await?.state.get()))
 }
 
 #[turbo_tasks::function]
@@ -85,7 +85,7 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
     if innerness > 0 {
         return Ok(inner_compute2(input, innerness - 1));
     }
-    let value = *input.await?.state.get();
+    let value = input.await?.state.get();
     let collectible: ResolvedVc<Box<dyn ValueToString>> =
         ResolvedVc::upcast(Collectible { value }.resolved_cell());
     emit(collectible);

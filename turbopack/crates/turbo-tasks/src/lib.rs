@@ -28,6 +28,7 @@ pub mod event;
 pub mod graph;
 mod id;
 mod id_factory;
+mod interior_mutation;
 mod invalidation;
 mod join_iter_ext;
 pub mod keyed;
@@ -50,7 +51,6 @@ mod read_ref;
 pub mod registry;
 pub mod scope_bounded;
 pub mod scope_unbounded;
-mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;
 mod state;
@@ -69,7 +69,6 @@ mod vc;
 use std::hash::BuildHasherDefault;
 
 pub use anyhow::{Error, Result};
-use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
@@ -95,6 +94,7 @@ pub use crate::{
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
     },
+    interior_mutation::InteriorMutator,
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,
@@ -103,18 +103,17 @@ pub use crate::{
     manager::{
         CurrentCellRef, GcRoot, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
         ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi,
-        Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        Unused, UpdateInfo, dynamic_call, emit, get_interior_mutator, mark_finished, mark_stateful,
+        mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason, trait_call,
+        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
     read_options::{ReadCellOptions, ReadOutcome, ReadOutputOptions},
     read_ref::ReadRef,
-    serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, parking_lot_mutex_bincode},
+    state::{State, TransientState, parking_lot_mutex_bincode},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
@@ -426,5 +425,3 @@ pub use turbo_tasks_macros::value_impl;
 /// - Serialization methods
 #[rustfmt::skip]
 pub use turbo_tasks_macros::task_storage;
-
-pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;

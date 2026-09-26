@@ -52,7 +52,7 @@ async fn branch_b() -> Result<Vc<u32>> {
 /// `mutating_a_state_read_by_a_collected_task_does_not_panic`.
 #[turbo_tasks::function]
 async fn state_reader(observed: ResolvedVc<Constant>) -> Result<Vc<u32>> {
-    Ok(Vc::cell(*observed.await?.get()))
+    Ok(Vc::cell(observed.await?.get()))
 }
 
 /// Reads `state_reader` only while the selector is false, so flipping it disconnects the reader.
@@ -61,7 +61,7 @@ async fn select_state_reader(
     selector: ResolvedVc<Selector>,
     observed: ResolvedVc<Constant>,
 ) -> Result<Vc<u32>> {
-    let use_b = *selector.await?.get();
+    let use_b = selector.await?.get();
     let value = if use_b {
         *branch_b().await?
     } else {
@@ -82,7 +82,7 @@ async fn pinned_branch() -> Result<Vc<u32>> {
 /// previously-read branch (and its subtree), which should drop that branch's `parent_count` to 0.
 #[turbo_tasks::function(operation, root)]
 async fn select(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
-    let use_b = *selector.await?.get();
+    let use_b = selector.await?.get();
     let value = if use_b {
         *branch_b().await?
     } else {
@@ -94,7 +94,7 @@ async fn select(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
 /// Like `select`, but reads `pinned_branch` instead of `branch_a` when the selector is false.
 #[turbo_tasks::function(operation, root)]
 async fn select_pinned(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
-    let use_b = *selector.await?.get();
+    let use_b = selector.await?.get();
     let value = if use_b {
         *branch_b().await?
     } else {
