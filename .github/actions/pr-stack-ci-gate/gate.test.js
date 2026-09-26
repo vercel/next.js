@@ -622,7 +622,13 @@ test('workflow keeps expensive work gated, forks isolated and action pinned to t
       )
     )
     expect(block).not.toBeNull()
-    expect(block[0]).toContain("needs: ['optimize-ci']")
+    const needs = block[0].match(/needs: \[([^\]]+)\]/)?.[1]
+    expect(needs).toBeDefined()
+    const dependencies = needs.split(',').map((dependency) => dependency.trim())
+    expect(dependencies).toContain("'optimize-ci'")
+    if (job === 'build-next') {
+      expect(dependencies).toContain("'wait-for-release-packages'")
+    }
   }
   const lint = build.match(
     /^  lint:\n([\s\S]*?)(?=^  validate-docs-links:)/m
