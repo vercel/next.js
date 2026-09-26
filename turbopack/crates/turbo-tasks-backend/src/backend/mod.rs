@@ -6,6 +6,7 @@ mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
+mod task_map;
 
 // Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
 // `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
@@ -84,7 +85,6 @@ use crate::{
     kv_backing_storage::TurboBackingStorage,
     utils::{
         dash_map_entry::{get_in_shard, get_shard, with_entry_in_shard},
-        shard_amount::compute_shard_amount,
         stopwatch::Stopwatch,
     },
 };
@@ -307,8 +307,6 @@ impl TurboTasksBackend {
     }
 
     pub fn new(mut options: BackendOptions, backing_storage: TurboBackingStorage) -> Self {
-        let resident_shard_amount =
-            compute_shard_amount(options.num_workers, options.small_preallocation);
         if !options.dependency_tracking {
             options.active_tracking = false;
         }
@@ -344,7 +342,7 @@ impl TurboTasksBackend {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            storage: Storage::new(resident_shard_amount, small_preallocation),
+            storage: Storage::new(small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
             stopping: RwLock::new(false),
