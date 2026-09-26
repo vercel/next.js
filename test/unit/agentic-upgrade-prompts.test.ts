@@ -45,7 +45,11 @@ jest.mock('next/dist/compiled/cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
+jest.mock('next/dist/compiled/cross-spawn', () => {
+  const spawn = jest.fn()
+  spawn.sync = jest.fn()
+  return spawn
+})
 jest.mock('next/dist/lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
@@ -74,7 +78,9 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
-const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock
+const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
+  sync: jest.Mock
+}
 const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
@@ -140,6 +146,11 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    crossSpawn.sync.mockReturnValue({
+      status: 0,
+      stdout:
+        '  --approve-for-me  Route approval requests through automatic review',
+    })
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
     global.fetch = jest.fn()
@@ -482,6 +493,7 @@ describe('agentic upgrade prompts', () => {
         .mockResolvedValueOnce({ id: agent } as never)
         .mockResolvedValueOnce({ id: model } as never)
         .mockResolvedValueOnce({ id: effort } as never)
+        .mockResolvedValueOnce({ id: 'default' } as never)
         .mockResolvedValueOnce({ id: 'no' } as never)
       crossSpawn.mockImplementation(() => {
         const child = new EventEmitter()
@@ -513,7 +525,17 @@ describe('agentic upgrade prompts', () => {
           : ['low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'cancel']
       )
       expect(effortMenu.defaultValue).toBe(2)
-      expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+      const permissionMenu = jest.mocked(cliSelect).mock.calls[3][0]
+      expect(Object.keys(permissionMenu.values)).toEqual(
+        agent === 'codex'
+          ? ['default', 'auto', 'ask', 'yolo', 'cancel']
+          : ['default', 'auto', 'acceptEdits', 'manual', 'yolo', 'cancel']
+      )
+      expect(permissionMenu.defaultValue).toBe(1)
+      expect(permissionMenu.values.auto).toBe(
+        agent === 'codex' ? 'Auto review' : 'Auto mode'
+      )
+      expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
         yes: 'Yes',
         no: 'No',
       })
@@ -525,8 +547,139 @@ describe('agentic upgrade prompts', () => {
       ).toBeLessThan(
         questions.findIndex((value) => value.includes('reasoning effort'))
       )
+      expect(
+        questions.findIndex((value) => value.includes('reasoning effort'))
+      ).toBeLessThan(
+        questions.findIndex((value) => value.includes('permission mode'))
+      )
     }
   )
+
+  it.each([
+    ['codex', 'auto', ['--approve-for-me']],
+    [
+      'codex',
+      'ask',
+      ['--sandbox', 'workspace-write', '--ask-for-approval', 'on-request'],
+    ],
+    ['codex', 'yolo', ['--dangerously-bypass-approvals-and-sandbox']],
+    ['claude', 'auto', ['--permission-mode', 'auto']],
+    ['claude', 'acceptEdits', ['--permission-mode', 'acceptEdits']],
+    ['claude', 'manual', ['--permission-mode', 'manual']],
+    ['claude', 'yolo', ['--dangerously-skip-permissions']],
+  ])('passes %s %s permission flags', async (agent, permission, flags) => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: agent } as never)
+      .mockResolvedValueOnce({
+        id: agent === 'codex' ? 'gpt-5.6-terra' : 'opus',
+      } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: permission } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath(agent),
+      [
+        '--model',
+        agent === 'codex' ? 'gpt-5.6-terra' : 'opus',
+        ...(agent === 'codex'
+          ? ['-c', 'model_reasoning_effort=high']
+          : ['--effort', 'high']),
+        ...flags,
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('defaults to approval requests when the Codex CLI lacks Auto review', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockReturnValue({
+      status: 0,
+      stdout: '  --ask-for-approval <APPROVAL_POLICY>',
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'ask' } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(crossSpawn.sync).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      ['--help'],
+      expect.objectContaining({ encoding: 'utf8' })
+    )
+    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+      default: 'Use current settings',
+      ask: 'Ask on request (workspace sandbox)',
+      yolo: 'Full access (skip approvals and sandbox)',
+      cancel: 'Cancel',
+    })
+    expect(jest.mocked(cliSelect).mock.calls[3][0].defaultValue).toBe(1)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=high',
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('cancels the handoff when permission selection is cancelled', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'cancel' } as never)
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(process.exitCode).toBe(1)
+    expect(crossSpawn).not.toHaveBeenCalled()
+  })
 
   it('asks an existing agent for a worktree choice without prompting interactively', async () => {
     const prompt = jest.fn(() => 'Prepared upgrade prompt.')
@@ -556,6 +709,7 @@ describe('agentic upgrade prompts', () => {
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'default' } as never)
       .mockResolvedValueOnce({ id: 'yes' } as never)
     crossSpawn.mockImplementation(() => {
       const child = new EventEmitter()
@@ -641,7 +795,7 @@ describe('agentic upgrade prompts', () => {
      - https://api.github.com/advisories?affects=next
      - https://registry.npmjs.org/next
 
-     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. Next, ask which permission mode they want; use auto if they do not specify, or keep the current permissions if they choose current settings. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
        ],
@@ -741,7 +895,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. Next, ask which permission mode they want; use auto if they do not specify, or keep the current permissions if they choose current settings. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
        ],
@@ -961,7 +1115,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. Next, ask which permission mode they want; use auto if they do not specify, or keep the current permissions if they choose current settings. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
          ],
@@ -1063,7 +1217,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. Next, ask which permission mode they want; use auto if they do not specify, or keep the current permissions if they choose current settings. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
        ],

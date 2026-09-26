@@ -278,7 +278,7 @@ This command stopped so the reminder you configured is not missed. Retry the sam
 
 When you report back to the user, include this upgrade recommendation even if the retry succeeds.
 
-At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. Ask which model they want for the agent upgrade. After they choose a model, ask which reasoning effort they want. If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory: (Ask for the upgrade model before reasoning effort)
+At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. Ask which model they want for the agent upgrade. After they choose a model, ask which reasoning effort they want. Then ask which permission mode they want, using auto if they do not specify and keeping the current mode if they choose current settings. If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory: (Ask for the upgrade model before reasoning effort)
 
 \`\`\`
 ${command}
