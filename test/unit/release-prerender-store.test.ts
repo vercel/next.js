@@ -5,6 +5,11 @@ import {
   type PrerenderStoreModernRuntime,
   type PrerenderStoreModernClient,
 } from '../../packages/next/src/server/app-render/work-unit-async-storage.external'
+import { isAbortError } from '../../packages/next/src/server/pipe-readable'
+import {
+  RESPONSE_ABORTED,
+  ResponseAborted,
+} from '../../packages/next/src/server/web/spec-extension/adapters/next-request'
 
 describe('releasePrerenderStore', () => {
   it('safely handles null and undefined', () => {
@@ -164,5 +169,14 @@ describe('releasePrerenderStore', () => {
     releasePrerenderStore(store)
 
     expect(errorWithStack.stack).toBe('Error: Render aborted')
+  })
+
+  it('ensures RESPONSE_ABORTED is recognized as an abort error with a static stack', () => {
+    expect(RESPONSE_ABORTED).toBeInstanceOf(ResponseAborted)
+    expect(isAbortError(RESPONSE_ABORTED)).toBe(true)
+    expect(RESPONSE_ABORTED.name).toBe('ResponseAborted')
+    expect(RESPONSE_ABORTED.stack).toBe(
+      'ResponseAborted: The response was aborted.'
+    )
   })
 })

@@ -215,7 +215,10 @@ import {
   type DevValidationGeneration,
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import {
+  signalFromNodeResponse,
+  RESPONSE_ABORTED,
+} from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
@@ -238,7 +241,6 @@ import {
   ReactServerResult,
   ReplayableNodeStream,
   createReactServerPrerenderResultFromRender,
-  PRERENDER_COMPLETE,
 } from './app-render-prerender-utils'
 import {
   Phase,
@@ -1827,8 +1829,8 @@ async function prospectiveRuntimeServerPrerender(
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
 
-    initialServerRenderController.abort(PRERENDER_COMPLETE)
-    initialServerPrerenderController.abort(PRERENDER_COMPLETE)
+    initialServerRenderController.abort(RESPONSE_ABORTED)
+    initialServerPrerenderController.abort(RESPONSE_ABORTED)
 
     // We don't need to continue the prerender process if we already
     // detected invalid dynamic usage in the initial prerender phase.
@@ -2124,7 +2126,7 @@ async function finalRuntimeServerPrerender(
         }
 
         workUnitAsyncStorage.run(finalServerPrerenderStore, () =>
-          finalServerController.abort(PRERENDER_COMPLETE)
+          finalServerController.abort(RESPONSE_ABORTED)
         )
       }
     )
@@ -8065,7 +8067,7 @@ async function renderWithRestartOnCacheMissInValidation(
     if (initialAbandonController.signal.aborted === true) {
       return
     } else if (cacheSignal.hasPendingReads()) {
-      initialAbandonController.abort(PRERENDER_COMPLETE)
+      initialAbandonController.abort(RESPONSE_ABORTED)
     } else {
       initialStageController.advanceStage(stage)
     }
@@ -9185,7 +9187,7 @@ async function prerenderToStream(
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
 
-        initialServerReactController.abort(PRERENDER_COMPLETE)
+        initialServerReactController.abort(RESPONSE_ABORTED)
 
         // We don't need to continue the prerender process if we already
         // detected invalid dynamic usage in the initial prerender phase.
@@ -9620,7 +9622,7 @@ async function prerenderToStream(
             }
 
             workUnitAsyncStorage.run(finalServerPrerenderStore, () =>
-              finalServerReactController.abort(PRERENDER_COMPLETE)
+              finalServerReactController.abort(RESPONSE_ABORTED)
             )
           }
         )
@@ -10241,7 +10243,7 @@ async function prerenderToStream(
           () => {
             if (!errorServerReactController.signal.aborted) {
               workUnitAsyncStorage.run(errorPrerenderStore, () =>
-                errorServerReactController.abort(PRERENDER_COMPLETE)
+                errorServerReactController.abort(RESPONSE_ABORTED)
               )
             }
           }
@@ -10338,7 +10340,7 @@ async function prerenderToStream(
           },
           () => {
             workUnitAsyncStorage.run(errorClientPrerenderStore, () =>
-              errorClientReactController.abort(PRERENDER_COMPLETE)
+              errorClientReactController.abort(RESPONSE_ABORTED)
             )
           }
         )
