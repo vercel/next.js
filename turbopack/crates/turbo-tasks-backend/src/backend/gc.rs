@@ -429,7 +429,7 @@ impl TurboTasksBackend {
         // We expect this call to come from outside a turbo-task context, at least sometimes
         // So be defensive about conostructing a context.  If we get none then we are shutting down
         // and it is too late for ref-counting.
-        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
+        let Some(ctx) = self.try_execute_context(turbo_tasks) else {
             return;
         };
         // Technically we only need to manipulate transient data so meta is overkill. But the task
