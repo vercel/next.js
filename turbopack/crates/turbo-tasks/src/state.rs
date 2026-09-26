@@ -1,7 +1,9 @@
+#[cfg(debug_assertions)]
+use std::cell::Cell;
 use std::{
     fmt::Debug,
     mem::{replace, take},
-    ops::Deref,
+    ops::{Deref, DerefMut},
 };
 
 use auto_hash_map::AutoSet;
@@ -20,11 +22,6 @@ struct StateInner<T> {
     invalidators: AutoSet<Invalidator>,
 }
 
-// The mutators return the drained invalidators, and `set` and `set_unconditionally` also return
-// whichever value is no longer stored. The caller must run the invalidators via
-// [`run_invalidators`] and drop the value only after releasing the mutex and after
-// [`InteriorMutator::mutate`] returns: both may call into turbo-tasks, which takes backend locks
-// and starts operations (see `run_invalidators`).
 impl<T> StateInner<T> {
     fn new(value: T) -> Self {
         Self {
@@ -37,6 +34,10 @@ impl<T> StateInner<T> {
         self.invalidators.insert(invalidator);
     }
 
+    /// Sets the value and returns the old value and the drained invalidators. The caller MUST
+    /// run them via [`run_invalidators`] (and drop the old value) *after* dropping the [`Mutex`]
+    /// guard — calling [`Invalidator::invalidate`] may grab locks in the backend which can lead to
+    /// cycles
     #[must_use]
     fn set_unconditionally(&mut self, value: T) -> (T, AutoSet<Invalidator>) {
         (
@@ -45,6 +46,8 @@ impl<T> StateInner<T> {
         )
     }
 
+    /// See [`Self::set_unconditionally`] for the locking contract on the
+    /// returned invalidators.
     #[must_use]
     fn update_conditionally(
         &mut self,
@@ -59,7 +62,8 @@ impl<T> StateInner<T> {
 
 impl<T: PartialEq> StateInner<T> {
     /// Returns the replaced value, or `value` itself if it was equal to the stored one (with no
-    /// invalidators, since nothing changed).
+    /// invalidators, since nothing changed). See [`Self::set_unconditionally`] for the locking
+    /// contract on the returned value and invalidators.
     #[must_use]
     fn set(&mut self, value: T) -> (T, Option<AutoSet<Invalidator>>) {
         if self.value == value {
@@ -70,13 +74,63 @@ impl<T: PartialEq> StateInner<T> {
     }
 }
 
+thread_local! {
+    /// How many state locks the current thread holds; see [`StateLock`].
+    #[cfg(debug_assertions)]
+    static STATE_LOCKS_HELD: Cell<usize> = const { Cell::new(0) };
+}
+
+/// A held [`StateInner`] mutex. Every state lock is taken through this, so that debug builds can
+/// count the locks each thread holds and [`run_invalidators`] can assert that it holds none.
+struct StateLock<'a, T> {
+    guard: MutexGuard<'a, StateInner<T>>,
+}
+
+impl<'a, T> StateLock<'a, T> {
+    fn new(mutex: &'a Mutex<StateInner<T>>) -> Self {
+        let guard = mutex.lock();
+        #[cfg(debug_assertions)]
+        STATE_LOCKS_HELD.with(|held| held.set(held.get() + 1));
+        Self { guard }
+    }
+}
+
+impl<T> Deref for StateLock<'_, T> {
+    type Target = StateInner<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.guard
+    }
+}
+
+impl<T> DerefMut for StateLock<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.guard
+    }
+}
+
+impl<T> Drop for StateLock<'_, T> {
+    fn drop(&mut self) {
+        // The guard is `!Send`, so this runs on the thread that took the lock.
+        #[cfg(debug_assertions)]
+        STATE_LOCKS_HELD.with(|held| held.set(held.get() - 1));
+    }
+}
+
 /// Invalidates every task that read the state before it changed.
 ///
 /// Must be called *outside* the [`StateInner`] mutex guard and after [`InteriorMutator::mutate`]
 /// has returned: invalidating reaches into the backend, which takes task locks (a snapshot takes
 /// the mutex while holding those) and starts an operation of its own (which could wait on a
-/// snapshot that is waiting on `mutate`).
+/// snapshot that is waiting on `mutate`). Debug builds check both: this asserts that the thread
+/// holds no state lock, and the backend asserts that it isn't called from inside `mutate`.
 fn run_invalidators(invalidators: AutoSet<Invalidator>) {
+    #[cfg(debug_assertions)]
+    assert_eq!(
+        STATE_LOCKS_HELD.with(Cell::get),
+        0,
+        "a state's invalidators must not be run while a state lock is held"
+    );
     if invalidators.is_empty() {
         return;
     }
@@ -93,7 +147,7 @@ fn run_invalidators(invalidators: AutoSet<Invalidator>) {
 /// There is deliberately no mutable access: every change must go through the state's mutators so
 /// that the tasks that read it are invalidated.
 pub struct StateRef<'a, T> {
-    inner: MutexGuard<'a, StateInner<T>>,
+    inner: StateLock<'a, T>,
 }
 
 impl<T> Deref for StateRef<'_, T> {
@@ -172,7 +226,7 @@ pub struct State<T> {
 impl<T: Debug> Debug for State<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("State")
-            .field("value", &self.inner.lock().value)
+            .field("value", &self.lock().value)
             .finish()
     }
 }
@@ -192,6 +246,10 @@ impl<T> PartialEq for State<T> {
 impl<T> Eq for State<T> {}
 
 impl<T> State<T> {
+    fn lock(&self) -> StateLock<'_, T> {
+        StateLock::new(&self.inner)
+    }
+
     pub fn new(value: T) -> Self
     where
         T: OperationValue,
@@ -206,8 +264,7 @@ impl<T> State<T> {
     /// [`InteriorMutator::mutate`] for why marking and mutating are one step and what `mutate` must
     /// not do. Every change to the inner state, including registering a reader, goes through here.
     fn mutate<R>(&self, mutate: impl FnOnce(&mut StateInner<T>) -> R) -> R {
-        self.interior_mutator
-            .mutate(|| mutate(&mut self.inner.lock()))
+        self.interior_mutator.mutate(|| mutate(&mut self.lock()))
     }
 
     /// Gets a copy of the current value of the state. The current task will be registered as
@@ -224,7 +281,7 @@ impl<T> State<T> {
             return self.get_untracked();
         };
         {
-            let inner = self.inner.lock();
+            let inner = self.lock();
             if inner.invalidators.contains(&invalidator) {
                 return inner.value.clone();
             }
@@ -243,7 +300,7 @@ impl<T> State<T> {
     where
         T: Clone,
     {
-        self.inner.lock().value.clone()
+        self.lock().value.clone()
     }
 
     /// Sets the current state without comparing it with the old value. This
@@ -275,7 +332,7 @@ impl<T: PartialEq> State<T> {
     pub fn set(&self, value: T) {
         // Checked up front as well as inside `mutate`: an unchanged value then costs no more than
         // the comparison, without entering `mutate` at all.
-        if self.inner.lock().value == value {
+        if self.lock().value == value {
             return;
         }
         let (unused, invalidators) = self.mutate(|inner| inner.set(value));
@@ -302,7 +359,7 @@ pub struct TransientState<T> {
 impl<T: Debug> Debug for TransientState<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TransientState")
-            .field("value", &self.inner.lock().value)
+            .field("value", &self.lock().value)
             .finish()
     }
 }
@@ -321,6 +378,10 @@ impl<T> PartialEq for TransientState<T> {
 impl<T> Eq for TransientState<T> {}
 
 impl<T> TransientState<T> {
+    fn lock(&self) -> StateLock<'_, T> {
+        StateLock::new(&self.inner)
+    }
+
     pub fn new(value: T) -> Self
     where
         T: OperationValue,
@@ -336,7 +397,7 @@ impl<T> TransientState<T> {
     /// changes.
     pub fn get(&self) -> StateRef<'_, T> {
         let invalidator = get_invalidator();
-        let mut inner = self.inner.lock();
+        let mut inner = self.lock();
         if let Some(invalidator) = invalidator {
             inner.add_invalidator(invalidator);
         }
@@ -345,15 +406,13 @@ impl<T> TransientState<T> {
 
     /// Gets the current value of the state. Untracked.
     pub fn get_untracked(&self) -> StateRef<'_, T> {
-        StateRef {
-            inner: self.inner.lock(),
-        }
+        StateRef { inner: self.lock() }
     }
 
     /// Sets the current state without comparing it with the old value. This
     /// should only be used if one is sure that the value has changed.
     pub fn set_unconditionally(&self, value: T) {
-        let (old, invalidators) = self.inner.lock().set_unconditionally(value);
+        let (old, invalidators) = self.lock().set_unconditionally(value);
         drop(old);
         run_invalidators(invalidators);
     }
@@ -363,7 +422,7 @@ impl<T> TransientState<T> {
     /// the current value from the `update` function is not allowed and will
     /// result in incorrect cache invalidation.
     pub fn update_conditionally(&self, update: impl FnOnce(&mut T) -> bool) {
-        let invalidators = self.inner.lock().update_conditionally(update);
+        let invalidators = self.lock().update_conditionally(update);
         if let Some(invalidators) = invalidators {
             run_invalidators(invalidators);
         }
@@ -374,7 +433,7 @@ impl<T: PartialEq> TransientState<T> {
     /// Update the current state when the `value` is different from the current
     /// value. `T` must implement [PartialEq] for this to work.
     pub fn set(&self, value: T) {
-        let (unused, invalidators) = self.inner.lock().set(value);
+        let (unused, invalidators) = self.lock().set(value);
         drop(unused);
         if let Some(invalidators) = invalidators {
             run_invalidators(invalidators);
