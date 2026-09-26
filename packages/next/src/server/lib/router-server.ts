@@ -239,6 +239,7 @@ export async function initialize(opts: {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE
     ) {
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        const assessment = await upgradeAdvisory.assessment
         // TODO: Do not block dev startup while prompting for an upgrade.
         // Preserve all logs for display after the prompt and stop dev before Update.
         // The existing dev worker pauses here while its parent owns the menu.
@@ -254,6 +255,7 @@ export async function initialize(opts: {
           process.on('message', resume)
           process.send!({
             nextUpgradeContext: getUpgradeContext(developmentConfig),
+            nextUpgradeAssessment: assessment,
           })
         })
       } else {

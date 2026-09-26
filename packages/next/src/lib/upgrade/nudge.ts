@@ -474,14 +474,15 @@ export async function nudgeUpgrade(
       return
     }
   }
-  const reminder = await (upgradeAssessment ??
-    assessUpgrade(
-      directory,
-      { ...config, experimental: { agenticAutoUpgrade: policy } },
-      installedVersion,
-      stopBefore,
-      requested !== null
-    ))
+  const reminder = await (upgradeAssessment && stopBefore === null
+    ? upgradeAssessment
+    : assessUpgrade(
+        directory,
+        { ...config, experimental: { agenticAutoUpgrade: policy } },
+        installedVersion,
+        stopBefore,
+        requested !== null
+      ))
   if (!reminder || signal?.aborted) {
     return
   }
