@@ -7,12 +7,19 @@ describe('ensureStatic = "navigation" - runtime behavior', () => {
     files: __dirname,
   })
 
+  const HTML = 'html' as const
+  const RSC = 'rsc' as const
+
   const expectSameStaticResponseForMultipleRequests = async (
-    href: string
+    href: string,
+    requestKind: 'html' | 'rsc' = 'html'
   ): Promise<string> => {
     const responses = new Set<string>()
+    const headers = requestKind === RSC ? { rsc: '1' } : {}
     for (let i = 0; i < 4; i++) {
-      const response = await next.fetch(href).then((res) => res.text())
+      const response = await next
+        .fetch(href, { headers })
+        .then((res) => res.text())
       expect(response).not.toBeEmpty()
       responses.add(response)
     }
@@ -85,66 +92,94 @@ describe('ensureStatic = "navigation" - runtime behavior', () => {
   describe('page with static params', () => {
     const getHref = (slug: string) => `/default/static-params/${slug}`
 
-    describe('serves static results for params that were prerendered at build', () => {
-      it.each(['prerendered-1', 'prerendered-2'])('slug: %s', async (slug) => {
-        const href = getHref(slug)
-        const response = await expectSameStaticResponseForMultipleRequests(href)
+    const testImpl = async (slug: string, kind: 'html' | 'rsc') => {
+      const href = getHref(slug)
+      const response = await expectSameStaticResponseForMultipleRequests(
+        href,
+        kind
+      )
+      const expected = `Slug: ${slug}`
+      if (kind === HTML) {
+        // We should not serve a fallback + resume, so the param should
+        // be present in the initial HTML.
         const $ = cheerio.load(response)
-        // We should not serve a fallback shell, so the param should be present in the non-hydrated HTML.
-        expect($('#slug').text()).toBe(`Slug: ${slug}`)
+        expect($('#slug').text()).toBe(expected)
+      } else {
+        expect(response).toContain(expected)
+      }
 
-        const browser = await next.browser(href)
-        expect(await browser.elementByCss('#slug').text()).toBe(`Slug: ${slug}`)
-        await expectNoBrowserErrorLogs(browser)
+      const browser = await next.browser(href)
+      expect(await browser.elementByCss('#slug').text()).toBe(expected)
+      await expectNoBrowserErrorLogs(browser)
+    }
+
+    describe('serves static results for params that were prerendered at build', () => {
+      it.each([
+        { slug: 'prerendered-1', kind: HTML },
+        { slug: 'prerendered-2', kind: RSC },
+      ])('slug: $slug - $kind', async ({ slug, kind }) => {
+        await testImpl(slug, kind)
       })
     })
 
-    describe('serves static results for params that were not prerendered at build', () => {
-      it.each(['not-prerendered-1', 'not-prerendered-2'])(
-        'slug: %s',
-        async (slug) => {
-          const href = getHref(slug)
-          const response =
-            await expectSameStaticResponseForMultipleRequests(href)
-          const $ = cheerio.load(response)
-          // We should not serve a fallback shell, so the param should be present in the non-hydrated HTML.
-          expect($('#slug').text()).toBe(`Slug: ${slug}`)
+    describe('serves blocking static results for params that were not prerendered at build', () => {
+      it('HTML request', async () => {
+        const slug = 'not-prerendered-1'
+        const kind = HTML
+        await testImpl(slug, kind)
+      })
 
-          const browser = await next.browser(href)
-          expect(await browser.elementByCss('#slug').text()).toBe(
-            `Slug: ${slug}`
-          )
-          await expectNoBrowserErrorLogs(browser)
-        }
-      )
+      // TODO(ensure-static): RSC requests are still dynamic until revalidation finishes
+      it.failing('RSC request', async () => {
+        const slug = 'not-prerendered-2'
+        const kind = RSC
+        await testImpl(slug, kind)
+      })
     })
   })
+
   describe('page with root params', () => {
     const getHref = (lang: string) => `/with-root-param/${lang}`
 
-    describe('serves static results for params that were prerendered at build', () => {
-      it.each(['en', 'pl'])('lang: %s', async (lang) => {
-        const href = getHref(lang)
-        const response = await expectSameStaticResponseForMultipleRequests(href)
+    const testImpl = async (lang: string, kind: 'rsc' | 'html') => {
+      const href = getHref(lang)
+      const response = await expectSameStaticResponseForMultipleRequests(
+        href,
+        kind
+      )
+      const expected = `Lang: ${lang}`
+      if (kind === HTML) {
         const $ = cheerio.load(response)
-        expect($('#lang').text()).toBe(`Lang: ${lang}`)
+        expect($('#lang').text()).toBe(expected)
+      } else {
+        expect(response).toContain(expected)
+      }
 
-        const browser = await next.browser(href)
-        expect(await browser.elementByCss('#lang').text()).toBe(`Lang: ${lang}`)
-        await expectNoBrowserErrorLogs(browser)
+      const browser = await next.browser(href)
+      expect(await browser.elementByCss('#lang').text()).toBe(`Lang: ${lang}`)
+      await expectNoBrowserErrorLogs(browser)
+    }
+
+    describe('serves static results for params that were prerendered at build', () => {
+      it.each([
+        { lang: 'en', kind: HTML },
+        { lang: 'pl', kind: RSC },
+      ])('lang: $lang - $kind', async ({ lang, kind }) => {
+        await testImpl(lang, kind)
       })
     })
 
     describe('serves static results for params that were not prerendered at build', () => {
-      it.each(['de', 'jp'])('lang: %s', async (lang) => {
-        const href = getHref(lang)
-        const response = await expectSameStaticResponseForMultipleRequests(href)
-        const $ = cheerio.load(response)
-        expect($('#lang').text()).toBe(`Lang: ${lang}`)
-
-        const browser = await next.browser(href)
-        expect(await browser.elementByCss('#lang').text()).toBe(`Lang: ${lang}`)
-        await expectNoBrowserErrorLogs(browser)
+      it('HTML request', async () => {
+        const lang = 'de'
+        const kind = HTML
+        await testImpl(lang, kind)
+      })
+      // TODO(ensure-static): RSC requests are still dynamic until revalidation finishes
+      it.failing('RSC request', async () => {
+        const lang = 'jp'
+        const kind = RSC
+        await testImpl(lang, kind)
       })
     })
   })
