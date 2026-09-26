@@ -910,6 +910,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             new_blob_files,
             keys_written,
         } = write_batch.finish(|family| {
+            // Only called for families this commit writes to: like before, reads of a family are
+            // not recorded by a commit without writes to it, and stay in the set for the next one.
             let inner = self.inner.read();
             let set = &inner.accessed_key_hashes[family as usize];
             // len is only a snapshot at that time and it can change while we create the filter.
@@ -1576,8 +1578,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     // the previous warm/cold split, the marks are not copied into the meta files
                     // written by compaction, so they expire with the meta files that recorded
                     // them; carrying them forward would keep keys marked forever. A bottom merge
-                    // writes the marked keys into separate hot files.
-                    let used_key_hashes = union_used_key_hashes(meta_files)?;
+                    // writes the marked keys into separate hot files, other merges don't need them.
+                    let used_key_hashes = if merge_jobs
+                        .iter()
+                        .any(|job| job.bottom && job.members.len() > 1)
+                    {
+                        union_used_key_hashes(meta_files)?
+                    } else {
+                        None
+                    };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
                     // exactly which SST it is) so `commit` can report deleted bytes without a scan.
@@ -1832,9 +1841,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 self.config.family_configs[family as usize].compression;
                             let mut collector =
                                 Collector::new(output_flags, compression, shard_bits);
-                            // A bottom merge writes the entries of keys read since the last bottom
-                            // merge into separate hot files, so that reading them again touches
-                            // fewer blocks.
+                            // A bottom merge writes the entries of recently read keys into separate
+                            // hot files, so that reading them again touches fewer blocks.
                             let mut hot_collector =
                                 (bottom && used_key_hashes.is_some()).then(|| {
                                     Collector::new(
