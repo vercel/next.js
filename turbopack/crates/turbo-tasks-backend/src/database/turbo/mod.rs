@@ -1,6 +1,5 @@
 use std::{
     cmp::max,
-    num::NonZeroU16,
     path::PathBuf,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
@@ -41,7 +40,7 @@ pub fn db_config() -> DbConfig<FAMILIES> {
 }
 
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
-    max_space_amplification_percent: NonZeroU16::new(50),
+    max_space_amplification_percent: 50,
     min_bottom_merge_bytes: 1024 * 1024,
     max_files_above_bottom: 4,
     max_rewrite_factor: 2.0,

@@ -1626,7 +1626,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 bottom,
                             } = job;
                             let output_flags = if bottom {
-                                MetaEntryFlags::BOTTOM
+                                MetaEntryFlags::COLD_BOTTOM
                             } else {
                                 MetaEntryFlags::COMPACTED
                             };
@@ -2614,7 +2614,7 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 
 /// The number of key hash shards of each family (see [`crate::shard`]). It follows the size of the
 /// bottom runs, which is about the size of the live data after compaction, starting from the shards
-/// recorded in the newest meta file of the family (see [`ShardBits::adjust`]).
+/// recorded in the newest meta file of the family (see [`ShardBits::maybe_reshard`]).
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
@@ -2628,10 +2628,13 @@ fn shard_bits<const FAMILIES: usize>(
             .sum::<u64>();
         let min = config.family_configs[family].min_shard_bits;
         match meta_files_by_family[family].last() {
-            Some(newest) => newest
-                .shard_bits()
-                .adjust(bottom_bytes, config.target_shard_size, min),
-            None => ShardBits::for_size(bottom_bytes, config.target_shard_size, min),
+            Some(newest) => {
+                newest
+                    .shard_bits()
+                    .maybe_reshard(bottom_bytes, config.target_shard_size, min)
+            }
+            // A family without files has no bottom run either, so it starts with its minimum.
+            None => min,
         }
     })
 }

@@ -2926,10 +2926,13 @@ fn bottom_entry_counts(db: &TurboPersistence<RayonParallelScheduler, 1>) -> Resu
     let mut hot = 0;
     let mut cold = 0;
     for entry in db.meta_info()?.into_iter().flat_map(|meta| meta.entries) {
-        if entry.flags.hot() {
-            hot += entry.entry_count as usize;
-        } else if entry.flags.bottom() {
+        if !entry.flags.bottom() {
+            continue;
+        }
+        if entry.flags.cold() {
             cold += entry.entry_count as usize;
+        } else {
+            hot += entry.entry_count as usize;
         }
     }
     Ok((hot, cold))

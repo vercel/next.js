@@ -972,7 +972,7 @@ fn bench_compaction(c: &mut Criterion) {
                     |(_tempdir, db)| {
                         // Timed: run normal compaction
                         db.compact(&CompactConfig {
-                            max_space_amplification_percent: std::num::NonZeroU16::new(50),
+                            max_space_amplification_percent: 50,
                             min_bottom_merge_bytes: 1024 * 1024,
                             max_files_above_bottom: 4,
                             max_rewrite_factor: 2.0,

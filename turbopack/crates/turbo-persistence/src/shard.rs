@@ -64,7 +64,7 @@ impl ShardBits {
     /// halves once they hold less than half of it. A change lands in the middle of that band, so
     /// a family near a boundary doesn't flip back and forth, which would alternate the file
     /// boundaries of commits. Never less than `min`.
-    pub fn adjust(self, bytes: u64, target_shard_size: u64, min: ShardBits) -> Self {
+    pub fn maybe_reshard(self, bytes: u64, target_shard_size: u64, min: ShardBits) -> Self {
         let bytes = u128::from(bytes);
         let target = u128::from(target_shard_size.max(1));
         let mut bits = self.max(min);
@@ -77,15 +77,6 @@ impl ShardBits {
             bits.0 -= 1;
         }
         bits
-    }
-
-    /// The shard bits for a family with `bytes` of compacted data, so that shards hold about
-    /// `target_shard_size` bytes. Never less than `min`. Used for families without files.
-    pub fn for_size(bytes: u64, target_shard_size: u64, min: ShardBits) -> Self {
-        let needed = bytes.div_ceil(target_shard_size.max(1)).max(1);
-        // ceil(log2(needed))
-        let bits = u64::BITS - (needed - 1).leading_zeros();
-        Self(bits.min(u32::from(Self::MAX.0)) as u8).max(min)
     }
 }
 
@@ -224,38 +215,30 @@ mod tests {
     }
 
     #[test]
-    fn test_adjust_has_hysteresis() {
+    fn test_maybe_reshard_has_hysteresis() {
         const T: u64 = 100;
         let bits = |b| ShardBits::new(b);
         // 2 shards of 140 each (1.4x the target) stay 2 shards, 2 of 160 become 4 of 80.
-        assert_eq!(bits(1).adjust(280, T, bits(0)), bits(1));
-        assert_eq!(bits(1).adjust(320, T, bits(0)), bits(2));
+        assert_eq!(bits(1).maybe_reshard(280, T, bits(0)), bits(1));
+        assert_eq!(bits(1).maybe_reshard(320, T, bits(0)), bits(2));
         // 4 shards of 60 stay 4 shards, 4 of 40 become 2 of 80.
-        assert_eq!(bits(2).adjust(240, T, bits(0)), bits(2));
-        assert_eq!(bits(2).adjust(160, T, bits(0)), bits(1));
+        assert_eq!(bits(2).maybe_reshard(240, T, bits(0)), bits(2));
+        assert_eq!(bits(2).maybe_reshard(160, T, bits(0)), bits(1));
         // Large changes take multiple steps at once, and the minimum is respected.
-        assert_eq!(bits(0).adjust(1000, T, bits(0)), bits(3));
-        assert_eq!(bits(4).adjust(0, T, bits(1)), bits(1));
-        assert_eq!(bits(0).adjust(0, T, bits(2)), bits(2));
-        assert_eq!(bits(0).adjust(u64::MAX, 1, bits(0)), ShardBits::MAX);
+        assert_eq!(bits(0).maybe_reshard(1000, T, bits(0)), bits(3));
+        assert_eq!(bits(4).maybe_reshard(0, T, bits(1)), bits(1));
+        assert_eq!(bits(0).maybe_reshard(0, T, bits(2)), bits(2));
+        assert_eq!(bits(0).maybe_reshard(u64::MAX, 1, bits(0)), ShardBits::MAX);
         // A change lands inside the band, so adjusting again is stable.
         for bytes in [0, 50, 149, 151, 499, 1000, 12345] {
             for start in 0..6 {
-                let once = bits(start).adjust(bytes, T, bits(0));
-                assert_eq!(once.adjust(bytes, T, bits(0)), once, "{bytes} {start}");
+                let once = bits(start).maybe_reshard(bytes, T, bits(0));
+                assert_eq!(
+                    once.maybe_reshard(bytes, T, bits(0)),
+                    once,
+                    "{bytes} {start}"
+                );
             }
         }
-    }
-
-    #[test]
-    fn test_for_size() {
-        const MB: u64 = 1024 * 1024;
-        let bits = |b| ShardBits::new(b);
-        assert_eq!(ShardBits::for_size(0, 256 * MB, bits(0)), bits(0));
-        assert_eq!(ShardBits::for_size(0, 256 * MB, bits(3)), bits(3));
-        assert_eq!(ShardBits::for_size(256 * MB, 256 * MB, bits(0)), bits(0));
-        assert_eq!(ShardBits::for_size(257 * MB, 256 * MB, bits(0)), bits(1));
-        assert_eq!(ShardBits::for_size(2500 * MB, 256 * MB, bits(0)), bits(4));
-        assert_eq!(ShardBits::for_size(u64::MAX, 1, bits(0)), ShardBits::MAX);
     }
 }

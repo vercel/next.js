@@ -24,7 +24,7 @@
 //! A merge job then covers all shards that such a file overlaps (a "component"), and its output is
 //! split at the new shard boundaries.
 
-use std::{num::NonZeroU16, ops::RangeInclusive};
+use std::ops::RangeInclusive;
 
 use crate::shard::ShardBits;
 
@@ -55,8 +55,8 @@ pub trait Compactable {
 pub struct CompactConfig {
     /// A shard is merged into a new bottom run when the files above its bottom run are larger than
     /// this percentage of the bottom run. E.g. `50` merges a shard with a 100MB bottom run once
-    /// more than 50MB are above it. `None` merges every shard that has files above its bottom run.
-    pub max_space_amplification_percent: Option<NonZeroU16>,
+    /// more than 50MB are above it. `0` merges every shard that has files above its bottom run.
+    pub max_space_amplification_percent: u16,
 
     /// A shard is only merged into a new bottom run when at least this many bytes are above its
     /// bottom run. Tiny families, which rewrite all their data with every commit, only get
@@ -80,7 +80,7 @@ pub struct CompactConfig {
 impl Default for CompactConfig {
     fn default() -> Self {
         Self {
-            max_space_amplification_percent: NonZeroU16::new(50),
+            max_space_amplification_percent: 50,
             min_bottom_merge_bytes: 1024 * 1024,
             max_files_above_bottom: 4,
             max_rewrite_factor: 2.0,
@@ -93,7 +93,7 @@ impl CompactConfig {
     /// A config that merges every shard with files above its bottom run into a new bottom run.
     pub fn full() -> Self {
         Self {
-            max_space_amplification_percent: None,
+            max_space_amplification_percent: 0,
             min_bottom_merge_bytes: 0,
             // Irrelevant, as bottom merges are always chosen.
             max_files_above_bottom: usize::MAX,
@@ -219,9 +219,7 @@ fn plan_family<T: Compactable>(
         // Both the files above the bottom run and the entries they delete are garbage that a
         // bottom merge reclaims.
         let reclaimable_bytes = above_bytes.saturating_add(deleted_bytes);
-        let limit = config
-            .max_space_amplification_percent
-            .map_or(0.0, |percent| f64::from(percent.get()) / 100.0);
+        let limit = f64::from(config.max_space_amplification_percent) / 100.0;
         let amplification = if bottom_bytes == 0 {
             f64::INFINITY
         } else {
@@ -248,12 +246,18 @@ fn plan_family<T: Compactable>(
     // Spend the budget on the most amplified shards. Shards that don't fit into the budget still
     // get an intermediate merge if they have too many files.
     bottom_candidates.sort_by(|a, b| b.0.priority.total_cmp(&a.0.priority));
-    // Float to int casts saturate, so an infinite factor is an unlimited budget.
-    let budget = (f64::from(config.max_rewrite_factor) * fresh_bytes as f64) as u64;
+    let budget = if config.max_rewrite_factor.is_finite() {
+        // Float to int casts saturate.
+        (f64::from(config.max_rewrite_factor) * fresh_bytes as f64) as u64
+    } else {
+        // Not `INFINITY * fresh_bytes`, which is NaN (a budget of 0) without fresh bytes.
+        u64::MAX
+    };
     let mut spent = 0u64;
     let mut result = Vec::new();
     for (candidate, cost, above) in bottom_candidates {
-        if result.is_empty() || spent < budget {
+        // The first job always runs, even when the budget is 0.
+        if spent <= budget {
             spent = spent.saturating_add(cost);
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom {
@@ -426,6 +430,23 @@ mod tests {
                 (vec![3, 7], true)
             ]
         );
+    }
+
+    #[test]
+    fn test_full_config_merges_every_shard_without_fresh_bytes() {
+        // Nothing is fresh (everything was compacted before), so the budget is 0 for a finite
+        // factor, but the full config has no budget.
+        let mut files = (0..4)
+            .map(|shard| file(shard, 2, 1000, true, false))
+            .collect::<Vec<_>>();
+        files.extend((0..4).map(|shard| file(shard, 2, 10, false, false)));
+        assert_eq!(plan(&files, 2, &CompactConfig::full()).len(), 4);
+        // With a finite factor, only the first job runs.
+        let config = CompactConfig {
+            max_rewrite_factor: 2.0,
+            ..CompactConfig::full()
+        };
+        assert_eq!(plan(&files, 2, &config).len(), 1);
     }
 
     #[test]
@@ -695,7 +716,7 @@ mod tests {
         max_rewrite_factor: f32,
     ) -> CompactConfig {
         CompactConfig {
-            max_space_amplification_percent: NonZeroU16::new(max_space_amplification_percent),
+            max_space_amplification_percent,
             max_rewrite_factor,
             max_merge_jobs: usize::MAX,
             ..test_config()

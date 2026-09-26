@@ -30,33 +30,32 @@ bitfield! {
     pub struct MetaEntryFlags(u32);
     impl Debug;
     impl From<u32>;
-    /// The SST file is part of the bottom run of its shard, i.e. it was written by merging all SST
-    /// files of the shard.
-    pub bottom, set_bottom: 0;
+    /// The SST file was compacted and none of the entries have been accessed recently.
+    pub cold, set_cold: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
-    /// The SST file is part of the bottom run and holds the entries of recently read keys, i.e. the
-    /// used keys of the live meta files at the time of the bottom merge (see
-    /// [`MetaFile::deserialize_used_key_hashes_amqf`]). Storing them separately means a process
-    /// that reads the same keys again touches fewer blocks.
-    pub hot, set_hot: 2;
+    /// The SST file is part of the bottom run of its shard, i.e. it was written by merging all SST
+    /// files of the shard. A bottom merge writes the entries of recently read keys (the used keys of
+    /// the live meta files, see [`MetaFile::deserialize_used_key_hashes_amqf`]) into separate files
+    /// without the cold flag, so a process that reads the same keys again touches fewer blocks.
+    pub bottom, set_bottom: 2;
 }
 
 impl MetaEntryFlags {
-    pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b10);
-    pub const COMPACTED: MetaEntryFlags = MetaEntryFlags(0b00);
-    pub const BOTTOM: MetaEntryFlags = MetaEntryFlags(0b01);
-    pub const HOT_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b101);
+    pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b010);
+    pub const COMPACTED: MetaEntryFlags = MetaEntryFlags(0b000);
+    pub const COLD_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b101);
+    pub const HOT_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b100);
 }
 
 impl Display for MetaEntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.fresh() {
             f.pad_integral(true, "", "fresh")
-        } else if self.hot() {
-            f.pad_integral(true, "", "hot bottom")
+        } else if self.bottom() && self.cold() {
+            f.pad_integral(true, "", "cold bottom")
         } else if self.bottom() {
-            f.pad_integral(true, "", "bottom")
+            f.pad_integral(true, "", "hot bottom")
         } else {
             f.pad_integral(true, "", "compacted")
         }
@@ -593,22 +592,21 @@ impl MetaFile {
         &self.obsolete_sst_files
     }
 
-    /// Looks up a key in this meta file.
+    /// Looks up a key in the SST file of the entry `entry_index`. The caller checks the hash range,
+    /// e.g. with [`crate::shard::ShardIndex`].
     ///
     /// If `FIND_ALL` is false, returns after finding the first match.
-    /// If `FIND_ALL` is true, returns all entries with the same key from all SST files
+    /// If `FIND_ALL` is true, returns all entries with the same key in the SST file
     /// (useful for keyspaces where keys are hashes and collisions are possible).
-    /// Looks up a key in the SST file of the entry `index`. The caller checks the hash range, e.g.
-    /// with [`crate::shard::ShardIndex`].
     pub(crate) fn lookup_entry<K: QueryKey, const FIND_ALL: bool>(
         &self,
-        index: u32,
+        entry_index: u32,
         key_hash: u64,
         key: &K,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaLookupResult> {
-        let entry = &self.entries[index as usize];
+        let entry = &self.entries[entry_index as usize];
         if !entry.amqf.contains_fingerprint(key_hash) {
             return Ok(MetaLookupResult::QuickFilterMiss);
         }
@@ -622,12 +620,12 @@ impl MetaFile {
         ))
     }
 
-    /// Looks up the keys of `cells` in the SST file of the entry `index`, whose hash range is
+    /// Looks up the keys of `cells` in the SST file of the entry `entry_index`, whose hash range is
     /// `range`. Only cells without a result are looked up. `cells` must be sorted by key hash.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn batch_lookup_entry<K: QueryKey>(
         &self,
-        index: u32,
+        entry_index: u32,
         range: &StaticSortedFileRange,
         keys: &[K],
         cells: &mut [(u64, usize, Option<LookupValue>)],
@@ -656,7 +654,7 @@ impl MetaFile {
             }
             return Ok(lookup_result);
         }
-        let entry = &self.entries[index as usize];
+        let entry = &self.entries[entry_index as usize];
         for (hash, index, result) in &mut cells[start_index..end_index] {
             debug_assert!(range.contains(*hash), "Key hash out of range");
             if result.is_some() {

@@ -69,9 +69,9 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 8 bytes max hash
     - 8 bytes SST file size
     - 4 bytes flags
-      - bit 0: bottom (part of the bottom run of its shard, written by merging all SST files of the shard)
+      - bit 0: cold (compacted and not recently accessed)
       - bit 1: fresh (not yet compacted)
-      - bit 2: hot (part of the bottom run, holding the keys read since the shard's previous bottom merge)
+      - bit 2: bottom (part of the bottom run of its shard, written by merging all SST files of the shard; without the cold bit it holds the recently read keys)
     - 4 bytes entry count
     - 4 bytes tombstone count (entries that delete a key or a key-value pair), used by compaction to estimate reclaimable bytes
     - 4 bytes end of AMQF offset relative to start of all AMQF data
