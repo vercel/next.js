@@ -54,7 +54,7 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4E)
+  - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
   - 1 byte shard bits: the family had `2^bits` shards when the SST files were split

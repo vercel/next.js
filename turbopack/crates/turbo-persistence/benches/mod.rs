@@ -14,7 +14,8 @@ use tempfile::TempDir;
 use turbo_persistence::{
     ArcBytes, BlockCache, CompactConfig, Compression, DbConfig as TpDbConfig, Entry, EntryValue,
     FamilyConfig, FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile,
-    StaticSortedFileMetaData, TurboPersistence, hash_key, write_static_stored_file,
+    StaticSortedFileMetaData, TurboPersistence, hash_key, shard::ShardBits,
+    write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -625,7 +626,7 @@ fn prefill_multi_value_database(
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
-            min_shard_bits: turbo_persistence::shard::ShardBits::new(0),
+            min_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -702,7 +703,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
-            min_shard_bits: turbo_persistence::shard::ShardBits::new(0),
+            min_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -864,7 +865,7 @@ fn bench_family_sharding(c: &mut Criterion) {
                     name,
                     kind: FamilyKind::SingleValue,
                     compression: Compression::Lz4,
-                    min_shard_bits: turbo_persistence::shard::ShardBits::new(0),
+                    min_shard_bits: ShardBits::new(0),
                 }
             }),
             ..TpDbConfig::new()
@@ -1049,7 +1050,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
                                 compression: Compression::Lz4,
-                                min_shard_bits: turbo_persistence::shard::ShardBits::new(0),
+                                min_shard_bits: ShardBits::new(0),
                             }],
                             ..TpDbConfig::new()
                         };

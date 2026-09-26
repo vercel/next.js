@@ -70,8 +70,12 @@ pub struct FamilyConfig {
     pub name: &'static str,
     pub kind: FamilyKind,
     pub compression: Compression,
-    /// The smallest number of key hash shards of the family, as bits (see [`shard`]). The shard
-    /// count grows with the size of the family, see [`DbConfig::target_shard_size`].
+    /// Initial sharding factor for the family. There will be 2^ShardBits shards of each family.
+    ///
+    /// The shard count grows with the size of the family, see [`DbConfig::target_shard_size`].
+    /// This is just a hint to bootstrap the family. `0` would always work, but families with lots
+    /// of data would benefit from starting with many shards since this influences how initial
+    /// commits shard outputs.
     pub min_shard_bits: shard::ShardBits,
 }
 
@@ -86,6 +90,8 @@ pub struct DbConfig<const FAMILIES: usize> {
     pub access_mode: AccessMode,
     /// The size a shard of a family should have after compaction. Families with more data use more
     /// shards, so that compacting a shard stays cheap.
+    ///
+    /// This is a rough bound to avoid frequent reshading, See [`shard`] for sizing semantics.
     pub target_shard_size: u64,
 }
 
