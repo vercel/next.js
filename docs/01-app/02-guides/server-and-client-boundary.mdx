@@ -116,9 +116,9 @@ export default async function Page() {
 
 With RSC, a Server Component can fetch data while rendering. A separate data-loading step does not need to pass initial props to the component tree.
 
-> **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components.
+> **Good to know:** Props passed to Client Components are serialized and sent to the browser, even when the data comes from a `server-only` module. Only pass fields the current user is allowed to see, and keep secrets out of those props.
 >
-> Props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
+> React's experimental [taint APIs](/docs/app/api-reference/config/next-config-js/taint) can catch accidental exposure of marked objects or values, but do not replace filtering the data you return. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
 Server Components do not have to await all data before returning UI. To stream server-fetched data into a Client Component, start the request in a Server Component and pass the pending promise as a prop.
 
@@ -158,6 +158,54 @@ You mark a Client Component with the [`'use client'`](/docs/app/api-reference/di
 
 - **Code** crosses through imports. Whatever a Client Component imports is pulled into the [client bundle](/docs/app/glossary#client-bundles).
 - **Data** crosses through props, and it must be [serializable](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so functions like event handlers cannot cross.
+
+Importing a module from a Server Component doesn't prevent Client Components from importing it. To keep database clients, database schemas, and other server implementation on the server, add `import 'server-only'` to the module containing that code. Next.js reports a build error if a Client Component imports it, directly or through another module.
+
+Keep shared values and validators in separate modules that can run in either environment. Client Components can import these modules directly without importing the server code. See [Preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) for an example of using `server-only`.
+
+### Adding interactivity to an existing component
+
+When adding interactivity to an existing feature, review the code that stays on the server as well as the client code. Follow these steps whether you convert an existing component or extract a smaller Client Component:
+
+1. **Protect database modules.** Add `import 'server-only'` to the existing module that owns the database client or queries, even if no Client Component currently imports it. This makes future accidental client imports fail at build time. Next.js handles this import internally; [installing the package is optional](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning).
+2. **Separate shared code.** Import constants, types, and validators from modules that do not import database or session code. Marking a shared validator `server-only` would prevent using it in the browser.
+3. **Select safe props on the server.** Review every caller of the component. A record passed between Server Components stays on the server, but passing it to a Client Component sends all its fields to the browser. Check access and select only the fields the UI needs before passing them.
+
+For example, a product record may include an internal supplier cost. Pass the public name and price to an interactive product card instead of the complete record:
+
+```tsx filename="app/products/[id]/page.tsx" switcher
+import { getProduct } from '@/lib/products'
+import { ProductCard } from '@/app/ui/product-card'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const product = await getProduct(id)
+
+  return <ProductCard name={product.name} price={product.price} />
+}
+```
+
+```jsx filename="app/products/[id]/page.js" switcher
+import { getProduct } from '@/lib/products'
+import { ProductCard } from '@/app/ui/product-card'
+
+export default async function Page({ params }) {
+  const { id } = await params
+  const product = await getProduct(id)
+
+  return <ProductCard name={product.name} price={product.price} />
+}
+```
+
+`ProductCard` is a Client Component. Passing `product={product}` would also send the supplier cost, even if its prop type omitted that field. TypeScript types and hidden UI do not remove fields from the serialized data.
+
+The `server-only` guard protects code imports; it does not filter props. A successful build alone does not verify that props contain no private data.
+
+### Passing functions and rendered elements
 
 > **Good to know:**
 >

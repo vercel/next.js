@@ -64,7 +64,7 @@ export default async function Page() {
 
 #### With an ORM or database
 
-Since Server Components are rendered on the server, credentials and query logic will not be included in the client bundle so you can safely make database queries using an ORM or database client.
+Server Components can query an ORM or database client directly. The query runs on the server, so the component does not send its database access code to the browser.
 
 ```tsx filename="app/blog/page.tsx" switcher
 import { db, posts } from '@/lib/db'
@@ -96,7 +96,9 @@ export default async function Page() {
 }
 ```
 
-You should still ensure requests are properly authenticated and authorized. For best practices on securing server-side data access, see the [data security guide](/docs/app/guides/data-security).
+Add `import 'server-only'` to database modules such as `lib/db` to catch accidental Client Component imports at build time. Learn more about [keeping server code out of Client Components](/docs/app/guides/server-and-client-boundary#crossing-the-boundary).
+
+Authenticate and authorize requests, and only pass data the user is allowed to see to Client Components. Props are sent to the browser. See the [data security guide](/docs/app/guides/data-security) for best practices.
 
 ### Streaming
 
