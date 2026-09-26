@@ -4,7 +4,7 @@ import { assert } from 'next/dist/compiled/superstruct'
 
 export function parseAndValidateFlightRouterState(
   stateHeader: string | string[]
-): FlightRouterState
+): FlightRouterState | undefined
 export function parseAndValidateFlightRouterState(
   stateHeader: undefined
 ): undefined
@@ -37,6 +37,11 @@ export function parseAndValidateFlightRouterState(
     assert(state, flightRouterStateSchema)
     return state
   } catch {
-    throw new Error('The router state header was sent but could not be parsed.')
+    // The header was present but could not be parsed — this typically happens
+    // during a rolling deployment when a client running an older Next.js version
+    // sends a router state header whose encoding has changed. Rather than
+    // returning a 500, fall back to a full navigation by returning undefined.
+    // See: https://github.com/vercel/next.js/issues/92907
+    return undefined
   }
 }
