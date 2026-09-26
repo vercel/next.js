@@ -1107,10 +1107,35 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     use std::mem::size_of;
 
-    use turbo_tasks::{CellId, TaskId};
+    use turbo_tasks::{CellId, TaskExecutionReason, TaskId, event::EventDescription};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::data::{AggregationNumber, CellRef, Dirtyness, InProgressState, OutputValue};
+
+    #[test]
+    fn in_progress_task_is_pinned_but_not_collectible() {
+        let mut storage = TaskStorage::new();
+        storage.flags.set_meta_restored(true);
+        assert!(storage.gc_collectible());
+        assert!(!storage.gc_is_root());
+
+        // An execution pins the task: it cannot be collected, and the parent-less task is
+        // classified as a root while the in-progress state is the transient pin.
+        storage.set_in_progress(InProgressState::new_scheduled(
+            TaskExecutionReason::Root,
+            EventDescription::new(|| || "test task".to_string()),
+        ));
+        assert!(!storage.gc_collectible());
+        assert!(storage.gc_is_root());
+
+        // Once the execution finishes, the unreferenced task becomes collectible again.
+        storage.take_in_progress();
+        assert!(storage.gc_collectible());
+        assert!(!storage.gc_is_root());
+
+        storage.set_parent_count(1);
+        assert!(!storage.gc_collectible());
+    }
 
     #[test]
     fn test_accessors() {

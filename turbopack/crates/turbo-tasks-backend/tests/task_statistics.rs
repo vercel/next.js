@@ -364,10 +364,29 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
                 // Replace `duration` with a fixed value to simplify test assertions
                 let mut v = v.clone();
                 let object = v.as_object_mut().unwrap();
-                // These are only populated after the task has finalized execution so it racy to
-                // assert on it.
+                // Execution completion and activeness-driven abort requests can race this broad
+                // cache-statistics snapshot. Dedicated execution-abort tests assert those counters
+                // with explicit synchronization.
                 object.remove("duration");
                 object.remove("executions");
+                object.remove("execution_started");
+                object.remove("execution_completed");
+                object.remove("abort_requested_invalidation");
+                object.remove("abort_requested_inactive");
+                object.remove("abort_observed_invalidation");
+                object.remove("abort_observed_inactive");
+                object.remove("abort_raced_completion_invalidation");
+                object.remove("abort_raced_completion_inactive");
+                object.remove("abort_skipped_invalidation");
+                object.remove("abort_skipped_inactive");
+                // Strongly reading the test operation executes its outer wrapper. Abort telemetry
+                // creates an entry for that execution, but after removing racy execution fields it
+                // has no cache activity and is irrelevant to these cache-statistics snapshots.
+                if object.get("cache_hit").and_then(serde_json::Value::as_u64) == Some(0)
+                    && object.get("cache_miss").and_then(serde_json::Value::as_u64) == Some(0)
+                {
+                    continue;
+                }
                 map.insert(k, v);
             }
         }
