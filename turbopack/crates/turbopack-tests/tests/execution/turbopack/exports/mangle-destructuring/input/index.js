@@ -21,16 +21,9 @@ it('should handle `default` when destructuring a namespace', () => {
   expect(value).toBe('default-value')
 })
 
-it('should mangle a module read through a namespace binding', () => {
-  // A namespace-imported module is still mangled internally. The facade keeps the original names
-  // for whoever reads the namespace object, and forwards them to the mangled keys of the locals
-  // module — so the reads above (member access, destructuring, `default`) all stay correct while
-  // the emitted keys get shorter.
-  expect(mod.exportsInfo.aVeryLongExportName.canMangle).toBe(true)
-  expect(mod.exportsInfo.aVeryLongExportName.mangledName).toEqual(
-    expect.any(String)
-  )
-  expect(
-    mod.exportsInfo.aVeryLongExportName.mangledName.length
-  ).toBeLessThanOrEqual(2)
+it('should preserve original names when a namespace binding escapes', () => {
+  // Without a facade split, the module keeps its public keys because callers can read the
+  // namespace object by its original export names.
+  expect(mod.exportsInfo.aVeryLongExportName.canMangle).toBe(false)
+  expect(mod.exportsInfo.aVeryLongExportName.mangledName).toBeNull()
 })
