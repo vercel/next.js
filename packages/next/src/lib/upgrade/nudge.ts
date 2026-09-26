@@ -12,7 +12,6 @@ import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
 import { futureDefaults, getPendingFutureDefaults } from './future-defaults'
 import { isCI } from '../../server/ci-info'
-import { getPrereleaseChannel } from './prepare-upgrade'
 
 type NudgeOptions = {
   directory: string
@@ -162,8 +161,11 @@ export async function assessUpgrade(
   if (!semver.valid(installedVersion)) {
     return null
   }
-  const { getUpgradeAssessment, getLatestUpgradeVersion } =
-    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+  const {
+    getPrereleaseChannel,
+    getUpgradeAssessment,
+    getLatestUpgradeVersion,
+  } = require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   if (
     semver.prerelease(installedVersion) &&
     !getPrereleaseChannel(installedVersion)
@@ -262,7 +264,7 @@ async function nudgeUpgradeForAgent(
     case 'latest':
       summary = `Next.js ${reminder.latestVersion ?? '[latest version]'} is available. You're using ${reminder.installedVersion}.`
       recommendation = 'We recommend you upgrade Next.js.'
-      reference = `https://registry.npmjs.org/next/${getPrereleaseChannel(reminder.latestVersion ?? reminder.installedVersion) ?? 'latest'}`
+      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
       break
     case 'future':
       summary = `Installed Next.js ${reminder.installedVersion} includes Future Defaults available for this app:\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`

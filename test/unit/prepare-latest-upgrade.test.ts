@@ -460,16 +460,19 @@ describe('prepare latest upgrade', () => {
     }
   )
 
-  it.each(['17.2.0-rc.2', '17.2.0-beta.2', 'invalid'])(
-    'rejects a prerelease or invalid stable dist-tag: %s',
-    async (target) => {
-      const directory = await createApp('17.2.0-rc.1')
-      global.fetch = jest.fn(async () => Response.json({ version: target }))
-      await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-        'Could not determine the latest stable Next.js version.'
-      )
-    }
-  )
+  it.each([
+    '17.2.0-rc.2',
+    '17.2.0-beta.2',
+    '17.2.0-alpha.2',
+    '17.2.0-preview-84cee7e6-20260917',
+    'invalid',
+  ])('rejects a prerelease or invalid stable dist-tag: %s', async (target) => {
+    const directory = await createApp('17.2.0-rc.1')
+    global.fetch = jest.fn(async () => Response.json({ version: target }))
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'Could not determine the latest stable Next.js version.'
+    )
+  })
 
   it.each(['17.3.0-rc.1', '17.3.0-beta.1', '17.3.0-preview.1'])(
     'does not downgrade %s when stable latest is older',

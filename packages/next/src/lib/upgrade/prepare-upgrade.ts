@@ -443,6 +443,7 @@ async function fetchLatestRelease(installedVersion: string): Promise<{
   if (
     !release ||
     !semver.valid(release.version) ||
+    (channel !== 'canary' && semver.prerelease(release.version)) ||
     getPrereleaseChannel(release.version) !==
       (channel === 'canary' ? 'canary' : null)
   ) {
