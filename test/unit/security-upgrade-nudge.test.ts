@@ -162,7 +162,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, use a separate Git worktree unless they request otherwise\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, use a separate Git worktree unless they request otherwise\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -185,7 +185,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*registry\.npmjs\.org/
+        /affected by a known security vulnerability[\s\S]*registry\.npmjs\.org/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
