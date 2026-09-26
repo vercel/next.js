@@ -34,6 +34,7 @@ import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
+  ACTION_UPGRADE_ADVISORY,
   INITIAL_OVERLAY_STATE,
 } from '../../src/next-devtools/dev-overlay/shared'
 
@@ -60,6 +61,9 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         }
         case ACTION_ERROR_OVERLAY_TOGGLE: {
           return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
+        }
+        case ACTION_UPGRADE_ADVISORY: {
+          return { ...state, upgradeAdvisory: action.advisory }
         }
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }

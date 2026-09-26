@@ -60,8 +60,8 @@ export function ErrorOverlay({
     )
   }
 
-  // No Runtime Errors.
-  if (!runtimeErrors.length) {
+  // No runtime errors or upgrade advisory to display.
+  if (!runtimeErrors.length && !state.upgradeAdvisory) {
     return null
   }
 
@@ -83,6 +83,7 @@ export function ErrorOverlay({
         debugInfo={state.debugInfo}
         getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
         runtimeErrors={runtimeErrors}
+        advisory={state.upgradeAdvisory}
         onClose={() => {
           dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
         }}

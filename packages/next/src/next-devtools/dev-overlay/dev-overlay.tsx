@@ -70,9 +70,11 @@ export function DevOverlay() {
                   <RenderErrorContext
                     value={{
                       runtimeErrors,
-                      totalErrorCount,
+                      totalErrorCount:
+                        totalErrorCount + (state.upgradeAdvisory ? 1 : 0),
                       normalErrorCount,
-                      instantErrorCount,
+                      instantErrorCount:
+                        instantErrorCount + (state.upgradeAdvisory ? 1 : 0),
                     }}
                   >
                     <PanelRouterContext
