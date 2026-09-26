@@ -116,6 +116,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import {
@@ -7877,7 +7878,12 @@ async function validateInstantConfigs(
               onBrowserBailout: (err: unknown, errorInfo: ErrorInfo) => {
                 if (!reactSignal.aborted) {
                   const componentStack = errorInfo.componentStack
-                  if (typeof componentStack === 'string') {
+                  if (
+                    typeof componentStack === 'string' &&
+                    // A redirect()/notFound() is deliberate navigation rather
+                    // than a render failure, so there is nothing to validate.
+                    !isNextRouterError(err)
+                  ) {
                     trackThrownErrorInNavigation(
                       workStore,
                       instantValidationState,
@@ -7905,7 +7911,12 @@ async function validateInstantConfigs(
                   return
                 } else if (!reactSignal.aborted) {
                   const componentStack = errorInfo.componentStack
-                  if (typeof componentStack === 'string') {
+                  if (
+                    typeof componentStack === 'string' &&
+                    // A redirect()/notFound() is deliberate navigation rather
+                    // than a render failure, so there is nothing to validate.
+                    !isNextRouterError(err)
+                  ) {
                     let errorForDisplay = err
                     if (process.env.NODE_ENV === 'production') {
                       // In production (i.e. build validation), Flight omits everything except the digest
