@@ -1354,6 +1354,7 @@ export function throwIfDisallowedDynamicInStaticRoute(
   prelude: PreludeState,
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState,
+  isFallbackShell: boolean,
   allowEmptyStaticShell: boolean,
   isServerPartial: boolean
 ): void {
@@ -1362,6 +1363,7 @@ export function throwIfDisallowedDynamicInStaticRoute(
     prelude,
     dynamicValidation,
     serverDynamic,
+    isFallbackShell,
     allowEmptyStaticShell,
     isServerPartial
   )
@@ -1378,11 +1380,18 @@ export function getDisallowedReasonsInStaticRoute(
   prelude: PreludeState,
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState | null,
+  isFallbackShell: boolean,
   allowEmptyStaticShell: boolean,
   isServerPartial: boolean
 ): Error[] {
   if (serverDynamic && serverDynamic.syncDynamicErrorWithStack) {
     return [serverDynamic.syncDynamicErrorWithStack]
+  }
+
+  // We do a fallback shell prerender, but it's not meant to be validated --
+  // we just need it to create the relevant prerender outputs.
+  if (isFallbackShell) {
+    return []
   }
 
   // Suspense-above-body and `instant = false` bypass reporting

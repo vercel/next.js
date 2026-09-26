@@ -1168,6 +1168,7 @@ export function createAppPageEntrypoint({
           if (
             nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
+            prerenderInfo?.response !== 'empty' &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
             remainingPrerenderableParams.length > 0

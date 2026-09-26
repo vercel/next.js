@@ -7390,6 +7390,7 @@ async function validateStaticShellAtStage(
       ? DynamicHoleKind.Runtime
       : DynamicHoleKind.Dynamic
 
+  const isFallbackShell = false
   const stageIsPartial =
     accumulatedChunks[stage].length <
     accumulatedChunks[RenderStage.Dynamic].length
@@ -7540,6 +7541,7 @@ async function validateStaticShellAtStage(
         preludeState,
         dynamicValidation,
         null,
+        isFallbackShell,
         allowEmptyStaticShell,
         stageIsPartial
       )
@@ -7562,6 +7564,7 @@ async function validateStaticShellAtStage(
         preludeState,
         dynamicValidation,
         null,
+        isFallbackShell,
         allowEmptyStaticShell,
         stageIsPartial
       )
@@ -9114,6 +9117,12 @@ async function prerenderToStream(
         )
       }
 
+      const isFallbackShell = !!(
+        renderOpts.allowEmptyStaticShell === true &&
+        fallbackRouteParams &&
+        fallbackRouteParams.size > 0
+      )
+
       /**
        * cacheComponents with PPR
        *
@@ -9960,6 +9969,7 @@ async function prerenderToStream(
           preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
           serverDynamicTracking,
+          isFallbackShell,
           allowEmptyStaticShell,
           resultIsPartial
         )
@@ -9983,6 +9993,55 @@ async function prerenderToStream(
 
       let htmlStream: AnyStream = prelude
       if (resultIsPartial) {
+        if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
+          if (isFallbackShell) {
+            // TODO(ensure-static): This is a hack, and should be solved in a less rube-goldberg-y way.
+            // If a fallback shell came out partial, we can't serve it without a resume,
+            // which we can't do with `ensureStatic = "navigation"`, so force the HTML to be empty.
+            const emptyHtml = new Uint8Array([])
+            const emptyHtmlStream = new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(emptyHtml)
+                controller.close()
+              },
+            })
+
+            // We don't have a HTML postponed state.
+            // This should not be used anyway, but in case we somehow
+            // end up serving a fallback, make it usable
+            metadata.hasPendingUi = true
+            metadata.postponed = await getDynamicDataPostponedState(
+              resumeDataCache,
+              cacheComponents,
+              renderOpts.experimental.maxPostponedStateSizeBytes,
+              renderOpts.experimental.disableResumeDataCacheCompression,
+              fallbackRouteParams
+            )
+
+            return {
+              error: undefined,
+              digestErrorsMap: new Map(),
+              ssrErrors: [],
+              stream: emptyHtmlStream,
+              dynamicAccess: undefined,
+              collectedRevalidate: finalServerPrerenderStore.revalidate,
+              collectedExpire: finalServerPrerenderStore.expire,
+              collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
+              collectedTags: finalServerPrerenderStore.tags,
+              renderResumeDataCache:
+                createRenderResumeDataCache(resumeDataCache),
+            }
+          } else {
+            // If the result is partial, we should've errored when validating the prerender.
+            console.error(
+              new InvariantError(
+                `Route "${workStore.route}": Server result cannot be partial when \`ensureStatic = "navigation"\` is set on the route.`
+              )
+            )
+            throw new StaticGenBailoutError()
+          }
+        }
+
         if (postponed != null) {
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,

@@ -875,6 +875,11 @@ export async function isPageStatic({
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
 
+        const isEnsureStaticPage =
+          cacheComponents &&
+          isRoutePPREnabled &&
+          appConfig.unstable_ensureStatic === 'navigation'
+
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
         // TODO: (PPR) remove this once PPR is enabled by default
@@ -923,6 +928,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              isEnsureStaticPage,
               buildId,
               deploymentId,
               rootParamKeys,
