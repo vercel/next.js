@@ -1,0 +1,27 @@
+---
+title: Standalone Symlink Outside Tracing Root
+description: This document explains the "standalone symlink outside tracing root" warning in Next.js and how to fix it.
+---
+
+## Why This Error Occurred
+
+The build traced a symlink whose target is a directory outside of the output file tracing root. Only files inside the tracing root are traced and copied into `.next/standalone`. The link is copied as it is, but the files it points to are not part of the standalone output. The link breaks as soon as the output is deployed without the original project directory.
+
+This usually happens in a monorepo when the application lives in a subdirectory and a dependency is linked from a shared `node_modules` directory or from a workspace package outside of the application directory. pnpm and other package managers that use isolated `node_modules` layouts create such links.
+
+## Possible Ways to Fix It
+
+Set [`outputFileTracingRoot`](/docs/app/api-reference/config/next-config-js/output#caveats) in `next.config.js` to a directory that contains both the application and the link target, for example the monorepo root:
+
+```js filename="next.config.js"
+const path = require('path')
+
+module.exports = {
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
+}
+```
+
+## Useful Links
+
+- [`output`](/docs/app/api-reference/config/next-config-js/output) - Learn how `output: 'standalone'` traces and copies files.
