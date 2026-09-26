@@ -2639,6 +2639,7 @@ impl NextConfig {
             connect_timeout,
             timeout,
             max_retries: 1,
+            retry_status_codes: vec![404],
             ..Default::default()
         }
         .cell())
