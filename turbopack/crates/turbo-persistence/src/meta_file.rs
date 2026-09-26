@@ -34,9 +34,10 @@ bitfield! {
     pub bottom, set_bottom: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
-    /// The SST file is part of the bottom run and holds the entries that were read since the last
-    /// bottom merge of the shard (see [`MetaFile::deserialize_used_key_hashes_amqf`]). Storing them
-    /// separately means a process that reads the same keys again touches fewer blocks.
+    /// The SST file is part of the bottom run and holds the entries of recently read keys, i.e. the
+    /// used keys of the live meta files at the time of the bottom merge (see
+    /// [`MetaFile::deserialize_used_key_hashes_amqf`]). Storing them separately means a process
+    /// that reads the same keys again touches fewer blocks.
     pub hot, set_hot: 2;
 }
 
