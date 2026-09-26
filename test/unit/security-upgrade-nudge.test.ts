@@ -45,6 +45,9 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+  getPrereleaseChannel: jest.requireActual(
+    'next/dist/lib/upgrade/prepare-upgrade'
+  ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
     'next/dist/lib/upgrade/prepare-upgrade'
   ).getLatestUpgradeVersion,
@@ -348,9 +351,17 @@ describe('latest nudge release selection', () => {
     ['17.2.0-canary.4', '17.2.0-canary.4', null],
     ['17.2.0-canary.4', '17.1.0-canary.99', null],
     ['17.2.0-canary.4', '17.3.0-rc.1', null],
-    ['17.2.0-rc.1', '17.3.0', null],
+    ['17.2.0-rc.1', '17.3.0', '17.3.0'],
+    ['17.2.0-rc.1', '17.2.0', '17.2.0'],
+    ['17.2.0-beta.1', '17.2.0', '17.2.0'],
+    ['17.2.0-preview.1', '17.2.0', '17.2.0'],
+    ['17.2.0-rc.1', '17.3.0-rc.1', null],
+    ['17.2.0-beta.1', '17.3.0-beta.1', null],
+    ['17.2.0-preview.1', '17.3.0-preview.1', null],
+    ['17.2.0-rc.1', '17.3.0-beta.1', null],
+    ['16.4.0-preview-84cee7e6-20260917', '17.0.0', null],
   ])(
-    'selects %s → %s for a nudge only across major/minor versions',
+    'selects an eligible latest reminder for %s → %s',
     async (installed, latest, expected) => {
       expect(readLatestUpgradeVersion(installed, latest)).toBe(expected)
     }
@@ -385,6 +396,22 @@ describe('latest upgrade nudge', () => {
           'Reference: https://registry.npmjs.org/next/canary'
         )
       )
+    }
+  )
+
+  it.each(['rc', 'beta', 'preview'] as const)(
+    'links a configured %s reminder to stable latest',
+    async (channel) => {
+      process.env.__NEXT_VERSION = `17.2.0-${channel}.1`
+      mockUpgrade('17.2.0')
+      await expect(
+        nudgeUpgrade(directory, config('latest'), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(
+          'Reference: https://registry.npmjs.org/next/latest'
+        ),
+      })
     }
   )
 
@@ -517,18 +544,16 @@ describe('composed future nudge', () => {
     mockUpgrade()
   })
 
-  it.each(['16.3.0-canary.1', '16.4.0-rc.1', '16.4.0-beta.1'])(
-    'does not offer defaults before stable availability or for another prerelease: %s',
-    async (version) => {
-      await expect(
-        assessUpgrade(
-          directory,
-          config('future', { cacheComponents: false }),
-          version
-        )
-      ).resolves.toBeNull()
-    }
-  )
+  it('does not offer defaults before stable availability on canary', async () => {
+    const version = '16.3.0-canary.1'
+    await expect(
+      assessUpgrade(
+        directory,
+        config('future', { cacheComponents: false }),
+        version
+      )
+    ).resolves.toBeNull()
+  })
 
   it('offers available defaults on canary without a version reminder', async () => {
     await expect(

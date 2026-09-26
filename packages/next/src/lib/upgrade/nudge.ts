@@ -158,15 +158,20 @@ export async function assessUpgrade(
     return null
   }
 
+  if (!semver.valid(installedVersion)) {
+    return null
+  }
+  const {
+    getPrereleaseChannel,
+    getUpgradeAssessment,
+    getLatestUpgradeVersion,
+  } = require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   if (
-    !semver.valid(installedVersion) ||
-    (semver.prerelease(installedVersion) &&
-      semver.prerelease(installedVersion)?.[0] !== 'canary')
+    semver.prerelease(installedVersion) &&
+    !getPrereleaseChannel(installedVersion)
   ) {
     return null
   }
-  const { getUpgradeAssessment, getLatestUpgradeVersion } =
-    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   let assessment
   try {
     assessment = await getUpgradeAssessment(
@@ -259,7 +264,7 @@ async function nudgeUpgradeForAgent(
     case 'latest':
       summary = `Next.js ${reminder.latestVersion ?? '[latest version]'} is available. You're using ${reminder.installedVersion}.`
       recommendation = 'We recommend you upgrade Next.js.'
-      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.latestVersion ?? reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
+      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
       break
     case 'future':
       summary = `Installed Next.js ${reminder.installedVersion} includes Future Defaults available for this app:\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`

@@ -165,13 +165,12 @@ describe('prepare latest upgrade', () => {
       reference: null,
       upgrade: {
         status: 'blocked',
-        reason: expect.stringContaining(
-          'Security upgrades are not supported for canary'
-        ),
+        reason:
+          'Security upgrades are not supported for canary prereleases of Next.js. Use --ai=latest to upgrade on this channel.',
       },
     })
     await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-      'Security upgrades are not supported for canary'
+      'Security upgrades are not supported for canary prereleases of Next.js.'
     )
     expect(global.fetch).toHaveBeenCalledTimes(0)
   })
@@ -381,18 +380,170 @@ describe('prepare latest upgrade', () => {
     )
   })
 
-  it.each(['17.2.0-rc.1', '17.2.0-beta.1'])(
-    'keeps other prerelease channels unsupported: %s',
+  it.each(['17.2.0-rc.1', '17.2.0-beta.1', '17.2.0-preview.1'])(
+    'blocks security upgrades for prereleases without querying advisories: %s',
     async (version) => {
       const directory = await createApp(version)
-      mockSecurityMetadata()
+      global.fetch = jest.fn()
       await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-        'AI upgrades are not available for prerelease versions'
+        'Security upgrades are not supported for'
       )
-      await expect(getUpgradeAssessment(version, 'security')).rejects.toThrow(
-        'prerelease versions'
+      await expect(getUpgradeAssessment(version, 'security')).resolves.toEqual(
+        expect.objectContaining({
+          affected: null,
+          upgrade: expect.objectContaining({
+            status: 'blocked',
+            reason: expect.stringContaining('Use --ai=latest'),
+          }),
+        })
       )
       expect(global.fetch).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it.each(['17.2.0-rc.1', '17.2.0-beta.1', '17.2.0-preview.1'])(
+    'blocks Future Defaults upgrades for prereleases without querying metadata: %s',
+    async (version) => {
+      const directory = await createApp(version)
+      global.fetch = jest.fn()
+      await expect(prepareUpgrade(directory, 'future')).rejects.toThrow(
+        `Future Defaults upgrades are not supported for Next.js ${version}.`
+      )
+      await expect(getUpgradeAssessment(version, 'future')).resolves.toEqual(
+        expect.objectContaining({
+          affected: null,
+          upgrade: expect.objectContaining({
+            status: 'blocked',
+            reason: expect.stringContaining('Use --ai=latest'),
+          }),
+        })
+      )
+      expect(global.fetch).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it('rejects commit preview builds before requesting a dist-tag', async () => {
+    const version = '16.4.0-preview-84cee7e6-20260917'
+    const directory = await createApp(version)
+    global.fetch = jest.fn()
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'AI upgrades are not available for this prerelease version of Next.js.'
+    )
+    await expect(getUpgradeAssessment(version, 'latest')).rejects.toThrow(
+      'AI upgrades are not available for this prerelease version of Next.js.'
+    )
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+  })
+
+  it.each([
+    ['rc', '17.2.0-rc.1'],
+    ['beta', '17.2.0-beta.1'],
+    ['preview', '17.2.0-preview.1'],
+  ])(
+    'selects stable latest for a %s installation',
+    async (channel, installed) => {
+      const target = '17.2.0'
+      const directory = await createApp(installed)
+      global.fetch = jest.fn(async (input) => {
+        if (String(input).startsWith('https://api.github.com/advisories?')) {
+          return Response.json([])
+        }
+        expect(String(input)).toBe('https://registry.npmjs.org/next/latest')
+        return Response.json({ version: target })
+      })
+      await expect(
+        getUpgradeAssessment(installed, 'latest')
+      ).resolves.toMatchObject({
+        affected: null,
+        upgrade: { status: 'ready', targetVersion: target },
+      })
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual(
+        expect.objectContaining({
+          status: 'ready',
+          installedVersion: installed,
+          targetVersion: target,
+          references: ['https://registry.npmjs.org/next/latest'],
+        })
+      )
+      expect(global.fetch).toHaveBeenCalledTimes(4)
+    }
+  )
+
+  it.each([false, true])(
+    'blocks an advised stable target for a prerelease with npm fallback=%s',
+    async (fallback) => {
+      const installed = '17.2.0-rc.1'
+      const target = '17.2.0'
+      const directory = await createApp(installed)
+      mockSecurityMetadata({
+        fallback,
+        ranges: [target],
+        target,
+        published: fallback ? [installed] : [installed, target],
+      })
+      await expect(
+        getUpgradeAssessment(installed, 'latest')
+      ).resolves.toMatchObject({
+        affected: null,
+        upgrade: {
+          status: 'blocked',
+          reason: `Next.js ${target} is affected by an active advisory.`,
+        },
+      })
+      await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+        `Next.js ${target} is affected by an active advisory.`
+      )
+    }
+  )
+
+  it('does not offer stable latest when advisory validation fails for a prerelease', async () => {
+    const installed = '17.2.0-rc.1'
+    const directory = await createApp(installed)
+    mockSecurityMetadata({ fallback: true, npmFailure: true })
+    await expect(getUpgradeAssessment(installed, 'latest')).rejects.toThrow(
+      'Could not check for security updates.'
+    )
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'Could not check for security updates.'
+    )
+  })
+
+  it.each([
+    '17.2.0-rc.2',
+    '17.2.0-beta.2',
+    '17.2.0-alpha.2',
+    '17.2.0-preview-84cee7e6-20260917',
+    'invalid',
+  ])('rejects a prerelease or invalid stable dist-tag: %s', async (target) => {
+    const directory = await createApp('17.2.0-rc.1')
+    global.fetch = jest.fn(async (input) =>
+      Response.json(
+        String(input).startsWith('https://api.github.com/advisories?')
+          ? []
+          : { version: target }
+      )
+    )
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'Could not determine the latest stable Next.js version.'
+    )
+  })
+
+  it.each(['17.3.0-rc.1', '17.3.0-beta.1', '17.3.0-preview.1'])(
+    'does not downgrade %s when stable latest is older',
+    async (installed) => {
+      const directory = await createApp(installed)
+      global.fetch = jest.fn(async (input) => {
+        if (String(input).startsWith('https://api.github.com/advisories?')) {
+          return Response.json([])
+        }
+        expect(String(input)).toBe('https://registry.npmjs.org/next/latest')
+        return Response.json({ version: '17.2.0' })
+      })
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
+        status: 'unaffected',
+        reason: `Next.js ${installed} is newer than the latest stable release 17.2.0.`,
+      })
+      expect(global.fetch).toHaveBeenCalledTimes(2)
     }
   )
 
@@ -454,18 +605,6 @@ describe('prepare latest upgrade', () => {
           await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
             'Could not determine the latest Next.js version on the canary dist-tag.'
           )
-        }
-      )
-
-      it.each(['17.2.0-rc.1', '17.2.0-beta.1', '17.2.0-preview.1'])(
-        'keeps other prereleases unsupported: %s',
-        async (installed) => {
-          const directory = await createApp(installed)
-          mockSecurityMetadata()
-          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-            'AI upgrades are not available for prerelease versions'
-          )
-          expect(global.fetch).toHaveBeenCalledTimes(0)
         }
       )
     }

@@ -47,12 +47,6 @@ export async function prepareUpgrade(
     throw new Error('Could not determine the installed Next.js version.')
   }
 
-  if (semver.prerelease(installedVersion) && !isCanary(installedVersion)) {
-    throw new Error(
-      'AI upgrades are not available for prerelease versions of Next.js yet.'
-    )
-  }
-
   const { upgrade } = await getUpgradeAssessment(
     installedVersion,
     targetRequest
@@ -107,29 +101,42 @@ export async function getUpgradeAssessment(
   if (!semver.valid(installedVersion)) {
     throw new Error('The running Next.js version is not valid semver.')
   }
-  if (semver.prerelease(installedVersion) && !isCanary(installedVersion)) {
+  const channel = getPrereleaseChannel(installedVersion)
+  if (semver.prerelease(installedVersion) && !channel) {
     throw new Error(
-      'AI upgrades are not available for prerelease versions of Next.js yet.'
+      'AI upgrades are not available for this prerelease version of Next.js.'
     )
   }
-  const canary = isCanary(installedVersion)
-  if (canary && (policy === 'security' || onlyIfAffected)) {
+  if (channel && (policy === 'security' || onlyIfAffected)) {
     return {
       affected: null,
       reference: null,
       upgrade: {
         status: 'blocked',
-        reason:
-          'Security upgrades are not supported for canary versions of Next.js. Use --ai=latest or --ai=future to upgrade on the canary channel.',
+        reason: `Security upgrades are not supported for ${channel} prereleases of Next.js. Use --ai=latest to upgrade ${channel === 'canary' ? 'on this channel' : 'to the latest stable release'}.`,
       },
     }
   }
-  // Canary version ordering does not establish which security fixes it contains.
-  // Keep canary latest/Future upgrades independent of advisory assessment.
-  const snapshot = canary ? null : await readAdvisorySnapshot(installedVersion)
-  const affected = snapshot
-    ? snapshot.ranges.some((range) => semver.satisfies(installedVersion, range))
-    : null
+  if (channel && channel !== 'canary' && policy === 'future') {
+    return {
+      affected: null,
+      reference: null,
+      upgrade: {
+        status: 'blocked',
+        reason: `Future Defaults upgrades are not supported for Next.js ${installedVersion}. Use --ai=latest to upgrade to the latest stable release.`,
+      },
+    }
+  }
+  // Prerelease version ordering does not establish which security fixes it
+  // contains, but stable promotion targets still need advisory validation.
+  const snapshot =
+    channel === 'canary' ? null : await readAdvisorySnapshot(installedVersion)
+  const affected =
+    snapshot && !channel
+      ? snapshot.ranges.some((range) =>
+          semver.satisfies(installedVersion, range)
+        )
+      : null
   const assessment = { affected, reference: snapshot?.reference ?? null }
 
   if (snapshot && snapshot.targetError !== null) {
@@ -176,7 +183,7 @@ export async function getUpgradeAssessment(
       const release = await fetchLatestRelease(installedVersion)
       if (!release) {
         throw new Error(
-          canary
+          channel === 'canary'
             ? 'Could not determine the latest Next.js version on the canary dist-tag.'
             : 'Could not determine the latest stable Next.js version.'
         )
@@ -186,7 +193,8 @@ export async function getUpgradeAssessment(
           ? installedVersion
           : release.version
       references = [release.reference]
-      const releaseKind = canary ? 'canary release' : 'stable release'
+      const releaseKind =
+        channel === 'canary' ? 'canary release' : 'stable release'
 
       if (policy === 'latest' && semver.lt(targetVersion, installedVersion)) {
         return {
@@ -213,9 +221,11 @@ export async function getUpgradeAssessment(
             targetVersion,
           ])
         )
-        assessment.affected ||= snapshot.ranges.some((range) =>
-          semver.satisfies(installedVersion, range)
-        )
+        if (!channel) {
+          assessment.affected ||= snapshot.ranges.some((range) =>
+            semver.satisfies(installedVersion, range)
+          )
+        }
       }
       if (
         snapshot?.ranges.some((range) => semver.satisfies(targetVersion, range))
@@ -305,8 +315,14 @@ async function fetchJSON(
   }
 }
 
-function isCanary(version: string): boolean {
-  return semver.prerelease(version)?.[0] === 'canary'
+export function getPrereleaseChannel(version: string): string | null {
+  const channel = semver.prerelease(version)?.[0]
+  return channel === 'canary' ||
+    channel === 'rc' ||
+    channel === 'beta' ||
+    channel === 'preview'
+    ? channel
+    : null
 }
 
 function parseReleases(value: unknown): SecuritySnapshot['releases'] {
@@ -394,20 +410,24 @@ export function getLatestUpgradeVersion(
   version: string,
   targetVersion: string
 ) {
+  const channel = getPrereleaseChannel(version)
+  const targetChannel = getPrereleaseChannel(targetVersion)
   if (
     !semver.valid(version) ||
     !semver.valid(targetVersion) ||
-    (semver.prerelease(version) && !isCanary(version)) ||
-    (isCanary(version)
-      ? !isCanary(targetVersion)
-      : semver.prerelease(targetVersion)) ||
+    (semver.prerelease(version) && !channel) ||
+    (semver.prerelease(targetVersion) && !targetChannel) ||
+    (channel === 'canary'
+      ? targetChannel !== 'canary'
+      : targetChannel !== null) ||
     !semver.gt(targetVersion, version)
   ) {
     return null
   }
-  // Patches and consecutive canaries remain available to explicit upgrades
-  // without a reminder.
+  // Stable releases replacing prereleases still warrant a reminder, even
+  // within the same minor. Patches and consecutive canaries remain explicit.
   if (
+    !(channel && channel !== 'canary') &&
     semver.major(targetVersion) === semver.major(version) &&
     semver.minor(targetVersion) === semver.minor(version)
   ) {
@@ -420,15 +440,18 @@ async function fetchLatestRelease(installedVersion: string): Promise<{
   version: string
   reference: string
 } | null> {
-  const canary = isCanary(installedVersion)
-  const reference = `${NPM_REGISTRY}next/${canary ? 'canary' : 'latest'}`
+  const channel = getPrereleaseChannel(installedVersion)
+  const releaseChannel = channel === 'canary' ? 'canary' : 'latest'
+  const reference = `${NPM_REGISTRY}next/${releaseChannel}`
   const { value } = await fetchJSON(reference)
   const release = value as { version: string } | null
 
   if (
     !release ||
     !semver.valid(release.version) ||
-    (canary ? !isCanary(release.version) : semver.prerelease(release.version))
+    (channel !== 'canary' && semver.prerelease(release.version)) ||
+    getPrereleaseChannel(release.version) !==
+      (channel === 'canary' ? 'canary' : null)
   ) {
     return null
   }
