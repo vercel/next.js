@@ -1921,12 +1921,17 @@ export function createAppPageEntrypoint({
 
         // Set the build ID header for RSC navigation requests when deploymentId is configured. This
         // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
-        // from the RSC payload when deploymentId is set (relying on this header instead). Server
-        // actions are excluded here because action redirect responses get the deployment ID header
-        // from the pre-fetched redirect target (via createRedirectRenderResult in action-handler.ts
-        // which copies headers from the internal RSC fetch).
+        // from the RSC payload when deploymentId is set (relying on this header instead).
         // For static prerenders served from CDN, routes-manifest.json adds a header.
-        if (isRSCRequest && !isPossibleServerAction && deploymentId) {
+        // We only set the local deploymentId when the header isn't already present. Server Action
+        // redirect responses copy the deployment ID header from the pre-fetched redirect target (via
+        // createRedirectRenderResult in action-handler.ts); overwriting it with the local value would
+        // break multi-zone redirect version-skew detection on the client (blank page bug).
+        if (
+          (isRSCRequest || isPossibleServerAction) &&
+          deploymentId &&
+          !res.hasHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER)
+        ) {
           res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
         }
 
