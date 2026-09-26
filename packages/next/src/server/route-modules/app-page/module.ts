@@ -79,6 +79,7 @@ export type RouteMatch = {
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+  requestUrl: string
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
@@ -171,6 +172,7 @@ export class AppPageRouteModule extends RouteModule<
     return renderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
@@ -189,6 +191,7 @@ export class AppPageRouteModule extends RouteModule<
     return prerenderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,

@@ -304,6 +304,7 @@ async function exportPageImpl(
     return exportAppPage(
       req,
       res,
+      req.url,
       page,
       path,
       pathname,

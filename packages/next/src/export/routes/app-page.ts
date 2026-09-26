@@ -44,6 +44,7 @@ import {
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
+  requestUrl: string,
   page: string,
   path: string,
   pathname: string,
@@ -83,6 +84,7 @@ export async function exportAppPage(
     const result = await lazyPrerenderAppPage(
       new NodeNextRequest(req),
       new NodeNextResponse(res),
+      requestUrl,
       pathname,
       query,
       fallbackRouteParams,

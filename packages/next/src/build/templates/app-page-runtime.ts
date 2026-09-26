@@ -858,6 +858,7 @@ export function createAppPageEntrypoint({
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
         const routeMatch: RouteMatch = { resolvedPathname }
         const context: AppPageRouteHandlerContext = {
+          requestUrl: req.url!,
           query,
           params,
           page: normalizedSrcPage,
