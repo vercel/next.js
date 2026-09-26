@@ -136,7 +136,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
          "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript)",
          "[project]/src/shared-pages-client.js [client] (ecmascript)",
          "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
        ]
@@ -198,7 +198,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
          "[project]/src/app/layout-target.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript)",
          "[project]/src/shared-pages-client.js [client] (ecmascript)",
          "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
        ]
@@ -260,7 +260,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript)",
          "[project]/src/shared-pages-client.js [client] (ecmascript)",
          "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
        ]
@@ -322,7 +322,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript)",
          "[project]/src/shared-pages-client.js [client] (ecmascript)",
          "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
        ]
@@ -380,7 +380,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-page/index.js [app-rsc] (ecmascript)",
          "[project]/src/app/rsc/shared-page/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [app-rsc] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [app-rsc] (ecmascript)",
          "[project]/src/shared-pages-client.js [client] (ecmascript)",
          "[project]/src/shared-pages-client.js [ssr] (ecmascript)",
        ]
@@ -432,7 +432,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
          "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [ssr] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [ssr] (ecmascript)",
          "[project]/src/pages-lib/a/lib.js [ssr] (ecmascript)",
          "[project]/src/pages-lib/a/unique.js [ssr] (ecmascript)",
          "[project]/src/pages/pages/a.js [ssr] (ecmascript, collect, my-test)",
@@ -487,7 +487,7 @@ import { nextTestSetup } from 'e2e-utils'
          "[project]/src/app/client/shared-app-client.js [app-client] (ecmascript)",
          "[project]/src/app/client/shared-app-client.js [app-ssr] (ecmascript)",
          "[project]/src/app/rsc/shared-app/target.js [app-rsc] (ecmascript)",
-         "[project]/src/collect-result.js [ssr] (ecmascript) <locals>",
+         "[project]/src/collect-result.js [ssr] (ecmascript)",
          "[project]/src/pages-lib/client-only/lib.js [ssr] (ecmascript, next/dynamic entry, async loader)",
          "[project]/src/pages-lib/client-only/unique.js [ssr] (ecmascript)",
          "[project]/src/pages/pages/client-only.js [ssr] (ecmascript, collect, my-test)",
