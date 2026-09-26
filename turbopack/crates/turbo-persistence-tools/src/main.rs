@@ -37,6 +37,7 @@ fn main() -> Result<()> {
             sst_size,
             flags,
             block_count,
+            entry_count,
         } in meta_file.entries
         {
             println!(
@@ -46,7 +47,7 @@ fn main() -> Result<()> {
             );
             println!("    AMQF {amqf_entries} entries = {} KiB", amqf_size / 1024);
             println!(
-                "    {} KiB = {block_count} blocks (avg {} bytes/block)",
+                "    {} KiB = {block_count} blocks (avg {} bytes/block), {entry_count} entries",
                 sst_size / 1024,
                 sst_size / block_count as u64
             );

@@ -21,7 +21,6 @@ use crate::{
 #[cfg(not(miri))]
 use crate::{
     constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
-    meta_file::MetaFile,
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
@@ -164,12 +163,14 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            min_shard_bits: crate::shard::ShardBits::new(0),
         }],
         access_mode: if mmap {
             crate::mmap_access_mode()
         } else {
             AccessMode::File
         },
+        ..DbConfig::new()
     }
 }
 
@@ -656,12 +657,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
     {
         let db = open_db::<1>(path, mmap)?;
 
-        db.compact(&CompactConfig {
-            optimal_merge_count: 4,
-            min_merge_duplication_bytes: 1,
-            optimal_merge_duplication_bytes: 1,
-            ..Default::default()
-        })?;
+        db.compact(&CompactConfig::full())?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;
@@ -738,12 +734,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
         {
             let db = open_db::<1>(path, mmap)?;
 
-            db.compact(&CompactConfig {
-                optimal_merge_count: 4,
-                min_merge_duplication_bytes: 1,
-                optimal_merge_duplication_bytes: 1,
-                ..Default::default()
-            })?;
+            db.compact(&CompactConfig::full())?;
 
             for j in 0..i {
                 check(&db, j, j)?;
@@ -853,12 +844,7 @@ fn merge_file_removal(#[case] mmap: bool) -> Result<()> {
         {
             let db = open_db::<1>(path, mmap)?;
 
-            db.compact(&CompactConfig {
-                optimal_merge_count: 4,
-                min_merge_duplication_bytes: 1,
-                optimal_merge_duplication_bytes: 1,
-                ..Default::default()
-            })?;
+            db.compact(&CompactConfig::full())?;
 
             for j in 0..32 {
                 check(&db, j, expected_values[j as usize])?;
@@ -1595,8 +1581,19 @@ fn multi_value_config() -> DbConfig<1> {
         name: "test",
         kind: FamilyKind::MultiValue,
         compression: Compression::Lz4,
+        min_shard_bits: crate::shard::ShardBits::new(0),
     };
     config
+}
+
+/// Only merges files above the bottom run, so a merge never includes the oldest files once a
+/// bottom run exists. Tombstones then have to survive while the bottom run holds their keys.
+fn intermediate_compaction_config() -> CompactConfig {
+    CompactConfig {
+        min_bottom_merge_bytes: u64::MAX,
+        max_files_above_bottom: 1,
+        ..Default::default()
+    }
 }
 
 #[rstest]
@@ -2368,6 +2365,8 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
         )?;
     }
     db.commit_write_batch(batch)?;
+    // Make the oldest layer the bottom run, so later merges don't include it.
+    db.compact(&CompactConfig::full())?;
 
     // Newer layers so compaction has overlapping candidates to merge partially.
     for v in [1u32, 2, 3] {
@@ -2390,13 +2389,7 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
 
     // Compact repeatedly; whatever coverage the selector chooses, 42 must stay deleted.
     for round in 0..3 {
-        db.compact(&CompactConfig {
-            min_merge_count: 2,
-            optimal_merge_count: 2,
-            min_merge_duplication_bytes: 1,
-            optimal_merge_duplication_bytes: 1,
-            ..Default::default()
-        })?;
+        db.compact(&intermediate_compaction_config())?;
         for k in [0u32, KEYS / 2, KEYS - 1] {
             let results = db
                 .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
@@ -2569,13 +2562,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
         "tombstones should be on disk before compaction"
     );
 
-    db.compact(&CompactConfig {
-        min_merge_count: 2,
-        optimal_merge_count: 2,
-        min_merge_duplication_bytes: 1,
-        optimal_merge_duplication_bytes: 1,
-        ..Default::default()
-    })?;
+    db.compact(&CompactConfig::full())?;
 
     // No older SST holds these keys, so every tombstone is dead weight and must be gone. Assert
     // on the tombstone entries themselves: total file size would shrink from dropping the deleted
@@ -2625,6 +2612,8 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
         )?;
     }
     db.commit_write_batch(batch)?;
+    // Make the oldest layer the bottom run, so later merges don't include it.
+    db.compact(&CompactConfig::full())?;
 
     // Newer layers: an unrelated value per key, then a tombstone for the old one.
     let batch = db.write_batch()?;
@@ -2650,13 +2639,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
     // Compact repeatedly. Whatever subset each job picks, value 1 must never come back: while an
     // older SST still holds it, the probe has to keep the tombstone alive.
     for round in 0..4 {
-        db.compact(&CompactConfig {
-            min_merge_count: 2,
-            optimal_merge_count: 2,
-            min_merge_duplication_bytes: 1,
-            optimal_merge_duplication_bytes: 1,
-            ..Default::default()
-        })?;
+        db.compact(&intermediate_compaction_config())?;
 
         for k in [0u32, KEYS / 2, KEYS - 1] {
             let mut results = db
@@ -2714,6 +2697,8 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
         batch.put(0, key_for(0, i), 1u32.to_be_bytes().to_vec().into())?;
     }
     db.commit_write_batch(batch)?;
+    // Make the oldest layer the bottom run, so later merges don't include it.
+    db.compact(&CompactConfig::full())?;
 
     // Several more layers touching the same keys, so the selector has many overlapping candidates.
     for round in 1..7u32 {
@@ -2745,14 +2730,7 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     }
 
     for round in 0..6 {
-        db.compact(&CompactConfig {
-            min_merge_count: 2,
-            max_merge_count: 3,
-            optimal_merge_count: 2,
-            min_merge_duplication_bytes: 1,
-            optimal_merge_duplication_bytes: 1,
-            ..Default::default()
-        })?;
+        db.compact(&intermediate_compaction_config())?;
 
         for i in [0u32, KEYS / 2, KEYS - 1] {
             let results = db
@@ -2873,12 +2851,13 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
 fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-    let access_mode = if mmap {
-        crate::mmap_access_mode()
-    } else {
-        AccessMode::File
+    // Two shards, so every commit writes one SST per shard into its meta file.
+    let config = || {
+        let mut config = config_with_mmap::<1>(mmap);
+        config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
+        config
     };
-    let db = open_db::<1>(path, mmap)?;
+    let db = open_db_with_config::<1>(path, config())?;
 
     const KEYS: u32 = 2_000;
     for generation in 0..4u32 {
@@ -2891,10 +2870,6 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
             )?;
         }
         db.commit_write_batch(batch)?;
-        if generation == 0 {
-            // Flush this access into the following commit's used-key-hash AMQF.
-            assert!(db.get(0, &0u32.to_be_bytes())?.is_some());
-        }
     }
     let before_meta_sequences = db
         .meta_info()?
@@ -2902,37 +2877,18 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
         .map(|meta| meta.sequence_number)
         .collect::<Vec<_>>();
     assert_eq!(before_meta_sequences.len(), 4);
-    assert!(before_meta_sequences.iter().any(|&seq| {
-        MetaFile::open(path, seq, None, access_mode)
-            .unwrap()
-            .deserialize_used_key_hashes_amqf()
-            .unwrap()
-            .is_some()
-    }));
 
+    // A single merge job merges one shard, which leaves an SST in every meta file.
     let partial = CompactConfig {
-        min_merge_count: 2,
-        optimal_merge_count: 2,
-        max_merge_count: 2,
-        max_merge_bytes: u64::MAX,
-        min_merge_duplication_bytes: 0,
-        optimal_merge_duplication_bytes: 0,
-        max_merge_segment_count: 1,
+        max_merge_jobs: 1,
+        ..CompactConfig::full()
     };
     assert!(db.compact(&partial)?.is_some());
     let after_partial = db.meta_info()?;
     assert_eq!(
         after_partial.len(),
-        3,
-        "two fully consumed meta files should retire while two untouched metas remain"
-    );
-    assert_eq!(
-        after_partial
-            .iter()
-            .filter(|meta| before_meta_sequences.contains(&meta.sequence_number))
-            .count(),
-        2,
-        "untouched SST metadata should stay in its two existing meta files"
+        5,
+        "no meta file is fully consumed by merging one of two shards"
     );
     for key in 0..KEYS {
         assert_eq!(
@@ -2941,24 +2897,225 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
         );
     }
 
+    // Merging the other shard consumes the original meta files, but not the bottom run written by
+    // the partial compaction.
     db.full_compact()?;
     let fully_compacted = db.meta_info()?;
-    assert_eq!(fully_compacted.len(), 1);
-    let compacted_meta =
-        MetaFile::open(path, fully_compacted[0].sequence_number, None, access_mode)?;
+    assert_eq!(fully_compacted.len(), 2);
     assert!(
-        compacted_meta.deserialize_used_key_hashes_amqf()?.is_none(),
-        "used-key marks should expire instead of being copied into compaction output"
+        fully_compacted
+            .iter()
+            .all(|meta| !before_meta_sequences.contains(&meta.sequence_number)),
+        "fully consumed meta files should retire"
     );
     drop(db);
 
-    let reopened = open_db::<1>(path, mmap)?;
-    assert_eq!(reopened.meta_info()?.len(), 1);
+    let reopened = open_db_with_config::<1>(path, config())?;
+    assert_eq!(reopened.meta_info()?.len(), 2);
     for key in 0..KEYS {
         assert_eq!(
             &*reopened.get(0, &key.to_be_bytes())?.unwrap(),
             &3u32.to_be_bytes()
         );
+    }
+    Ok(())
+}
+
+/// Counts the entries of the family's hot and other bottom SST files.
+fn bottom_entry_counts(db: &TurboPersistence<RayonParallelScheduler, 1>) -> Result<(usize, usize)> {
+    let mut hot = 0;
+    let mut cold = 0;
+    for entry in db.meta_info()?.into_iter().flat_map(|meta| meta.entries) {
+        if entry.flags.hot() {
+            hot += entry.entry_count as usize;
+        } else if entry.flags.bottom() {
+            cold += entry.entry_count as usize;
+        }
+    }
+    Ok((hot, cold))
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn bottom_merge_writes_read_keys_into_hot_files(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = || {
+        let mut config = config_with_mmap::<1>(mmap);
+        config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
+        config
+    };
+    const KEYS: u32 = 2_000;
+    const HOT: u32 = 300;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+
+    let db = open_db_with_config::<1>(path, config())?;
+    put_all(&db, 0)?;
+    // No keys were read yet, so the first bottom merge has no hot files.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+
+    // Read some keys; the next commit records them.
+    for key in 0..HOT {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    put_all(&db, 1)?;
+    db.full_compact()?;
+    assert_eq!(
+        bottom_entry_counts(&db)?,
+        (HOT as usize, (KEYS - HOT) as usize)
+    );
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &1u32.to_be_bytes()
+        );
+    }
+    db.shutdown()?;
+
+    // The full compaction merged every SST file of the commit that recorded the reads, which
+    // retired its meta file and the used keys with it. The reads of the keys checked above were
+    // never committed, so the next bottom merge writes no hot files.
+    let db = open_db_with_config::<1>(path, config())?;
+    put_all(&db, 2)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &2u32.to_be_bytes()
+        );
+    }
+    Ok(())
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
+    let db = open_db_with_config::<1>(path, config)?;
+    const KEYS: u32 = 2_000;
+    let put_all = |generation: u32| -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                generation.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+        Ok(())
+    };
+    put_all(0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    put_all(1)?;
+    // Bottom merge only one of the two shards. The commit that recorded the used keys still has an
+    // SST file in the other shard, so its meta file and the used keys stay alive for that shard.
+    db.compact(&CompactConfig {
+        max_merge_jobs: 1,
+        ..CompactConfig::full()
+    })?;
+    let (hot_after_first, _) = bottom_entry_counts(&db)?;
+    assert!(hot_after_first > 0 && hot_after_first < KEYS as usize);
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Now every SST file of that commit was merged, so its meta file and the used keys are gone.
+    // Compaction didn't copy them, so the next bottom merges write no hot files.
+    put_all(2)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    Ok(())
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn shard_count_changes_with_hysteresis(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    const KEYS: u32 = 20_000;
+    let commit = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in 0..100u32 {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![1; 64].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        Ok(())
+    };
+    let newest_shard_bits = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<u8> {
+        // `meta_info` lists the newest meta file first.
+        Ok(db.meta_info()?.first().unwrap().shard_bits)
+    };
+    let bottom_bytes = {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                key.to_le_bytes().repeat(8).into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+        db.full_compact()?;
+        db.shutdown()?;
+        db.meta_info()?
+            .into_iter()
+            .flat_map(|meta| meta.entries)
+            .filter(|entry| entry.flags.bottom())
+            .map(|entry| entry.sst_size)
+            .sum::<u64>()
+    };
+    let open_with_target = |target: f64| {
+        let mut config = config_with_mmap::<1>(mmap);
+        config.target_shard_size = (bottom_bytes as f64 / target) as u64;
+        open_db_with_config::<1>(path, config)
+    };
+    // The bottom run is 1.2 times the target: a plain size-based count would double, but it's
+    // within the band.
+    let db = open_with_target(1.2)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 0);
+    drop(db);
+    // 1.6 times the target doubles the shard count.
+    let db = open_with_target(1.6)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 1);
+    drop(db);
+    // Back at 1.2 times the target, the count is read from the meta file and stays: shards hold 0.6
+    // times the target.
+    let db = open_with_target(1.2)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 1);
+    drop(db);
+    // At 0.9 times the target, shards hold 0.45 times the target, so the count halves again.
+    let db = open_with_target(0.9)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 0);
+    for key in 0..KEYS {
+        assert!(db.get(0, &key.to_be_bytes())?.is_some());
     }
     Ok(())
 }

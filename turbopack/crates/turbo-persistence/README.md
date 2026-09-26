@@ -54,9 +54,10 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4A)
+  - 4 bytes magic number (0xFE4ADA4E)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 1 byte shard bits: the family had `2^bits` shards when the SST files were split
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -68,13 +69,16 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 8 bytes max hash
     - 8 bytes SST file size
     - 4 bytes flags
-      - bit 0: cold (compacted and not recently accessed)
+      - bit 0: bottom (part of the bottom run of its shard, written by merging all SST files of the shard)
       - bit 1: fresh (not yet compacted)
+      - bit 2: hot (part of the bottom run, holding the keys read since the shard's previous bottom merge)
+    - 4 bytes entry count
+    - 4 bytes tombstone count (entries that delete a key or a key-value pair), used by compaction to estimate reclaimable bytes
     - 4 bytes end of AMQF offset relative to start of all AMQF data
   - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
-- serialized "used key hashes" AMQF
+- serialized "used key hashes" AMQF: the keys read since the previous commit (only in meta files written by a commit)
 
 ### SST file
 
@@ -376,10 +380,16 @@ DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
 CURRENT: 17
 ```
 
-Configuration options for compactions are:
+### Choosing merge jobs
 
-- max number of SST files that are merged at once
-- coverage when compaction is triggered (otherwise calling compact is a noop)
+The key space of each family is split into a power-of-two number of shards by the leading bits of the key hash (`FamilyConfig::min_shard_bits`, growing so that a shard holds about `DbConfig::target_shard_size` after compaction). The shard count doubles once a shard's bottom run exceeds 1.5 times the target and halves once it falls below half of it, so it doesn't flip back and forth; the current count is recorded in each meta file. Commits and merges split SST files at shard boundaries, so each shard is compacted on its own. A shard has a bottom run (SST files flagged `bottom`, written by merging all files of the shard) and the files written since, above it.
+
+- A bottom merge merges all files of a shard into a new bottom run, dropping superseded entries and tombstones. It runs when the files above the bottom run exceed `max_space_amplification_percent` of the bottom run, counting each tombstone as an average bottom entry since it deletes one. This bounds the space amplification.
+- An intermediate merge merges only the files above the bottom run when there are more than `max_files_above_bottom`, to bound the number of files a lookup consults.
+
+A bottom merge writes the entries of recently read keys (the union of the "used key hashes" AMQFs of all meta files) into separate hot SST files, and the rest into cold ones. Processes tend to read the same keys again, so this packs them into fewer blocks, which matters on storage where reads are expensive. Since a bottom merge always includes the whole shard, hot and cold files are merged together and every version of a key meets. The used keys are never copied into the meta files written by compaction, so they expire once all SST files of the commit that recorded them are merged.
+
+Bottom merges of a family stop once they rewrote `max_rewrite_factor` times the size of the fresh (not yet compacted) files of the family, so compaction cost follows the amount of new data. Since keys are hashes, shards grow at the same rate; the budget spreads their bottom merges over multiple compactions. A skipped compaction leaves the fresh files in place, which increases the next budget.
 
 ## Opening
 

@@ -1,5 +1,6 @@
 use std::{
     cmp::max,
+    num::NonZeroU16,
     path::PathBuf,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
@@ -14,7 +15,7 @@ use turbo_persistence::{
 use turbo_tasks::{
     message_queue::{TimingEvent, TraceEvent},
     parallel::available_parallelism,
-    turbo_tasks,
+    try_turbo_tasks,
 };
 
 use crate::{
@@ -30,8 +31,6 @@ pub const FAMILIES: usize = 4;
 
 const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 
-const MB: u64 = 1024 * 1024;
-
 /// Returns the database configuration for the Turbopack persistent cache, mapping each
 /// [`KeySpace`] to its persistence family config.
 pub fn db_config() -> DbConfig<FAMILIES> {
@@ -42,13 +41,11 @@ pub fn db_config() -> DbConfig<FAMILIES> {
 }
 
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
-    min_merge_count: 3,
-    optimal_merge_count: 8,
-    max_merge_count: 64,
-    max_merge_bytes: 512 * MB,
-    min_merge_duplication_bytes: 50 * MB,
-    optimal_merge_duplication_bytes: 100 * MB,
-    max_merge_segment_count: 16,
+    max_space_amplification_percent: NonZeroU16::new(50),
+    min_bottom_merge_bytes: 1024 * 1024,
+    max_files_above_bottom: 4,
+    max_rewrite_factor: 2.0,
+    max_merge_jobs: 16,
 };
 
 pub struct TurboKeyValueDatabase {
@@ -166,24 +163,27 @@ impl TurboKeyValueDatabase {
 fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
-    max_merge_segment_count: usize,
+    max_merge_jobs: usize,
 ) -> Result<Option<CommitStats>> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
     let stats = db.compact(&CompactConfig {
-        max_merge_segment_count,
+        max_merge_jobs,
         ..COMPACT_CONFIG
     })?;
-    if let Some(stats) = stats {
+    // Compaction can run outside of turbo-tasks (e.g. in tests), then there is nobody to report to.
+    if let Some(stats) = stats
+        && let Some(turbo_tasks) = try_turbo_tasks()
+    {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
-            turbo_tasks()
+            turbo_tasks
                 .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
         }
-        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-compaction",
             wall_start,
             elapsed,
