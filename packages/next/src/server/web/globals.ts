@@ -89,7 +89,7 @@ function enhanceGlobals() {
   // The condition is true when the "process" module is provided
   if (process !== global.process) {
     // prefer local process but global.process has correct "env"
-    process.env = global.process.env
+    Object.assign(process.env, global.process.env);
     global.process = process
   }
 
