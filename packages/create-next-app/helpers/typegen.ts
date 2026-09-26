@@ -33,6 +33,10 @@ export async function runTypegen(
         // We need to hope Bun never implements their own `bun next`.
         args = ['next', 'typegen']
         break
+      case 'deno':
+        command = 'deno'
+        args = ['-A', 'npm:next', 'typegen']
+        break
       default:
         packageManager satisfies never
         throw new Error(`Unsupported package manager: ${packageManager}`)
