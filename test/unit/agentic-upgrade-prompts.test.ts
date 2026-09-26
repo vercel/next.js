@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { resolve } from 'path'
 import {
   access,
   cp,
@@ -82,6 +83,16 @@ function normalizedBootstrapCalls(): string[][] {
   return jest
     .mocked(Log.bootstrap)
     .mock.calls.map(([message]) => [String(message).replace(/\\+/g, '/')])
+}
+
+function expectedHarnessPath(name: string): string {
+  const extension =
+    process.platform === 'win32'
+      ? (process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
+          .split(';')
+          .filter(Boolean)[0]
+      : ''
+  return resolve('/agents', `${name}${extension}`)
 }
 
 function normalizedFileWriteCalls() {
@@ -437,6 +448,73 @@ describe('agentic upgrade prompts', () => {
     )
   })
 
+  it.each([
+    ['yes', true, 'Worktree prompt'],
+    ['no', false, 'Current checkout prompt'],
+  ])(
+    'passes the %s worktree choice to the upgrade prompt',
+    async (choice, selected, expectedPrompt) => {
+      process.env.PATH = '/agents'
+      overrideTTY(process.stdin)
+      overrideTTY(process.stdout)
+      jest.mocked(getAgentName).mockResolvedValue(null)
+      jest.mocked(access).mockResolvedValue(undefined)
+      jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+      jest
+        .mocked(cliSelect)
+        .mockResolvedValueOnce({ id: 'codex' } as never)
+        .mockResolvedValueOnce({ id: choice } as never)
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('close', 0, null))
+        return child
+      })
+      const prompt = jest.fn((useWorktree: boolean | null) =>
+        useWorktree ? 'Worktree prompt' : 'Current checkout prompt'
+      )
+
+      await handoffUpgrade(prompt, '/workspace/app')
+
+      expect(prompt).toHaveBeenCalledWith(selected)
+      expect(crossSpawn).toHaveBeenCalledWith(
+        expectedHarnessPath('codex'),
+        ['--model', 'gpt-5.6-terra', expectedPrompt],
+        { cwd: '/workspace/app', stdio: 'inherit' }
+      )
+      expect(jest.mocked(cliSelect).mock.calls[1][0].values).toEqual({
+        yes: 'Yes',
+        no: 'No',
+      })
+    }
+  )
+
+  it('keeps the existing agent in its session', async () => {
+    const prompt = jest.fn(() => 'Prepared upgrade prompt.')
+
+    await handoffUpgrade(prompt, '/workspace/app')
+
+    expect(prompt).toHaveBeenCalledWith(null)
+    expect(Log.bootstrap).toHaveBeenCalledWith('Prepared upgrade prompt.')
+    expect(cliSelect).not.toHaveBeenCalled()
+    expect(crossSpawn).not.toHaveBeenCalled()
+  })
+
+  it('leaves the worktree choice open outside a TTY', async () => {
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    const prompt = jest.fn((useWorktree: boolean | null) =>
+      useWorktree === null ? 'Choice pending prompt' : 'Selected prompt'
+    )
+
+    await handoffUpgrade(prompt, '/workspace/app')
+
+    expect(prompt).toHaveBeenCalledWith(null)
+    expect(Log.bootstrap).toHaveBeenCalledWith(
+      expect.stringContaining('Choice pending prompt')
+    )
+    expect(cliSelect).not.toHaveBeenCalled()
+    expect(crossSpawn).not.toHaveBeenCalled()
+  })
+
   it('passes the complete migration prompt to an existing agent', async () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
@@ -474,7 +552,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
-     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -571,7 +649,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
-     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -780,7 +858,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
-     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -879,7 +957,7 @@ describe('agentic upgrade prompts', () => {
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 
-     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
