@@ -8,7 +8,7 @@ use serde::Serialize;
 use turbo_rcstr::rcstr;
 
 use crate::{
-    server::ViewRect,
+    protocol::ViewRect,
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef},
     span_ref::{SpanEventRef, SpanRef},
@@ -1030,8 +1030,8 @@ impl Viewer {
                     if let Some(false) = view_rect.count_filter.as_ref().map(|filter| match filter
                         .op
                     {
-                        crate::server::Op::Gt => count > filter.value as usize,
-                        crate::server::Op::Lt => count < filter.value as usize,
+                        crate::protocol::Op::Gt => count > filter.value as usize,
+                        crate::protocol::Op::Lt => count < filter.value as usize,
                     }) {
                         filtered = Some(FilterMode::SelectedItem)
                     }
@@ -1039,8 +1039,8 @@ impl Viewer {
                     if let Some(false) = view_rect.value_filter.as_ref().map(|filter| match filter
                         .op
                     {
-                        crate::server::Op::Gt => width > filter.value,
-                        crate::server::Op::Lt => width < filter.value,
+                        crate::protocol::Op::Gt => width > filter.value,
+                        crate::protocol::Op::Lt => width < filter.value,
                     }) {
                         filtered = Some(FilterMode::SelectedItem)
                     }

@@ -14,6 +14,7 @@ use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 use super::TraceFormat;
 use crate::{
     span::{SpanArgs, SpanIndex},
+    store::OutdatedSpans,
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
 };
@@ -24,6 +25,40 @@ struct AllocationInfo {
     deallocations: u64,
     allocation_count: u64,
     deallocation_count: u64,
+}
+
+const ID_PAGE_BITS: u32 = 16;
+const ID_PAGE_SIZE: usize = 1 << ID_PAGE_BITS;
+const ID_PAGE_MASK: u64 = ID_PAGE_SIZE as u64 - 1;
+
+#[derive(Default)]
+struct IdMapping {
+    pages: FxHashMap<u64, Box<[Option<SpanIndex>]>>,
+    len: usize,
+}
+
+impl IdMapping {
+    fn get(&self, id: u64) -> Option<SpanIndex> {
+        self.pages
+            .get(&(id >> ID_PAGE_BITS))
+            .and_then(|page| page[(id & ID_PAGE_MASK) as usize])
+    }
+
+    fn insert(&mut self, id: u64, span: SpanIndex) {
+        let page = self
+            .pages
+            .entry(id >> ID_PAGE_BITS)
+            .or_insert_with(|| vec![None; ID_PAGE_SIZE].into_boxed_slice());
+        let entry = &mut page[(id & ID_PAGE_MASK) as usize];
+        if entry.is_none() {
+            self.len += 1;
+        }
+        *entry = Some(span);
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
 }
 
 struct InternalRow {
@@ -69,11 +104,12 @@ enum InternalRowType {
 
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
-    id_mapping: FxHashMap<u64, SpanIndex>,
+    invalidate_caches: bool,
+    id_mapping: IdMapping,
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
-    outdated_spans: FxHashSet<SpanIndex>,
+    outdated_spans: OutdatedSpans,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
@@ -81,18 +117,19 @@ pub struct TurbopackFormat {
 }
 
 impl TurbopackFormat {
-    pub fn new(store: Arc<StoreContainer>) -> Self {
+    pub fn new(store: Arc<StoreContainer>, invalidate_caches: bool) -> Self {
         let drop_ids = std::env::var("DROP_SPANS")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or_default();
         Self {
             store,
-            id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
+            invalidate_caches,
+            id_mapping: IdMapping::default(),
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
-            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
+            outdated_spans: OutdatedSpans::with_capacity(8_192, invalidate_caches),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             thread_allocation_counters: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
@@ -366,8 +403,8 @@ impl TurbopackFormat {
             {
                 return;
             }
-            if let Some(id) = self.id_mapping.get(&id) {
-                Some(*id)
+            if let Some(id) = self.id_mapping.get(id) {
+                Some(id)
             } else {
                 // Parent hasn't been seen yet; queue this row to be processed
                 // when the parent arrives. The row is already lifetime-free
@@ -521,7 +558,9 @@ impl TraceFormat for TurbopackFormat {
                 for row in iter.by_ref() {
                     self.process(&mut store, row);
                 }
-                store.invalidate_outdated_spans(&self.outdated_spans);
+                if self.invalidate_caches {
+                    store.invalidate_outdated_spans(&self.outdated_spans);
+                }
                 self.outdated_spans.clear();
             }
         }
@@ -548,5 +587,38 @@ impl<T> Deref for ClearOnDrop<'_, T> {
 impl<T> DerefMut for ClearOnDrop<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn id_mapping_supports_dense_and_sparse_ids() {
+        let mut mapping = IdMapping::default();
+        let first = SpanIndex::new(1).unwrap();
+        let second = SpanIndex::new(2).unwrap();
+
+        mapping.insert(1, first);
+        mapping.insert(ID_PAGE_SIZE as u64 * 3 + 7, second);
+
+        assert_eq!(mapping.get(1), Some(first));
+        assert_eq!(mapping.get(ID_PAGE_SIZE as u64 * 3 + 7), Some(second));
+        assert_eq!(mapping.get(ID_PAGE_SIZE as u64 + 1), None);
+        assert_eq!(mapping.len(), 2);
+    }
+
+    #[test]
+    fn id_mapping_overwrites_existing_ids() {
+        let mut mapping = IdMapping::default();
+        let first = SpanIndex::new(1).unwrap();
+        let second = SpanIndex::new(2).unwrap();
+
+        mapping.insert(42, first);
+        mapping.insert(42, second);
+
+        assert_eq!(mapping.get(42), Some(second));
+        assert_eq!(mapping.len(), 1);
     }
 }
