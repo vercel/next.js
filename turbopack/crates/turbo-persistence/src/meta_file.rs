@@ -34,18 +34,25 @@ bitfield! {
     pub bottom, set_bottom: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
+    /// The SST file is part of the bottom run and holds the entries that were read since the last
+    /// bottom merge of the shard (see [`MetaFile::deserialize_used_key_hashes_amqf`]). Storing them
+    /// separately means a process that reads the same keys again touches fewer blocks.
+    pub hot, set_hot: 2;
 }
 
 impl MetaEntryFlags {
     pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b10);
     pub const COMPACTED: MetaEntryFlags = MetaEntryFlags(0b00);
     pub const BOTTOM: MetaEntryFlags = MetaEntryFlags(0b01);
+    pub const HOT_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b101);
 }
 
 impl Display for MetaEntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.fresh() {
             f.pad_integral(true, "", "fresh")
+        } else if self.hot() {
+            f.pad_integral(true, "", "hot bottom")
         } else if self.bottom() {
             f.pad_integral(true, "", "bottom")
         } else {
@@ -55,7 +62,7 @@ impl Display for MetaEntryFlags {
 }
 
 /// Magic number identifying a `.meta` file.
-pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4C;
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4D;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -298,8 +305,12 @@ pub struct MetaFile {
     /// The obsolete SST files.
     obsolete_sst_files: Vec<u32>,
     /// Byte offset within the backing where the AMQF data region starts.
-    /// Entry AMQF offsets are relative to this position.
+    /// Entry AMQF offsets and used-keys offsets are relative to this position.
     amqf_data_start: u32,
+    /// The offset of the start of the "used keys" AMQF data relative to the AMQF data region.
+    start_of_used_keys_amqf_data_offset: u32,
+    /// The offset of the end of the "used keys" AMQF data relative to the AMQF data region.
+    end_of_used_keys_amqf_data_offset: u32,
     /// The access mode inherited by referenced SST files.
     access_mode: AccessMode,
     /// Stable bytes backing the parsed filters. Must be declared after `entries`.
@@ -379,9 +390,10 @@ impl MetaFile {
         let count = reader.read_u32::<BE>()?;
 
         // Compute where the AMQF data region starts so we can deserialize filters inline.
-        // Remaining header: count * ENTRY_HEADER_SIZE.
+        // Remaining header: count * ENTRY_HEADER_SIZE + used_keys_end_offset.
         let header_so_far = (backing.len() - reader.len()) as u32;
-        let amqf_data_start = header_so_far + count * (size_of::<EntryHeader>() as u32);
+        let amqf_data_start =
+            header_so_far + count * (size_of::<EntryHeader>() as u32) + size_of::<u32>() as u32;
         let amqf_data = &backing[amqf_data_start as usize..];
 
         // Parse entries and eagerly deserialize AMQF filters as zero-copy FilterRefs.
@@ -435,6 +447,9 @@ impl MetaFile {
             start_of_amqf_data_offset = end_of_amqf_data_offset;
         }
 
+        let start_of_used_keys_amqf_data_offset = start_of_amqf_data_offset;
+        let end_of_used_keys_amqf_data_offset = reader.read_u32::<BE>()?;
+
         Ok(Self {
             db_path,
             sequence_number,
@@ -445,6 +460,8 @@ impl MetaFile {
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
             amqf_data_start,
+            start_of_used_keys_amqf_data_offset,
+            end_of_used_keys_amqf_data_offset,
             access_mode,
             backing,
         })
@@ -505,6 +522,22 @@ impl MetaFile {
 
     pub fn amqf_data(&self) -> &[u8] {
         &self.backing[self.amqf_data_start as usize..]
+    }
+
+    /// The hashes of the keys that were read in the session that wrote this meta file, if it was
+    /// written by a commit.
+    pub fn deserialize_used_key_hashes_amqf(&self) -> Result<Option<qfilter::FilterRef<'_>>> {
+        if self.start_of_used_keys_amqf_data_offset == self.end_of_used_keys_amqf_data_offset {
+            return Ok(None);
+        }
+        let amqf = &self.amqf_data()[self.start_of_used_keys_amqf_data_offset as usize
+            ..self.end_of_used_keys_amqf_data_offset as usize];
+        Ok(Some(postcard::from_bytes(amqf).with_context(|| {
+            format!(
+                "Failed to deserialize used key hashes AMQF from {:08}.meta",
+                self.sequence_number
+            )
+        })?))
     }
 
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {

@@ -16,12 +16,14 @@ use std::{
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
+use dashmap::DashSet;
 #[cfg(feature = "mmap")]
 use either::Either;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
 #[cfg(feature = "mmap")]
 use memmap2::Mmap;
+use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -343,6 +345,10 @@ struct Inner<const FAMILIES: usize> {
     /// For each family, the SST files that can contain the keys of each shard. Must be rebuilt
     /// whenever `meta_files_by_family` changes.
     shard_index: [ShardIndex; FAMILIES],
+    /// The in progress set of hashes of keys that have been accessed.
+    /// It will be flushed onto disk (into a meta file) on next commit.
+    /// It's a dashset to allow modification while only tracking a read lock on Inner.
+    accessed_key_hashes: [DashSet<u64, BuildNoHashHasher<u64>>; FAMILIES],
     /// The current sequence number for the database.
     current_sequence_number: u32,
 }
@@ -484,6 +490,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             inner: RwLock::new(Inner {
                 meta_files_by_family: [(); FAMILIES].map(|_| Vec::new()),
                 shard_index: [(); FAMILIES].map(|_| ShardIndex::default()),
+                accessed_key_hashes: [(); FAMILIES]
+                    .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
                 current_sequence_number: 0,
             }),
             is_empty: AtomicBool::new(true),
@@ -901,7 +909,32 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             new_sst_files,
             new_blob_files,
             keys_written,
-        } = write_batch.finish()?;
+        } = write_batch.finish(|family| {
+            let inner = self.inner.read();
+            let set = &inner.accessed_key_hashes[family as usize];
+            // len is only a snapshot at that time and it can change while we create the filter.
+            // So we give it 5% more space to make resizes less likely.
+            let initial_capacity = set.len() * 20 / 19;
+            // TODO: Using u64::BITS as fingerprint size is wasteful for a
+            // probabilistic membership filter. A smaller fingerprint (e.g. via
+            // Filter::new with a target fp_rate) would significantly reduce size,
+            // but would make merging slower since mismatched fingerprint sizes
+            // fall back to one-by-one insertion instead of sorted merge.
+            let mut amqf =
+                qfilter::Filter::with_fingerprint_size(initial_capacity as u64, u64::BITS as u8)
+                    .unwrap();
+            // This drains items from the set. But due to concurrency it might not be empty
+            // afterwards, but that's fine. It will be part of the next commit.
+            set.retain(|hash| {
+                // Performance-wise it would usually be better to insert sorted fingerprints, but we
+                // assume that hashes are equally distributed, which makes it unnecessary.
+                // Good for cache locality is that we insert in the order of the dashset's buckets.
+                amqf.insert_fingerprint(false, *hash)
+                    .expect("Failed to insert fingerprint");
+                false
+            });
+            amqf
+        })?;
         let stats = self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
@@ -1538,6 +1571,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         });
                     }
 
+                    // The keys read recently: the used keys of the meta files written by commits
+                    // that are still alive, i.e. whose SST files were not all merged yet. As in
+                    // the previous warm/cold split, the marks are not copied into the meta files
+                    // written by compaction, so they expire with the meta files that recorded
+                    // them; carrying them forward would keep keys marked forever. A bottom merge
+                    // writes the marked keys into separate hot files.
+                    let used_key_hashes = union_used_key_hashes(meta_files)?;
+
                     // Later we will remove the merged files. Capture each one's size now (we know
                     // exactly which SST it is) so `commit` can report deleted bytes without a scan.
                     let sst_files_to_delete = merge_jobs
@@ -1791,6 +1832,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 self.config.family_configs[family as usize].compression;
                             let mut collector =
                                 Collector::new(output_flags, compression, shard_bits);
+                            // A bottom merge writes the entries of keys read since the last bottom
+                            // merge into separate hot files, so that reading them again touches
+                            // fewer blocks.
+                            let mut hot_collector =
+                                (bottom && used_key_hashes.is_some()).then(|| {
+                                    Collector::new(
+                                        MetaEntryFlags::HOT_BOTTOM,
+                                        compression,
+                                        shard_bits,
+                                    )
+                                });
                             let mut current_key: Option<RcBytes> = None;
                             let mut keys_written = 0;
 
@@ -1862,6 +1914,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         {
                                             continue;
                                         }
+                                        let collector = match &mut hot_collector {
+                                            Some(hot_collector)
+                                                if used_key_hashes.as_ref().is_some_and(
+                                                    |used| used.contains_fingerprint(entry.hash),
+                                                ) =>
+                                            {
+                                                hot_collector
+                                            }
+                                            _ => &mut collector,
+                                        };
                                         collector.add_entry(
                                             entry,
                                             path,
@@ -1878,10 +1940,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                 }
 
-                                // Close the remaining writer
+                                // Close the remaining writers
                                 collector.close_sst_file(&mut keys_written)?;
-
-                                let new_sst_files = take(&mut collector.new_sst_files);
+                                let mut new_sst_files = take(&mut collector.new_sst_files);
+                                if let Some(hot_collector) = &mut hot_collector {
+                                    hot_collector.close_sst_file(&mut keys_written)?;
+                                    new_sst_files.append(&mut hot_collector.new_sst_files);
+                                }
                                 Ok(PartialMergeResult::Merged {
                                     new_sst_files,
                                     blob_seq_numbers_to_delete,
@@ -1891,6 +1956,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             })();
                             if result.is_err() {
                                 collector.cancel();
+                                if let Some(hot_collector) = &mut hot_collector {
+                                    hot_collector.cancel();
+                                }
                             }
                             result
                         })
@@ -2158,6 +2226,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         {
                             found_in_sst = true;
                         }
+                        inner.accessed_key_hashes[family].insert(hash);
                         for value in values {
                             match value {
                                 LookupValue::KeyDeleted => {
@@ -2311,8 +2380,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut not_found = 0;
         let mut result_size = 0;
         let mut results = vec![None; keys.len()];
-        for (_, index, result) in cells {
+        for (hash, index, result) in cells {
             if let Some(result) = result {
+                inner.accessed_key_hashes[family].insert(hash);
                 let result = match result {
                     LookupValue::KeyDeleted => {
                         #[cfg(feature = "stats")]
@@ -2435,6 +2505,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             amqf_size: entry.amqf_size(),
                             amqf_entries: amqf.len(),
                             block_count: entry.block_count(),
+                            entry_count: entry.entry_count(),
                         }
                     })
                     .collect();
@@ -2485,6 +2556,34 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             fs::remove_file(self.path.join(format!("{seq:08}.{ext}"))).is_err()
         });
     }
+}
+
+/// The union of the used keys recorded in the meta files, or `None` if there are none.
+fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filter>> {
+    let filters = meta_files
+        .iter()
+        .filter_map(|meta_file| meta_file.deserialize_used_key_hashes_amqf().transpose())
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter(|amqf| !amqf.is_empty())
+        .collect::<Vec<_>>();
+    Ok(match &filters[..] {
+        [] => None,
+        [single] => Some(single.to_owned()),
+        _ => {
+            let total_len = filters.iter().map(|f| f.len()).sum::<u64>();
+            // The fingerprint size must match the source filters to use qfilter's sorted merge.
+            let mut merged = qfilter::Filter::with_fingerprint_size(total_len, u64::BITS as u8)
+                .context("Failed to create the merged used keys AMQF")?;
+            for filter in &filters {
+                merged
+                    .merge(false, filter)
+                    .context("Failed to merge used keys AMQFs")?;
+            }
+            merged.shrink_to_fit();
+            Some(merged)
+        }
+    })
 }
 
 /// Rebuilds the shard index of every family after the meta files changed.
@@ -2564,4 +2663,6 @@ pub struct MetaFileEntryInfo {
     pub sst_size: u64,
     pub flags: MetaEntryFlags,
     pub block_count: u16,
+    /// The number of entries in the SST file.
+    pub entry_count: u32,
 }
