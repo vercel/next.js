@@ -861,17 +861,27 @@ impl PageEndpoint {
             let module_graph = self.client_module_graph();
 
             let evaluatable_assets = client_entry_modules(self.client_evaluatable_assets()).await?;
-            // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
-            // the page's chunks don't include modules that the browser already downloaded with
-            // `/_app`.
+            // Like App Router layouts, `/_app` is always loaded before the page. Treat it as
+            // already available so the page's chunks don't include modules that the browser
+            // already downloaded with `/_app`. `client_module_graph` chains `/_app`'s entry group
+            // into this page's graph, so the group resolves within the very graph this page is
+            // chunked with.
             let availability_info = if this.pathname == "/_app" {
                 AvailabilityInfo::root()
             } else {
-                this.pages_project
-                    .app_page_endpoint()
-                    .client_chunk_group()
+                AvailabilityInfo::root()
+                    .with_chunk_group(
+                        module_graph.to_resolved().await?,
+                        ChunkGroup::Entry(
+                            client_entry_modules(
+                                this.pages_project
+                                    .app_page_endpoint()
+                                    .client_evaluatable_assets(),
+                            )
+                            .await?,
+                        ),
+                    )
                     .await?
-                    .availability_info
             };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),

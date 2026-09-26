@@ -76,24 +76,25 @@ impl ManifestAsyncModule {
         self: ResolvedVc<Self>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
-        if let Some(chunk_items) = this.availability_info.available_modules() {
-            let inner_module = ResolvedVc::upcast(this.inner);
-            let batches = this
-                .module_graph
-                .module_batches(this.chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(inner_module).await?;
-            if let Some(chunkable_module_or_batch) =
-                ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
-            {
-                return Ok(OutputAssetsWithReferenced {
-                    assets: ResolvedVc::cell(vec![]),
-                    referenced_assets: ResolvedVc::cell(vec![]),
-                    references: ResolvedVc::cell(vec![]),
-                }
-                .cell());
+        let inner_module = ResolvedVc::upcast(this.inner);
+        let batches = this
+            .module_graph
+            .module_batches(this.chunking_context.batching_config())
+            .await?;
+        let module_or_batch = batches.get_entry(inner_module).await?;
+        if let Some(chunkable_module_or_batch) =
+            ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+            && this
+                .availability_info
+                .is_available(this.module_graph, chunkable_module_or_batch)
+                .await?
+        {
+            return Ok(OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
             }
+            .cell());
         }
         let chunk_item = self.as_chunk_item(*this.module_graph, *this.chunking_context);
         let chunk = this
@@ -130,11 +131,11 @@ impl ManifestAsyncModule {
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let ident = self.inner.ident();
         Ok(
-            if let Some(available_modules) = self.availability_info.available_modules() {
+            if let Some(availability_ident) = self.availability_info.ident().await? {
                 ident
                     .owned()
                     .await?
-                    .with_modifier(available_modules.hash().await?.to_string().into())
+                    .with_modifier(availability_ident)
                     .into_vc()
             } else {
                 ident

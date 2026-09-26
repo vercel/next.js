@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/nested_async_availability/input/index.js"],"sourcesContent":["import('./first').then(({ first }) => first())\n"],"names":["then","first"],"mappings":"AAAA,sKAAkBA,IAAI,CAAC,CAAC,EAAEC,KAAK,EAAE,GAAKA"}}]
+}
