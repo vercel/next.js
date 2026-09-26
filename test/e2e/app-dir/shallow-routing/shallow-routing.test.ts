@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 describe('shallow-routing', () => {
   const { next } = nextTestSetup({
@@ -139,6 +139,42 @@ describe('shallow-routing', () => {
 
       // Check useSearchParams value is the new searchparam
       await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/pushstate-string-url?query=foo-added`
+      )
+    })
+
+    it('should work when given a string state value', async () => {
+      const browser = await next.browser('/a')
+      expect(
+        await browser
+          .elementByCss('#to-pushstate-string-url')
+          .click()
+          .waitForElementByCss('#pushstate-string-url')
+          .text()
+      ).toBe('PushState String Url')
+
+      await browser.elementByCss('#push-string-url-string').click()
+
+      // Check useSearchParams value is the new searchparam
+      await retry(async () => {
+        expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+      })
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/pushstate-string-url?query=foo`
+      )
+
+      // Same cycle a second time
+      await browser.elementByCss('#push-string-url-string').click()
+
+      // Check useSearchParams value is the new searchparam
+      await retry(async () => {
+        expect(await browser.elementByCss('#my-data').text()).toBe('foo-added')
+      })
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -344,6 +380,42 @@ describe('shallow-routing', () => {
 
       // Check useSearchParams value is the new searchparam
       await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/replacestate-string-url?query=foo-added`
+      )
+    })
+
+    it('should work when given a string state value', async () => {
+      const browser = await next.browser('/a')
+      expect(
+        await browser
+          .elementByCss('#to-replacestate-string-url')
+          .click()
+          .waitForElementByCss('#replacestate-string-url')
+          .text()
+      ).toBe('ReplaceState String Url')
+
+      await browser.elementByCss('#replace-string-url-string').click()
+
+      // Check useSearchParams value is the new searchparam
+      await retry(async () => {
+        expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+      })
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/replacestate-string-url?query=foo`
+      )
+
+      // Same cycle a second time
+      await browser.elementByCss('#replace-string-url-string').click()
+
+      // Check useSearchParams value is the new searchparam
+      await retry(async () => {
+        expect(await browser.elementByCss('#my-data').text()).toBe('foo-added')
+      })
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
