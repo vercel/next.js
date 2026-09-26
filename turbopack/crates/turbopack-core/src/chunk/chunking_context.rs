@@ -449,6 +449,22 @@ pub trait ChunkingContext {
         MinifyType::NoMinify.cell()
     }
 
+    /// EXPERIMENTAL: minify each chunk item on its own, before the chunk is assembled, instead of
+    /// minifying the finished chunk in one pass.
+    ///
+    /// A chunk is a single top-level statement holding every module factory, so the whole-chunk
+    /// pass cannot be parallelised and becomes a serial tail at the end of the build. Minifying
+    /// per item spreads that work across the task pool and lets each item's minified output be
+    /// cached, so an incremental build only re-minifies what changed.
+    ///
+    /// The trade-off is slightly larger output: a factory cannot see the strict wrapper the chunk
+    /// will place it in, so it keeps its own `"use strict"` directive, and no optimisation that
+    /// requires seeing every factory at once is performed.
+    #[turbo_tasks::function]
+    fn minify_before_chunking(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     #[turbo_tasks::function]
     fn should_use_absolute_url_references(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
