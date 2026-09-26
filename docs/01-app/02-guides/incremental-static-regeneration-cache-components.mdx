@@ -121,7 +121,9 @@ async function ProductDetails(props: PageProps<'/[category]/[product]'>) {
 
   return (
     <>
-      <Link href={`/${category}`}>&larr; Back to products</Link>
+      <Link href={`/${category}`} prefetch={true}>
+        &larr; Back to products
+      </Link>
       <h2>{data.name}</h2>
       <p>${data.price}</p>
       <p>{data.description}</p>
@@ -176,6 +178,8 @@ export async function getPopularProducts(category: string) {
 
 If your components access runtime APIs like `cookies` or `headers`, wrap them in `<Suspense>`. Their fallback UI is included in the static shell instead.
 
+{/* TODO: show how unstable_navigation() can help keep content out of the prefetch={true} */}
+
 ### At build time
 
 When you run `next build`, Next.js prerenders the layout for each known category (`tops`, `shorts`), plus one render where `await params` suspends, producing the App Shell for `[category]`.
@@ -198,7 +202,9 @@ The first visit to `/shoes/basketball-shoes`. Neither param was prerendered. Nex
 
 After the first visit, Next.js renders these routes in the background with the now-known params. The next visitor to the same URLs gets the upgraded result.
 
-A prefetch counts as that first visit. When a [`<Link>`](/docs/app/api-reference/components/link) to an unlisted URL enters the viewport, or you call [`router.prefetch`](/docs/app/api-reference/functions/use-router), Next.js starts the background upgrade before the click, so navigation lands on the upgraded result.
+When a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) to an unlisted URL enters the viewport, Next.js starts the background upgrade before the click, just as a first visit would, so navigation lands on the upgraded result.
+
+Links to these pages need `prefetch={true}`. A default `<Link>` prefetches only the App Shell, which links to the same route share.
 
 > **Good to know**: The App Shell for unlisted params is served from Next.js 16.3. Earlier versions wait for a full server render before sending the response.
 
