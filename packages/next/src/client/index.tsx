@@ -158,7 +158,10 @@ class Container extends React.Component<{
   }
 
   componentDidUpdate() {
-    this.scrollToHash()
+    // Don't scrollToHash here unconditionally — the router already handles
+    // hash scrolling during navigations (push/replace). Doing it on every
+    // update causes unwanted scrolling when the user navigates back to a
+    // page with a hash via the browser back button (popstate).
   }
 
   scrollToHash() {
