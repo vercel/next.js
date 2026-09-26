@@ -5,6 +5,7 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
+  type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
@@ -855,10 +856,12 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
+        const routeMatch: RouteMatch = { resolvedPathname }
         const context: AppPageRouteHandlerContext = {
           query,
           params,
           page: normalizedSrcPage,
+          routeMatch,
           sharedContext: {
             buildId,
             deploymentId,

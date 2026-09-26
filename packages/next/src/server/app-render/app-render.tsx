@@ -33,7 +33,10 @@ import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
 import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
-import type { AppPageModule } from '../route-modules/app-page/module'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import * as ReactClient from 'react'
@@ -2691,6 +2694,7 @@ async function prepareAppPageRender(
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  routeMatch: RouteMatch,
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   renderCapabilities: AppRenderCapabilities
@@ -2841,16 +2845,9 @@ async function prepareAppPageRender(
 
   const isPossibleActionRequest = getIsPossibleServerAction(req)
 
-  // For implicit tags, we use the resolved pathname which has dynamic params
-  // interpolated, is decoded, and has trailing slash removed.
-  const resolvedPathname = getRequestMeta(req, 'resolvedPathname')
-  if (!resolvedPathname) {
-    throw new InvariantError('resolvedPathname must be set in request metadata')
-  }
-
   const implicitTags = await getImplicitTags(
     workStore.page,
-    resolvedPathname,
+    routeMatch.resolvedPathname,
     fallbackRouteParams
   )
 
@@ -3280,7 +3277,8 @@ async function renderToHTMLOrFlightImpl(
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  routeMatch: RouteMatch
 ) {
   const prepared = await prepareAppPageRender(
     req,
@@ -3294,6 +3292,7 @@ async function renderToHTMLOrFlightImpl(
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
+    routeMatch,
     generateRenderRequestId,
     getMissingPrefetchHintPolicy(
       renderOpts.isBuildTimePrerendering ?? false,
@@ -3319,7 +3318,8 @@ async function prerenderToHTMLOrFlightImpl(
   parsedRequestHeaders: ParsedRequestHeaders,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  routeMatch: RouteMatch
 ) {
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
   const prepared = await prepareAppPageRender(
@@ -3334,6 +3334,7 @@ async function prerenderToHTMLOrFlightImpl(
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
+    routeMatch,
     generatePrerenderRequestId,
     getMissingPrefetchHintPolicy(
       renderOpts.isBuildTimePrerendering ?? false,
@@ -3356,7 +3357,8 @@ export type AppPageRender = (
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3452,7 +3454,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   fallbackRouteParams,
   renderOpts,
   serverComponentsHmrCache,
-  sharedContext
+  sharedContext,
+  routeMatch
 ) => {
   const { url, parsedRequestHeaders, interpolatedParams, postponedState } =
     prepareAppPage(req, pagePath, fallbackRouteParams, renderOpts)
@@ -3484,7 +3487,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     serverComponentsHmrCache,
     sharedContext,
     interpolatedParams,
-    fallbackRouteParams
+    fallbackRouteParams,
+    routeMatch
   )
 }
 
@@ -3496,7 +3500,8 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   fallbackRouteParams,
   renderOpts,
   _serverComponentsHmrCache,
-  sharedContext
+  sharedContext,
+  routeMatch
 ) => {
   const { url, parsedRequestHeaders, interpolatedParams } = prepareAppPage(
     req,
@@ -3530,7 +3535,8 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
     parsedRequestHeaders,
     sharedContext,
     interpolatedParams,
-    fallbackRouteParams
+    fallbackRouteParams,
+    routeMatch
   )
 }
 

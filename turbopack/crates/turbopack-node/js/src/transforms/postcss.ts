@@ -10,7 +10,7 @@ import type { Processor } from 'postcss'
 import postcss from '@vercel/turbopack/postcss'
 // @ts-ignore
 import importedConfig from 'CONFIG'
-import { getReadEnvVariables, toPath, type TransformIpc } from './transforms'
+import { getReadEnvVariables, type TransformIpc } from './transforms'
 
 let processor: Processor | undefined
 
@@ -99,16 +99,16 @@ export default async function transform(
         break
       case 'dependency':
       case 'missing-dependency':
-        filePaths.push(toPath(msg.file))
+        filePaths.push(msg.file)
         break
       case 'build-dependency':
-        buildFilePaths.push(toPath(msg.file))
+        buildFilePaths.push(msg.file)
         break
       case 'dir-dependency':
-        directories.push([toPath(msg.dir), msg.glob])
+        directories.push([msg.dir, msg.glob])
         break
       case 'context-dependency':
-        directories.push([toPath(msg.dir), '**'])
+        directories.push([msg.dir, '**'])
         break
       default:
         // TODO: do we need to do anything here?

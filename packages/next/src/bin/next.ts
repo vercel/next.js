@@ -293,8 +293,8 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Analyzes only App Router routes.')
   .option(
-    '--baseline-name <name>',
-    'Name this baseline in the snapshot metadata, overriding branch/sha in the comparison UI.'
+    '--snapshot-name <name>',
+    'Name this snapshot in the metadata, overriding branch/sha in the comparison UI.'
   )
   .option(
     '-o, --output',

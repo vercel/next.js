@@ -486,6 +486,35 @@ impl ModuleResolveResult {
             Ok(*ModuleResolveResult::unresolvable())
         }
     }
+
+    /// Combines results from distinct lookup directories. Unlike `alternatives`, entries with
+    /// identical request keys can point at different modules and must both be kept.
+    #[turbo_tasks::function]
+    pub async fn concat(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
+        if results.len() == 1 {
+            return Ok(results.into_iter().next().unwrap());
+        }
+        let mut primary = Vec::new();
+        let mut affecting_sources = Vec::new();
+        let mut seen_sources = FxHashSet::default();
+        for result in results.into_iter().try_join().await? {
+            primary.extend(
+                result.primary.iter().map(|(key, item)| {
+                    (key.clone(), expand_duplicate(&result.primary, item).clone())
+                }),
+            );
+            for source in result.affecting_sources.iter().copied() {
+                if seen_sources.insert(source) {
+                    affecting_sources.push(source);
+                }
+            }
+        }
+        Self::mark_duplicates(&mut primary);
+        Ok(Self::cell(Self {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: affecting_sources.into_boxed_slice(),
+        }))
+    }
 }
 
 #[turbo_tasks::task_input]
@@ -4237,6 +4266,38 @@ mod tests {
             assert_eq!(
                 snap.iter().map(String::as_str).collect::<Vec<_>>(),
                 vec!["module:a.js", "dup:0", "module:b.js"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concat_preserves_distinct_modules_with_same_request_key() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let app = make_module(rcstr!("app.js")).to_resolved().await?;
+            let package = make_module(rcstr!("package.js")).to_resolved().await?;
+            let key = RequestKey::new(rcstr!("./config.js"));
+            let app_result = *ModuleResolveResult::module_with_key(key.clone(), app);
+            let package_result = *ModuleResolveResult::modules([
+                (key, package),
+                (RequestKey::new(rcstr!("also-app")), app),
+            ]);
+            let combined = ModuleResolveResult::concat(vec![app_result, package_result]).await?;
+            assert_eq!(combined.primary_modules().await?.as_slice(), [app, package]);
+            Ok(Vc::cell(snapshot_primary(&combined).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:app.js", "module:package.js", "dup:0"]
             );
             Ok(())
         })

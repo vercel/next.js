@@ -1,4 +1,5 @@
 import { nextTestSetup, type NextInstance } from 'e2e-utils'
+import { join } from 'path'
 
 async function getCodeHashes(
   next: NextInstance,
@@ -138,6 +139,69 @@ async function getCodeHashes(
            ],
          }
         `)
+      })
+    })
+
+    describe('root params', () => {
+      const { next } = nextTestSetup({
+        files: join(__dirname, 'fixtures/root-params'),
+        skipStart: true,
+      })
+
+      async function expectStableRootParamHash(args: string[] = []) {
+        expect((await next.build({ args })).exitCode).toBe(0)
+        const before = await getCodeHashes(next, ['app/[lang]/page'])
+        expect(before).toHaveLength(1)
+        expect(before[0].codeHash).toEqual(expect.any(String))
+
+        await next.patchFile(
+          'app/extra/[region]/layout.jsx',
+          `export default function Layout({ children }) {
+  return <html><body>{children}</body></html>
+}
+
+export function generateStaticParams() {
+  return [{ region: 'eu' }]
+}
+`,
+          async () => {
+            await next.patchFile(
+              'app/extra/[region]/page.jsx',
+              `export default function Page() {
+  return <p>extra root</p>
+}
+`,
+              async () => {
+                expect((await next.build({ args })).exitCode).toBe(0)
+                const after = await getCodeHashes(next, ['app/[lang]/page'])
+                expect(after).toHaveLength(1)
+                expect(after[0].codeHash).toBe(before[0].codeHash)
+              }
+            )
+          }
+        )
+      }
+
+      it('keeps codeHash stable when an unrelated root param is added', async () => {
+        await expectStableRootParamHash()
+      })
+
+      it('keeps root-param codeHash stable in debug-prerender builds', async () => {
+        await expectStableRootParamHash(['--debug-prerender'])
+      })
+
+      it('keeps root-param codeHash stable without import/export pruning', async () => {
+        await next.patchFile(
+          'next.config.js',
+          (config) =>
+            config.replace(
+              'experimental: {',
+              'experimental: { turbopackRemoveUnusedImports: false, turbopackRemoveUnusedExports: false,'
+            ),
+          async () => {
+            await expectStableRootParamHash()
+          }
+        )
       })
     })
 

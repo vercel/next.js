@@ -1,25 +1,28 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// vercel.json uses pnpm so file: dependencies are installed inside node_modules.
+// npm links them to fixture source, which is transpiled without transpilePackages.
 describe('transpile-packages-typescript-foreign', () => {
   describe('without transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
+      // Use the fixture's packageManager version rather than Vercel's default pnpm.
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },
     })
 
-    if (skipped) {
-      return
-    }
-
     it('should fail', async () => {
-      try {
-        await next.start()
-        await next.render('/')
-      } catch (e) {}
+      if (isNextDev) {
+        try {
+          await next.start()
+          await next.render('/')
+        } catch {}
+      } else {
+        await expect(next.start()).rejects.toThrow()
+      }
 
       if (process.env.IS_TURBOPACK_TEST) {
         expect(next.cliOutput).toContain(`pkg/index.ts
@@ -35,12 +38,13 @@ This module doesn't have an associated type`)
         expect(next.cliOutput).toContain(`pkg/index.ts
 Module parse failed: Unexpected token`)
       }
-    })
+    }, 240_000)
   })
 
   describe('with transpilePackages', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },

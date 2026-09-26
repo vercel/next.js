@@ -65,6 +65,11 @@ describe('turbopack additional roots', () => {
     )
   })
 
+  it('handles absolute paths and an additional root in dependencies from a webpack loader', async () => {
+    const browser = await next.browser('/loader')
+    expect(await browser.elementByCss('#loader-value').text()).toBe('processed')
+  })
+
   it('reports initialization warnings when startup succeeds', () => {
     expect(next.cliOutput).toContain('Invalid Turbopack additional root')
     expect(next.cliOutput).not.toContain('overlaps the project root')

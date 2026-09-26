@@ -7,11 +7,9 @@ describe('app-root-param-getters - generateStaticParams error', () => {
     skipStart: true,
   })
 
-  beforeAll(async () => {
-    if (isNextDev) await next.start()
-  })
-
   if (isNextDev) {
+    beforeAll(() => next.start())
+
     it('should error when reading a root param inside the generateStaticParams that defines it - dev', async () => {
       const browser = await next.browser('/en/us')
 
