@@ -18,7 +18,12 @@ import {
   trace,
 } from '@opentelemetry/api'
 
-import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
+import {
+  isLocalSpanRecordingEnabled,
+  runWithLocalSpanSink,
+  setSpanRecorderForTest,
+  type SpanStoreRecord,
+} from './span-store'
 import {
   registerLocalSpanRecorder,
   traceLocalSpan,
@@ -202,6 +207,44 @@ describe('local span recording', () => {
 
     expect(result).toBe('result')
     expect(getSpanRecords()).toEqual([])
+  })
+
+  it('records a local-only trace only while a worker sink is active', async () => {
+    setSpanRecorderForTest(undefined)
+    const workerRecords: SpanStoreRecord[] = []
+    registerLocalSpanRecorder({ sinkOnly: true })
+
+    getTracer().trace(NodeSpan.runHandler, () => undefined)
+    expect(workerRecords).toEqual([])
+
+    await runWithLocalSpanSink(
+      (span) => workerRecords.push(span),
+      () => {
+        expect(isLocalSpanRecordingEnabled()).toBe(true)
+        return getTracer().trace(
+          LoadComponentsSpan.loadRouteModule,
+          { spanName: 'load route module' },
+          () => getTracer().trace(NodeSpan.runHandler, () => Promise.resolve())
+        )
+      }
+    )
+
+    const loadSpan = workerRecords.find(
+      (span) => span.name === 'load route module'
+    )!
+    const handlerSpan = workerRecords.find(
+      (span) => span.name === NodeSpan.runHandler
+    )!
+    expect(loadSpan.parentSpanId).toBeUndefined()
+    expect(handlerSpan).toEqual(
+      expect.objectContaining({
+        traceId: loadSpan.traceId,
+        parentSpanId: loadSpan.spanId,
+      })
+    )
+    getTracer().trace(NodeSpan.runHandler, () => undefined)
+    expect(workerRecords).toHaveLength(2)
+    registerLocalSpanRecorder()
   })
 
   it('records non-vanilla trace and wrapped spans for request insights', () => {

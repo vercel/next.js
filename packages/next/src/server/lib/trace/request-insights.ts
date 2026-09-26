@@ -9,8 +9,18 @@ import {
   getRequestInsightKey,
   getRequestInsightKind,
 } from '../../../shared/lib/request-insights'
-import type { SpanStoreRecord } from './span-store'
-import { isRequestInsightsEnabled, setLocalSpanExporter } from './span-store'
+import {
+  isRequestInsightsEnabled,
+  recordSpans,
+  setLocalSpanExporter,
+} from './span-store'
+import type {
+  LocalSpanBatch,
+  LocalSpanParent,
+  SpanStoreRecord,
+} from './span-store'
+import type { RequestInsightsIdentity } from './request-insights-identity'
+import { reparentLocalSpans } from './local-span-recorder'
 export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
@@ -39,6 +49,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.fetch.cache_status',
   'next.fetch.idx',
   'next.route',
+  'next.request_insights.omitted_spans',
   'next.rsc',
   'next.segment',
   'next.span_category',
@@ -280,13 +291,36 @@ export function registerRequestInsightsExporter(): void {
 }
 
 export function recordRequestInsightSpan(span: SpanStoreRecord): void {
-  if (
-    span.attributes?.['next.span_type'] === CLIENT_COMPONENT_LOADING_SPAN_TYPE
-  ) {
+  if (!shouldRecordRequestInsightSpan(span)) {
     return
   }
 
   getRequestInsightsStore().recordSpan(span)
+}
+
+export function importRequestInsightSpans(
+  identity: RequestInsightsIdentity,
+  parent: LocalSpanParent,
+  batch: LocalSpanBatch
+): void {
+  recordSpans(
+    reparentLocalSpans(
+      parent,
+      batch.spans.filter(shouldRecordRequestInsightSpan)
+    ).map((span) => ({
+      ...span,
+      requestId: identity.requestId,
+      requestInsightKind: identity.kind,
+      htmlRequestId: identity.htmlRequestId,
+      url: identity.url,
+    }))
+  )
+}
+
+function shouldRecordRequestInsightSpan(span: SpanStoreRecord): boolean {
+  return (
+    span.attributes?.['next.span_type'] !== CLIENT_COMPONENT_LOADING_SPAN_TYPE
+  )
 }
 
 export function recordRequestInsightFetch(
