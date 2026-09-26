@@ -29,7 +29,6 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
-import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
@@ -427,14 +426,6 @@ export async function initialize(opts: {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
-
-      // On client disconnect the middleware never ends its zlib stream, which
-      // then leaks past GC. See `releaseCompressionStream`.
-      res.once('close', () => {
-        if (res.writableFinished) return
-
-        releaseCompressionStream(res)
-      })
     }
     req.on('error', (_err) => {
       // TODO: log socket errors?
