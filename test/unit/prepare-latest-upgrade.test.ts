@@ -166,11 +166,11 @@ describe('prepare latest upgrade', () => {
       upgrade: {
         status: 'blocked',
         reason:
-          'Security upgrades are not supported for canary prereleases of Next.js. Use --ai=latest to upgrade on this channel.',
+          "The installed Next.js version (17.2.0-canary.4) is a canary prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest canary release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest",
       },
     })
     await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-      'Security upgrades are not supported for canary prereleases of Next.js.'
+      'The installed Next.js version (17.2.0-canary.4) is a canary prerelease.'
     )
     expect(global.fetch).toHaveBeenCalledTimes(0)
   })
@@ -386,14 +386,16 @@ describe('prepare latest upgrade', () => {
       const directory = await createApp(version)
       global.fetch = jest.fn()
       await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-        'Security upgrades are not supported for'
+        `The installed Next.js version (${version}) is a`
       )
       await expect(getUpgradeAssessment(version, 'security')).resolves.toEqual(
         expect.objectContaining({
           affected: null,
           upgrade: expect.objectContaining({
             status: 'blocked',
-            reason: expect.stringContaining('Use --ai=latest'),
+            reason: expect.stringContaining(
+              'npx next@canary upgrade --ai=latest'
+            ),
           }),
         })
       )
@@ -414,7 +416,9 @@ describe('prepare latest upgrade', () => {
           affected: null,
           upgrade: expect.objectContaining({
             status: 'blocked',
-            reason: expect.stringContaining('Use --ai=latest'),
+            reason: expect.stringContaining(
+              'npx next@canary upgrade --ai=latest'
+            ),
           }),
         })
       )
