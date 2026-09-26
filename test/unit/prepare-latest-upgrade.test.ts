@@ -445,8 +445,17 @@ describe('prepare latest upgrade', () => {
       const target = '17.2.0'
       const directory = await createApp(installed)
       global.fetch = jest.fn(async (input) => {
+        if (String(input).startsWith('https://api.github.com/advisories?')) {
+          return Response.json([])
+        }
         expect(String(input)).toBe('https://registry.npmjs.org/next/latest')
         return Response.json({ version: target })
+      })
+      await expect(
+        getUpgradeAssessment(installed, 'latest')
+      ).resolves.toMatchObject({
+        affected: null,
+        upgrade: { status: 'ready', targetVersion: target },
       })
       await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual(
         expect.objectContaining({
@@ -456,9 +465,48 @@ describe('prepare latest upgrade', () => {
           references: ['https://registry.npmjs.org/next/latest'],
         })
       )
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(global.fetch).toHaveBeenCalledTimes(4)
     }
   )
+
+  it.each([false, true])(
+    'blocks an advised stable target for a prerelease with npm fallback=%s',
+    async (fallback) => {
+      const installed = '17.2.0-rc.1'
+      const target = '17.2.0'
+      const directory = await createApp(installed)
+      mockSecurityMetadata({
+        fallback,
+        ranges: [target],
+        target,
+        published: fallback ? [installed] : [installed, target],
+      })
+      await expect(
+        getUpgradeAssessment(installed, 'latest')
+      ).resolves.toMatchObject({
+        affected: null,
+        upgrade: {
+          status: 'blocked',
+          reason: `Next.js ${target} is affected by an active advisory.`,
+        },
+      })
+      await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+        `Next.js ${target} is affected by an active advisory.`
+      )
+    }
+  )
+
+  it('does not offer stable latest when advisory validation fails for a prerelease', async () => {
+    const installed = '17.2.0-rc.1'
+    const directory = await createApp(installed)
+    mockSecurityMetadata({ fallback: true, npmFailure: true })
+    await expect(getUpgradeAssessment(installed, 'latest')).rejects.toThrow(
+      'Could not check for security updates.'
+    )
+    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
+      'Could not check for security updates.'
+    )
+  })
 
   it.each([
     '17.2.0-rc.2',
@@ -468,7 +516,13 @@ describe('prepare latest upgrade', () => {
     'invalid',
   ])('rejects a prerelease or invalid stable dist-tag: %s', async (target) => {
     const directory = await createApp('17.2.0-rc.1')
-    global.fetch = jest.fn(async () => Response.json({ version: target }))
+    global.fetch = jest.fn(async (input) =>
+      Response.json(
+        String(input).startsWith('https://api.github.com/advisories?')
+          ? []
+          : { version: target }
+      )
+    )
     await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
       'Could not determine the latest stable Next.js version.'
     )
@@ -479,6 +533,9 @@ describe('prepare latest upgrade', () => {
     async (installed) => {
       const directory = await createApp(installed)
       global.fetch = jest.fn(async (input) => {
+        if (String(input).startsWith('https://api.github.com/advisories?')) {
+          return Response.json([])
+        }
         expect(String(input)).toBe('https://registry.npmjs.org/next/latest')
         return Response.json({ version: '17.2.0' })
       })
@@ -486,7 +543,7 @@ describe('prepare latest upgrade', () => {
         status: 'unaffected',
         reason: `Next.js ${installed} is newer than the latest stable release 17.2.0.`,
       })
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(global.fetch).toHaveBeenCalledTimes(2)
     }
   )
 

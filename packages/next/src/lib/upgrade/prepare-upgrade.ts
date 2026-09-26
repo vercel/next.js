@@ -127,12 +127,16 @@ export async function getUpgradeAssessment(
       },
     }
   }
-  // Prerelease version ordering does not establish which security fixes it contains.
-  // Keep prerelease upgrades independent of advisory assessment.
-  const snapshot = channel ? null : await readAdvisorySnapshot(installedVersion)
-  const affected = snapshot
-    ? snapshot.ranges.some((range) => semver.satisfies(installedVersion, range))
-    : null
+  // Prerelease version ordering does not establish which security fixes it
+  // contains, but stable promotion targets still need advisory validation.
+  const snapshot =
+    channel === 'canary' ? null : await readAdvisorySnapshot(installedVersion)
+  const affected =
+    snapshot && !channel
+      ? snapshot.ranges.some((range) =>
+          semver.satisfies(installedVersion, range)
+        )
+      : null
   const assessment = { affected, reference: snapshot?.reference ?? null }
 
   if (snapshot && snapshot.targetError !== null) {
@@ -217,9 +221,11 @@ export async function getUpgradeAssessment(
             targetVersion,
           ])
         )
-        assessment.affected ||= snapshot.ranges.some((range) =>
-          semver.satisfies(installedVersion, range)
-        )
+        if (!channel) {
+          assessment.affected ||= snapshot.ranges.some((range) =>
+            semver.satisfies(installedVersion, range)
+          )
+        }
       }
       if (
         snapshot?.ranges.some((range) => semver.satisfies(targetVersion, range))
