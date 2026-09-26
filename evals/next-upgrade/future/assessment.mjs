@@ -11,9 +11,18 @@ const { target } = JSON.parse(
 globalThis.fetch = async (input, init) => {
   const url = String(input)
   let value
+  let versions
 
-  if (url.startsWith('https://api.github.com/advisories?')) {
-    value = []
+  if (url === 'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk') {
+    versions = JSON.parse(init.body).next
+    if (
+      !Array.isArray(versions) ||
+      versions.length === 0 ||
+      versions.some((version) => typeof version !== 'string')
+    ) {
+      throw new Error('Expected Next.js advisory versions')
+    }
+    value = {}
   } else if (url === 'https://registry.npmjs.org/next/latest') {
     value = {
       version: target,
@@ -25,7 +34,7 @@ globalThis.fetch = async (input, init) => {
 
   appendFileSync(
     join(tools, 'assessment.jsonl'),
-    JSON.stringify({ url, value }) + '\n'
+    JSON.stringify({ url, versions, value }) + '\n'
   )
   return Response.json(value)
 }
