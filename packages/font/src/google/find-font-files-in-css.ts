@@ -8,6 +8,11 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
   const fontFiles: Array<{
     googleFontFileUrl: string
     preloadFontFile: boolean
+    // The format('...') hint from the same `src:` line, if present.
+    // Google Fonts sometimes returns URLs without a file extension
+    // (e.g. https://fonts.gstatic.com/l/font?kit=...), in which case the
+    // format hint is used to determine the font file extension.
+    format: string | undefined
   }> = []
 
   // Keep track of the current subset
@@ -19,6 +24,7 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
       currentSubset = newSubset
     } else {
       const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
+      const format = /format\(['"](.+?)['"]\)/.exec(line)?.[1]
       if (
         googleFontFileUrl &&
         !fontFiles.some(
@@ -29,6 +35,7 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
         fontFiles.push({
           googleFontFileUrl,
           preloadFontFile: !!subsetsToPreload?.includes(currentSubset),
+          format,
         })
       }
     }
