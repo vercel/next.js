@@ -612,20 +612,13 @@ pub trait Backend: Sized + Sync + Send {
     /// the interior of a [`State`][crate::State] stored in one of its cells), and records that the
     /// task's persisted form is out of date.
     ///
-    /// A persisting backend must make the change and the record of it appear atomic to snapshots
-    /// and eviction: record the modification first, and don't let a snapshot begin until `mutate`
-    /// has returned. See [`crate::InteriorMutator::mutate`] for the caller's side.
-    ///
-    /// Backends that don't persist anything just run `mutate`.
-    #[allow(unused_variables)]
+    /// The `mutate` callback must not call into `turbo_tasks`.
     fn mutate_interior(
         &self,
         task: TaskId,
         mutate: &mut dyn FnMut(),
         turbo_tasks: &TurboTasks<Self>,
-    ) {
-        mutate()
-    }
+    );
 
     fn try_start_task_execution<'a>(
         &'a self,

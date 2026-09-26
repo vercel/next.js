@@ -1899,16 +1899,9 @@ impl TurboTasksBackend {
             return;
         }
         // Eviction may run at any moment and trusts the modified flags alone, so the task must be
-        // marked before `mutate` changes anything in memory. The only thing that clears the flags
-        // is a snapshot persisting the task, so the mark must also not be consumed by a snapshot
-        // that started before `mutate` ran. `ctx` holds an operation for its whole lifetime, which
-        // keeps a snapshot from starting until `mutate` has returned: either both the mark and the
-        // change precede the snapshot (and it persists the changed value), or both follow it (and
-        // the mark survives as `modified_during_snapshot`).
+        // marked modified before `mutate` changes anything in memory.
         let mut ctx = self.execute_context(turbo_tasks);
         {
-            // The task lock is only needed for the mark; the operation alone is what keeps a
-            // snapshot out while `mutate` runs, so don't hold up other work on this shard.
             let mut task = ctx.task(task_id, TaskDataCategory::Data);
             let _ = task.track_modification(SpecificTaskDataCategory::Data, "mutate_interior");
             let _ = task.track_modification(SpecificTaskDataCategory::Meta, "mutate_interior");

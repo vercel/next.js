@@ -122,43 +122,6 @@ async fn eviction_state_reader_registered_after_snapshot() {
     result.unwrap();
 }
 
-/// An update closure on a persisted `State` runs inside a backend operation with the owner's task
-/// locked, so calling back into turbo-tasks from it can deadlock against a pending snapshot. Debug
-/// builds turn that into an immediate, explanatory panic.
-#[cfg(debug_assertions)]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn state_update_closure_must_not_call_turbo_tasks() {
-    let (tt, _persistence_dir) =
-        create_tt_without_gc("state_update_closure_must_not_call_turbo_tasks");
-
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        let state_op = create_state(1);
-        let state = state_op.read_strongly_consistent().await?;
-        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            state.update_conditionally(|value| {
-                // Pinning goes through the backend.
-                let _root = turbo_tasks::GcRoot::pin(turbo_tasks::turbo_tasks(), state_op);
-                *value = 2;
-                true
-            })
-        }))
-        .expect_err("calling into turbo-tasks from the closure should panic");
-        let message = panic
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| panic.downcast_ref::<&str>().copied())
-            .unwrap_or_default();
-        assert!(
-            message.contains("must not call back into turbo-tasks"),
-            "unexpected panic: {message}"
-        );
-        anyhow::Ok(())
-    })
-    .await;
-    tt.stop_and_wait().await;
-    result.unwrap();
-}
-
 /// Verify that eviction works with a deep (4-level) dependency chain.
 /// Multiple intermediate tasks should be evicted and restored correctly.
 /// Chain: create_state → add_one → times_three → plus_ten → deep_chain
