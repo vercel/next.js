@@ -649,12 +649,11 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
-  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
-  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # Guards that Turbopack keeps compiling and linking for wasm, so the wasm fallback Next.js loads
+  # when the native bindings are unavailable can eventually support Turbopack and not just SWC.
   # See https://github.com/vercel/next.js/issues/96960.
   #
-  # This compiles the bindings and runs the wasm test suites with the pinned emnapi v2 prerelease.
-  # A linked build is gated by the first stack layer that provides every required runtime hook.
+  # setup-wasi-env.sh pins the exact emnapi v2 prerelease needed for linking.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
@@ -674,6 +673,7 @@ jobs:
         # Provisions the wasi-sdk, emnapi and the cross-compilation env. Shared with local
         # builds so the two cannot drift; see contributing/core/building-wasm.md.
         source scripts/setup-wasi-env.sh
+
 
         # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
         # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
