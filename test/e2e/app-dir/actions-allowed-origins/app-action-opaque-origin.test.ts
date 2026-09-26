@@ -24,17 +24,12 @@ describe('app-dir action allowed from opaque origins', () => {
 })
 
 describe('app-dir action disallowed from opaque origins', () => {
-  const { isNextDev, next, skipped } = nextTestSetup({
+  const { isNextDev, next } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
-    skipDeployment: true,
     env: {
       NEXT_TEST_ALLOW_OPAQUE_ORIGIN: '',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should fail on submission', async function () {
     const browser = await next.browser('/sandboxed')

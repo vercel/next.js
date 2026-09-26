@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 describe('instrumentation-order', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should work', async () => {
