@@ -874,11 +874,7 @@ export async function createHotReloaderTurbopack(
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
-  const runtimeErrorStates =
-    nextConfig.experimental.exposeRuntimeErrorsToHMR ||
-    Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
-      ? new Map<string, RuntimeErrorStateMessage>()
-      : null
+  const runtimeErrorStates = new Map<string, RuntimeErrorStateMessage>()
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
@@ -1559,22 +1555,16 @@ export async function createHotReloaderTurbopack(
           subscriptions,
         })
 
-        if (runtimeErrorStates) {
-          for (const message of runtimeErrorStates.values()) {
-            sendToClient(client, message)
-          }
+        for (const message of runtimeErrorStates.values()) {
+          sendToClient(client, message)
         }
 
-        const runtimeErrorStateHandler =
-          nextConfig.experimental.exposeRuntimeErrorsToHMR ||
-          Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
-            ? createRuntimeErrorStateHandler((message) =>
-                hotReloader.send({ ...message, htmlRequestId })
-              )
-            : undefined
+        const runtimeErrorStateHandler = createRuntimeErrorStateHandler(
+          (message) => hotReloader.send({ ...message, htmlRequestId })
+        )
 
         client.on('close', () => {
-          runtimeErrorStateHandler?.dispose()
+          runtimeErrorStateHandler.dispose()
 
           // Remove active subscriptions
           for (const subscription of subscriptions.values()) {
@@ -1667,7 +1657,7 @@ export async function createHotReloaderTurbopack(
             }
 
             case HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS: {
-              void runtimeErrorStateHandler?.handle(parsedData).catch(() => {})
+              void runtimeErrorStateHandler.handle(parsedData).catch(() => {})
               break
             }
 
@@ -1775,10 +1765,7 @@ export async function createHotReloaderTurbopack(
     },
 
     send(action) {
-      if (
-        runtimeErrorStates &&
-        action.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
-      ) {
+      if (action.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS) {
         if (action.errors.length === 0) {
           runtimeErrorStates.delete(action.clientId)
         } else {
@@ -2169,7 +2156,7 @@ export async function createHotReloaderTurbopack(
       }
       clientsWithoutHtmlRequestId.clear()
       clientsByHtmlRequestId.clear()
-      runtimeErrorStates?.clear()
+      runtimeErrorStates.clear()
     },
   }
 
