@@ -397,6 +397,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
         customHmrEventHandler(message)
       }
       break
+    case HMR_MESSAGE_SENT_TO_BROWSER.UPGRADE_ADVISORY: {
+      dispatcher.onUpgradeAdvisory(message.advisory)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
       dispatcher.onDevToolsConfig(message.data)
       break

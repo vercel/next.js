@@ -15,6 +15,7 @@ import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
 import Conf from 'next/dist/compiled/conf'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { createUpgradeAdvisory } from 'next/dist/lib/upgrade/dev-advisory'
 import { warn } from 'next/dist/build/output/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 
@@ -30,6 +31,9 @@ jest.mock(
 // Read source so version cases run before the package build inlines __NEXT_VERSION.
 jest.mock('next/dist/lib/upgrade/nudge', () =>
   jest.requireActual('../../packages/next/src/lib/upgrade/nudge')
+)
+jest.mock('next/dist/lib/upgrade/dev-advisory', () =>
+  jest.requireActual('../../packages/next/src/lib/upgrade/dev-advisory')
 )
 jest.mock('../../packages/next/src/telemetry/agent-name', () =>
   jest.requireMock('next/dist/telemetry/agent-name')
@@ -103,6 +107,59 @@ const config = (
     experimental: { agenticAutoUpgrade: policy },
   }) as never
 
+describe('dev upgrade advisory', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.requireMock('../../packages/next/src/server/ci-info').isCI = false
+  })
+
+  it('skips a forced check in CI', async () => {
+    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+    jest.requireMock('../../packages/next/src/server/ci-info').isCI = true
+
+    const advisory = createUpgradeAdvisory(
+      directory,
+      config('security'),
+      '16.4.0'
+    )
+    await expect(advisory.assessment).resolves.toBeNull()
+    expect(advisory.getSnapshot()).toBeNull()
+    expect(getUpgradeAssessment).not.toHaveBeenCalled()
+  })
+
+  it('keeps Windows paths usable in the copied command', async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+    Object.defineProperty(process, 'platform', {
+      configurable: true,
+      value: 'win32',
+    })
+    try {
+      jest.mocked(getUpgradeAssessment).mockResolvedValue({
+        affected: true,
+        reference: null,
+        upgrade: {
+          status: 'ready',
+          installedVersion: '16.4.0',
+          targetVersion: '16.4.1',
+          references: [],
+          futureDefaults: [],
+        },
+      })
+      const advisory = createUpgradeAdvisory(
+        'C:\\Users\\me\\my app',
+        config('security'),
+        '16.4.0'
+      )
+      await advisory.assessment
+      expect(advisory.getSnapshot()?.prompt).toBe(
+        'Run `next upgrade "C:\\Users\\me\\my app" --ai=security` and follow its instructions.'
+      )
+    } finally {
+      Object.defineProperty(process, 'platform', platform)
+    }
+  })
+})
+
 beforeEach(async () => {
   delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
   process.env.__NEXT_VERSION = '16.4.0'
@@ -162,7 +219,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, use a separate Git worktree unless they request otherwise\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, use a separate Git worktree unless they request otherwise\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -185,7 +242,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*registry\.npmjs\.org/
+        /affected by a known security vulnerability[\s\S]*registry\.npmjs\.org/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -922,6 +979,44 @@ describe('human upgrade nudge', () => {
         new AbortController().signal
       )
     ).resolves.toBe('skip')
+  })
+
+  it('reuses the worker assessment when no reminder is dismissed', async () => {
+    const assessment = assessUpgrade(directory, config('security'))
+    await assessment
+    jest.clearAllMocks()
+
+    await expect(
+      nudgeUpgrade(
+        directory,
+        config('security'),
+        'dev',
+        new AbortController().signal,
+        assessment
+      )
+    ).resolves.toBe('skip')
+    expect(getUpgradeAssessment).not.toHaveBeenCalled()
+    expect(promptUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('respects a saved dismissal when a worker assessment is provided', async () => {
+    jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
+    await run('security')
+    const assessment = assessUpgrade(directory, config('security'))
+    await assessment
+    jest.clearAllMocks()
+
+    await expect(
+      nudgeUpgrade(
+        directory,
+        config('security'),
+        'dev',
+        new AbortController().signal,
+        assessment
+      )
+    ).resolves.toBeUndefined()
+    expect(getUpgradeAssessment).not.toHaveBeenCalled()
+    expect(promptUpgrade).not.toHaveBeenCalled()
   })
 
   it.each(['.', 'apps/web'])(

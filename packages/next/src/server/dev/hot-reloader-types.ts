@@ -19,6 +19,7 @@ import type {
 } from '../../next-devtools/shared/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
+import type { UpgradeAdvisory } from '../../next-devtools/shared/upgrade-advisory'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   // JSON messages:
@@ -45,6 +46,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
   REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
+  UPGRADE_ADVISORY = 'upgradeAdvisory',
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
@@ -264,6 +266,11 @@ export interface RequestInsightsUpdateMessage {
   insight: RequestInsight
 }
 
+export interface UpgradeAdvisoryMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.UPGRADE_ADVISORY
+  advisory: UpgradeAdvisory | null
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -289,6 +296,7 @@ export type HmrMessageSentToBrowser =
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
+  | UpgradeAdvisoryMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,

@@ -29,7 +29,7 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import type { UpgradeContext } from '../lib/upgrade/nudge'
+import type { UpgradeContext, assessUpgrade } from '../lib/upgrade/nudge'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -254,7 +254,11 @@ const nextDev = async (
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
-  async function offerUpgrade(worker: ChildProcess, context: UpgradeContext) {
+  async function offerUpgrade(
+    worker: ChildProcess,
+    context: UpgradeContext,
+    assessment: Awaited<ReturnType<typeof assessUpgrade>>
+  ) {
     process.on('SIGHUP', onHangup)
     upgradeOffered = true
     upgradeInProgress = true
@@ -262,7 +266,13 @@ const nextDev = async (
     upgradeController = controller
     let action
     try {
-      action = await nudgeUpgrade(dir, context, 'dev', controller.signal)
+      action = await nudgeUpgrade(
+        dir,
+        context,
+        'dev',
+        controller.signal,
+        Promise.resolve(assessment)
+      )
     } catch (error) {
       Log.warn(`Could not offer the upgrade: ${String(error)}`)
     } finally {
@@ -516,13 +526,15 @@ const nextDev = async (
         if (msg && typeof msg === 'object') {
           if (msg.nextUpgradeContext) {
             distDir = msg.nextUpgradeContext.distDir
-            void offerUpgrade(child!, msg.nextUpgradeContext).catch(
-              async (error) => {
-                console.error(error)
-                await handleSessionStop('SIGTERM', false)
-                process.exit(1)
-              }
-            )
+            void offerUpgrade(
+              child!,
+              msg.nextUpgradeContext,
+              msg.nextUpgradeAssessment
+            ).catch(async (error) => {
+              console.error(error)
+              await handleSessionStop('SIGTERM', false)
+              process.exit(1)
+            })
           } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
