@@ -526,9 +526,7 @@ impl Storage {
     pub fn access_entry_mut(&self, key: TaskId) -> TaskEntryGuard<'_> {
         let entry = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e,
-            dashmap::mapref::entry::Entry::Vacant(e) => {
-                e.insert_entry(Box::new(TaskStorage::new()))
-            }
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert_entry(Box::new(TaskSlot::new())),
         };
         TaskEntryGuard {
             storage: self,
@@ -579,7 +577,7 @@ impl Storage {
                 let mut roots = Vec::new();
                 let shard = self.map.shards()[index].read();
                 for (task_id, task) in shard.iter() {
-                    if !task_id.is_transient() && task.gc_is_root() {
+                    if !task_id.is_transient() && task.with_lock(TaskStorage::gc_is_root) {
                         roots.push(*task_id);
                     }
                 }
@@ -793,7 +791,7 @@ impl Storage {
 /// removal is no longer a possibility, or call [`Self::discard`] to drop the entry outright.
 pub struct TaskEntryGuard<'a> {
     storage: &'a Storage,
-    entry: dashmap::mapref::entry::OccupiedEntry<'a, TaskId, Box<TaskStorage>>,
+    entry: dashmap::mapref::entry::OccupiedEntry<'a, TaskId, Box<TaskSlot>>,
 }
 
 impl<'a> TaskEntryGuard<'a> {
@@ -804,23 +802,22 @@ impl<'a> TaskEntryGuard<'a> {
 
     /// Gives up the ability to remove the entry, yielding an ordinary write guard.
     pub fn into_write_guard(self) -> StorageWriteGuard<'a> {
-        StorageWriteGuard {
-            storage: self.storage,
-            inner: self.entry.into_ref().into(),
-        }
+        StorageWriteGuard::new(self.storage, self.entry.into_ref().downgrade().into())
     }
 }
 
 impl Deref for TaskEntryGuard<'_> {
     type Target = TaskStorage;
     fn deref(&self) -> &Self::Target {
-        self.entry.get()
+        // SAFETY: the entry guard holds the shard write lock, so no other task guard can access
+        // this slot while it is borrowed here.
+        unsafe { self.entry.get().get() }
     }
 }
 
 impl DerefMut for TaskEntryGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.entry.get_mut()
+        self.entry.get_mut().get_mut_exclusive()
     }
 }
 
