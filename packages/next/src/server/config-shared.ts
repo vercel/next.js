@@ -41,6 +41,7 @@ export type NextConfigComplete = Required<
   Omit<
     NextConfig,
     | 'configFile'
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -52,6 +53,7 @@ export type NextConfigComplete = Required<
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
   Pick<
     NextConfig,
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -2271,7 +2273,6 @@ export const defaultConfig = Object.freeze({
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
