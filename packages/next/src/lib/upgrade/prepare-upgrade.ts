@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
 import { join } from 'path'
-import { resetEnv } from '@next/env'
+import { loadEnvConfig, resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import loadConfig from '../../server/config'
 import { PHASE_INFO } from '../../shared/lib/constants'
@@ -58,9 +58,33 @@ export async function prepareUpgrade(
     return upgrade
   }
 
-  const config = await loadConfig(PHASE_INFO, directory, {
-    silent: true,
-  }).finally(resetEnv)
+  // Dev prompt preflight may have cached development env files in this process.
+  // Reload for the upgrade's own phase before evaluating Future Defaults.
+  // This does not re-import next.config: a top-level env-derived export may
+  // still reflect dev preflight in a same-process upgrade. If this causes a
+  // real mismatch, run upgrade preparation in a fresh process.
+  let config: Awaited<ReturnType<typeof loadConfig>>
+  try {
+    loadEnvConfig(
+      directory,
+      false,
+      {
+        info() {},
+        error(message, cause) {
+          throw new Error(
+            `Next.js could not load the upgrade environment: ${message}`,
+            {
+              cause,
+            }
+          )
+        },
+      },
+      true
+    )
+    config = await loadConfig(PHASE_INFO, directory, { silent: true })
+  } finally {
+    resetEnv()
+  }
   const pendingFutureDefaults = getPendingFutureDefaults(
     directory,
     config,

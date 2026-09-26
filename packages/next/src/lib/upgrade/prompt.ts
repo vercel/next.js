@@ -46,7 +46,33 @@ export async function promptUpgrade(
     cancelled = true
     keys.emit('keypress', '', { name: 'escape' })
   }
+  let suspended = false
+  const onSuspend = () => {
+    if (suspended) {
+      return
+    }
+    suspended = true
+    input.setRawMode(wasRaw)
+    terminal.write('\x1b[?1049l\x1b[?25h')
+  }
+  const onContinue = () => {
+    if (!suspended) {
+      return
+    }
+    suspended = false
+    terminal.write('\x1b[?1049h')
+    input.setRawMode(true)
+    input.resume()
+    // Recreate the menu after returning to its alternate screen.
+    onResize()
+  }
   const onKey = (text: string, key: Key) => {
+    if (process.platform !== 'win32' && key?.ctrl && key.name === 'z') {
+      // Raw mode delivers Ctrl+Z as a key instead of SIGTSTP.
+      onSuspend()
+      process.kill(process.pid, 'SIGTSTP')
+      return
+    }
     if (key?.ctrl && key.name === 'c') {
       interrupted = true
     }
@@ -66,6 +92,7 @@ export async function promptUpgrade(
     })
   }
   let restored = false
+  let screenRestored: Promise<void> | null = null
   const restore = () => {
     if (restored) {
       return
@@ -75,6 +102,8 @@ export async function promptUpgrade(
     terminal.removeListener('resize', onResize)
     signal.removeEventListener('abort', cancel)
     process.removeListener('exit', restore)
+    process.removeListener('SIGTSTP', onSuspend)
+    process.removeListener('SIGCONT', onContinue)
     keys.destroy()
     try {
       input.setRawMode(wasRaw)
@@ -82,11 +111,25 @@ export async function promptUpgrade(
       if (wasFlowing !== true) {
         input.pause()
       }
-      terminal.write('\x1b[?1049l\x1b[?25h')
+      screenRestored = new Promise<void>((resolve, reject) => {
+        terminal.write('\x1b[?1049l\x1b[?25h', (error) => {
+          if (error) {
+            reject(error)
+          } else {
+            resolve()
+          }
+        })
+      })
     }
   }
   // CLI signal handlers may exit synchronously, before the promise settles.
   process.once('exit', restore)
+  if (process.platform !== 'win32') {
+    // An external SIGTSTP must restore the menu before the supervisor stops
+    // this process and its PTY child.
+    process.prependListener('SIGTSTP', onSuspend)
+    process.on('SIGCONT', onContinue)
+  }
   try {
     // Keep startup output on the normal screen while the menu owns the terminal.
     terminal.write('\x1b[?1049h')
@@ -129,5 +172,10 @@ export async function promptUpgrade(
     }
   } finally {
     restore()
+    if (screenRestored) {
+      // Replay uses fd writes, which can overtake pending stdout writes on
+      // Windows. Finish leaving the prompt screen before returning to replay.
+      await screenRestored
+    }
   }
 }
