@@ -117,14 +117,16 @@ impl Code {
         PersistedCode(self).resolved_cell()
     }
 
-    // Formats the code with the source map and debug id comments as
+    // Formats the code with the published source map and debug id comments.
+    // Mappings may be kept only for analysis without referencing a map on disk.
     pub async fn to_rope_with_magic_comments(
         self: Vc<Self>,
+        publish_source_map: bool,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<Rope> {
         let code = self.await?;
         Ok(
-            if code.has_source_map() || code.should_generate_debug_id() {
+            if (publish_source_map && code.has_source_map()) || code.should_generate_debug_id() {
                 let mut rope_builder = RopeBuilder::default();
                 let debug_id = self.debug_id().await?;
                 // hand minified version of
@@ -157,7 +159,7 @@ impl Code {
                     write!(rope_builder, "\n//# debugId={}", debug_id)?;
                 }
 
-                if code.has_source_map() {
+                if publish_source_map && code.has_source_map() {
                     let source_map_path = source_map_path_fn().path().await?;
                     write!(
                         rope_builder,

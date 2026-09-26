@@ -81,7 +81,7 @@ impl OutputAssetsReference for EcmascriptBuildNodeChunk {
         let chunk_references = this.chunk.references().await?;
         let include_source_map = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?;
         let ref_assets = chunk_references.assets.await?;
         let mut assets =

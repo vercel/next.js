@@ -59,7 +59,13 @@ async fn get_analyze_data_operation(
     app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project();
-    let project = project.with_next_config(project.next_config().with_analyze_config());
+    // The production build already computed in-memory mappings in its own graph.
+    // Standalone analysis still uses its map-enabled variant of the project.
+    let project = if *project.next_config().build_analyze().await? {
+        project
+    } else {
+        project.with_next_config(project.next_config().with_analyze_config())
+    };
 
     let analyze_output_root = project
         .node_root()

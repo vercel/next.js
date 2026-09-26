@@ -45,6 +45,26 @@ pnpm next analyze
 bunx next analyze
 ```
 
+To produce a production build **and** save bundle analysis in one command, use `next build --analyze` instead:
+
+```bash filename="Terminal" package="npm"
+npx next build --analyze
+```
+
+```bash filename="Terminal" package="yarn"
+yarn next build --analyze
+```
+
+```bash filename="Terminal" package="pnpm"
+pnpm next build --analyze
+```
+
+```bash filename="Terminal" package="bun"
+bunx next build --analyze
+```
+
+Build analysis is saved to `.next/diagnostics/analyze`. When browser source maps are enabled in your build configuration, `--analyze` still publishes them. Otherwise, it keeps mappings for analysis without publishing browser maps. The separate `next analyze` command opens the interactive analyzer without producing a production build.
+
 ### Step 2: Filter and inspect modules
 
 Within the UI, you can filter by route, environment (client or server), and type (JavaScript, CSS, JSON), or search by file:

@@ -155,7 +155,13 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .to_rope_with_magic_comments(
+                        *this
+                            .chunking_context
+                            .publish_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+                            .await?,
+                        || *this.source_map,
+                    )
                     .await?,
             ))
             .cell(),

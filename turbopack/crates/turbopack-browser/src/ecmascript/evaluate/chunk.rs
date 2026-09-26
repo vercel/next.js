@@ -279,7 +279,7 @@ impl OutputAssetsReference for EcmascriptBrowserEvaluateChunk {
 
         let include_source_map = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?;
 
         if include_source_map {
@@ -313,10 +313,17 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
 impl Asset for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = self.await?;
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *this
+                            .chunking_context
+                            .publish_chunk_source_maps(Vc::upcast(self))
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),

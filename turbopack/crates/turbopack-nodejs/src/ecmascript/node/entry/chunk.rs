@@ -188,7 +188,7 @@ impl OutputAssetsReference for EcmascriptBuildNodeEntryChunk {
 
         if *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?
         {
             assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))

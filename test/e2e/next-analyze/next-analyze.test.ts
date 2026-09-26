@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { shouldUseTurbopack } from 'next-test-utils'
 import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
 describe('next analyze', () => {
   if (!shouldUseTurbopack()) {
@@ -92,6 +92,91 @@ describe('next analyze', () => {
     expect(history.snapshots[0].snapshotName).toBe(name)
     expect(history.snapshots[0]).not.toHaveProperty('baselineName')
   })
+
+  it('builds and analyzes the same production assets without publishing browser maps', async () => {
+    const staticDir = path.join(next.testDir, '.next/static')
+    const analyzeDir = path.join(next.testDir, '.next/diagnostics/analyze/data')
+    const build = await next.build()
+    expect(build.exitCode).toBe(0)
+
+    const assets = () =>
+      readdirSync(staticDir, { recursive: true, encoding: 'utf8' })
+        .filter((file) => /\.(js|css)$/.test(file))
+        .sort()
+    const normalAssets = assets()
+    expect(normalAssets.some((file) => file.endsWith('.js'))).toBe(true)
+    expect(normalAssets.some((file) => file.endsWith('.css'))).toBe(true)
+    const normalContents = normalAssets.map((file) =>
+      readFileSync(path.join(staticDir, file))
+    )
+
+    const result = await next.build({ args: ['--analyze'] })
+    expect(result.exitCode).toBe(0)
+    expect(assets()).toEqual(normalAssets)
+    for (const [index, file] of normalAssets.entries()) {
+      const content = readFileSync(path.join(staticDir, file))
+      expect(content).toEqual(normalContents[index])
+      expect(content.toString()).not.toContain('sourceMappingURL=')
+    }
+    expect(
+      readdirSync(staticDir, { recursive: true, encoding: 'utf8' }).some((f) =>
+        f.endsWith('.map')
+      )
+    ).toBe(false)
+    expect(
+      existsSync(path.join(next.testDir, '.next/server/app/page.js'))
+    ).toBe(true)
+    expect(
+      readFileSync(path.join(analyzeDir, 'analyze.data'), 'utf8')
+    ).toContain('"path":"demo.tsx"')
+    expect(existsSync(path.join(analyzeDir, 'modules.data'))).toBe(true)
+  }, 180_000)
+
+  it('preserves published maps when production browser maps are enabled', async () => {
+    const configPath = path.join(next.testDir, 'next.config.js')
+    const originalConfig = readFileSync(configPath, 'utf8')
+    try {
+      await next.patchFile(
+        'next.config.js',
+        `${originalConfig}\nmodule.exports.productionBrowserSourceMaps = true\n`
+      )
+      expect((await next.build()).exitCode).toBe(0)
+      const staticDir = path.join(next.testDir, '.next/static')
+      const files = () =>
+        readdirSync(staticDir, { recursive: true, encoding: 'utf8' })
+          .filter((file) => /\.(js|css)(\.map)?$/.test(file))
+          .sort()
+      const normalFiles = files()
+      expect(normalFiles.some((file) => file.endsWith('.map'))).toBe(true)
+      const normalContents = normalFiles.map((file) =>
+        readFileSync(path.join(staticDir, file))
+      )
+      expect((await next.build({ args: ['--analyze'] })).exitCode).toBe(0)
+      expect(files()).toEqual(normalFiles)
+      for (const [index, file] of normalFiles.entries()) {
+        expect(readFileSync(path.join(staticDir, file))).toEqual(
+          normalContents[index]
+        )
+      }
+    } finally {
+      await next.patchFile('next.config.js', originalConfig)
+    }
+  }, 180_000)
+
+  it('advertises --analyze while accepting the legacy build flag', async () => {
+    const help = await next.runCommand(['build', '--help'])
+    expect(help.exitCode).toBe(0)
+    expect(help.stdout).toContain('--analyze')
+    expect(help.stdout).not.toContain('--experimental-analyze')
+
+    const result = await next.build({ args: ['--experimental-analyze'] })
+    expect(result.exitCode).toBe(0)
+    expect(
+      existsSync(
+        path.join(next.testDir, '.next/diagnostics/analyze/data/analyze.data')
+      )
+    ).toBe(true)
+  }, 180_000)
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {
