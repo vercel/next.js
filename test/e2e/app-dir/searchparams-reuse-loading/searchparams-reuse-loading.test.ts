@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 
 describe('searchparams-reuse-loading', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -178,6 +178,10 @@ describe('searchparams-reuse-loading', () => {
           string,
           { resolve: () => Promise<void> }
         >()
+        let resolveId3RequestStarted: () => void
+        const id3RequestStarted = new Promise<void>((resolve) => {
+          resolveId3RequestStarted = resolve
+        })
 
         // Track prefetch requests to know when initial prefetching is done
         const prefetchRequests = new Set<string>()
@@ -243,10 +247,14 @@ describe('searchparams-reuse-loading', () => {
                     resolve: async () => {
                       await route.continue()
                       // wait a moment to ensure the response is received
+                      // eslint-disable-next-line @next/internal/no-adhoc-sleep -- This test intentionally relies on a fixed grace period after continuing the intercepted request.
                       await new Promise((res) => setTimeout(res, 500))
                       resolvePromise()
                     },
                   })
+                  if (url.searchParams.get('id') === '3') {
+                    resolveId3RequestStarted()
+                  }
 
                   // Await the promise to effectively stall the request
                   await promise
@@ -308,13 +316,26 @@ describe('searchparams-reuse-loading', () => {
         // Dev mode doesn't perform full prefetches, so this test is conditional
         await browser.elementByCss(`[href='${path}']`).click()
 
-        await browser
-          .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
-          .click()
-        expect(rscRequestPromise.has(`${searchParamsPagePath}?id=3`)).toBe(
-          false
-        )
-        // no need to resolve any dynamic requests, as this is a full prefetch
+        const id3RequestKey = `${searchParamsPagePath}?id=3`
+        await browser.elementByCss(`[href="${id3RequestKey}"]`).click()
+
+        const id3Outcome = await Promise.race([
+          id3RequestStarted.then(() => 'request' as const),
+          browser
+            .waitForElementByCss('#params')
+            .text()
+            .then(() => 'rendered' as const),
+        ])
+
+        if (path === '/') {
+          expect(id3Outcome).toBe('rendered')
+          expect(rscRequestPromise.has(id3RequestKey)).toBe(false)
+        } else if (id3Outcome === 'request') {
+          const id3Request = rscRequestPromise.get(id3RequestKey)
+          expect(id3Request).toBeDefined()
+          await id3Request.resolve()
+        }
+
         const params3 = await browser.waitForElementByCss('#params').text()
         expect(params3).toBe('{"id":"3"}')
       })
@@ -360,7 +381,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })
@@ -446,7 +467,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })
@@ -532,7 +553,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })

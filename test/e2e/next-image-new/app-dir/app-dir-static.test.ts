@@ -1,3 +1,4 @@
+import { waitFor } from 'next-test-utils'
 import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
@@ -85,7 +86,7 @@ import cheerio from 'cheerio'
         await browser.eval(
           `document.getElementById("basic-static").scrollIntoView()`
         )
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await waitFor(1000)
         const url = await browser.eval(
           `document.getElementById("basic-static").src`
         )
@@ -101,7 +102,7 @@ import cheerio from 'cheerio'
         await browser.eval(
           `document.getElementById("static-unoptimized").scrollIntoView()`
         )
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await waitFor(1000)
         const url = await browser.eval(
           `document.getElementById("static-unoptimized").src`
         )
