@@ -2,7 +2,6 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 import { join } from 'path'
 import { readFileSync } from 'fs'
-import { runInNewContext } from 'vm'
 import { deepFreeze } from '../shared/lib/deep-freeze'
 
 const sharedCache = new Map<string, unknown>()
@@ -121,7 +120,23 @@ export function evalManifest<T extends object>(
   let contextObject = {
     process: { env: { NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID } },
   }
-  runInNewContext(content, contextObject)
+  // Evaluate the manifest in the existing V8 context instead of a fresh one.
+  // The previous `runInNewContext(content, contextObject)` allocated a new
+  // V8 native context per call; on app-router builds with many pages the
+  // per-page client-reference-manifest evaluations accumulate retained
+  // contexts (~3-4 MB RSS each) for the process lifetime via the sharedCache
+  // map, leading to OOM on memory-constrained standalone deployments. See
+  // the linked issue for diagnostic data.
+  //
+  // The Function wrapper exposes contextObject as `globalThis`, `self`, and
+  // `process` inside the body, preserving the manifest's existing
+  // `globalThis.__RSC_MANIFEST[entry] = ...` write pattern without spawning
+  // a new V8 context.
+  new Function('globalThis', 'self', 'process', content as string)(
+    contextObject,
+    contextObject,
+    contextObject.process
+  )
 
   // Freeze the context object so it cannot be modified if we're caching it.
   if (shouldCache) {
