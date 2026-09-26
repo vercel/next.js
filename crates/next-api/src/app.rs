@@ -1949,7 +1949,7 @@ impl AppEndpoint {
                             let derived_group = if !has_server_utils {
                                 None
                             } else {
-                                let entry_index = *chunk_group_info
+                                let entry_index = chunk_group_info
                                     .get_index_of(entry_chunk_group.clone())
                                     .await?;
                                 let merged = chunk_group_info

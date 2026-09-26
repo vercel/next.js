@@ -48,7 +48,7 @@ impl AvailabilityInfo {
         module_graph: ResolvedVc<ModuleGraph>,
         chunk_group: ChunkGroup,
     ) -> Result<Self> {
-        let chunk_group = *module_graph
+        let chunk_group = module_graph
             .chunk_group_info()
             .get_index_of(chunk_group)
             .await? as u32;
