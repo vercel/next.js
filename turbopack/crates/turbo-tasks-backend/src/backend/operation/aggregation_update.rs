@@ -1952,7 +1952,7 @@ impl AggregationUpdateQueue {
         &mut self,
         task_id: TaskId,
         mut task: impl TaskGuard,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &impl ExecuteContext<'_>,
     ) {
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = task.is_dirty();
