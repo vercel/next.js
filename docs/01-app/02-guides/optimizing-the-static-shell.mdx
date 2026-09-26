@@ -1,0 +1,711 @@
+---
+title: Optimizing the static shell
+description: Learn how to use Cache Components to keep layouts, navigation, and useful loading states available while request-time content streams.
+nav_title: Optimizing the static shell
+related:
+  title: Learn more
+  description: Learn more about the APIs used in this guide.
+  links:
+    - app/api-reference/directives/use-cache
+    - app/api-reference/directives/use-cache-remote
+    - app/api-reference/functions/cacheLife
+    - app/api-reference/file-conventions/loading
+---
+
+[Cache Components](/docs/app/getting-started/caching) can prerender a static shell while request-time content streams in. The shell can keep the route's layout, navigation, headings, and focused loading states visible instead of replacing the page with one broad fallback.
+
+Apps written before Cache Components often await request data near the top of a layout or page. With Cache Components enabled, those routes may already have a small static shell, sometimes made up of one broad loading state.
+
+In this guide, you'll learn how to expand the shell by tracing each data read to the UI that needs it, caching reusable work, and moving request-time work behind focused `<Suspense>` boundaries. These patterns keep important content available early and reserve space as the rest of the page streams in.
+
+> **Good to know:** This guide focuses on Cache Components, which enable the static shell and instant navigation validation described below. Many of the underlying patterns, such as moving data access closer to the UI that needs it, streaming with focused `<Suspense>` boundaries, avoiding waterfalls, and designing stable loading states, are also useful in other App Router applications. The cache directives and validation workflow require Cache Components.
+
+## Use the optimizer skill (recommended)
+
+The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill applies this guide with a coding agent. It uses the [`instant()` verification loop](#step-4-verify-the-instant-ui) below to capture the intended static shell, prove the current behavior, and keep the passing test as regression coverage.
+
+The skill can also target a client navigation whose destination UI does not commit immediately. It applies the same patterns to the destination segments that change, then verifies the named navigation through its real link. If the destination already has instant UI and you want to include additional URL-specific content before the click, use [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) instead.
+
+Install the skill:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-cache-components-optimizer
+```
+
+Then give the agent the route and the UI that should be in its static shell:
+
+```prompt
+Optimize the static shell for /[team]/settings using the next-cache-components-optimizer Skill. On an initial load, the settings frame and heading should be available immediately.
+```
+
+## Prerequisites
+
+Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and resolve the route's blocking validation errors first. For the migration workflow, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+
+```ts filename="next.config.ts" highlight={4}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+## Patterns
+
+The following patterns can make more useful UI available in the static shell:
+
+| Pattern                                                     | Use it when                                            | Result                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------- |
+| [Keep static UI in the shell](#keep-static-ui-in-the-shell) | UI does not need data                                  | The UI can render in the static shell               |
+| [Stream request-time work](#stream-request-time-work)       | A region needs data that is only known at request time | Its nearest `<Suspense>` fallback can render first  |
+| [Cache reusable work](#cache-reusable-work)                 | A result can be reused across requests                 | The completed result can render in the static shell |
+
+### Keep static UI in the shell
+
+A `<Suspense>` boundary controls which part of the UI its fallback replaces when a child suspends. Static UI can sit inside a boundary without a problem. However, if the same boundary also contains slow or request-time work, that fallback temporarily replaces the static UI too.
+
+```tsx filename="app/products/page.tsx"
+// Before: one loading state replaces the whole page
+<Suspense fallback={<ProductsSkeleton />}>
+  <h1>Products</h1>
+  <p>Browse the latest products.</p>
+  <LiveInventory />
+</Suspense>
+```
+
+To keep headings, navigation, cached content, and other stable UI visible, take them out of any loading state they do not need to be part of. Then move the boundary down to the smaller region that can suspend:
+
+```tsx filename="app/products/page.tsx" highlight={3-4}
+// After: only inventory uses the loading state
+<main>
+  <h1>Products</h1>
+  <p>Browse the latest products.</p>
+  <Suspense fallback={<InventorySkeleton />}>
+    <LiveInventory />
+  </Suspense>
+</main>
+```
+
+When the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) depends on reusable data, [cache that data](#cache-reusable-work) so the completed content can render in the shell. If the data must wait for the request, keep its loading state focused so it does not hold back the rest of the page.
+
+### Stream request-time work
+
+Some data cannot be known until a request arrives, must be recomputed for every request, or has a cache lifetime too short for prerendering. If a layout or page awaits that work near the top, it can block the whole page from rendering. Split out the region that needs the result and let only that region suspend so the rest of the page can render first.
+
+#### Push data access down
+
+Resolve request-time data in the logical UI region that uses it. This can be a Server Component that awaits the data or a Client Component that unwraps a promise passed from the server.
+
+**Move data access into a Server Component.** When the page resolves request-time data itself, its heading and other independent UI cannot render until that work finishes:
+
+```tsx filename="app/products/[slug]/page.tsx"
+// Before: request-time work blocks the page
+export default async function ProductPage({
+  params,
+}: PageProps<'/products/[slug]'>) {
+  const { slug } = await params
+  const product = await db.products.findBySlug(slug)
+
+  return (
+    <main>
+      <h1>Product</h1>
+      <ProductDetails product={product} />
+    </main>
+  )
+}
+```
+
+Move `params`, `searchParams`, or another request-time data read into the Server Component that represents the relevant UI region. Place that component behind `<Suspense>` so its siblings can render while the work resolves:
+
+```tsx filename="app/products/[slug]/page.tsx"
+// After: only the product region waits
+import { Suspense } from 'react'
+
+export default function ProductPage({ params }: PageProps<'/products/[slug]'>) {
+  return (
+    <main>
+      <h1>Product</h1>
+      <Suspense fallback={<ProductSkeleton />}>
+        <Product params={params} />
+      </Suspense>
+    </main>
+  )
+}
+
+async function Product({
+  params,
+}: Pick<PageProps<'/products/[slug]'>, 'params'>) {
+  const { slug } = await params
+  const product = await db.products.findBySlug(slug)
+  return <ProductDetails product={product} />
+}
+```
+
+The heading and product fallback can render before the request-time product query finishes. Request APIs such as `cookies()` and `headers()` can also be moved into a focused component:
+
+```tsx filename="app/dashboard/layout.tsx"
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+
+export default function DashboardLayout({ children }) {
+  return (
+    <DashboardShell>
+      <Suspense fallback={<UserMenuSkeleton />}>
+        <UserMenu />
+      </Suspense>
+      {children}
+    </DashboardShell>
+  )
+}
+
+async function UserMenu() {
+  const cookieStore = await cookies()
+  const menuStyle = cookieStore.get('menu-style')?.value ?? 'compact'
+
+  return <DashboardMenu menuStyle={menuStyle} />
+}
+```
+
+The layout can return `DashboardShell` before `UserMenu` reads the incoming request.
+
+**Resolve a promise inline.** For a small region, you do not need to create another component only to await a promise. Resolve `params`, `searchParams`, or another promise inline with `.then()` inside the boundary:
+
+```tsx filename="app/products/page.tsx"
+<Suspense fallback={<ProductTabsSkeleton />}>
+  {searchParams.then(({ tab = 'details' }) => (
+    <ProductTabs activeTab={tab} />
+  ))}
+</Suspense>
+```
+
+**Pass a promise to a Client Component.** An interactive Client Component may need data fetched on the server. Awaiting that data in its parent would also hold back the parent's stable UI:
+
+```tsx filename="app/dashboard/page.tsx"
+// Before: the page waits for the chart data
+export default async function DashboardPage() {
+  const activity = await getActivity()
+
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <ActivityChart data={activity} />
+    </main>
+  )
+}
+```
+
+Start the request without awaiting it, then pass the promise to the Client Component behind `<Suspense>`:
+
+```tsx filename="app/dashboard/page.tsx"
+// After: the heading can render while the chart waits
+import { Suspense } from 'react'
+import { getActivity } from '@/app/lib/data'
+import { ActivityChart } from './activity-chart'
+
+export default function DashboardPage() {
+  const activityPromise = getActivity()
+
+  return (
+    <Suspense fallback={<ActivityChartSkeleton />}>
+      <ActivityChart dataPromise={activityPromise} />
+    </Suspense>
+  )
+}
+```
+
+The Client Component unwraps the promise with React's [`use()`](https://react.dev/reference/react/use):
+
+```tsx filename="app/dashboard/activity-chart.tsx"
+'use client'
+
+import { use } from 'react'
+
+type Activity = { date: string; value: number }
+
+export function ActivityChart({
+  dataPromise,
+}: {
+  dataPromise: Promise<Activity[]>
+}) {
+  const activity = use(dataPromise)
+
+  return <Chart data={activity} />
+}
+```
+
+For URL data, a Client Component can often call [`useParams()`](/docs/app/api-reference/functions/use-params) or [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) instead of receiving a promise. Both hooks resolve synchronously during a client navigation because the router already has the URL.
+
+See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples of resolving request-time work closer to the UI that uses it.
+
+#### Design loading states
+
+Before this refactor, a route might rely on one [`loading.tsx` file](/docs/app/api-reference/file-conventions/loading) for the whole segment. That is often enough while the page loads as one unit. As you push data access down to reveal more completed UI, use focused [`<Suspense>` boundaries](/docs/app/guides/streaming#granular-streaming-with-suspense) and choose their loading states more deliberately. The `loading.tsx` file can remain as an outer fallback, or be removed when the route no longer needs it.
+
+**Reveal independent regions separately.** Use sibling boundaries when each completed region has predictable dimensions and can appear on its own. Each fallback should reserve the space its completed region needs:
+
+```tsx filename="app/account/page.tsx"
+<Suspense fallback={<AccountHeaderSkeleton />}>
+  <AccountHeader />
+</Suspense>
+<Suspense fallback={<ActivitySkeleton />}>
+  <Activity />
+</Suspense>
+```
+
+**Reveal related regions in stages.** Nest boundaries when the group should first appear together and then reveal more detail, or when revealing a variable-height region by itself could shift the content below it:
+
+```tsx filename="app/account/page.tsx"
+<Suspense fallback={<AccountSkeleton />}>
+  <AccountHeader />
+  <Suspense fallback={<ActivitySkeleton />}>
+    <Activity />
+  </Suspense>
+</Suspense>
+```
+
+React can still start independently reachable work during the same render. Nesting changes the reveal order. It does not make independent requests sequential.
+
+For variable-length content, another option is to render a predictable collapsed state with a Show more or Load more control so content below can appear without shifting later.
+
+When a route uses parallel slots, each slot can stream with its own loading state. See [Loading and Error UI with Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
+
+**Use the same layout for loading and completed UI.** Fallbacks can drift away from the completed UI as components and responsive layouts change. Keep the container that owns the layout outside the boundary. In this example, the skeleton cards and completed product cards both use the same responsive grid:
+
+```tsx filename="app/products/page.tsx"
+<ProductGrid>
+  <Suspense fallback={<ProductCardSkeletons />}>
+    <ProductCards />
+  </Suspense>
+</ProductGrid>
+```
+
+> **Good to know:** As you refactor or update the UI, a skeleton might no longer match the completed component's size or responsive layout. Keeping the skeleton next to the component, or exporting it from the same file, makes it easier to update and reuse whenever that component needs to be wrapped in `<Suspense>`.
+
+Use an empty fallback only when the resolved component also has no visual footprint, such as an authorization gate that returns `null`. Otherwise, provide a fallback that reserves space for the completed UI.
+
+**Related data-fetching patterns.** After splitting work into streamed regions, these patterns can prevent the requests themselves from starting later than necessary:
+
+- When multiple independent requests must stay in one region, use [parallel data fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching) to start them together.
+- When React reaches a data dependency later in the render, use [preloading](/docs/app/getting-started/fetching-data#preloading-data) to start it sooner.
+
+### Cache reusable work
+
+After isolating work that would block the page, consider whether the result actually needs to be recomputed for every request. When it can be reused, cache the function or component so its completed UI can render in the static shell. Give the result a lifetime based on how fresh the data needs to be:
+
+```tsx filename="app/products/product-list.tsx"
+// Before: the query runs for every request
+export async function ProductList() {
+  const products = await db.products.findMany()
+  return <List products={products} />
+}
+```
+
+```tsx filename="app/products/product-list.tsx" highlight={5-6}
+// After: the reusable result can render in the shell
+import { cacheLife } from 'next/cache'
+
+export async function ProductList() {
+  'use cache'
+  cacheLife('hours')
+
+  const products = await db.products.findMany()
+  return <List products={products} />
+}
+```
+
+If the application can change a cached result, connect the cached read to its writes with [on-demand revalidation](/docs/app/getting-started/revalidating).
+
+**Related caching patterns.** These patterns cover values derived from a request, reuse within one request, and dynamic routes:
+
+- To cache a result using a value from `cookies()`, `headers()`, or another runtime API, [read the value outside the cached scope and pass it as an argument](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions).
+- To deduplicate matching calls during one server request without persisting the result across requests, use [React `cache()`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache).
+- To prerender known dynamic routes and generate others on demand, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
+Learn more about cache scopes and lifetimes in [Caching](/docs/app/getting-started/caching#usage).
+
+## Follow validation as you refactor
+
+With Cache Components enabled, [`next dev` validates whether each page load or client navigation has instant UI](/docs/app/guides/instant-navigation#validate-instant-navigation). A route may already have instant UI for one entry point but show an insight for another. For example, a fallback in a shared layout may cover a page load without covering a client navigation within that layout.
+
+If an insight appears while you refactor, that specific page load or client navigation needs an immediate result or fallback. It is a useful target for the patterns above or the optimizer skill, even when another entry point to the same route is already instant. The suggested fixes map to the patterns above:
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ]}
+  />
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+Resolving the insight makes that entry point instant. It does not decide which UI should be available immediately. Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to inspect what appears and apply the patterns above to include more useful UI, or give the route and the intended instant UI to the [optimizer skill](#use-the-optimizer-skill-recommended).
+
+## Example
+
+Consider a team settings route that awaits request data near the top of both its layout and page. This structure may feel natural in an App Router application written before Cache Components. It can also carry over from the [Pages Router](/docs/app/guides/migrating/app-router-migration#step-6-migrating-data-fetching-methods), where a route-level function such as `getServerSideProps` loads data before rendering the page. In the App Router, the same structure leaves none of the settings UI in the static shell.
+
+The example starts with one layout and one page:
+
+```text filename="Folder structure"
+app/[team]/settings/
+├── layout.tsx
+└── page.tsx
+```
+
+The layout resolves authentication before rendering the settings frame:
+
+```tsx filename="app/[team]/settings/layout.tsx"
+import { cookies, headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+
+export default async function SettingsLayout({ children }) {
+  const cookieStore = await cookies()
+  const requestHeaders = await headers()
+  const user = await getCurrentUser({ cookieStore, requestHeaders })
+
+  if (!user) redirect('/login')
+
+  return <SettingsShell>{children}</SettingsShell>
+}
+```
+
+The page then waits for its URL data, team settings, and reusable plan descriptions before rendering the heading:
+
+```tsx filename="app/[team]/settings/page.tsx"
+export default async function SettingsPage({
+  params,
+  searchParams,
+}: PageProps<'/[team]/settings'>) {
+  const { team } = await params
+  const { section = 'profile' } = await searchParams
+  const [settings, plans] = await Promise.all([
+    getTeamSettings(team, section),
+    db.plan.findMany(),
+  ])
+
+  return (
+    <main>
+      <h1>Settings</h1>
+      <SettingsTabs activeSection={section} />
+      <PlanList plans={plans} />
+      <SettingsForm settings={settings} />
+    </main>
+  )
+}
+```
+
+The following steps keep the completed page and its authorization behavior while making more of it available in the static shell.
+
+### Step 1: Move URL-dependent work behind Suspense
+
+The current page resolves both URL promises before rendering any UI:
+
+```tsx filename="app/[team]/settings/page.tsx"
+// Before: URL data blocks the page
+export default async function SettingsPage({
+  params,
+  searchParams,
+}: PageProps<'/[team]/settings'>) {
+  const { team } = await params
+  const { section = 'profile' } = await searchParams
+  const settings = await getTeamSettings(team, section)
+
+  return (
+    <main>
+      <h1>Settings</h1>
+      <SettingsTabs activeSection={section} />
+      <SettingsForm settings={settings} />
+    </main>
+  )
+}
+```
+
+The settings tabs are interactive, so they can read the URL directly with `useSearchParams()`. The server-rendered form receives the `params` and `searchParams` promises and resolves them where their values are needed.
+
+Both regions depend on the URL, so an outer boundary keeps them together until that data is available. The form also waits for the settings query, so a nested boundary lets the tabs reveal while the form continues to show its own loading state:
+
+```tsx filename="app/[team]/settings/page.tsx"
+// After: the heading renders before URL-dependent content
+import { Suspense } from 'react'
+
+export default function SettingsPage({
+  params,
+  searchParams,
+}: PageProps<'/[team]/settings'>) {
+  return (
+    <main>
+      <h1>Settings</h1>
+      <Suspense fallback={<SettingsContentSkeleton />}>
+        <SettingsTabs />
+        <Suspense fallback={<SettingsFormSkeleton />}>
+          <TeamSettings params={params} searchParams={searchParams} />
+        </Suspense>
+      </Suspense>
+    </main>
+  )
+}
+```
+
+The tabs read the active section from the URL:
+
+```tsx filename="app/[team]/settings/settings-tabs.tsx"
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export function SettingsTabs() {
+  const section = useSearchParams().get('section') ?? 'profile'
+
+  return <Tabs activeSection={section} />
+}
+```
+
+The form awaits both URL promises before starting the query that depends on their values:
+
+```tsx filename="app/[team]/settings/team-settings.tsx"
+export async function TeamSettings({
+  params,
+  searchParams,
+}: Pick<PageProps<'/[team]/settings'>, 'params' | 'searchParams'>) {
+  const [{ team }, { section = 'profile' }] = await Promise.all([
+    params,
+    searchParams,
+  ])
+  const settings = await getTeamSettings(team, section)
+
+  return <SettingsForm settings={settings} />
+}
+```
+
+Once the URL is available, the tabs can render while the nested form boundary stays in its loading state until the settings query finishes.
+
+The plan query does not depend on either URL value. Move it into a sibling component so React can start it while the URL-dependent branch is pending. It still runs for each request at this point, so keep a temporary boundary:
+
+```tsx filename="app/[team]/settings/page.tsx"
+// After: the independent plan query starts with the page
+import { Suspense } from 'react'
+
+export default function SettingsPage({
+  params,
+  searchParams,
+}: PageProps<'/[team]/settings'>) {
+  return (
+    <main>
+      <h1>Settings</h1>
+      <Suspense fallback={<PlanOptionsSkeleton />}>
+        <PlanOptions />
+      </Suspense>
+      <Suspense fallback={<SettingsContentSkeleton />}>
+        <SettingsTabs />
+        <Suspense fallback={<SettingsFormSkeleton />}>
+          <TeamSettings params={params} searchParams={searchParams} />
+        </Suspense>
+      </Suspense>
+    </main>
+  )
+}
+```
+
+```tsx filename="app/[team]/settings/plan-options.tsx"
+export async function PlanOptions() {
+  const plans = await db.plan.findMany()
+  return <PlanList plans={plans} />
+}
+```
+
+The heading renders directly. `PlanOptions` and the URL-dependent settings branch can begin independently.
+
+### Step 2: Move authentication behind Suspense
+
+The current layout resolves the request APIs before rendering the settings frame:
+
+```tsx filename="app/[team]/settings/layout.tsx"
+// Before: authentication blocks the layout
+import { cookies, headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+
+export default async function SettingsLayout({ children }) {
+  const cookieStore = await cookies()
+  const requestHeaders = await headers()
+  const user = await getCurrentUser({ cookieStore, requestHeaders })
+
+  if (!user) redirect('/login')
+
+  return <SettingsShell>{children}</SettingsShell>
+}
+```
+
+Instead, move the `cookies()` and `headers()` reads into an authentication gate behind `<Suspense>`. The layout can then render the settings frame without waiting for authentication:
+
+```tsx filename="app/[team]/settings/layout.tsx"
+// After: only the authorization gate waits for the request
+import { Suspense } from 'react'
+import { cookies, headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+
+export default function SettingsLayout({ children }) {
+  return (
+    <SettingsShell>
+      <Suspense fallback={null}>
+        <AuthGate />
+      </Suspense>
+      {children}
+    </SettingsShell>
+  )
+}
+
+async function AuthGate() {
+  const [cookieStore, requestHeaders] = await Promise.all([
+    cookies(),
+    headers(),
+  ])
+  const user = await getCurrentUser({ cookieStore, requestHeaders })
+
+  if (!user) redirect('/login')
+
+  return null
+}
+```
+
+`AuthGate` is the only component that needs the request values, so it owns those reads. Its boundary lets the settings frame and page stay in the shell. An empty fallback fits this boundary because an authorized gate also returns `null`.
+
+> **Good to know:** If an authorization interrupt such as [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) or [`forbidden()`](/docs/app/api-reference/functions/forbidden) runs after streaming starts, it can render its UI, but the response status remains `200`. If the HTTP `401` or `403` status matters, check access before streaming begins. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+
+A layout redirect does not protect a database query or Server Action by itself. Keep authorization checks in the data access functions used by the page, and include only safe UI in the shell before authentication completes. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete pattern.
+
+### Step 3: Cache the reusable plan data
+
+The team settings must stay current and authorized for each request, so they continue as request-time work behind `<Suspense>`. Plan descriptions are shared across teams and change on a known schedule, so `PlanOptions` can cache them:
+
+```tsx filename="app/[team]/settings/plan-options.tsx"
+// Before: the query runs for every request
+export async function PlanOptions() {
+  const plans = await db.plan.findMany()
+  return <PlanList plans={plans} />
+}
+```
+
+```tsx filename="app/[team]/settings/plan-options.tsx" highlight={5-6}
+// After: the reusable plans can render in the shell
+import { cacheLife } from 'next/cache'
+
+export async function PlanOptions() {
+  'use cache'
+  cacheLife('hours')
+
+  const plans = await db.plan.findMany()
+  return <PlanList plans={plans} />
+}
+```
+
+`PlanOptions` has no request-time dependency, so Next.js can resolve it while generating the static shell. Its existing `<Suspense>` boundary does not prevent that. The fallback is not needed for this route, so the boundary may be removed. Keep a boundary when a cached component is first reached after request-time data so it can cover a cold cache.
+
+If a write changes the plan descriptions, use [on-demand revalidation](/docs/app/getting-started/revalidating) from the corresponding mutation.
+
+```tsx filename="app/[team]/settings/page.tsx" highlight={3}
+<main>
+  <h1>Settings</h1>
+  <PlanOptions />
+  <Suspense fallback={<SettingsContentSkeleton />}>
+    <SettingsTabs />
+    <Suspense fallback={<SettingsFormSkeleton />}>
+      <TeamSettings params={params} searchParams={searchParams} />
+    </Suspense>
+  </Suspense>
+</main>
+```
+
+With the refactor complete, the route reveals in three stages:
+
+1. **In the static shell.** The heading and cached plan options render while the URL-dependent region shows its fallback.
+
+   ```tsx
+   <h1>Settings</h1>
+   <PlanOptions />
+   <SettingsContentSkeleton />
+   ```
+
+2. **After the URL resolves.** The tabs replace the content skeleton while the settings query continues behind its nested fallback.
+
+   ```tsx
+   <h1>Settings</h1>
+   <PlanOptions />
+   <SettingsTabs />
+   <SettingsFormSkeleton />
+   ```
+
+3. **After the settings load.** The completed form replaces its skeleton.
+
+   ```tsx
+   <h1>Settings</h1>
+   <PlanOptions />
+   <SettingsTabs />
+   <TeamSettings />
+   ```
+
+The page now renders useful UI immediately while request-specific content streams into focused fallbacks. The next step is to lock this contract in.
+
+### Step 4: Verify the instant UI
+
+Use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to assert which parts of the page are available immediately and prevent future regressions.
+
+```ts filename="e2e/settings-navigation.test.ts" highlight={17,20-21,26-27}
+import { expect, test, type Page } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+async function expectSettingsShell(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  await expect(page.getByTestId('plan-options')).toBeVisible()
+  await expect(page.getByTestId('settings-content-skeleton')).toBeVisible()
+  await expect(page.getByTestId('settings-tabs')).toHaveCount(0)
+  await expect(page.getByTestId('settings-form-skeleton')).toHaveCount(0)
+  await expect(page.getByTestId('team-settings-form')).toHaveCount(0)
+}
+
+test('serves the settings shell on an initial load', async ({
+  page,
+  baseURL,
+}) => {
+  await instant(
+    page,
+    async () => {
+      await page.goto('/acme/settings')
+      await expectSettingsShell(page)
+    },
+    { baseURL }
+  )
+
+  await expect(page.getByTestId('settings-tabs')).toBeVisible()
+  await expect(page.getByTestId('team-settings-form')).toBeVisible()
+  await expect(page.getByTestId('settings-content-skeleton')).toHaveCount(0)
+  await expect(page.getByTestId('settings-form-skeleton')).toHaveCount(0)
+})
+```
+
+Inside the callback, the test checks the complete static-shell contract shown above. The heading, cached plan options, and settings-content skeleton are visible, while the tabs, form skeleton, and form are not. The final assertions confirm that the completed tabs and form replace the loading UI after the pause is released.
+
+The completed route should have the same settings data, redirects, error states, and interactions as the original route.
+
+### Step 5: Include URL-specific content in the instant UI
+
+The test above captures the shared static shell for a direct visit. It still shows `SettingsContentSkeleton` because the route does not know `searchParams` during prerendering.
+
+During a client navigation, `SettingsTabs` can read the URL synchronously. Other server content that depends on the destination's `params` or `searchParams` is not part of the shared shell. If that work is cacheable, a per-link prefetch can resolve it before the click instead of streaming it afterward.
+
+Use [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when URL-specific content should be ready before a selected link is clicked. The guide also covers how to choose a prefetch policy based on the cost of the work.
