@@ -2,8 +2,11 @@ import { join } from 'node:path'
 import type { Sandbox } from '@vercel/agent-eval'
 import { setupUpgradeScenario } from '../security/setup'
 
-export async function setupLatest(sandbox: Sandbox) {
-  const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
+export async function setupLatest(
+  sandbox: Sandbox,
+  selectedFixture: string | undefined = undefined
+) {
+  const fixture = selectedFixture ?? process.env.NEXT_UPGRADE_EVAL_CASE
   const target = '16.3.5'
   const scenarios: Record<
     string,
@@ -16,10 +19,14 @@ export async function setupLatest(sandbox: Sandbox) {
   const scenario = fixture ? scenarios[fixture] : undefined
   if (!scenario) throw new Error('Unknown latest upgrade eval case')
 
-  await setupUpgradeScenario(sandbox, {
-    fixturePrefix: 'latest-',
-    assessmentPath: join(__dirname, 'assessment.mjs'),
-    assessment: scenario,
-    installedVersion: scenario.installedVersion,
-  })
+  await setupUpgradeScenario(
+    sandbox,
+    {
+      fixturePrefix: 'latest-',
+      assessmentPath: join(__dirname, 'assessment.mjs'),
+      assessment: scenario,
+      installedVersion: scenario.installedVersion,
+    },
+    fixture
+  )
 }
