@@ -278,7 +278,7 @@ This command stopped so the reminder you configured is not missed. Retry the sam
 
 When you report back to the user, include this upgrade recommendation even if the retry succeeds.
 
-At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. If the app is in a Git repository, use a separate Git worktree unless they request otherwise. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory:
+At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory:
 
 \`\`\`
 ${command}
