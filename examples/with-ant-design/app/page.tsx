@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { SmileFilled } from "@ant-design/icons";
 import {
@@ -22,12 +21,12 @@ const HomePage = () => (
         <Link href="#" className="logo mr-0" aria-label="Home">
           <SmileFilled style={{ fontSize: 48 }} />
         </Link>
-        <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>
+        <p className="mb-0 mt-3 text-disabled">Welcome to the world!</p>
       </div>
       <div>
         <Form
           layout="horizontal"
-          size={"large"}
+          size="large"
           labelCol={{ span: 8 }}
           wrapperCol={{ span: 8 }}
         >
