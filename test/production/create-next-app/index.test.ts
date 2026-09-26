@@ -46,6 +46,50 @@ describe('create-next-app', () => {
     })
   })
 
+  it('should create when the target directory only contains ignorable files', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'dir-with-github-folder'
+      // A `.github` directory is commonly present before the app is created,
+      // e.g. to hold agent prompts or workflow files.
+      await mkdir(join(cwd, projectName, '.github', 'prompts'), {
+        recursive: true,
+      })
+      await writeFile(
+        join(cwd, projectName, '.github', 'prompts', 'scaffold.md'),
+        'create a next.js app'
+      )
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--skip-install',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          reject: false,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).not.toMatch(/contains files that could conflict/)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['package.json', '.github/prompts/scaffold.md'],
+      })
+    })
+  })
+
   it('should not create if the target directory is not writable', async () => {
     const expectedErrorMessage =
       /you do not have write permissions for this folder|EPERM: operation not permitted/
