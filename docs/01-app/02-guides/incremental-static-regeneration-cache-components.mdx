@@ -178,8 +178,6 @@ export async function getPopularProducts(category: string) {
 
 If your components access runtime APIs like `cookies` or `headers`, wrap them in `<Suspense>`. Their fallback UI is included in the static shell instead.
 
-{/* TODO: show how unstable_navigation() can help keep content out of the prefetch={true} */}
-
 ### At build time
 
 When you run `next build`, Next.js prerenders the layout for each known category (`tops`, `shorts`), plus one render where `await params` suspends, producing the App Shell for `[category]`.
@@ -215,6 +213,67 @@ After the first visit, Next.js renders the page in the background with the known
 - If every data access is cached and all params are resolved, the upgrade produces a **fully static page**.
 - If all params are resolved but the render still hits uncached data or runtime APIs (`cookies`, `headers`) wrapped in `<Suspense>` boundaries, the upgrade produces a **cached page with those fallbacks**. The uncached or runtime parts stream in at request time.
 - Params are resolved in route order. A param value not returned by `generateStaticParams` stays unresolved and prevents any deeper params from upgrading.
+
+### Deferring expensive content
+
+Because links to these pages use `prefetch={true}`, each prefetch also prepares content that depends on `cookies` or `headers`. Consider showing each price in the visitor's currency. The currency comes from a cookie, and converting the price calls an exchange-rate service, so every prefetch of a product link would run that conversion. Use [`await navigation()`](/docs/app/api-reference/functions/navigation) before it. The prefetch leaves the converted price out, and it renders when the user navigates.
+
+```tsx filename="app/[category]/[product]/page.tsx" highlight={3-5,7-16,32-34}
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { cookies } from 'next/headers'
+import { navigation } from 'next/cache'
+import { getProduct, getExchangeRate } from '../../lib/data'
+
+async function LocalPrice({ price }: { price: number }) {
+  await navigation()
+  const currency = (await cookies()).get('currency')?.value ?? 'USD'
+  const rate = await getExchangeRate(currency)
+  return (
+    <p>
+      {(price * rate).toFixed(2)} {currency}
+    </p>
+  )
+}
+
+async function ProductDetails(props: PageProps<'/[category]/[product]'>) {
+  const { category, product } = await props.params
+  const data = await getProduct(category, product)
+
+  if (!data) {
+    return <p>Product not found.</p>
+  }
+
+  return (
+    <>
+      <Link href={`/${category}`} prefetch={true}>
+        &larr; Back to products
+      </Link>
+      <h2>{data.name}</h2>
+      <Suspense fallback={<p>Loading price...</p>}>
+        <LocalPrice price={data.price} />
+      </Suspense>
+      <p>{data.description}</p>
+    </>
+  )
+}
+```
+
+The prefetch still includes the product name and description. The converted price renders when the user navigates.
+
+The exchange rate comes from a new function in `app/lib/data.ts`, cached per currency by the file's `'use cache'` directive:
+
+```ts filename="app/lib/data.ts"
+'use cache'
+
+// ...other exported functions
+
+export async function getExchangeRate(currency: string) {
+  const res = await fetch(`https://rates.example.com/latest?to=${currency}`)
+  const { rate } = await res.json()
+  return rate
+}
+```
 
 ## Choosing what to prerender
 
