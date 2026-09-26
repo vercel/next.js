@@ -20,6 +20,7 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Cache for fs.existsSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
+const defaultPageExtensions = ['js', 'jsx', 'ts', 'tsx']
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
@@ -36,6 +37,21 @@ const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
+
+const normalizePageExtensions = (pageExtensions: unknown) => {
+  if (!Array.isArray(pageExtensions)) {
+    return defaultPageExtensions
+  }
+
+  const normalizedPageExtensions = pageExtensions
+    .filter((extension): extension is string => typeof extension === 'string')
+    .map((extension) => extension.replace(/^\./, ''))
+    .filter(Boolean)
+
+  return normalizedPageExtensions.length
+    ? normalizedPageExtensions
+    : defaultPageExtensions
+}
 
 export default defineRule({
   meta: {
@@ -73,6 +89,9 @@ export default defineRule({
     const [customPagesDirectory] = ruleOptions
 
     const rootDirs = getRootDirs(context)
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings.next || {}
+    const pageExtensions = normalizePageExtensions(nextSettings.pageExtensions)
 
     const pagesDirs = (
       customPagesDirectory
@@ -107,8 +126,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
