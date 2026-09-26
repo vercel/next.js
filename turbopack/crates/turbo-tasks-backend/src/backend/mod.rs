@@ -15,7 +15,7 @@ use std::{
     borrow::Cow,
     fmt::Write,
     future::Future,
-    hash::BuildHasherDefault,
+    hash::{BuildHasher, BuildHasherDefault},
     mem::take,
     pin::Pin,
     sync::{Arc, LazyLock},
@@ -26,7 +26,7 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
-use hashbrown::hash_table::Entry;
+use hashbrown::hash_table;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
@@ -75,18 +75,16 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, compute_task_type_hash},
+    backing_storage::{
+        SnapshotItem, compute_task_type_hash, compute_task_type_hash_from_components,
+    },
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
     error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
-    utils::{
-        dash_map_entry::{get_in_shard, get_shard, with_entry_in_shard},
-        shard_amount::compute_shard_amount,
-        stopwatch::Stopwatch,
-    },
+    utils::{shard_amount::compute_shard_amount, stopwatch::Stopwatch},
 };
 
 /// Threshold for parallelizing making dependent tasks dirty.
@@ -1502,6 +1500,10 @@ impl TurboTasksBackend {
             suspended_operations,
             gc_roots_to_persist,
             task_snapshots,
+            |task_type_hash, added_ids, deleted_ids| {
+                self.storage
+                    .reconcile_task_cache_bucket(task_type_hash, added_ids, deleted_ids)
+            },
         )?;
         span.record("snapshot_meta", display(snapshot_meta));
 
@@ -1663,14 +1665,15 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
-        // eagerly drop the task cache before persisting
-        self.storage.drop_task_cache();
         if self.should_persist()
             && let Err(err) =
                 self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
         {
             eprintln!("Persisting failed during shutdown: {err:?}");
         }
+        // TaskCache owns the complete collision buckets needed by the final snapshot, so release it
+        // only after persistence has consumed them.
+        self.storage.drop_task_cache();
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
@@ -1742,27 +1745,30 @@ impl TurboTasksBackend {
 
         let is_root = native_fn.is_root;
 
-        // Compute hash and shard index once from borrowed components (no heap allocation).
         let arg_ref = arg.as_ref();
-        let hash = CachedTaskType::hash_from_components(
-            self.storage.task_cache.hasher(),
-            native_fn,
-            this,
-            arg_ref,
-        );
-        // Locate the shard once so that the read-only lookup and any
-        // write-lock retry below share the same reference (saves a modulo +
-        // memory lookup on the miss path).
-        let shard = get_shard(&self.storage.task_cache, hash);
+        let task_type_hash =
+            (!transient).then(|| compute_task_type_hash_from_components(native_fn, this, arg_ref));
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut created_new = false;
-        // Step 1: Fast read-only cache lookup (read lock, no allocation).
-        // Use a read lock rather than a write lock to avoid contention. connect_child
-        // may re-enter task_cache with a write lock, so we must not hold a write lock here.
-        if let Some(task_id) =
-            get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
-        {
+        // Step 1: Read the transient type map or the persistent hash collision bucket without
+        // allocating an argument. Release the map lock before connecting the child.
+        let cached_task_id = if let Some(task_type_hash) = task_type_hash {
+            self.storage
+                .task_cache
+                .get(&task_type_hash)
+                .and_then(|bucket| bucket.find(native_fn, this, arg_ref).map(|(id, _)| id))
+        } else {
+            let cache = &self.storage.transient_task_cache;
+            let hash =
+                CachedTaskType::hash_from_components(cache.hasher(), native_fn, this, arg_ref);
+            let shard = &cache.shards()[cache.determine_shard(hash as usize)];
+            shard
+                .read()
+                .find(hash, |(key, _)| key.eq_components(native_fn, this, arg_ref))
+                .map(|(_, task_id)| *task_id)
+        };
+        if let Some(task_id) = cached_task_id {
             self.track_cache_hit_by_fn(native_fn);
             operation::ConnectChildOperation::run(
                 parent_task,
@@ -1773,69 +1779,82 @@ impl TurboTasksBackend {
             return task_id;
         }
 
-        // Step 2: Check backing storage using borrowed components (no box needed yet).
-
-        // Task exists in backing storage.
-        // We only need to insert it into the in-memory cache.
+        // Step 2: Check backing storage using borrowed components (no box needed yet). A restore
+        // records every candidate in the in-memory hash bucket before returning.
         let task_id = if !transient
-            && let Some((task_id, stored_type)) = ctx.task_by_type(native_fn, this, arg_ref)
+            && let Some((task_id, _stored_type)) =
+                ctx.task_by_type(native_fn, this, arg_ref, task_type_hash)
         {
             self.track_cache_hit_by_fn(native_fn);
-            // Step 3a: Insert into in-memory cache using the pre-located shard.
-            // Use the existing Arc from storage to avoid a duplicate allocation.
-            with_entry_in_shard(
-                shard,
-                self.storage.task_cache.hasher(),
-                hash,
-                arg,
-                |k, arg| k.eq_components(native_fn, this, arg.as_ref()),
-                |entry, _arg| {
-                    if let Entry::Vacant(entry) = entry {
-                        entry.insert((stored_type, task_id));
-                    }
-                },
-            );
             task_id
         } else {
-            let (task_id, created) = with_entry_in_shard(
-                shard,
-                self.storage.task_cache.hasher(),
-                hash,
-                arg,
-                |k, arg| k.eq_components(native_fn, this, arg.as_ref()),
-                |entry, arg| match entry {
-                    Entry::Occupied(entry) => {
-                        // Another thread beat us to creating this task — use their task_id.
-                        // They will handle logging the new task as modified.
-                        (entry.get().1, false)
-                    }
-                    Entry::Vacant(entry) => {
+            // Step 3: Serialize creation on the appropriate map shard. Another thread may have
+            // beaten us to creating this task while we checked backing storage. They will handle
+            // logging the new task as modified.
+            let (task_id, created) = if let Some(task_type_hash) = task_type_hash {
+                let mut bucket = self.storage.task_cache.entry(task_type_hash).or_default();
+                let result = if let Some((task_id, _)) = bucket.find(native_fn, this, arg.as_ref())
+                {
+                    (task_id, false)
+                } else {
+                    // Only now do we force the allocation.
+                    // NOTE: if our caller had to perform resolution, then this will have
+                    // already been boxed and take_box just takes it.
+                    let task_type = CachedTaskTypeArc::new(CachedTaskType {
+                        native_fn,
+                        this,
+                        arg: arg.take_box(),
+                    });
+                    let task_id = self.persisted_task_id_factory.get();
+                    // Initialize storage BEFORE making task_id visible to other threads. A cache
+                    // hit must always see the storage entry with restored flags set.
+                    self.storage
+                        .initialize_new_task(task_id, Some(task_type.clone()));
+                    bucket.insert(task_type, task_id);
+                    (task_id, true)
+                };
+                drop(bucket);
+                result
+            } else {
+                let cache = &self.storage.transient_task_cache;
+                let hash = CachedTaskType::hash_from_components(
+                    cache.hasher(),
+                    native_fn,
+                    this,
+                    arg.as_ref(),
+                );
+                let shard = &cache.shards()[cache.determine_shard(hash as usize)];
+                let mut shard = shard.write();
+                let result = match shard.entry(
+                    hash,
+                    |(key, _)| key.eq_components(native_fn, this, arg.as_ref()),
+                    |(key, _)| cache.hasher().hash_one(key),
+                ) {
+                    hash_table::Entry::Occupied(entry) => (entry.get().1, false),
+                    hash_table::Entry::Vacant(entry) => {
                         // Only now do we force the allocation.
-                        // NOTE: if our caller had to perform resolution, then this will have
-                        // already been boxed and take_box just takes it.
+                        // NOTE: if our caller had to perform resolution, the argument is already
+                        // boxed.
                         let task_type = CachedTaskTypeArc::new(CachedTaskType {
                             native_fn,
                             this,
                             arg: arg.take_box(),
                         });
-                        let task_id = if transient {
-                            self.transient_task_id_factory.get()
-                        } else {
-                            self.persisted_task_id_factory.get()
-                        };
-                        // Initialize storage BEFORE making task_id visible in the cache.
-                        // This ensures any thread that reads task_id from the cache sees
-                        // the storage entry already initialized (restored flags set).
+                        let task_id = self.transient_task_id_factory.get();
+                        // Initialize storage BEFORE making task_id visible to other threads.
+                        // A cache hit must always see the storage entry with restored flags set.
                         self.storage
                             .initialize_new_task(task_id, Some(task_type.clone()));
                         entry.insert((task_type, task_id));
                         (task_id, true)
                     }
-                },
-            );
+                };
+                drop(shard);
+                result
+            };
+            // The map shard lock is released before cache tracking or aggregation updates can
+            // re-enter the backend.
 
-            // The entry closure has returned, so the task_cache shard lock is released before
-            // cache tracking or aggregation updates can re-enter the backend.
             created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
