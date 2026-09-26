@@ -134,8 +134,35 @@ function noRouter() {
   throw new Error(message)
 }
 
+/**
+ * The Pages Router never streams its Fizz output to the client. Every render
+ * path below awaits `allReady` and then serializes the stream to a string, so
+ * that the result can be embedded into the `_document` markup (and, for SSG,
+ * written to a static file).
+ *
+ * React 19.2 started honoring `progressiveChunkSize` and outlines any Suspense
+ * boundary whose content exceeds it into a hidden element plus a reveal script,
+ * even when the boundary has already completed. That trade only pays off while
+ * the bytes are actually being streamed. Here it produces markup that needs
+ * client JavaScript to show content that was fully rendered on the server, so
+ * clients without JavaScript are left looking at the fallback.
+ *
+ * Opting out restores the React 19.1 output for these buffered renders. React
+ * does the same for its own non-streaming entry points, `renderToString` and
+ * `renderToHTML`.
+ *
+ * See https://github.com/vercel/next.js/issues/91806 and
+ * https://github.com/facebook/react/issues/35460.
+ */
+const BUFFERED_RENDER_STREAM_OPTIONS = {
+  progressiveChunkSize: Infinity,
+}
+
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServerPages.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerPages.renderToReadableStream(
+    element,
+    BUFFERED_RENDER_STREAM_OPTIONS
+  )
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -1377,6 +1404,7 @@ export async function renderToHTMLImpl(
       return await renderToInitialFizzStream({
         ReactDOMServer: ReactDOMServerPages,
         element: content,
+        streamOptions: BUFFERED_RENDER_STREAM_OPTIONS,
       })
     }
 
