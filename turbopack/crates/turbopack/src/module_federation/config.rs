@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, OperationValue};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
+use url::Url;
 
 #[derive(
     Clone,
@@ -49,7 +50,8 @@ impl ModuleFederationStringOrStrings {
 )]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UnnormalizedModuleFederationRemoteOptions {
-    pub external: ModuleFederationStringOrStrings,
+    pub external: Option<ModuleFederationStringOrStrings>,
+    pub manifest: Option<RcStr>,
     pub share_scope: Option<RcStr>,
 }
 
@@ -364,6 +366,7 @@ pub struct ModuleFederationConfig {
 pub struct ModuleFederationRemote {
     pub request: RcStr,
     pub external: Vec<ModuleFederationRemoteExternal>,
+    pub manifest: Option<RcStr>,
     pub share_scope: RcStr,
 }
 
@@ -502,17 +505,40 @@ impl UnnormalizedModuleFederationConfig {
 
         if let Some(remotes) = self.remotes {
             for (request, remote) in remotes.into_entries() {
-                let (external, remote_share_scope) = match remote {
-                    UnnormalizedModuleFederationRemote::String(external) => {
-                        (vec![external], share_scope.clone())
+                let (external, manifest, remote_share_scope) = match remote {
+                    UnnormalizedModuleFederationRemote::String(entry) => {
+                        if Url::parse(&entry).is_ok_and(|url| {
+                            matches!(url.scheme(), "http" | "https") && url.has_host()
+                        }) {
+                            if !is_manifest_url(&entry) {
+                                bail!(
+                                    "Module Federation bare remote must be an http(s) manifest \
+                                     URL ending in .json without credentials; use globalName@url \
+                                     for scripts"
+                                );
+                            }
+                            (vec![], Some(entry), share_scope.clone())
+                        } else {
+                            (vec![entry], None, share_scope.clone())
+                        }
                     }
                     UnnormalizedModuleFederationRemote::Strings(external) => {
-                        (external, share_scope.clone())
+                        (external, None, share_scope.clone())
                     }
-                    UnnormalizedModuleFederationRemote::Options(options) => (
-                        options.external.into_vec(),
-                        options.share_scope.unwrap_or_else(|| share_scope.clone()),
-                    ),
+                    UnnormalizedModuleFederationRemote::Options(options) => {
+                        let scope = options.share_scope.unwrap_or_else(|| share_scope.clone());
+                        match (options.external, options.manifest) {
+                            (Some(_), Some(_)) => bail!(
+                                "Module Federation remote '{request}' cannot have both external \
+                                 and manifest"
+                            ),
+                            (None, None) => bail!(
+                                "Module Federation remote '{request}' needs external or manifest"
+                            ),
+                            (Some(external), None) => (external.into_vec(), None, scope),
+                            (None, Some(manifest)) => (vec![], Some(manifest), scope),
+                        }
+                    }
                 };
                 config.remotes.push(ModuleFederationRemote {
                     request,
@@ -520,6 +546,7 @@ impl UnnormalizedModuleFederationConfig {
                         .into_iter()
                         .map(|external| parse_remote_external(&external))
                         .collect::<Result<_>>()?,
+                    manifest,
                     share_scope: remote_share_scope,
                 });
             }
@@ -727,6 +754,21 @@ impl ModuleFederationConfig {
             if remote.request.is_empty() {
                 bail!("Module Federation remote request must not be empty");
             }
+            if let Some(manifest) = &remote.manifest {
+                if !remote.external.is_empty() {
+                    bail!(
+                        "Module Federation remote '{}' cannot have both external and manifest",
+                        remote.request
+                    );
+                }
+                if !is_manifest_url(manifest) {
+                    bail!(
+                        "Module Federation manifest must be an http(s) URL whose pathname ends in \
+                         .json, without credentials"
+                    );
+                }
+                continue;
+            }
             if remote.external.is_empty() {
                 bail!(
                     "Module Federation remote '{}' must have at least one external",
@@ -750,6 +792,16 @@ impl ModuleFederationConfig {
         }
         Ok(())
     }
+}
+
+fn is_manifest_url(value: &str) -> bool {
+    Url::parse(value).is_ok_and(|url| {
+        matches!(url.scheme(), "http" | "https")
+            && url.has_host()
+            && url.username().is_empty()
+            && url.password().is_none()
+            && url.path().ends_with(".json")
+    })
 }
 
 fn parse_remote_external(external: &str) -> Result<ModuleFederationRemoteExternal> {
@@ -813,6 +865,47 @@ mod tests {
         assert_eq!(config.remotes[0].external[1].url, "/remote.js");
         assert_eq!(config.remotes[0].external[2].url, "file:///tmp/remote.js");
         assert_eq!(config.remotes[0].share_scope, "catalog");
+    }
+
+    #[test]
+    fn normalizes_manifest_remotes() {
+        let config: UnnormalizedModuleFederationConfig = serde_json::from_str(
+            r#"{"remotes":{
+                "catalog":"https://catalog.example.com/mf-manifest.json?v=1#hash",
+                "checkout":{"manifest":"http://checkout.example.com/manifest.json?c=1","shareScope":"feature"},
+                "legacy":"legacy@/remoteEntry.js"
+            }}"#,
+        )
+        .unwrap();
+        let config = config.normalize().unwrap();
+        assert_eq!(
+            config.remotes[0].manifest.as_deref(),
+            Some("https://catalog.example.com/mf-manifest.json?v=1#hash")
+        );
+        assert!(config.remotes[0].external.is_empty());
+        assert_eq!(
+            config.remotes[1].manifest.as_deref(),
+            Some("http://checkout.example.com/manifest.json?c=1")
+        );
+        assert_eq!(config.remotes[1].share_scope, "feature");
+        assert_eq!(config.remotes[2].external[0].global, "legacy");
+    }
+
+    #[test]
+    fn rejects_invalid_manifest_remotes() {
+        for json in [
+            r#"{"remotes":{"catalog":{"manifest":"file:///tmp/manifest.json"}}}"#,
+            r#"{"remotes":{"catalog":{"manifest":"https://remote.example.com/entry.js"}}}"#,
+            r#"{"remotes":{"catalog":{"manifest":"https://remote.example.com/mf.json","external":"catalog@/entry.js"}}}"#,
+            r#"{"remotes":{"catalog":{}}}"#,
+            r#"{"remotes":{"catalog":"https://remote.example.com/entry.js"}}"#,
+            r#"{"remotes":{"catalog":"https://user:pass@remote.example.com/mf.json"}}"#,
+            r#"{"remotes":{"catalog":{"manifest":"https://user:pass@remote.example.com/mf.json"}}}"#,
+        ] {
+            let result = serde_json::from_str::<UnnormalizedModuleFederationConfig>(json)
+                .and_then(|config| config.normalize().map_err(serde::de::Error::custom));
+            assert!(result.is_err(), "{json}");
+        }
     }
 
     #[test]

@@ -28,6 +28,7 @@ await new Promise((resolve, reject) => {
       context,
       target: worker ? 'webworker' : 'web',
       entry: isRemote ? {} : './rspack-react.js',
+      module: { rules: [{ test: /\.css$/, type: 'css' }] },
       output: {
         path: outputPath,
         publicPath: isRemote
@@ -51,9 +52,12 @@ await new Promise((resolve, reject) => {
             ? {
                 name: worker ? 'workerCatalog' : 'catalog',
                 filename: 'remoteEntry.js',
+                manifest: !worker,
                 exposes: {
-                  './component': './component.js',
-                  './message': './message.js',
+                  './component': worker
+                    ? './component.js'
+                    : './rspack-component.js',
+                  './message': worker ? './message.js' : './rspack-message.js',
                 },
                 shared: worker
                   ? {}

@@ -37,7 +37,7 @@ fn shared_package_name(shared: &ModuleFederationShared) -> Option<RcStr> {
     })
 }
 
-pub(crate) async fn shared_provider_version(
+pub async fn shared_provider_version(
     project_path: &FileSystemPath,
     shared: &ModuleFederationShared,
 ) -> Result<RcStr> {
