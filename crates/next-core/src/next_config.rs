@@ -191,6 +191,14 @@ pub struct NextConfig {
     // webpack: Option<serde_json::Value>,
 }
 
+// Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+fn use_react_experimental_config(config: &NextConfig) -> bool {
+    config.experimental.blocking_ssr.unwrap_or(false)
+        || config.experimental.taint.unwrap_or(false)
+        || config.experimental.transition_indicator.unwrap_or(false)
+        || config.experimental.gesture_transition.unwrap_or(false)
+}
+
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
@@ -1937,6 +1945,35 @@ impl NextConfig {
             .cell())
     }
 
+    /// Client-side federation must provide the same React module used by Next's renderer.
+    /// The App Router maps `react` to a vendored package, so resolving the original bare
+    /// dependency as a provider would create a second React instance across a remote boundary.
+    #[turbo_tasks::function]
+    pub async fn turbopack_module_federation_for_client(
+        &self,
+        app_router: bool,
+    ) -> Result<Vc<ModuleFederationConfig>> {
+        let mut config = self
+            .experimental
+            .turbopack_module_federation
+            .clone()
+            .unwrap_or_default()
+            .normalize()?;
+        if app_router {
+            let react_channel = if use_react_experimental_config(self) {
+                "-experimental"
+            } else {
+                ""
+            };
+            for shared in &mut config.shared {
+                if shared.request == "react" && shared.import.as_deref() == Some("react") {
+                    shared.import = Some(format!("next/dist/compiled/react{react_channel}").into());
+                }
+            }
+        }
+        Ok(config.cell())
+    }
+
     #[turbo_tasks::function]
     pub fn turbopack_chunking(&self) -> Result<Vc<TurbopackChunking>> {
         let config = self.experimental.turbopack_chunking.as_ref();
@@ -2216,12 +2253,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn use_react_experimental(&self) -> Vc<bool> {
-        // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-        let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
-        let taint = self.experimental.taint.unwrap_or(false);
-        let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
-        let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
-        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
+        Vc::cell(use_react_experimental_config(self))
     }
 
     #[turbo_tasks::function]

@@ -1953,7 +1953,7 @@ importers:
     dependencies:
       '@next/rspack-core':
         specifier: 1.0.3
-        version: 1.0.3(@swc/helpers@0.5.23)
+        version: 1.0.3(@module-federation/runtime-tools@2.9.1)(@swc/helpers@0.5.23)
 
   packages/next-swc:
     devDependencies:
@@ -4583,20 +4583,38 @@ packages:
   '@module-federation/error-codes@0.21.6':
     resolution: {integrity: sha512-MLJUCQ05KnoVl8xd6xs9a5g2/8U+eWmVxg7xiBMeR0+7OjdWUbHwcwgVFatRIwSZvFgKHfWEiI7wsU1q1XbTRQ==}
 
+  '@module-federation/error-codes@2.9.1':
+    resolution: {integrity: sha512-5lqrIZTeMiKdn4uuX/+X8uN/4C0yqI8P3WO42DNRR7B9gCA4HMDCHrrxU8odQup9bzRsN5TJSz3av6d2iNmPgA==}
+
   '@module-federation/runtime-core@0.21.6':
     resolution: {integrity: sha512-5Hd1Y5qp5lU/aTiK66lidMlM/4ji2gr3EXAtJdreJzkY+bKcI5+21GRcliZ4RAkICmvdxQU5PHPL71XmNc7Lsw==}
+
+  '@module-federation/runtime-core@2.9.1':
+    resolution: {integrity: sha512-HMdsiTQoWqOXFr9Boki+U99piC00C7GLBZN05t+sXcutHq99oXZ8ONjvPL/h2pu7VAuPXgCjuCE3iqUQXv54EQ==}
 
   '@module-federation/runtime-tools@0.21.6':
     resolution: {integrity: sha512-fnP+ZOZTFeBGiTAnxve+axGmiYn2D60h86nUISXjXClK3LUY1krUfPgf6MaD4YDJ4i51OGXZWPekeMe16pkd8Q==}
 
+  '@module-federation/runtime-tools@2.9.1':
+    resolution: {integrity: sha512-K5aYbnSY585RU/pb1Bb+m4cRtqq4KFPiGzxXC6hNgalN8Ny2EVFrDz6rd/uNfomtXfriPEre8W7WHb/Q7DOu8g==}
+
   '@module-federation/runtime@0.21.6':
     resolution: {integrity: sha512-+caXwaQqwTNh+CQqyb4mZmXq7iEemRDrTZQGD+zyeH454JAYnJ3s/3oDFizdH6245pk+NiqDyOOkHzzFQorKhQ==}
+
+  '@module-federation/runtime@2.9.1':
+    resolution: {integrity: sha512-dRCy2HpUinPnk2b6GB/R6t2iJTHkSFGv83sbrEKylXkR2ATH0V47WpUdoNsZCEUOTQlAIHwZzDCVocA5FbcsBA==}
 
   '@module-federation/sdk@0.21.6':
     resolution: {integrity: sha512-x6hARETb8iqHVhEsQBysuWpznNZViUh84qV2yE7AD+g7uIzHKiYdoWqj10posbo5XKf/147qgWDzKZoKoEP2dw==}
 
+  '@module-federation/sdk@2.9.1':
+    resolution: {integrity: sha512-JneBWSHr9ZCZHa5geNUleVK2vBTugWXLIXlV72UAhgHm1cTMYKZljnhRSX59n7Xssz4Yk+m+W3rYg6Eb4ouL8w==}
+
   '@module-federation/webpack-bundler-runtime@0.21.6':
     resolution: {integrity: sha512-7zIp3LrcWbhGuFDTUMLJ2FJvcwjlddqhWGxi/MW3ur1a+HaO8v5tF2nl+vElKmbG1DFLU/52l3PElVcWf/YcsQ==}
+
+  '@module-federation/webpack-bundler-runtime@2.9.1':
+    resolution: {integrity: sha512-to/dxVd+N/tDQIOurIijTW3qr9Y8IRuMun1dyDm+0PTLOzKQ1Xid6qnAFsiNhZjK8HCOBlgjJuii7rwoZ90Z9w==}
 
   '@mswjs/cookies@1.1.0':
     resolution: {integrity: sha512-0ZcCVQxifZmhwNBoQIrystCb+2sWBY2Zw8lpfJBPCHGCA/HWqehITeCRVIv4VMy8MPlaHo2w2pTHFV2pFfqKPw==}
@@ -21819,15 +21837,30 @@ snapshots:
 
   '@module-federation/error-codes@0.21.6': {}
 
+  '@module-federation/error-codes@2.9.1':
+    optional: true
+
   '@module-federation/runtime-core@0.21.6':
     dependencies:
       '@module-federation/error-codes': 0.21.6
       '@module-federation/sdk': 0.21.6
 
+  '@module-federation/runtime-core@2.9.1':
+    dependencies:
+      '@module-federation/error-codes': 2.9.1
+      '@module-federation/sdk': 2.9.1
+    optional: true
+
   '@module-federation/runtime-tools@0.21.6':
     dependencies:
       '@module-federation/runtime': 0.21.6
       '@module-federation/webpack-bundler-runtime': 0.21.6
+
+  '@module-federation/runtime-tools@2.9.1':
+    dependencies:
+      '@module-federation/runtime': 2.9.1
+      '@module-federation/webpack-bundler-runtime': 2.9.1
+    optional: true
 
   '@module-federation/runtime@0.21.6':
     dependencies:
@@ -21835,12 +21868,29 @@ snapshots:
       '@module-federation/runtime-core': 0.21.6
       '@module-federation/sdk': 0.21.6
 
+  '@module-federation/runtime@2.9.1':
+    dependencies:
+      '@module-federation/error-codes': 2.9.1
+      '@module-federation/runtime-core': 2.9.1
+      '@module-federation/sdk': 2.9.1
+    optional: true
+
   '@module-federation/sdk@0.21.6': {}
+
+  '@module-federation/sdk@2.9.1':
+    optional: true
 
   '@module-federation/webpack-bundler-runtime@0.21.6':
     dependencies:
       '@module-federation/runtime': 0.21.6
       '@module-federation/sdk': 0.21.6
+
+  '@module-federation/webpack-bundler-runtime@2.9.1':
+    dependencies:
+      '@module-federation/error-codes': 2.9.1
+      '@module-federation/runtime': 2.9.1
+      '@module-federation/sdk': 2.9.1
+    optional: true
 
   '@mswjs/cookies@1.1.0': {}
 
@@ -22204,10 +22254,10 @@ snapshots:
       '@next/rspack-binding-win32-ia32-msvc': 1.0.3
       '@next/rspack-binding-win32-x64-msvc': 1.0.3
 
-  '@next/rspack-core@1.0.3(@swc/helpers@0.5.23)':
+  '@next/rspack-core@1.0.3(@module-federation/runtime-tools@2.9.1)(@swc/helpers@0.5.23)':
     dependencies:
       '@next/rspack-binding': 1.0.3
-      '@rspack/core': 2.0.4(@swc/helpers@0.5.23)
+      '@rspack/core': 2.0.4(@module-federation/runtime-tools@2.9.1)(@swc/helpers@0.5.23)
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
       - '@swc/helpers'
@@ -23613,10 +23663,11 @@ snapshots:
     optionalDependencies:
       '@swc/helpers': 0.5.23
 
-  '@rspack/core@2.0.4(@swc/helpers@0.5.23)':
+  '@rspack/core@2.0.4(@module-federation/runtime-tools@2.9.1)(@swc/helpers@0.5.23)':
     dependencies:
       '@rspack/binding': 2.0.4
     optionalDependencies:
+      '@module-federation/runtime-tools': 2.9.1
       '@swc/helpers': 0.5.23
 
   '@rspack/lite-tapable@1.1.0': {}

@@ -27,7 +27,7 @@ await new Promise((resolve, reject) => {
       mode: 'development',
       context,
       target: worker ? 'webworker' : 'web',
-      entry: isRemote ? {} : './index.js',
+      entry: isRemote ? {} : './rspack-react.js',
       output: {
         path: outputPath,
         publicPath: isRemote
@@ -58,6 +58,7 @@ await new Promise((resolve, reject) => {
                 shared: worker
                   ? {}
                   : {
+                      react: { singleton: true, requiredVersion: false },
                       'shared-value': {
                         singleton: true,
                         requiredVersion: '^1.0.0',
@@ -71,6 +72,25 @@ await new Promise((resolve, reject) => {
             : {
                 name: 'rspackV2Host',
                 remotes: { nextRemote: `nextRemote@${remoteUrl}` },
+                shared: {
+                  react: {
+                    singleton: true,
+                    eager: true,
+                    requiredVersion: false,
+                  },
+                  'react-dom': {
+                    singleton: true,
+                    eager: true,
+                    requiredVersion: false,
+                  },
+                  'shared-value': {
+                    import: './shared-value.js',
+                    version: '2.0.0',
+                    singleton: true,
+                    eager: true,
+                    requiredVersion: false,
+                  },
+                },
               }
         ),
       ],

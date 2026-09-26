@@ -166,6 +166,25 @@ const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection>
     z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItem])),
   ])
 
+function isJSONSerializable(value: unknown, seen = new Set<object>()): boolean {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'boolean'
+  ) {
+    return true
+  }
+  if (typeof value === 'number') return Number.isFinite(value)
+  if (typeof value !== 'object' || seen.has(value)) return false
+  seen.add(value)
+  const valid = Array.isArray(value)
+    ? value.every((item) => isJSONSerializable(item, seen))
+    : Object.getPrototypeOf(value) === Object.prototype &&
+      Object.values(value).every((item) => isJSONSerializable(item, seen))
+  seen.delete(value)
+  return valid
+}
+
 const zTurbopackModuleFederationRemoteConfig = z.union([
   z.string(),
   z.array(z.string()),
@@ -253,6 +272,19 @@ const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationOpt
         .optional(),
       shareScope: z.string().optional(),
       remoteType: z.literal('script').optional(),
+      shareStrategy: z.enum(['version-first', 'loaded-first']).optional(),
+      implementation: z.string().min(1).optional(),
+      runtimePlugins: z
+        .array(
+          z.union([
+            z.string().min(1),
+            z.tuple([
+              z.string().min(1),
+              z.unknown().refine(isJSONSerializable),
+            ]),
+          ])
+        )
+        .optional(),
     })
     .superRefine((config, context) => {
       if (config.exposes && !config.name) {

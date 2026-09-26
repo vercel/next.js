@@ -45,6 +45,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
+    module_federation::apply_shared_import_map,
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
@@ -585,6 +586,60 @@ impl AppProject {
             Layer::new_with_user_friendly_name(
                 rcstr!("app-client"),
                 rcstr!("Client Component Browser"),
+            ),
+        ))
+    }
+
+    /// Compile exposed client modules separately from the app renderer. Shared imports in this
+    /// graph resolve through the host's share scope, including React, rather than the app's
+    /// built-in aliases. The regular app client context keeps its renderer mappings.
+    #[turbo_tasks::function]
+    pub(crate) async fn federation_expose_module_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<ModuleAssetContext>> {
+        let mut resolve_options = self.client_resolve_options_context().owned().await?;
+        let mut import_map = resolve_options
+            .import_map
+            .context("App client import map is required for federation exposes")?
+            .owned()
+            .await?;
+        let config = self
+            .project()
+            .next_config()
+            .turbopack_module_federation_for_client(true)
+            .owned()
+            .await?;
+        apply_shared_import_map(
+            &mut import_map,
+            self.project().project_path().owned().await?,
+            &config,
+            true,
+        );
+        resolve_options.import_map = Some(import_map.resolved_cell());
+        let transitions = [
+            (
+                rcstr!("next-dynamic"),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                rcstr!("next-dynamic-client"),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+        ]
+        .into_iter()
+        .collect();
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
+            self.project().client_compile_time_info(),
+            self.client_module_options_context(),
+            resolve_options.cell(),
+            Layer::new_with_user_friendly_name(
+                rcstr!("app-client-federation-expose"),
+                rcstr!("Federated Client Module"),
             ),
         ))
     }
