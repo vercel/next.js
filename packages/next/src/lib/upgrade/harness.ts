@@ -21,6 +21,32 @@ type UpgradeHarness = {
   path: string
 }
 
+type UpgradePrompt = string | ((useWorktree: boolean | null) => string)
+
+function resolvePrompt(
+  prompt: UpgradePrompt,
+  useWorktree: boolean | null,
+  askForChoice = false
+): string {
+  const text = typeof prompt === 'string' ? prompt : prompt(useWorktree)
+  if (!askForChoice || typeof prompt === 'string') {
+    return text
+  }
+  return `${text}\n\nAsk for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.`
+}
+
+async function chooseWorktree(): Promise<boolean> {
+  Log.bootstrap('  Open the upgrade in a separate Git worktree?')
+  const { id } = await cliSelect({
+    values: { yes: 'Yes', no: 'No' },
+    defaultValue: 0,
+    selected: cyan('❯'),
+    unselected: ' ',
+    indentation: 2,
+  })
+  return id === 'yes'
+}
+
 function getHarnessDisplayName(name: UpgradeHarness['name']): string {
   return name === 'codex' ? 'Codex' : 'Claude Code'
 }
@@ -164,18 +190,18 @@ function launchHarness(
 }
 
 export async function handoffUpgrade(
-  prompt: string,
+  prompt: UpgradePrompt,
   directory: string
 ): Promise<void> {
   // Existing agents keep their session, model and permissions.
   if (await getAgentName()) {
-    Log.bootstrap(prompt)
+    Log.bootstrap(resolvePrompt(prompt, null, true))
     return
   }
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     Log.info('Copy this upgrade prompt into your coding agent:')
-    Log.bootstrap(prompt)
+    Log.bootstrap(resolvePrompt(prompt, null, true))
     return
   }
 
@@ -183,7 +209,7 @@ export async function handoffUpgrade(
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    copyUpgradePrompt(prompt, true)
+    copyUpgradePrompt(resolvePrompt(prompt, null, true), true)
     return
   }
 
@@ -191,7 +217,7 @@ export async function handoffUpgrade(
   const harness = await chooseHarness(installed)
 
   if (harness === 'copy') {
-    copyUpgradePrompt(prompt)
+    copyUpgradePrompt(resolvePrompt(prompt, null, true))
     return
   }
 
@@ -201,11 +227,26 @@ export async function handoffUpgrade(
     return
   }
 
+  let useWorktree: boolean
+  try {
+    useWorktree = await chooseWorktree()
+  } catch (error) {
+    if (error) {
+      throw error
+    }
+    process.exitCode = 1
+    return
+  }
+
   Log.bootstrap(
     `  Continuing with ${cyan(bold(getHarnessDisplayName(harness.name)))}...\n`
   )
   try {
-    process.exitCode = await launchHarness(harness, prompt, directory)
+    process.exitCode = await launchHarness(
+      harness,
+      resolvePrompt(prompt, useWorktree),
+      directory
+    )
   } catch {
     Log.error(`Could not start ${getHarnessDisplayName(harness.name)}.`)
     process.exitCode = 1
