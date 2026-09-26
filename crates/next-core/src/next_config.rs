@@ -1096,6 +1096,7 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
+    use_cache_static_root_param_tracking: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
 
@@ -2195,6 +2196,15 @@ impl NextConfig {
                 Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
             }
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_use_cache_static_root_param_tracking(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .use_cache_static_root_param_tracking
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]

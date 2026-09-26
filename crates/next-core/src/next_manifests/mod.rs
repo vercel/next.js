@@ -453,6 +453,12 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub is_async: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
+    /// The sorted root param dependencies collected from the cache module's
+    /// graph. An empty list means that collection found no root params. The
+    /// build omits this field when it does not collect dependencies for the
+    /// module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub root_param_dependencies: Option<&'a [RcStr]>,
 }
 
 #[derive(Serialize, Debug)]

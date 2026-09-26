@@ -46,6 +46,7 @@ pub use next_edge::context::{
     get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use next_import_map::get_next_package;
+pub use next_root_params::root_param_getters_path;
 pub use page_loader::{PageLoaderAsset, create_page_loader_entry_module};
 pub use segment_config::{parse_segment_config_from_loader_tree, parse_segment_config_from_source};
 pub use util::{PathType, get_asset_path_from_pathname, pathname_for_path};

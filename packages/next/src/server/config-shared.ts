@@ -1462,6 +1462,15 @@ export interface ExperimentalConfig {
   durableUseCacheEntries?: boolean
 
   /**
+   * Collects root param dependencies for `'use cache'` in Turbopack production
+   * builds. Turbopack enables this by default. Set to `false` to skip
+   * collection and omit `rootParamDependencies` from the server-reference
+   * manifest.
+   * @internal
+   */
+  useCacheStaticRootParamTracking?: boolean
+
+  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
@@ -2446,6 +2455,7 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useCacheStaticRootParamTracking: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,

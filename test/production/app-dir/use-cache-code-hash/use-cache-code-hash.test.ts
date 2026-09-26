@@ -9,6 +9,7 @@ async function getCodeHashes(
     id: string
     page: string
     codeHash?: string
+    rootParamDependencies?: readonly string[]
     runtimeEnvVarsRead?: string[]
     runtimeEnvVarsExistence?: string[]
   }[]
@@ -21,6 +22,7 @@ async function getCodeHashes(
     id: string
     page: string
     codeHash?: string
+    rootParamDependencies?: readonly string[]
     runtimeEnvVarsRead?: string[]
     runtimeEnvVarsExistence?: string[]
   }[] = []
@@ -31,6 +33,7 @@ async function getCodeHashes(
           id: actionId,
           page: workerKey,
           codeHash: worker?.durability?.codeHash,
+          rootParamDependencies: worker.rootParamDependencies,
           runtimeEnvVarsRead: worker?.durability?.runtimeEnvVarsRead,
           runtimeEnvVarsExistence: worker?.durability?.runtimeEnvVarsExistence,
         })
@@ -60,6 +63,24 @@ async function getCodeHashes(
            "app/use-server/page",
          ]
         `)
+      })
+
+      it('emits root dependencies alongside durability', async () => {
+        const manifest = await next.readJSON(
+          '.next/server/server-reference-manifest.json'
+        )
+        let cacheWorkers = 0
+        for (const entry of Object.values<any>(manifest.node)) {
+          for (const worker of Object.values<any>(entry.workers)) {
+            if (worker.durability) {
+              cacheWorkers++
+              expect(worker.rootParamDependencies).toBeDefined()
+            } else {
+              expect(worker.rootParamDependencies).toBeUndefined()
+            }
+          }
+        }
+        expect(cacheWorkers).toBeGreaterThan(0)
       })
 
       it('lists non-inlined runtime env vars', async () => {
@@ -153,6 +174,7 @@ async function getCodeHashes(
         const before = await getCodeHashes(next, ['app/[lang]/page'])
         expect(before).toHaveLength(1)
         expect(before[0].codeHash).toEqual(expect.any(String))
+        expect(before[0].rootParamDependencies).toEqual(['lang'])
 
         await next.patchFile(
           'app/extra/[region]/layout.jsx',
@@ -176,6 +198,7 @@ export function generateStaticParams() {
                 const after = await getCodeHashes(next, ['app/[lang]/page'])
                 expect(after).toHaveLength(1)
                 expect(after[0].codeHash).toBe(before[0].codeHash)
+                expect(after[0].rootParamDependencies).toEqual(['lang'])
               }
             )
           }
