@@ -34,7 +34,7 @@ async function extractBinary(
       `${tarFileName}.temp-${Date.now()}`
     )
 
-    const registry = getRegistry()
+    const registry = await getRegistry()
 
     const downloadUrl = `${registry}${pkgName}/-/${tarFileName}`
 
