@@ -1124,6 +1124,8 @@ async function generateStagedDynamicFlightRenderResultNode(
   const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+  let startRuntimePrefetchRender: (() => Promise<void>) | undefined
+
   // Partial prefetching waits for cacheReady() before starting an embedded
   // runtime prefetch. Track React's native immediates so that this wait
   // includes Flight work that can discover more cache reads. Other prefetch
@@ -1156,20 +1158,16 @@ async function generateStagedDynamicFlightRenderResultNode(
     // render has filled all caches.
     const runtimePrefetchTransform = new TransformStream<Uint8Array>()
     runtimePrefetchStream = runtimePrefetchTransform.readable
-
-    // Wait for the dynamic render to fill caches, then run the final runtime
-    // prerender (fire-and-forget — does not block the response).
-    void cacheSignal
-      .cacheReady()
-      .then(() =>
-        spawnRuntimePrefetchWithFilledCaches(
-          runtimePrefetchTransform.writable,
-          ctx,
-          prerenderResumeDataCache,
-          requestStore,
-          onError
-        )
+    startRuntimePrefetchRender = async () => {
+      await cacheSignal.cacheReady()
+      return spawnRuntimePrefetchWithFilledCaches(
+        runtimePrefetchTransform.writable,
+        ctx,
+        prerenderResumeDataCache,
+        requestStore,
+        onError
       )
+    }
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -1240,6 +1238,8 @@ async function generateStagedDynamicFlightRenderResultNode(
     },
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
+
+  void startRuntimePrefetchRender?.()
 
   return new FlightRenderResult(flightStream, {
     fetchMetrics: workStore.fetchMetrics,
@@ -3958,6 +3958,8 @@ async function renderToStream(
           createPromiseWithResolvers<number>()
 
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+        let startRuntimePrefetchRender: (() => Promise<void>) | undefined
+
         // Partial prefetching waits for cacheReady() before starting an
         // embedded runtime prefetch. Track React's native immediates so that
         // this wait includes Flight work that can discover more cache reads.
@@ -3986,17 +3988,16 @@ async function renderToStream(
           const runtimePrefetchTransform = new TransformStream<Uint8Array>()
           runtimePrefetchStream = runtimePrefetchTransform.readable
 
-          void cacheSignal
-            .cacheReady()
-            .then(() =>
-              spawnRuntimePrefetchWithFilledCaches(
-                runtimePrefetchTransform.writable,
-                ctx,
-                prerenderResumeDataCache,
-                requestStore,
-                serverComponentsErrorHandler
-              )
+          startRuntimePrefetchRender = async () => {
+            await cacheSignal.cacheReady()
+            return spawnRuntimePrefetchWithFilledCaches(
+              runtimePrefetchTransform.writable,
+              ctx,
+              prerenderResumeDataCache,
+              requestStore,
+              serverComponentsErrorHandler
             )
+          }
         }
 
         const RSCPayload = await workUnitAsyncStorage.run(
@@ -4076,6 +4077,8 @@ async function renderToStream(
           },
           () => stageController.advanceStage(RenderStage.Dynamic)
         )
+
+        void startRuntimePrefetchRender?.()
 
         reactServerResult = new ReactServerResult(flightStream)
       } else {
