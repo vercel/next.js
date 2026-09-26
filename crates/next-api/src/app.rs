@@ -1733,8 +1733,8 @@ impl AppEndpoint {
                             .config
                             .await?
                             .preferred_region
-                            .clone()
-                            .map(Regions::Multiple),
+                            .as_ref()
+                            .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
                         env: project.edge_env().owned().await?,
                     };
