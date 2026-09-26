@@ -10,8 +10,8 @@ version: draft
       in progress.
 - [ ] If the app is in a Git repository, check local branches and commits. If it
       has a remote, also check remote branches and commits.
-- [ ] If the repository has a provider remote, use its CLI or API to list every
-      open pull request. For GitHub, run
+- [ ] If the repository has a provider remote, use its CLI or API to look for
+      open pull requests with equivalent work. For GitHub, run
       `gh pr list --state open --limit 100 --json number,title,body,url,headRefName`.
       Inspect the body and diff of likely matches with `gh pr diff <number>`.
 
@@ -22,10 +22,11 @@ Look for unmarked work and these markers:
 <!-- next-upgrade: <type>; path="apps/web" -->
 ```
 
-Do not require Git to upgrade an app. Run each check that applies to the app's
-repository and remote. Do not substitute Git history for an available provider
-lookup. If an applicable check fails or finds equivalent work, stop before
-changing files and report it.
+Do not require Git to upgrade an app. Attempt each check that applies to the
+app's repository and remote. Do not substitute Git history for an available
+provider lookup. If a check is unavailable or fails, report which work could
+not be checked and continue the upgrade. Stop before changing files only if
+you find equivalent work.
 
 ## After all upgrade and adoption steps: commit and deliver
 
@@ -38,7 +39,10 @@ changing files and report it.
 - [ ] Group Future Defaults changes by the default adopted. If the app is in a
       Git repository, explain why and how in each commit message.
 - [ ] If the repository has a provider remote, with permission, recheck open
-      pull requests for duplicates and publish one draft PR with the app marker:
+      pull requests for duplicates. If you find equivalent work, report it and
+      do not publish another PR. If the recheck is unavailable, report that and
+      deliver the verified local changes. Otherwise, publish one draft PR with
+      the app marker:
 
 ```md
 <!-- next-upgrade: <type>; path="." -->
