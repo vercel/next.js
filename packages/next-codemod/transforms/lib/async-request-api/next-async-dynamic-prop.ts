@@ -780,7 +780,15 @@ export function transformDynamicProps(
             })
             .size() > 0
 
-        if (!hasUsedInBody && j.Identifier.check(paramsProperty)) continue
+        if (!hasUsedInBody && j.Identifier.check(paramsProperty)) {
+          // Even though the prop is unused in the function body, we still
+          // need to count it as modified so that its type gets wrapped in
+          // Promise<>. Without this, TypeScript's PageProps constraint
+          // causes a build failure. We skip adding runtime code (await/use)
+          // since the prop is not accessed.
+          modifiedPropertyCount++
+          continue
+        }
 
         // Search the usage of propName in the function body,
         // if they're all awaited or wrapped with use(), skip the transformation
