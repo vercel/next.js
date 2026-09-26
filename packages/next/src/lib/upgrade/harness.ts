@@ -32,6 +32,47 @@ const UPGRADE_MODELS = {
   ],
 } as const
 
+const PERMISSION_MODES = {
+  codex: [
+    { id: 'default', label: 'Use current settings', args: [] },
+    { id: 'auto', label: 'Auto review', args: ['--approve-for-me'] },
+    {
+      id: 'ask',
+      label: 'Ask on request (workspace sandbox)',
+      args: [
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+      ],
+    },
+    {
+      id: 'yolo',
+      label: 'Full access (skip approvals and sandbox)',
+      args: ['--dangerously-bypass-approvals-and-sandbox'],
+    },
+  ],
+  claude: [
+    { id: 'default', label: 'Use current settings', args: [] },
+    { id: 'auto', label: 'Auto mode', args: ['--permission-mode', 'auto'] },
+    {
+      id: 'acceptEdits',
+      label: 'Accept edits',
+      args: ['--permission-mode', 'acceptEdits'],
+    },
+    {
+      id: 'manual',
+      label: 'Manual approval',
+      args: ['--permission-mode', 'manual'],
+    },
+    {
+      id: 'yolo',
+      label: 'Full access (skip permissions)',
+      args: ['--dangerously-skip-permissions'],
+    },
+  ],
+} as const
+
 type UpgradeHarness = {
   name: keyof typeof UPGRADE_MODELS
   path: string
@@ -40,7 +81,7 @@ type UpgradeHarness = {
 type UpgradePrompt = string | ((useWorktree: boolean | null) => string)
 
 function withModelChoice(prompt: string): string {
-  return `${prompt}\n\nBefore upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.`
+  return `${prompt}\n\nBefore upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. Next, ask which permission mode they want; use auto if they do not specify, or keep the current permissions if they choose current settings. If this session cannot use the chosen settings, ask the user to start a session that can.`
 }
 
 function resolvePrompt(
@@ -100,6 +141,23 @@ async function chooseWorktree(): Promise<boolean> {
 
 function getHarnessDisplayName(name: UpgradeHarness['name']): string {
   return name === 'codex' ? 'Codex' : 'Claude Code'
+}
+
+function supportsCodexAutoReview(path: string): boolean {
+  const result = spawn.sync(path, ['--help'], {
+    encoding: 'utf8',
+    timeout: 5000,
+  })
+  if (result.status === 0 && /--approve-for-me\b/.test(result.stdout ?? '')) {
+    return true
+  }
+
+  Log.info(
+    dim(
+      'This Codex CLI does not support Auto review; using Ask on request by default.'
+    )
+  )
+  return false
 }
 
 async function findHarnesses(): Promise<UpgradeHarness[]> {
@@ -228,7 +286,8 @@ function launchHarness(
   prompt: string,
   directory: string,
   model: string,
-  effort: string
+  effort: string,
+  permissionArgs: readonly string[]
 ): Promise<number> {
   // Windows shell shims cannot carry literal line breaks in an argument.
   if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
@@ -237,8 +296,15 @@ function launchHarness(
 
   const args =
     harness.name === 'codex'
-      ? ['--model', model, '-c', `model_reasoning_effort=${effort}`, prompt]
-      : ['--model', model, '--effort', effort, prompt]
+      ? [
+          '--model',
+          model,
+          '-c',
+          `model_reasoning_effort=${effort}`,
+          ...permissionArgs,
+          prompt,
+        ]
+      : ['--model', model, '--effort', effort, ...permissionArgs, prompt]
   return runChildProcess(harness.path, args, {
     cwd: directory,
     stdio: 'inherit',
@@ -306,6 +372,22 @@ export async function handoffUpgrade(
     process.exitCode = 1
     return
   }
+  const permissionModes =
+    harness.name === 'codex' && !supportsCodexAutoReview(harness.path)
+      ? PERMISSION_MODES.codex.filter(({ id }) => id !== 'auto')
+      : PERMISSION_MODES[harness.name]
+  const permissionId = await chooseOption(
+    `Which ${getHarnessDisplayName(harness.name)} permission mode should the upgrade use?`,
+    Object.fromEntries(permissionModes.map(({ id, label }) => [id, label])),
+    1
+  )
+  const permissionMode = permissionModes.find(({ id }) => id === permissionId)
+  if (!permissionMode) {
+    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+    process.exitCode = 1
+    return
+  }
+
   let useWorktree: boolean
   try {
     useWorktree = await chooseWorktree()
@@ -326,7 +408,8 @@ export async function handoffUpgrade(
       resolvePrompt(prompt, useWorktree),
       directory,
       model.id,
-      effort
+      effort,
+      permissionMode.args
     )
   } catch {
     Log.error(`Could not start ${getHarnessDisplayName(harness.name)}.`)
