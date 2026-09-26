@@ -44,13 +44,9 @@ use crate::{
 /// How long a GC root may go un-anchored before it is collected.
 /// Default to 3 days so that a root that is at least occasionally used can survive a weekend.
 ///
-/// Aging out roots solves the problem of missing `gc_unpin` calls.  We can miss them for structural
-/// reasons, bugs or just shutdown races (drops from native threads race with turbopack shutdown).
-/// So using a TTL to track roots that haven't shown up in new sessions we can solve this leak.
-///
-/// The TTL counter is serving as a check for both new sessions and time.  To be aged out you get
-/// one session to start the clock and then eventually the timer expires.  This is intentionally
-/// course.
+/// Aging out roots solves the problem of missing `gc_unpin` calls. We can miss them for structural
+/// reasons, bugs or shutdown races (drops from native threads race with turbopack shutdown).
+/// The TTL counter checks both new sessions and elapsed time.
 pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60 * 60);
 
 /// How long a GC root has gone without being observed live, as stored in the persisted roots map.
@@ -58,15 +54,13 @@ pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60
 pub enum TtlCounter {
     /// Observed live (a durable, anchored root) in the most recent session.
     MostRecent,
-    /// System time millis at which a session's **first** GC pass first found this root not live.
+    /// System time millis at which a session's first GC pass found this root not live.
     FirstStale(u64),
 }
 
 /// One unit of GC work.
 enum GcJob {
-    /// Scan one shard of the resident map (by index) and enqueue its candidates as
-    /// [`GcJob::Collect`].
-    ScanShard(usize),
+    ScanBatch(Vec<TaskId>),
     /// Collect a single task.
     Collect(TaskId),
 }
@@ -240,35 +234,38 @@ impl TurboTasksBackend {
             None
         };
 
+        // Batch ID scans to avoid one shared-queue operation for each resident task, while the
+        // aged-out roots still enter the same collection scope as direct jobs.
+        const GC_SCAN_BATCH_SIZE: usize = 256;
+        let task_ids = self.storage.gc_task_ids();
+        let batches = task_ids
+            .chunks(GC_SCAN_BATCH_SIZE)
+            .map(|ids| GcJob::ScanBatch(ids.to_vec()))
+            .collect::<Vec<_>>();
         let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
-            // Start by scanning all shards and collecting the aged out roots from prior sessions.
-            (0..self.storage.shard_count())
-                .map(GcJob::ScanShard)
+            batches
+                .into_iter()
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
             Default::default,
             |spawner, job, (stats, result): &mut (GcStats, GcPassResult)| {
-                // Abort the gc loop if we are interrupted
                 if let Some(budget) = &budget
                     && budget.should_stop()
                 {
                     return ControlFlow::Break(());
                 }
+                let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
                 let task_id = match job {
-                    GcJob::ScanShard(index) => {
-                        let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
-                        self.storage.gc_scan_shard(index, collector);
+                    GcJob::ScanBatch(task_ids) => {
+                        self.storage.gc_scan_batch(&task_ids, collector);
                         return ControlFlow::Continue(());
                     }
                     GcJob::Collect(task_id) => task_id,
                 };
-                let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
+                // Recheck under the task guard: the resident scan saw an earlier state and
+                // another thread may have changed graph edges before the collector got here.
                 let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
-                // `All` restores Data so `capture_all_edges` below can read the
-                // Data-category dependency sets. The recheck itself only needs Meta.
+                // `All` restores Data so capture_all_edges can read dependency sets.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                // Recheck under the guard: the shard scan saw this task without holding it, and a
-                // racing teardown can add uppers that temporarily remove collectibility. Such a
-                // task is re-enqueued by a later pass.
                 if !task.is_gc_collectible() {
                     return ControlFlow::Continue(());
                 }
