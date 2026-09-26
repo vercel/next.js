@@ -12,6 +12,7 @@ To use it, place the file in the **root** of your application or inside a `src` 
 Unlike [server-side instrumentation](/docs/app/guides/instrumentation), you do not need to export any specific functions. You can write your monitoring code directly in the file:
 
 ```ts filename="instrumentation-client.ts" switcher
+"use client";
 // Set up performance monitoring
 performance.mark('app-init')
 
@@ -26,6 +27,7 @@ window.addEventListener('error', (event) => {
 ```
 
 ```js filename="instrumentation-client.js" switcher
+"use client";
 // Set up performance monitoring
 performance.mark('app-init')
 
