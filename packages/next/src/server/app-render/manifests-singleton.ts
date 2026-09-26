@@ -1,5 +1,8 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientReferenceManifest,
+  ManifestChunks,
+} from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -52,6 +55,109 @@ export function getInvalidServerReferenceIdError(id: string): Error {
 // the truncated length rather than ellipsizing ids that are barely too long.
 const MAX_LOGGED_SERVER_REFERENCE_ID_LENGTH = 100
 const TRUNCATED_SERVER_REFERENCE_ID_LENGTH = 90
+
+const EMPTY_CHUNKS: ManifestChunks = Object.freeze([])
+const internedChunksPool = new Map<string, ManifestChunks>()
+
+export function internChunks(chunks: ManifestChunks): ManifestChunks {
+  if (!chunks || chunks.length === 0) return EMPTY_CHUNKS
+  const key = chunks.join('|')
+  let existing = internedChunksPool.get(key)
+  if (!existing) {
+    internedChunksPool.set(key, chunks)
+    existing = chunks
+  }
+  return existing
+}
+
+function getDedupedClientModuleEntry<T extends { chunks?: ManifestChunks }>(
+  entry: T,
+  workUnitStore: WorkUnitStore
+): T {
+  if (!entry || !entry.chunks || entry.chunks.length === 0) {
+    return entry
+  }
+
+  workUnitStore.emittedChunkIds ??= new Set<string>()
+  const emitted = workUnitStore.emittedChunkIds
+  const entryChunks = entry.chunks
+
+  const isWebpackChunks =
+    entryChunks.length % 2 === 0 &&
+    typeof entryChunks[0] === 'string' &&
+    typeof entryChunks[1] === 'string' &&
+    (entryChunks[1].endsWith('.js') ||
+      entryChunks[1].includes('.js?') ||
+      entryChunks[1].endsWith('.css') ||
+      entryChunks[1].includes('.css?'))
+
+  if (isWebpackChunks) {
+    let hasUnemitted = false
+    for (let i = 0; i < entryChunks.length; i += 2) {
+      if (!emitted.has(entryChunks[i])) {
+        hasUnemitted = true
+        break
+      }
+    }
+
+    if (!hasUnemitted) {
+      return {
+        ...entry,
+        chunks: EMPTY_CHUNKS,
+      }
+    }
+
+    const newChunks: string[] = []
+    for (let i = 0; i < entryChunks.length; i += 2) {
+      const chunkId = entryChunks[i]
+      if (!emitted.has(chunkId)) {
+        emitted.add(chunkId)
+        newChunks.push(chunkId, entryChunks[i + 1])
+      }
+    }
+
+    return {
+      ...entry,
+      chunks: newChunks,
+    }
+  } else {
+    let hasUnemitted = false
+    for (let i = 0; i < entryChunks.length; i++) {
+      const c = entryChunks[i]
+      const chunkKey = typeof c === 'string' ? c : (c as any)[0]
+      if (typeof chunkKey === 'string' && !emitted.has(chunkKey)) {
+        hasUnemitted = true
+        break
+      }
+    }
+
+    if (!hasUnemitted) {
+      return {
+        ...entry,
+        chunks: EMPTY_CHUNKS,
+      }
+    }
+
+    const newChunks: any[] = []
+    for (let i = 0; i < entryChunks.length; i++) {
+      const c = entryChunks[i]
+      const chunkKey = typeof c === 'string' ? c : (c as any)[0]
+      if (typeof chunkKey === 'string') {
+        if (!emitted.has(chunkKey)) {
+          emitted.add(chunkKey)
+          newChunks.push(c)
+        }
+      } else {
+        newChunks.push(c)
+      }
+    }
+
+    return {
+      ...entry,
+      chunks: newChunks,
+    }
+  }
+}
 
 // This is a global singleton that is, among other things, also used to
 // encode/decode bound args of server function closures. This can't be using a
@@ -174,6 +280,17 @@ function createProxiedClientReferenceManifest(
                   }
                 }
               }
+
+              if (prop === 'clientModules') {
+                const workUnitStore = workUnitAsyncStorage.getStore()
+                if (workUnitStore && !isUseCacheStore(workUnitStore)) {
+                  return getDedupedClientModuleEntry(
+                    currentManifest.clientModules[id],
+                    workUnitStore
+                  )
+                }
+              }
+
               return currentManifest[prop][id]
             }
 
@@ -206,6 +323,13 @@ function createProxiedClientReferenceManifest(
                     workStore.additionalClientReferenceManifestPages ??=
                       new Set()
                     workStore.additionalClientReferenceManifestPages.add(page)
+                  }
+
+                  if (prop === 'clientModules') {
+                    const workUnitStore = workUnitAsyncStorage.getStore()
+                    if (workUnitStore && !isUseCacheStore(workUnitStore)) {
+                      return getDedupedClientModuleEntry(entry, workUnitStore)
+                    }
                   }
 
                   return entry
