@@ -23,7 +23,7 @@ if (!globalThis.__turbopack_runtime_modules__) {
 runtimeModules = globalThis.__turbopack_runtime_modules__
 
 interface TurbopackNodeDevBuildContext extends TurbopackBaseContext<HotModule> {
-  R: ResolvePathFromModule
+  p: ResolvePathFromModule
   x: ExternalRequire
   y: ExternalImport
   C: typeof clearChunkCache
@@ -35,7 +35,7 @@ const nodeDevContextPrototype =
 nodeDevContextPrototype.q = exportUrl
 nodeDevContextPrototype.M = moduleFactories
 nodeDevContextPrototype.c = devModuleCache
-nodeDevContextPrototype.R = resolvePathFromModule
+nodeDevContextPrototype.p = resolvePathFromModule
 nodeDevContextPrototype.C = clearChunkCache
 
 /**
