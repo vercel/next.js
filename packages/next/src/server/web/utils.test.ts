@@ -1,4 +1,20 @@
-import { toNodeOutgoingHttpHeaders } from './utils'
+import { normalizeLoopbackHostname, toNodeOutgoingHttpHeaders } from './utils'
+
+describe('normalizeLoopbackHostname', () => {
+  it.each([
+    ['localhost', 'localhost'],
+    ['LOCALHOST', 'localhost'],
+    ['127.0.0.1', 'localhost'],
+    ['127.255.255.255', 'localhost'],
+    ['::1', 'localhost'],
+    ['[::1]', 'localhost'],
+    ['127.0.0.256', '127.0.0.256'],
+    ['192.168.0.1', '192.168.0.1'],
+    ['example.com', 'example.com'],
+  ])('normalizes %s to %s', (hostname, expected) => {
+    expect(normalizeLoopbackHostname(hostname)).toBe(expected)
+  })
+})
 
 describe('toNodeHeaders', () => {
   it('should handle multiple set-cookie headers correctly', () => {

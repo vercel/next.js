@@ -6,6 +6,7 @@ import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
+import { normalizeLoopbackHostname } from './utils'
 
 interface Options {
   base?: string | URL
@@ -19,14 +20,9 @@ interface Options {
   i18nProvider?: I18NProvider
 }
 
-const REGEX_LOCALHOST_HOSTNAME =
-  /^(?:127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|\[::1\]|localhost)$/
-
 function parseURL(url: string | URL, base?: string | URL) {
   const parsed = new URL(String(url), base && String(base))
-  if (REGEX_LOCALHOST_HOSTNAME.test(parsed.hostname)) {
-    parsed.hostname = 'localhost'
-  }
+  parsed.hostname = normalizeLoopbackHostname(parsed.hostname)
   return parsed
 }
 
