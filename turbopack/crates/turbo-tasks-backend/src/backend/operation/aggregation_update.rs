@@ -346,6 +346,8 @@ pub enum AggregationUpdateJob {
     /// more changes to the structure.
     BalanceEdge { upper_id: TaskId, task_id: TaskId },
     /// Does nothing. This is used to filter out transient jobs during serialization.
+    // Still required: `encode_jobs` replaces session-only jobs with this placeholder so any queue
+    // encoded outside the snapshot `retain_persistent` path stays decodable.
     Noop,
 }
 
@@ -979,7 +981,8 @@ pub struct AggregationUpdateQueueStats {
     schedule_task: usize,
 }
 
-/// Encodes the jobs in the queue. This is used to filter out transient jobs during encoding.
+/// Encodes the jobs in the queue. `retain_persistent` filters suspended queues at snapshot time,
+/// but this preserves the encoded length and guards other encoding paths against session-only jobs.
 mod encode_jobs {
     use bincode::{
         de::{BorrowDecoder, Decoder},
