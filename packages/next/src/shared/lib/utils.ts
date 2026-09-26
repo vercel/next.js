@@ -196,32 +196,55 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
 /**
- * Next `API` route request
+ * Next.js API route request object extending Node.js IncomingMessage
+ * @see https://nextjs.org/docs/pages/building-your-application/routing/api-routes
  */
 export interface NextApiRequest extends IncomingMessage {
   /**
-   * Object of `query` values from url
+   * An object containing the query string. Defaults to `{}`
+   * @example req.query.id
    */
   query: Partial<{
     [key: string]: string | string[]
   }>
   /**
-   * Object of `cookies` from header
+   * An object containing the cookies sent by the request. Defaults to `{}`
+   * @example req.cookies.sessionid
    */
   cookies: Partial<{
     [key: string]: string
   }>
 
+  /**
+   * An object containing the body parsed by `content-type`, or `null` if no body was sent
+   * @example req.body
+   */
   body: any
 
+  /**
+   * An object containing the environment variables
+   * @example req.env.NODE_ENV
+   */
   env: Env
 
+  /**
+   * Indicates if the request is in draft mode
+   * @example req.draftMode
+   * @see https://nextjs.org/docs/app/building-your-application/configuring/draft-mode
+   */
   draftMode?: boolean
 
+  /**
+   * Indicates if the request is in preview mode
+   * @deprecated Use `draftMode` instead
+   * @example req.preview
+   */
   preview?: boolean
   /**
    * Preview data set on the request, if any
-   * */
+   * @deprecated Use `draftMode` instead
+   * @example req.previewData
+   */
   previewData?: PreviewData
 }
 
@@ -231,58 +254,75 @@ export interface NextApiRequest extends IncomingMessage {
 type Send<T> = (body: T) => void
 
 /**
- * Next `API` route response
+ * Next.js API route response object extending Node.js ServerResponse
+ * @see https://nextjs.org/docs/pages/building-your-application/routing/api-routes
  */
 export type NextApiResponse<Data = any> = ServerResponse & {
   /**
-   * Send data `any` data in response
+   * Sends the HTTP response. Body can be a `string`, an `object`, a `Buffer` or `null`
+   * @example res.send('Hello World')
    */
   send: Send<Data>
   /**
-   * Send data `json` data in response
+   * Sends a JSON response. Body must be a serializable object
+   * @example res.json({ message: 'Hello from Next.js!' })
    */
   json: Send<Data>
+  /**
+   * A function to set the status code. Returns itself for method chaining
+   * @example res.status(200).json({ message: 'Success' })
+   */
   status: (statusCode: number) => NextApiResponse<Data>
+  /**
+   * Redirects to a specified path or URL. Default status is 307
+   * @example res.redirect('/login')
+   */
   redirect(url: string): NextApiResponse<Data>
+  /**
+   * Redirects to a specified path or URL with a custom status code
+   * @example res.redirect(301, '/permanent-redirect')
+   */
   redirect(status: number, url: string): NextApiResponse<Data>
 
   /**
-   * Set draft mode
+   * Enables or disables Draft Mode
+   * @example res.setDraftMode({ enable: true })
+   * @see https://nextjs.org/docs/app/building-your-application/configuring/draft-mode
    */
   setDraftMode: (options: { enable: boolean }) => NextApiResponse<Data>
 
   /**
-   * Set preview data for Next.js' prerender mode
+   * Sets preview data for Next.js Preview Mode
+   * @deprecated Use `setDraftMode` instead
+   * @example res.setPreviewData({ draft: true })
    */
   setPreviewData: (
     data: object | string,
     options?: {
       /**
-       * Specifies the number (in seconds) for the preview session to last for.
-       * The given number will be converted to an integer by rounding down.
-       * By default, no maximum age is set and the preview session finishes
-       * when the client shuts down (browser is closed).
+       * Session duration in seconds (rounded down to integer)
+       * @default No maximum age (session ends when browser closes)
        */
       maxAge?: number
       /**
-       * Specifies the path for the preview session to work under. By default,
-       * the path is considered the "default path", i.e., any pages under "/".
+       * Path scope for the preview session
+       * @default "/" (all pages)
        */
       path?: string
     }
   ) => NextApiResponse<Data>
 
   /**
-   * Clear preview data for Next.js' prerender mode
+   * Clears the Preview Mode data
+   * @deprecated Use `setDraftMode` instead
+   * @example res.clearPreviewData()
    */
   clearPreviewData: (options?: { path?: string }) => NextApiResponse<Data>
 
   /**
-   * Revalidate a specific page and regenerate it using On-Demand Incremental
-   * Static Regeneration.
-   * The path should be an actual path, not a rewritten path. E.g. for
-   * "/blog/[slug]" this should be "/blog/post-1".
-   * @link https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath
+   * Revalidate a page on demand using getStaticProps
+   * @example await res.revalidate('/posts/1')
+   * @see https://nextjs.org/docs/pages/guides/incremental-static-regeneration
    */
   revalidate: (
     urlPath: string,
