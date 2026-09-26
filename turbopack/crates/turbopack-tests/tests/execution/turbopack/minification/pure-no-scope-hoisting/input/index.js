@@ -4,17 +4,11 @@ import annotatedDefault, {
   exportedLater,
   getState,
   unannotated,
-} from './library'
-import { reexported } from './reexport'
-import { annotated as starReexported } from './star'
-import * as directNamespace from './library'
-import { namespace } from './namespace-reexport'
-
-let state = 0
-
-const unused = /*@__PURE__*/ (() => {
-  state++
-})()
+} from '../../pure/input/library'
+import { reexported } from '../../pure/input/reexport'
+import { annotated as starReexported } from '../../pure/input/star'
+import * as directNamespace from '../../pure/input/library'
+import { namespace } from '../../pure/input/namespace-reexport'
 
 annotated()
 annotatedDeclaration()
@@ -40,11 +34,7 @@ annotated`tagged${argumentState++}`
 unannotated()
 unannotated`tagged`
 
-it('should remove unused PURE statements', () => {
-  expect(state).toBe(0)
-})
-
-it('should propagate NO_SIDE_EFFECTS across imports and reexports', () => {
+it('should propagate NO_SIDE_EFFECTS without scope hoisting', () => {
   expect(getState()).toBe(2)
   expect(argumentState).toBe(2)
 })
