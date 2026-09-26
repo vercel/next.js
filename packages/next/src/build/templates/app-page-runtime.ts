@@ -97,6 +97,12 @@ import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param
 
 type AppPageRenderOperation = 'render' | 'prerender'
 
+function isHTTPAccessFallbackStatus(
+  status: number | undefined
+): status is 401 | 403 | 404 {
+  return status === 401 || status === 403 || status === 404
+}
+
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
  * from the shell that matched this request. Only params that can still be
@@ -1690,33 +1696,38 @@ export function createAppPageEntrypoint({
           )
         }
 
-        // Start the resume without awaiting it. The response consumes the
-        // continuation stream attached above.
-        doRender({
+        // Start the resume immediately. The response consumes the continuation
+        // stream attached above, while callers may await its metadata when the
+        // shell has not committed a response yet.
+        const resumeResult = doRender({
           span,
           postponed,
           // The resume retains concrete param values; staging only defers
           // access.
           fallbackRouteParams: null,
           renderOperation: 'render',
+        }).then((result) => {
+          if (!result) {
+            throw new Error('Invariant: expected a result to be returned')
+          }
+
+          if ('error' in result) {
+            throw result.error
+          }
+
+          if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
+            throw new Error(
+              `Invariant: expected a page response, got ${result.value?.kind}`
+            )
+          }
+
+          return result.value
         })
-          .then(async (result) => {
-            if (!result) {
-              throw new Error('Invariant: expected a result to be returned')
-            }
 
-            if ('error' in result) {
-              throw result.error
-            }
-
-            if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-              throw new Error(
-                `Invariant: expected a page response, got ${result.value?.kind}`
-              )
-            }
-
+        resumeResult
+          .then((result) => {
             // Pipe the resume result to the transformer.
-            await result.value.html.pipeTo(transformer.writable)
+            return result.html.pipeTo(transformer.writable)
           })
           .catch((err) => {
             // An error occurred during piping or preparing the render, abort
@@ -1725,6 +1736,8 @@ export function createAppPageEntrypoint({
               console.error("couldn't abort transformer", e)
             })
           })
+
+        return resumeResult
       }
 
       const handleResponse = async (span?: Span): Promise<null | void> => {
@@ -2323,7 +2336,32 @@ export function createAppPageEntrypoint({
           body.push(createPPRBoundarySentinel())
         }
 
-        resumeRender(body, cachedData.postponed, span)
+        const statusCodeBeforeResume = res.statusCode
+        const locationBeforeResume = res.getHeader('location')
+        const hasEmptyPrelude =
+          typeof cachedData.postponed === 'string' &&
+          entryBase.isEmptyHTMLPrelude(cachedData.postponed)
+        const resumeResult = resumeRender(body, cachedData.postponed, span)
+
+        if (hasEmptyPrelude) {
+          // Nothing from an empty shell has been sent yet, so wait until the
+          // resumed render has produced its response metadata. This lets HTTP
+          // access fallbacks such as notFound() set the document status before
+          // sendRenderResult commits the headers. All other statuses, including
+          // redirects, retain the prerendered document semantics and remain
+          // encoded in the RSC payload.
+          const resumedData = await resumeResult
+          if (isHTTPAccessFallbackStatus(resumedData.status)) {
+            res.statusCode = resumedData.status
+          } else {
+            res.statusCode = statusCodeBeforeResume
+            if (locationBeforeResume === undefined) {
+              res.removeHeader('location')
+            } else {
+              res.setHeader('location', locationBeforeResume)
+            }
+          }
+        }
 
         return sendRenderResult({
           req,
