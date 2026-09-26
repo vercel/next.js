@@ -1,0 +1,6 @@
+{
+  "name": "demo-pkg-rc",
+  "version": "1.0.0",
+  "main": "index.js",
+  "sideEffects": false
+}
