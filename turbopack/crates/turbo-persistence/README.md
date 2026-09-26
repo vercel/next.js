@@ -54,9 +54,10 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4D)
+  - 4 bytes magic number (0xFE4ADA4E)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 1 byte shard bits: the family had `2^bits` shards when the SST files were split
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -381,7 +382,7 @@ CURRENT: 17
 
 ### Choosing merge jobs
 
-The key space of each family is split into a power-of-two number of shards by the leading bits of the key hash (`FamilyConfig::min_shard_bits`, growing so that a shard holds about `DbConfig::target_shard_size` after compaction). Commits and merges split SST files at shard boundaries, so each shard is compacted on its own. A shard has a bottom run (SST files flagged `bottom`, written by merging all files of the shard) and the files written since, above it.
+The key space of each family is split into a power-of-two number of shards by the leading bits of the key hash (`FamilyConfig::min_shard_bits`, growing so that a shard holds about `DbConfig::target_shard_size` after compaction). The shard count doubles once a shard's bottom run exceeds 1.5 times the target and halves once it falls below half of it, so it doesn't flip back and forth; the current count is recorded in each meta file. Commits and merges split SST files at shard boundaries, so each shard is compacted on its own. A shard has a bottom run (SST files flagged `bottom`, written by merging all files of the shard) and the files written since, above it.
 
 - A bottom merge merges all files of a shard into a new bottom run, dropping superseded entries and tombstones. It runs when the files above the bottom run exceed `max_space_amplification_percent` of the bottom run, counting each tombstone as an average bottom entry since it deletes one. This bounds the space amplification.
 - An intermediate merge merges only the files above the bottom run when there are more than `max_files_above_bottom`, to bound the number of files a lookup consults.
