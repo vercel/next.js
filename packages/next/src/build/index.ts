@@ -3555,6 +3555,7 @@ export default async function build(
                 hasEmptyStaticShell,
                 hasPostponed,
                 hasStaticRsc,
+                prerenderStatus,
               } = routeResult ?? {}
 
               const cacheControl = getCacheControl(
@@ -3577,6 +3578,11 @@ export default async function build(
                 hasPostponed,
                 hasEmptyStaticShell,
                 initialCacheControl: cacheControl,
+                prerenderStatus:
+                  cacheControl.revalidate !== 0 &&
+                  route.pathname !== UNDERSCORE_NOT_FOUND_ROUTE
+                    ? prerenderStatus
+                    : undefined,
               })
 
               // update the page (eg /blog/[slug]) to also have the postpone metadata
@@ -3893,6 +3899,11 @@ export default async function build(
                     // if PPR is turned on and the route contains a dynamic segment,
                     // we assume it'll be partially prerendered
                     hasPostponed: isRoutePPREnabled,
+                    prerenderStatus:
+                      cacheControl.revalidate !== 0 &&
+                      route.pathname !== UNDERSCORE_NOT_FOUND_ROUTE
+                        ? routeResult?.prerenderStatus
+                        : undefined,
                   })
                 }
 
