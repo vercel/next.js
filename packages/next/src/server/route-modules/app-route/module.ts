@@ -97,6 +97,37 @@ import {
   createRouteHandlerRequestInUnstableCacheError,
 } from '../../use-cache/use-cache-messages'
 
+type AppRouteRequestInsightsRuntime = {
+  getRequestInsightsIdentity: typeof import('../../lib/trace/request-insights-identity').getRequestInsightsIdentity
+  recordRequestInsightSource: typeof import('../../lib/trace/request-insights').recordRequestInsightSource
+}
+
+let appRouteRequestInsightsRuntime: AppRouteRequestInsightsRuntime | undefined
+
+function markAppRouteRequestSource(): void {
+  if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+    if (!appRouteRequestInsightsRuntime) {
+      const { getRequestInsightsIdentity } =
+        require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')
+      const { recordRequestInsightSource } =
+        require('../../lib/trace/request-insights') as typeof import('../../lib/trace/request-insights')
+
+      appRouteRequestInsightsRuntime = {
+        getRequestInsightsIdentity,
+        recordRequestInsightSource,
+      }
+    }
+
+    const identity = appRouteRequestInsightsRuntime.getRequestInsightsIdentity()
+    if (identity) {
+      appRouteRequestInsightsRuntime.recordRequestInsightSource(
+        identity,
+        'app-route'
+      )
+    }
+  }
+}
+
 export class WrappedNextRouterError {
   constructor(
     public readonly error: RedirectError,
@@ -855,6 +886,8 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<PreparedAppRouteExecution> {
+    markAppRouteRequestSource()
+
     // Ensure userland is fully loaded (handles async modules with top-level
     // await, where require() returns a Promise instead of the module).
     await this.ensureUserland()

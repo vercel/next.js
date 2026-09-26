@@ -14,6 +14,7 @@ import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
 import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
+import type { RequestInsightsIdentity } from './lib/trace/request-insights-identity'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -49,6 +50,8 @@ export type OnCacheEntryHandler = (
 ) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
+  /** Server-owned identity for the development Request Insights timeline. */
+  requestInsightsIdentity?: RequestInsightsIdentity
   /**
    * The query that was used to make the request.
    */
