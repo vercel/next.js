@@ -4,6 +4,7 @@ import path, { join } from 'path'
 // @ts-expect-error
 import pkg from 'next/package'
 import http from 'http'
+import os from 'os'
 import { promises as fs } from 'fs'
 import stripAnsi from 'strip-ansi'
 import type { ChildProcess } from 'child_process'
@@ -1187,6 +1188,46 @@ Next.js Config:
         expect(info.stderr).not.toContain(marker)
       } finally {
         await fs.rm(binDir, { recursive: true, force: true })
+      }
+    })
+
+    test('should report package versions from the project directory', async () => {
+      // Simulates running a `next` CLI installed elsewhere (e.g. `pnpm dlx`,
+      // `npx`, or a global install) against a project with its own versions.
+      const projectDir = await fs.mkdtemp(
+        join(os.tmpdir(), 'next-info-project-')
+      )
+      const writePackage = async (name: string, version: string) => {
+        const dir = join(projectDir, 'node_modules', name)
+        await fs.mkdir(dir, { recursive: true })
+        await fs.writeFile(
+          join(dir, 'package.json'),
+          JSON.stringify({ name, version })
+        )
+      }
+
+      try {
+        await fs.writeFile(
+          join(projectDir, 'package.json'),
+          JSON.stringify({ name: 'next-info-project', private: true })
+        )
+        await writePackage('next', '0.0.0-project-next')
+        await writePackage('react', '0.0.0-project-react')
+        await writePackage('typescript', '0.0.0-project-typescript')
+
+        const info = await next.runCommand(['info'], {
+          cwd: projectDir,
+          env: { npm_config_user_agent: 'npm' },
+        })
+
+        expect(info.stdout).toContain('next: 0.0.0-project-next')
+        expect(info.stdout).toContain('react: 0.0.0-project-react')
+        expect(info.stdout).toContain('typescript: 0.0.0-project-typescript')
+        // Not installed in the project, so it must not be picked up from the
+        // CLI's own installation.
+        expect(info.stdout).toContain('react-dom: N/A')
+      } finally {
+        await fs.rm(projectDir, { recursive: true, force: true })
       }
     })
 
