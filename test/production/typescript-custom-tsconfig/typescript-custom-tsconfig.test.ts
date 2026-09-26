@@ -6,12 +6,10 @@ describe('Custom TypeScript Config', () => {
   ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'production mode',
     () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       it('should warn when using custom typescript path', async () => {
         await next.build()

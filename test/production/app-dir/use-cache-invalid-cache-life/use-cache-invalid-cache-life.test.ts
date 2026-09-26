@@ -5,13 +5,10 @@ const validPage = `export default function Page() {
 }`
 
 describe('use-cache-invalid-cache-life', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('fails the build for a config profile with a non-finite value other than Infinity', async () => {
     await next.patchFile(

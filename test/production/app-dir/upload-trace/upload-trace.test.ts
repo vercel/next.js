@@ -9,14 +9,11 @@ describe('upload-trace', () => {
     return
   }
 
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     buildCommand: 'pnpm next build --experimental-cpu-prof --internal-trace',
   })
-
-  if (skipped) return
 
   it('should upload profiles and trace to the mock endpoint after build', async () => {
     const buildResult = await next.build()

@@ -4,12 +4,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('typeof window replace', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'app'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     let buildManifest: any
 
