@@ -463,6 +463,8 @@ export interface CacheFs {
   readFile: typeof fs.promises.readFile
   readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>
+  rename: typeof fs.promises.rename
+  unlink: typeof fs.promises.unlink
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
 }
