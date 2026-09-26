@@ -714,7 +714,21 @@ impl DepGraph {
             }
 
             if chunk.body.is_empty() {
-                continue;
+                // The rest of this code assumes ids match indexes
+                // so I am putting this placeholder here of an empty
+                // export so that nothing errors later on because
+                // of this mismatch
+                chunk
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                        NamedExport {
+                            span: DUMMY_SP,
+                            specifiers: Default::default(),
+                            src: None,
+                            type_only: false,
+                            with: None,
+                        },
+                    )));
             }
 
             modules.push(chunk);
