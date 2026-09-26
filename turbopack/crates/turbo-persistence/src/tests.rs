@@ -163,7 +163,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
-            min_shard_count: 1,
+            min_shard_bits: crate::shard::ShardBits::new(0),
         }],
         access_mode: if mmap {
             crate::mmap_access_mode()
@@ -1581,7 +1581,7 @@ fn multi_value_config() -> DbConfig<1> {
         name: "test",
         kind: FamilyKind::MultiValue,
         compression: Compression::Lz4,
-        min_shard_count: 1,
+        min_shard_bits: crate::shard::ShardBits::new(0),
     };
     config
 }
@@ -1590,7 +1590,7 @@ fn multi_value_config() -> DbConfig<1> {
 /// bottom run exists. Tombstones then have to survive while the bottom run holds their keys.
 fn intermediate_compaction_config() -> CompactConfig {
     CompactConfig {
-        max_space_amplification: f32::INFINITY,
+        min_bottom_merge_bytes: u64::MAX,
         max_files_above_bottom: 1,
         ..Default::default()
     }
@@ -2854,7 +2854,7 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
     // Two shards, so every commit writes one SST per shard into its meta file.
     let config = || {
         let mut config = config_with_mmap::<1>(mmap);
-        config.family_configs[0].min_shard_count = 2;
+        config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
         config
     };
     let db = open_db_with_config::<1>(path, config())?;
@@ -2880,7 +2880,7 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
 
     // A single merge job merges one shard, which leaves an SST in every meta file.
     let partial = CompactConfig {
-        max_merge_segment_count: 1,
+        max_merge_jobs: 1,
         ..CompactConfig::full()
     };
     assert!(db.compact(&partial)?.is_some());

@@ -1,5 +1,6 @@
 use std::{
     cmp::max,
+    num::NonZeroU16,
     path::PathBuf,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
@@ -40,11 +41,11 @@ pub fn db_config() -> DbConfig<FAMILIES> {
 }
 
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
-    max_space_amplification: 0.5,
+    max_space_amplification_percent: NonZeroU16::new(50),
     min_bottom_merge_bytes: 1024 * 1024,
     max_files_above_bottom: 4,
     max_rewrite_factor: 2.0,
-    max_merge_segment_count: 16,
+    max_merge_jobs: 16,
 };
 
 pub struct TurboKeyValueDatabase {
@@ -162,14 +163,14 @@ impl TurboKeyValueDatabase {
 fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
-    max_merge_segment_count: usize,
+    max_merge_jobs: usize,
 ) -> Result<Option<CommitStats>> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
     let stats = db.compact(&CompactConfig {
-        max_merge_segment_count,
+        max_merge_jobs,
         ..COMPACT_CONFIG
     })?;
     // Compaction can run outside of turbo-tasks (e.g. in tests), then there is nobody to report to.

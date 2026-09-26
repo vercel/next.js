@@ -1,48 +1,62 @@
 //! Key hash shards.
 //!
-//! The key space of a family is split into a power-of-two number of shards by the leading bits of
-//! the key hash. Commits split their SST files at shard boundaries and compaction merges each shard
-//! on its own, so SST files never span a shard boundary. Since shards are hash prefixes, doubling
+//! The key space of a family is split into `2^bits` shards by the leading bits of the key hash.
+//! Commits split their SST files at shard boundaries and compaction merges each shard on its own,
+//! so SST files never span a shard boundary. Since shards are hash prefixes, doubling
 //! the shard count splits every shard exactly in half.
 
 use std::ops::RangeInclusive;
 
 use crate::meta_file::StaticSortedFileRange;
 
-/// The largest supported shard count.
-pub const MAX_SHARD_COUNT: u32 = 1 << 12;
+/// The number of leading key hash bits that select the shard, i.e. a family has `2^bits` shards.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ShardBits(u8);
 
-/// Returns the shard that contains `hash`. `shard_count` must be a power of two.
-pub fn shard_index(hash: u64, shard_count: u32) -> u32 {
-    debug_assert!(shard_count.is_power_of_two());
-    if shard_count <= 1 {
-        0
-    } else {
-        (hash >> (u64::BITS - shard_count.trailing_zeros())) as u32
+impl ShardBits {
+    /// The largest supported value, i.e. 4096 shards.
+    pub const MAX: ShardBits = ShardBits(12);
+
+    /// Panics if `bits` exceeds [`ShardBits::MAX`].
+    pub const fn new(bits: u8) -> Self {
+        assert!(bits <= Self::MAX.0, "too many shard bits");
+        Self(bits)
     }
-}
 
-/// Returns the range of key hashes in the shard `index`. `shard_count` must be a power of two.
-pub fn shard_range(index: u32, shard_count: u32) -> RangeInclusive<u64> {
-    debug_assert!(shard_count.is_power_of_two() && index < shard_count);
-    if shard_count <= 1 {
-        return 0..=u64::MAX;
+    /// The number of shards.
+    pub fn count(self) -> u32 {
+        1 << self.0
     }
-    let shift = u64::BITS - shard_count.trailing_zeros();
-    let start = u64::from(index) << shift;
-    let end = start | (u64::MAX >> (u64::BITS - shift));
-    start..=end
-}
 
-/// The shard count for a family with `bytes` of compacted data, so that shards hold about
-/// `target_shard_size` bytes. Never less than `min_shard_count`, which must be a power of two.
-pub fn shard_count_for(bytes: u64, target_shard_size: u64, min_shard_count: u32) -> u32 {
-    let needed = bytes.div_ceil(target_shard_size.max(1)).max(1);
-    let count = u32::try_from(needed)
-        .unwrap_or(u32::MAX)
-        .min(MAX_SHARD_COUNT)
-        .next_power_of_two();
-    count.max(min_shard_count).min(MAX_SHARD_COUNT)
+    /// Returns the shard that contains `hash`.
+    pub fn shard_of(self, hash: u64) -> u32 {
+        if self.0 == 0 {
+            0
+        } else {
+            (hash >> (u64::BITS - u32::from(self.0))) as u32
+        }
+    }
+
+    /// Returns the range of key hashes in the shard `index`.
+    pub fn range(self, index: u32) -> RangeInclusive<u64> {
+        debug_assert!(index < self.count());
+        if self.0 == 0 {
+            return 0..=u64::MAX;
+        }
+        let shift = u64::BITS - u32::from(self.0);
+        let start = u64::from(index) << shift;
+        let end = start | (u64::MAX >> u32::from(self.0));
+        start..=end
+    }
+
+    /// The shard bits for a family with `bytes` of compacted data, so that shards hold about
+    /// `target_shard_size` bytes. Never less than `min`.
+    pub fn for_size(bytes: u64, target_shard_size: u64, min: ShardBits) -> Self {
+        let needed = bytes.div_ceil(target_shard_size.max(1)).max(1);
+        // ceil(log2(needed))
+        let bits = u64::BITS - (needed - 1).leading_zeros();
+        Self(bits.min(u32::from(Self::MAX.0)) as u8).max(min)
+    }
 }
 
 /// The SST files that can contain the keys of a shard, newest first, which is the order lookups
@@ -57,14 +71,14 @@ pub(crate) struct ShardFiles {
 /// The SST files of each shard of a family, so lookups only consult the files of the key's shard
 /// instead of every file of the family.
 pub(crate) struct ShardIndex {
-    shard_count: u32,
+    bits: ShardBits,
     shards: Box<[ShardFiles]>,
 }
 
 impl Default for ShardIndex {
     fn default() -> Self {
         Self {
-            shard_count: 1,
+            bits: ShardBits::default(),
             shards: Box::new([ShardFiles::default()]),
         }
     }
@@ -75,16 +89,16 @@ impl ShardIndex {
     /// oldest meta file first. Files that span multiple shards (written with a smaller shard
     /// count) are listed in every shard they overlap.
     pub(crate) fn build<'l>(
-        shard_count: u32,
+        bits: ShardBits,
         meta_files: impl DoubleEndedIterator<Item = &'l [StaticSortedFileRange]> + ExactSizeIterator,
     ) -> Self {
-        let mut shards = (0..shard_count)
+        let mut shards = (0..bits.count())
             .map(|_| (Vec::new(), Vec::new()))
             .collect::<Vec<_>>();
         for (meta_index, ranges) in meta_files.enumerate().rev() {
             for (entry_index, range) in ranges.iter().enumerate().rev() {
-                let first = shard_index(range.min_hash, shard_count);
-                let last = shard_index(range.max_hash, shard_count);
+                let first = bits.shard_of(range.min_hash);
+                let last = bits.shard_of(range.max_hash);
                 for (ranges, locations) in &mut shards[first as usize..=last as usize] {
                     ranges.push(*range);
                     locations.push((meta_index as u32, entry_index as u32));
@@ -92,7 +106,7 @@ impl ShardIndex {
             }
         }
         Self {
-            shard_count,
+            bits,
             shards: shards
                 .into_iter()
                 .map(|(ranges, locations)| ShardFiles {
@@ -103,13 +117,13 @@ impl ShardIndex {
         }
     }
 
-    pub(crate) fn shard_count(&self) -> u32 {
-        self.shard_count
+    pub(crate) fn bits(&self) -> ShardBits {
+        self.bits
     }
 
     /// The SST files that can contain `hash`.
     pub(crate) fn candidates(&self, hash: u64) -> &ShardFiles {
-        &self.shards[shard_index(hash, self.shard_count) as usize]
+        &self.shards[self.bits.shard_of(hash) as usize]
     }
 
     /// The SST files that can contain the keys of `shard`.
@@ -124,13 +138,14 @@ mod tests {
 
     #[test]
     fn test_shard_ranges_cover_the_key_space() {
-        for count in [1, 2, 4, 8, 1024] {
+        for bits in [0, 1, 2, 3, 10] {
+            let bits = ShardBits::new(bits);
             let mut next = 0u64;
-            for index in 0..count {
-                let range = shard_range(index, count);
+            for index in 0..bits.count() {
+                let range = bits.range(index);
                 assert_eq!(*range.start(), next);
-                assert_eq!(shard_index(*range.start(), count), index);
-                assert_eq!(shard_index(*range.end(), count), index);
+                assert_eq!(bits.shard_of(*range.start()), index);
+                assert_eq!(bits.shard_of(*range.end()), index);
                 next = range.end().wrapping_add(1);
             }
             assert_eq!(next, 0, "the last shard ends at u64::MAX");
@@ -138,9 +153,9 @@ mod tests {
     }
 
     #[test]
-    fn test_doubling_splits_shards() {
-        let coarse = shard_range(3, 4);
-        let fine = [shard_range(6, 8), shard_range(7, 8)];
+    fn test_one_more_bit_splits_shards() {
+        let coarse = ShardBits::new(2).range(3);
+        let fine = [ShardBits::new(3).range(6), ShardBits::new(3).range(7)];
         assert_eq!(coarse.start(), fine[0].start());
         assert_eq!(fine[0].end() + 1, *fine[1].start());
         assert_eq!(coarse.end(), fine[1].end());
@@ -148,17 +163,17 @@ mod tests {
 
     #[test]
     fn test_shard_index() {
-        let range = |shard, count| {
-            let r = shard_range(shard, count);
+        let range = |shard, bits| {
+            let r = ShardBits::new(bits).range(shard);
             StaticSortedFileRange {
                 min_hash: *r.start(),
                 max_hash: *r.end(),
             }
         };
         // An old meta file written with 2 shards, a newer one with 4.
-        let old = [range(0, 2), range(1, 2)];
-        let new = [range(1, 4), range(2, 4), range(3, 4)];
-        let index = ShardIndex::build(4, [&old[..], &new[..]].into_iter());
+        let old = [range(0, 1), range(1, 1)];
+        let new = [range(1, 2), range(2, 2), range(3, 2)];
+        let index = ShardIndex::build(ShardBits::new(2), [&old[..], &new[..]].into_iter());
         let locations = |shard| index.shard(shard).locations.to_vec();
         assert_eq!(locations(0), vec![(0, 0)]);
         assert_eq!(locations(1), vec![(1, 0), (0, 0)]);
@@ -179,13 +194,14 @@ mod tests {
     }
 
     #[test]
-    fn test_shard_count_for() {
+    fn test_for_size() {
         const MB: u64 = 1024 * 1024;
-        assert_eq!(shard_count_for(0, 256 * MB, 1), 1);
-        assert_eq!(shard_count_for(0, 256 * MB, 8), 8);
-        assert_eq!(shard_count_for(256 * MB, 256 * MB, 1), 1);
-        assert_eq!(shard_count_for(257 * MB, 256 * MB, 1), 2);
-        assert_eq!(shard_count_for(2500 * MB, 256 * MB, 1), 16);
-        assert_eq!(shard_count_for(u64::MAX, 1, 1), MAX_SHARD_COUNT);
+        let bits = |b| ShardBits::new(b);
+        assert_eq!(ShardBits::for_size(0, 256 * MB, bits(0)), bits(0));
+        assert_eq!(ShardBits::for_size(0, 256 * MB, bits(3)), bits(3));
+        assert_eq!(ShardBits::for_size(256 * MB, 256 * MB, bits(0)), bits(0));
+        assert_eq!(ShardBits::for_size(257 * MB, 256 * MB, bits(0)), bits(1));
+        assert_eq!(ShardBits::for_size(2500 * MB, 256 * MB, bits(0)), bits(4));
+        assert_eq!(ShardBits::for_size(u64::MAX, 1, bits(0)), ShardBits::MAX);
     }
 }
