@@ -46,6 +46,7 @@ pub enum ServerToClientMessage {
         memory_samples: Vec<u64>,
         memory_pressure_samples: Vec<u8>,
         active_worker_threads_samples: Vec<u64>,
+        concurrency_samples: Vec<f64>,
     },
 }
 
@@ -303,6 +304,8 @@ fn handle_connection(
                                         span.start(),
                                         span.end(),
                                     );
+                                let concurrency_samples =
+                                    store.concurrency_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -319,6 +322,7 @@ fn handle_connection(
                                     memory_samples,
                                     memory_pressure_samples,
                                     active_worker_threads_samples,
+                                    concurrency_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -337,6 +341,7 @@ fn handle_connection(
                                     memory_samples: Vec::new(),
                                     memory_pressure_samples: Vec::new(),
                                     active_worker_threads_samples: Vec::new(),
+                                    concurrency_samples: Vec::new(),
                                 }
                             }
                         };
@@ -388,7 +393,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn query_result_serializes_worker_samples_in_camel_case() {
+    fn query_result_serializes_samples_in_camel_case() {
         let message = ServerToClientMessage::QueryResult {
             id: SpanId::new(1).unwrap(),
             is_graph: false,
@@ -405,10 +410,12 @@ mod tests {
             memory_samples: vec![1024],
             memory_pressure_samples: vec![2],
             active_worker_threads_samples: vec![3],
+            concurrency_samples: vec![1.25],
         };
         let json = serde_json::to_value(message).unwrap();
         assert_eq!(json["type"], "query-result");
         assert_eq!(json["memorySamples"], serde_json::json!([1024]));
         assert_eq!(json["activeWorkerThreadsSamples"], serde_json::json!([3]));
+        assert_eq!(json["concurrencySamples"], serde_json::json!([1.25]));
     }
 }
