@@ -1,0 +1,96 @@
+---
+title: Upgrade with AI
+description: Prepare a Next.js upgrade for a coding agent and enable upgrade reminders.
+version: experimental
+---
+
+Use `next upgrade --ai` to check for an available upgrade and prepare a task for a coding agent. The command selects a target version, gathers the relevant upgrade guides, and hands instructions to the agent. The agent makes and verifies the changes to your app.
+
+This workflow supports both App Router and Pages Router apps. Without `--ai`, `next upgrade` runs the `@next/codemod` upgrade workflow instead.
+
+## Start an upgrade
+
+Run the command from your app's directory:
+
+```bash
+npx next@canary upgrade --ai=latest
+```
+
+Or pass the app directory from a workspace root:
+
+```bash
+npx next@canary upgrade apps/web --ai=latest
+```
+
+Using `next@canary` provides the current upgrade CLI. It selects a canary upgrade target only when the app already uses a canary version.
+
+You can also omit the policy:
+
+```bash
+npx next@canary upgrade --ai
+```
+
+In that case, the command uses the app's `experimental.agentUpgrade` setting if it is `security`, `latest`, or `future`. Otherwise, it defaults to `security`. The `--ai` and `--revision` options cannot be used together.
+
+## Choose an upgrade policy
+
+| Policy     | Behavior                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `security` | For affected stable versions, choose the latest safe release in the earliest eligible major.                        |
+| `latest`   | Upgrade stable, RC, beta, or preview apps to npm's `latest` stable release, or canary apps to its `canary` release. |
+| `future`   | Upgrade to the latest release on the app's channel, then adopt applicable Future Defaults.                          |
+
+The `future` policy can adopt a Future Default even when no Next.js version update is needed.
+
+The `future` policy currently offers Cache Components to App Router apps targeting Next.js 16.3.0 or later that have not already enabled it. A Pages Router app can receive a version update through this policy, but Cache Components adoption is not offered to a Pages Router-only app.
+
+Security upgrades are supported for stable installations. Canary installations can use `latest` or `future`. RC, beta, and preview installations can use `latest` to move to a newer stable release, but cannot use `security` or `future`. Other prerelease channels are not supported by `--ai`.
+
+## What happens when you run the command
+
+The CLI checks the version of `next` installed in your app and assesses the requested upgrade. If no upgrade is needed, it reports why and stops. If it cannot establish a safe target, it reports the problem instead of starting an agent session.
+
+For a ready upgrade, the CLI copies the relevant migration guides into a temporary directory and prepares an agent prompt with the selected target and references. A major-version update includes guides for each crossed major version. The prompt asks the agent to check for duplicate work before editing, use a separate Git worktree when the app is in a Git repository unless you request otherwise, verify the result, and set `experimental.agentUpgrade` to the chosen policy when the target version supports it. Without Git, the agent upgrades the app in place.
+
+If you run the command inside a coding agent, the CLI prints the prompt for that agent to follow. In an interactive terminal, it can start an installed Codex or Claude Code session, or copy the prompt for another agent. If neither is installed, it attempts to copy the prompt to your clipboard and prints it if clipboard access is unavailable. In a non-interactive terminal, it prints the prompt.
+
+## Enable upgrade reminders
+
+Set `experimental.agentUpgrade` to receive upgrade reminders while running `next dev` and `next build`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: 'latest',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    agentUpgrade: 'latest',
+  },
+}
+
+module.exports = nextConfig
+```
+
+Use `security`, `latest`, or `future` to select the reminder policy. Remove the option or set it to `false` to disable reminders. The setting does not run an upgrade automatically. An agent following the `--ai` prompt is asked to set it after the upgrade, when supported.
+
+Reminders depend on the Next.js version installed in your app supporting this experimental option. Running the canary upgrade CLI does not add reminders to an older installation.
+
+The reminder checks security advisories first for stable installations. For stable apps, `latest` or `future` shows a version reminder for a newer major or minor release, rather than for a patch release alone. With `latest`, promotion from RC, beta, or preview to a newer stable release can also prompt within the same minor. An explicit `next upgrade --ai=latest` can still upgrade to a newer patch release. With `future`, a reminder can also appear when an applicable Future Default is pending.
+
+When you run `next dev` or `next build` in an interactive terminal, the reminder offers **Upgrade now**, **Skip**, and **Skip until next version**. **Upgrade now** stops the current command and starts the AI upgrade workflow. **Skip** continues the command. **Skip until next version** saves a dismissal for the installed version and policy.
+
+When a coding agent runs `next dev` or `next build`, the first eligible reminder stops that command with instructions to tell you about the upgrade. Retrying the same command promptly lets the original task continue with a warning.
+
+## If an upgrade cannot start
+
+The app directory must contain an App Router or Pages Router project with `next` installed. The CLI needs access to release metadata and, for stable targets, security advisory data to assess the upgrade. If that data is unavailable, the installed version is an unsupported prerelease, or no safe target is available, the command reports the reason before handing off to an agent.
