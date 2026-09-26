@@ -295,7 +295,7 @@ impl TurboBackingStorage {
         operations: Vec<Arc<AnyOperation>>,
         roots: Option<Vec<(TaskId, TtlCounter)>>,
         snapshots: Vec<I>,
-        task_cache_bucket: impl Fn(TaskTypeHash, &[TaskId], &[TaskId]) -> TaskIdBucket + Sync,
+        task_cache_bucket: impl Fn(TaskTypeHash, &[TaskId], &[TaskId]) -> Option<TaskIdBucket> + Sync,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
@@ -418,7 +418,17 @@ impl TurboBackingStorage {
                 )
                 .entered();
                 for (hash, (added_ids, deleted_ids)) in &task_cache_changes {
-                    let mut task_ids = task_cache_bucket(*hash, added_ids, deleted_ids);
+                    // Direct-by-ID restore can leave this hash absent from the in-memory cache.
+                    // Only on that cold path, read the old disk bucket before applying changes;
+                    // otherwise a GC deletion or colliding put would erase unseen siblings.
+                    let mut task_ids = match task_cache_bucket(*hash, added_ids, deleted_ids) {
+                        Some(ids) => ids,
+                        None => batch
+                            .get(KeySpace::TaskCache, hash)?
+                            .map(|bytes| decode_task_ids(Borrow::<[u8]>::borrow(&bytes)))
+                            .transpose()?
+                            .unwrap_or_default(),
+                    };
                     for task_id in added_ids {
                         if !task_ids.contains(task_id) {
                             task_ids.push(*task_id);
@@ -725,12 +735,79 @@ mod tests {
                     task_type_hash: Some(collision_hash),
                 },
             ]],
-            |_, _, _| bucket.clone(),
+            |_, _, _| Some(bucket.clone()),
         )?;
 
         assert_eq!(
             task_cache_ids(&storage.inner.database, u64::from_le_bytes(collision_hash))?,
             vec![task_id_1, task_id_2]
+        );
+        storage.inner.database.shutdown()?;
+        Ok(())
+    }
+
+    /// A GC deletion reached through a direct-by-ID restore may have no in-memory type bucket.
+    /// The snapshot must still retain siblings that live only in the on-disk collision bucket.
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_cold_bucket_keeps_disk_only_collision_siblings() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let hash = 0xC0111DEu64;
+        let deleted = TaskId::try_from(100u32).unwrap();
+        let sibling = TaskId::try_from(200u32).unwrap();
+        let another_sibling = TaskId::try_from(300u32).unwrap();
+        write_task_cache_entry(&db, hash, &[deleted, sibling, another_sibling])?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        storage.save_snapshot(
+            Vec::new(),
+            None,
+            vec![vec![SnapshotItem::Delete {
+                task_id: deleted,
+                task_type_hash: hash.to_le_bytes(),
+            }]],
+            |_, _, _| None,
+        )?;
+        assert_eq!(
+            task_cache_ids(&storage.inner.database, hash)?,
+            vec![sibling, another_sibling]
+        );
+        storage.inner.database.shutdown()?;
+        Ok(())
+    }
+
+    #[cfg_attr(
+        target_os = "wasi",
+        ignore = "WASI test host cannot run disk-backed persistence"
+    )]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_cold_bucket_put_keeps_disk_only_collision_siblings() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let hash = 0xC0111DEu64;
+        let sibling = TaskId::try_from(200u32).unwrap();
+        let created = TaskId::try_from(300u32).unwrap();
+        write_task_cache_entry(&db, hash, &[sibling])?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        storage.save_snapshot(
+            Vec::new(),
+            None,
+            vec![vec![SnapshotItem::Put {
+                task_id: created,
+                meta: None,
+                data: None,
+                task_type_hash: Some(hash.to_le_bytes()),
+            }]],
+            |_, _, _| None,
+        )?;
+        assert_eq!(
+            task_cache_ids(&storage.inner.database, hash)?,
+            vec![sibling, created]
         );
         storage.inner.database.shutdown()?;
         Ok(())
@@ -768,7 +845,7 @@ mod tests {
                 }],
             ],
             // Match canary's in-memory lifecycle: deletion has not evicted the stale ID yet.
-            |_, _, _| smallvec::smallvec![deleted, survivor, created],
+            |_, _, _| Some(smallvec::smallvec![deleted, survivor, created]),
         )?;
         assert_eq!(
             task_cache_ids(&storage.inner.database, hash)?,
@@ -900,7 +977,7 @@ mod tests {
                 task_id: deleted_id,
                 task_type_hash: collision_hash.to_le_bytes(),
             }]],
-            |_, _, _| smallvec::smallvec![survivor_id],
+            |_, _, _| Some(smallvec::smallvec![survivor_id]),
         )?;
 
         let db = &storage.inner.database;
@@ -925,7 +1002,7 @@ mod tests {
                 task_id: survivor_id,
                 task_type_hash: collision_hash.to_le_bytes(),
             }]],
-            |_, _, _| SmallVec::new(),
+            |_, _, _| Some(SmallVec::new()),
         )?;
         assert!(
             db.get(KeySpace::TaskCache, &collision_hash.to_le_bytes())?

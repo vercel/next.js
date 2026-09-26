@@ -17,13 +17,43 @@ pub type TaskCache = FxDashMap<TaskTypeHash, TaskCacheBucket>;
 ///
 /// Hash collisions are exceptionally rare, so almost every bucket contains exactly one entry.
 /// One `(CachedTaskTypeArc, CachedTaskId)` pair fits inline; a second, exceptionally rare
-/// collision spills to the heap. When persistence is enabled, buckets are populated after every
-/// on-disk candidate for the hash has been read, so lookups need no further persistence read.
+/// collision spills to the heap. `TaskId` values use at most 31 bits, so the unused high bit
+/// stores the deletion marker without growing bucket entries on either 32- or 64-bit targets.
+/// When persistence is enabled, buckets are populated after every on-disk candidate for the
+/// hash has been read, so lookups need no further persistence read.
 #[derive(Clone, Copy)]
-struct CachedTaskId {
-    id: TaskId,
-    /// Soft-deleted tasks remain discoverable for resurrection, but not in snapshot writes.
-    deleted: bool,
+struct CachedTaskId(u32);
+
+// Assert at compile time on every target: the marker must not grow a cache entry on WASI.
+const _: () = assert!(
+    std::mem::size_of::<(CachedTaskTypeArc, CachedTaskId)>()
+        == std::mem::size_of::<(CachedTaskTypeArc, TaskId)>()
+);
+
+impl CachedTaskId {
+    const DELETED_BIT: u32 = 1 << 31;
+
+    fn new(id: TaskId) -> Self {
+        let raw = *id;
+        debug_assert_eq!(raw & Self::DELETED_BIT, 0);
+        Self(raw)
+    }
+
+    fn id(self) -> TaskId {
+        TaskId::new(self.0 & !Self::DELETED_BIT).expect("a cached task ID must be non-zero")
+    }
+
+    fn is_deleted(self) -> bool {
+        self.0 & Self::DELETED_BIT != 0
+    }
+
+    fn set_deleted(&mut self, deleted: bool) {
+        if deleted {
+            self.0 |= Self::DELETED_BIT;
+        } else {
+            self.0 &= !Self::DELETED_BIT;
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -41,7 +71,7 @@ impl TaskCacheBucket {
         self.entries
             .iter()
             .find(|(task_type, _)| task_type.eq_components(native_fn, this, arg))
-            .map(|(task_type, cached)| (cached.id, task_type.clone()))
+            .map(|(task_type, cached)| (cached.id(), task_type.clone()))
     }
 
     pub fn insert(&mut self, task_type: CachedTaskTypeArc, task_id: TaskId) {
@@ -50,13 +80,7 @@ impl TaskCacheBucket {
             .iter()
             .any(|(candidate, _)| candidate == &task_type)
         {
-            self.entries.push((
-                task_type,
-                CachedTaskId {
-                    id: task_id,
-                    deleted: false,
-                },
-            ));
+            self.entries.push((task_type, CachedTaskId::new(task_id)));
         }
     }
 
@@ -75,9 +99,9 @@ impl TaskCacheBucket {
         if let Some((_, cached)) = self
             .entries
             .iter_mut()
-            .find(|(_, cached)| cached.id == task_id)
+            .find(|(_, cached)| cached.id() == task_id)
         {
-            cached.deleted = true;
+            cached.set_deleted(true);
         }
     }
 
@@ -85,23 +109,23 @@ impl TaskCacheBucket {
         if let Some((_, cached)) = self
             .entries
             .iter_mut()
-            .find(|(_, cached)| cached.id == task_id)
+            .find(|(_, cached)| cached.id() == task_id)
         {
-            cached.deleted = false;
+            cached.set_deleted(false);
         }
     }
 
     pub fn task_ids(&self) -> TaskIdBucket {
         self.entries
             .iter()
-            .filter(|(_, cached)| !cached.deleted)
-            .map(|(_, cached)| cached.id)
+            .filter(|(_, cached)| !cached.is_deleted())
+            .map(|(_, cached)| cached.id())
             .collect()
     }
 
     pub fn remove_id(&mut self, task_id: TaskId) -> bool {
         let len = self.entries.len();
-        self.entries.retain(|(_, cached)| cached.id != task_id);
+        self.entries.retain(|(_, cached)| cached.id() != task_id);
         self.entries.len() != len
     }
 
@@ -110,24 +134,7 @@ impl TaskCacheBucket {
     }
 
     pub fn is_singleton_id(&self, task_id: TaskId) -> bool {
-        self.entries.len() == 1 && self.entries[0].1.id == task_id
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::mem::size_of;
-
-    use turbo_tasks::{TaskId, backend::CachedTaskTypeArc};
-
-    use super::CachedTaskId;
-
-    #[test]
-    fn deletion_marker_fits_in_existing_bucket_entry_padding() {
-        assert_eq!(
-            size_of::<(CachedTaskTypeArc, CachedTaskId)>(),
-            size_of::<(CachedTaskTypeArc, TaskId)>(),
-        );
+        self.entries.len() == 1 && self.entries[0].1.id() == task_id
     }
 }
 

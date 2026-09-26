@@ -299,14 +299,15 @@ impl Storage {
     /// Reconcile a snapshot's changes after the task-storage shard locks are released. The
     /// bucket stays complete and keeps soft-deleted IDs for resurrection, while its disk ID list
     /// omits them until a put marks them live or eviction removes them. An absent bucket must stay
-    /// absent: creating an empty one could hide colliding candidates still on disk.
+    /// absent: creating an empty one could hide colliding candidates still on disk. The writer
+    /// reads the existing disk bucket on this cold path before applying the snapshot changes.
     pub fn reconcile_task_cache_bucket(
         &self,
         hash: TaskTypeHash,
         added_ids: &[TaskId],
         deleted_ids: &[TaskId],
-    ) -> TaskIdBucket {
-        if let Some(mut bucket) = self.task_cache.get_mut(&hash) {
+    ) -> Option<TaskIdBucket> {
+        self.task_cache.get_mut(&hash).map(|mut bucket| {
             for task_id in added_ids {
                 bucket.mark_live(*task_id);
             }
@@ -314,9 +315,7 @@ impl Storage {
                 bucket.mark_deleted(*task_id);
             }
             bucket.task_ids()
-        } else {
-            TaskIdBucket::new()
-        }
+        })
     }
 
     /// Eviction holds a task-storage shard, while creation locks the transient cache first.
@@ -1343,6 +1342,7 @@ mod tests {
         assert_eq!(
             storage
                 .reconcile_task_cache_bucket(hash, &[], &[deleted])
+                .unwrap()
                 .as_slice(),
             &[survivor]
         );
@@ -1372,6 +1372,7 @@ mod tests {
         assert_eq!(
             storage
                 .reconcile_task_cache_bucket(hash, &[deleted], &[])
+                .unwrap()
                 .as_slice(),
             &[deleted, survivor, created_later]
         );
@@ -1388,7 +1389,11 @@ mod tests {
 
         // An absent bucket is not replaced by an empty one, which would mask unseen disk IDs.
         let absent_hash = 42u64.to_le_bytes();
-        storage.reconcile_task_cache_bucket(absent_hash, &[], &[deleted]);
+        assert!(
+            storage
+                .reconcile_task_cache_bucket(absent_hash, &[], &[deleted])
+                .is_none()
+        );
         assert!(storage.task_cache.get(&absent_hash).is_none());
 
         let singleton_hash = 43u64.to_le_bytes();
