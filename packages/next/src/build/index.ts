@@ -788,7 +788,11 @@ async function writeImagesManifest(
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol?.replace(/:$/, '') as 'http' | 'https' | undefined,
-    hostname: makeRe(p.hostname).source,
+    // Hostnames are case-insensitive (RFC 4343) and `url.hostname` is always
+    // lowercased by the URL parser, so compile the pattern from the lowercased
+    // hostname. (RegExp `.source` drops the `i` flag that `nocase: true`
+    // would set, so pass the lowered string instead.)
+    hostname: makeRe(p.hostname.toLowerCase()).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
