@@ -1,7 +1,8 @@
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type {
   DevValidationWorkerMessage,
-  DevValidationWorkerResult,
+  DevValidationWorkerThreadResult,
+  SerializedDevValidationError,
 } from '../app-render/dev-validation-worker-globals'
 import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 
@@ -118,6 +119,19 @@ try {
 const isTestLoggingEnabled = !!(
   process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION
 )
+
+// Turbopack emits source maps beside its chunks, so this thread can log its
+// own validation errors. Webpack keeps development source maps on the parent
+// thread; its errors are returned to the pool and logged there instead.
+const logValidationErrorsInWorker = Boolean(process.env.TURBOPACK)
+
+function serializeValidationError(error: Error): SerializedDevValidationError {
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  }
+}
 
 /**
  * Adapts the pool's supersede flag into an `AbortSignal` the validation passes
@@ -301,19 +315,19 @@ export async function invalidateCaches(
  * Reloads the route's compiled module, then delegates the whole validation to
  * that module via `ComponentMod.routeModule.runValidationInDev`, so every
  * render (flight re-encodes and client prerenders) runs inside the app-page
- * bundle's single React instance. Logs any returned errors to the worker's
- * stderr with source-mapped code frames, then encodes them as RSC Flight bytes
- * for the main thread to forward to the dev overlay. Returns `null` when
- * validation was superseded or produced no errors.
+ * bundle's single React instance. Turbopack logs returned errors on the worker;
+ * Webpack returns their raw stacks for the parent to source-map and log. The
+ * worker also encodes them as RSC Flight bytes for the main thread to forward
+ * to the dev overlay. Returns `null` when validation was superseded or produced
+ * no errors.
  */
 export async function runDevValidation(
   message: DevValidationWorkerMessage,
   abortBuffer: SharedArrayBuffer
-): Promise<DevValidationWorkerResult> {
-  // Load the native SWC bindings and wire the code-frame renderer so the errors
-  // logged below render with a source-mapped code frame, matching the
-  // in-process dev output (the E2E tests snapshot the CLI text between the
-  // validation markers). The `build/swc` graph these pull in is bundled as a
+): Promise<DevValidationWorkerThreadResult | null> {
+  // Load the native SWC bindings and wire the code-frame renderer so errors
+  // logged in this thread render with a source-mapped code frame. The
+  // `build/swc` graph these pull in is bundled as a
   // runtime external (see `next-runtime.webpack-config.js`), so it resolves
   // from the installed `next/dist` tree rather than being compiled into this
   // worker bundle, the same way the unbundled build worker loads it.
@@ -346,7 +360,7 @@ export async function runDevValidation(
 
   const { signal, cleanup } = createSupersedeSignal(abortBuffer)
 
-  if (isTestLoggingEnabled) {
+  if (isTestLoggingEnabled && logValidationErrorsInWorker) {
     console.log(
       formatValidationEvent({
         type: 'validation_start',
@@ -380,13 +394,20 @@ export async function runDevValidation(
     }
 
     const errors: Error[] = []
+    const errorsForMainThread: SerializedDevValidationError[] = []
     for (const validationError of validationErrors) {
-      // Log to the worker's stderr; `node-environment` +
-      // `installCodeFrameSupport` render the source-mapped stack and code frame
-      // there, matching the in-process CLI output.
-      console.error(validationError)
       if (validationError instanceof Error) {
         errors.push(validationError)
+        if (logValidationErrorsInWorker) {
+          // `node-environment` + `installCodeFrameSupport` render the
+          // source-mapped stack and code frame in the worker for Turbopack.
+          console.error(validationError)
+        } else {
+          errorsForMainThread.push(serializeValidationError(validationError))
+        }
+      } else {
+        // Non-Error thrown values have no stack to source-map.
+        console.error(validationError)
       }
     }
 
@@ -394,10 +415,13 @@ export async function runDevValidation(
       return null
     }
 
-    return await serializeValidationErrorsToFlight(ComponentMod, errors)
+    return {
+      chunks: await serializeValidationErrorsToFlight(ComponentMod, errors),
+      errorsForMainThread,
+    }
   } finally {
     cleanup()
-    if (isTestLoggingEnabled) {
+    if (isTestLoggingEnabled && logValidationErrorsInWorker) {
       console.log(
         formatValidationEvent({
           type: signal.aborted ? 'validation_aborted' : 'validation_end',
