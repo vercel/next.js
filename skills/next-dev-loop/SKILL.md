@@ -75,10 +75,16 @@ Once per session, confirm both views are live.
    launch flags on `open`; agent-browser will reuse, relaunch, or restart
    its scoped background state as needed.
 
-   Keep routine verification headless. Do not open a second visible browser
-   merely to show progress. When the user needs to log in or make a visual
-   decision, expose this same session through the harness when it supports
-   that. Otherwise, reopen the same restored session headed:
+   Keep routine verification headless. When the user asks to see the UI and
+   the coding harness has an inline browser, open the current URL there and
+   continue the user-visible interactions in that tab. The inline browser is
+   a separate browser context from `agent-browser`; do not claim that cookies,
+   local storage, or in-memory page state carry over. Stop driving the headless
+   session while the user-visible interaction is in progress.
+
+   When the user needs to log in to the `agent-browser` session, or the handoff
+   must preserve that session's existing state, reopen the same restored
+   session headed instead:
 
    ```bash
    agent-browser --session "$SESSION" --restore --headed --enable react-devtools open <url>
@@ -89,7 +95,8 @@ Once per session, confirm both views are live.
    the headed browser, then continue with the same session. Keep it headed for
    the rest of the loop, including recovery opens, and keep passing
    `--enable react-devtools`; another relaunch would preserve persisted auth
-   but can discard in-memory page state.
+   but can discard in-memory page state. An inline-browser handoff does not
+   change the `agent-browser` launch mode; it remains headless.
 
 2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
    lists `get_compilation_issues`. First read the port off the
