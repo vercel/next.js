@@ -1257,6 +1257,15 @@ export async function handleBuildComplete({
         return parentOutput
       }
 
+      const sourcesWithOpenFallbacks = new Set<string>()
+      for (const [pathname, route] of Object.entries(
+        prerenderManifest.dynamicRoutes
+      )) {
+        if (route.fallback !== false) {
+          sourcesWithOpenFallbacks.add(route.fallbackSourceRoute ?? pathname)
+        }
+      }
+
       const {
         prefetchSegmentDirSuffix,
         prefetchSegmentSuffix,
@@ -1572,7 +1581,14 @@ export async function handleBuildComplete({
                 }
               : undefined,
 
-          parentFallbackMode: srcRouteInfo?.fallback,
+          // This describes the whole source page, not just its least-specific
+          // matcher. A closed prefix with an open suffix must remain callable
+          // for paths that weren't rendered at build time.
+          parentFallbackMode:
+            srcRouteInfo?.fallback === false &&
+            sourcesWithOpenFallbacks.has(srcRoute)
+              ? undefined
+              : srcRouteInfo?.fallback,
 
           fallback:
             !isNotFoundTrue || (isNotFoundTrue && hasStatic404)
@@ -1758,7 +1774,9 @@ export async function handleBuildComplete({
         // present and able to be served.
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
-            htmlAllowQuery = fallbackRootParams as string[]
+            htmlAllowQuery = fallbackRootParams.map(
+              (paramName) => `${NEXT_QUERY_PARAM_PREFIX}${paramName}`
+            )
           }
 
           // We additionally vary based on if there's a postponed prerender

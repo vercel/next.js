@@ -7,30 +7,151 @@ import {
   filterUniqueParams,
   generateRouteStaticParams,
 } from './app'
+import { resolveParamMatching } from './param-matching'
 import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { AppSegment } from '../segment-config/app/app-segments'
 
 function pathnameSegments(
-  ...segments: Array<string | [string, boolean]>
-): Array<{
-  paramName: string
-  hasGenerateStaticParams: boolean
-}> {
-  return segments.map((segment) =>
-    Array.isArray(segment)
-      ? {
-          paramName: segment[0],
-          hasGenerateStaticParams: segment[1],
-        }
-      : {
-          paramName: segment,
-          hasGenerateStaticParams: false,
-        }
-  )
+  ...paramNames: string[]
+): Array<{ paramName: string }> {
+  return paramNames.map((paramName) => ({ paramName }))
 }
 
 describe('assignStaticShellMetadata', () => {
+  it('keeps the most-specific shell without an explicit fallback', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: { lang: 'en', top: 't1' },
+        pathname: '/en/t1/[bottom]',
+        encodedPathname: '/en/t1/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        params: { lang: 'en', top: 't1', bottom: 'b1' },
+        pathname: '/en/t1/b1',
+        encodedPathname: '/en/t1/b1',
+        fallbackRouteParams: [],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('lang', 'top', 'bottom')
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
+  })
+
+  it('requires an explicit fallback shell to be non-empty', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: { lang: 'en', top: 't1' },
+        pathname: '/en/t1/[bottom]',
+        encodedPathname: '/en/t1/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        params: { lang: 'en', top: 't1', bottom: 'b1' },
+        pathname: '/en/t1/b1',
+        encodedPathname: '/en/t1/b1',
+        fallbackRouteParams: [],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('lang', 'top', 'bottom'),
+      'bottom'
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
+  })
+
+  it('validates a generic blocking shell when no example reaches an explicit fallback', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: {},
+        pathname: '/[top]/items/[bottom]',
+        encodedPathname: '/[top]/items/[bottom]',
+        fallbackRouteParams: [
+          { paramName: 'top', paramType: 'dynamic' },
+          { paramName: 'bottom', paramType: 'dynamic' },
+        ],
+        fallbackMode: FallbackMode.BLOCKING_STATIC_RENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('top', 'bottom'),
+      'bottom'
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
+  })
+
+  it('prefers a reachable explicit fallback over a generic blocking shell', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: {},
+        pathname: '/[top]/items/[bottom]',
+        encodedPathname: '/[top]/items/[bottom]',
+        fallbackRouteParams: [
+          { paramName: 'top', paramType: 'dynamic' },
+          { paramName: 'bottom', paramType: 'dynamic' },
+        ],
+        fallbackMode: FallbackMode.BLOCKING_STATIC_RENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+      {
+        params: { top: 't1' },
+        pathname: '/t1/items/[bottom]',
+        encodedPathname: '/t1/items/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        params: { top: 't1', bottom: 'b1' },
+        pathname: '/t1/items/b1',
+        encodedPathname: '/t1/items/b1',
+        fallbackRouteParams: [],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('top', 'bottom'),
+      'bottom'
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
+    expect(prerenderedRoutes[2].throwOnEmptyStaticShell).toBe(false)
+  })
+
   it('should assign throwOnEmptyStaticShell true for a static route with no children', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
@@ -206,25 +327,12 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('id', ['name', true], 'extra')
+      pathnameSegments('id', 'name', 'extra')
     )
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[2].throwOnEmptyStaticShell).toBe(true)
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'name',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'name',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[2].remainingPrerenderableParams).toBeUndefined()
   })
 
   it('should handle empty input', () => {
@@ -447,113 +555,65 @@ describe('assignStaticShellMetadata', () => {
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
   })
+})
 
-  it('should specialize only unresolved params backed by generateStaticParams', () => {
-    const prerenderedRoutes: PrerenderedRoute[] = [
-      {
-        params: {},
-        pathname: '/[one]/[two]',
-        encodedPathname: '/[one]/[two]',
-        fallbackRouteParams: [
-          {
-            paramName: 'one',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-      {
-        params: { one: 'b' },
-        pathname: '/b/[two]',
-        encodedPathname: '/b/[two]',
-        fallbackRouteParams: [
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-    ]
+describe('resolveParamMatching', () => {
+  it('starts a descendant generator while its ancestor is still pending', async () => {
+    let releaseParent!: () => void
+    const parentGate = new Promise<void>((resolve) => {
+      releaseParent = resolve
+    })
+    let notifyChildStarted!: () => void
+    const childStarted = new Promise<void>((resolve) => {
+      notifyChildStarted = resolve
+    })
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments(['one', true], 'two')
+    const resolvedParamMatching = resolveParamMatching(
+      '/[lang]/[top]',
+      [
+        [
+          {
+            name: '[lang]',
+            paramName: 'lang',
+            paramType: 'dynamic',
+            filePath: 'app/[lang]/layout.tsx',
+            config: undefined,
+            generateStaticParams: undefined,
+            paramMatching: async () => {
+              await parentGate
+              return { lang: 'not-found' }
+            },
+          },
+          [
+            [
+              {
+                name: '[top]',
+                paramName: 'top',
+                paramType: 'dynamic',
+                filePath: 'app/[lang]/[top]/layout.tsx',
+                config: undefined,
+                generateStaticParams: undefined,
+                paramMatching: async () => {
+                  notifyChildStarted()
+                  return { top: 'blocking' }
+                },
+              },
+              [],
+            ],
+          ],
+        ],
+      ],
+      pathnameSegments('lang', 'top')
     )
 
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'one',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toBeUndefined()
-  })
-
-  it('should stop specializing once it reaches a purely dynamic param', () => {
-    const prerenderedRoutes: PrerenderedRoute[] = [
-      {
-        params: {},
-        pathname: '/[one]/[two]/[three]',
-        encodedPathname: '/[one]/[two]/[three]',
-        fallbackRouteParams: [
-          {
-            paramName: 'one',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'three',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-      {
-        params: { one: 'a' },
-        pathname: '/a/[two]/[three]',
-        encodedPathname: '/a/[two]/[three]',
-        fallbackRouteParams: [
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'three',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-    ]
-
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments(['one', true], 'two', ['three', true])
-    )
-
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'one',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toBeUndefined()
+    // The child must not wait for the parent, but it need not start in the
+    // same synchronous turn as resolveParamMatching.
+    await childStarted
+    releaseParent()
+    await expect(resolvedParamMatching).resolves.toEqual({
+      lang: 'not-found',
+      top: 'blocking',
+    })
   })
 })
 
