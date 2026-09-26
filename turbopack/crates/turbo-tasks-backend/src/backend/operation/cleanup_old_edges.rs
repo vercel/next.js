@@ -61,6 +61,24 @@ pub enum OutdatedEdge {
     OutputDependentOfDeleted(TaskId),
 }
 
+impl OutdatedEdge {
+    /// Whether the other end of this edge is a transient task. The persisted task graph omits such
+    /// edges, so there is nothing to tear down for them in a later session.
+    fn references_transient_task(&self) -> bool {
+        match self {
+            OutdatedEdge::Child(task_id)
+            | OutdatedEdge::OutputDependency(task_id)
+            | OutdatedEdge::OutputDependentOfDeleted(task_id) => task_id.is_transient(),
+            OutdatedEdge::Collectible(collectible, _) => collectible.is_transient(),
+            OutdatedEdge::CellDependency(cell)
+            | OutdatedEdge::HashedCellDependency(cell, _)
+            | OutdatedEdge::CellDependentOfDeleted(cell)
+            | OutdatedEdge::HashedCellDependentOfDeleted(cell, _) => cell.is_transient(),
+            OutdatedEdge::CollectiblesDependency(collectibles) => collectibles.is_transient(),
+        }
+    }
+}
+
 /// Captures *every* edge incident to a task -- both directions -- as [`OutdatedEdge`]s.
 pub fn capture_all_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
     let mut old_edges: Vec<OutdatedEdge> = Vec::new();
@@ -114,6 +132,34 @@ pub struct DeferredCleanup {
 }
 
 impl CleanupOldEdgesOperation {
+    /// Drops the references to transient tasks, before the operation is persisted.
+    pub fn retain_persistent(&mut self) {
+        let task_is_transient = match self {
+            Self::RemoveEdges {
+                task_id,
+                outdated,
+                queue,
+            } => {
+                outdated.retain(|edge| !edge.references_transient_task());
+                queue.retain_persistent();
+                task_id.is_transient()
+            }
+            Self::AggregationUpdate { queue } => {
+                queue.retain_persistent();
+                false
+            }
+            Self::Done { .. } => false,
+        };
+        if task_is_transient {
+            // The task does not outlive the session, so neither do its edges; only the
+            // aggregation work is left.
+            let Self::RemoveEdges { queue, .. } = self else {
+                unreachable!("only RemoveEdges references a task")
+            };
+            *self = Self::AggregationUpdate { queue: take(queue) };
+        }
+    }
+
     pub fn run(
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,

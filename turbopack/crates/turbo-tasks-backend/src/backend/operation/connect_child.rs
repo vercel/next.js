@@ -81,6 +81,16 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
+    /// Drops the references to transient tasks, before the operation is persisted.
+    pub fn retain_persistent(&mut self) {
+        match self {
+            Self::UpdateAggregation { aggregation_update } => {
+                aggregation_update.retain_persistent()
+            }
+            Self::Done => {}
+        }
+    }
+
     pub fn run(
         parent_task_id: Option<TaskId>,
         child_task_id: TaskId,

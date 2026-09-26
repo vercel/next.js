@@ -48,6 +48,43 @@ pub enum UpdateCellOperation {
 }
 
 impl UpdateCellOperation {
+    /// Drops the references to transient tasks, before the operation is persisted.
+    pub fn retain_persistent(&mut self) {
+        let cell_is_transient = match self {
+            Self::InvalidateWhenCellDependency {
+                cell_ref,
+                dependent_tasks,
+                queue,
+                ..
+            } => {
+                dependent_tasks.retain(|task_id, _| !task_id.is_transient());
+                queue.retain_persistent();
+                cell_ref.is_transient()
+            }
+            Self::FinalCellChange {
+                cell_ref, queue, ..
+            } => {
+                queue.retain_persistent();
+                cell_ref.is_transient()
+            }
+            Self::AggregationUpdate { queue } => {
+                queue.retain_persistent();
+                false
+            }
+            Self::Done => false,
+        };
+        if cell_is_transient {
+            // The cell's task does not outlive the session, and no persisted task records a
+            // dependency on its cells, so only the aggregation work is left.
+            let (Self::InvalidateWhenCellDependency { queue, .. }
+            | Self::FinalCellChange { queue, .. }) = self
+            else {
+                unreachable!("only these variants reference a cell")
+            };
+            *self = Self::AggregationUpdate { queue: take(queue) };
+        }
+    }
+
     pub fn run(
         task_id: TaskId,
         cell: CellId,

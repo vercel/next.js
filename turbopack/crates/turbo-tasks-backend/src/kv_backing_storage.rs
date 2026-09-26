@@ -411,9 +411,9 @@ impl TurboBackingStorage {
 
     /// Reads the stored `category` for `task_id`.
     ///
-    /// `None` means the database had no key for it. That is distinct from `Some` of an empty
-    /// [`TaskStorage`] (a key that decoded to nothing), which is what lets a `MustExist` open tell
-    /// "absent everywhere" from "present but empty".
+    /// `None` means the database had no key for this category. That is distinct from `Some`
+    /// of an empty [`TaskStorage`] (a key that decoded to nothing): `MustExist` treats a missing
+    /// requested category as a missing task, regardless of the other category.
     pub(crate) fn lookup_data(
         &self,
         task_id: TaskId,
@@ -441,7 +441,7 @@ impl TurboBackingStorage {
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
+    ) -> Result<Vec<Option<TaskStorage>>> {
         let inner = &*self.inner;
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
@@ -457,14 +457,15 @@ impl TurboBackingStorage {
         bytes
             .into_iter()
             .map(|opt_bytes| {
+                let Some(bytes) = opt_bytes else {
+                    return Ok(None);
+                };
                 let mut storage = TaskStorage::new();
-                if let Some(bytes) = opt_bytes {
-                    let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
-                    storage
-                        .decode(category, &mut decoder)
-                        .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
-                }
-                Ok(storage)
+                let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+                storage
+                    .decode(category, &mut decoder)
+                    .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
+                Ok(Some(storage))
             })
             .collect::<Result<Vec<_>>>()
     }
