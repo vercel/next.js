@@ -21,6 +21,7 @@ import { normalizePath } from '../../lib/normalize-path'
 import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
+import { writeModuleFederationTypes } from '../../lib/module-federation-types'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
@@ -190,6 +191,11 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
       deferWarnings: true,
       strictRouteMatchingDefaultWarning:
         getStrictRouteMatchingDefaultWarning(config),
+    })
+    await writeModuleFederationTypes({
+      projectDir: dir,
+      distDir,
+      federation: config.experimental.turbopackModuleFederation,
     })
 
     // Skip when telemetry is fully off — featureUsage() isn't free.

@@ -301,6 +301,57 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('experimental.turbopackModuleFederation.dts', () => {
+    const producer = {
+      name: 'remote',
+      exposes: { './Widget': './src/Widget.tsx' },
+    }
+    const parse = (federation: Record<string, unknown>) =>
+      configSchema.safeParse({
+        experimental: { turbopackModuleFederation: federation },
+      })
+
+    it('accepts disabled and supported producer generation options', () => {
+      expect(parse({ dts: false })).toHaveProperty('success', true)
+      expect(
+        parse({ ...producer, dts: { generateTypes: true } })
+      ).toHaveProperty('success', true)
+      expect(
+        parse({
+          ...producer,
+          dts: {
+            generateTypes: {
+              tsConfigPath: './configs/tsconfig.json',
+              abortOnError: false,
+              extractThirdParty: true,
+              extractRemoteTypes: false,
+            },
+          },
+        })
+      ).toHaveProperty('success', true)
+    })
+
+    it('rejects host generation, unsupported options and unsafe paths', () => {
+      for (const federation of [
+        { dts: { generateTypes: true } },
+        { ...producer, dts: true },
+        { ...producer, dts: { consumeTypes: true, generateTypes: true } },
+        { ...producer, dts: { generateTypes: { outputDir: '/tmp' } } },
+        { ...producer, dts: { generateTypes: false } },
+        {
+          ...producer,
+          dts: { generateTypes: { tsConfigPath: '../secret.json' } },
+        },
+        {
+          ...producer,
+          dts: { generateTypes: { tsConfigPath: 'C:\\secret.json' } },
+        },
+      ]) {
+        expect(parse(federation)).toHaveProperty('success', false)
+      }
+    })
+  })
+
   describe('experimental.durableUseCacheEntries', () => {
     const originalTurbopack = process.env.TURBOPACK
 
