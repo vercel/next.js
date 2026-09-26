@@ -63,7 +63,7 @@ export function Nav() {
 
 > **Good to know:** `<NavLink>` is available in the App Router only.
 
-If a route has a dynamic parameter that is not known during prerendering, the active state may appear after hydration. See [Unknown dynamic parameters](#unknown-dynamic-parameters).
+`NavLink` updates its active state after hydration when a dynamic route's parameter value isn't known during prerendering. See [Unknown dynamic parameters](#unknown-dynamic-parameters).
 
 ## Reference
 
@@ -214,7 +214,7 @@ Under [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheCom
 
 ### Unknown dynamic parameters
 
-When Cache Components is enabled, the pathname is not known at build time for a route prerendered with a dynamic param not covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). `NavLink` renders inactive in that prerender and applies the active class on the client after hydration. This is a first-paint flicker, not a missing boundary. To apply the class before hydration, set it from an inline script as shown in [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
+With Cache Components, Next.js cannot determine the pathname while prerendering a route whose parameter value is not included in [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). `NavLink` renders its inactive state during prerendering and updates it after hydration. This may briefly show inactive styling or content. For CSS-based active styling, set `data-active` from an inline script before hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 ### Rewrites
 
