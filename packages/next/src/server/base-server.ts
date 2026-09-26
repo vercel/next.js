@@ -163,6 +163,7 @@ import type { PrerenderedRoute } from '../build/static-paths/types'
 import {
   createOpaqueFallbackRouteParams,
   getStagedFallbackParams,
+  selectPrerenderedRoute,
 } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
@@ -2754,19 +2755,10 @@ export default abstract class Server<
           // The source selection includes concrete routes with no fallback
           // params. Otherwise it could choose a generic fallback for a fully
           // generated URL.
-          let matchedRoute: PrerenderedRoute | undefined
-          for (const route of pathsResults.prerenderedRoutes) {
-            if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
-              continue
-            }
-            if (
-              matchedRoute === undefined ||
-              (route.fallbackRouteParams?.length ?? 0) <
-                (matchedRoute.fallbackRouteParams?.length ?? 0)
-            ) {
-              matchedRoute = route
-            }
-          }
+          const matchedRoute = selectPrerenderedRoute(
+            pathsResults.prerenderedRoutes,
+            urlPathname
+          )
           if (matchedRoute) {
             // Explicit shell requests render the matched artifact. Ordinary
             // requests stage and validate the same required or completed shell

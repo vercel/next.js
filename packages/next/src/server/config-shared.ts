@@ -13,7 +13,10 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
-import type { FallbackRouteParam } from '../build/static-paths/types'
+import type {
+  BuildValidationCandidate,
+  FallbackRouteParam,
+} from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
 
@@ -1654,6 +1657,13 @@ export type ExportPathMap = {
      * @internal
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
+
+    /**
+     * The compact prerender candidates used by build-time Instant Validation.
+     *
+     * @internal
+     */
+    _buildValidationCandidates?: readonly BuildValidationCandidate[]
 
     /** Parameters whose novel values are rejected by routing. @internal */
     _notFoundParams?: readonly string[]

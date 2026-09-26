@@ -143,6 +143,7 @@ import {
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
 import type {
+  BuildValidationCandidate,
   FallbackRouteParam,
   PrerenderRouteMatcher,
   PrerenderedRoute,
@@ -3220,6 +3221,18 @@ export default async function build(
                   ? isAppCacheComponentsEnabled
                   : false
 
+                const buildValidationCandidates:
+                  | readonly BuildValidationCandidate[]
+                  | undefined = isRoutePPREnabled
+                  ? routes.map((route) => ({
+                      pathname: route.pathname,
+                      fallbackRouteParams: route.fallbackRouteParams,
+                      remainingPrerenderableParams:
+                        route.remainingPrerenderableParams,
+                      throwOnEmptyStaticShell: route.throwOnEmptyStaticShell,
+                    }))
+                  : undefined
+
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
                   // rendering the route. This is because we don't support
@@ -3242,6 +3255,11 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
+                    ...(route === routes[0] && buildValidationCandidates
+                      ? {
+                          _buildValidationCandidates: buildValidationCandidates,
+                        }
+                      : {}),
                     _notFoundParams: notFoundParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,

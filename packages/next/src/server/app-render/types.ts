@@ -7,6 +7,7 @@ import type {
   ValidationLevel,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { BuildValidationCandidate } from '../../build/static-paths/types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -239,6 +240,12 @@ export interface RenderOptsPartial {
    * instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
+
+  /**
+   * Compact prerender candidates used to select the shell for each
+   * build-time Instant Validation sample.
+   */
+  buildValidationCandidates?: readonly BuildValidationCandidate[]
 
   /**
    * When true, a fallback shell produced for this render could later be

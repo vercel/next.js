@@ -760,6 +760,23 @@ async function exportAppImpl(
   if (renderOpts.cacheComponents) {
     // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
     const routesWithInstantValidation = new Set<string>()
+    const buildValidationCandidatesByPage = new Map<
+      string,
+      ExportPathEntry['_buildValidationCandidates']
+    >()
+
+    // The build adds candidates to one export entry per page so they do not
+    // get serialized with every generated path. Move them to the entry that
+    // owns validation before sending paths to the worker.
+    for (const exportPath of allExportPaths) {
+      if (exportPath._buildValidationCandidates) {
+        buildValidationCandidatesByPage.set(
+          exportPath.page,
+          exportPath._buildValidationCandidates
+        )
+        delete exportPath._buildValidationCandidates
+      }
+    }
 
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
@@ -775,6 +792,11 @@ async function exportAppImpl(
       const route = exportPath.page
       if (!routesWithInstantValidation.has(route)) {
         exportPath._runInstantValidation = true
+        const buildValidationCandidates =
+          buildValidationCandidatesByPage.get(route)
+        if (buildValidationCandidates) {
+          exportPath._buildValidationCandidates = buildValidationCandidates
+        }
         routesWithInstantValidation.add(route)
       }
     }

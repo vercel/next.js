@@ -366,15 +366,12 @@ export function registerSuspenseBoundariesTests(
   })
 
   it('invalid - static prefetch - missing suspense around params', async () => {
-    // In build mode, providing params in the sample makes them resolve
-    // immediately, so the blocking behavior isn't detected. This case
-    // is only testable in dev mode.
-    if (!isNextDev) return
-    const browser = await navigateTo(
-      '/suspense-in-root/static/missing-suspense-around-params/123'
-    )
-    if (partialPrefetching) {
-      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
+    if (isNextDev) {
+      const browser = await navigateTo(
+        '/suspense-in-root/static/missing-suspense-around-params/123'
+      )
+      if (partialPrefetching) {
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -400,34 +397,66 @@ export function registerSuspenseBoundariesTests(
            ],
          }
         `)
+      } else {
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24) @ instant
+         > 1 | export const instant = {
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "description": "Next.js encountered runtime data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
+         > 20 |   const { param } = await params
+               |                     ^",
+           "stack": [
+             "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21)",
+             "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (14:7)",
+           ],
+         }
+        `)
+      }
     } else {
-      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
-       {
-         "cause": [
-           {
-             "label": "Caused by: Instant Validation",
-             "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24) @ instant
-       > 1 | export const instant = {
-           |                        ^",
-             "stack": [
-               "instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24)",
-               "Set.forEach <anonymous>",
-             ],
-           },
-         ],
-         "description": "Next.js encountered runtime data during a navigation.",
-         "environmentLabel": "Server",
-         "label": "Instant",
-         "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
-       > 20 |   const { param } = await params
-            |                     ^",
-         "stack": [
-           "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21)",
-           "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (14:7)",
-         ],
-       }
-      `)
+      // Partial Prefetching independently delays params, so this case only
+      // verifies the selected fallback mask in the regular build path.
+      if (partialPrefetching) return
+
+      const result = await prerender(
+        '/suspense-in-root/static/missing-suspense-around-params/[param]'
+      )
+      expect(extractBuildValidationError(result.cliOutput)).toContain(
+        'Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-params/[param]".'
+      )
+      expect(result.exitCode).toBe(1)
     }
+  })
+
+  it('build selects staged params from the matching fallback shell', async () => {
+    if (isNextDev || partialPrefetching) return
+
+    const requiredPartialShell = await prerender(
+      '/suspense-in-root/static/missing-suspense-around-mixed-params/[top]/[bottom]'
+    )
+    expect(
+      extractBuildValidationError(requiredPartialShell.cliOutput)
+    ).toContain(
+      'Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-mixed-params/[top]/[bottom]".'
+    )
+    expect(requiredPartialShell.exitCode).toBe(1)
+
+    const completablePartialShell = await prerender(
+      '/suspense-in-root/static/valid-mixed-params/[top]/[bottom]'
+    )
+    expectNoBuildValidationErrors(completablePartialShell)
   })
 
   it('invalid - runtime prefetch - missing suspense around params', async () => {
@@ -465,12 +494,6 @@ export function registerSuspenseBoundariesTests(
       const result = await prerender(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]'
       )
-      // TODO(app-shells): Verify fallback params in build validation.
-      //
-      // This assertion can pass even if `workUnitStore.stagedFallbackParams` is
-      // missing. Without that set, validation treats these params as static.
-      // Partial Prefetching still delays them to the runtime stage, so the
-      // expected error does not detect the missing fallback params.
 
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
