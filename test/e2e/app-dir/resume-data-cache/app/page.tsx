@@ -2,11 +2,12 @@ import React, { Suspense } from 'react'
 import { connection } from 'next/server'
 
 import { cacheTag } from 'next/cache'
+import { getSentinelValue } from './sentinel'
 
 async function getRandomNumber() {
   'use cache'
   cacheTag('test')
-  return Math.random()
+  return `${getSentinelValue()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 }
 
 async function DynamicComponent() {
