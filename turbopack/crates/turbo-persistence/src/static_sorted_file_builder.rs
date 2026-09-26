@@ -1358,7 +1358,6 @@ fn value_type_val_size(ty: EntryType) -> usize {
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => MEDIUM_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_BLOB => BLOB_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => KEY_DELETED_REF_SIZE,
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize
         }

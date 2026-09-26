@@ -25,7 +25,6 @@ use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
 #[cfg(feature = "mmap")]
@@ -2030,15 +2029,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             result_size = tracing::field::Empty
         )
         .entered();
-        self.get_impl(family, key, &span)
-    }
-
-    fn get_impl<K: QueryKey>(
-        &self,
-        family: usize,
-        key: &K,
-        span: &EnteredSpan,
-    ) -> Result<Option<ArcBytes>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
         // Track whether we found the key in any SST (even if deleted).
