@@ -40,6 +40,8 @@
     "image.d.ts",
     "link.js",
     "link.d.ts",
+    "nav-link.js",
+    "nav-link.d.ts",
     "offline.js",
     "offline.d.ts",
     "form.js",
