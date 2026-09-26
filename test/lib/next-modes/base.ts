@@ -121,8 +121,18 @@ export class NextInstance {
   private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
-    this.env = {}
     Object.assign(this, opts)
+    this.env ??= {}
+    if (
+      this.env.NODE_OPTIONS &&
+      this.env.NODE_OPTIONS.split(/\s+/).includes('--trace-deprecation')
+    ) {
+      // already includes --trace-deprecation
+    } else {
+      this.env.NODE_OPTIONS =
+        (this.env.NODE_OPTIONS ?? '') + ' --trace-deprecation'
+    }
+
     const nextTestWasm =
       process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
     if (nextTestWasm) {
@@ -692,6 +702,59 @@ export class NextInstance {
   }
 
   /**
+   * Resolves the `next` binary from within the isolated test directory so
+   * that it uses the locally installed version (matching the peer React
+   * version etc.). Spawning the binary directly (rather than via `pnpm`)
+   * means signals sent to the child are delivered to the Next.js process
+   * without an intermediate wrapper.
+   *
+   * When running with NEXT_SKIP_ISOLATE there is no isolated install, so
+   * this falls back to the workspace-level next binary instead.
+   */
+  protected getNextBin(): string {
+    const localNextBin = path.join(
+      this.testDir,
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    const workspaceNextBin = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    return existsSync(localNextBin) ? localNextBin : workspaceNextBin
+  }
+
+  /**
+   * The base argv for running `next dev`/`next build`/`next start` in the
+   * test directory, with pending deprecations flagged on the Next.js process.
+   *
+   * The flag goes in argv, not NODE_OPTIONS: the spawn goes through pnpm, and
+   * an env var would also flag pnpm's own process, flooding test output with
+   * pnpm's own pending deprecations (e.g. DEP0111/DEP0134/DEP0144).
+   */
+  protected getNextCommandArgs(command: 'dev' | 'build' | 'start'): string[] {
+    return [
+      'pnpm',
+      'exec',
+      'node',
+      // Deprecated APIs can be vulnerable and must be flagged.
+      '--pending-deprecation',
+      this.getNextBin(),
+      command,
+    ]
+  }
+
+  /**
    * Run an arbitrary Next.js CLI command in the isolated test directory.
    *
    * Unlike `build()`/`start()`, this does not start or manage the persistent
@@ -747,36 +810,15 @@ export class NextInstance {
       signal,
     } = options
 
-    // Resolve the `next` binary from within the isolated test directory so
-    // that it uses the locally installed version (matching the peer React
-    // version etc.). Spawning the binary directly (rather than via `pnpm`)
-    // also means signals sent to the child are delivered to the Next.js
-    // process without an intermediate wrapper.
-    //
-    // When running with NEXT_SKIP_ISOLATE there is no isolated install, so
-    // fall back to the workspace-level next binary instead (which also
-    // avoids a pnpm wrapper swallowing signals).
-    const localNextBin = path.join(
-      this.testDir,
-      'node_modules',
-      'next',
-      'dist',
-      'bin',
-      'next'
-    )
-    const workspaceNextBin = path.join(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      'node_modules',
-      'next',
-      'dist',
-      'bin',
-      'next'
-    )
-    const nextBin = existsSync(localNextBin) ? localNextBin : workspaceNextBin
-    const spawnArgs = ['node', '--no-deprecation', nextBin, ...args]
+    const nextBin = this.getNextBin()
+    const spawnArgs = [
+      'node',
+      // Deprecated APIs can be vulnerable and must be flagged.
+      '--trace-deprecation',
+      '--pending-deprecation',
+      nextBin,
+      ...args,
+    ]
     const spawnOpts: import('child_process').SpawnOptions = {
       cwd: cwd ?? this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],

@@ -105,7 +105,7 @@ export class NextStartInstance extends NextInstance {
     this._cliOutput = ''
     const spawnOpts = this.getSpawnOpts(options.env)
 
-    let startArgs = ['pnpm', 'next', 'start']
+    let startArgs = this.getNextCommandArgs('start')
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
@@ -244,7 +244,7 @@ export class NextStartInstance extends NextInstance {
   }
 
   private getBuildArgs(args?: string[]) {
-    let buildArgs = ['pnpm', 'next', 'build']
+    let buildArgs = this.getNextCommandArgs('build')
 
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
