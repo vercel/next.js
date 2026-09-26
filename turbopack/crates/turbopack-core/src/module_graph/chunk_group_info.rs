@@ -83,6 +83,18 @@ impl Hash for RoaringBitmapWrapper {
 pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
 
 #[turbo_tasks::value]
+pub struct ChunkGroupWithIndex {
+    pub index: u32,
+    pub chunk_group: ChunkGroup,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkGroups(Vec<ChunkGroupWithIndex>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionChunkGroupWithIndex(Option<ChunkGroupWithIndex>);
+
+#[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     #[bincode(with = "turbo_bincode::indexset")]
@@ -139,6 +151,76 @@ impl ChunkGroupInfo {
                 bail!("Couldn't find chunk group index")
             }
         }
+    }
+
+    /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
+    /// graph.
+    #[turbo_tasks::function]
+    pub async fn get_chunk_groups_for_module(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroups>> {
+        let module_chunk_groups = self.module_chunk_groups.await?;
+        let Some(groups) = module_chunk_groups.get(&module) else {
+            return Ok(Vc::cell(Vec::new()));
+        };
+        Ok(Vc::cell(
+            groups
+                .iter()
+                .map(|index| ChunkGroupWithIndex {
+                    index,
+                    chunk_group: self.chunk_groups[index as usize].clone(),
+                })
+                .collect(),
+        ))
+    }
+
+    /// Returns the first graph-derived group in which `module` is itself an entry.
+    #[turbo_tasks::function]
+    pub async fn get_chunk_group_for_entry_module(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroupWithIndex>> {
+        let module_chunk_groups = self.module_chunk_groups.await?;
+        let Some(groups) = module_chunk_groups.get(&module) else {
+            bail!("Module is not part of any chunk group");
+        };
+        for index in groups.iter() {
+            let chunk_group = &self.chunk_groups[index as usize];
+            if chunk_group.entries().any(|entry| entry == module) {
+                return Ok(ChunkGroupWithIndex {
+                    index,
+                    chunk_group: chunk_group.clone(),
+                }
+                .cell());
+            }
+        }
+        bail!("Module is not an entry of any chunk group")
+    }
+
+    /// Returns the shared merged chunk group with `merge_tag` that `parent` is the parent of, if
+    /// the graph produced one.
+    ///
+    /// A merge tag collects everything reachable through the tagged shared references of one
+    /// parent group into a single group, so there is at most one such group per parent and tag.
+    #[turbo_tasks::function]
+    pub fn get_shared_merged_chunk_group(
+        &self,
+        parent: usize,
+        merge_tag: RcStr,
+    ) -> Vc<OptionChunkGroupWithIndex> {
+        let key = ChunkGroupKey::SharedMerged {
+            parent: ChunkGroupId::from(parent),
+            merge_tag,
+        };
+        Vc::cell(
+            self.chunk_group_keys
+                .get_index_of(&key)
+                .map(|index| ChunkGroupWithIndex {
+                    index: index as u32,
+                    chunk_group: self.chunk_groups[index].clone(),
+                }),
+        )
     }
 }
 

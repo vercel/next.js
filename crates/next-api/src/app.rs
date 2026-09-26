@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -1888,9 +1888,17 @@ impl AppEndpoint {
 
         Ok(match runtime {
             NextRuntime::Edge => {
+                let server_action_chunk_group = module_graph
+                    .chunk_group_info()
+                    .get_chunk_group_for_entry_module(*ResolvedVc::upcast(
+                        server_action_manifest_loader,
+                    ))
+                    .await?
+                    .chunk_group
+                    .clone();
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                    server_action_chunk_group,
                     module_graph,
                     AvailabilityInfo::root(),
                 );
@@ -1922,46 +1930,65 @@ impl AppEndpoint {
                     // `per_page_module_graph`), so without this the layout segments would share
                     // very little across pages.
                     //
-                    // It must not be created in production. Its `parent` is *this* endpoint's
-                    // entry chunk group, and `parent` is part of a merged group's identity, so
-                    // the group -- and hence the availability info it seeds into the layout
-                    // segment chain below -- would differ for every endpoint. That makes each
-                    // shared layout segment re-chunk once per descendant endpoint. In production
-                    // a single whole-app module graph already shares these modules, so they are
-                    // chunked as part of the entry instead.
+                    // It must not be created in production. The group is the merged child of
+                    // *this* endpoint's entry chunk group, and that parent is part of a merged
+                    // group's identity, so the group -- and hence the availability info it seeds
+                    // into the layout segment chain below -- would differ for every endpoint.
+                    // That makes each shared layout segment re-chunk once per descendant
+                    // endpoint. In production a single whole-app module graph already shares
+                    // these modules, so they are chunked as part of the entry instead.
                     if *project.per_page_module_graph().await? {
                         let chunk_group_info = module_graph.chunk_group_info();
                         let span = tracing::trace_span!("server utils");
                         async {
-                            let parent_chunk_group = *chunk_group_info
-                                .get_index_of(entry_chunk_group.clone())
-                                .await?;
+                            let has_server_utils = !client_references.server_utils.is_empty();
 
-                            let server_utils = client_references
-                                .server_utils
-                                .iter()
-                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                                .try_join()
-                                .await?;
-                            let chunk_group = chunking_context
-                                .chunk_group(
-                                    AssetIdent::from_path(
-                                        this.app_project.project().project_path().owned().await?,
+                            // The server utilities of this entry are merged into a single group:
+                            // the one merged child of the entry chunk group carrying the server
+                            // utility merge tag.
+                            let derived_group = if !has_server_utils {
+                                None
+                            } else {
+                                let entry_index = *chunk_group_info
+                                    .get_index_of(entry_chunk_group.clone())
+                                    .await?;
+                                let merged = chunk_group_info
+                                    .get_shared_merged_chunk_group(
+                                        entry_index,
+                                        NEXT_SERVER_UTILITY_MERGE_TAG,
                                     )
-                                    .with_modifier(rcstr!("server-utils"))
-                                    .into_vc(),
-                                    ChunkGroup::SharedMerged {
-                                        merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                        entries: server_utils,
-                                        parent: parent_chunk_group,
-                                    },
-                                    module_graph,
-                                    AvailabilityInfo::root(),
-                                )
-                                .to_resolved()
-                                .await?;
+                                    .await?;
+                                merged.as_ref().map(|group| group.chunk_group.clone())
+                            };
 
-                            current_chunk_group = chunk_group;
+                            ensure!(
+                                !has_server_utils || derived_group.is_some(),
+                                "could not find a graph-derived shared merged group for server \
+                                 utilities"
+                            );
+
+                            let mut combined_chunk_group = ChunkGroupResult::empty_resolved();
+                            if let Some(group) = derived_group {
+                                combined_chunk_group = chunking_context
+                                    .chunk_group(
+                                        AssetIdent::from_path(
+                                            this.app_project
+                                                .project()
+                                                .project_path()
+                                                .owned()
+                                                .await?,
+                                        )
+                                        .with_modifier(rcstr!("server-utils"))
+                                        .into_vc(),
+                                        group,
+                                        module_graph,
+                                        AvailabilityInfo::root(),
+                                    )
+                                    .to_resolved()
+                                    .await?;
+                            }
+
+                            current_chunk_group = combined_chunk_group;
 
                             anyhow::Ok(())
                         }
@@ -1984,9 +2011,17 @@ impl AppEndpoint {
                             name = display(server_component.ident().to_string().await?)
                         );
                         async {
+                            let server_component_chunk_group = module_graph
+                                .chunk_group_info()
+                                .get_chunk_group_for_entry_module(*ResolvedVc::upcast(
+                                    server_component,
+                                ))
+                                .await?
+                                .chunk_group
+                                .clone();
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
+                                server_component_chunk_group,
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -2003,9 +2038,17 @@ impl AppEndpoint {
                     }
 
                     {
+                        let server_action_chunk_group = module_graph
+                            .chunk_group_info()
+                            .get_chunk_group_for_entry_module(*ResolvedVc::upcast(
+                                server_action_manifest_loader,
+                            ))
+                            .await?
+                            .chunk_group
+                            .clone();
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                            server_action_chunk_group,
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
