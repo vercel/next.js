@@ -603,7 +603,8 @@ fn bench_read_batch_get(c: &mut Criterion) {
 
 /// Configuration for prefilling a multi-value database
 #[derive(Clone, Copy, Debug)]
-struct MultiValueDbConfig {
+#[cfg(any())]
+struct RemovedSetModeDbConfig {
     key_size: usize,
     value_size: usize,
     /// Total number of entries (key-value pairs) written
@@ -616,14 +617,15 @@ struct MultiValueDbConfig {
 }
 
 /// Prefill a multi-value database and return the distinct keys
+#[cfg(any())]
 fn prefill_multi_value_database(
     path: &Path,
-    config: &MultiValueDbConfig,
+    config: &RemovedSetModeDbConfig,
 ) -> Result<Vec<Box<[u8]>>> {
     let db_config = TpDbConfig {
         family_configs: [FamilyConfig {
             name: "test",
-            kind: FamilyKind::MultiValue,
+            kind: FamilyKind::SingleValue,
             compression: Compression::Lz4,
         }],
         ..TpDbConfig::new()
@@ -672,8 +674,9 @@ fn prefill_multi_value_database(
 }
 
 /// Create a temporary directory with a prefilled multi-value database
+#[cfg(any())]
 fn setup_prefilled_multi_value_db(
-    config: &MultiValueDbConfig,
+    config: &RemovedSetModeDbConfig,
     id: &str,
 ) -> Result<(TempDir, Vec<Box<[u8]>>)> {
     let tempdir = tempfile::tempdir()?;
@@ -695,11 +698,12 @@ fn setup_prefilled_multi_value_db(
     Ok((tempdir, keys))
 }
 
+#[cfg(any())]
 fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
     let db_config = TpDbConfig {
         family_configs: [FamilyConfig {
             name: "test",
-            kind: FamilyKind::MultiValue,
+            kind: FamilyKind::SingleValue,
             compression: Compression::Lz4,
         }],
         ..TpDbConfig::new()
@@ -707,8 +711,9 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
     TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config).unwrap()
 }
 
-fn bench_read_get_multiple(c: &mut Criterion) {
-    let mut group = c.benchmark_group("read/get_multiple");
+#[cfg(any())]
+fn bench_read_get(c: &mut Criterion) {
+    let mut group = c.benchmark_group("read/get");
     group.measurement_time(Duration::from_secs(10));
 
     // Configuration parameters: (key_size, value_size)
@@ -728,7 +733,7 @@ fn bench_read_get_multiple(c: &mut Criterion) {
         for &(database_size, values_per_key, commit_count, compacted) in db_configs {
             let entry_count = database_size / (key_size + value_size);
             let distinct_key_count = entry_count / values_per_key;
-            let config = MultiValueDbConfig {
+            let config = RemovedSetModeDbConfig {
                 key_size,
                 value_size,
                 entry_count,
@@ -770,7 +775,7 @@ fn bench_read_get_multiple(c: &mut Criterion) {
                         &keys[idx]
                     },
                     |key| {
-                        let result = db.get_multiple(0, key).unwrap();
+                        let result = db.get(0, key).unwrap();
                         black_box(result)
                     },
                     BatchSize::PerIteration,
@@ -784,7 +789,7 @@ fn bench_read_get_multiple(c: &mut Criterion) {
                     |_| prepare_db_for_benchmarking(db),
                     |i| &keys[i as usize % keys.len()],
                     |key| {
-                        let result = db.get_multiple(0, key).unwrap();
+                        let result = db.get(0, key).unwrap();
                         black_box(result)
                     },
                     BatchSize::NumBatches(1),
@@ -799,7 +804,7 @@ fn bench_read_get_multiple(c: &mut Criterion) {
                     |_| prepare_db_for_benchmarking(db),
                     |_| random_key(&mut rng, key_size),
                     |key| {
-                        let result = db.get_multiple(0, &key).unwrap();
+                        let result = db.get(0, &key).unwrap();
                         black_box(result)
                     },
                     BatchSize::PerIteration,
@@ -826,7 +831,7 @@ fn bench_read_get_multiple(c: &mut Criterion) {
                         &miss_keys[i as usize]
                     },
                     |key| {
-                        let result = db.get_multiple(0, key).unwrap();
+                        let result = db.get(0, key).unwrap();
                         black_box(result)
                     },
                     BatchSize::NumBatches(1),
@@ -1003,6 +1008,7 @@ fn bench_compaction(c: &mut Criterion) {
 // Write Benchmarks - Multi-Value
 // =============================================================================
 
+#[cfg(any())]
 fn bench_write_multi_value(c: &mut Criterion) {
     let mut group = c.benchmark_group("write/multi_value");
     group.sample_size(10);
@@ -1046,7 +1052,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                         let db_config = TpDbConfig {
                             family_configs: [FamilyConfig {
                                 name: "test",
-                                kind: FamilyKind::MultiValue,
+                                kind: FamilyKind::SingleValue,
                                 compression: Compression::Lz4,
                             }],
                             ..TpDbConfig::new()
@@ -1079,6 +1085,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
 // Compaction Benchmarks - Multi-Value
 // =============================================================================
 
+#[cfg(any())]
 fn bench_compaction_multi_value(c: &mut Criterion) {
     let mut group = c.benchmark_group("compaction/multi_value");
     group.sample_size(10);
@@ -1096,7 +1103,7 @@ fn bench_compaction_multi_value(c: &mut Criterion) {
 
     for &(entry_count, values_per_key, commit_count) in &configs {
         let distinct_key_count = entry_count / values_per_key;
-        let config = MultiValueDbConfig {
+        let config = RemovedSetModeDbConfig {
             key_size,
             value_size,
             entry_count,
@@ -1348,7 +1355,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_, false>(hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_>(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1367,7 +1374,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 |i| keys[i as usize % keys.len()],
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_, false>(hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_>(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1393,7 +1400,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_, false>(hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_>(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1426,7 +1433,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_, false>(*hash, &key, key_block_cache, value_block_cache)
+                        .lookup::<_>(*hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1578,6 +1585,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_read_get, bench_read_batch_get, bench_family_sharding, bench_compaction, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);

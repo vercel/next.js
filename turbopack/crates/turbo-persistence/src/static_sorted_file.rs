@@ -107,17 +107,6 @@ pub const KEY_BLOCK_ENTRY_TYPE_KEY_DELETED: u8 = 2;
 pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
 /// The minimum tag for inline values. The actual size is (tag - INLINE_MIN).
 pub const KEY_BLOCK_ENTRY_TYPE_INLINE_MIN: u8 = 8;
-/// The minimum tag for a key-value tombstone, which deletes only the one value it carries and
-/// leaves other values for the same key intact. Only meaningful for
-/// [`FamilyKind::MultiValue`][crate::FamilyKind::MultiValue] families.
-///
-/// This mirrors the inline value range: the deleted value is stored inline in the key block and
-/// its size is (tag - KEY_VALUE_DELETED_MIN). Only inline-sized values can be deleted this way —
-/// a tombstone for a larger value would have to store a second copy of it, costing more than the
-/// value it reclaims.
-pub const KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN: u8 =
-    KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8 + 1;
-
 /// Size of one variable-size key block offset table entry when the block stores no hash:
 /// 1 byte entry type packed into the top of a 3-byte in-block position.
 pub const KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH: usize = 4;
@@ -146,11 +135,8 @@ pub(crate) const BLOB_VALUE_REF_SIZE: usize = 4;
 /// Encoded size of a deleted (tombstone) value reference.
 pub(crate) const KEY_DELETED_REF_SIZE: usize = 0;
 
-// Static assertion: both the inline range and the key-value tombstone range that follows it must
-// fit in the key type byte. The tombstone range starts after the inline range and is the same
-// width, so the tombstone range's top is the binding constraint.
 const _: () = assert!(
-    MAX_INLINE_VALUE_SIZE <= (u8::MAX - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize,
+    MAX_INLINE_VALUE_SIZE <= (u8::MAX - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize,
     "MAX_INLINE_VALUE_SIZE exceeds what can be encoded in key type byte"
 );
 
@@ -536,11 +522,7 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in this file.
-    ///
-    /// If `FIND_ALL` is false, returns after finding the first match.
-    /// If `FIND_ALL` is true, returns all entries with the same key (useful for
-    /// keyspaces where keys are hashes and collisions are possible).
-    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
+    pub fn lookup<K: QueryKey>(
         &self,
         key_hash: u64,
         key: &K,
@@ -569,10 +551,11 @@ impl StaticSortedFile {
         };
         let block_type = be::read_u8(key_block);
         match KeyBlockLayout::from_block_type(block_type) {
-            Some((layout, false)) => self
-                .lookup_variable_key_block::<K, FIND_ALL>(key_block, key_hash, key, layout, reader),
+            Some((layout, false)) => {
+                self.lookup_variable_key_block::<K>(key_block, key_hash, key, layout, reader)
+            }
             Some((layout, true)) => {
-                self.lookup_fixed_key_block::<K, FIND_ALL>(key_block, key_hash, key, layout, reader)
+                self.lookup_fixed_key_block::<K>(key_block, key_hash, key, layout, reader)
             }
             None => {
                 bail!("Invalid block type");
@@ -597,10 +580,7 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in a key block and the value in a value block.
-    ///
-    /// If `FIND_ALL` is false, returns after finding the first match.
-    /// If `FIND_ALL` is true, collects all entries with the same key.
-    fn lookup_variable_key_block<K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_variable_key_block<K: QueryKey>(
         &self,
         block: &[u8],
         key_hash: u64,
@@ -620,7 +600,7 @@ impl StaticSortedFile {
         let offsets = &data[..table_len];
         let entries = &data[table_len..];
 
-        self.lookup_block_inner::<K, FIND_ALL>(entry_count, key_hash, key, layout, reader, |i| {
+        self.lookup_block_inner::<K>(entry_count, key_hash, key, layout, reader, |i| {
             get_key_entry(offsets, entries, entry_count, i, hash_len)
         })
     }
@@ -629,7 +609,7 @@ impl StaticSortedFile {
     ///
     /// Fixed-size key blocks store entries at predictable offsets (no offset table),
     /// enabling direct indexing during binary search.
-    fn lookup_fixed_key_block<K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_fixed_key_block<K: QueryKey>(
         &self,
         block: &[u8],
         key_hash: u64,
@@ -653,7 +633,7 @@ impl StaticSortedFile {
             "fixed key block for {entry_count} entries is the wrong size"
         );
 
-        self.lookup_block_inner::<K, FIND_ALL>(entry_count, key_hash, key, layout, reader, |i| {
+        self.lookup_block_inner::<K>(entry_count, key_hash, key, layout, reader, |i| {
             get_fixed_key_entry(entries, i, regions, value_type)
         })
     }
@@ -662,7 +642,7 @@ impl StaticSortedFile {
     ///
     /// The `get_entry` closure abstracts over the difference between variable-size
     /// key blocks (offset table lookup) and fixed-size key blocks (stride-based indexing).
-    fn lookup_block_inner<'a, K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_block_inner<'a, K: QueryKey>(
         &self,
         entry_count: usize,
         key_hash: u64,
@@ -688,49 +668,8 @@ impl StaticSortedFile {
             match comparison {
                 Ordering::Less => r = m,
                 Ordering::Equal => {
-                    if !FIND_ALL {
-                        // SingleValue mode: each key has exactly one entry
-                        // this is enforced when writing
-                        let result = self.handle_key_match(ty, val, reader)?;
-                        return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
-                    }
-                    // FIND_ALL (MultiValue) mode: collect all values for this key.
-                    // Within a key group, key-value tombstones sort first and key tombstones
-                    // last. We scan backward to find the start of the key group, then forward to
-                    // collect all entries.
-                    let mut results = SmallVec::new();
-                    for i in (l..m).rev() {
-                        let GetKeyEntryResult {
-                            hash,
-                            key: entry_key,
-                            ty,
-                            val,
-                        } = get_entry(i)?;
-                        if !entry_matches_key(layout, hash, entry_key, key_hash, key) {
-                            break;
-                        }
-                        results.push(self.handle_key_match(ty, val, reader)?);
-                    }
-                    // Restore on-disk order: callers depend on both ends of the key group, with
-                    // key-value tombstones preceding the values they filter and a key tombstone
-                    // landing last.
-                    results.reverse();
-
-                    // Add the entry at `m`
-                    results.push(self.handle_key_match(ty, val, reader)?);
-                    for i in (m + 1)..r {
-                        let GetKeyEntryResult {
-                            hash,
-                            key: entry_key,
-                            ty,
-                            val,
-                        } = get_entry(i)?;
-                        if !entry_matches_key(layout, hash, entry_key, key_hash, key) {
-                            break;
-                        }
-                        results.push(self.handle_key_match(ty, val, reader)?);
-                    }
-                    return Ok(SstLookupResult::Found(results));
+                    let result = self.handle_key_match(ty, val, reader)?;
+                    return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
                 }
                 Ordering::Greater => l = m + 1,
             }
@@ -1201,11 +1140,6 @@ fn handle_key_match_generic<B: SharedBytes>(
             LookupValue::Blob { sequence_number }
         }
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => LookupValue::KeyDeleted,
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            let value = B::from_inline(val);
-            LookupValue::KeyValueDeleted { value }
-        }
         _ => {
             // Inline value — val is already the correct slice
             let value = B::from_inline(val);
@@ -1582,25 +1516,6 @@ fn compare_hash_key<K: QueryKey>(
     }
 }
 
-/// Checks whether a query key names the same entry, used to walk a key group outward from a hit.
-fn entry_matches_key<K: QueryKey>(
-    layout: KeyBlockLayout,
-    entry_hash: &[u8],
-    entry_key: &[u8],
-    full_hash: u64,
-    query_key: &K,
-) -> bool {
-    match layout {
-        KeyBlockLayout::KeyOnly => {
-            debug_assert!(entry_hash.is_empty(), "KeyOnly entries carry no hash");
-            query_key.eq(entry_key)
-        }
-        KeyBlockLayout::HashThenKey => {
-            full_hash.to_be_bytes()[..] == *entry_hash && query_key.eq(entry_key)
-        }
-    }
-}
-
 /// Returns the byte size of the value portion for a given key block entry type.
 ///
 /// The type byte comes from the file, so the two open-ended ranges are bounded here rather than
@@ -1613,16 +1528,6 @@ fn entry_val_size(ty: u8) -> Result<usize> {
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => Ok(MEDIUM_VALUE_REF_SIZE),
         KEY_BLOCK_ENTRY_TYPE_BLOB => Ok(BLOB_VALUE_REF_SIZE),
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => Ok(KEY_DELETED_REF_SIZE),
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            let size = (ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize;
-            ensure!(
-                size <= MAX_INLINE_VALUE_SIZE,
-                "key-value tombstone type {ty} claims a {size} byte value, over the \
-                 {MAX_INLINE_VALUE_SIZE} byte maximum"
-            );
-            Ok(size)
-        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize;
             ensure!(

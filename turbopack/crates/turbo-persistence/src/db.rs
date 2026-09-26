@@ -2,7 +2,6 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
-    hash::BuildHasherDefault,
     io::{BufWriter, ErrorKind, Write},
     mem::take,
     ops::RangeInclusive,
@@ -14,7 +13,6 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
 #[cfg(feature = "mmap")]
@@ -25,7 +23,6 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
-use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
@@ -34,7 +31,7 @@ pub use crate::compaction::selector::CompactConfig;
 #[cfg(feature = "mmap")]
 use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
-    DbConfig, FamilyKind, QueryKey,
+    DbConfig, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::{Compression, checksum_block, decompress_into_arc},
@@ -1713,9 +1710,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 compression: Compression,
                                 new_sst_files:
                                     Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
-                                /// Hash of the last key added. Used to ensure we only split
-                                /// SST files at key boundaries (not mid-key-group for MultiValue).
-                                last_hash: Option<u64>,
                             }
                             impl Collector {
                                 fn new(flags: MetaEntryFlags, compression: Compression) -> Self {
@@ -1724,7 +1718,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         flags,
                                         compression,
                                         new_sst_files: Vec::new(),
-                                        last_hash: None,
                                     }
                                 }
 
@@ -1771,9 +1764,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                 }
 
-                                /// Adds an entry to the collector. Only splits the SST file at
-                                /// key boundaries to avoid breaking key groups for MultiValue
-                                /// families.
+                                /// Adds an entry to the collector, splitting full SST files.
                                 fn add_entry(
                                     &mut self,
                                     entry: LookupEntry,
@@ -1781,11 +1772,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     sequence_number: &AtomicU32,
                                     keys_written: &mut u64,
                                 ) -> Result<()> {
-                                    let key_changed = self.last_hash != Some(entry.hash);
-                                    // Only check fullness at key boundaries to avoid splitting
-                                    // a key group across two SST files.
-                                    if key_changed
-                                        && let Some((_, ref writer)) = self.writer
+                                    if let Some((_, ref writer)) = self.writer
                                         && writer.is_full(
                                             MAX_ENTRIES_PER_COMPACTED_FILE,
                                             DATA_THRESHOLD_PER_COMPACTED_FILE,
@@ -1793,7 +1780,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     {
                                         self.close_sst_file(keys_written)?;
                                     }
-                                    self.last_hash = Some(entry.hash);
                                     let writer = self.ensure_writer(path, sequence_number)?;
                                     if let Err(err) = writer.add(entry) {
                                         self.cancel();
@@ -1823,49 +1809,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             let mut keys_written = 0;
 
                             // MergeIter yields entries from newer SSTs first (by SST sequence
-                            // number). Within each SST, tombstones sort last within key groups.
-                            // Use a skip flag to handle:
-                            // - SingleValue: skip all older entries after writing the first
-                            // - MultiValue: skip all older entries after encountering a tombstone
-                            //   (which signals deletion of all prior values for this key)
+                            // number). Keep only the newest entry for each key.
                             let mut skip_remaining_for_this_key = false;
-                            // Values deleted by key-value tombstones in the current key group.
-                            // Reset at each key boundary.
-                            let mut deleted_values_for_this_key: AutoSet<
-                                RcBytes,
-                                BuildHasherDefault<FxHasher>,
-                                1,
-                            > = AutoSet::default();
-                            let family_config = &self.config.family_configs[family as usize];
 
                             let result: Result<_> = (|| {
                                 for entry in iter {
                                     let entry = entry?;
                                     if current_key.as_ref() != Some(&entry.key) {
-                                        // we changed keys so undo this flag
                                         skip_remaining_for_this_key = false;
-                                        deleted_values_for_this_key.clear();
                                         current_key = Some(entry.key.clone());
-                                    }
-                                    // Key-value tombstones sort first within a group, so each is
-                                    // recorded before the values it might delete.
-                                    // See: `crate::collector_entry::sort_rank`
-                                    if let IterValue::KeyValueDeleted { value } = &entry.value {
-                                        deleted_values_for_this_key.insert(value.clone());
-                                        // Applied to this job's values above; keep it only
-                                        // if an SST outside the job could still hold a
-                                        // matching key.
-                                        if tombstone_is_dead(entry.hash) {
-                                            continue;
-                                        }
-                                    } else if !deleted_values_for_this_key.is_empty()
-                                    // Deleted values cannot match blobs, just normal payloads.
-                                    && let IterValue::Slice { value } = &entry.value
-                                    && deleted_values_for_this_key.contains(value)
-                                    {
-                                        // Deleted by a key-value tombstone seen earlier in this
-                                        // key group.
-                                        continue;
                                     }
                                     if !skip_remaining_for_this_key {
                                         let is_used =
@@ -1877,21 +1829,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         } else {
                                             &mut unused_collector
                                         };
-                                        match family_config.kind {
-                                            FamilyKind::MultiValue => {
-                                                // For MultiValue families we only skip remaining
-                                                // if we see a key tombstone. Key-value tombstones
-                                                // are handled above and never reach here.
-                                                if matches!(entry.value, IterValue::KeyDeleted) {
-                                                    skip_remaining_for_this_key = true;
-                                                }
-                                            }
-                                            FamilyKind::SingleValue => {
-                                                // Since MergeItr is in newest to oldest order
-                                                // anything else that comes out must be skipped
-                                                skip_remaining_for_this_key = true;
-                                            }
-                                        }
+                                        // MergeIter is newest-to-oldest, so all remaining entries
+                                        // for this key are superseded.
+                                        skip_remaining_for_this_key = true;
                                         // If this is a tombstone, see if we need to retain it
                                         // or not.
                                         if matches!(entry.value, IterValue::KeyDeleted)
@@ -2084,78 +2024,27 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
-        if self.config.family_configs[family].kind != FamilyKind::SingleValue {
-            // This is an error in our caller so just panic
-            panic!(
-                "only single valued tables can be queried with `get', call `get_multiple` instead"
-            )
-        }
         let span = tracing::trace_span!(
             "database read",
             name = self.config.family_configs[family].name,
             result_size = tracing::field::Empty
         )
         .entered();
-        let results = self.get_impl::<K, false>(family, key, &span)?;
-        debug_assert!(results.len() <= 1, "get() should return at most one result");
-        Ok(results.into_iter().next())
+        self.get_impl(family, key, &span)
     }
 
-    /// Looks up a key and returns all matching values.
-    ///
-    /// This is useful for keyspaces where keys are not unique and multiple mappings are possible.
-    /// Unlike `get`, which returns only the first match, this method returns all
-    /// entries with the same key from all SST files.  By default however we assume these
-    /// collections are small and thus optimize for there being exactly 0 or 1 results.
-    ///
-    /// The order of returned values is undefined and duplicates are preserved. Callers must not
-    /// rely on any particular ordering (neither insertion order nor byte order).
-    pub fn get_multiple<K: QueryKey>(
-        &self,
-        family: usize,
-        key: &K,
-    ) -> Result<SmallVec<[ArcBytes; 1]>> {
-        debug_assert!(family < FAMILIES, "Family index out of bounds");
-        if self.config.family_configs[family].kind != FamilyKind::MultiValue {
-            // This is an error in our caller so just panic
-            panic!("only multi-valued tables can be queried with `get_multiple`")
-        }
-        let span = tracing::trace_span!(
-            "database read multiple",
-            name = self.config.family_configs[family].name,
-            result_count = tracing::field::Empty,
-            result_size = tracing::field::Empty
-        )
-        .entered();
-        let results = self.get_impl::<K, true>(family, key, &span)?;
-        Ok(results)
-    }
-
-    /// Shared implementation for `get` and `get_multiple`.
-    ///
-    /// If `FIND_ALL` is false, stops after finding the first match.
-    /// If `FIND_ALL` is true, continues to find all matches across all meta files.
-    fn get_impl<K: QueryKey, const FIND_ALL: bool>(
+    fn get_impl<K: QueryKey>(
         &self,
         family: usize,
         key: &K,
         span: &EnteredSpan,
-    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+    ) -> Result<Option<ArcBytes>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
-        let mut output: SmallVec<[ArcBytes; 1]> = SmallVec::new();
         // Track whether we found the key in any SST (even if deleted).
         // Used for miss_global stat: only fires if key was never found anywhere.
         #[cfg(feature = "stats")]
         let mut found_in_sst = false;
-
-        // Values deleted by key-value tombstones seen so far. Because we walk meta files newest
-        // first, and tombstones sort first within a key group, every tombstone that could apply to
-        // a value has already been seen by the time we reach that value.
-        let mut deleted_values: AutoSet<ArcBytes, BuildHasherDefault<FxHasher>, 1> =
-            AutoSet::default();
-
-        let mut size = 0;
 
         let key_block_cache = self.key_block_cache();
         let value_block_cache = self.value_block_cache();
@@ -2166,13 +2055,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             "meta file stored in the wrong family shard while querying family {family}"
         );
         for meta in inner.meta_files_by_family[family].iter().rev() {
-            match meta.lookup::<K, FIND_ALL>(
-                family as u32,
-                hash,
-                key,
-                key_block_cache,
-                value_block_cache,
-            )? {
+            match meta.lookup::<K>(family as u32, hash, key, key_block_cache, value_block_cache)? {
                 MetaLookupResult::FamilyMiss => {
                     #[cfg(feature = "stats")]
                     self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
@@ -2197,39 +2080,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 LookupValue::KeyDeleted => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                                    if !FIND_ALL {
-                                        span.record("result_size", "deleted");
-                                        return Ok(SmallVec::new());
-                                    }
-                                    // A key tombstone deletes every older value for this
-                                    // key. Return what we accumulated from this SST and newer
-                                    // layers and stop searching older SSTs.
-                                    if output.is_empty() {
-                                        span.record("result_size", "deleted");
-                                    } else {
-                                        span.record("result_size", size);
-                                    }
-                                    return Ok(output);
-                                }
-                                LookupValue::KeyValueDeleted { value } => {
-                                    #[cfg(feature = "stats")]
-                                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                                    // Cannot terminate the search: older layers may hold other
-                                    // values for the same key.
-                                    deleted_values.insert(value);
+                                    span.record("result_size", "deleted");
+                                    return Ok(None);
                                 }
                                 LookupValue::Slice { value } => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                                    if deleted_values.contains(&value) {
-                                        continue;
-                                    }
-                                    if !FIND_ALL {
-                                        span.record("result_size", value.len());
-                                        return Ok(SmallVec::from_buf([value]));
-                                    }
-                                    size += value.len();
-                                    output.push(value);
+                                    span.record("result_size", value.len());
+                                    return Ok(Some(value));
                                 }
                                 LookupValue::Blob { sequence_number } => {
                                     #[cfg(feature = "stats")]
@@ -2238,15 +2096,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         sequence_number,
                                         self.config.family_configs[family].compression,
                                     )?;
-                                    if deleted_values.iter().any(|d| **d == *blob) {
-                                        continue;
-                                    }
-                                    if !FIND_ALL {
-                                        span.record("result_size", blob.len());
-                                        return Ok(SmallVec::from_buf([blob]));
-                                    }
-                                    size += blob.len();
-                                    output.push(blob);
+                                    span.record("result_size", blob.len());
+                                    return Ok(Some(blob));
                                 }
                             }
                         }
@@ -2264,15 +2115,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
         }
 
-        if FIND_ALL {
-            span.record("result_count", output.len());
-        }
-        if output.is_empty() {
-            span.record("result_size", "not_found");
-        } else {
-            span.record("result_size", size);
-        }
-        Ok(output)
+        span.record("result_size", "not_found");
+        Ok(None)
     }
 
     pub fn batch_get<K: QueryKey>(
@@ -2281,10 +2125,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         keys: &[K],
     ) -> Result<Vec<Option<ArcBytes>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
-        if self.config.family_configs[family].kind != FamilyKind::SingleValue {
-            // This is an error in our caller so just panic
-            panic!("only single valued tables can be queried with `batch_get'")
-        }
         let span = tracing::trace_span!(
             "database batch read",
             name = self.config.family_configs[family].name,
@@ -2366,14 +2206,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                         deleted += 1;
                         None
-                    }
-                    LookupValue::KeyValueDeleted { .. } => {
-                        // Key-value tombstones are only written to MultiValue families, and
-                        // `batch_get` rejects those above.
-                        bail!(
-                            "unexpected key-value tombstone in SingleValue family {}",
-                            self.config.family_configs[family].name
-                        )
                     }
                     LookupValue::Slice { value } => {
                         #[cfg(feature = "stats")]

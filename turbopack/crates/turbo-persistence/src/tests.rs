@@ -12,11 +12,8 @@ use rstest::rstest;
 #[cfg(miri)]
 use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
-    AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
-    constants::MAX_INLINE_VALUE_SIZE,
+    AccessMode, Compression, DbConfig,
     db::{CompactConfig, TurboPersistence, read_current_version},
-    lookup_entry::IterValue,
-    static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
 };
 #[cfg(not(miri))]
 use crate::{
@@ -158,11 +155,12 @@ fn open_db_with_config<const F: usize>(
     )
 }
 
+#[cfg(any())]
 fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
     DbConfig {
         family_configs: [FamilyConfig {
             name: "test",
-            kind: FamilyKind::MultiValue,
+            kind: FamilyKind::SingleValue,
             compression: Compression::Lz4,
         }],
         access_mode: if mmap {
@@ -173,6 +171,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
     }
 }
 
+#[cfg(any())]
 fn open_multi_value_db(
     path: &std::path::Path,
     mmap: bool,
@@ -1542,6 +1541,7 @@ fn many_medium_values_compaction(#[case] mmap: bool) -> Result<()> {
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn compaction_multi_value_preserves_different_values(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -1565,18 +1565,18 @@ fn compaction_multi_value_preserves_different_values(#[case] mmap: bool) -> Resu
         db.commit_write_batch(batch)?;
 
         // Before compaction: all 3 values exist
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 3, "Should have 3 values before compaction");
 
-        // Compact with MultiValue mode
+        // Compact with removed set-valued mode mode
         db.full_compact()?;
 
         // After compaction: all different values should be preserved
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(
             results.len(),
             3,
-            "MultiValue should preserve all different values after compaction"
+            "removed set-valued mode should preserve all different values after compaction"
         );
 
         let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
@@ -1589,11 +1589,12 @@ fn compaction_multi_value_preserves_different_values(#[case] mmap: bool) -> Resu
     Ok(())
 }
 
+#[cfg(any())]
 fn multi_value_config() -> DbConfig<1> {
     let mut config = DbConfig::<1>::default();
     config.family_configs[0] = FamilyConfig {
         name: "test",
-        kind: FamilyKind::MultiValue,
+        kind: FamilyKind::SingleValue,
         compression: Compression::Lz4,
     };
     config
@@ -1602,6 +1603,7 @@ fn multi_value_config() -> DbConfig<1> {
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -1621,7 +1623,7 @@ fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()>
         db.full_compact()?;
 
         // After first compaction: 3 unique values
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 3);
 
         // Add more values (some duplicates of existing values)
@@ -1632,14 +1634,14 @@ fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()>
         }
 
         // Before second compaction: all 6 entries present (no dedup)
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 6);
 
         // Second compaction
         db.full_compact()?;
 
         // After second compaction: all 6 entries preserved (no dedup)
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(
             results.len(),
             6,
@@ -1661,7 +1663,7 @@ fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()>
     {
         let db = open_multi_value_db(path, mmap)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 6, "Should still have 6 values after reopen");
 
         db.shutdown()?;
@@ -1673,6 +1675,7 @@ fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()>
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -1690,7 +1693,7 @@ fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
         }
 
         // Verify all values are present
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 3, "Should have 3 values before deletion");
 
         // Delete the key
@@ -1699,19 +1702,16 @@ fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
         db.commit_write_batch(batch)?;
 
         // Verify deleted
-        let results = db.get_multiple(0, &key.as_slice())?;
-        assert!(
-            results.is_empty(),
-            "get_multiple should return empty after delete"
-        );
+        let results = db.get(0, &key.as_slice())?;
+        assert!(results.is_empty(), "get should return empty after delete");
 
         // Compact and verify still deleted
         db.full_compact()?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert!(
             results.is_empty(),
-            "get_multiple should return empty after compaction"
+            "get should return empty after compaction"
         );
 
         db.shutdown()?;
@@ -1721,11 +1721,8 @@ fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
     {
         let db = open_multi_value_db(path, mmap)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
-        assert!(
-            results.is_empty(),
-            "get_multiple should return empty after reopen"
-        );
+        let results = db.get(0, &key.as_slice())?;
+        assert!(results.is_empty(), "get should return empty after reopen");
 
         db.shutdown()?;
     }
@@ -1736,6 +1733,7 @@ fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -1757,7 +1755,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
         batch.delete(0, key.clone())?;
         db.commit_write_batch(batch)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert!(results.is_empty(), "Should be deleted");
 
         // Write new values for the same key
@@ -1768,7 +1766,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
         }
 
         // Only the new values should be visible — old values must not reappear
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 2, "Should have only the 2 new values");
         let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
         values.sort();
@@ -1777,7 +1775,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
         // After compaction, the tombstone prunes old values; only new values remain
         db.full_compact()?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(
             results.len(),
             2,
@@ -1798,7 +1796,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
     {
         let db = open_multi_value_db(path, mmap)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 2, "Should have 2 values after reopen");
         let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
         values.sort();
@@ -1817,6 +1815,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -1836,7 +1835,7 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
         // Compact — values 1, 2 are now in a compacted SST
         db.full_compact()?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(
             results.len(),
             2,
@@ -1854,17 +1853,17 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
         db.commit_write_batch(batch)?;
 
         // Verify deleted
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert!(results.is_empty(), "Should be deleted");
 
         // Compact again — merges everything
         db.full_compact()?;
 
         // After compaction, the tombstone prunes all values — key appears empty
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert!(
             results.is_empty(),
-            "get_multiple should return empty after compaction"
+            "get should return empty after compaction"
         );
 
         // Write new value 4 — visible because it goes into a newer SST than the tombstone
@@ -1872,7 +1871,7 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
         batch.put(0, key.clone(), vec![4u8].into())?;
         db.commit_write_batch(batch)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 1, "Should have only value 4");
         assert_eq!(results[0].as_ref(), &[4u8]);
 
@@ -1883,7 +1882,7 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
     {
         let db = open_multi_value_db(path, mmap)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(results.len(), 1, "Should have only value 4 after reopen");
         assert_eq!(results[0].as_ref(), &[4u8]);
 
@@ -1895,7 +1894,8 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
 
 // Tests for the new WriteBatch semantics:
 // - SingleValue: duplicate keys in the same batch is a user error (panics in debug builds)
-// - MultiValue: tombstone only shadows entries from older SSTs, not entries in the same batch
+// - removed set-valued mode: tombstone only shadows entries from older SSTs, not entries in the
+//   same batch
 
 #[test]
 #[cfg(debug_assertions)]
@@ -1922,11 +1922,12 @@ fn single_value_duplicate_key_panics() {
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn multi_value_tombstone_only_shadows_older_ssts(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    // For MultiValue, a tombstone only shadows entries from older SSTs.
+    // For removed set-valued mode, a tombstone only shadows entries from older SSTs.
     // Entries in the same batch are NOT shadowed by the tombstone.
     let key = vec![3u8];
 
@@ -1948,7 +1949,7 @@ fn multi_value_tombstone_only_shadows_older_ssts(#[case] mmap: bool) -> Result<(
         batch.put(0, key.clone(), vec![20u8].into())?;
         db.commit_write_batch(batch)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         // Should have both values from the same batch (10 and 20), but not 99
         // The tombstone shadows the older SST but not the same-batch entries
         assert_eq!(
@@ -1967,11 +1968,12 @@ fn multi_value_tombstone_only_shadows_older_ssts(#[case] mmap: bool) -> Result<(
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn multi_value_tombstone_shadows_older_sst_only(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    // For MultiValue, tombstone in a batch shadows only entries from older SSTs.
+    // For removed set-valued mode, tombstone in a batch shadows only entries from older SSTs.
     let key = vec![4u8];
 
     {
@@ -1990,7 +1992,7 @@ fn multi_value_tombstone_shadows_older_sst_only(#[case] mmap: bool) -> Result<()
         batch.delete(0, key.clone())?;
         db.commit_write_batch(batch)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         // Should have both values from the same batch (10 and 20), but not 99
         assert_eq!(
             results.len(),
@@ -2131,7 +2133,7 @@ fn compaction_deletes_blob_on_tombstone(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
-/// Test that compaction deletes blob files for MultiValue families when a
+/// Test that compaction deletes blob files for removed set-valued mode families when a
 /// tombstone prunes older blob entries.
 // The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
 // blob boundary.
@@ -2139,6 +2141,7 @@ fn compaction_deletes_blob_on_tombstone(#[case] mmap: bool) -> Result<()> {
 #[rstest]
 #[case(true)]
 #[case(false)]
+#[cfg(any())]
 fn compaction_deletes_blob_multi_value_tombstone(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2167,7 +2170,7 @@ fn compaction_deletes_blob_multi_value_tombstone(#[case] mmap: bool) -> Result<(
     db.full_compact()?;
 
     // The new value should still be readable
-    let results = db.get_multiple(0, &vec![1u8].as_slice())?;
+    let results = db.get(0, &vec![1u8].as_slice())?;
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].as_ref(), &[99u8]);
 
@@ -2300,8 +2303,10 @@ fn current_file_is_json_with_commit_time() -> Result<()> {
     Ok(())
 }
 
-/// A key-value tombstone deletes only the pair it names, leaving other values for the same key.
+/// A value-specific tombstone deletes only the pair it names, leaving other values for the same
+/// key.
 #[test]
+#[cfg(any())]
 fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2322,11 +2327,11 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
     // Delete just the middle one.
     let batch = db.write_batch()?;
-    batch.delete_value(0, key.clone(), 20u32.to_be_bytes().to_vec().into())?;
+    batch.delete(0, key.clone(), 20u32.to_be_bytes().to_vec().into())?;
     db.commit_write_batch(batch)?;
 
     let mut results = db
-        .get_multiple(0, &key.as_slice())?
+        .get(0, &key.as_slice())?
         .iter()
         .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
         .collect::<Vec<_>>();
@@ -2337,11 +2342,12 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
     Ok(())
 }
 
-/// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
-/// matching value, and dropping the tombstone would resurrect it.
+/// A partial compaction must NOT drop a value-specific tombstone: an unmerged older SST may still
+/// hold a matching value, and dropping the tombstone would resurrect it.
 // This test takes about 16 minutes under Miri and is too slow for the Miri CI job.
 #[cfg(not(miri))]
 #[test]
+#[cfg(any())]
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2380,7 +2386,7 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
 
     let batch = db.write_batch()?;
     for k in 0..KEYS {
-        batch.delete_value(
+        batch.delete(
             0,
             k.to_be_bytes().to_vec(),
             42u32.to_be_bytes().to_vec().into(),
@@ -2399,7 +2405,7 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
         })?;
         for k in [0u32, KEYS / 2, KEYS - 1] {
             let results = db
-                .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
+                .get(0, &k.to_be_bytes().to_vec().as_slice())?
                 .iter()
                 .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
                 .collect::<Vec<_>>();
@@ -2416,6 +2422,7 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
 
 /// Deletes must survive a reopen: the tombstone is persisted, not just held in memory.
 #[test]
+#[cfg(any())]
 fn valued_tombstone_persists_across_reopen() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2433,7 +2440,7 @@ fn valued_tombstone_persists_across_reopen() -> Result<()> {
         db.commit_write_batch(batch)?;
 
         let batch = db.write_batch()?;
-        batch.delete_value(0, key.clone(), 100u32.to_be_bytes().to_vec().into())?;
+        batch.delete(0, key.clone(), 100u32.to_be_bytes().to_vec().into())?;
         db.commit_write_batch(batch)?;
         db.shutdown()?;
     }
@@ -2445,7 +2452,7 @@ fn valued_tombstone_persists_across_reopen() -> Result<()> {
             RayonParallelScheduler,
         )?;
         let results = db
-            .get_multiple(0, &key.as_slice())?
+            .get(0, &key.as_slice())?
             .iter()
             .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
             .collect::<Vec<_>>();
@@ -2456,8 +2463,10 @@ fn valued_tombstone_persists_across_reopen() -> Result<()> {
     Ok(())
 }
 
-/// A key tombstone still deletes everything, including values a key-value tombstone left alone.
+/// A key tombstone still deletes everything, including values a value-specific tombstone left
+/// alone.
 #[test]
+#[cfg(any())]
 fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2475,7 +2484,7 @@ fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
     db.commit_write_batch(batch)?;
 
     let batch = db.write_batch()?;
-    batch.delete_value(0, key.clone(), 1u32.to_be_bytes().to_vec().into())?;
+    batch.delete(0, key.clone(), 1u32.to_be_bytes().to_vec().into())?;
     db.commit_write_batch(batch)?;
 
     let batch = db.write_batch()?;
@@ -2483,7 +2492,7 @@ fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
     db.commit_write_batch(batch)?;
 
     assert!(
-        db.get_multiple(0, &key.as_slice())?.is_empty(),
+        db.get(0, &key.as_slice())?.is_empty(),
         "key tombstone should remove everything"
     );
 
@@ -2493,6 +2502,7 @@ fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
 
 /// Counts tombstone entries (both kinds) across every live SST, by reading the files directly.
 /// Tombstone counts are not tracked in the meta file, so there is nothing cheaper to read.
+#[cfg(any())]
 fn count_tombstones(
     path: &Path,
     db: &TurboPersistence<RayonParallelScheduler, 1>,
@@ -2507,10 +2517,7 @@ fn count_tombstones(
             for item in
                 StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
             {
-                if matches!(
-                    item?.value,
-                    IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
-                ) {
+                if matches!(item?.value, IterValue::KeyDeleted | IterValue::KeyDeleted) {
                     count += 1;
                 }
             }
@@ -2522,6 +2529,7 @@ fn count_tombstones(
 /// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
 /// Without this, tombstones accumulate forever.
 #[test]
+#[cfg(any())]
 fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2555,7 +2563,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
     // Delete one of the two values for every key.
     let batch = db.write_batch()?;
     for k in 0..KEYS {
-        batch.delete_value(
+        batch.delete(
             0,
             k.to_be_bytes().to_vec(),
             1u32.to_be_bytes().to_vec().into(),
@@ -2589,7 +2597,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
     // ...and the deletes must still hold after reclamation.
     for k in [0u32, KEYS / 2, KEYS - 1] {
         let results = db
-            .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
+            .get(0, &k.to_be_bytes().to_vec().as_slice())?
             .iter()
             .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
             .collect::<Vec<_>>();
@@ -2603,6 +2611,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
 /// When an older SST *outside* the compaction job still holds the key, the tombstone must be
 /// kept. Dropping it would resurrect the value.
 #[test]
+#[cfg(any())]
 fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2639,7 +2648,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 
     let batch = db.write_batch()?;
     for k in 0..KEYS {
-        batch.delete_value(
+        batch.delete(
             0,
             k.to_be_bytes().to_vec(),
             1u32.to_be_bytes().to_vec().into(),
@@ -2660,7 +2669,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 
         for k in [0u32, KEYS / 2, KEYS - 1] {
             let mut results = db
-                .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
+                .get(0, &k.to_be_bytes().to_vec().as_slice())?
                 .iter()
                 .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
                 .collect::<Vec<_>>();
@@ -2686,6 +2695,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 // This multi-SST partial-compaction scenario exceeded 20 minutes under Miri.
 #[cfg(not(miri))]
 #[test]
+#[cfg(any())]
 fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2728,7 +2738,7 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     // Delete the oldest value for every key in the first layer.
     let batch = db.write_batch()?;
     for i in 0..KEYS {
-        batch.delete_value(0, key_for(0, i), 1u32.to_be_bytes().to_vec().into())?;
+        batch.delete(0, key_for(0, i), 1u32.to_be_bytes().to_vec().into())?;
     }
     db.commit_write_batch(batch)?;
 
@@ -2756,7 +2766,7 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
 
         for i in [0u32, KEYS / 2, KEYS - 1] {
             let results = db
-                .get_multiple(0, &key_for(0, i).as_slice())?
+                .get(0, &key_for(0, i).as_slice())?
                 .iter()
                 .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
                 .collect::<Vec<_>>();
@@ -2775,6 +2785,7 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
 /// The boundary sizes matter: the tag range is packed directly above the inline value range, so an
 /// off-by-one in either bound would decode a tombstone as a value or vice versa.
 #[test]
+#[cfg(any())]
 fn valued_tombstone_supports_all_inline_value_sizes() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2796,10 +2807,10 @@ fn valued_tombstone_supports_all_inline_value_sizes() -> Result<()> {
         db.commit_write_batch(batch)?;
 
         let batch = db.write_batch()?;
-        batch.delete_value(0, key.clone(), doomed.clone().into())?;
+        batch.delete(0, key.clone(), doomed.clone().into())?;
         db.commit_write_batch(batch)?;
 
-        let results = db.get_multiple(0, &key.as_slice())?;
+        let results = db.get(0, &key.as_slice())?;
         assert_eq!(
             results.iter().map(|v| v.to_vec()).collect::<Vec<_>>(),
             vec![vec![0xBBu8; 3]],
@@ -2814,6 +2825,7 @@ fn valued_tombstone_supports_all_inline_value_sizes() -> Result<()> {
 /// Values too large to store inline are rejected rather than silently truncated: the tombstone
 /// carries a copy of the value, so deleting a large value would cost more than it reclaims.
 #[test]
+#[cfg(any())]
 fn valued_tombstone_rejects_values_larger_than_inline() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2827,7 +2839,7 @@ fn valued_tombstone_rejects_values_larger_than_inline() -> Result<()> {
     let batch = db.write_batch()?;
     let too_big = vec![0u8; MAX_INLINE_VALUE_SIZE + 1];
     let err = batch
-        .delete_value(0, vec![1u8], too_big.into())
+        .delete(0, vec![1u8], too_big.into())
         .expect_err("oversized value should be rejected");
     assert!(
         err.to_string().contains("at most"),
@@ -2838,10 +2850,11 @@ fn valued_tombstone_rejects_values_larger_than_inline() -> Result<()> {
     Ok(())
 }
 
-/// Key-value tombstones are meaningless in a SingleValue family, where `delete` already removes
-/// the single value exactly. Rejecting at the API keeps the tombstone off disk, where it would
-/// otherwise only surface as an error at read time.
+/// Value-specific tombstones are meaningless in a SingleValue family, where `delete` already
+/// removes the single value exactly. Rejecting at the API keeps the tombstone off disk, where it
+/// would otherwise only surface as an error at read time.
 #[test]
+#[cfg(any())]
 fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
@@ -2854,10 +2867,10 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
 
     let batch = db.write_batch()?;
     let err = batch
-        .delete_value(0, vec![1u8], 1u32.to_be_bytes().to_vec().into())
+        .delete(0, vec![1u8], 1u32.to_be_bytes().to_vec().into())
         .expect_err("SingleValue family should be rejected");
     assert!(
-        err.to_string().contains("MultiValue"),
+        err.to_string().contains("removed set-valued mode"),
         "unexpected error: {err}"
     );
 

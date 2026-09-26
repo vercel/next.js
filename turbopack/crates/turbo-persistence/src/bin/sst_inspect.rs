@@ -6,8 +6,7 @@
 //! Entry types are the `KEY_BLOCK_ENTRY_TYPE_*` constants in
 //! [`turbo_persistence::static_sorted_file`]; the `--help` output lists them with their current
 //! values. The two ranged kinds encode a size in the type byte: an inline value's byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`, and a key-value tombstone's deleted byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
+//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -28,9 +27,8 @@ use turbo_persistence::{
     static_sorted_file::{
         FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
         KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
-        key_block_table_stride,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout, key_block_table_stride,
     },
 };
 
@@ -97,11 +95,10 @@ struct SstStats {
 
     /// Value sizes by type (inline values track actual bytes)
     inline_value_bytes: u64,
-    small_value_refs: u64,        // Count of references to value blocks
-    medium_value_refs: u64,       // Count of references to medium values
-    blob_refs: u64,               // Count of blob references
-    key_deleted_count: u64,       // Count of key tombstones
-    key_value_deleted_count: u64, // Count of key-value tombstones
+    small_value_refs: u64,  // Count of references to value blocks
+    medium_value_refs: u64, // Count of references to medium values
+    blob_refs: u64,         // Count of blob references
+    key_deleted_count: u64, // Count of key tombstones
 
     /// File size in bytes
     file_size: u64,
@@ -124,7 +121,6 @@ impl SstStats {
         self.medium_value_refs += other.medium_value_refs;
         self.blob_refs += other.blob_refs;
         self.key_deleted_count += other.key_deleted_count;
-        self.key_value_deleted_count += other.key_value_deleted_count;
         self.file_size += other.file_size;
     }
 }
@@ -154,10 +150,6 @@ fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             stats.medium_value_refs += 1;
         }
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            stats.key_value_deleted_count += 1;
-        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as u64;
             stats.inline_value_bytes += inline_size;
@@ -172,11 +164,6 @@ fn entry_type_description(ty: u8) -> String {
         KEY_BLOCK_ENTRY_TYPE_BLOB => "blob reference".to_string(),
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => "key tombstone".to_string(),
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => "medium value".to_string(),
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            let size = ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN;
-            format!("key-value tombstone ({size} byte value)")
-        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN;
             format!("inline {} bytes", inline_size)
@@ -716,13 +703,6 @@ fn print_value_storage(stats: &SstStats, prefix: &str) {
             format_number(stats.key_deleted_count)
         );
     }
-    if stats.key_value_deleted_count > 0 {
-        println!(
-            "{}  Key-value tombstones: {} entries",
-            prefix,
-            format_number(stats.key_value_deleted_count)
-        );
-    }
 }
 
 fn print_sst_details(seq_num: u32, stats: &SstStats) {
@@ -915,13 +895,8 @@ fn main() -> Result<()> {
                  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})",
                 KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8
             );
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted \
-                 value size = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})",
-                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8
-            );
             eprintln!();
-            eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
+            eprintln!("For TaskCache (family 3), values are lists of 4-byte TaskIds.");
             eprintln!(
                 "Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} + 4) for inline \
                  optimization.",

@@ -30,9 +30,6 @@ Therefore there are these value types:
 - MEDIUM: Values 4097 bytes – 64 MB stored in dedicated value blocks within `*.sst` files.
 - BLOB: Values > 64 MB stored in separate `*.blob` files.
 - KEY DELETED: Every value for the key is deleted. (Key tombstone)
-- KEY-VALUE DELETED: Only one named key → value pair is deleted, leaving other values for the same
-  key intact. (Key-value tombstone) Only meaningful for `MultiValue` families; see
-  [Key-value tombstones](#key-value-tombstones).
 - Future:
   - MERGE: An application specific update operation that is applied on the old value.
 
@@ -163,13 +160,6 @@ Depending on the `type` field entry has a different format:
   currently caps it at 8)
   - key data
   - (type - 8) bytes value data (inline, no separate value block)
-- 17..=25: key-value tombstone, deleted value size = type - 17 (mirrors the inline range and shifts
-  with `MAX_INLINE_VALUE_SIZE`)
-  - key data
-  - (type - 17) bytes of the deleted value, stored inline
-
-Both ranged kinds are open-ended, so a decoder must test the key-value tombstone range **before**
-the inline range.
 
 ##### Entry ordering
 
@@ -178,25 +168,6 @@ Logically keys are ordered by hash (this is how we chose file and block assignme
 - **With hash (types 1 and 3):** sorted by `(key hash, key)`.
 - **No hash (types 2 and 4):** sorted by **key** alone.
 
-
-##### Key-value tombstones
-
-A key-value tombstone names the exact pair to remove, so it must carry a copy of the deleted
-value's bytes. Since the value lives inline in the key block and its length is encoded in the type
-byte, only inline-sized values can be deleted this way — hence `MAX_INLINE_VALUE_SIZE` bounds
-`delete_value`.
-
-The size limit is a consequence of that encoding, not of the comparison logic: matching is a plain
-byte comparison and does not care how a value is stored. Supporting larger deleted values is
-therefore possible but unmotivated — the tombstone stores a second copy of the value, so the cost
-of deleting approaches the cost of the value itself, and reclaiming space is the whole point.
-
-If it is ever needed, the natural encoding is a dedicated is-tombstone bit (e.g. the top bit) on the
-entry type, making "deleted" orthogonal to storage class rather than a parallel type range. That
-would also collapse the current duplication where the tombstone representation mirrors the inline
-one at every layer. Note that blob-backed values need a separate design: comparing against a blob
-means reading it, which would put unbounded I/O in the compaction path, and blob liveness
-accounting would have to handle a tombstone holding a blob reference.
 
 #### Key Block (fixed-size)
 
@@ -217,9 +188,7 @@ during binary search.
   - 1 byte value type — only present when the block is mixed-type
   - value data (size determined by the block's or the entry's value type)
 
-The mixed-type form exists so that same-sized inline values and key-value tombstones can share a
-fixed-size block: they have equal value sizes but different type bytes. Tag 4 is available as the
-mixed marker because it is not itself a valid entry type.
+Tag 4 remains reserved as the mixed marker and is not itself a valid entry type.
 
 ##### Two regions, not interleaved
 
