@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc, Vc,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, DiskWatcherRecursiveMode, FileSystemPath,
@@ -33,7 +32,6 @@ use crate::project::{
     Deserialize,
     NonLocalValue,
     OperationValue,
-    TraceRawVcs,
     Encode,
     Decode,
 )]
@@ -45,17 +43,7 @@ pub struct AdditionalRootConfig {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    OperationValue,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Hash, OperationValue, Serialize, Deserialize, Encode, Decode,
 )]
 enum AdditionalRootInvalidName {
     Empty,
@@ -83,17 +71,7 @@ impl AdditionalRootInvalidName {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    OperationValue,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Hash, OperationValue, Serialize, Deserialize, Encode, Decode,
 )]
 enum AdditionalRootIssueReason {
     // io errors are stringified because `io::Error` does not implement the required traits
@@ -131,9 +109,7 @@ impl AdditionalRootIssueReason {
     }
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, Encode, Decode)]
 pub(crate) struct AdditionalDiskFileSystem {
     pub canonical_path: RcStr,
     pub file_system: OperationVc<DiskFileSystem>,

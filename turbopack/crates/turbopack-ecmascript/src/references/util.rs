@@ -10,7 +10,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs, turbofmt};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     self,
@@ -134,7 +134,7 @@ impl Issue for TooManyMatchesWarning {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode, NonLocalValue)]
 pub enum SpecifiedChunkingType {
     Parallel,
     Shared,

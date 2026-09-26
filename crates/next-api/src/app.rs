@@ -40,7 +40,7 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexset, trace::TraceRawVcs,
+    fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -1113,13 +1113,13 @@ pub fn app_entry_point_to_route(
     .cell()
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
     RscHmr,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
@@ -1913,48 +1913,61 @@ impl AppEndpoint {
 
                     let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
 
-                    let chunk_group_info = module_graph.chunk_group_info();
-
                     let client_references = client_references.await?;
-                    let span = tracing::trace_span!("server utils");
-                    async {
-                        let parent_chunk_group = *chunk_group_info
-                            .get_index_of(entry_chunk_group.clone())
-                            .await?;
 
-                        // This is basically a manual shared chunk. But it's particularly helpful
-                        // for development, so that we share more layout segment chunks across
-                        // pages.
-                        let server_utils = client_references
-                            .server_utils
-                            .iter()
-                            .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                            .try_join()
-                            .await?;
-                        let chunk_group = chunking_context
-                            .chunk_group(
-                                AssetIdent::from_path(
-                                    this.app_project.project().project_path().owned().await?,
+                    // A manual shared chunk for the server utilities, created for development
+                    // only.
+                    //
+                    // In development every endpoint gets its own module graph (see
+                    // `per_page_module_graph`), so without this the layout segments would share
+                    // very little across pages.
+                    //
+                    // It must not be created in production. Its `parent` is *this* endpoint's
+                    // entry chunk group, and `parent` is part of a merged group's identity, so
+                    // the group -- and hence the availability info it seeds into the layout
+                    // segment chain below -- would differ for every endpoint. That makes each
+                    // shared layout segment re-chunk once per descendant endpoint. In production
+                    // a single whole-app module graph already shares these modules, so they are
+                    // chunked as part of the entry instead.
+                    if *project.per_page_module_graph().await? {
+                        let chunk_group_info = module_graph.chunk_group_info();
+                        let span = tracing::trace_span!("server utils");
+                        async {
+                            let parent_chunk_group = *chunk_group_info
+                                .get_index_of(entry_chunk_group.clone())
+                                .await?;
+
+                            let server_utils = client_references
+                                .server_utils
+                                .iter()
+                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                .try_join()
+                                .await?;
+                            let chunk_group = chunking_context
+                                .chunk_group(
+                                    AssetIdent::from_path(
+                                        this.app_project.project().project_path().owned().await?,
+                                    )
+                                    .with_modifier(rcstr!("server-utils"))
+                                    .into_vc(),
+                                    ChunkGroup::SharedMerged {
+                                        merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                        entries: server_utils,
+                                        parent: parent_chunk_group,
+                                    },
+                                    module_graph,
+                                    AvailabilityInfo::root(),
                                 )
-                                .with_modifier(rcstr!("server-utils"))
-                                .into_vc(),
-                                ChunkGroup::SharedMerged {
-                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                    entries: server_utils,
-                                    parent: parent_chunk_group,
-                                },
-                                module_graph,
-                                AvailabilityInfo::root(),
-                            )
-                            .to_resolved()
-                            .await?;
+                                .to_resolved()
+                                .await?;
 
-                        current_chunk_group = chunk_group;
+                            current_chunk_group = chunk_group;
 
-                        anyhow::Ok(())
+                            anyhow::Ok(())
+                        }
+                        .instrument(span)
+                        .await?;
                     }
-                    .instrument(span)
-                    .await?;
                     for server_component in client_references
                         .server_component_entries
                         .iter()

@@ -254,11 +254,23 @@ export const invalid = ;`
           `)
         ).toBe(false)
 
+        const cliOutput = next.getCliOutputFromHere()
         await browser.elementByCss('#load-parse-error').click()
-        await waitForRedbox(browser)
-        expect(await getRedboxSource(browser)).toContain(
-          'parse-error-proves-target-was-analyzed'
-        )
+        await retry(async () => {
+          expect(cliOutput()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
+        const source = browser
+          .locateRedbox()
+          .locator('[data-nextjs-codeframe], [data-nextjs-terminal]', {
+            hasText: 'parse-error-proves-target-was-analyzed',
+          })
+        await retry(async () => {
+          expect(await source.innerText()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
       } finally {
         await next.patchFile(targetPath, originalTarget)
         await next.patchFile(demoPath, originalDemo)

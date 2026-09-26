@@ -5,7 +5,10 @@ import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import loadConfig from '../../server/config'
 import { PHASE_INFO } from '../../shared/lib/constants'
-import { futureDefaults, type FutureDefaultEntry } from './future-defaults'
+import {
+  getPendingFutureDefaults,
+  type FutureDefaultEntry,
+} from './future-defaults'
 
 type UpgradePreparation =
   | { status: 'unaffected'; reason: string }
@@ -44,120 +47,214 @@ export async function prepareUpgrade(
     throw new Error('Could not determine the installed Next.js version.')
   }
 
-  // TODO: Handle prereleases
-  if (semver.prerelease(installedVersion)) {
+  if (semver.prerelease(installedVersion) && !isCanary(installedVersion)) {
     throw new Error(
       'AI upgrades are not available for prerelease versions of Next.js yet.'
     )
   }
 
-  if (targetRequest === 'latest' || targetRequest === 'future') {
-    const url = `${NPM_REGISTRY}next/latest`
-    const { value } = await fetchJSON(url)
-    const release = value as { version: string } | null
+  const { upgrade } = await getUpgradeAssessment(
+    installedVersion,
+    targetRequest
+  )
+  if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
+    throw new Error(upgrade.reason)
+  }
+  if (upgrade.status !== 'ready' || targetRequest !== 'future') {
+    return upgrade
+  }
 
-    if (
-      !release ||
-      !semver.valid(release.version) ||
-      semver.prerelease(release.version)
-    ) {
-      throw new Error('Could not determine the latest stable Next.js version.')
+  const config = await loadConfig(PHASE_INFO, directory, {
+    silent: true,
+  }).finally(resetEnv)
+  const pendingFutureDefaults = getPendingFutureDefaults(
+    directory,
+    config,
+    upgrade.targetVersion
+  )
+
+  if (
+    upgrade.targetVersion === installedVersion &&
+    pendingFutureDefaults.length === 0
+  ) {
+    return {
+      status: 'unaffected',
+      reason: `Next.js ${installedVersion} is current and no applicable Future Defaults are pending.`,
     }
+  }
 
-    const targetVersion =
-      targetRequest === 'future' && semver.gt(installedVersion, release.version)
-        ? installedVersion
-        : release.version
+  return { ...upgrade, futureDefaults: pendingFutureDefaults }
+}
 
-    if (
-      targetRequest === 'latest' &&
-      semver.eq(release.version, installedVersion)
-    ) {
-      return {
+export type UpgradeAssessment = {
+  // null means advisory assessment is unsupported for this release channel.
+  affected: boolean | null
+  reference: string | null
+  upgrade:
+    | UpgradePreparation
+    | { status: 'blocked'; reason: string }
+    | { status: 'unknown'; reason: string }
+}
+
+// TODO: Cache assessments briefly by installed version, policy, and resolved
+// target to avoid repeating nudge lookups. New advisories can affect the same
+// target, so expire cached results and refresh metadata before execution.
+export async function getUpgradeAssessment(
+  installedVersion: string,
+  policy: 'security' | 'latest' | 'future',
+  onlyIfAffected: boolean = false
+): Promise<UpgradeAssessment> {
+  if (!semver.valid(installedVersion)) {
+    throw new Error('The running Next.js version is not valid semver.')
+  }
+  if (semver.prerelease(installedVersion) && !isCanary(installedVersion)) {
+    throw new Error(
+      'AI upgrades are not available for prerelease versions of Next.js yet.'
+    )
+  }
+  const canary = isCanary(installedVersion)
+  if (canary && (policy === 'security' || onlyIfAffected)) {
+    return {
+      affected: null,
+      reference: null,
+      upgrade: {
+        status: 'blocked',
+        reason:
+          'Security upgrades are not supported for canary versions of Next.js. Use --ai=latest or --ai=future to upgrade on the canary channel.',
+      },
+    }
+  }
+  // Canary version ordering does not establish which security fixes it contains.
+  // Keep canary latest/Future upgrades independent of advisory assessment.
+  const snapshot = canary ? null : await readAdvisorySnapshot(installedVersion)
+  const affected = snapshot
+    ? snapshot.ranges.some((range) => semver.satisfies(installedVersion, range))
+    : null
+  const assessment = { affected, reference: snapshot?.reference ?? null }
+
+  if (snapshot && snapshot.targetError !== null) {
+    return {
+      ...assessment,
+      upgrade: { status: 'unknown', reason: snapshot.targetError },
+    }
+  }
+
+  // A dismissed release reminder still checks advisories, but does not need
+  // target metadata unless an advisory applies.
+  if ((policy === 'security' || onlyIfAffected) && !affected) {
+    return {
+      ...assessment,
+      upgrade: {
         status: 'unaffected',
-        reason: `Next.js ${installedVersion} is already the latest stable release.`,
-      }
+        reason: `No security update is needed for Next.js ${installedVersion}.`,
+      },
     }
+  }
 
-    if (
-      targetRequest === 'latest' &&
-      semver.lt(release.version, installedVersion)
-    ) {
-      return {
-        status: 'unaffected',
-        reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
+  // Keep a confirmed advisory even when target metadata cannot be read.
+  try {
+    let targetVersion: string
+    let references: string[]
+    if (policy === 'security' && snapshot) {
+      const registryURL = `${NPM_REGISTRY}next`
+      const registry = snapshot.registry ?? (await fetchJSON(registryURL)).value
+      const releases = parseReleases(registry)
+      references = [snapshot.reference, registryURL]
+      try {
+        targetVersion = selectSecurityTarget(installedVersion, {
+          ranges: snapshot.ranges,
+          releases,
+          references,
+        })!.version
+      } catch (error) {
+        return {
+          ...assessment,
+          upgrade: { status: 'blocked', reason: (error as Error).message },
+        }
       }
-    }
+    } else {
+      const release = await fetchLatestRelease(installedVersion)
+      if (!release) {
+        throw new Error(
+          canary
+            ? 'Could not determine the latest Next.js version on the canary dist-tag.'
+            : 'Could not determine the latest stable Next.js version.'
+        )
+      }
+      targetVersion =
+        policy === 'future' && semver.gt(installedVersion, release.version)
+          ? installedVersion
+          : release.version
+      references = [release.reference]
+      const releaseKind = canary ? 'canary release' : 'stable release'
 
-    let pendingFutureDefaults: FutureDefaultEntry[] = []
+      if (policy === 'latest' && semver.lt(targetVersion, installedVersion)) {
+        return {
+          ...assessment,
+          upgrade: {
+            status: 'unaffected',
+            reason: `Next.js ${installedVersion} is newer than the latest ${releaseKind} ${targetVersion}.`,
+          },
+        }
+      }
 
-    if (targetRequest === 'future') {
-      const securitySnapshot = await readSecuritySnapshot(targetVersion)
-
+      // The tag can advance after npm's published-version snapshot was read.
+      // Include that exact target in the fallback query as well.
       if (
-        securitySnapshot?.ranges.some((range) =>
-          semver.satisfies(targetVersion, range)
+        snapshot &&
+        snapshot.registry !== null &&
+        !advisoryVersions(snapshot.registry, installedVersion).includes(
+          targetVersion
         )
       ) {
-        throw new Error(
-          `Next.js ${targetVersion} is affected by an active advisory.`
+        snapshot.ranges = affectedRanges(
+          await readNpmAdvisories([
+            ...advisoryVersions(snapshot.registry, installedVersion),
+            targetVersion,
+          ])
+        )
+        assessment.affected ||= snapshot.ranges.some((range) =>
+          semver.satisfies(installedVersion, range)
         )
       }
-
-      const config = await loadConfig(PHASE_INFO, directory, {
-        silent: true,
-      }).finally(resetEnv)
-
-      pendingFutureDefaults = futureDefaults.filter(
-        (futureDefault) =>
-          semver.gte(targetVersion, futureDefault.availableSince) &&
-          !futureDefault.isAdopted(config)
-      )
-
       if (
-        targetVersion === installedVersion &&
-        pendingFutureDefaults.length === 0
+        snapshot?.ranges.some((range) => semver.satisfies(targetVersion, range))
       ) {
         return {
-          status: 'unaffected',
-          reason: `Next.js ${installedVersion} is current and all available Future Defaults are enabled.`,
+          ...assessment,
+          upgrade: {
+            status: 'blocked',
+            reason: `Next.js ${targetVersion} is affected by an active advisory.`,
+          },
+        }
+      }
+
+      if (policy === 'latest' && semver.eq(targetVersion, installedVersion)) {
+        return {
+          ...assessment,
+          upgrade: {
+            status: 'unaffected',
+            reason: `Next.js ${installedVersion} is already the latest ${releaseKind}.`,
+          },
         }
       }
     }
 
     return {
-      status: 'ready',
-      installedVersion,
-      targetVersion,
-      references: [url],
-      futureDefaults: pendingFutureDefaults,
+      ...assessment,
+      upgrade: {
+        status: 'ready',
+        installedVersion,
+        targetVersion,
+        references,
+        futureDefaults: [],
+      },
     }
-  }
-
-  const snapshot = await readSecuritySnapshot(installedVersion)
-
-  if (!snapshot) {
+  } catch (error) {
     return {
-      status: 'unaffected',
-      reason: `No security update is needed for Next.js ${installedVersion}.`,
+      ...assessment,
+      upgrade: { status: 'unknown', reason: (error as Error).message },
     }
-  }
-
-  const selected = selectSecurityTarget(installedVersion, snapshot)
-
-  if (!selected) {
-    return {
-      status: 'unaffected',
-      reason: `No security update is needed for Next.js ${installedVersion}.`,
-    }
-  }
-
-  return {
-    status: 'ready',
-    installedVersion,
-    targetVersion: selected.version,
-    references: snapshot.references,
-    futureDefaults: [],
   }
 }
 
@@ -206,6 +303,10 @@ async function fetchJSON(
       cause: error,
     })
   }
+}
+
+function isCanary(version: string): boolean {
+  return semver.prerelease(version)?.[0] === 'canary'
 }
 
 function parseReleases(value: unknown): SecuritySnapshot['releases'] {
@@ -289,68 +390,50 @@ function affectedRanges(advisories: Advisory[]): string[] {
   return ranges
 }
 
-export async function getLatestUpgradeVersion(version: string) {
-  // TODO: Support prerelease upgrade policies once their target selection is
-  // defined for explicit upgrades and background reminders.
-  if (!semver.valid(version) || semver.prerelease(version)) {
+export function getLatestUpgradeVersion(
+  version: string,
+  targetVersion: string
+) {
+  if (
+    !semver.valid(version) ||
+    !semver.valid(targetVersion) ||
+    (semver.prerelease(version) && !isCanary(version)) ||
+    (isCanary(version)
+      ? !isCanary(targetVersion)
+      : semver.prerelease(targetVersion)) ||
+    !semver.gt(targetVersion, version)
+  ) {
     return null
   }
+  // Patches and consecutive canaries remain available to explicit upgrades
+  // without a reminder.
+  if (
+    semver.major(targetVersion) === semver.major(version) &&
+    semver.minor(targetVersion) === semver.minor(version)
+  ) {
+    return null
+  }
+  return targetVersion
+}
 
-  const { value } = await fetchJSON(`${NPM_REGISTRY}next/latest`)
+async function fetchLatestRelease(installedVersion: string): Promise<{
+  version: string
+  reference: string
+} | null> {
+  const canary = isCanary(installedVersion)
+  const reference = `${NPM_REGISTRY}next/${canary ? 'canary' : 'latest'}`
+  const { value } = await fetchJSON(reference)
   const release = value as { version: string } | null
 
   if (
     !release ||
     !semver.valid(release.version) ||
-    semver.prerelease(release.version) !== null ||
-    !semver.gt(release.version, version)
+    (canary ? !isCanary(release.version) : semver.prerelease(release.version))
   ) {
     return null
   }
 
-  // Patch releases remain available to explicit upgrades without a reminder.
-  if (
-    semver.major(release.version) === semver.major(version) &&
-    semver.minor(release.version) === semver.minor(version)
-  ) {
-    return null
-  }
-
-  return release.version
-}
-
-// Count only advisories affecting the running version for the startup prompt.
-// Full release selection remains in the explicit upgrade command.
-export async function getSecurityAdvisory(version: string) {
-  if (!semver.valid(version)) {
-    throw new Error('The running Next.js version is not valid semver.')
-  }
-
-  if (semver.prerelease(version)) {
-    return null
-  }
-
-  let advisories: Advisory[]
-  let reference: string
-
-  try {
-    const result = await readGitHubAdvisories(version)
-    advisories = result.advisories
-    reference = result.reference
-  } catch {
-    advisories = await readNpmAdvisories([version])
-    reference = NPM_ADVISORIES
-  }
-
-  if (
-    !affectedRanges(advisories).some((range) =>
-      semver.satisfies(version, range)
-    )
-  ) {
-    return null
-  }
-
-  return { reference }
+  return { version: release.version, reference }
 }
 
 async function readGitHubAdvisories(version: string | null) {
@@ -446,64 +529,80 @@ async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
   return advisories
 }
 
-// TODO: Replace provider-specific requests with a Next.js-maintained endpoint
-// that returns advisory ranges and exact safe targets for each major.
-async function readSecuritySnapshot(
-  installedVersion: string
-): Promise<SecuritySnapshot | undefined> {
-  // Accept GitHub evidence only after every page succeeds. On failure, npm
-  // replaces the entire advisory set rather than supplementing partial results.
-  let githubRanges: string[] | undefined
-  let githubFailure: unknown
-
-  try {
-    githubRanges = affectedRanges((await readGitHubAdvisories(null)).advisories)
-
-    if (
-      !githubRanges.some((range) => semver.satisfies(installedVersion, range))
-    ) {
-      return
-    }
-  } catch (error) {
-    githubFailure = error
+function advisoryVersions(value: unknown, checkedVersion: string): string[] {
+  const data = value as { versions: Record<string, unknown> | undefined }
+  if (
+    !data?.versions ||
+    typeof data.versions !== 'object' ||
+    Array.isArray(data.versions)
+  ) {
+    throw new Error('Could not check for security updates.')
   }
 
-  const registryURL = `${NPM_REGISTRY}next`
-  let releases: SecuritySnapshot['releases']
-  let ranges: string[]
-  let advisoryReference: string
+  // Include all published versions to retrieve advisories affecting candidates,
+  // not only the installed version.
+  const versions = Object.keys(data.versions).filter((version) =>
+    semver.valid(version)
+  )
+  if (!versions.includes(checkedVersion)) {
+    versions.push(checkedVersion)
+  }
+  return versions
+}
 
+// TODO: Replace provider-specific requests with a Next.js-maintained endpoint
+// that returns advisory ranges and exact safe targets for each major.
+async function readAdvisorySnapshot(installedVersion: string): Promise<{
+  ranges: string[]
+  reference: string
+  registry: unknown | null
+  targetError: string | null
+}> {
+  // Accept GitHub evidence only after every page and range validates. On
+  // failure, npm replaces the entire set, including candidate advisories.
   try {
-    const { value } = await fetchJSON(registryURL)
-    releases = parseReleases(value)
-
-    if (githubRanges) {
-      ranges = githubRanges
-      advisoryReference = ADVISORIES
-    } else {
-      // Query every published version, including prereleases: querying only the
-      // installed version could miss advisories affecting a candidate target.
-      const versions = Object.keys(
-        (value as { versions: Record<string, unknown> }).versions
-      ).filter((version) => semver.valid(version))
-      ranges = affectedRanges(await readNpmAdvisories(versions))
-      advisoryReference = NPM_ADVISORIES
+    const { advisories, reference } = await readGitHubAdvisories(null)
+    return {
+      ranges: affectedRanges(advisories),
+      reference,
+      registry: null,
+      targetError: null,
     }
-  } catch (error) {
-    if (!githubRanges) {
+  } catch (githubFailure) {
+    try {
+      const { value } = await fetchJSON(`${NPM_REGISTRY}next`)
+      const ranges = affectedRanges(
+        await readNpmAdvisories(advisoryVersions(value, installedVersion))
+      )
+      return {
+        ranges,
+        reference: NPM_ADVISORIES,
+        registry: value,
+        targetError: null,
+      }
+    } catch (error) {
+      // A source-only response can still establish a warning, but cannot
+      // establish target safety.
+      try {
+        const ranges = affectedRanges(
+          await readNpmAdvisories([installedVersion])
+        )
+        if (ranges.some((range) => semver.satisfies(installedVersion, range))) {
+          return {
+            ranges,
+            reference: NPM_ADVISORIES,
+            registry: null,
+            targetError: 'Could not assess upgrade targets. Please try again.',
+          }
+        }
+      } catch {
+        // Neither provider could establish even a source-only warning.
+      }
       throw new Error(
         'Could not check for security updates. Please try again.',
         { cause: [githubFailure, error] }
       )
     }
-
-    throw error
-  }
-
-  return {
-    ranges,
-    releases,
-    references: [advisoryReference, registryURL],
   }
 }
 
@@ -518,8 +617,7 @@ function selectSecurityTarget(
   }
 
   const releases = snapshot.releases
-  // Consider only the latest stable release of each major, not an older patch
-  // that happens to be safe while that major's latest release is affected.
+  // Consider only the latest stable release of each major, not an older safe patch.
   const latest = new Map<number, PackageRelease>()
 
   for (const release of releases) {

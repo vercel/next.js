@@ -1,24 +1,20 @@
 /* eslint-env jest */
 
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('Invalid Global CSS', () => {
-  const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
-    skipStart: isNextStart,
-    skipDeployment: true,
+    skipStart: !isNextDev,
     dependencies: { sass: '1.54.0' },
   })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should fail to build', async () => {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).not.toBe(0)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
+
       if (!isTurbopack) {
         expect(cliOutput).toContain('Failed to compile')
       }
@@ -30,7 +26,7 @@ describe('Invalid Global CSS', () => {
       if (!process.env.NEXT_RSPACK) {
         expect(cliOutput).toMatch(/Location:.*pages[\\/]index\.js/)
       }
-    })
+    }, 240_000)
   } else {
     it('should show a build error', async () => {
       const browser = await next.browser('/')

@@ -10,7 +10,7 @@ use swc_core::common::{GLOBALS, source_map::SmallPos};
 use thread_local::ThreadLocal;
 use tracing::instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -85,7 +85,7 @@ pub async fn module_value_to_constants_module<'a>(
     }))
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, NonLocalValue, Encode, Decode)]
 enum ConstantsModuleExport {
     Constant(ConstantValueBitEquality),
     NonConstant(ResolvedVc<NonConstantIssue>),
@@ -228,7 +228,7 @@ pub async fn get_constants(
                 arena.get_or_default(),
                 program,
                 eval_context,
-                AnalyzeMode::Tracing,
+                AnalyzeMode::tracing(),
                 supports_block_scoping,
                 // This is currently ignored with cjs_tree_shaking:false
                 SpecifiedModuleType::Automatic,
@@ -420,7 +420,7 @@ impl Issue for NonConstantIssue {
     }
 }
 
-#[derive(Debug, Clone, Default, TraceRawVcs, Encode, Decode, NonLocalValue)]
+#[derive(Debug, Clone, Default, Encode, Decode, NonLocalValue)]
 struct ConstantValueBitEquality(ConstantValue);
 
 impl PartialEq for ConstantValueBitEquality {

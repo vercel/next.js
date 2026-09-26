@@ -13031,7 +13031,7 @@
     "runtimeError": false
   },
   "test/e2e/next-analyze/next-analyze.test.ts": {
-    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
+    "passed": ["next analyze skips in non-Turbopack tests"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -15289,8 +15289,8 @@
   },
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
-      "create-next-app should create AGENTS.md and CLAUDE.md with --agents-md flag",
-      "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
+      "create-next-app should create AGENTS.md with --agents-md flag",
+      "create-next-app should not create AGENTS.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install",

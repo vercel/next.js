@@ -35,7 +35,13 @@ jobs:
             scripts/upload-preview-tarballs.js
           sparse-checkout-cone-mode: false
 
+      # build-and-deploy skips its deploy-tarball job for e.g. docs-only
+      # changes or production tag pushes, in which case there is no artifact
+      # and nothing to upload. Not an error: build-and-test waits on the
+      # published tarballs and would surface real breakage.
       - name: Download preview-tarballs artifact
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: preview-tarballs
@@ -44,6 +50,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Upload tarballs to Vercel Blob
+        if: steps.download.outcome == 'success'
         run: node scripts/upload-preview-tarballs.js "${{
           github.event.workflow_run.head_sha }}" "${{ runner.temp
           }}/preview-tarballs"

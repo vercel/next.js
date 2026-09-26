@@ -16,7 +16,7 @@ export type NextAnalyzeOptions = {
   port: number
   output: boolean
   experimentalAppOnly?: boolean
-  baselineName?: string
+  snapshotName?: string
 }
 
 const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
@@ -29,7 +29,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
     process.exit(130)
   })
 
-  const { profile, mangling, experimentalAppOnly, output, port, baselineName } =
+  const { profile, mangling, experimentalAppOnly, output, port, snapshotName } =
     options
 
   if (!mangling) {
@@ -57,7 +57,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
     appDirOnly: experimentalAppOnly,
     output,
     port,
-    baselineName,
+    snapshotName,
   })
 }
 

@@ -22,11 +22,13 @@ import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
@@ -100,7 +102,8 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
-  const botType = getBotType(req.headers.get('User-Agent') || '')
+  const userAgent = req.headers.get('User-Agent') || ''
+  const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
     req.headers,
     previewProps
@@ -108,8 +111,10 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
+  const routeMatch: RouteMatch = { resolvedPathname }
   const renderContext: AppPageRouteHandlerContext = {
     page: normalizedSrcPage,
+    routeMatch,
     query,
     params,
 
@@ -131,7 +136,10 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      serveStreamingMetadata: true,
+      serveStreamingMetadata: shouldServeStreamingMetadata(
+        userAgent,
+        nextConfig.htmlLimitedBots
+      ),
       supportsDynamicResponse: true,
       buildManifest,
       nextFontManifest,

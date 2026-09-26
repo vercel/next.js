@@ -1,6 +1,6 @@
 # Next.js agent feedback protocol
 
-Use this protocol only when the managed Next.js feedback block in `AGENTS.md` or `CLAUDE.md` instructs you to prepare agent feedback. Next.js Skills and upgrade workflows may add feedback candidates only while that managed block is present. Prepare report drafts for the user to review, but never submit them for the user.
+Use this protocol only when the managed Next.js feedback block in `AGENTS.md` instructs you to prepare agent feedback. Next.js Skills and upgrade workflows may add feedback candidates only while that managed block is present. Prepare report drafts for the user to review, but never submit them for the user.
 
 ## Terms
 

@@ -543,6 +543,7 @@ mod tests {
     use crate::{
         BackingStorageOptions,
         database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer},
+        utils::test_temp_dir::test_temp_dir,
     };
 
     /// Options used by these tests. `is_short_session` disables background compaction, which
@@ -590,7 +591,7 @@ mod tests {
     /// the case where multiple task IDs are stored under the same hash key.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
+        let tempdir = test_temp_dir()?;
         let path = tempdir.path();
 
         let db = TurboKeyValueDatabase::new(path.to_path_buf(), TEST_STORAGE_OPTIONS)?;
@@ -624,7 +625,7 @@ mod tests {
     #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_write_with_flush_and_reopen() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
+        let tempdir = test_temp_dir()?;
         let path = tempdir.path();
 
         let n = 100_000;
@@ -684,7 +685,7 @@ mod tests {
     /// commit knows about it.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_save_snapshot_delete_tombstones_task() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
+        let tempdir = test_temp_dir()?;
         let path = tempdir.path();
 
         let collision_hash: u64 = 0xC0FFEE;

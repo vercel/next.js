@@ -13,7 +13,6 @@ import {
   segmentToTransportSegment,
 } from '../../shared/lib/rsc-transport'
 import type { GetDynamicParamFromSegment } from './app-render'
-import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
@@ -168,7 +167,6 @@ async function createTransportTreeFromLoaderTreeImpl(
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any,
   didFindRootLayout: boolean,
   notFoundParams: readonly string[] | undefined
 ): Promise<PartialTransportNode> {
@@ -205,7 +203,6 @@ async function createTransportTreeFromLoaderTreeImpl(
       missingPrefetchHintPolicy,
       partialPrefetching,
       getDynamicParamFromSegment,
-      searchParams,
       didFindRootLayout,
       notFoundParams
     )
@@ -220,9 +217,7 @@ async function createTransportTreeFromLoaderTreeImpl(
   }
 
   const node: PartialTransportNode = {
-    s: segmentToTransportSegment(
-      addSearchParamsIfPageSegment(treeSegment, searchParams)
-    ),
+    s: segmentToTransportSegment(treeSegment),
   }
   if (prefetchHints !== 0) {
     node.h = prefetchHints
@@ -249,7 +244,6 @@ export async function createTransportTreeFromLoaderTree(
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any,
   notFoundParams: readonly string[] | undefined,
   // Whether a root layout was already found above this loader tree slice, so a
   // slice that starts below the root layout doesn't mark a sub-layout as the
@@ -264,7 +258,6 @@ export async function createTransportTreeFromLoaderTree(
     missingPrefetchHintPolicy,
     partialPrefetching,
     getDynamicParamFromSegment,
-    searchParams,
     didFindRootLayout,
     notFoundParams
   )
@@ -282,7 +275,6 @@ export async function createFullTransportTreeFromLoaderTree(
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any,
   notFoundParams: readonly string[] | undefined
 ): Promise<FullTransportNode> {
   // With emitSkippedData, every node carries data, which is what
@@ -296,7 +288,6 @@ export async function createFullTransportTreeFromLoaderTree(
     missingPrefetchHintPolicy,
     partialPrefetching,
     getDynamicParamFromSegment,
-    searchParams,
     false,
     notFoundParams
   ) as Promise<FullTransportNode>
@@ -317,10 +308,6 @@ export async function createRouteTreePrefetch(
   // See note on createTransportTreeFromLoaderTree's didFindRootLayout.
   didFindRootLayout: boolean = false
 ): Promise<PartialTransportNode> {
-  // Search params should not be added to page segment's cache key during a
-  // route tree prefetch request, because they do not affect the structure of
-  // the route. The client cache has its own logic to handle search params.
-  const searchParams = {}
   return createTransportTreeFromLoaderTreeImpl(
     loaderTree,
     false,
@@ -329,7 +316,6 @@ export async function createRouteTreePrefetch(
     missingPrefetchHintPolicy,
     partialPrefetching,
     getDynamicParamFromSegment,
-    searchParams,
     didFindRootLayout,
     notFoundParams
   )

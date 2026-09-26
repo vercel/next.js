@@ -7,7 +7,9 @@ related:
 version: experimental
 ---
 
-The **forbidden** file is used to render UI when the [`forbidden`](/docs/app/api-reference/functions/forbidden) function is invoked during authentication. Along with allowing you to customize the UI, Next.js will return a `403` status code.
+The **forbidden** file renders UI when the [`forbidden`](/docs/app/api-reference/functions/forbidden) function is invoked.
+
+Before streaming starts, Next.js returns a `403` status code. After streaming starts, the status code remains `200` and the forbidden UI renders in the response. Next.js injects a `<meta name="robots" content="noindex" />` tag in both cases. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details.
 
 ```tsx filename="app/forbidden.tsx" switcher
 import Link from 'next/link'

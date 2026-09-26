@@ -1,6 +1,6 @@
 use std::{io::Write, iter::once};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
@@ -29,6 +29,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    chunk_item_content_with_code_from,
     runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
 };
@@ -258,26 +259,19 @@ impl Module for EcmascriptClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let item = self
-            .proxy_module()
-            .as_chunk_item(module_graph, *chunking_context);
-        let ecmascript_item =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
-                .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
-
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(
             EcmascriptClientReferenceProxyChunkItem {
                 inner_module: self,
-                inner_chunk_item: ecmascript_item,
+                module_graph,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -291,25 +285,28 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    fn chunk_item_content(
-        self: Vc<Self>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    async fn chunk_item_content(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
-        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        bail!("Attempted to get chunk_item_content for EcmascriptClientReferenceModule")
+        Ok(chunk_item_content_with_code_from(
+            *ResolvedVc::upcast(self),
+            self.proxy_module(),
+            *chunking_context,
+            async_module_info,
+        ))
     }
 }
 
-/// This wrapper only exists to overwrite the `asset_ident` method of the
-/// wrapped [`Vc<Box<dyn EcmascriptChunkItem>>`]. Otherwise, the asset ident of
-/// the chunk item would not be the same as the asset ident of the
-/// [`Vc<EcmascriptClientReferenceModule>`].
+/// This wrapper uses the client-reference module's graph identity for both its asset identifier
+/// and code generation. The generated proxy supplies the code, but isn't itself in the graph.
 #[turbo_tasks::value]
 struct EcmascriptClientReferenceProxyChunkItem {
     inner_module: ResolvedVc<EcmascriptClientReferenceModule>,
-    inner_chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -345,11 +342,12 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        self.inner_chunk_item
-            .into_trait_ref()
-            .await?
-            .content_with_async_module_info(async_module_info, estimated)
-            .await
+        Ok(self.inner_module.chunk_item_content(
+            *self.chunking_context,
+            *self.module_graph,
+            async_module_info,
+            estimated,
+        ))
     }
 }
 

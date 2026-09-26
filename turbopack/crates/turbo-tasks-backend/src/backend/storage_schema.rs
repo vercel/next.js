@@ -867,67 +867,88 @@ impl TaskStorage {
         new_value
     }
 
-    /// Whether a GC pass may collect this task: nothing references it, via parents, transient
-    /// pins, aggregation edges, or dependency edges.
+    /// Whether a GC pass can collect this task: nothing references it, via parents, transient
+    /// pins, or aggregation edges.
     ///
-    /// Precision depends on what the caller restored. Meta alone cannot see the three Data-category
-    /// dependent sets, so the answer is a sound *pre-filter*: a `false` is definitive, a `true` may
-    /// still have dependents. With Meta + Data it is the full predicate. That one-directional
-    /// conservatism lets the cheap Meta-only shard scan and the authoritative under-guard recheck
-    /// (which opens `TaskDataCategory::All`, and is what actually gates collection) share this
-    /// single predicate.
-    pub fn gc_maybe_collectible(&self) -> bool {
+    /// Only reads `Meta`, so the shard scan and the under-guard recheck get the same answer -- it
+    /// is exact in both, not a pre-filter.
+    ///
+    /// The `Data`-category dependent sets are deliberately not consulted:
+    ///
+    /// - `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry. A cell dependent
+    ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
+    ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
+    ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
+    ///   `all_assets_from_entries_filtered`, whose tasks could then never be collected.
+    /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
+    ///   *output*, which is the `OperationVc` representation, and those reads go through
+    ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
+    ///   travels laterally as an argument, lands in `cell_dependents` instead.)
+    ///
+    /// Removing the cell sets exposed a race in the GC cascade -- rebalancing running while other
+    /// workers were still collecting -- which `gc_collect` now avoids by deferring all rebalance
+    /// work until the parallel phase is quiescent.
+    pub fn gc_collectible(&self) -> bool {
+        self.gc_unreferenced(ReferenceScope::All)
+    }
+
+    /// Whether nothing in `scope` refers to this task.
+    fn gc_unreferenced(&self, scope: ReferenceScope) -> bool {
         // None of the predicates below are correct without this.
-        self.flags.is_restored(TaskDataCategory::Meta)
+        if !self.flags.is_restored(TaskDataCategory::Meta)
             // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
             // don't re-select it, or a second pass would collect it again while it is still
             // resident.
-            && !self.flags.deleted()
-            && self.gc_parent_count() == 0
-            && self.gc_transient_ref_count() == 0
-            && self.get_activeness().is_none()
-            && self.get_in_progress().is_none()
-            // It is rare for upper/followers to be present when the ref counts are 0 but it can happen transiently during a concurrent GC pass as uppers are moved around during the cascade.
-            && self.upper().is_empty()
-            && self.followers().is_none_or(|f| f.is_empty())
-            // `collectibles_dependents` is Meta, so it is always checkable here.
-            && self
-                .collectibles_dependents()
-                .is_none_or(|d| d.is_empty())
-            // The remaining dependent sets are Data; skipped (leaving this a pre-filter) when Data
-            // is not restored.
-            && (!self.flags.is_restored(TaskDataCategory::Data)
-                || (self.output_dependent().is_empty()
-                    && self.cell_dependents().is_none_or(|d| d.is_empty())
+            || self.flags.deleted()
+            || self.gc_parent_count() != 0
+        {
+            return false;
+        }
+        match scope {
+            ReferenceScope::All => {
+                // It is rare for an upper to be present when the ref counts are 0, but it happens
+                // transiently during a concurrent GC pass as uppers move around in the cascade.
+                self.upper().is_empty()
+                    // It would be rare for a collectibles dependent to be the only thing holding a
+                    // task, but the invalidation that disconnected the task may not have bubbled
+                    // all the way up yet.
+                    && self.collectibles_dependents().is_none_or(|d| d.is_empty())
+                    && self.gc_transient_ref_count() == 0
+                    && self.get_in_progress().is_none()
+                    && self.get_activeness().is_none()
+            }
+            // Same two edge sets, minus the entries that die with the session. The pins above are
+            // skipped entirely: they are `category = "transient"` and never reach disk.
+            ReferenceScope::Persistent => {
+                self.upper().iter().all(|(u, _)| u.is_transient())
                     && self
-                        .cell_dependents_hashed()
-                        .is_none_or(|d| d.is_empty())))
+                        .collectibles_dependents()
+                        .is_none_or(|d| d.iter().all(|(_, t)| t.is_transient()))
+            }
+        }
     }
 
-    /// Whether this task is a GC **root**: parent-less, but pinned for some reason
-    ///
-    /// NOTE: this is a conservative classification.  The typical reason is that there is a
-    /// [`TaskStorage::transient_ref`] live, but this will return true if there is merely an
-    /// `upper/follower`.
+    /// Whether this task is a GC **root**: nothing *persistent* refers to it, so only this session
+    /// is keeping it alive -- a `transient_ref` pin, an in-progress execution, activeness, or an
+    /// `upper` / collectibles edge from a transient task.
     pub fn gc_is_root(&self) -> bool {
-        self.flags.is_restored(TaskDataCategory::Meta)
-            && !self.flags.deleted()
-            && self.gc_parent_count() == 0
-            && !self.gc_maybe_collectible()
+        self.gc_unreferenced(ReferenceScope::Persistent) && !self.gc_collectible()
     }
+}
 
-    /// Assert that a task classified by [`TaskStorage::gc_is_root`] is held by a pin that eviction
-    /// cannot drop.
-    pub fn gc_debug_assert_root_held_by_transient_pin(&self) {
-        debug_assert!(self.gc_is_root()); // sanity for our caller
-        debug_assert!(
-            self.gc_transient_ref_count() > 0
-                || self.get_in_progress().is_some()
-                || self.get_activeness().is_some(),
-            "GC root is held by a non-transient pin: {self:?}.\nBeing held by another kind of \
-             reference implies a bug in GC or the aggregation graph."
-        );
-    }
+/// Which references [`TaskStorage::gc_unreferenced`] counts.
+///
+/// A task can be held by references that outlive the session and by references that do not -- the
+/// transient entries of `upper` / `collectibles_dependents`, and the `transient_ref_count`,
+/// `in_progress` and `activeness` pins. The two GC predicates care about different subsets:
+/// collectibility about everything currently holding the task, rootness about only what would
+/// survive a restart.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ReferenceScope {
+    /// Every referrer, transient ones included.
+    All,
+    /// Only referrers that outlive the session.
+    Persistent,
 }
 
 /// Counts for aggregation tree and collectibles fields.
@@ -1082,6 +1103,8 @@ impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for
 }
 #[cfg(test)]
 mod tests {
+    // Only used by `test_schema_size`, which is 64-bit only.
+    #[cfg(target_pointer_width = "64")]
     use std::mem::size_of;
 
     use turbo_tasks::{CellId, TaskId};
@@ -1702,11 +1725,7 @@ mod tests {
         struct Keepable(#[allow(dead_code)] u32);
 
         #[turbo_tasks::value(serialization = "skip", evict = "last")]
-        struct KeepMe(
-            #[turbo_tasks(trace_ignore)]
-            #[allow(dead_code)]
-            u32,
-        );
+        struct KeepMe(#[allow(dead_code)] u32);
 
         fn dummy_ref() -> SharedReference {
             SharedReference::new(triomphe::Arc::new(0u32))

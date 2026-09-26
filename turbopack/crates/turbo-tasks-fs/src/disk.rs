@@ -28,7 +28,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, NonLocalValue,
     OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat,
-    parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
+    parallel, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -203,7 +203,7 @@ fn create_write_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
 
-#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub(crate) struct DiskFileSystemInner {
     pub name: RcStr,
     /// A system path in utf-8 representation. This simplifies serialization/deserialization.
@@ -214,44 +214,44 @@ pub(crate) struct DiskFileSystemInner {
     /// In the future, we should consider using `Path`/`PathBuf` here. Paths inside of the
     /// `DiskFileSystem` must be valid unicode, but the root path doesn't need to be.
     root: RcStr,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     mutex_map: MutexMap<Arc<PathBuf>>,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) invalidator_map: InvalidatorMap,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) dir_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "create_read_semaphore")]
     read_semaphore: tokio::sync::Semaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "create_write_semaphore")]
     write_semaphore: tokio::sync::Semaphore,
 
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     pub(crate) watcher: DiskWatcher,
     /// Root paths that we do not allow access to from this filesystem.
     /// Useful for things like output directories to prevent accidental ouroboros situations.
     denied_paths: Vec<RcStr>,
     /// Used by invalidators when called from a non-turbo-tasks thread, specifically in the fs
     /// watcher.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "turbo_tasks_weak")]
     pub(crate) turbo_tasks: Weak<dyn TurboTasksApi>,
     /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "Handle::current")]
     pub(crate) tokio_handle: Handle,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
     map: OperationVc<DiskFileSystemMap>,
@@ -454,7 +454,7 @@ struct OptionRcStr(Option<RcStr>);
 /// Canonicalizes successive prefixes of `target_sys_path`, from the system root toward the full
 /// path, and passes each canonical prefix together with the untouched suffix to `visit`.
 ///
-/// Helper for [`DiskFileSystem::resolve_link_target_ancestry_slow_path`] and
+/// Helper for [`DiskFileSystem::resolve_path_ancestry_slow_path`] and
 /// [`DiskFileSystem::lookup_in_file_system_map`]
 async fn visit_canonicalized_ancestry(
     target_sys_path: &Path,
@@ -631,6 +631,47 @@ impl DiskFileSystem {
         })
     }
 
+    /// Similar to [`try_from_sys_path`], but allows resolving paths that cross roots and may be in
+    /// a different [`DiskFileSystem`] linked via the [`DiskFileSystemMap`].
+    ///
+    /// Unlike [`try_from_sys_path`], this conversion is not entirely lexical, and we may attempt to
+    /// canonicalize some segments of an absolute path.
+    ///
+    /// Crossing roots should generally only happen at symlink boundaries. If you are not
+    /// handling a path that was potentially formed by crossing a symlink boundary, you should
+    /// prefer [`try_from_sys_path`].
+    ///
+    /// [`try_from_sys_path`]: DiskFileSystem::try_from_sys_path
+    pub async fn try_from_sys_path_across_roots(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: &FileSystemPath,
+    ) -> Result<Option<FileSystemPath>> {
+        debug_assert_eq!(
+            relative_to.fs,
+            ResolvedVc::upcast(vc_self),
+            "`relative_to` must be in the current disk filesystem"
+        );
+
+        if let Some(path) = self.try_from_sys_path(vc_self, sys_path, Some(relative_to)) {
+            return Ok(Some(path));
+        }
+
+        let absolute_path = self
+            .to_sys_path_raw(relative_to)
+            .join(sys_path)
+            .normalize_lexically()?;
+        if let Some(path) = self
+            .resolve_path_ancestry_slow_path(vc_self, &absolute_path)
+            .await?
+        {
+            return Ok(Some(path));
+        }
+        self.lookup_in_file_system_map(vc_self, &absolute_path)
+            .await
+    }
+
     /// Returns the path as a system [`PathBuf`]. Similar to [`DiskFileSystem::to_sys_path`], but
     /// keeps the internal representation as-is.
     ///
@@ -667,12 +708,11 @@ impl DiskFileSystem {
         return sys_path;
     }
 
-    /// Used by the slow path of [`DiskFileSystem::read_link`] for absolute link targets. Attempts
-    /// to strip the prefix of an absolute symlink target, creating a [`FileSystemPath`] relative to
-    /// the [`DiskFileSystem`] root.
+    /// Resolves an absolute path whose spelling differs from the [`DiskFileSystem`] root,
+    /// creating a [`FileSystemPath`] relative to that root.
     ///
-    /// Returns [`None`] if the target never reaches the filesystem root or an ancestor can't be
-    /// canonicalized. `read_link` treats this as `LinkContent::Invalid`.
+    /// Returns [`None`] if the path never reaches the filesystem root or an ancestor can't be
+    /// canonicalized.
     ///
     /// In some cases that absolute path may contain symlinks, different capitalization, or Windows
     /// 8.3 short paths. Resolving this requires performing untracked IO outside of the filesystem
@@ -681,7 +721,7 @@ impl DiskFileSystem {
     ///
     /// To avoid performing untracked reads of files outside of the filesystem root, we iteratively
     /// canonicalize each prefix of the given `target_sys_path` using a session-dependent task.
-    async fn resolve_link_target_ancestry_slow_path(
+    async fn resolve_path_ancestry_slow_path(
         &self,
         vc_self: ResolvedVc<Self>,
         target_sys_path: &Path,
@@ -701,7 +741,7 @@ impl DiskFileSystem {
 
     /// Looks up a system path in any configured filesystem other than the current filesystem.
     ///
-    /// Like [`Self::resolve_link_target_ancestry_slow_path`], the fallback handles paths whose
+    /// Like [`Self::resolve_path_ancestry_slow_path`], the fallback handles paths whose
     /// spelling differs from a configured root.
     async fn lookup_in_file_system_map(
         &self,
@@ -1013,7 +1053,7 @@ impl FileSystem for DiskFileSystem {
             // path.
             if target_fs_path.is_none() {
                 target_fs_path = this
-                    .resolve_link_target_ancestry_slow_path(self, &target_sys_path)
+                    .resolve_path_ancestry_slow_path(self, &target_sys_path)
                     .await?;
             }
             if target_fs_path.is_none() {
@@ -1210,7 +1250,7 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
-        #[derive(TraceRawVcs, NonLocalValue, Clone)]
+        #[derive(NonLocalValue, Clone)]
         struct CapturedWriteEffect {
             full_path: Arc<PathBuf>,
             inner: Arc<DiskFileSystemInner>,
@@ -1441,7 +1481,7 @@ impl FileSystem for DiskFileSystem {
         }
 
         // Post-capture effect — session-only plain struct.
-        #[derive(TraceRawVcs, NonLocalValue, Clone)]
+        #[derive(NonLocalValue, Clone)]
         struct CapturedWriteLinkEffect {
             full_path: Arc<PathBuf>,
             inner: Arc<DiskFileSystemInner>,

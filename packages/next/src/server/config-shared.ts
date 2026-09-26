@@ -248,7 +248,7 @@ export interface TurbopackOptions {
    */
   resolveAlias?: Record<
     string,
-    string | string[] | Record<string, string | string[]>
+    false | string | string[] | Record<string, false | string | string[]>
   >
 
   /**
@@ -502,8 +502,8 @@ export interface ExperimentalConfig {
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
   /**
-   * Adds managed instructions to AGENTS.md or CLAUDE.md that let AI coding
-   * agents prepare anonymized Next.js feedback for user review.
+   * Adds managed instructions to AGENTS.md that let AI coding agents prepare
+   * anonymized Next.js feedback for user review.
    */
   agentFeedback?: boolean
   /**
@@ -2160,10 +2160,10 @@ export interface NextConfig {
 
   /**
    * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md`
-   * and `CLAUDE.md` at the project root so the agent reads
-   * version-matched docs from `node_modules/next/dist/docs/` instead
-   * of stale training data. Set to `false` to disable this behavior.
+   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
+   * project root so the agent reads version-matched docs from
+   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * `false` to disable this behavior.
    *
    * @default true
    */

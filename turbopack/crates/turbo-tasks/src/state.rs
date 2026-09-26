@@ -11,7 +11,7 @@ use tracing::trace_span;
 
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
-    get_serialization_invalidator, manager::with_turbo_tasks, trace::TraceRawVcs,
+    get_serialization_invalidator, manager::with_turbo_tasks,
 };
 
 #[derive(Encode, Decode)]
@@ -227,12 +227,6 @@ impl<T: Debug> Debug for State<T> {
         f.debug_struct("State")
             .field("value", &self.inner.lock().value)
             .finish()
-    }
-}
-
-impl<T: TraceRawVcs> TraceRawVcs for State<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.inner.lock().value.trace_raw_vcs(trace_context);
     }
 }
 
