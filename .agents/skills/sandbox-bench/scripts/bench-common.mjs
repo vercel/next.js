@@ -4,7 +4,7 @@
 // CI-green gate, cached react arm builds, snapshots, the status.json
 // recovery record, and live interim estimates. Workload-specific code
 // (what runs on a measurement VM) stays in each launcher.
-import { execFile, spawn } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import fs from 'fs'
 import os from 'os'
@@ -106,14 +106,15 @@ export async function sbCpToVm(vm, localPath, vmDest) {
       await execFileP('shasum', ['-a', '256', localPath])
     ).stdout.split(' ')[0]
     const catList = parts.map((p) => `'${vmDest}.${p}'`).join(' ')
-    const out = await sbExec(
+    const out = await runDetached(
       vm,
-      '10m',
-      `cat ${catList} > '${vmDest}' && rm -f ${catList} && sha256sum '${vmDest}' | cut -d' ' -f1`,
-      `cp:${path.basename(vmDest)}`
+      `cp:${path.basename(vmDest)}`,
+      `cat ${catList} > '${vmDest}' && sha256sum '${vmDest}' | cut -d' ' -f1 && rm -f ${catList}`,
+      null,
+      12
     )
-    // sbExec output interleaves stderr (CLI banners); take the last
-    // sha-shaped token rather than the last line.
+    // The transcript interleaves other lines; take the last sha-shaped
+    // token rather than the last line.
     const shaTokens = out.match(/\b[0-9a-f]{64}\b/g)
     const remoteSha = shaTokens ? shaTokens[shaTokens.length - 1] : ''
     if (remoteSha !== localSha) {
@@ -361,75 +362,6 @@ export function pairedP(deltas) {
   return Math.min(1, integral / norm)
 }
 
-export function sbExec(vm, timeout, script, tag, onRow) {
-  return new Promise((resolve, reject) => {
-    // The CLI does not reliably propagate the remote exit code (observed
-    // exit 0 after a remote `exit 1`, CLI 56.3.x), so the script reports
-    // its own exit through an EXIT-trap marker; no marker means the
-    // transport died mid-run. Both are failures.
-    const wrapped = `trap 'echo "@@EXEC_EXIT $?"' EXIT
-${script}`
-    const child = spawn(
-      VERCEL,
-      [
-        'sandbox',
-        'exec',
-        vm,
-        ...SCOPE,
-        '--timeout',
-        timeout,
-        '--',
-        'bash',
-        '-c',
-        wrapped,
-      ],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
-    )
-    let out = ''
-    let buf = ''
-    child.stdout.on('data', (c) => {
-      out += c
-      buf += c
-      const lines = buf.split('\n')
-      buf = lines.pop()
-      for (const l of lines) {
-        if (!l) continue
-        if (l.startsWith('ROW ') && onRow) {
-          try {
-            onRow(JSON.parse(l.slice(4)))
-          } catch {}
-        } else {
-          process.stderr.write(`[${tag}] ${l}\n`)
-        }
-      }
-    })
-    child.stderr.on('data', (c) => {
-      out += c
-      process.stderr.write(
-        String(c)
-          .split('\n')
-          .filter(Boolean)
-          .map((l) => `[${tag}!] ${l}\n`)
-          .join('')
-      )
-    })
-    child.on('exit', (code) => {
-      const marker = out.match(/@@EXEC_EXIT (\d+)\s*$/m)
-      if (code === 0 && marker && marker[1] === '0') {
-        resolve(out)
-      } else {
-        const why =
-          code !== 0
-            ? `cli exit ${code}`
-            : marker
-              ? `remote exit ${marker[1]}`
-              : 'no exit marker (transport died mid-run)'
-        reject(new Error(`${tag}: ${why}\n${out.slice(-2000)}`))
-      }
-    })
-  })
-}
-
 export async function rmVm(name) {
   try {
     await sb(['rm', name])
@@ -438,9 +370,11 @@ export async function rmVm(name) {
   }
 }
 
-// Long-running remote work detached from the exec stream (streams drop
-// flakily on multi-minute silences): nohup the script on the VM, then
-// poll its log with short execs. Immune to transport hiccups.
+// Remote execution: nohup the script on the VM, then poll its log with
+// short execs. The exec stream drops flakily on multi-minute commands and
+// misreports remote exit codes, so nothing rides it: kicks and polls are
+// safe to repeat. One detached command per VM at a time — the fixed
+// loop.* paths are the crash-recovery contract (bench-collect.mjs, SKILL.md).
 export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   let transcript = ''
   const local = path.join(os.tmpdir(), `loop-${vm}.sh`)
@@ -453,21 +387,40 @@ export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   )
   await sb(['cp', local, `${vm}:/vercel/sandbox/loop.sh`])
   fs.rmSync(local, { force: true })
-  await sb([
-    'exec',
-    vm,
-    '--timeout',
-    '2m',
-    '--',
-    'bash',
-    '-c',
-    'rm -f /vercel/sandbox/loop.done /vercel/sandbox/loop.log; nohup bash /vercel/sandbox/loop.sh >/vercel/sandbox/loop.log 2>&1 & echo kicked',
-  ])
+  // Marker before nohup: a kick retried after a mid-transport death skips
+  // instead of racing a second copy of the script against the first.
+  const kickId = crypto.randomBytes(8).toString('hex')
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await sb([
+        'exec',
+        vm,
+        '--timeout',
+        '2m',
+        '--',
+        'bash',
+        '-c',
+        `if [ "$(cat /vercel/sandbox/loop.kick 2>/dev/null)" = "${kickId}" ]; then echo already kicked; ` +
+          `else printf '%s' '${kickId}' > /vercel/sandbox/loop.kick; ` +
+          `rm -f /vercel/sandbox/loop.done /vercel/sandbox/loop.log; ` +
+          `nohup bash /vercel/sandbox/loop.sh >/vercel/sandbox/loop.log 2>&1 & echo kicked; fi`,
+      ])
+      break
+    } catch (e) {
+      if (attempt >= 3)
+        throw new Error(`${tag}: kick failed: ${e.message.slice(0, 200)}`)
+      await new Promise((r) => setTimeout(r, 5_000 * attempt))
+    }
+  }
   let offset = 0
   let failures = 0
+  let pollDelay = 3_000
   const deadline = Date.now() + deadlineMin * 60_000
   while (true) {
-    await new Promise((r) => setTimeout(r, 45_000))
+    await new Promise((r) => setTimeout(r, pollDelay))
+    // Backing off to the cap keeps short commands cheap (first poll at 3s)
+    // without hammering long builds with exec round trips.
+    pollDelay = Math.min(pollDelay * 2, 45_000)
     if (Date.now() > deadline)
       throw new Error(`${tag}: detached loop deadline exceeded`)
     let out
@@ -545,13 +498,24 @@ export async function takeSnapshot(vm, cacheDir, key) {
 
 // React build environment (repo + node_modules + JDK), shared with
 // sandbox-ab.mjs. Keyed on the arm's yarn.lock.
+const reactSnapPromises = new Map()
 export async function ensureReactBuildSnapshot(refSha) {
+  // Raw bytes, exactly as cached snapshots hashed it: a trim here would
+  // silently fork the cache key and build every snapshot twice.
   const lock = await execFileP(
     'git',
     ['-C', REACT_REPO_LAZY(), 'show', `${refSha}:yarn.lock`],
     { maxBuffer: 1 << 28 }
   )
   const key = await sha256(SETUP_VERSION + lock.stdout)
+  // Concurrent callers with the same lockfile share one build.
+  if (!reactSnapPromises.has(key)) {
+    reactSnapPromises.set(key, ensureReactBuildSnapshotForKey(refSha, key))
+  }
+  return reactSnapPromises.get(key)
+}
+
+async function ensureReactBuildSnapshotForKey(refSha, key) {
   let id = await snapshotIdFor(REACT_SNAP_CACHE, key)
   if (id) return id
   const vm = `react-snap-build-${Date.now().toString(36)}`
@@ -583,25 +547,15 @@ export async function ensureReactBuildSnapshot(refSha) {
     ])
     await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
     fs.rmSync(src, { force: true })
-    await sb([
-      'exec',
+    // The default user has passwordless sudo (verified on node24 VMs).
+    await runDetached(
       vm,
-      '--timeout',
-      '10m',
-      '--sudo',
-      '--',
-      'dnf',
-      'install',
-      '-y',
-      '-q',
-      'java-21-amazon-corretto-headless',
-    ])
-    await sbExec(
-      vm,
-      '20m',
-      `set -e; mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
+      'react-snap',
+      `sudo dnf install -y -q java-21-amazon-corretto-headless && ` +
+        `mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
         `npm i -g yarn >/dev/null 2>&1 && yarn install --frozen-lockfile --ignore-engines >/dev/null 2>&1 && echo react env ready`,
-      'react-snap'
+      null,
+      30
     )
     return await takeSnapshot(vm, REACT_SNAP_CACHE, key)
   } finally {
@@ -758,15 +712,12 @@ export async function ensureRefArm(arm) {
     }
     await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
     fs.rmSync(src, { force: true })
-    // The exec stream drops on long silent commands; heartbeat keeps it
-    // alive during the ~10min dual-channel build. Newline before the
-    // backgrounded heartbeat: a trailing & after && backgrounds the
-    // whole chain.
-    await sbExec(
+    // Newline before the backgrounded heartbeat: a trailing & after &&
+    // backgrounds the whole chain.
+    await runDetached(
       vm,
-      '40m',
-      `set -e
-ls /vercel/sandbox/react/node_modules >/dev/null
+      `armbuild:${arm.name}`,
+      `ls /vercel/sandbox/react/node_modules >/dev/null
 cd /vercel/sandbox/react
 find . -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +
 tar -xzf ../src.tgz
@@ -776,7 +727,8 @@ yarn build "${E2E_BUILD_TARGETS}" >/tmp/build.log 2>&1 || (kill $HB; tail -20 /t
 kill $HB
 tar -czf /vercel/sandbox/arm.tgz build/oss-stable build/oss-experimental
 echo arm built`,
-      `armbuild:${arm.name}`
+      null,
+      45
     )
     fs.mkdirSync(CACHE, { recursive: true })
     const armTmp = `${cached}.tmp-${process.pid}`
