@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { createRequire } from 'module'
 import { join } from 'path'
 import resolveFrom from 'resolve-from'
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
 describe('agent upgrade prompt', () => {
@@ -12,7 +12,6 @@ describe('agent upgrade prompt', () => {
     skipDeployment: true,
   })
 
-  // TODO: Add the next build case in start mode using this terminal fixture.
   describe('next dev', () => {
     if (!isNextDev) {
       it.skip('runs only in dev mode', () => {})
@@ -740,6 +739,240 @@ module.exports = { experimental: { agenticAutoUpgrade: 'future' } }
           rmSync(readyPath, { force: true })
           rmSync(releasePath, { force: true })
         }
+      }
+    })
+  })
+
+  describe('next build', () => {
+    if (!isNextStart) {
+      it.skip('runs only in start mode', () => {})
+      return
+    }
+
+    beforeAll(() => {
+      // Production builds type-check the copied fixture. The Jest suite is
+      // kept next to the app, but is not part of the app being built.
+      writeFileSync(
+        join(next.testDir, 'tsconfig.json'),
+        '{"exclude":["node_modules","*.test.ts"]}\n'
+      )
+    })
+
+    // Spawn the real build CLI in an outer PTY, just as the dev cases do.
+    // The prompt path starts a second PTY for the build beneath its menu.
+    async function startBuild(
+      mode: 'normal' | 'prompt' = 'prompt',
+      holdBuild: boolean = false
+    ) {
+      const nextBin = process.env.NEXT_SKIP_ISOLATE
+        ? join(process.cwd(), 'packages/next/dist/bin/next')
+        : resolveFrom(next.testDir, 'next/dist/bin/next')
+      const pty = createRequire(nextBin)('node-pty')
+      const env = { ...process.env }
+
+      // The baseline has no policy. Prompt mode forces a preview so the test
+      // does not depend on a live advisory or a newly published Next version.
+      if (mode === 'normal') {
+        delete env.__NEXT_AGENTIC_AUTO_UPGRADE
+        delete env.NEXT_PRIVATE_UPGRADE_SUPERVISED
+      } else {
+        env.__NEXT_AGENTIC_AUTO_UPGRADE = 'future'
+      }
+      if (holdBuild) {
+        // app/page.tsx writes its worker PID before waiting for the test to
+        // release static generation.
+        env.NEXT_TEST_HOLD_UPGRADE_BUILD = '1'
+      }
+
+      // Make this a human session even when the test runner is itself an agent.
+      delete env.AI_AGENT
+      delete env.CODEX_SANDBOX
+      delete env.CODEX_CI
+      delete env.CODEX_THREAD_ID
+
+      // This is the user's terminal. The CLI creates its own inner PTY only
+      // when it can show a human upgrade prompt.
+      const terminal = pty.spawn(process.execPath, [nextBin, 'build'], {
+        cwd: next.testDir,
+        env,
+        name: 'xterm-256color',
+        cols: 100,
+        rows: 30,
+      })
+      let output = ''
+      let exited = false
+      let exitCode: number | undefined
+
+      // Keep terminal chunks so Skip can be checked for a missing or
+      // duplicated build marker, and retain the real build exit status.
+      terminal.onData((data: string) => {
+        output += data
+      })
+      terminal.onExit(({ exitCode: code }) => {
+        exited = true
+        exitCode = code
+      })
+
+      return {
+        terminal,
+        get output() {
+          return output
+        },
+        get exited() {
+          return exited
+        },
+        get exitCode() {
+          return exitCode
+        },
+        async stop(skipPrompt: boolean = true) {
+          if (!exited) {
+            // A visible menu owns input until Skip; afterward Ctrl+C reaches
+            // the child CLI. The Upgrade now case skips this menu action.
+            if (mode === 'prompt' && skipPrompt) {
+              terminal.write('\x1b[B\r')
+            }
+            terminal.write('\x03')
+            try {
+              await retry(async () => {
+                expect(exited).toBe(true)
+              })
+            } finally {
+              if (!exited) {
+                terminal.kill()
+              }
+            }
+          }
+        },
+      }
+    }
+
+    it('builds under the prompt, then replays its logs on Skip', async () => {
+      // First prove the same app builds normally without an upgrade policy.
+      // The config patch removes the policy rather than relying on a test flag.
+      await next.patchFile(
+        'next.config.js',
+        'module.exports = {}\n',
+        async () => {
+          // This runs the real next build entrypoint without a prompt.
+          const normal = await startBuild('normal')
+          try {
+            await retry(async () => {
+              expect(normal.exited).toBe(true)
+            }, 30_000)
+            if (normal.exitCode !== 0) {
+              // Show the build's actual diagnostic if the baseline fails.
+              throw new Error(normal.output.slice(-5000))
+            }
+            // No policy means no upgrade menu.
+            expect(normal.output).not.toContain('Upgrade now')
+          } finally {
+            await normal.stop()
+          }
+        }
+      )
+
+      const buildIdPath = join(next.testDir, '.next/BUILD_ID')
+      // The baseline already built this app. Remove its BUILD_ID so the next
+      // assertion can only pass after the prompted build makes progress.
+      rmSync(buildIdPath, { force: true })
+
+      // Start a new real build; its work should continue beneath the menu.
+      const build = await startBuild()
+      try {
+        await retry(async () => {
+          expect(build.output).toContain('Upgrade now')
+        }, 10_000)
+
+        // BUILD_ID proves the real build finished while the menu remained open.
+        // The outer process stays alive because the user has not chosen yet.
+        await retry(async () => {
+          expect(existsSync(buildIdPath)).toBe(true)
+        }, 30_000)
+        expect(build.exited).toBe(false)
+        // next.config.js prints this from the inner build process. It must
+        // stay out of the visible menu until the user chooses Skip.
+        expect(build.output).not.toContain('UPGRADE_BUILD_LOG')
+
+        // Down selects Skip. The old build log should appear once, followed
+        // by the real build's success status rather than a prompt status.
+        build.terminal.write('\x1b[B\r')
+        await retry(async () => {
+          expect(build.output).toContain('UPGRADE_BUILD_LOG')
+          expect(build.exited).toBe(true)
+        }, 10_000)
+        expect(build.output.match(/UPGRADE_BUILD_LOG/g)).toHaveLength(1)
+        expect(build.exitCode).toBe(0)
+      } finally {
+        await build.stop()
+      }
+    })
+
+    it('starts Upgrade now while build work is pending, then stops it', async () => {
+      // A file handshake holds real static-generation work in app/page.tsx.
+      // The two paths are removed first so a prior run cannot satisfy it.
+      const readyPath = join(next.testDir, 'upgrade-build-ready')
+      const releasePath = join(next.testDir, 'upgrade-build-release')
+      rmSync(readyPath, { force: true })
+      rmSync(releasePath, { force: true })
+      const build = await startBuild('prompt', true)
+      let workerPid = 0
+      let buildPid = 0
+      try {
+        await retry(async () => {
+          // Fail with the hidden build output if it exited before reaching the
+          // hold point; a menu alone would not prove the build started.
+          if (build.exited && !existsSync(readyPath)) {
+            throw new Error(build.output.slice(-5000))
+          }
+          expect(build.output).toContain('Upgrade now')
+          expect(existsSync(readyPath)).toBe(true)
+        }, 30_000)
+
+        // The page wrote these PIDs from inside the build worker. We use them
+        // to distinguish the build and its worker from the prompt supervisor.
+        const pids = JSON.parse(readFileSync(readyPath, 'utf8'))
+        workerPid = pids.workerPid
+        buildPid = pids.buildPid
+        expect(workerPid).toBeGreaterThan(0)
+        expect(buildPid).toBeGreaterThan(0)
+
+        // Enter selects Upgrade now. Preparation must begin while the worker
+        // is still held, before the build can finish naturally.
+        build.terminal.write('\r')
+        await retry(async () => {
+          expect(build.output).toContain('Preparing upgrade...')
+        }, 10_000)
+        expect(existsSync(releasePath)).toBe(false)
+
+        // Upgrade should request shutdown without another Ctrl+C from the
+        // test. The build process must stop while its worker is still held.
+        if (process.platform !== 'win32') {
+          await retry(async () => {
+            expect(() => process.kill(buildPid, 0)).toThrow()
+          }, 15_000)
+        }
+
+        // Check the worker while it is still held. Releasing it here would
+        // let it finish normally without proving that shutdown reached it.
+        if (process.platform !== 'win32') {
+          await retry(async () => {
+            expect(() => process.kill(workerPid, 0)).toThrow()
+          }, 15_000)
+        }
+        // The upgrade CLI has started; interrupt it to finish the test.
+        if (!build.exited) {
+          build.terminal.write('\x03')
+        }
+        await retry(async () => {
+          expect(build.exited).toBe(true)
+        }, 15_000)
+      } finally {
+        // Always release the worker and stop the outer PTY if an assertion
+        // fails, so this test cannot leave a build using the checkout.
+        writeFileSync(releasePath, '')
+        await build.stop(false)
+        rmSync(readyPath, { force: true })
+        rmSync(releasePath, { force: true })
       }
     })
   })
