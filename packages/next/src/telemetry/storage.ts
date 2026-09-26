@@ -38,6 +38,11 @@ type RecordObject = {
   reason?: any
 }
 
+type QueuedRecord = Promise<RecordObject> & {
+  _events?: TelemetryEvent[]
+  _controller?: any
+}
+
 function getStorageDirectory(distDir: string): string | undefined {
   const isLikelyEphemeral = ciEnvironment.isCI || isDockerFunction()
 
@@ -57,7 +62,7 @@ export class Telemetry {
   private NEXT_TELEMETRY_DISABLED: any
   private NEXT_TELEMETRY_DEBUG: any
 
-  private queue: Set<Promise<RecordObject>>
+  private queue: Set<QueuedRecord>
 
   constructor({
     distDir,
@@ -183,6 +188,8 @@ export class Telemetry {
     _events: TelemetryEvent | TelemetryEvent[],
     deferred?: boolean
   ): Promise<RecordObject> => {
+    const queuedRecordMetadata: Pick<QueuedRecord, '_controller'> = {}
+    let queuedRecord: QueuedRecord | undefined
     const prom = (
       deferred
         ? // if we know we are going to immediately call
@@ -195,7 +202,12 @@ export class Telemetry {
               value: _events,
             })
           )
-        : this.submitRecord(_events)
+        : this.submitRecord(_events, (controller) => {
+            queuedRecordMetadata._controller = controller
+            if (queuedRecord) {
+              queuedRecord._controller = controller
+            }
+          })
     )
       .then((value) => ({
         isFulfilled: true,
@@ -216,10 +228,11 @@ export class Telemetry {
         return res
       })
 
-    ;(prom as any)._events = Array.isArray(_events) ? _events : [_events]
-    ;(prom as any)._controller = (prom as any)._controller
+    queuedRecord = prom as QueuedRecord
+    queuedRecord._events = Array.isArray(_events) ? _events : [_events]
+    queuedRecord._controller = queuedRecordMetadata._controller
     // Track this `Promise` so we can flush pending events
-    this.queue.add(prom)
+    this.queue.add(queuedRecord)
 
     return prom
   }
@@ -284,7 +297,8 @@ export class Telemetry {
   }
 
   private submitRecord = async (
-    _events: TelemetryEvent | TelemetryEvent[]
+    _events: TelemetryEvent | TelemetryEvent[],
+    onController?: (controller: any) => void
   ): Promise<any> => {
     let events: TelemetryEvent[]
     if (Array.isArray(_events)) {
@@ -323,6 +337,7 @@ export class Telemetry {
     }
 
     const postController = new AbortController()
+    onController?.(postController)
     const res = postNextTelemetryPayload(
       {
         context: {
