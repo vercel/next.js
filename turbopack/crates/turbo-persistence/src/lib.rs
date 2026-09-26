@@ -34,7 +34,6 @@ mod write_batch;
 mod tests;
 
 pub use arc_bytes::ArcBytes;
-pub use compaction::selector::{Compactable, MergeJob, plan_compaction};
 pub use compression::{Compression, checksum_block};
 pub use db::{
     CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
@@ -71,9 +70,9 @@ pub struct FamilyConfig {
     pub name: &'static str,
     pub kind: FamilyKind,
     pub compression: Compression,
-    /// The smallest number of key hash shards of the family (see [`shard`]), a power of two. The
-    /// shard count grows with the size of the family, see [`DbConfig::target_shard_size`].
-    pub min_shard_count: u32,
+    /// The smallest number of key hash shards of the family, as bits (see [`shard`]). The shard
+    /// count grows with the size of the family, see [`DbConfig::target_shard_size`].
+    pub min_shard_bits: shard::ShardBits,
 }
 
 /// Database-wide configuration with per-family storage settings.
@@ -138,7 +137,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
-                min_shard_count: 1,
+                min_shard_bits: shard::ShardBits::new(0),
             }; FAMILIES],
             access_mode: default_access_mode(),
             target_shard_size: 256 * 1024 * 1024,

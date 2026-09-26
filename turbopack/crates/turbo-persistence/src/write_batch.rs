@@ -25,7 +25,7 @@ use crate::{
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
-    shard::shard_index,
+    shard::ShardBits,
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
 };
 
@@ -79,8 +79,8 @@ pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMIL
     /// Per-family storage configuration.
     #[cfg_attr(not(feature = "verify_sst_content"), allow(dead_code))]
     family_configs: [FamilyConfig; FAMILIES],
-    /// The number of shards of each family. SST files are split at shard boundaries.
-    shard_counts: [u32; FAMILIES],
+    /// The shards of each family. SST files are split at shard boundaries.
+    shard_bits: [ShardBits; FAMILIES],
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
@@ -103,7 +103,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         current: u32,
         parallel_scheduler: S,
         family_configs: [FamilyConfig; FAMILIES],
-        shard_counts: [u32; FAMILIES],
+        shard_bits: [ShardBits; FAMILIES],
     ) -> Self {
         const {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
@@ -113,7 +113,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             parallel_scheduler,
             db_path: path,
             family_configs,
-            shard_counts,
+            shard_bits,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
             collectors: [(); FAMILIES]
@@ -172,16 +172,16 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 match &mut *global_collector_state {
                     GlobalCollectorState::Unsharded(collector) => {
                         collector.add_entry(entry);
-                        let shard_count = self.shard_counts[usize_from_u32(family)];
-                        if collector.is_full() && shard_count == 1 {
+                        let shard_bits = self.shard_bits[usize_from_u32(family)];
+                        if collector.is_full() && shard_bits.count() == 1 {
                             full_collectors.push(replace(collector, Collector::new()));
                         } else if collector.is_full() {
                             // When full, split the entries into shards.
-                            let mut shards = (0..shard_count)
+                            let mut shards = (0..shard_bits.count())
                                 .map(|_| Collector::new())
                                 .collect::<Box<[_]>>();
                             for entry in collector.drain() {
-                                let shard = shard_index(entry.key.hash, shard_count) as usize;
+                                let shard = shard_bits.shard_of(entry.key.hash) as usize;
                                 shards[shard].add_entry(entry);
                             }
                             // There is a rare edge case where all entries are in the same shard,
@@ -196,8 +196,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                         }
                     }
                     GlobalCollectorState::Sharded(shards) => {
-                        let shard_count = self.shard_counts[usize_from_u32(family)];
-                        let shard = shard_index(entry.key.hash, shard_count) as usize;
+                        let shard_bits = self.shard_bits[usize_from_u32(family)];
+                        let shard = shard_bits.shard_of(entry.key.hash) as usize;
                         let collector = &mut shards[shard];
                         collector.add_entry(entry);
                         if collector.is_full() {
@@ -516,13 +516,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         collector_data: (&[CollectorEntry<K>], usize),
     ) -> Result<SmallVec<[NewFile; 1]>> {
         let (entries, total_key_size) = collector_data;
-        let shard_count = self.shard_counts[usize_from_u32(family)];
+        let shard_bits = self.shard_bits[usize_from_u32(family)];
         let mut files = SmallVec::new();
         let mut rest = entries;
         while let Some(first) = rest.first() {
             // Entries are sorted by key hash, so each shard is a contiguous range.
-            let shard = shard_index(first.key.hash, shard_count);
-            let len = rest.partition_point(|e| shard_index(e.key.hash, shard_count) == shard);
+            let shard = shard_bits.shard_of(first.key.hash);
+            let len = rest.partition_point(|e| shard_bits.shard_of(e.key.hash) == shard);
             let (chunk, remaining) = rest.split_at(len);
             files.push(self.create_sst_file(family, (chunk, total_key_size))?);
             rest = remaining;

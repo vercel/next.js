@@ -7,8 +7,9 @@
 //!
 //! - A bottom merge merges all files of the shard into a new bottom run. It drops all superseded
 //!   entries and all tombstones, so it bounds the space amplification: it runs when the files above
-//!   the bottom run are larger than `max_space_amplification` times the bottom run. A tombstone is
-//!   small, but deletes an entry of the bottom run, so it counts as an average bottom entry.
+//!   the bottom run are larger than `max_space_amplification_percent` of the bottom run. A
+//!   tombstone is small, but deletes an entry of the bottom run, so it counts as an average bottom
+//!   entry.
 //! - An intermediate merge merges only the files above the bottom run, when there are more than
 //!   `max_files_above_bottom` of them. This bounds the number of files a lookup has to consult
 //!   without rewriting the bottom run.
@@ -19,15 +20,13 @@
 //! budget spreads their bottom merges over multiple compactions. Fresh files that are not compacted
 //! keep counting, so an interrupted or skipped compaction only increases the next budget.
 //!
-//! When the shard count of a family grows, older files cover multiple of the new shards. A merge
-//! job then covers all shards that such a file overlaps (a "component"), and its output is split at
-//! the new shard boundaries.
+//! When the shard count of a family grows, files written before cover multiple of the new shards.
+//! A merge job then covers all shards that such a file overlaps (a "component"), and its output is
+//! split at the new shard boundaries.
 
-use std::ops::RangeInclusive;
+use std::{num::NonZeroU16, ops::RangeInclusive};
 
-use smallvec::SmallVec;
-
-use crate::shard::shard_index;
+use crate::shard::ShardBits;
 
 /// Represents part of a database (i.e. an SST file) with a range of keys (i.e. hashes) and a size
 /// of that data in bytes.
@@ -39,32 +38,25 @@ pub trait Compactable {
     fn size(&self) -> u64;
 
     /// Whether the segment is part of the bottom run of its shard.
-    fn is_bottom(&self) -> bool {
-        false
-    }
+    fn is_bottom(&self) -> bool;
 
     /// Whether the segment was written by a commit and not compacted yet.
-    fn is_fresh(&self) -> bool {
-        false
-    }
+    fn is_fresh(&self) -> bool;
 
     /// The number of entries in the segment.
-    fn entry_count(&self) -> u64 {
-        0
-    }
+    fn entry_count(&self) -> u64;
 
     /// The number of tombstones in the segment.
-    fn tombstone_count(&self) -> u64 {
-        0
-    }
+    fn tombstone_count(&self) -> u64;
 }
 
 /// Configuration for the compaction algorithm.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct CompactConfig {
     /// A shard is merged into a new bottom run when the files above its bottom run are larger than
-    /// this factor times the bottom run. `0.0` merges every shard that has files above the bottom.
-    pub max_space_amplification: f32,
+    /// this percentage of the bottom run. E.g. `50` merges a shard with a 100MB bottom run once
+    /// more than 50MB are above it. `None` merges every shard that has files above its bottom run.
+    pub max_space_amplification_percent: Option<NonZeroU16>,
 
     /// A shard is only merged into a new bottom run when at least this many bytes are above its
     /// bottom run. Tiny families, which rewrite all their data with every commit, only get
@@ -75,21 +67,24 @@ pub struct CompactConfig {
     pub max_files_above_bottom: usize,
 
     /// Bottom merges of a family stop once they rewrote this factor times the size of the fresh
-    /// files of the family. The first bottom merge of a family always runs.
+    /// files of the family. The first bottom merge of a family always runs. E.g. with `2.0`, after
+    /// commits wrote 10MB to a family, its bottom merges stop once they rewrote 20MB.
     pub max_rewrite_factor: f32,
 
-    /// The maximum number of merge jobs, across all families.
-    pub max_merge_segment_count: usize,
+    /// The maximum number of merge jobs in a compaction, across all families. Merge jobs run in
+    /// parallel, so this bounds the work of a compaction. It doesn't limit the number of files
+    /// merged by a job.
+    pub max_merge_jobs: usize,
 }
 
 impl Default for CompactConfig {
     fn default() -> Self {
         Self {
-            max_space_amplification: 0.5,
+            max_space_amplification_percent: NonZeroU16::new(50),
             min_bottom_merge_bytes: 1024 * 1024,
             max_files_above_bottom: 4,
             max_rewrite_factor: 2.0,
-            max_merge_segment_count: 8,
+            max_merge_jobs: 8,
         }
     }
 }
@@ -98,11 +93,12 @@ impl CompactConfig {
     /// A config that merges every shard with files above its bottom run into a new bottom run.
     pub fn full() -> Self {
         Self {
-            max_space_amplification: 0.0,
+            max_space_amplification_percent: None,
             min_bottom_merge_bytes: 0,
+            // Irrelevant, as bottom merges are always chosen.
             max_files_above_bottom: usize::MAX,
             max_rewrite_factor: f32::INFINITY,
-            max_merge_segment_count: usize::MAX,
+            max_merge_jobs: usize::MAX,
         }
     }
 }
@@ -111,7 +107,7 @@ impl CompactConfig {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MergeJob {
     /// Indices of the compactables, in ascending (read) order.
-    pub members: SmallVec<[usize; 1]>,
+    pub members: Vec<usize>,
     /// Whether the job merges all files of its shards, i.e. writes a new bottom run.
     pub bottom: bool,
 }
@@ -124,31 +120,33 @@ struct Candidate {
     priority: f32,
 }
 
-/// Groups the compactables into components: each file covers all shards its range overlaps, and
-/// overlapping covers are merged. With files that don't span shard boundaries, each component is a
-/// single shard. Returns the members of each component in ascending order.
-fn components<T: Compactable>(compactables: &[T], shard_count: u32) -> Vec<Vec<usize>> {
+/// Groups the compactables into components, sets of shards that are merged together.
+///
+/// Normally a compactable is within a single shard and a component is one shard. But when the
+/// shard count of a family grows, compactables written before cover multiple of the new shards.
+/// Such a compactable can only be merged together with everything else in the shards it covers, so
+/// all shards it covers belong to one component. Returns the members of each component in
+/// ascending order.
+fn components<T: Compactable>(compactables: &[T], shard_bits: ShardBits) -> Vec<Vec<usize>> {
     let mut spans = compactables
         .iter()
         .enumerate()
-        .map(|(i, c)| {
+        .map(|(index, c)| {
             let range = c.range();
-            (
-                shard_index(*range.start(), shard_count),
-                shard_index(*range.end(), shard_count),
-                i,
-            )
+            let shard_start = shard_bits.shard_of(*range.start());
+            let shard_end = shard_bits.shard_of(*range.end());
+            (shard_start, shard_end, index)
         })
         .collect::<Vec<_>>();
     spans.sort_unstable();
     let mut result: Vec<(u32, Vec<usize>)> = Vec::new();
-    for (first, last, i) in spans {
+    for (shard_start, shard_end, index) in spans {
         match result.last_mut() {
-            Some((end, members)) if first <= *end => {
-                *end = (*end).max(last);
-                members.push(i);
+            Some((component_end, members)) if shard_start <= *component_end => {
+                *component_end = (*component_end).max(shard_end);
+                members.push(index);
             }
-            _ => result.push((last, vec![i])),
+            _ => result.push((shard_end, vec![index])),
         }
     }
     result
@@ -160,11 +158,14 @@ fn components<T: Compactable>(compactables: &[T], shard_count: u32) -> Vec<Vec<u
         .collect()
 }
 
+/// Produces a [`Candidate`] for an intermediate merge of the files `above` the bottom run of a
+/// shard. Intermediate merges are ranked by how far the number of files above the bottom run
+/// exceeds `max_files_above_bottom`.
 fn intermediate_candidate(above: Vec<usize>, config: &CompactConfig) -> Candidate {
     Candidate {
         priority: above.len() as f32 / config.max_files_above_bottom.max(1) as f32,
         job: MergeJob {
-            members: above.into_iter().collect(),
+            members: above,
             bottom: false,
         },
     }
@@ -173,7 +174,7 @@ fn intermediate_candidate(above: Vec<usize>, config: &CompactConfig) -> Candidat
 /// Plans the merge jobs of one family, bottom merges first, each kind most urgent first.
 fn plan_family<T: Compactable>(
     compactables: &[T],
-    shard_count: u32,
+    shard_bits: ShardBits,
     config: &CompactConfig,
 ) -> Vec<Candidate> {
     let fresh_bytes = compactables
@@ -184,7 +185,7 @@ fn plan_family<T: Compactable>(
 
     let mut bottom_candidates = Vec::new();
     let mut intermediate_candidates = Vec::new();
-    for members in components(compactables, shard_count) {
+    for members in components(compactables, shard_bits) {
         let (bottom, above): (Vec<usize>, Vec<usize>) =
             members.iter().partition(|&&i| compactables[i].is_bottom());
         if above.is_empty() {
@@ -194,8 +195,15 @@ fn plan_family<T: Compactable>(
             bottom.last() < above.first(),
             "bottom files must be older than the files above them"
         );
+        // The bottom run consists of multiple files when the bottom merge output exceeds the size
+        // of a file, or when the component spans multiple shards after the shard count grew.
         let bottom_bytes = bottom.iter().map(|&i| compactables[i].size()).sum::<u64>();
         let above_bytes = above.iter().map(|&i| compactables[i].size()).sum::<u64>();
+        // A bottom merge drops the entries deleted by tombstones above the bottom run, which are
+        // much larger than the tombstones. Estimate them with the average entry size of the bottom
+        // run, which has no tombstones. This overestimates, as tombstones can delete entries above
+        // the bottom run, or nothing, and entries above the bottom run shadow each other, but it
+        // makes a shard with many deletes merge, which it wouldn't by size alone.
         let bottom_entries = bottom
             .iter()
             .map(|&i| compactables[i].entry_count())
@@ -208,20 +216,28 @@ fn plan_family<T: Compactable>(
             .checked_div(bottom_entries)
             .unwrap_or(0)
             .saturating_mul(above_tombstones);
+        // Both the files above the bottom run and the entries they delete are garbage that a
+        // bottom merge reclaims.
+        let reclaimable_bytes = above_bytes.saturating_add(deleted_bytes);
+        let limit = config
+            .max_space_amplification_percent
+            .map_or(0.0, |percent| f64::from(percent.get()) / 100.0);
         let amplification = if bottom_bytes == 0 {
-            f32::INFINITY
+            f64::INFINITY
         } else {
-            ((above_bytes + deleted_bytes) as f64 / bottom_bytes as f64) as f32
+            reclaimable_bytes as f64 / bottom_bytes as f64
         };
-        if amplification > config.max_space_amplification
-            && above_bytes + deleted_bytes >= config.min_bottom_merge_bytes
-        {
+        if amplification > limit && reclaimable_bytes >= config.min_bottom_merge_bytes {
             let candidate = Candidate {
                 job: MergeJob {
-                    members: members.into_iter().collect(),
+                    members,
                     bottom: true,
                 },
-                priority: amplification / config.max_space_amplification.max(f32::EPSILON),
+                priority: if limit > 0.0 {
+                    (amplification / limit) as f32
+                } else {
+                    f32::INFINITY
+                },
             };
             bottom_candidates.push((candidate, bottom_bytes + above_bytes, above));
         } else if above.len() > config.max_files_above_bottom {
@@ -232,11 +248,8 @@ fn plan_family<T: Compactable>(
     // Spend the budget on the most amplified shards. Shards that don't fit into the budget still
     // get an intermediate merge if they have too many files.
     bottom_candidates.sort_by(|a, b| b.0.priority.total_cmp(&a.0.priority));
-    let budget = if config.max_rewrite_factor.is_finite() {
-        (f64::from(config.max_rewrite_factor) * fresh_bytes as f64) as u64
-    } else {
-        u64::MAX
-    };
+    // Float to int casts saturate, so an infinite factor is an unlimited budget.
+    let budget = (f64::from(config.max_rewrite_factor) * fresh_bytes as f64) as u64;
     let mut spent = 0u64;
     let mut result = Vec::new();
     for (candidate, cost, above) in bottom_candidates {
@@ -244,6 +257,8 @@ fn plan_family<T: Compactable>(
             spent = spent.saturating_add(cost);
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom {
+            // The budget is exhausted, but an intermediate merge of the same shard is cheap and
+            // still bounds the number of files a lookup consults.
             intermediate_candidates.push(intermediate_candidate(above, config));
         }
     }
@@ -252,22 +267,21 @@ fn plan_family<T: Compactable>(
     result
 }
 
-/// Plans the merge jobs for all families, limited to `max_merge_segment_count` jobs in total.
-/// Each family is given as its compactables, in the order they are read (oldest first), and its
-/// shard count.
+/// Plans the merge jobs for all families, limited to `max_merge_jobs` jobs in total. Each family is
+/// given as its compactables, in the order they are read (oldest first), and its shards.
 ///
 /// Returns the merge jobs of each family. The jobs of a family don't overlap each other, and each
 /// includes all files overlapping it, except that an intermediate merge leaves out the bottom run,
 /// which is older. So the outputs can be placed after all existing files without moving any file.
 pub fn plan_compaction<T: Compactable>(
-    families: &[(&[T], u32)],
+    families: &[(&[T], ShardBits)],
     config: &CompactConfig,
 ) -> Vec<Vec<MergeJob>> {
     let mut candidates = families
         .iter()
         .enumerate()
-        .flat_map(|(family, (compactables, shard_count))| {
-            plan_family(compactables, *shard_count, config)
+        .flat_map(|(family, (compactables, shard_bits))| {
+            plan_family(compactables, *shard_bits, config)
                 .into_iter()
                 .enumerate()
                 .map(move |(order, candidate)| (family, order, candidate))
@@ -284,7 +298,7 @@ pub fn plan_compaction<T: Compactable>(
             .then(a.0.cmp(&b.0))
     });
     let mut result = vec![Vec::new(); families.len()];
-    for (family, _, candidate) in candidates.into_iter().take(config.max_merge_segment_count) {
+    for (family, _, candidate) in candidates.into_iter().take(config.max_merge_jobs) {
         result[family].push(candidate.job);
     }
     for jobs in &mut result {
@@ -300,7 +314,6 @@ mod tests {
     use rand::{RngExt, SeedableRng, seq::SliceRandom};
 
     use super::*;
-    use crate::shard::shard_range;
 
     #[derive(Clone, Debug)]
     struct File {
@@ -326,11 +339,19 @@ mod tests {
         fn is_fresh(&self) -> bool {
             self.fresh
         }
+
+        fn entry_count(&self) -> u64 {
+            0
+        }
+
+        fn tombstone_count(&self) -> u64 {
+            0
+        }
     }
 
-    fn file(shard: u32, shard_count: u32, size: u64, bottom: bool, fresh: bool) -> File {
+    fn file(shard: u32, shard_bits: u8, size: u64, bottom: bool, fresh: bool) -> File {
         File {
-            range: shard_range(shard, shard_count),
+            range: ShardBits::new(shard_bits).range(shard),
             size,
             bottom,
             fresh,
@@ -345,41 +366,41 @@ mod tests {
         }
     }
 
-    fn plan(files: &[File], shard_count: u32, config: &CompactConfig) -> Vec<(Vec<usize>, bool)> {
-        plan_compaction(&[(files, shard_count)], config)
+    fn plan(files: &[File], shard_bits: u8, config: &CompactConfig) -> Vec<(Vec<usize>, bool)> {
+        plan_compaction(&[(files, ShardBits::new(shard_bits))], config)
             .remove(0)
             .into_iter()
-            .map(|job| (job.members.to_vec(), job.bottom))
+            .map(|job| (job.members, job.bottom))
             .collect()
     }
 
     #[test]
     fn test_shard_without_bottom_run_gets_one() {
-        let files = [file(0, 1, 100, false, true), file(0, 1, 100, false, true)];
-        assert_eq!(plan(&files, 1, &test_config()), vec![(vec![0, 1], true)]);
+        let files = [file(0, 0, 100, false, true), file(0, 0, 100, false, true)];
+        assert_eq!(plan(&files, 0, &test_config()), vec![(vec![0, 1], true)]);
     }
 
     #[test]
     fn test_bottom_merge_by_space_amplification() {
         let config = test_config();
         // 40% above the bottom run: nothing to do.
-        let files = [file(0, 1, 1000, true, false), file(0, 1, 400, false, true)];
-        assert_eq!(plan(&files, 1, &config), vec![]);
+        let files = [file(0, 0, 1000, true, false), file(0, 0, 400, false, true)];
+        assert_eq!(plan(&files, 0, &config), vec![]);
         // 60%: merge the shard into a new bottom run.
-        let files = [file(0, 1, 1000, true, false), file(0, 1, 600, false, true)];
-        assert_eq!(plan(&files, 1, &config), vec![(vec![0, 1], true)]);
+        let files = [file(0, 0, 1000, true, false), file(0, 0, 600, false, true)];
+        assert_eq!(plan(&files, 0, &config), vec![(vec![0, 1], true)]);
     }
 
     #[test]
     fn test_intermediate_merge_by_file_count() {
-        let mut files = vec![file(0, 1, 1000, true, false)];
-        files.extend((0..5).map(|_| file(0, 1, 10, false, true)));
+        let mut files = vec![file(0, 0, 1000, true, false)];
+        files.extend((0..5).map(|_| file(0, 0, 10, false, true)));
         assert_eq!(
-            plan(&files, 1, &test_config()),
+            plan(&files, 0, &test_config()),
             vec![(vec![1, 2, 3, 4, 5], false)]
         );
         files.pop();
-        assert_eq!(plan(&files, 1, &test_config()), vec![]);
+        assert_eq!(plan(&files, 0, &test_config()), vec![]);
     }
 
     #[test]
@@ -387,17 +408,17 @@ mod tests {
         // All four shards are above the threshold, but the fresh data only pays for one bottom
         // merge. The most amplified shard goes first.
         let mut files = (0..4)
-            .map(|shard| file(shard, 4, 1000, true, false))
+            .map(|shard| file(shard, 2, 1000, true, false))
             .collect::<Vec<_>>();
-        files.extend((0..4).map(|shard| file(shard, 4, 600 + u64::from(shard), false, true)));
+        files.extend((0..4).map(|shard| file(shard, 2, 600 + u64::from(shard), false, true)));
         let config = CompactConfig {
             max_rewrite_factor: 0.1,
             ..test_config()
         };
-        assert_eq!(plan(&files, 4, &config), vec![(vec![3, 7], true)]);
+        assert_eq!(plan(&files, 2, &config), vec![(vec![3, 7], true)]);
         // With enough budget, all of them are merged.
         assert_eq!(
-            plan(&files, 4, &test_config()),
+            plan(&files, 2, &test_config()),
             vec![
                 (vec![0, 4], true),
                 (vec![1, 5], true),
@@ -411,29 +432,35 @@ mod tests {
     fn test_byte_floor_skips_bottom_merges_of_tiny_shards() {
         // Every commit rewrites the whole (tiny) family: always amplified, but not worth a bottom
         // merge. It only gets an intermediate merge once there are enough files.
-        let mut files = vec![file(0, 1, 50, true, false)];
-        files.push(file(0, 1, 50, false, true));
+        let mut files = vec![file(0, 0, 50, true, false)];
+        files.push(file(0, 0, 50, false, true));
         let config = CompactConfig {
             min_bottom_merge_bytes: 1000,
             ..test_config()
         };
-        assert_eq!(plan(&files, 1, &config), vec![]);
-        files.extend((0..4).map(|_| file(0, 1, 50, false, true)));
-        assert_eq!(plan(&files, 1, &config), vec![(vec![1, 2, 3, 4, 5], false)]);
+        assert_eq!(plan(&files, 0, &config), vec![]);
+        files.extend((0..4).map(|_| file(0, 0, 50, false, true)));
+        assert_eq!(plan(&files, 0, &config), vec![(vec![1, 2, 3, 4, 5], false)]);
     }
 
     #[test]
     fn test_intermediate_merges_are_not_starved() {
         // One job slot: a family with far too many files above its bottom run wins over a family
         // that is only slightly over the space amplification threshold.
-        let mut many_files = vec![file(0, 1, 1000, true, false)];
-        many_files.extend((0..8).map(|_| file(0, 1, 1, false, true)));
-        let amplified = [file(0, 1, 1000, true, false), file(0, 1, 600, false, true)];
+        let mut many_files = vec![file(0, 0, 1000, true, false)];
+        many_files.extend((0..8).map(|_| file(0, 0, 1, false, true)));
+        let amplified = [file(0, 0, 1000, true, false), file(0, 0, 600, false, true)];
         let config = CompactConfig {
-            max_merge_segment_count: 1,
+            max_merge_jobs: 1,
             ..test_config()
         };
-        let jobs = plan_compaction(&[(&many_files[..], 1), (&amplified[..], 1)], &config);
+        let jobs = plan_compaction(
+            &[
+                (&many_files[..], ShardBits::new(0)),
+                (&amplified[..], ShardBits::new(0)),
+            ],
+            &config,
+        );
         assert_eq!(jobs[0].len(), 1);
         assert!(!jobs[0][0].bottom);
         assert!(jobs[1].is_empty());
@@ -443,24 +470,27 @@ mod tests {
     fn test_coarse_files_merge_the_shards_they_span() {
         // A bottom run written with 2 shards, and fresh files written with 4 shards.
         let files = [
-            file(0, 2, 1000, true, false),
-            file(1, 2, 1000, true, false),
-            file(0, 4, 600, false, true),
-            file(1, 4, 10, false, true),
-            file(3, 4, 10, false, true),
+            file(0, 1, 1000, true, false),
+            file(1, 1, 1000, true, false),
+            file(0, 2, 600, false, true),
+            file(1, 2, 10, false, true),
+            file(3, 2, 10, false, true),
         ];
-        assert_eq!(plan(&files, 4, &test_config()), vec![(vec![0, 2, 3], true)]);
+        assert_eq!(plan(&files, 2, &test_config()), vec![(vec![0, 2, 3], true)]);
     }
 
     #[test]
     fn test_merge_job_limit_across_families() {
-        let a = [file(0, 1, 100, false, true), file(0, 1, 100, false, true)];
-        let b = [file(0, 1, 100, false, true), file(0, 1, 100, false, true)];
+        let a = [file(0, 0, 100, false, true), file(0, 0, 100, false, true)];
+        let b = [file(0, 0, 100, false, true), file(0, 0, 100, false, true)];
         let config = CompactConfig {
-            max_merge_segment_count: 1,
+            max_merge_jobs: 1,
             ..test_config()
         };
-        let jobs = plan_compaction(&[(&a[..], 1), (&b[..], 1)], &config);
+        let jobs = plan_compaction(
+            &[(&a[..], ShardBits::new(0)), (&b[..], ShardBits::new(0))],
+            &config,
+        );
         assert_eq!(jobs.iter().map(Vec::len).sum::<usize>(), 1);
     }
 
@@ -501,14 +531,14 @@ mod tests {
     /// Splits sorted entries at shard boundaries, like commits and merges do.
     fn split_by_shard(
         entries: Vec<(u64, bool)>,
-        shard_count: u32,
+        shard_bits: ShardBits,
         bottom: bool,
         fresh: bool,
     ) -> Vec<Container> {
         let mut by_shard = BTreeMap::<u32, Vec<(u64, bool)>>::new();
         for entry in entries {
             by_shard
-                .entry(shard_index(entry.0, shard_count))
+                .entry(shard_bits.shard_of(entry.0))
                 .or_default()
                 .push(entry);
         }
@@ -523,7 +553,11 @@ mod tests {
     }
 
     /// Runs the merge jobs like the database does. Returns the number of entries written.
-    fn run_jobs(containers: &mut Vec<Container>, jobs: Vec<MergeJob>, shard_count: u32) -> u64 {
+    fn run_jobs(
+        containers: &mut Vec<Container>,
+        jobs: Vec<MergeJob>,
+        shard_bits: ShardBits,
+    ) -> u64 {
         let mut written = 0;
         let mut outputs = Vec::new();
         let mut merged = BTreeSet::new();
@@ -546,7 +580,7 @@ mod tests {
                         .any(|c| c.keys.binary_search_by_key(&key, |(k, _)| *k).is_ok())
             });
             written += entries.len() as u64;
-            outputs.extend(split_by_shard(entries, shard_count, job.bottom, false));
+            outputs.extend(split_by_shard(entries, shard_bits, job.bottom, false));
             merged.extend(job.members);
         }
         let mut i = 0;
@@ -576,7 +610,11 @@ mod tests {
 
     /// A commit rewrites a churning set of hot keys and deletes some cold keys, like a build with
     /// garbage collection. The database is compacted after every commit.
-    fn simulate(config: &CompactConfig, shard_count: u32, iterations: usize) -> SimulationResult {
+    fn simulate(
+        config: &CompactConfig,
+        shard_bits: ShardBits,
+        iterations: usize,
+    ) -> SimulationResult {
         let mut rnd = rand::rngs::SmallRng::from_seed([0; 32]);
         let mut live = (0..KEY_COUNT).map(|k| k * KEY_SCALE).collect::<Vec<_>>();
         live.shuffle(&mut rnd);
@@ -586,7 +624,7 @@ mod tests {
                 all.sort_unstable();
                 all
             },
-            shard_count,
+            shard_bits,
             false,
             true,
         );
@@ -601,18 +639,18 @@ mod tests {
         };
         let hot_count = KEY_COUNT as usize / 20;
         for iteration in 0..iterations {
-            let jobs = plan_compaction(&[(&containers[..], shard_count)], config).remove(0);
+            let jobs = plan_compaction(&[(&containers[..], shard_bits)], config).remove(0);
             if jobs.iter().any(|job| job.bottom) {
                 result.compactions_with_bottom_merges += 1;
             }
-            rewritten += run_jobs(&mut containers, jobs, shard_count);
+            rewritten += run_jobs(&mut containers, jobs, shard_bits);
             if iteration >= iterations / 4 {
                 let stored = containers.iter().map(|c| c.keys.len()).sum::<usize>();
                 result.max_space_amplification = result
                     .max_space_amplification
                     .max(stored as f64 / live.len() as f64);
-                for shard in 0..shard_count {
-                    let range = shard_range(shard, shard_count);
+                for shard in 0..shard_bits.count() {
+                    let range = shard_bits.range(shard);
                     let files = containers
                         .iter()
                         .filter(|c| {
@@ -645,26 +683,29 @@ mod tests {
             }
             commit.sort_unstable();
             written += commit.len() as u64;
-            containers.extend(split_by_shard(commit, shard_count, false, true));
+            containers.extend(split_by_shard(commit, shard_bits, false, true));
         }
         result.written = written;
         result.rewritten = rewritten;
         result
     }
 
-    fn simulation_config(max_space_amplification: f32, max_rewrite_factor: f32) -> CompactConfig {
+    fn simulation_config(
+        max_space_amplification_percent: u16,
+        max_rewrite_factor: f32,
+    ) -> CompactConfig {
         CompactConfig {
-            max_space_amplification,
+            max_space_amplification_percent: NonZeroU16::new(max_space_amplification_percent),
             max_rewrite_factor,
-            max_merge_segment_count: usize::MAX,
+            max_merge_jobs: usize::MAX,
             ..test_config()
         }
     }
 
     #[test]
     fn simulate_compactions() {
-        let config = simulation_config(0.5, 2.0);
-        let result = simulate(&config, 8, 200);
+        let config = simulation_config(50, 2.0);
+        let result = simulate(&config, ShardBits::new(3), 200);
         let write_amplification = result.rewritten as f64 / result.written as f64;
         println!(
             "space amp {:.2}, write amp {write_amplification:.2}, files per shard {}, compactions \
@@ -685,12 +726,16 @@ mod tests {
     #[test]
     #[ignore]
     fn sweep_space_amplification() {
-        println!("space amp threshold | rewrite factor | space amp | write amp | files/shard");
-        for threshold in [0.25, 0.5, 1.0, 2.0] {
+        println!("space amp threshold % | rewrite factor | space amp | write amp | files/shard");
+        for threshold in [25, 50, 100, 200] {
             for factor in [1.0, 2.0, 4.0, f32::INFINITY] {
-                let result = simulate(&simulation_config(threshold, factor), 8, 300);
+                let result = simulate(
+                    &simulation_config(threshold, factor),
+                    ShardBits::new(3),
+                    300,
+                );
                 println!(
-                    "{threshold:>19} | {factor:>14} | {:>9.2} | {:>9.2} | {:>11}",
+                    "{threshold:>21} | {factor:>14} | {:>9.2} | {:>9.2} | {:>11}",
                     result.max_space_amplification,
                     result.rewritten as f64 / result.written as f64,
                     result.max_files_per_shard
