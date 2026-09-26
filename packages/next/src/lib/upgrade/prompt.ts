@@ -66,6 +66,7 @@ export async function promptUpgrade(
     })
   }
   let restored = false
+  let screenRestored: Promise<void> | null = null
   const restore = () => {
     if (restored) {
       return
@@ -82,7 +83,15 @@ export async function promptUpgrade(
       if (wasFlowing !== true) {
         input.pause()
       }
-      terminal.write('\x1b[?1049l\x1b[?25h')
+      screenRestored = new Promise<void>((resolve, reject) => {
+        terminal.write('\x1b[?1049l\x1b[?25h', (error) => {
+          if (error) {
+            reject(error)
+          } else {
+            resolve()
+          }
+        })
+      })
     }
   }
   // CLI signal handlers may exit synchronously, before the promise settles.
@@ -129,5 +138,10 @@ export async function promptUpgrade(
     }
   } finally {
     restore()
+    if (screenRestored) {
+      // Replay uses fd writes, which can overtake pending stdout writes on
+      // Windows. Finish leaving the prompt screen before returning to replay.
+      await screenRestored
+    }
   }
 }

@@ -357,6 +357,9 @@ async function startWatcher(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
+        // Older installed Next runtimes still read preview props from this
+        // manifest when a newer CLI runs their development server.
+        preview: opts.fsChecker.previewProps,
       },
       null,
       2
