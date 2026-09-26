@@ -32,8 +32,21 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
   }
 }
 
-const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
-const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
+/**
+ * Default page extensions matching Next.js defaults.
+ */
+const DEFAULT_PAGE_EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js']
+
+/**
+ * Builds a regex pattern that matches any of the given extensions.
+ */
+function buildExtensionRegex(extensions: string[]): RegExp {
+  // Normalize extensions to always include a leading dot, so both
+  // 'tsx' and '.tsx' are handled correctly.
+  const normalized = extensions.map((ext) => (ext.startsWith('.') ? ext : '.' + ext))
+  const escaped = normalized.map((ext) => ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return new RegExp(`(${escaped.join('|')})$`)
+}
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
@@ -62,6 +75,16 @@ export default defineRule({
           },
         ],
       },
+      {
+        type: 'object',
+        properties: {
+          pageExtensions: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
+        additionalProperties: false,
+      },
     ],
   },
 
@@ -69,8 +92,22 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: (string | string[] | object)[] = context.options
+    const customPagesDirectory =
+      typeof ruleOptions[0] === 'string' || Array.isArray(ruleOptions[0])
+        ? ruleOptions[0]
+        : undefined
+    const optionsObject =
+      ruleOptions.length > 0 && typeof ruleOptions[ruleOptions.length - 1] === 'object' && !Array.isArray(ruleOptions[ruleOptions.length - 1])
+        ? ruleOptions[ruleOptions.length - 1] as { pageExtensions?: string[] }
+        : {}
+
+    // Resolve pageExtensions from: rule option > eslint settings > default
+    const nextSettings: { pageExtensions?: string[] } = context.settings.next || {}
+    const pageExtensions: string[] =
+      optionsObject.pageExtensions ?? nextSettings.pageExtensions ?? DEFAULT_PAGE_EXTENSIONS
+
+    const extensionRegex = buildExtensionRegex(pageExtensions)
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +144,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs, extensionRegex)
+    const appDirUrls = getUrlFromAppDirectory('/', foundAppDirs, extensionRegex)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
