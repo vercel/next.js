@@ -411,9 +411,9 @@ impl TurboBackingStorage {
 
     /// Reads the stored `category` for `task_id`.
     ///
-    /// `None` means the database had no key for it. That is distinct from `Some` of an empty
-    /// [`TaskStorage`] (a key that decoded to nothing), which is what lets a `MustExist` open tell
-    /// "absent everywhere" from "present but empty".
+    /// `None` means the database had no key for this category. That is distinct from `Some`
+    /// of an empty [`TaskStorage`] (a key that decoded to nothing): `MustExist` treats a missing
+    /// requested category as a missing task, regardless of the other category.
     pub(crate) fn lookup_data(
         &self,
         task_id: TaskId,

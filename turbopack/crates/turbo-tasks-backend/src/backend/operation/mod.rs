@@ -50,13 +50,13 @@ enum TaskAccess {
     /// Open the task, creating it if it does not exist: `access_mut` inserts a blank entry, then
     /// the requested category is restored from disk (staying empty if there is nothing on disk).
     MaybeCreate,
-    /// Open a task the caller expects to **already exist** (resident, or restorable from disk). A
-    /// task that exists in neither memory nor persistent storage is a bug — a stale reference to an
-    /// already-collected or never-created task — and this refuses to fabricate a blank for it.
+    /// Open a task the caller expects to **already exist** (resident, or restorable from disk).
+    /// A missing requested category's disk key is a stale reference, even if the other category
+    /// exists, and this refuses to fabricate a blank for it.
     ///
     /// This is very much expressing a 'foreign key constraint' on the database.
     MustExist,
-    /// Open a task that may legitimately be gone or `deleted`.
+    /// Open a task that may legitimately be gone, soft-deleted, or missing a requested category.
     AllowMissing,
 }
 
@@ -69,8 +69,8 @@ pub trait ExecuteContext<'e>: Sized {
     where
         'e: 'l;
     /// Opens a task that must **already exist**, restoring the requested `category` if needed. A
-    /// task that exists in neither memory nor persistent storage is a stale reference, so this
-    /// panics rather than fabricate a blank. This is the common case; use
+    /// A missing requested category in memory and on disk is a stale reference, so this panics
+    /// rather than fabricate a blank. This is the common case; use
     /// [`Self::open_or_create_task_storage`] only where the task may be getting materialized for
     /// the first time.
     ///
@@ -79,7 +79,7 @@ pub trait ExecuteContext<'e>: Sized {
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
     /// Opens a task that may legitimately be gone, returning `None` if it is.
     ///
-    /// Gone covers both a task that exists nowhere and one that is soft-deleted: the caller cannot
+    /// Gone covers a missing requested category as well as a soft-deleted task: the caller cannot
     /// tell those apart, since only the timing of the next eviction separates them.
     fn try_get_task(
         &mut self,
@@ -102,7 +102,7 @@ pub trait ExecuteContext<'e>: Sized {
     /// Prepares (as in fetches from persistent storage) a list of tasks.
     /// The iterator should not have duplicates, as this would cause over-fetching.
     ///
-    /// Like [`Self::task`], every task must already exist: one that exists nowhere panics.
+    /// Like [`Self::task`], a missing requested category makes the task invalid and panics.
     fn prepare_tasks(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
@@ -331,34 +331,18 @@ impl<'e> ExecuteContextImpl<'e> {
                 task.flags.set_restored(TaskDataCategory::All);
                 return Some(self.task_guard(task.into_write_guard(), task_id, category));
             }
-            handle_missing_task(task, task_id, access, false, false, "task");
+            handle_missing_task(task, task_id, access, "task");
             self.task_lock_counter.release();
             return None;
         }
 
-        // A resident category (or a newly created task) already proves existence even when the
-        // requested category is not restored. Only a blank entry needs evidence from disk.
-        let needs_existence_check = access != TaskAccess::MaybeCreate && task.looks_blank();
-        let peer_restoring_data = false;
-        let peer_restoring_meta = false;
+        // A disk read returning no key is conclusive for MustExist/AllowMissing, even if another
+        // category was resident. Newly initialized tasks are already fully restored.
         let (task, outcome) = self
-            .restore_task(
-                task_id,
-                category,
-                task,
-                peer_restoring_data,
-                peer_restoring_meta,
-            )
+            .restore_task(task_id, category, task, access)
             .unwrap_or_else(|e| panic!("Failed to restore {category:?} for task {task_id}: {e:?}"));
-        if needs_existence_check && !outcome.found_on_disk && !task.flags.new_task() {
-            handle_missing_task(
-                task,
-                task_id,
-                access,
-                outcome.restored_data,
-                outcome.restored_meta,
-                "task",
-            );
+        if outcome.missing_on_disk && !task.flags.new_task() {
+            handle_missing_task(task, task_id, access, "task");
             self.task_lock_counter.release();
             return None;
         }
@@ -380,10 +364,8 @@ impl<'e> ExecuteContextImpl<'e> {
         !task_id.is_transient() && self.backend.should_restore()
     }
 
-    /// Restores one category for a task from persistent storage. A task can have only one category
-    /// on disk: snapshots write Data and Meta independently. If the requested key is absent, an
-    /// existing other-category key proves the task exists; the requested category is then empty.
-    /// `None` means neither category exists, so `MustExist` must not fabricate a task.
+    /// Reads the requested category from persistent storage. Under the task existence contract,
+    /// an absent category key means the task is missing, regardless of the other category.
     fn restore_task_data(
         &self,
         task_id: TaskId,
@@ -393,27 +375,14 @@ impl<'e> ExecuteContextImpl<'e> {
             self.backend.should_restore(),
             "restore_task_data called when should_restore() is false"
         );
-        let storage = self
-            .backend
+        self.backend
             .backing_storage
             .lookup_data(task_id, category)
-            .with_context(|| format!("Failed to restore {category:?} for {task_id}"))?;
-        if storage.is_some() {
-            return Ok(storage);
-        }
-        let other = match category {
-            SpecificTaskDataCategory::Data => SpecificTaskDataCategory::Meta,
-            SpecificTaskDataCategory::Meta => SpecificTaskDataCategory::Data,
-        };
-        Ok(self
-            .backend
-            .backing_storage
-            .lookup_data(task_id, other)
-            .with_context(|| format!("Failed to check {other:?} for {task_id}"))?
-            .map(|_| TaskStorage::default()))
+            .with_context(|| format!("Failed to restore {category:?} for {task_id}"))
     }
 
-    /// Batched [`Self::restore_task_data`]: one entry per id, `None` where the task is not on disk.
+    /// Batched [`Self::restore_task_data`]: one entry per id, `None` where the requested
+    /// category has no disk key.
     fn restore_task_data_batch(
         &self,
         task_ids: &[TaskId],
@@ -424,8 +393,7 @@ impl<'e> ExecuteContextImpl<'e> {
             self.backend.should_restore(),
             "restore_task_data_batch called when should_restore() is false"
         );
-        let mut result = self
-            .backend
+        self.backend
             .backing_storage
             .batch_lookup_data(task_ids, category)
             .with_context(|| {
@@ -433,47 +401,19 @@ impl<'e> ExecuteContextImpl<'e> {
                     "Failed to restore {category:?} for batch of {} tasks",
                     task_ids.len()
                 )
-            })?;
-        let missing: Vec<_> = result
-            .iter()
-            .enumerate()
-            .filter_map(|(index, item)| item.is_none().then_some((index, task_ids[index])))
-            .collect();
-        if !missing.is_empty() {
-            let other = match category {
-                SpecificTaskDataCategory::Data => SpecificTaskDataCategory::Meta,
-                SpecificTaskDataCategory::Meta => SpecificTaskDataCategory::Data,
-            };
-            let ids: Vec<_> = missing.iter().map(|&(_, id)| id).collect();
-            let other_storage = self
-                .backend
-                .backing_storage
-                .batch_lookup_data(&ids, other)
-                .with_context(|| {
-                    format!("Failed to check {other:?} for batch of {} tasks", ids.len())
-                })?;
-            for ((index, _), storage) in missing.into_iter().zip(other_storage) {
-                if storage.is_some() {
-                    result[index] = Some(TaskStorage::default());
-                }
-            }
-        }
-        Ok(result)
+            })
     }
 
     /// Restores `category` of a restorable task: reads every missing category no other thread is
     /// restoring, and waits for the rest.
     ///
-    /// `task` is the caller's guard for the task. A caller that dropped the lock since it last
-    /// looked passes the categories it then saw another thread restoring as
-    /// `peer_restoring_data` / `peer_restoring_meta`, so that restore counts as evidence even if it
-    /// finished in the meantime.
+    /// `task` is the caller's guard. Peers restoring a category are consulted under that lock;
+    /// a completed peer's restored flags are observed before claiming any reads.
     ///
-    /// A category read back empty is applied only when this thread will not drop the lock before
-    /// returning, so the returned guard is the first to see it and the caller decides existence
-    /// under it. While another thread still owns a needed category, an empty read is un-claimed
-    /// instead, and re-read once that thread is done. A blank must never be visible with the lock
-    /// dropped: another opener would take it for a real task.
+    /// A missing requested category is conclusive for `MustExist` and `AllowMissing`, even if a
+    /// peer is restoring the other category. The restoring bits are cleared and the task guard is
+    /// returned for the caller to handle missing under the lock. `MaybeCreate` applies an empty
+    /// category to materialize storage, then waits for any peer-owned category as usual.
     ///
     /// While waiting, the task is pinned against GC; the pin is released under the returned guard.
     /// Hold that guard until the category has been used, since eviction may clear it once the lock
@@ -483,25 +423,21 @@ impl<'e> ExecuteContextImpl<'e> {
         task_id: TaskId,
         category: TaskDataCategory,
         mut task: TaskEntryGuard<'e>,
-        mut peer_restoring_data: bool,
-        mut peer_restoring_meta: bool,
+        access: TaskAccess,
     ) -> Result<(TaskEntryGuard<'e>, RestoreOutcome)> {
         debug_assert!(self.can_restore(task_id));
         let mut outcome = RestoreOutcome::default();
         let mut pinned = false;
         loop {
-            // Another thread's restore that left its category restored found the task (or created
-            // it, for a `MaybeCreate` open). A restore that came up empty leaves the category
-            // unrestored instead, and a later pass reads it again.
-            outcome.found_on_disk |= (peer_restoring_data && task.flags.data_restored())
-                || (peer_restoring_meta && task.flags.meta_restored());
+            // A peer that finished restoring may have provided the requested category.
+            // A missing read instead leaves its category unrestored until the caller handles it.
             if task.flags.is_restored(category) {
                 break;
             }
             let needs_data = category.includes_data() && !task.flags.data_restored();
             let needs_meta = category.includes_meta() && !task.flags.meta_restored();
-            peer_restoring_data = needs_data && task.flags.data_restoring();
-            peer_restoring_meta = needs_meta && task.flags.meta_restoring();
+            let peer_restoring_data = needs_data && task.flags.data_restoring();
+            let peer_restoring_meta = needs_meta && task.flags.meta_restoring();
             // Claim categories no one else is restoring.
             let do_data = needs_data && !peer_restoring_data;
             let do_meta = needs_meta && !peer_restoring_meta;
@@ -521,28 +457,34 @@ impl<'e> ExecuteContextImpl<'e> {
                     .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
 
                 task = self.backend.storage.access_entry_mut(task_id);
-                let found = matches!(storage_data, Some(Ok(Some(_))))
-                    || matches!(storage_meta, Some(Ok(Some(_))));
-                outcome.found_on_disk |= found;
-                // An empty read is final only if, once applied, every needed category is restored,
-                // so this pass returns without dropping the lock.
-                let apply_empty = outcome.found_on_disk
-                    || ((!needs_data || do_data || task.flags.data_restored())
-                        && (!needs_meta || do_meta || task.flags.meta_restored()));
+                let missing = matches!(storage_data, Some(Ok(None)))
+                    || matches!(storage_meta, Some(Ok(None)));
+                let failed =
+                    matches!(storage_data, Some(Err(_))) || matches!(storage_meta, Some(Err(_)));
+                if missing && !failed && access != TaskAccess::MaybeCreate && !task.flags.new_task()
+                {
+                    // No category can be published: an absent key makes the entire task missing.
+                    // Stop immediately instead of re-reading an empty category while a peer owns
+                    // the other one. Notify waiters after dropping all our restoring claims.
+                    if do_data {
+                        task.flags.set_data_restoring(false);
+                    }
+                    if do_meta {
+                        task.flags.set_meta_restoring(false);
+                    }
+                    self.backend.storage.restored.notify(usize::MAX);
+                    if pinned {
+                        task.update_and_get_transient_ref_count(-1);
+                    }
+                    outcome.missing_on_disk = true;
+                    return Ok((task, outcome));
+                }
                 let mut result = Ok(());
                 for (storage, category) in [
                     (storage_data, SpecificTaskDataCategory::Data),
                     (storage_meta, SpecificTaskDataCategory::Meta),
                 ] {
                     let Some(storage) = storage else { continue };
-                    if matches!(storage, Ok(None)) && !apply_empty {
-                        task.flags.set_restoring(category.into(), false);
-                        continue;
-                    }
-                    match category {
-                        SpecificTaskDataCategory::Data => outcome.restored_data = true,
-                        SpecificTaskDataCategory::Meta => outcome.restored_meta = true,
-                    }
                     let applied = apply_restore_result(&mut task, storage, category);
                     result = result.and(applied);
                 }
@@ -550,6 +492,16 @@ impl<'e> ExecuteContextImpl<'e> {
                 // otherwise drop the category before this caller can use it.
                 self.backend.storage.restored.notify(usize::MAX);
                 if let Err(e) = result {
+                    // An I/O error must not leave a category this call applied looking valid if the
+                    // panic is caught. Categories that were already resident are left untouched.
+                    if !task.flags.new_task() {
+                        if do_data {
+                            task.flags.set_data_restored(false);
+                        }
+                        if do_meta {
+                            task.flags.set_meta_restored(false);
+                        }
+                    }
                     if pinned {
                         task.update_and_get_transient_ref_count(-1);
                     }
@@ -586,22 +538,15 @@ impl<'e> ExecuteContextImpl<'e> {
         &self,
         task_id: TaskId,
         category: TaskDataCategory,
-        peer_restoring_data: bool,
-        peer_restoring_meta: bool,
     ) -> (TaskEntryGuard<'e>, RestoreOutcome) {
         let task = self.backend.storage.access_entry_mut(task_id);
-        self.restore_task(
-            task_id,
-            category,
-            task,
-            peer_restoring_data,
-            peer_restoring_meta,
-        )
-        .unwrap_or_else(|e| panic!("Failed to restore {category:?} for task {task_id}: {e:?}"))
+        self.restore_task(task_id, category, task, TaskAccess::MustExist)
+            .unwrap_or_else(|e| panic!("Failed to restore {category:?} for task {task_id}: {e:?}"))
     }
 
     /// Restores a batch of tasks, then hands each to `prepared_task_callback`. Like
-    /// [`ExecuteContext::task`], every task must already exist: one that exists nowhere panics.
+    /// [`ExecuteContext::task`], every task must have the requested category on disk if it is not
+    /// resident; a missing key panics.
     fn prepare_tasks_with_callback(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
@@ -663,8 +608,6 @@ impl<'e> ExecuteContextImpl<'e> {
                 wait_meta: false,
                 task_type: None,
                 self_restored: false,
-                needs_existence_check: false,
-                found_on_disk: false,
             })
             .collect::<Vec<_>>();
         data_count += all_count;
@@ -683,7 +626,6 @@ impl<'e> ExecuteContextImpl<'e> {
             let category = entry.category;
             self.task_lock_counter.acquire();
             let mut task = self.backend.storage.access_mut(task_id);
-            let needs_existence_check = task.looks_blank();
             let mut ready = true;
 
             if category.includes_data() && !task.flags.data_restored() {
@@ -715,7 +657,6 @@ impl<'e> ExecuteContextImpl<'e> {
             }
 
             if !ready {
-                entry.needs_existence_check = needs_existence_check;
                 // The callback's task id is held outside the graph until it acquires a guard, so
                 // keep it alive with a transient ref. Eviction may still clear the category; the
                 // callback path restores it again before use.
@@ -821,28 +762,29 @@ impl<'e> ExecuteContextImpl<'e> {
             self.task_lock_counter.acquire();
             let mut task = self.backend.storage.access_mut(task_id);
 
-            entry.found_on_disk = matches!(entry.data_restore_result, Some(Ok(Some(_))))
-                || matches!(entry.meta_restore_result, Some(Ok(Some(_))));
-            // Another thread's restore may still prove existence; Phase 3 decides then.
-            let missing = entry.needs_existence_check
-                && !task.flags.new_task()
-                && !entry.found_on_disk
-                && !entry.wait_data
-                && !entry.wait_meta;
+            let has_error = matches!(entry.data_restore_result, Some(Err(_)))
+                || matches!(entry.meta_restore_result, Some(Err(_)));
+            let missing = !task.flags.new_task()
+                && !has_error
+                && (matches!(entry.data_restore_result, Some(Ok(None)))
+                    || matches!(entry.meta_restore_result, Some(Ok(None))));
             if missing {
-                missing_tasks.push(task_id);
-            }
-
-            if let Some(result) = entry.data_restore_result.take() {
-                if entry.needs_existence_check
-                    && !entry.found_on_disk
-                    && (entry.wait_data || entry.wait_meta)
-                    && matches!(&result, Ok(None))
-                {
-                    // An empty read cannot prove existence while a peer owns another category.
-                    // Do not publish it as restored: Phase 3 will retry once the peer finishes.
+                // No missing category may be published as restored, even if another category
+                // was present on disk or a peer is still restoring it. Clear every claim before
+                // notifying waiters and reporting the failure after this batch is processed.
+                if entry.data_restore_result.take().is_some() {
                     task.flags.set_data_restoring(false);
-                } else {
+                }
+                if entry.meta_restore_result.take().is_some() {
+                    task.flags.set_meta_restoring(false);
+                }
+                task.flags.set_data_restored(false);
+                task.flags.set_meta_restored(false);
+                missing_tasks.push(task_id);
+            } else {
+                let claimed_data = entry.data_restore_result.is_some();
+                let claimed_meta = entry.meta_restore_result.is_some();
+                if let Some(result) = entry.data_restore_result.take() {
                     match apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data) {
                         Ok(()) => {
                             // Since we claimed this restore (data_restored() was false under the
@@ -852,28 +794,21 @@ impl<'e> ExecuteContextImpl<'e> {
                         Err(e) => restore_errors.push((task_id, "data", e)),
                     }
                 }
-            }
-
-            if let Some(result) = entry.meta_restore_result.take() {
-                if entry.needs_existence_check
-                    && !entry.found_on_disk
-                    && (entry.wait_data || entry.wait_meta)
-                    && matches!(&result, Ok(None))
-                {
-                    // As for Data, an empty read is provisional until the peer finishes.
-                    task.flags.set_meta_restoring(false);
-                } else if let Err(e) =
-                    apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
+                if let Some(result) = entry.meta_restore_result.take()
+                    && let Err(e) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
                 {
                     restore_errors.push((task_id, "meta", e));
                 }
-            }
-
-            // Do not publish an absent task as restored: a later opener must still check disk
-            // even when this panic is caught. Every restoring bit was cleared above.
-            if missing {
-                task.flags.set_data_restored(false);
-                task.flags.set_meta_restored(false);
+                if has_error && !task.flags.new_task() {
+                    // Only undo categories this batch applied; resident state is not ours.
+                    if claimed_data {
+                        task.flags.set_data_restored(false);
+                    }
+                    if claimed_meta {
+                        task.flags.set_meta_restored(false);
+                    }
+                }
             }
 
             // Drop the lock before notifying so woken threads don't
@@ -922,12 +857,7 @@ impl<'e> ExecuteContextImpl<'e> {
                 // Phase 1c already checked existence. The classification-time transient ref
                 // prevents GC until this callback acquires the task; this restores the category
                 // again if eviction won the handoff.
-                let (mut task, _) = self.restore_task_or_panic(
-                    entry.task_id,
-                    entry.category,
-                    /* peer_restoring_data */ false,
-                    /* peer_restoring_meta */ false,
-                );
+                let (mut task, _) = self.restore_task_or_panic(entry.task_id, entry.category);
                 task.update_and_get_transient_ref_count(-1);
                 prepared_task_callback(
                     self,
@@ -947,21 +877,12 @@ impl<'e> ExecuteContextImpl<'e> {
                     continue;
                 }
                 self.task_lock_counter.acquire();
-                let (mut task, outcome) = self.restore_task_or_panic(
-                    entry.task_id,
-                    entry.category,
-                    entry.wait_data,
-                    entry.wait_meta,
-                );
+                let (mut task, outcome) = self.restore_task_or_panic(entry.task_id, entry.category);
                 task.update_and_get_transient_ref_count(-1);
                 self.task_lock_counter.release();
-                if entry.needs_existence_check
-                    && !entry.found_on_disk
-                    && !outcome.found_on_disk
-                    && !task.flags.new_task()
-                {
-                    // This task looked blank before the batch read. Undo any empty results
-                    // applied by Phase 1c or the wait, so a caught panic cannot create a task.
+                if outcome.missing_on_disk && !task.flags.new_task() {
+                    // No other category can rescue a missing key; invalidate any resident state
+                    // before a caught panic lets another opener inspect this task.
                     task.flags.set_data_restored(false);
                     task.flags.set_meta_restored(false);
                     panic_missing_task(entry.task_id, reason);
@@ -995,60 +916,35 @@ struct TaskRestoreEntry {
     task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
-    /// The task looked like a fresh blank when classified, so a restore has to prove it exists.
-    needs_existence_check: bool,
-    /// This thread's Phase 1b I/O found the task on disk.
-    found_on_disk: bool,
 }
 
 /// Outcome of [`ExecuteContextImpl::restore_task`].
 #[derive(Default)]
 struct RestoreOutcome {
-    /// A restore this call performed, or waited on, found the task on disk.
-    found_on_disk: bool,
-    /// This call applied its own read of the data category (possibly empty).
-    restored_data: bool,
-    /// This call applied its own read of the meta category (possibly empty).
-    restored_meta: bool,
+    /// A requested category was absent on disk; the task is invalid under MustExist/AllowMissing.
+    missing_on_disk: bool,
 }
 
-impl TaskStorage {
-    /// A blank entry has no in-memory evidence of existence; only a disk read can prove it exists.
-    /// A task with one category already restored is not blank even if the other needs restoring.
-    fn looks_blank(&self) -> bool {
-        !self.flags.data_restored() && !self.flags.meta_restored() && !self.flags.new_task()
-    }
-}
-
-/// Reports an open of a task that exists neither in memory nor on disk.
+/// Reports an open of a task missing its requested category in memory and on disk.
 ///
-/// Under `AllowMissing` and `MustExist` the blank entry is removed if possible. If another opener
-/// pins it, it cannot be removed, so the categories this thread applied (`restored_data` /
-/// `restored_meta`) are reset to "never looked" instead: that opener reads them again and also
-/// observes the absence. `MustExist` then panics rather than hand back a fabricated task, which
-/// would silently corrupt the graph (even if a caller catches the panic).
+/// Under `AllowMissing` and `MustExist` the invalid entry is removed if possible. If another
+/// opener pins it, clear both restored flags so neither category looks valid after a missing read.
+/// `MustExist` then panics instead of returning a fabricated task.
 fn handle_missing_task(
     mut task: TaskEntryGuard<'_>,
     task_id: TaskId,
     access: TaskAccess,
-    restored_data: bool,
-    restored_meta: bool,
     reason: &str,
 ) {
     match access {
         TaskAccess::AllowMissing | TaskAccess::MustExist => {
-            // An empty read must not leave a restorable-looking task behind if a panic is caught.
-            // Pins held by another opener prevent removal; in that case clear only our reads so
-            // that opener retries rather than treating this blank as a real task.
+            // A missing requested category invalidates the whole task, including one that had
+            // its other category resident in memory.
             if task.gc_transient_ref_count() == 0 {
                 task.discard();
             } else {
-                if restored_data {
-                    task.flags.set_data_restored(false);
-                }
-                if restored_meta {
-                    task.flags.set_meta_restored(false);
-                }
+                task.flags.set_data_restored(false);
+                task.flags.set_meta_restored(false);
             }
             if access == TaskAccess::MustExist {
                 panic_missing_task(task_id, reason);
@@ -1061,16 +957,8 @@ fn handle_missing_task(
 #[cold]
 fn panic_missing_task(task_id: TaskId, reason: &str) -> ! {
     panic!(
-        "task {task_id} ({reason}, MustExist): task exists in neither memory nor persistent \
-         storage — a stale reference to an already-collected or never-created task"
-    )
-}
-
-/// The categories of `category` that another thread is restoring for `task`, as `(data, meta)`.
-fn restoring_categories(task: &TaskStorage, category: TaskDataCategory) -> (bool, bool) {
-    (
-        category.includes_data() && !task.flags.data_restored() && task.flags.data_restoring(),
-        category.includes_meta() && !task.flags.meta_restored() && task.flags.meta_restoring(),
+        "task {task_id} ({reason}, MustExist): task is missing a required category in memory or \
+         persistent storage — a stale reference to an already-collected or never-created task"
     )
 }
 
@@ -1103,8 +991,8 @@ fn apply_restore_result(
 ) -> Result<()> {
     let task_category = TaskDataCategory::from(category);
     match result {
-        // A task absent from disk applies as empty storage; only a `MustExist` open treats absence
-        // as an error, and it checks that before getting here.
+        // A task absent from disk applies as empty storage only for `MaybeCreate`; MustExist and
+        // AllowMissing detect a missing key before calling this helper.
         Ok(storage) => {
             let storage = storage.unwrap_or_default();
             if task.flags.is_restored(task_category) {
@@ -1199,7 +1087,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         // is restored on its own with the pair lock dropped, then the pair is re-locked; if
         // eviction cleared a category in between, the loop restores it again.
         let ids = [task_id1, task_id2];
-        let mut needs_existence_check = None;
         let mut pinned = false;
         let (task1, task2) = loop {
             let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
@@ -1219,12 +1106,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                     panic_missing_task(task_id, "task_pair");
                 }
             }
-            let checks =
-                needs_existence_check.get_or_insert([task1.looks_blank(), task2.looks_blank()]);
-            let peers = [
-                restoring_categories(&task1, category),
-                restoring_categories(&task2, category),
-            ];
             // The ids are held outside the graph while the pair lock is dropped, so pin both
             // against GC.
             if !pinned {
@@ -1239,26 +1120,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 if restored[i] {
                     continue;
                 }
-                let (peer_restoring_data, peer_restoring_meta) = peers[i];
-                let (task, outcome) = self.restore_task_or_panic(
-                    ids[i],
-                    category,
-                    peer_restoring_data,
-                    peer_restoring_meta,
-                );
+                let (task, outcome) = self.restore_task_or_panic(ids[i], category);
                 // Decide under the guard that may hold an empty read.
-                if checks[i] && !outcome.found_on_disk && !task.flags.new_task() {
-                    handle_missing_task(
-                        task,
-                        ids[i],
-                        TaskAccess::MustExist,
-                        outcome.restored_data,
-                        outcome.restored_meta,
-                        "task_pair",
-                    );
+                if outcome.missing_on_disk && !task.flags.new_task() {
+                    handle_missing_task(task, ids[i], TaskAccess::MustExist, "task_pair");
                     unreachable!("MustExist must panic after clearing a missing task");
                 }
-                checks[i] = false;
                 drop(task);
             }
         };
@@ -2100,16 +1967,15 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn task_pair_accepts_resident_task_with_other_category_missing_on_disk() {
+    #[should_panic(expected = "task_pair, MustExist")]
+    async fn task_pair_rejects_missing_category_despite_resident_other_category() {
         let tt = backend(Some(StorageMode::ReadOnly));
         let first = persistent(1);
         let second = persistent(2);
         resident(&tt, first, TaskDataCategory::All);
-        // Meta proves this task exists, even though the requested data category has no disk key.
         resident(&tt, second, TaskDataCategory::Meta);
         let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
-        let (first_guard, second_guard) = ctx.task_pair(first, second, TaskDataCategory::Data);
-        assert_eq!((first_guard.id(), second_guard.id()), (first, second));
+        let _ = ctx.task_pair(first, second, TaskDataCategory::Data);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -2153,7 +2019,7 @@ mod must_exist_tests {
 
     fn persisted_tasks(
         ids: &[TaskId],
-        category: SpecificTaskDataCategory,
+        category: Option<SpecificTaskDataCategory>,
     ) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
         use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_encoder};
 
@@ -2174,16 +2040,28 @@ mod must_exist_tests {
         )
         .unwrap()
         .0;
-        let mut encoded = TurboBincodeBuffer::new();
+        let mut encoded_data = TurboBincodeBuffer::new();
+        let mut encoded_meta = TurboBincodeBuffer::new();
         TaskStorage::default()
-            .encode(category, &mut new_turbo_bincode_encoder(&mut encoded))
+            .encode(
+                SpecificTaskDataCategory::Data,
+                &mut new_turbo_bincode_encoder(&mut encoded_data),
+            )
+            .unwrap();
+        TaskStorage::default()
+            .encode(
+                SpecificTaskDataCategory::Meta,
+                &mut new_turbo_bincode_encoder(&mut encoded_meta),
+            )
             .unwrap();
         let items = ids
             .iter()
             .map(|&task_id| SnapshotItem::Put {
                 task_id,
-                data: (category == SpecificTaskDataCategory::Data).then(|| encoded.clone()),
-                meta: (category == SpecificTaskDataCategory::Meta).then(|| encoded.clone()),
+                data: (category != Some(SpecificTaskDataCategory::Meta))
+                    .then(|| encoded_data.clone()),
+                meta: (category != Some(SpecificTaskDataCategory::Data))
+                    .then(|| encoded_meta.clone()),
                 task_type_hash: None,
             })
             .collect::<Vec<_>>();
@@ -2203,20 +2081,21 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn task_pair_recognizes_task_with_only_other_category_on_disk() {
+    #[should_panic(expected = "task_pair, MustExist")]
+    async fn task_pair_rejects_task_with_only_other_category_on_disk() {
         let first = persistent(1);
         let second = persistent(2);
-        let (tt, _dir) = persisted_tasks(&[first, second], SpecificTaskDataCategory::Data);
+        let (tt, _dir) = persisted_tasks(&[first, second], Some(SpecificTaskDataCategory::Data));
         let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
-        let (a, b) = ctx.task_pair(first, second, TaskDataCategory::Meta);
-        assert_eq!((a.id(), b.id()), (first, second));
+        let _ = ctx.task_pair(first, second, TaskDataCategory::Meta);
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn prepare_tasks_recognizes_task_with_only_other_category_on_disk() {
+    #[should_panic(expected = "prepare disk-only data, MustExist")]
+    async fn prepare_tasks_rejects_task_with_only_other_category_on_disk() {
         let first = persistent(1);
         let second = persistent(2);
-        let (tt, _dir) = persisted_tasks(&[first, second], SpecificTaskDataCategory::Data);
+        let (tt, _dir) = persisted_tasks(&[first, second], Some(SpecificTaskDataCategory::Data));
         let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
         ctx.prepare_tasks(
             [
@@ -2225,14 +2104,104 @@ mod must_exist_tests {
             ],
             "prepare disk-only data",
         );
-        assert!(tt.backend().storage.access_mut(first).flags.meta_restored());
-        assert!(
-            tt.backend()
-                .storage
-                .access_mut(second)
-                .flags
-                .meta_restored()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn allow_missing_returns_none_when_requested_category_is_absent() {
+        let id = persistent(1);
+        let (tt, _dir) = persisted_tasks(&[id], Some(SpecificTaskDataCategory::Data));
+        let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+        assert!(ctx.try_get_task(id, TaskDataCategory::Meta).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[should_panic(expected = "task, MustExist")]
+    async fn task_rejects_missing_category_despite_resident_other_category() {
+        let tt = backend(Some(StorageMode::ReadOnly));
+        let id = persistent(1);
+        resident(&tt, id, TaskDataCategory::Data);
+        let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+        let _ = ctx.task(id, TaskDataCategory::Meta);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fully_persisted_tasks_succeed_for_pair_and_prepare() {
+        let first = persistent(1);
+        let second = persistent(2);
+        let (tt, _dir) = persisted_tasks(&[first, second], None);
+        let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+        ctx.prepare_tasks(
+            [
+                (first, TaskDataCategory::All),
+                (second, TaskDataCategory::All),
+            ],
+            "prepare fully persisted",
         );
+        let (a, b) = ctx.task_pair(first, second, TaskDataCategory::All);
+        assert_eq!((a.id(), b.id()), (first, second));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[should_panic(expected = "task_pair, MustExist")]
+    async fn task_pair_all_rejects_a_missing_disk_category() {
+        let first = persistent(1);
+        let second = persistent(2);
+        let (tt, _dir) = persisted_tasks(&[first, second], Some(SpecificTaskDataCategory::Data));
+        let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+        let _ = ctx.task_pair(first, second, TaskDataCategory::All);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[should_panic(expected = "prepare one-sided, MustExist")]
+    async fn prepare_tasks_all_rejects_a_missing_disk_category() {
+        let id = persistent(1);
+        let (tt, _dir) = persisted_tasks(&[id], Some(SpecificTaskDataCategory::Meta));
+        let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+        ctx.prepare_tasks([(id, TaskDataCategory::All)], "prepare one-sided");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn missing_category_does_not_wait_for_unrelated_peer_restore() {
+        use std::{
+            panic::{AssertUnwindSafe, catch_unwind},
+            sync::mpsc,
+            time::Duration,
+        };
+
+        let tt = backend(Some(StorageMode::ReadOnly));
+        let id = persistent(4);
+        tt.backend()
+            .storage
+            .access_mut(id)
+            .flags
+            .set_meta_restoring(true);
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let worker_tt = tt.clone();
+        let worker = std::thread::spawn(move || {
+            let mut ctx = ExecuteContextImpl::new(worker_tt.backend(), &worker_tt);
+            let panicked = catch_unwind(AssertUnwindSafe(|| {
+                let _ = ctx.task(id, TaskDataCategory::All);
+            }))
+            .is_err();
+            sender.send(panicked).unwrap();
+        });
+
+        // Whether it timed out or not, release the synthetic peer before joining the worker.
+        let completed_without_peer = receiver.recv_timeout(Duration::from_secs(2));
+        tt.backend()
+            .storage
+            .access_mut(id)
+            .flags
+            .set_meta_restoring(false);
+        tt.backend().storage.restored.notify(usize::MAX);
+        worker.join().unwrap();
+        assert_eq!(
+            completed_without_peer.unwrap(),
+            true,
+            "missing key must fail without waiting for Meta"
+        );
+        let task = tt.backend().storage.access_mut(id);
+        assert!(!task.flags.data_restoring() && !task.flags.meta_restoring());
     }
 
     #[tokio::test(flavor = "multi_thread")]
