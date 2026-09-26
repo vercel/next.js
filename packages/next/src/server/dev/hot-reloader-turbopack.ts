@@ -258,7 +258,7 @@ function setupServerHmr(
     }
   }
 
-  function apply(entryPaths: string[]): Promise<void> {
+  function apply({ entryPaths }: { entryPaths: string[] }): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
@@ -2145,7 +2145,7 @@ export async function createHotReloaderTurbopack(
             // The only server HMR pull, driven by the request being built — which
             // is what makes evaluating a changed module lazy.
             if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
-              await serverHmr?.apply(serverHmrEntryPaths)
+              await serverHmr?.apply({ entryPaths: serverHmrEntryPaths })
             }
           } finally {
             finishBuilding()

@@ -3,7 +3,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType},
+    chunk::{ChunkItems, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
@@ -34,6 +34,11 @@ pub(super) struct EcmascriptNodeChunkContent {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptNodeChunkContent {
+    #[turbo_tasks::function]
+    pub(crate) fn included_chunk_items(&self) -> Vc<ChunkItems> {
+        self.content.included_chunk_items()
+    }
+
     #[turbo_tasks::function]
     pub(crate) fn new(
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
