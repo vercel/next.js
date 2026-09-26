@@ -125,8 +125,7 @@ type UpgradeReminder = {
   | {
       kind: 'security'
       reference: string | null
-      targetVersion: string | null
-      unavailableReason: string | null
+      targetVersion: string
     }
   | { kind: 'latest'; latestVersion: string | null; names: string[] }
   | { kind: 'future'; targetVersion: string; names: string[] }
@@ -198,7 +197,6 @@ export async function assessUpgrade(
       installedVersion,
       reference: assessment.reference,
       targetVersion: upgrade.targetVersion,
-      unavailableReason: null,
     }
   }
   if (policy === 'security' || stopBefore === 'latest') {
@@ -268,11 +266,7 @@ async function nudgeUpgradeForAgent(
       recommendation = 'We recommend you adopt these Future Defaults.'
       break
   }
-  const unavailableReason =
-    reminder.kind === 'security' ? reminder.unavailableReason : null
-  const command = unavailableReason
-    ? null
-    : `next upgrade --ai=${reminder.policy}`
+  const command = `next upgrade --ai=${reminder.policy}`
   const note = getRequestedUpgrade()
     ? `Note: This reminder is enabled by \`__NEXT_AGENTIC_AUTO_UPGRADE=${reminder.policy}\`.`
     : `Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${reminder.policy}'\`.`
@@ -284,15 +278,11 @@ This command stopped so the reminder you configured is not missed. Retry the sam
 
 When you report back to the user, include this upgrade recommendation even if the retry succeeds.
 
-${
-  command
-    ? `At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. If the app is in a Git repository, use a separate Git worktree unless they request otherwise. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory:
+At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. If the app is in a Git repository, use a separate Git worktree unless they request otherwise. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory:
 
 \`\`\`
 ${command}
-\`\`\``
-    : unavailableReason
-}
+\`\`\`
 
 ${reference ? `Reference: ${reference}\n\n` : ''}${note}`
   let retryAllowed = false
@@ -309,7 +299,7 @@ ${reference ? `Reference: ${reference}\n\n` : ''}${note}`
   }
   if (retryAllowed) {
     Log.warn(
-      `${summary} This command is continuing after the reminder you configured.${unavailableReason ? `\n${unavailableReason}` : ''}${reference ? `\nReference: ${reference}` : ''}`
+      `${summary} This command is continuing after the reminder you configured.${reference ? `\nReference: ${reference}` : ''}`
     )
     return
   }
@@ -389,11 +379,9 @@ async function nudgeUpgradeForHuman(
     return 'skip'
   }
   let message: string
-  let canUpgrade = true
   if (reminder.kind === 'security') {
     message = `⚠ Installed Next.js version ${reminder.installedVersion} is affected by a known security vulnerability.`
-    canUpgrade = reminder.unavailableReason === null
-    message += `\n\n${reminder.unavailableReason ?? `Next.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion ?? '[target version]'}`}`
+    message += `\n\nNext.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion}`
   } else if (reminder.policy === 'future') {
     const targetVersion =
       reminder.kind === 'latest'
@@ -413,7 +401,7 @@ async function nudgeUpgradeForHuman(
     return 'skip'
   }
   const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, canUpgrade)
+  const action = await promptUpgrade(message, signal, true)
   if (signal.aborted) {
     return 'skip'
   }
