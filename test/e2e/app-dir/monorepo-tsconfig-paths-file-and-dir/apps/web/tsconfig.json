@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "noEmit": true,
+    "paths": {
+      // Extensionless alias into a workspace package, as produced by setups
+      // that point TS at the built output of a package's exports subpath.
+      "@test/shared/serialization": [
+        "./node_modules/@test/shared/dist/serialization"
+      ]
+    }
+  }
+}
