@@ -62,6 +62,7 @@ async function listenForThreads(data: WasiThreadWorkerData) {
           console.error(`wasi thread${suffix} failed:`, error)
           process.exitCode = 1
         },
+        beforeLoad: (worker) => napiModule.emnapi.addSendListener(worker),
       })
       const imports = createWasiImportObject({
         module: wasmModule,

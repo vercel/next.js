@@ -45,7 +45,17 @@ Its own tests run against the same compiled production support:
 
 ```sh
 node --test packages/next/src/build/swc/wasi-loader.test.mjs
+source scripts/setup-wasi-env.sh
+cargo build -p next-napi-bindings --target wasm32-wasip1-threads
+node scripts/wasi-test-host/napi-async-smoke.mjs
 ```
+
+The async smoke uses the full emnapi runtime installed by `setup-wasi-env.sh`. It proves real
+`projectNew` and `projectShutdown` promises complete across pthread Workers; the lower-crate Cargo
+runner does not provide N-API imports and cannot run `next-napi-bindings` test artifacts directly.
+It materializes the built `next` package in its temporary project: on Node 20.9, the WASI resolver
+cannot follow the workspace's symlinked `node_modules/next`, which would prevent the error-path
+smoke from reaching its intentionally invalid Sass configuration.
 
 (Pass the file. `node --test <dir>` tries to resolve the directory as a module and fails.)
 
@@ -62,7 +72,8 @@ node --test packages/next/src/build/swc/wasi-loader.test.mjs
 `@emnapi/wasi-threads` owns Worker lifecycle, compiled-module transfer, load/start ordering, and
 cleanup. A small local adapter remains because Rust imports the original one-argument
 `thread-spawn` ABI but does not export the `malloc`/`free` functions the package's high-level wrapper
-uses for that ABI.
+uses for that ABI. Every pthread Worker is registered with the main emnapi N-API instance before it
+loads; async-work and thread-safe-function completions otherwise never reach the JavaScript Promise.
 
 The imported shared memory uses 8,192 initial pages (512 MiB) and 65,536 maximum pages (4 GiB).
 Those values are also explicit `wasm32-wasip1-threads` linker flags in `.cargo/config.toml`; keep the

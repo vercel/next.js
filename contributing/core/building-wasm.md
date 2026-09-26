@@ -33,8 +33,9 @@ The script exports environment variables into the calling shell, which a subproc
 Running it directly prints an error and does nothing.
 
 The script downloads the wasi-sdk matching your host architecture, verifies it against a pinned
-sha256, installs emnapi, and exports the cross-compilation variables (`WASI_SDK_PATH`,
-`EMNAPI_LINK_DIR`, and the `*_wasm32_wasip1_threads` compiler variables). Downloads are cached under
+sha256, installs exact compatible emnapi linker/runtime versions, and exports the cross-compilation
+variables (`WASI_SDK_PATH`, `EMNAPI_NODE_MODULES`, `EMNAPI_LINK_DIR`, and the
+`*_wasm32_wasip1_threads` compiler variables). Downloads are cached under
 `~/.cache/next-wasi-toolchain`, so re-sourcing in a new shell is fast. Set `WASI_SETUP_CACHE_DIR` to
 move the cache.
 
