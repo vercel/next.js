@@ -221,9 +221,6 @@ pub struct Storage {
     pub task_cache: TaskCache,
     /// Transient task types do not participate in persisted hash-collision buckets.
     pub transient_task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
-    /// GC tombstones retained until their IDs are evicted (or shutdown), so a later
-    /// collision-bucket write cannot re-persist a deleted ID when eviction was skipped.
-    task_cache_deleted: FxDashMap<TaskTypeHash, TaskIdBucket>,
 }
 
 impl Storage {
@@ -258,7 +255,6 @@ impl Storage {
             restored: Event::new(|| || "Storage::restored".to_string()),
             task_cache: FxDashMap::default(),
             transient_task_cache: FxDashMap::default(),
-            task_cache_deleted: FxDashMap::default(),
         }
     }
 
@@ -292,34 +288,35 @@ impl Storage {
         }
     }
 
+    #[cfg(test)]
     pub fn task_cache_ids(&self, task_type_hash: TaskTypeHash) -> TaskIdBucket {
-        let mut ids = self
-            .task_cache
+        self.task_cache
             .get(&task_type_hash)
             .map(|bucket| bucket.task_ids())
-            .unwrap_or_default();
-        self.filter_deleted_task_cache_ids(task_type_hash, &mut ids);
-        ids
+            .unwrap_or_default()
     }
 
-    fn filter_deleted_task_cache_ids(&self, hash: TaskTypeHash, ids: &mut TaskIdBucket) {
-        if let Some(deleted) = self.task_cache_deleted.get(&hash) {
-            ids.retain(|id| !deleted.contains(id));
+    /// Reconcile a snapshot's changes after the task-storage shard locks are released. The
+    /// bucket stays complete and keeps soft-deleted IDs for resurrection, while its disk ID list
+    /// omits them until a put marks them live or eviction removes them. An absent bucket must stay
+    /// absent: creating an empty one could hide colliding candidates still on disk.
+    pub fn reconcile_task_cache_bucket(
+        &self,
+        hash: TaskTypeHash,
+        added_ids: &[TaskId],
+        deleted_ids: &[TaskId],
+    ) -> TaskIdBucket {
+        if let Some(mut bucket) = self.task_cache.get_mut(&hash) {
+            for task_id in added_ids {
+                bucket.mark_live(*task_id);
+            }
+            for task_id in deleted_ids {
+                bucket.mark_deleted(*task_id);
+            }
+            bucket.task_ids()
+        } else {
+            TaskIdBucket::new()
         }
-    }
-
-    pub fn note_task_cache_deletion(&self, hash: TaskTypeHash, task_id: TaskId) {
-        let mut deleted = self.task_cache_deleted.entry(hash).or_default();
-        if !deleted.contains(&task_id) {
-            deleted.push(task_id);
-        }
-    }
-
-    fn clear_task_cache_deletion(&self, hash: TaskTypeHash, task_id: TaskId) {
-        self.task_cache_deleted.remove_if_mut(&hash, |_, ids| {
-            ids.retain(|id| *id != task_id);
-            ids.is_empty()
-        });
     }
 
     /// Eviction holds a task-storage shard, while creation locks the transient cache first.
@@ -381,10 +378,6 @@ impl Storage {
         } else {
             false
         };
-        drop(shard);
-        if deleted {
-            self.clear_task_cache_deletion(hash, task_id);
-        }
         Some(removed)
     }
 
@@ -399,9 +392,6 @@ impl Storage {
                 removed
             }
         });
-        if deleted {
-            self.clear_task_cache_deletion(hash, task_id);
-        }
         removed
     }
 
@@ -732,7 +722,6 @@ impl Storage {
     pub(crate) fn drop_task_cache(&self) {
         drop_contents(&self.task_cache);
         drop_contents(&self.transient_task_cache);
-        drop_contents(&self.task_cache_deleted);
     }
 
     /// Evict tasks from in-memory storage after a successful snapshot.
@@ -1304,10 +1293,14 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
 #[cfg(test)]
 mod tests {
     use turbo_bincode::TurboBincodeBuffer;
-    use turbo_tasks::TaskId;
+    use turbo_tasks::{
+        RawVc, TaskId,
+        backend::{CachedTaskType, CachedTaskTypeArc},
+        macro_helpers::VTABLE_DEFAULT,
+    };
 
     use super::{SpecificTaskDataCategory, Storage, TrackOutcome};
-    use crate::backing_storage::SnapshotItem;
+    use crate::backing_storage::{SnapshotItem, TaskCacheBucket};
 
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
@@ -1333,21 +1326,80 @@ mod tests {
         let deleted = non_transient_task(1);
         let survivor = non_transient_task(2);
         let created_later = non_transient_task(3);
-        storage.note_task_cache_deletion(hash, deleted);
+        let task_type = |this| {
+            CachedTaskTypeArc::new(CachedTaskType {
+                native_fn: &VTABLE_DEFAULT,
+                this,
+                arg: Box::new(()),
+            })
+        };
+        let first_type = task_type(None);
+        let second_type = task_type(Some(RawVc::task_output(non_transient_task(91))));
+        let third_type = task_type(Some(RawVc::task_output(non_transient_task(92))));
+        let mut bucket = TaskCacheBucket::default();
+        bucket.insert(first_type.clone(), deleted);
+        bucket.insert(second_type, survivor);
+        storage.task_cache.insert(hash, bucket);
+        assert_eq!(
+            storage
+                .reconcile_task_cache_bucket(hash, &[], &[deleted])
+                .as_slice(),
+            &[survivor]
+        );
 
-        // The in-memory bucket still contains the deleted ID until eviction (as on canary),
-        // but both the initial delete and a later colliding put must filter it on disk.
-        let mut first = smallvec::smallvec![deleted, survivor];
-        storage.filter_deleted_task_cache_ids(hash, &mut first);
-        assert_eq!(first.as_slice(), &[survivor]);
-        let mut later = smallvec::smallvec![deleted, survivor, created_later];
-        storage.filter_deleted_task_cache_ids(hash, &mut later);
-        assert_eq!(later.as_slice(), &[survivor, created_later]);
+        // The deleted ID remains discoverable for resurrection, but is absent from disk writes.
+        assert_eq!(storage.task_cache_ids(hash).as_slice(), &[survivor]);
+        assert_eq!(
+            storage
+                .task_cache
+                .get(&hash)
+                .unwrap()
+                .find(&VTABLE_DEFAULT, None, &()),
+            Some((deleted, first_type))
+        );
+        storage
+            .task_cache
+            .get_mut(&hash)
+            .unwrap()
+            .insert(third_type, created_later);
+        assert_eq!(
+            storage.task_cache_ids(hash).as_slice(),
+            &[survivor, created_later],
+            "later colliding writes must not re-persist a deleted ID"
+        );
 
-        // Once eviction removes the deleted task from the in-memory cache, its tombstone
-        // can be forgotten. A missing bucket is also safe: disk has already been filtered.
-        assert!(!storage.evict_task_cache_id(hash, deleted, true));
-        assert!(storage.task_cache_deleted.get(&hash).is_none());
+        // A snapshot of the resurrected task marks the same ID live again.
+        assert_eq!(
+            storage
+                .reconcile_task_cache_bucket(hash, &[deleted], &[])
+                .as_slice(),
+            &[deleted, survivor, created_later]
+        );
+        assert_eq!(
+            storage.task_cache_ids(hash).as_slice(),
+            &[deleted, survivor, created_later]
+        );
+        storage.reconcile_task_cache_bucket(hash, &[], &[deleted]);
+        assert!(storage.evict_task_cache_id(hash, deleted, true));
+        assert_eq!(
+            storage.task_cache_ids(hash).as_slice(),
+            &[survivor, created_later]
+        );
+
+        // An absent bucket is not replaced by an empty one, which would mask unseen disk IDs.
+        let absent_hash = 42u64.to_le_bytes();
+        storage.reconcile_task_cache_bucket(absent_hash, &[], &[deleted]);
+        assert!(storage.task_cache.get(&absent_hash).is_none());
+
+        let singleton_hash = 43u64.to_le_bytes();
+        let mut singleton = TaskCacheBucket::default();
+        singleton.insert(task_type(None), deleted);
+        storage.task_cache.insert(singleton_hash, singleton);
+        storage.reconcile_task_cache_bucket(singleton_hash, &[], &[deleted]);
+        assert!(storage.task_cache.get(&singleton_hash).is_some());
+        assert!(storage.task_cache_ids(singleton_hash).is_empty());
+        assert!(storage.evict_task_cache_id(singleton_hash, deleted, true));
+        assert!(storage.task_cache.get(&singleton_hash).is_none());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't

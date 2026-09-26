@@ -16,12 +16,19 @@ pub type TaskCache = FxDashMap<TaskTypeHash, TaskCacheBucket>;
 /// All task types and IDs sharing one persistent task-type hash.
 ///
 /// Hash collisions are exceptionally rare, so almost every bucket contains exactly one entry.
-/// One `(CachedTaskTypeArc, TaskId)` pair fits inline; a second, exceptionally rare collision
-/// spills to the heap. When persistence is enabled, buckets are populated after every
+/// One `(CachedTaskTypeArc, CachedTaskId)` pair fits inline; a second, exceptionally rare
+/// collision spills to the heap. When persistence is enabled, buckets are populated after every
 /// on-disk candidate for the hash has been read, so lookups need no further persistence read.
+#[derive(Clone, Copy)]
+struct CachedTaskId {
+    id: TaskId,
+    /// Soft-deleted tasks remain discoverable for resurrection, but not in snapshot writes.
+    deleted: bool,
+}
+
 #[derive(Clone, Default)]
 pub struct TaskCacheBucket {
-    entries: SmallVec<[(CachedTaskTypeArc, TaskId); 1]>,
+    entries: SmallVec<[(CachedTaskTypeArc, CachedTaskId); 1]>,
 }
 
 impl TaskCacheBucket {
@@ -34,7 +41,7 @@ impl TaskCacheBucket {
         self.entries
             .iter()
             .find(|(task_type, _)| task_type.eq_components(native_fn, this, arg))
-            .map(|(task_type, task_id)| (*task_id, task_type.clone()))
+            .map(|(task_type, cached)| (cached.id, task_type.clone()))
     }
 
     pub fn insert(&mut self, task_type: CachedTaskTypeArc, task_id: TaskId) {
@@ -43,17 +50,58 @@ impl TaskCacheBucket {
             .iter()
             .any(|(candidate, _)| candidate == &task_type)
         {
-            self.entries.push((task_type, task_id));
+            self.entries.push((
+                task_type,
+                CachedTaskId {
+                    id: task_id,
+                    deleted: false,
+                },
+            ));
+        }
+    }
+
+    /// Insert all candidates after verifying that no concurrent restore filled this bucket.
+    pub fn insert_all(
+        &mut self,
+        candidates: impl IntoIterator<Item = (CachedTaskTypeArc, TaskId)>,
+    ) {
+        // Deduplication is cheap: a hash collision is exceptional and most buckets contain one ID.
+        for (task_type, task_id) in candidates {
+            self.insert(task_type, task_id);
+        }
+    }
+
+    pub fn mark_deleted(&mut self, task_id: TaskId) {
+        if let Some((_, cached)) = self
+            .entries
+            .iter_mut()
+            .find(|(_, cached)| cached.id == task_id)
+        {
+            cached.deleted = true;
+        }
+    }
+
+    pub fn mark_live(&mut self, task_id: TaskId) {
+        if let Some((_, cached)) = self
+            .entries
+            .iter_mut()
+            .find(|(_, cached)| cached.id == task_id)
+        {
+            cached.deleted = false;
         }
     }
 
     pub fn task_ids(&self) -> TaskIdBucket {
-        self.entries.iter().map(|(_, task_id)| *task_id).collect()
+        self.entries
+            .iter()
+            .filter(|(_, cached)| !cached.deleted)
+            .map(|(_, cached)| cached.id)
+            .collect()
     }
 
     pub fn remove_id(&mut self, task_id: TaskId) -> bool {
         let len = self.entries.len();
-        self.entries.retain(|(_, id)| *id != task_id);
+        self.entries.retain(|(_, cached)| cached.id != task_id);
         self.entries.len() != len
     }
 
@@ -62,7 +110,24 @@ impl TaskCacheBucket {
     }
 
     pub fn is_singleton_id(&self, task_id: TaskId) -> bool {
-        self.entries.len() == 1 && self.entries[0].1 == task_id
+        self.entries.len() == 1 && self.entries[0].1.id == task_id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::mem::size_of;
+
+    use turbo_tasks::{TaskId, backend::CachedTaskTypeArc};
+
+    use super::CachedTaskId;
+
+    #[test]
+    fn deletion_marker_fits_in_existing_bucket_entry_padding() {
+        assert_eq!(
+            size_of::<(CachedTaskTypeArc, CachedTaskId)>(),
+            size_of::<(CachedTaskTypeArc, TaskId)>(),
+        );
     }
 }
 

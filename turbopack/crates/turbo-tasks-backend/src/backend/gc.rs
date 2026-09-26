@@ -462,7 +462,10 @@ impl TurboTasksBackend {
                 Vec::new(),
                 Some(roots),
                 Vec::<Vec<SnapshotItem>>::new(),
-                |task_type_hash| self.storage.task_cache_ids(task_type_hash),
+                |hash, added_ids, deleted_ids| {
+                    self.storage
+                        .reconcile_task_cache_bucket(hash, added_ids, deleted_ids)
+                },
             )
         {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");

@@ -1406,8 +1406,6 @@ impl TurboTasksBackend {
                             .get_persistent_task_type()
                             .expect("a GC-deleted task must have a task type"),
                     );
-                    self.storage
-                        .note_task_cache_deletion(task_type_hash, task_id);
                     return SnapshotItem::Delete {
                         task_id,
                         task_type_hash,
@@ -1502,7 +1500,10 @@ impl TurboTasksBackend {
             suspended_operations,
             gc_roots_to_persist,
             task_snapshots,
-            |task_type_hash| self.storage.task_cache_ids(task_type_hash),
+            |task_type_hash, added_ids, deleted_ids| {
+                self.storage
+                    .reconcile_task_cache_bucket(task_type_hash, added_ids, deleted_ids)
+            },
         )?;
         span.record("snapshot_meta", display(snapshot_meta));
 
@@ -1780,14 +1781,10 @@ impl TurboTasksBackend {
 
         // Step 2: Check backing storage using borrowed components (no box needed yet). A restore
         // records every candidate in the in-memory hash bucket before returning.
-        let restored_task = if transient {
-            None
-        } else {
-            ctx.task_by_type(native_fn, this, arg_ref)
-        };
-
-        // Task exists in backing storage. task_by_type has inserted it into the in-memory cache.
-        let task_id = if let Some((task_id, _stored_type)) = restored_task {
+        let task_id = if !transient
+            && let Some((task_id, _stored_type)) =
+                ctx.task_by_type(native_fn, this, arg_ref, task_type_hash)
+        {
             self.track_cache_hit_by_fn(native_fn);
             task_id
         } else {

@@ -14,7 +14,7 @@ use turbo_bincode::{
 };
 use turbo_persistence::CommitStats;
 use turbo_tasks::{
-    DynTaskInputs, RawVc, TaskId,
+    RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -23,10 +23,7 @@ use turbo_tasks::{
 use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
-    backing_storage::{
-        SnapshotItem, SnapshotMeta, TaskIdBucket, TaskTypeHash,
-        compute_task_type_hash_from_components,
-    },
+    backing_storage::{SnapshotItem, SnapshotMeta, TaskIdBucket, TaskTypeHash},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
@@ -298,7 +295,7 @@ impl TurboBackingStorage {
         operations: Vec<Arc<AnyOperation>>,
         roots: Option<Vec<(TaskId, TtlCounter)>>,
         snapshots: Vec<I>,
-        task_cache_bucket: impl Fn(TaskTypeHash) -> TaskIdBucket + Sync,
+        task_cache_bucket: impl Fn(TaskTypeHash, &[TaskId], &[TaskId]) -> TaskIdBucket + Sync,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
@@ -421,7 +418,7 @@ impl TurboBackingStorage {
                 )
                 .entered();
                 for (hash, (added_ids, deleted_ids)) in &task_cache_changes {
-                    let mut task_ids = task_cache_bucket(*hash);
+                    let mut task_ids = task_cache_bucket(*hash, added_ids, deleted_ids);
                     for task_id in added_ids {
                         if !task_ids.contains(task_id) {
                             task_ids.push(*task_id);
@@ -460,12 +457,11 @@ impl TurboBackingStorage {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn DynTaskInputs,
-    ) -> Result<(TaskTypeHash, TaskIdBucket)> {
+        hash: TaskTypeHash,
+    ) -> Result<TaskIdBucket> {
         let inner = &*self.inner;
-        let hash = compute_task_type_hash_from_components(native_fn, this, arg);
         if inner.database.is_empty() {
-            return Ok((hash, SmallVec::new()));
+            return Ok(SmallVec::new());
         }
         let Some(buffer) = inner
             .database
@@ -474,10 +470,10 @@ impl TurboBackingStorage {
                 format!("Looking up task id for {native_fn:?}(this={this:?}) from database failed")
             })?
         else {
-            return Ok((hash, SmallVec::new()));
+            return Ok(SmallVec::new());
         };
 
-        Ok((hash, decode_task_ids(Borrow::<[u8]>::borrow(&buffer))?))
+        decode_task_ids(Borrow::<[u8]>::borrow(&buffer))
     }
 
     /// Reads the stored `category` for `task_id`.
@@ -729,7 +725,7 @@ mod tests {
                     task_type_hash: Some(collision_hash),
                 },
             ]],
-            |_| bucket.clone(),
+            |_, _, _| bucket.clone(),
         )?;
 
         assert_eq!(
@@ -772,7 +768,7 @@ mod tests {
                 }],
             ],
             // Match canary's in-memory lifecycle: deletion has not evicted the stale ID yet.
-            |_| smallvec::smallvec![deleted, survivor, created],
+            |_, _, _| smallvec::smallvec![deleted, survivor, created],
         )?;
         assert_eq!(
             task_cache_ids(&storage.inner.database, hash)?,
@@ -904,7 +900,7 @@ mod tests {
                 task_id: deleted_id,
                 task_type_hash: collision_hash.to_le_bytes(),
             }]],
-            |_| smallvec::smallvec![survivor_id],
+            |_, _, _| smallvec::smallvec![survivor_id],
         )?;
 
         let db = &storage.inner.database;
@@ -929,7 +925,7 @@ mod tests {
                 task_id: survivor_id,
                 task_type_hash: collision_hash.to_le_bytes(),
             }]],
-            |_| SmallVec::new(),
+            |_, _, _| SmallVec::new(),
         )?;
         assert!(
             db.get(KeySpace::TaskCache, &collision_hash.to_le_bytes())?

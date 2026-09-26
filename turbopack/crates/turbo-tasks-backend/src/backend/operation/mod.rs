@@ -36,6 +36,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
+    backing_storage::TaskTypeHash,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -209,6 +210,7 @@ pub trait ExecuteContext<'e>: Sized {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
+        task_type_hash: Option<TaskTypeHash>,
     ) -> Option<(TaskId, CachedTaskTypeArc)>;
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
@@ -967,7 +969,7 @@ impl<'e> ExecuteContextImpl<'e> {
                     this,
                     arg,
                 } = &**task_type;
-                let _ = self.task_by_type(native_fn, *this, arg.as_ref());
+                let _ = self.task_by_type(native_fn, *this, arg.as_ref(), None);
             }
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
@@ -1400,13 +1402,15 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
+        task_type_hash: Option<TaskTypeHash>,
     ) -> Option<(TaskId, CachedTaskTypeArc)> {
         if !self.backend.should_restore() {
             return None;
         }
 
-        let task_type_hash =
-            crate::backing_storage::compute_task_type_hash_from_components(native_fn, this, arg);
+        let task_type_hash = task_type_hash.unwrap_or_else(|| {
+            crate::backing_storage::compute_task_type_hash_from_components(native_fn, this, arg)
+        });
         // With persistence enabled, a published bucket includes every on-disk candidate.
         // Direct-by-ID restores during eviction must not repeatedly read the DB or recurse into
         // task storage when that bucket is already in memory.
@@ -1415,10 +1419,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         }
 
         // Get candidates from backing storage (hash-based lookup may return multiple).
-        let (task_type_hash, candidates) = self
+        let candidates = self
             .backend
             .backing_storage
-            .lookup_task_candidates(native_fn, this, arg)
+            .lookup_task_candidates(native_fn, this, task_type_hash)
             .expect("Failed to lookup task ids");
 
         // Restore every candidate's full type before locking the TaskCache bucket, even when
@@ -1443,11 +1447,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             .task_cache
             .entry(task_type_hash)
             .or_default();
-        // This deduplication appears O(N²), but hash collisions are so rare that buckets almost
-        // always contain one item; more than four entries would be an effectively impossible event.
-        for (stored_type, candidate_id) in restored_candidates {
-            bucket.insert(stored_type, candidate_id);
+        if !bucket.is_empty() {
+            // A concurrent restore populated this complete bucket while we read from disk.
+            // Prefer the current bucket: reinserting our older candidates could revive a deletion.
+            return bucket.find(native_fn, this, arg);
         }
+        bucket.insert_all(restored_candidates);
         matching_candidate
     }
 
