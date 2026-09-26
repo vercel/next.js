@@ -1,6 +1,7 @@
 use std::{cell::UnsafeCell, hash::BuildHasher, hint::black_box, sync::Arc, thread};
 
 use criterion::{BatchSize, Criterion, Throughput};
+use crossbeam_utils::CachePadded;
 use dashmap::DashMap;
 use parking_lot::{RawMutex, lock_api::RawMutex as RawMutexTrait};
 use rustc_hash::FxBuildHasher;
@@ -8,11 +9,9 @@ use rustc_hash::FxBuildHasher;
 const SHARDS: usize = 64;
 const TASKS: u32 = 4096;
 
-#[repr(C)]
 struct Payload {
     lock: RawMutex,
     value: UnsafeCell<u64>,
-    padding: [u64; 14],
 }
 
 impl Payload {
@@ -20,7 +19,6 @@ impl Payload {
         Self {
             lock: <RawMutex as RawMutexTrait>::INIT,
             value: UnsafeCell::new(value),
-            padding: [0; 14],
         }
     }
 
@@ -46,7 +44,8 @@ impl Drop for PayloadGuard<'_> {
     }
 }
 
-type Map = DashMap<u32, Box<Payload>, FxBuildHasher>;
+// Keep independently locked tasks on separate cache lines without hand-written layout padding.
+type Map = DashMap<u32, Box<CachePadded<Payload>>, FxBuildHasher>;
 
 fn empty_map() -> Map {
     DashMap::with_capacity_and_hasher_and_shard_amount(TASKS as usize, FxBuildHasher, SHARDS)
@@ -55,7 +54,7 @@ fn empty_map() -> Map {
 fn populated_map() -> Map {
     let map = empty_map();
     for id in 1..=TASKS {
-        map.insert(id, Box::new(Payload::new(id as u64)));
+        map.insert(id, Box::new(CachePadded::new(Payload::new(id as u64))));
     }
     map
 }
@@ -102,7 +101,7 @@ pub fn storage_locking(criterion: &mut Criterion) {
             key = key.wrapping_add(1);
             let mut task = map
                 .entry(current)
-                .or_insert_with(|| Box::new(Payload::new(0)));
+                .or_insert_with(|| Box::new(CachePadded::new(Payload::new(0))));
             *task.value.get_mut() = black_box(current as u64);
             drop(task);
             map.remove(&current);
@@ -116,7 +115,7 @@ pub fn storage_locking(criterion: &mut Criterion) {
             key = key.wrapping_add(1);
             let task = map
                 .entry(current)
-                .or_insert_with(|| Box::new(Payload::new(0)))
+                .or_insert_with(|| Box::new(CachePadded::new(Payload::new(0))))
                 .downgrade();
             task.with_mut(|value| *value = black_box(current as u64));
             drop(task);
