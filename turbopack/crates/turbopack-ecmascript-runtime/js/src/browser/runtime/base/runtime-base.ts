@@ -84,6 +84,12 @@ interface RuntimeBackend {
    * Returns the same Promise for the same chunk URL.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
+  /**
+   * Paths of chunks the backend considers loaded outside of `registerChunk`/
+   * `registerLoadedChunk` (e.g. stylesheets already present in the initial HTML,
+   * which never go through the chunk loader). Called on demand; not cached.
+   */
+  getExtraLoadedChunkPaths?: () => ChunkPath[]
 }
 
 interface DevRuntimeBackend {
@@ -98,6 +104,29 @@ contextPrototype.M = moduleFactories
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
+
+// Paths of successfully loaded chunks in registration/load order. JS chunks
+// register their module factories; CSS chunks resolved by the runtime are recorded
+// when their stylesheet is available. CSS in initial HTML is included by the getter
+// below. Unlike CSS, JS factories remain installed after a script is removed.
+const loadedChunkPaths: Set<ChunkPath> = new Set()
+
+function registerLoadedChunk(chunk: ChunkPath | ChunkScript): void {
+  loadedChunkPaths.add(getPathFromScript(chunk))
+}
+
+function unregisterLoadedChunk(chunkPath: ChunkPath): void {
+  loadedChunkPaths.delete(chunkPath)
+}
+
+// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
+function getLoadedChunkPaths(): ChunkPath[] {
+  const paths = new Set(loadedChunkPaths)
+  for (const path of BACKEND.getExtraLoadedChunkPaths?.() ?? []) {
+    paths.add(path)
+  }
+  return Array.from(paths)
+}
 
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents: Map<ChunkPath, ChunkPath[]> = new Map()
@@ -513,6 +542,9 @@ browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl
+
+// Shared runtime primitive: paths of all chunks loaded in this runtime.
+browserContextPrototype.G = getLoadedChunkPaths
 
 /**
  * Return the ChunkPath from a ChunkScript.
