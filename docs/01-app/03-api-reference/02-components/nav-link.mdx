@@ -61,7 +61,9 @@ export function Nav() {
 }
 ```
 
-> **Good to know:** `<NavLink>` is available in the App Router only. On routes with unknown dynamic parameters, active styling may appear after hydration. See [Cache Components](#cache-components) for details and an inline-script workaround.
+> **Good to know:** `<NavLink>` is available in the App Router only.
+
+If a route has a dynamic parameter that is not known during prerendering, the active state may appear after hydration. See [Unknown dynamic parameters](#unknown-dynamic-parameters).
 
 ## Reference
 
@@ -210,7 +212,9 @@ For active state that depends on a query param, such as tabs or filters, read [`
 
 Under [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents), `NavLink` does not require a [`Suspense`](https://react.dev/reference/react/Suspense) boundary and does not force its layout to render dynamically. It reads the pathname without the dynamic-API check that makes a hand-written [`usePathname`](/docs/app/api-reference/functions/use-pathname) nav hang, so a nav in a static layout stays in the [App Shell](/docs/app/glossary#app-shell).
 
-On a route prerendered with a dynamic param not covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), the pathname is not known at build time. `NavLink` renders inactive in that prerender and applies the active class on the client after hydration. This is a first-paint flicker, not a missing boundary. To apply the class before hydration, set it from an inline script as shown in [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
+### Unknown dynamic parameters
+
+When Cache Components is enabled, the pathname is not known at build time for a route prerendered with a dynamic param not covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). `NavLink` renders inactive in that prerender and applies the active class on the client after hydration. This is a first-paint flicker, not a missing boundary. To apply the class before hydration, set it from an inline script as shown in [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 ### Rewrites
 
