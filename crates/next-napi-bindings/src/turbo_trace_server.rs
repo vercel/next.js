@@ -62,13 +62,14 @@ pub struct TraceSpanInfo {
     pub avg_corrected_duration: Option<i64>,
     /// Raw span ID for aggregated groups (the index of the first span).
     pub first_span_id: Option<String>,
-    /// TurboMalloc memory-usage samples recorded while this span
-    /// (or its example span, for aggregated groups) was live.
+    /// Process samples recorded while this span (or its example span, for
+    /// aggregated groups) was live.
     ///
-    /// Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
-    /// where `pressure` is the memory-pressure byte (0 = no pressure, higher
-    /// = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
-    /// `<= span_duration`. Capped and downsampled by the store.
+    /// Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
+    /// active_worker_threads]`: `bytes` is TurboMalloc memory usage,
+    /// `pressure` is the memory-pressure byte (0 = no pressure, higher = more
+    /// pressure), and `active_worker_threads` counts non-parked Tokio scheduler
+    /// workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
     pub memory_samples: Vec<Vec<i64>>,
 }
 
@@ -136,7 +137,9 @@ pub fn query_trace_spans(
                 memory_samples: s
                     .memory_samples
                     .into_iter()
-                    .map(|(ts, mem, pressure)| vec![ts, mem as i64, pressure as i64])
+                    .map(|(ts, mem, pressure, workers)| {
+                        vec![ts, mem as i64, pressure as i64, workers as i64]
+                    })
                     .collect(),
             })
             .collect(),

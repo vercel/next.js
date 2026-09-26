@@ -19,7 +19,7 @@ parking_lot = { workspace = true }
 postcard = { workspace = true, features = ["alloc", "use-std"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["macros", "signal", "sync", "rt"] }
+tokio = { workspace = true, features = ["macros", "signal", "sync", "rt-multi-thread"] }
 thread_local = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
