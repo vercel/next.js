@@ -73,7 +73,6 @@ jest.mock('next/dist/server/config-shared', () => ({
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
 const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock
 const cliVersion: string = require('next/package.json').version
@@ -449,11 +448,29 @@ describe('agentic upgrade prompts', () => {
   })
 
   it.each([
-    ['yes', true, 'Worktree prompt'],
-    ['no', false, 'Current checkout prompt'],
+    [
+      'codex',
+      'gpt-5.6-terra',
+      'ultra',
+      ['--model', 'gpt-5.6-terra', '-c', 'model_reasoning_effort=ultra'],
+    ],
+    [
+      'codex',
+      'gpt-5.6-sol',
+      'max',
+      ['--model', 'gpt-5.6-sol', '-c', 'model_reasoning_effort=max'],
+    ],
+    [
+      'claude',
+      'claude-sonnet-5[1m]',
+      'high',
+      ['--model', 'claude-sonnet-5[1m]', '--effort', 'high'],
+    ],
+    ['claude', 'opus', 'max', ['--model', 'opus', '--effort', 'max']],
+    ['claude', 'fable', 'medium', ['--model', 'fable', '--effort', 'medium']],
   ])(
-    'passes the %s worktree choice to the upgrade prompt',
-    async (choice, selected, expectedPrompt) => {
+    'passes selected %s model %s and effort %s',
+    async (agent, model, effort, flags) => {
       process.env.PATH = '/agents'
       overrideTTY(process.stdin)
       overrideTTY(process.stdout)
@@ -462,43 +479,105 @@ describe('agentic upgrade prompts', () => {
       jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
       jest
         .mocked(cliSelect)
-        .mockResolvedValueOnce({ id: 'codex' } as never)
-        .mockResolvedValueOnce({ id: choice } as never)
+        .mockResolvedValueOnce({ id: agent } as never)
+        .mockResolvedValueOnce({ id: model } as never)
+        .mockResolvedValueOnce({ id: effort } as never)
+        .mockResolvedValueOnce({ id: 'no' } as never)
       crossSpawn.mockImplementation(() => {
         const child = new EventEmitter()
         process.nextTick(() => child.emit('close', 0, null))
         return child
       })
-      const prompt = jest.fn((useWorktree: boolean | null) =>
-        useWorktree ? 'Worktree prompt' : 'Current checkout prompt'
-      )
 
+      const prompt = jest.fn((useWorktree: boolean | null) =>
+        useWorktree ? 'Worktree prompt' : 'In-place prompt'
+      )
       await handoffUpgrade(prompt, '/workspace/app')
 
-      expect(prompt).toHaveBeenCalledWith(selected)
+      expect(prompt).toHaveBeenCalledWith(false)
       expect(crossSpawn).toHaveBeenCalledWith(
-        expectedHarnessPath('codex'),
-        ['--model', 'gpt-5.6-terra', expectedPrompt],
+        expectedHarnessPath(agent),
+        [...flags, 'In-place prompt'],
         { cwd: '/workspace/app', stdio: 'inherit' }
       )
-      expect(jest.mocked(cliSelect).mock.calls[1][0].values).toEqual({
+      const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
+      expect(Object.keys(modelMenu.values)).toEqual(
+        agent === 'codex'
+          ? ['gpt-5.6-terra', 'gpt-5.6-sol', 'cancel']
+          : ['claude-sonnet-5[1m]', 'opus', 'fable', 'cancel']
+      )
+      const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]
+      expect(Object.keys(effortMenu.values)).toEqual(
+        agent === 'claude'
+          ? ['low', 'medium', 'high', 'max', 'cancel']
+          : ['low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'cancel']
+      )
+      expect(effortMenu.defaultValue).toBe(2)
+      expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
         yes: 'Yes',
         no: 'No',
       })
+      const questions = jest
+        .mocked(Log.bootstrap)
+        .mock.calls.map(([value]) => String(value))
+      expect(
+        questions.findIndex((value) => value.includes('model should run'))
+      ).toBeLessThan(
+        questions.findIndex((value) => value.includes('reasoning effort'))
+      )
     }
   )
 
-  it('asks an existing agent for a worktree choice', async () => {
+  it('asks an existing agent for a worktree choice without prompting interactively', async () => {
     const prompt = jest.fn(() => 'Prepared upgrade prompt.')
 
     await handoffUpgrade(prompt, '/workspace/app')
 
     expect(prompt).toHaveBeenCalledWith(null)
     expect(Log.bootstrap).toHaveBeenCalledWith(
+      expect.stringContaining('ask them to select a model first')
+    )
+    expect(Log.bootstrap).toHaveBeenCalledWith(
       expect.stringContaining("Ask for the user's worktree choice if missing")
     )
-    expect(cliSelect).not.toHaveBeenCalled()
-    expect(crossSpawn).not.toHaveBeenCalled()
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+  })
+
+  it('passes the accepted worktree choice to the prompt factory', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'yes' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+    const prompt = jest.fn(() => 'Worktree prompt')
+
+    await handoffUpgrade(prompt, '/workspace/app')
+
+    expect(prompt).toHaveBeenCalledWith(true)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=high',
+        'Worktree prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
   })
 
   it('leaves the worktree choice open outside a TTY', async () => {
@@ -513,8 +592,8 @@ describe('agentic upgrade prompts', () => {
     expect(Log.bootstrap).toHaveBeenCalledWith(
       expect.stringContaining('Choice pending prompt')
     )
-    expect(cliSelect).not.toHaveBeenCalled()
-    expect(crossSpawn).not.toHaveBeenCalled()
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
   })
 
   it('passes the complete migration prompt to an existing agent', async () => {
@@ -561,6 +640,8 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://api.github.com/advisories?affects=next
      - https://registry.npmjs.org/next
+
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
        ],
@@ -659,6 +740,8 @@ describe('agentic upgrade prompts', () => {
 
      References:
      - https://registry.npmjs.org/next/latest
+
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
        ],
@@ -778,12 +861,12 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it('names the stable target in a prerelease latest upgrade handoff', async () => {
+  it('names the prerelease channel in a latest upgrade handoff', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '17.2.0-rc.1',
-      targetVersion: '17.2.0',
-      references: ['https://registry.npmjs.org/next/latest'],
+      targetVersion: '17.2.0-rc.2',
+      references: ['https://registry.npmjs.org/next/rc'],
       futureDefaults: [],
     })
 
@@ -794,9 +877,9 @@ describe('agentic upgrade prompts', () => {
     })
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
-    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
-    expect(prompt).toContain('newer stable Next.js release')
-    expect(prompt).toContain('https://registry.npmjs.org/next/latest')
+    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0-rc.2')
+    expect(prompt).toContain('newer rc Next.js release')
+    expect(prompt).toContain('https://registry.npmjs.org/next/rc')
   })
 
   it('adds the Future Defaults guide after a same-major update', async () => {
@@ -877,6 +960,8 @@ describe('agentic upgrade prompts', () => {
 
      References:
      - https://registry.npmjs.org/next/latest
+
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
          ],
@@ -977,6 +1062,8 @@ describe('agentic upgrade prompts', () => {
 
      References:
      - https://registry.npmjs.org/next/latest
+
+     Before upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.
 
      Ask for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.",
        ],
