@@ -10,10 +10,26 @@ import { getAgentName } from '../../telemetry/agent-name'
 import { bold, cyan, dim } from '../picocolors'
 import { runChildProcess } from './run-child-process'
 
-// Model defaults for newly launched sessions; existing agents keep their model.
+const CODEX_EFFORTS = [
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+] as const
+const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'max'] as const
+
 const UPGRADE_MODELS = {
-  codex: 'gpt-5.6-terra',
-  claude: 'claude-sonnet-5[1m]',
+  codex: [
+    { id: 'gpt-5.6-terra', label: 'Terra', efforts: CODEX_EFFORTS },
+    { id: 'gpt-5.6-sol', label: 'Sol', efforts: CODEX_EFFORTS },
+  ],
+  claude: [
+    { id: 'claude-sonnet-5[1m]', label: 'Sonnet', efforts: CLAUDE_EFFORTS },
+    { id: 'opus', label: 'Opus', efforts: CLAUDE_EFFORTS },
+    { id: 'fable', label: 'Fable', efforts: CLAUDE_EFFORTS },
+  ],
 } as const
 
 type UpgradeHarness = {
@@ -23,16 +39,51 @@ type UpgradeHarness = {
 
 type UpgradePrompt = string | ((useWorktree: boolean | null) => string)
 
+function withModelChoice(prompt: string): string {
+  return `${prompt}\n\nBefore upgrading, use the model the user chose for this upgrade. If they have not chosen one, ask them to select a model first. Then use their chosen reasoning effort, or ask them to select an effort. If this session cannot use the chosen settings, ask the user to start a session that can.`
+}
+
 function resolvePrompt(
   prompt: UpgradePrompt,
   useWorktree: boolean | null,
-  askForChoice = false
+  askForChoices = false
 ): string {
   const text = typeof prompt === 'string' ? prompt : prompt(useWorktree)
-  if (!askForChoice || typeof prompt === 'string') {
+  if (!askForChoices) {
     return text
   }
-  return `${text}\n\nAsk for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.`
+  const withModel = withModelChoice(text)
+  return typeof prompt === 'string'
+    ? withModel
+    : `${withModel}\n\nAsk for the user's worktree choice if missing. If they do not specify, use a separate Git worktree.`
+}
+
+async function chooseOption(
+  question: string,
+  values: Record<string, string>,
+  defaultValue: number
+): Promise<string | undefined> {
+  Log.bootstrap('')
+  Log.bootstrap(`  ${question}`)
+  Log.bootstrap(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
+
+  try {
+    const { id } = await cliSelect({
+      values: { ...values, cancel: 'Cancel' },
+      defaultValue,
+      selected: cyan('❯'),
+      unselected: ' ',
+      indentation: 2,
+      valueRenderer: (value: string, selected: boolean) =>
+        selected ? cyan(bold(value)) : value,
+    })
+    return typeof id === 'string' && id !== 'cancel' ? id : undefined
+  } catch (error) {
+    if (error) {
+      throw error
+    }
+    return undefined
+  }
 }
 
 async function chooseWorktree(): Promise<boolean> {
@@ -175,25 +226,30 @@ function copyUpgradePrompt(prompt: string, noHarness = false): void {
 function launchHarness(
   harness: UpgradeHarness,
   prompt: string,
-  directory: string
+  directory: string,
+  model: string,
+  effort: string
 ): Promise<number> {
   // Windows shell shims cannot carry literal line breaks in an argument.
   if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
     prompt = prompt.replace(/[\r\n]+/g, ' ')
   }
 
-  return runChildProcess(
-    harness.path,
-    ['--model', UPGRADE_MODELS[harness.name], prompt],
-    { cwd: directory, stdio: 'inherit' }
-  )
+  const args =
+    harness.name === 'codex'
+      ? ['--model', model, '-c', `model_reasoning_effort=${effort}`, prompt]
+      : ['--model', model, '--effort', effort, prompt]
+  return runChildProcess(harness.path, args, {
+    cwd: directory,
+    stdio: 'inherit',
+  })
 }
 
 export async function handoffUpgrade(
   prompt: UpgradePrompt,
   directory: string
 ): Promise<void> {
-  // Existing agents keep their session, model and permissions.
+  // Existing agents keep their session and permissions.
   if (await getAgentName()) {
     Log.bootstrap(resolvePrompt(prompt, null, true))
     return
@@ -227,6 +283,29 @@ export async function handoffUpgrade(
     return
   }
 
+  const models = UPGRADE_MODELS[harness.name]
+  const modelId = await chooseOption(
+    `Which ${getHarnessDisplayName(harness.name)} model should run the upgrade?`,
+    Object.fromEntries(models.map(({ id, label }) => [id, label])),
+    0
+  )
+  const model = models.find(({ id }) => id === modelId)
+  if (!model) {
+    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+    process.exitCode = 1
+    return
+  }
+
+  const effort = await chooseOption(
+    'Which reasoning effort should the upgrade use?',
+    Object.fromEntries(model.efforts.map((value) => [value, value])),
+    model.efforts.indexOf('high')
+  )
+  if (!effort || !model.efforts.some((value) => value === effort)) {
+    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+    process.exitCode = 1
+    return
+  }
   let useWorktree: boolean
   try {
     useWorktree = await chooseWorktree()
@@ -245,7 +324,9 @@ export async function handoffUpgrade(
     process.exitCode = await launchHarness(
       harness,
       resolvePrompt(prompt, useWorktree),
-      directory
+      directory,
+      model.id,
+      effort
     )
   } catch {
     Log.error(`Could not start ${getHarnessDisplayName(harness.name)}.`)

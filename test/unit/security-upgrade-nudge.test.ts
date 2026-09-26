@@ -162,7 +162,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*Ask which model they want for the agent upgrade\.[\s\S]*After they choose a model, ask which reasoning effort they want\.[\s\S]*If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -413,7 +413,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*Ask which model they want for the agent upgrade\.[\s\S]*After they choose a model, ask which reasoning effort they want\.[\s\S]*If the app is in a Git repository, ask whether they want the upgrade in a separate Git worktree or in the current checkout, and respect their choice\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
       ),
     })
     await expect(
