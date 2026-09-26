@@ -142,6 +142,7 @@ export default class FileSystemCache implements CacheHandler {
               headers: meta.headers,
               status: meta.status,
             },
+            cacheControl: meta.cacheControl,
           }
         } else {
           const filePath = this.getFilePath(
@@ -253,6 +254,7 @@ export default class FileSystemCache implements CacheHandler {
                 status: meta?.status,
                 segmentData: maybeSegmentData,
               },
+              cacheControl: meta?.cacheControl,
             }
           } else if (kind === IncrementalCacheKind.PAGES) {
             let meta: RouteMetadata | undefined
@@ -351,9 +353,12 @@ export default class FileSystemCache implements CacheHandler {
     data: IncrementalCacheValue | null,
     ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
   ) {
+    const cacheControl = ctx.fetchCache ? undefined : ctx.cacheControl
+
     FileSystemCache.memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
+      cacheControl,
     })
 
     if (FileSystemCache.debug) {
@@ -380,6 +385,7 @@ export default class FileSystemCache implements CacheHandler {
         postponed: undefined,
         segmentPaths: undefined,
         prefetchHints: undefined,
+        cacheControl,
       }
 
       writer.append(
@@ -434,6 +440,7 @@ export default class FileSystemCache implements CacheHandler {
           postponed: data.postponed,
           segmentPaths,
           prefetchHints: undefined,
+          cacheControl,
         }
 
         writer.append(
