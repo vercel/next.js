@@ -19,11 +19,13 @@ auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
 crc32fast = { workspace = true }
+dashmap = { workspace = true }
 either = { workspace = true }
 fs-err = { workspace = true }
 jiff = { version = "0.2.10", features = ["serde"] }
 lz4_flex = { workspace = true }
 memmap2 = { version = "0.9.5", optional = true }
+nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }
 # See https://github.com/vercel/next.js/issues/91708 for why we need the legacy_x86_64_support feature
 qfilter = { version = "=0.3.0-alpha.4", features = ["serde", "legacy_x86_64_support"] }

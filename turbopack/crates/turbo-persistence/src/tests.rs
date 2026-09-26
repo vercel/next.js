@@ -2920,3 +2920,131 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
     }
     Ok(())
 }
+
+/// Counts the entries of the family's hot and other bottom SST files.
+fn bottom_entry_counts(db: &TurboPersistence<RayonParallelScheduler, 1>) -> Result<(usize, usize)> {
+    let mut hot = 0;
+    let mut cold = 0;
+    for entry in db.meta_info()?.into_iter().flat_map(|meta| meta.entries) {
+        if entry.flags.hot() {
+            hot += entry.entry_count as usize;
+        } else if entry.flags.bottom() {
+            cold += entry.entry_count as usize;
+        }
+    }
+    Ok((hot, cold))
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn bottom_merge_writes_read_keys_into_hot_files(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = || {
+        let mut config = config_with_mmap::<1>(mmap);
+        config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
+        config
+    };
+    const KEYS: u32 = 2_000;
+    const HOT: u32 = 300;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+
+    let db = open_db_with_config::<1>(path, config())?;
+    put_all(&db, 0)?;
+    // No keys were read yet, so the first bottom merge has no hot files.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+
+    // Read some keys; the next commit records them.
+    for key in 0..HOT {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    put_all(&db, 1)?;
+    db.full_compact()?;
+    assert_eq!(
+        bottom_entry_counts(&db)?,
+        (HOT as usize, (KEYS - HOT) as usize)
+    );
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &1u32.to_be_bytes()
+        );
+    }
+    db.shutdown()?;
+
+    // The full compaction merged every SST file of the commit that recorded the reads, which
+    // retired its meta file and the used keys with it. The reads of the keys checked above were
+    // never committed, so the next bottom merge writes no hot files.
+    let db = open_db_with_config::<1>(path, config())?;
+    put_all(&db, 2)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &2u32.to_be_bytes()
+        );
+    }
+    Ok(())
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
+    let db = open_db_with_config::<1>(path, config)?;
+    const KEYS: u32 = 2_000;
+    let put_all = |generation: u32| -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                generation.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+        Ok(())
+    };
+    put_all(0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    put_all(1)?;
+    // Bottom merge only one of the two shards. The commit that recorded the used keys still has an
+    // SST file in the other shard, so its meta file and the used keys stay alive for that shard.
+    db.compact(&CompactConfig {
+        max_merge_jobs: 1,
+        ..CompactConfig::full()
+    })?;
+    let (hot_after_first, _) = bottom_entry_counts(&db)?;
+    assert!(hot_after_first > 0 && hot_after_first < KEYS as usize);
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Now every SST file of that commit was merged, so its meta file and the used keys are gone.
+    // Compaction didn't copy them, so the next bottom merges write no hot files.
+    put_all(2)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    Ok(())
+}
