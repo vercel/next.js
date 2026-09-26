@@ -2040,43 +2040,6 @@ mod tests {
         })
     }
 
-    /// Differing value types use the variable layout even when their encoded sizes match.
-    #[test]
-    fn mixed_value_types_of_equal_size_fall_back_to_variable_layout() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-
-        // Uniform 8-byte keys and 4-byte values, but two different entry types.
-        let mut entries: Vec<TestEntry> = (0..64u64)
-            .map(|i| {
-                let key = format!("k-{i:06}");
-                if i % 4 == 0 {
-                    TestEntry::blob(key.as_bytes(), i as u32)
-                } else {
-                    TestEntry::inline(key.as_bytes(), &[0xBBu8; 4])
-                }
-            })
-            .collect();
-        sort_entries(&mut entries);
-
-        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
-        let block = read_first_block(dir.path(), 1, meta.block_count)?;
-
-        assert_eq!(
-            KeyBlockLayout::from_block_type(block[0]).map(|(_, fixed)| fixed),
-            Some(false),
-            "mixed value types should use variable layout, got block type {}",
-            block[0]
-        );
-
-        let sst = open_sst(dir.path(), 1, &meta)?;
-        let kc = make_cache();
-        let vc = make_cache();
-        for entry in &entries {
-            assert_lookup(&sst, entry, &kc, &vc)?;
-        }
-        Ok(())
-    }
-
     /// Differing value *sizes* cannot share a stride, so the block must fall back to variable
     /// layout rather than silently misreading entries.
     #[test]

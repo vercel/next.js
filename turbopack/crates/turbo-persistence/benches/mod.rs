@@ -972,7 +972,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_>(hash, &key, key_block_cache, value_block_cache)
+                        .lookup(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -991,7 +991,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 |i| keys[i as usize % keys.len()],
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_>(hash, &key, key_block_cache, value_block_cache)
+                        .lookup(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1017,7 +1017,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_>(hash, &key, key_block_cache, value_block_cache)
+                        .lookup(hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },
@@ -1050,7 +1050,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 },
                 |(key, hash)| {
                     let result = sst
-                        .lookup::<_>(*hash, &key, key_block_cache, value_block_cache)
+                        .lookup(*hash, &key, key_block_cache, value_block_cache)
                         .unwrap();
                     black_box(result)
                 },

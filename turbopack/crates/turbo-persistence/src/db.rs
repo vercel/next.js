@@ -2065,7 +2065,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             found_in_sst = true;
                         }
                         inner.accessed_key_hashes[family].insert(hash);
-                        for value in values {
+                        if let Some(value) = values.into_iter().next() {
                             match value {
                                 LookupValue::KeyDeleted => {
                                     #[cfg(feature = "stats")]
