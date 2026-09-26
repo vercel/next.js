@@ -436,15 +436,16 @@ describe('prepare latest upgrade', () => {
   })
 
   it.each([
-    ['rc', '17.2.0-rc.1', '17.2.0-rc.2'],
-    ['beta', '17.2.0-beta.1', '17.2.0-beta.2'],
-    ['preview', '17.2.0-preview.1', '17.2.0-preview.2'],
+    ['rc', '17.2.0-rc.1'],
+    ['beta', '17.2.0-beta.1'],
+    ['preview', '17.2.0-preview.1'],
   ])(
-    'selects the exact %s dist-tag for a latest upgrade',
-    async (channel, installed, target) => {
+    'selects stable latest for a %s installation',
+    async (channel, installed) => {
+      const target = '17.2.0'
       const directory = await createApp(installed)
       global.fetch = jest.fn(async (input) => {
-        expect(String(input)).toBe(`https://registry.npmjs.org/next/${channel}`)
+        expect(String(input)).toBe('https://registry.npmjs.org/next/latest')
         return Response.json({ version: target })
       })
       await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual(
@@ -452,21 +453,37 @@ describe('prepare latest upgrade', () => {
           status: 'ready',
           installedVersion: installed,
           targetVersion: target,
-          references: [`https://registry.npmjs.org/next/${channel}`],
+          references: ['https://registry.npmjs.org/next/latest'],
         })
       )
       expect(global.fetch).toHaveBeenCalledTimes(1)
     }
   )
 
-  it.each(['17.2.0', '17.2.0-beta.2', 'invalid'])(
-    'rejects a wrong-channel or invalid RC dist-tag: %s',
+  it.each(['17.2.0-rc.2', '17.2.0-beta.2', 'invalid'])(
+    'rejects a prerelease or invalid stable dist-tag: %s',
     async (target) => {
       const directory = await createApp('17.2.0-rc.1')
       global.fetch = jest.fn(async () => Response.json({ version: target }))
       await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-        'Could not determine the latest Next.js version on the rc dist-tag.'
+        'Could not determine the latest stable Next.js version.'
       )
+    }
+  )
+
+  it.each(['17.3.0-rc.1', '17.3.0-beta.1', '17.3.0-preview.1'])(
+    'does not downgrade %s when stable latest is older',
+    async (installed) => {
+      const directory = await createApp(installed)
+      global.fetch = jest.fn(async (input) => {
+        expect(String(input)).toBe('https://registry.npmjs.org/next/latest')
+        return Response.json({ version: '17.2.0' })
+      })
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toEqual({
+        status: 'unaffected',
+        reason: `Next.js ${installed} is newer than the latest stable release 17.2.0.`,
+      })
+      expect(global.fetch).toHaveBeenCalledTimes(1)
     }
   )
 

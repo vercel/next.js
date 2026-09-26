@@ -694,12 +694,12 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it('names the prerelease channel in a latest upgrade handoff', async () => {
+  it('names the stable target in a prerelease latest upgrade handoff', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '17.2.0-rc.1',
-      targetVersion: '17.2.0-rc.2',
-      references: ['https://registry.npmjs.org/next/rc'],
+      targetVersion: '17.2.0',
+      references: ['https://registry.npmjs.org/next/latest'],
       futureDefaults: [],
     })
 
@@ -710,9 +710,9 @@ describe('agentic upgrade prompts', () => {
     })
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
-    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0-rc.2')
-    expect(prompt).toContain('newer rc Next.js release')
-    expect(prompt).toContain('https://registry.npmjs.org/next/rc')
+    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
+    expect(prompt).toContain('newer stable Next.js release')
+    expect(prompt).toContain('https://registry.npmjs.org/next/latest')
   })
 
   it('adds the Future Defaults guide after a same-major update', async () => {
