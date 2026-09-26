@@ -1,0 +1,67 @@
+---
+title: Set up automatic Next.js upgrades
+description: Install a weekly GitHub Actions workflow for Next.js upgrades.
+version: draft
+---
+
+`next upgrade --ci` hands this checklist to a coding agent. It supports one
+Next.js app at the repository root. The app does not need an upgrade first.
+Complete every setup item in order. If blocked, stop and tell the user exactly
+what remains.
+
+## Setup checklist
+
+- [ ] Confirm the GitHub repository, default branch, root app, and lockfile.
+      Check for an existing workflow or setup pull request.
+- [ ] Copy the workflow below to `.github/workflows/next-upgrade.yml` and open
+      a draft setup pull request.
+- [ ] Connect **one** credential: an OpenAI API key, Anthropic API key, or
+      Claude Code OAuth token. Reuse an accessible GitHub secret, or get approval
+      for the exact repository and secret name before transferring a local key.
+      Otherwise, have the user enter it through [GitHub's secret
+      settings](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
+      or [GitHub CLI](https://cli.github.com/manual/gh_secret_set). Never put a
+      credential value in chat, files, pull requests, or logs.
+- [ ] Enable [GitHub Actions to create pull
+      requests](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/manage-github-actions-settings-for-a-repository).
+      Merge the setup pull request, run the workflow manually, and inspect the
+      result. If a credential or permission is unavailable, leave the setup
+      pull request open and explain the remaining step.
+
+## Workflow
+
+```yaml filename=".github/workflows/next-upgrade.yml"
+name: Next.js upgrade
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * 1'
+
+jobs:
+  upgrade:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: vercel/next.js/.github/workflows/next-upgrade.yml@canary
+    secrets:
+      openai-api-key: ${{ secrets.NEXT_AI_UPGRADE_OPENAI_API_KEY }}
+      anthropic-api-key: ${{ secrets.NEXT_AI_UPGRADE_ANTHROPIC_API_KEY }}
+      claude-code-oauth-token: ${{ secrets.NEXT_AI_UPGRADE_CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+Only one secret needs a value. The reusable workflow selects the matching
+agent and uses the app's `experimental.agenticAutoUpgrade` policy, or
+`security` by default. `@canary` tracks the reusable workflow after it merges
+into Next.js.
+
+## Each run
+
+- [ ] Check out the app and run `next upgrade --ai` through the selected agent.
+      The agent may open a draft PR without asking again.
+- [ ] Check GitHub for an open upgrade PR targeting the default branch with
+      a valid upgrade type and `path="."` marker. The agent checks whether an
+      existing PR is equivalent; the marker alone does not prove that.
+- [ ] Succeed only if the agent succeeds and that PR is verified. Otherwise,
+      fail with a reason. This includes a run with no applicable upgrade and
+      no open upgrade PR.
