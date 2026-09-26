@@ -12,9 +12,6 @@ use crate::{
 pub enum LookupValue<B = ArcBytes> {
     /// The value was deleted.
     KeyDeleted,
-    /// A single value was deleted from this key's group (MultiValue families only). Other values
-    /// for the same key are unaffected. The bytes are the deleted value.
-    KeyValueDeleted { value: B },
     /// The value is stored in the SST file.
     ///
     /// The bytes will be pointing either at a keyblock or a value block in the SST
@@ -28,8 +25,6 @@ pub enum LookupValue<B = ArcBytes> {
 pub enum IterValue {
     /// The value was deleted.
     KeyDeleted,
-    /// A single value was deleted from this key's group (MultiValue families only).
-    KeyValueDeleted { value: RcBytes },
     /// The value is stored in the SST file.
     Slice { value: RcBytes },
     /// The value is stored in a blob file.
@@ -45,7 +40,6 @@ impl From<LookupValue<RcBytes>> for IterValue {
     fn from(v: LookupValue<RcBytes>) -> Self {
         match v {
             LookupValue::KeyDeleted => IterValue::KeyDeleted,
-            LookupValue::KeyValueDeleted { value } => IterValue::KeyValueDeleted { value },
             LookupValue::Slice { value } => IterValue::Slice { value },
             LookupValue::Blob { sequence_number } => IterValue::Blob { sequence_number },
         }
@@ -77,7 +71,6 @@ impl Entry for LookupEntry {
     fn value(&self) -> EntryValue<'_> {
         match &self.value {
             IterValue::KeyDeleted => EntryValue::KeyDeleted,
-            IterValue::KeyValueDeleted { value } => EntryValue::KeyValueDeleted { value },
             IterValue::Slice { value } => {
                 if value.len() <= MAX_INLINE_VALUE_SIZE {
                     EntryValue::Inline { value }

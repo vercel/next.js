@@ -14,7 +14,6 @@ use byteorder::{BE, ReadBytesExt};
 use fs_err::File;
 #[cfg(feature = "mmap")]
 use memmap2::{Mmap, MmapOptions};
-use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 #[cfg(feature = "mmap")]
@@ -548,11 +547,7 @@ impl MetaFile {
     }
 
     /// Looks up a key in this meta file.
-    ///
-    /// If `FIND_ALL` is false, returns after finding the first match.
-    /// If `FIND_ALL` is true, returns all entries with the same key from all SST files
-    /// (useful for keyspaces where keys are hashes and collisions are possible).
-    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
+    pub fn lookup<K: QueryKey>(
         &self,
         key_family: u32,
         key_hash: u64,
@@ -564,7 +559,6 @@ impl MetaFile {
             return Ok(MetaLookupResult::FamilyMiss);
         }
         let mut miss_result = MetaLookupResult::RangeMiss;
-        let mut all_results: SmallVec<[LookupValue; 1]> = SmallVec::new();
 
         for (index, range) in self.hash_ranges.iter().enumerate().rev() {
             if !range.contains(key_hash) {
@@ -576,42 +570,19 @@ impl MetaFile {
                 continue;
             }
 
-            let result = entry.sst(self)?.lookup::<K, FIND_ALL>(
-                key_hash,
-                key,
-                key_block_cache,
-                value_block_cache,
-            )?;
+            let result =
+                entry
+                    .sst(self)?
+                    .lookup::<K>(key_hash, key, key_block_cache, value_block_cache)?;
 
             match result {
                 SstLookupResult::NotFound => {
                     // continue searching other sst files
                 }
                 SstLookupResult::Found(values) => {
-                    if !FIND_ALL {
-                        // Return immediately with the first result
-                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
-                    }
-                    // A key tombstone stops the search across older SSTs within this meta file.
-                    // It sorts last within a key group, so it is the last value if present.
-                    // Key-value tombstones do not stop the search: they delete a single value,
-                    // and older SSTs may hold others for this key.
-                    let has_tombstone =
-                        values.last().is_some_and(|v| *v == LookupValue::KeyDeleted);
-                    all_results.extend(values);
-                    if has_tombstone {
-                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
-                            all_results,
-                        )));
-                    }
+                    return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
                 }
             }
-        }
-
-        if FIND_ALL && !all_results.is_empty() {
-            return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
-                all_results,
-            )));
         }
 
         Ok(miss_result)
@@ -685,7 +656,7 @@ impl MetaFile {
                     }
                     continue;
                 }
-                let sst_result = entry.sst(self)?.lookup::<_, false>(
+                let sst_result = entry.sst(self)?.lookup::<_>(
                     *hash,
                     &keys[*index],
                     key_block_cache,

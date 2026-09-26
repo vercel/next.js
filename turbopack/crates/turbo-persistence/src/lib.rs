@@ -49,25 +49,10 @@ pub enum AccessMode {
     File,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FamilyKind {
-    /// Each key maps to a single value (default LSM behavior).
-    /// When multiple entries have the same key, only the newest is retained during compaction or
-    /// returned by queries
-    /// Access must use `get` not `get_multiple`
-    SingleValue,
-    /// Each key can map to multiple values.
-    /// Duplicate values are not dropped.
-    /// The order of values returned by `get_multiple` is undefined.
-    /// Access must use `get_multiple` not `get`
-    MultiValue,
-}
-
 /// Configuration for a single family to describe how the data is stored.
 #[derive(Clone, Copy, Debug)]
 pub struct FamilyConfig {
     pub name: &'static str,
-    pub kind: FamilyKind,
     pub compression: Compression,
 }
 
@@ -128,15 +113,13 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
         Self {
             family_configs: [FamilyConfig {
                 name: "unknown",
-                kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             }; FAMILIES],
             access_mode: default_access_mode(),
         }
     }
 }
-/// The largest value that [`WriteBatch::delete_value`] can delete, since the tombstone stores
-/// a copy of the value inline.
+/// The largest value stored directly in a key block.
 pub use constants::MAX_INLINE_VALUE_SIZE;
 
 impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {

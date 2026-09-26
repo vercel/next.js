@@ -1,4 +1,4 @@
-use turbo_persistence::{Compression, FamilyConfig, FamilyKind};
+use turbo_persistence::{Compression, FamilyConfig};
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
@@ -37,17 +37,14 @@ impl KeySpace {
         match self {
             KeySpace::Infra | KeySpace::TaskMeta => FamilyConfig {
                 name: self.name(),
-                kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             },
             KeySpace::TaskData => FamilyConfig {
                 name: self.name(),
-                kind: FamilyKind::SingleValue,
                 compression: Compression::Zstd3,
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
-                kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             },
         }
