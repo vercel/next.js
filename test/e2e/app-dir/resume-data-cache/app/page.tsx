@@ -2,11 +2,12 @@ import React, { Suspense } from 'react'
 import { connection } from 'next/server'
 
 import { cacheTag } from 'next/cache'
+import { getSentinelValue } from './sentinel'
 
-async function getRandomNumber() {
+async function getCachedTimestamp() {
   'use cache'
   cacheTag('test')
-  return Math.random()
+  return `${getSentinelValue()}-${Date.now()}`
 }
 
 async function DynamicComponent() {
@@ -15,15 +16,15 @@ async function DynamicComponent() {
 }
 
 export default async function Page() {
-  const randomNumber = await getRandomNumber()
-  const anotherRandomNumber = await fetch(
+  const timestamp = await getCachedTimestamp()
+  const randomNumber = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random',
     { cache: 'force-cache', next: { tags: ['test'] } }
   ).then((res) => res.text())
   return (
     <>
+      <p id="timestamp">{timestamp}</p>
       <p id="random-number">{randomNumber}</p>
-      <p id="another-random-number">{anotherRandomNumber}</p>
       <Suspense>
         <DynamicComponent />
       </Suspense>

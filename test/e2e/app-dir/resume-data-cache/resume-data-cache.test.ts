@@ -13,8 +13,8 @@ describe('resume-data-cache', () => {
   }
 
   it.each([
-    { name: 'use cache', id: 'random-number' },
-    { name: 'fetch cache', id: 'another-random-number' },
+    { name: 'use cache', id: 'timestamp' },
+    { name: 'fetch cache', id: 'random-number' },
   ])(
     'should have consistent data between static and dynamic renders with $name',
     async ({ id }) => {
