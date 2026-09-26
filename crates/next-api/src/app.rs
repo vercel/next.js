@@ -1574,10 +1574,51 @@ impl AppEndpoint {
             )
             .to_resolved()
             .await?;
-        server_assets.extend(app_entry_chunks.all_assets().await?);
+        let expanded_app_entry_chunks = app_entry_chunks.expand_all_assets();
+        let all_app_entry_chunks = app_entry_chunks.all_assets().await?;
+        server_assets.extend(all_app_entry_chunks.iter().copied());
         let app_entry_chunk_group_ref = app_entry_chunks.await?;
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
+
+        if is_app_page
+            && runtime == NextRuntime::NodeJs
+            && *project
+                .next_config()
+                .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
+                .await?
+        {
+            let rsc_chunks = expanded_app_entry_chunks
+                .await?
+                .iter()
+                .copied()
+                .map(async |asset| {
+                    let path = asset.path().owned().await?;
+                    Ok(node_root
+                        .get_path_to(&path)
+                        .is_some_and(|path| {
+                            path.starts_with("server/chunks/") && path.ends_with(".js")
+                        })
+                        .then_some(asset))
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            let rsc_hmr_chunks = project
+                .server_chunking_context(true)
+                .server_hmr_chunk_list(
+                    server_path.join(&format!(
+                        "app{}/rsc-dynamic-imports.js",
+                        app_entry.original_name
+                    ))?,
+                    Vc::cell(rsc_chunks),
+                )
+                .to_resolved()
+                .await?;
+            server_assets.insert(rsc_hmr_chunks);
+        }
 
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
@@ -2195,11 +2236,21 @@ impl Endpoint for AppEndpoint {
                         .unwrap_or(&server_entry_path)
                         .strip_suffix(".js")
                         .unwrap_or(&server_entry_path);
+                    let mut server_hmr_entry_paths = vec![
+                        format!("{hmr_entry_path}.js").into(),
+                        format!("{hmr_entry_path}/client-components-ssr.js").into(),
+                    ];
+                    if matches!(this.ty, AppEndpointType::Page { .. })
+                        && *project
+                            .next_config()
+                            .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
+                            .await?
+                    {
+                        server_hmr_entry_paths
+                            .push(format!("{hmr_entry_path}/rsc-dynamic-imports.js").into());
+                    }
                     EndpointOutputPaths::NodeJs {
-                        server_hmr_entry_paths: vec![
-                            format!("{hmr_entry_path}.js").into(),
-                            format!("{hmr_entry_path}/client-components-ssr.js").into(),
-                        ],
+                        server_hmr_entry_paths,
                         server_entry_path,
                         server_paths,
                         client_paths,
