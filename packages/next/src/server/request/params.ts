@@ -378,6 +378,7 @@ function createStaticPrerenderParams(
             // to consider the awaiting of this params object "dynamic". Since
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
+
             return makeHangingParams(
               underlyingParams,
               workStore,

@@ -27,6 +27,7 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 type RuntimeConfig = {
   configFileName: string
   cacheComponents: boolean
+  partialPrefetching: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -116,7 +117,11 @@ export async function loadStaticPaths({
     const segments = await collectSegments(
       // We know this is an app page or app route module because we checked
       // above that the page type is 'app'.
-      routeModule as AppPageRouteModule | AppRouteRouteModule
+      routeModule as AppPageRouteModule | AppRouteRouteModule,
+      {
+        cacheComponents: config.cacheComponents,
+        partialPrefetching: config.partialPrefetching,
+      }
     )
 
     const route = parseNormalizedAppRoute(pathname)
@@ -128,6 +133,13 @@ export async function loadStaticPaths({
 
     const isRoutePPREnabled =
       isAppPageRouteModule(routeModule) && config.cacheComponents
+
+    const isEnsureStaticPage =
+      config.cacheComponents &&
+      isRoutePPREnabled &&
+      segments.some(
+        (segment) => segment.config?.unstable_ensureStatic === 'navigation'
+      )
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
@@ -147,6 +159,7 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
+      isEnsureStaticPage,
       buildId,
       deploymentId,
       authInterrupts,

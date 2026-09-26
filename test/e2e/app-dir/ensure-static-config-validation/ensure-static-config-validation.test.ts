@@ -12,8 +12,6 @@ import {
   ErrorSnapshot,
 } from '../../../lib/add-redbox-matchers'
 
-const NOT_IMPLEMENTED_VALUES: EnsureStatic[] = ['navigation']
-
 // Cannot prerender individual pages in deploy mode
 // @force-gate !deploy
 describe('unstable_ensureStatic config validation', () => {
@@ -141,13 +139,6 @@ describe('unstable_ensureStatic config validation', () => {
         async ({ child, isValid }) => {
           const route = `/nested/parent-${parent}/child-${child}`
 
-          const isNotImplemented =
-            NOT_IMPLEMENTED_VALUES.includes(parent) ||
-            NOT_IMPLEMENTED_VALUES.includes(child)
-
-          const NOT_IMPLMEMENTED_PATTERN =
-            /`export const unstable_ensureStatic = .+?` is not implemented yet./
-
           const INVALID_CONFIG_MESSAGE = // `false` has a dedicated error message.
             parent === false || child === false
               ? `A child segment cannot override a parent segment with an incompatible \`unstable_ensureStatic\`.`
@@ -156,23 +147,7 @@ describe('unstable_ensureStatic config validation', () => {
           if (isNextDev) {
             const browser = await next.browser(route)
             if (isValid) {
-              // Valid nestings for options that aren't implemented yet still error.
-              if (isNotImplemented) {
-                await expectRedboxWith(
-                  browser,
-                  next,
-                  {
-                    label: 'Runtime Error',
-                    description: expect.stringMatching(
-                      NOT_IMPLMEMENTED_PATTERN
-                    ),
-                  },
-                  REDBOX_WAIT_OPTS
-                )
-              } else {
-                // Valid nesting should pass.
-                await waitForNoRedbox(browser, REDBOX_WAIT_OPTS)
-              }
+              await waitForNoRedbox(browser, REDBOX_WAIT_OPTS)
             } else {
               // Invalid nestings should error.
               await expectRedboxWith(
@@ -188,14 +163,8 @@ describe('unstable_ensureStatic config validation', () => {
           } else {
             const result = await prerenderPattern(`app/${route}/page.tsx`)
             if (isValid) {
-              // Valid nestings for options that aren't implemented yet still error.
-              if (isNotImplemented) {
-                expect(result.exitCode).toBe(1)
-                expect(result.cliOutput).toMatch(NOT_IMPLMEMENTED_PATTERN)
-              } else {
-                // Valid nestings should pass.
-                expect(result.exitCode).toBe(0)
-              }
+              // Valid nestings should pass.
+              expect(result.exitCode).toBe(0)
             } else {
               // Invalid nestings should error.
               expect(result.exitCode).toBe(1)
@@ -227,33 +196,13 @@ describe('unstable_ensureStatic config validation', () => {
       async ({ left, right, isValid }) => {
         const route = `/sibling-slots/left-${left}-right-${right}`
 
-        const isNotImplemented =
-          NOT_IMPLEMENTED_VALUES.includes(left) ||
-          NOT_IMPLEMENTED_VALUES.includes(right)
-
-        const NOT_IMPLMEMENTED_PATTERN =
-          /`export const unstable_ensureStatic = .+?` is not implemented yet./
-
         const INVALID_CONFIG_MESSAGE = `Parallel slots cannot have incompatible \`unstable_ensureStatic\`.`
 
         if (isNextDev) {
           const browser = await next.browser(route)
           if (isValid) {
-            // Valid combinations of options that aren't implemented yet still error.
-            if (isNotImplemented) {
-              await expectRedboxWith(
-                browser,
-                next,
-                {
-                  label: 'Runtime Error',
-                  description: expect.stringMatching(NOT_IMPLMEMENTED_PATTERN),
-                },
-                REDBOX_WAIT_OPTS
-              )
-            } else {
-              // Valid combinations should pass.
-              await waitForNoRedbox(browser, REDBOX_WAIT_OPTS)
-            }
+            // Valid combinations should pass.
+            await waitForNoRedbox(browser, REDBOX_WAIT_OPTS)
           } else {
             // Invalid combinations should error.
             await expectRedboxWith(
@@ -269,14 +218,8 @@ describe('unstable_ensureStatic config validation', () => {
         } else {
           const result = await prerenderPattern(`app/${route}/*/page.tsx`)
           if (isValid) {
-            // Valid combinations of options that aren't implemented yet still error.
-            if (isNotImplemented) {
-              expect(result.exitCode).toBe(1)
-              expect(result.cliOutput).toMatch(NOT_IMPLMEMENTED_PATTERN)
-            } else {
-              // Valid combinations should pass.
-              expect(result.exitCode).toBe(0)
-            }
+            // Valid combinations should pass.
+            expect(result.exitCode).toBe(0)
           } else {
             // Invalid combinations should error.
             expect(result.exitCode).toBe(1)

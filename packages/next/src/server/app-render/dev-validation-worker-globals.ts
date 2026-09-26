@@ -3,9 +3,10 @@ import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { PrefetchingMode } from './app-render'
 import type { NextConfigComplete, ValidationLevel } from '../config-shared'
-import type { ImageConfigComplete } from '../../shared/lib/image-config'
 import type { StageEndTimes } from './instant-validation/instant-validation'
 import type { AdvanceableRenderStage } from './staged-rendering'
+import type { RenderOpts } from './types'
+import type { NonPartial } from '../../shared/lib/typescript-utils'
 
 /**
  * Cross-module handoff for the dev validation worker (client-module warmup,
@@ -100,10 +101,9 @@ export interface DevValidationSnapshot {
   additionalClientReferenceManifestPages: string[]
   reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
-  renderOpts: {
-    images: ImageConfigComplete
-    allowEmptyStaticShell: boolean | undefined
-  }
+  renderOpts: NonPartial<
+    Pick<RenderOpts, 'images' | 'allowEmptyStaticShell' | 'partialPrefetching'>
+  >
   instantInputs: SerializedValidationInputs | null
   staticInputs: SerializedValidationInputs
 }
