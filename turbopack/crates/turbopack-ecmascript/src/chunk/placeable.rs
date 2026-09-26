@@ -339,6 +339,8 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
+                // TODO: Re-enable mangling-only facade splits once remote-components consumers
+                // can share a singleton across dynamic facade and static locals imports (#99279).
                 Vc::cell(has_reexports)
             }
             _ => Vc::cell(false),
