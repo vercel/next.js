@@ -108,7 +108,15 @@ function getParametrizedRoute(
     if (markerMatch && paramMatches && paramMatches[2]) {
       const { key, optional, repeat } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
-      segments.push(`/${escapeStringRegexp(markerMatch)}([^/]+?)`)
+      // Must honor `repeat`/`optional` here — the non-intercepted branch below
+      // and `getNamedParametrizedRoute` already do. Hardcoding `([^/]+?)` makes
+      // routes like `/(.)[...slug]` fail to match multi-segment paths.
+      const paramPattern = repeat ? '(.+?)' : '([^/]+?)'
+      segments.push(
+        optional
+          ? `(?:/${escapeStringRegexp(markerMatch)}${paramPattern})?`
+          : `/${escapeStringRegexp(markerMatch)}${paramPattern}`
+      )
     } else if (paramMatches && paramMatches[2]) {
       const { key, repeat, optional } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
