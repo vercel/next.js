@@ -45,6 +45,18 @@ function onlyReactElement(
   return list.concat(child)
 }
 
+function isValidHeadChild(c: React.ReactElement<any>) {
+  if (c.type === 'html' || c.type === 'body') {
+    if (process.env.NODE_ENV === 'development') {
+      warnOnce(
+        `Do not add <${c.type}> tags using next/head. next/head can only handle tags inside the HTML <head> tag.`
+      )
+    }
+    return false
+  }
+  return true
+}
+
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
@@ -121,6 +133,7 @@ function reduceComponents(
 ) {
   return headChildrenElements
     .reduce(onlyReactElement, [])
+    .filter(isValidHeadChild)
     .reverse()
     .concat(defaultHead().reverse())
     .filter(unique())
