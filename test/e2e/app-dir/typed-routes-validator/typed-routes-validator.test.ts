@@ -5,6 +5,19 @@ import { getDistDir, retry } from 'next-test-utils'
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
+/** Asserts the CLI output contains an ApiRouteConfig type-check failure. */
+function expectApiRouteConfigTypeError(cliOutput: string) {
+  if (strictRouteTypes) {
+    expect(cliOutput).toMatch(
+      /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'ApiRouteConfig'/
+    )
+  } else {
+    expect(cliOutput).toMatch(
+      /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
+    )
+  }
+}
+
 describe('typed-routes-validator', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
@@ -313,14 +326,49 @@ describe('typed-routes-validator', () => {
 
     export const config = {
       api: {
-        bodyParser: true,
+        bodyParser: false,
+        responseLimit: '4mb',
       },
     }
             `
       )
 
-      const { exitCode } = await next.build()
-      expect(exitCode).toBe(0)
+      try {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+      } finally {
+        await next.deleteFile('pages/api/valid-api.ts')
+      }
+    })
+
+    it('should pass type checking when sizeLimit is a number', async () => {
+      await next.patchFile(
+        'pages/api/valid-size-limit.ts',
+        `
+    import type { NextApiRequest, NextApiResponse } from 'next'
+    import type { PageConfig } from 'next'
+
+    export default function handler(
+      req: NextApiRequest,
+      res: NextApiResponse
+    ) {
+      res.status(200).json({ message: 'OK' })
+    }
+
+    export const config: PageConfig = {
+      api: {
+        bodyParser: { sizeLimit: 1024 },
+      },
+    }
+            `
+      )
+
+      try {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+      } finally {
+        await next.deleteFile('pages/api/valid-size-limit.ts')
+      }
     })
 
     it('should fail type checking with invalid API route exports', async () => {
@@ -332,20 +380,16 @@ describe('typed-routes-validator', () => {
             `
       )
 
-      const { exitCode, cliOutput } = await next.build()
-      // clean up before assertion just in case it fails
-      await next.deleteFile('pages/api/invalid-api.ts')
+      let exitCode: number | undefined
+      let cliOutput: string | undefined
+      try {
+        ;({ exitCode, cliOutput } = await next.build())
+      } finally {
+        await next.deleteFile('pages/api/invalid-api.ts')
+      }
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
-        expect(cliOutput).toMatch(
-          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'ApiRouteConfig'/
-        )
-      } else {
-        expect(cliOutput).toMatch(
-          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
-        )
-      }
+      expectApiRouteConfigTypeError(cliOutput!)
     })
   }
 })
