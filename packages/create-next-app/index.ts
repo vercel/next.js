@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
 import ciInfo from 'ci-info'
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
 import Conf from 'conf'
 import { existsSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
@@ -112,6 +112,13 @@ const program = new Command(packageJson.name)
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
+  .addOption(
+    new Option(
+      '--ai-upgrade <type>',
+      'Configure AI upgrade reminders (default: security for humans, future for agents).'
+    ).choices(['security', 'latest', 'future'])
+  )
+  .option('--no-ai-upgrade', 'Disable AI upgrade reminders.')
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -233,7 +240,7 @@ async function run(): Promise<void> {
   let skipPrompt = ciInfo.isCI || opts.yes
   let useRecommendedDefaults = false
 
-  if (!example) {
+  if (!example || example === 'default') {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: false,
@@ -760,6 +767,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      aiUpgrade: opts.aiUpgrade,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -796,6 +804,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      aiUpgrade: opts.aiUpgrade,
     })
   }
   conf.set('preferences', preferences)

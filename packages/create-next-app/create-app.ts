@@ -19,6 +19,10 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import { generateAgentFiles } from './helpers/generate-agent-files'
 import { runTypegen } from './helpers/typegen'
+import {
+  getAIUpgradePolicy,
+  type AIUpgradePolicy,
+} from './helpers/get-ai-upgrade-policy'
 
 import type { Bundler, TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
@@ -45,6 +49,7 @@ export async function createApp({
   reactCompiler,
   cacheComponents,
   agentsMd,
+  aiUpgrade,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -65,6 +70,7 @@ export async function createApp({
   reactCompiler: boolean
   cacheComponents: boolean
   agentsMd: boolean
+  aiUpgrade: AIUpgradePolicy | undefined
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -258,6 +264,7 @@ export async function createApp({
       bundler,
       reactCompiler,
       cacheComponents,
+      aiUpgrade: await getAIUpgradePolicy(aiUpgrade),
     })
   }
 

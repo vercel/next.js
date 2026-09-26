@@ -60,6 +60,18 @@ The following options are available:
 | `--disable-git`                         | Explicitly tell the CLI to disable git initialization                 |
 | `--agents-md`                           | Include `AGENTS.md` to guide coding agents (default)                  |
 | `--yes`                                 | Use previous preferences or defaults for all options                  |
+| `--ai-upgrade <type>`                   | Configure AI upgrade reminders: `security`, `latest`, or `future`     |
+| `--no-ai-upgrade`                       | Disable AI upgrade reminders                                          |
+
+### AI upgrade reminders
+
+For built-in templates, `create-next-app` sets `experimental.agenticAutoUpgrade` to `security` for human invocations and `future` when a coding agent is detected. If detection fails, it uses `security`. This default is determined for each invocation and is not saved in your preferences.
+
+Use `--ai-upgrade security`, `--ai-upgrade latest`, or `--ai-upgrade future` to choose a policy explicitly. Use `--no-ai-upgrade` to write `false` to the config. If both options are provided, the last one takes effect.
+
+`security` enables security upgrade reminders. `latest` also enables reminders for newer major or minor releases. `future` additionally enables reminders to adopt Future Defaults. Creating the app does not run an upgrade or enable those Future Defaults immediately.
+
+These options apply to built-in templates, including `--example default`. Downloaded examples keep their existing configuration and ignore AI upgrade options.
 
 ## Examples
 

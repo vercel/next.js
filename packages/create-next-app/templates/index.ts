@@ -61,6 +61,7 @@ export const installTemplate = async ({
   bundler,
   reactCompiler,
   cacheComponents,
+  aiUpgrade,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -168,6 +169,26 @@ export const installTemplate = async ({
 
     await fs.writeFile(nextConfigFile, configContent);
   }
+
+  const nextConfigFile = path.join(
+    root,
+    mode === "js" ? "next.config.mjs" : "next.config.ts",
+  );
+  const configContent = await fs.readFile(nextConfigFile, "utf8");
+  await fs.writeFile(
+    nextConfigFile,
+    configContent.replace(
+      "/* config options here */\n",
+      `/* config options here */
+  experimental: {
+    agenticAutoUpgrade: ${JSON.stringify(aiUpgrade)},
+  },
+`,
+    ),
+  );
+  console.log(
+    `AI upgrade reminders: ${aiUpgrade === false ? "disabled" : aiUpgrade}.`,
+  );
 
   const tsconfigFile = path.join(
     root,
