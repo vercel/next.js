@@ -9,4 +9,6 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   require('next/dist/server/require-hook')
   // eslint-disable-next-line @next/internal/typechecked-require
   require('next/dist/server/node-polyfill-crypto')
+  // eslint-disable-next-line @next/internal/typechecked-require
+  require('next/dist/server/node-polyfill-url-parse')
 }

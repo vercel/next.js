@@ -1,6 +1,7 @@
 import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
+import './node-polyfill-url-parse'
 
 import type { CacheFs } from '../shared/lib/utils'
 import {

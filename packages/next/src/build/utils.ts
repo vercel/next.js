@@ -34,6 +34,7 @@ import type { NextComponentType } from '../shared/lib/utils'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
+import '../server/node-polyfill-url-parse'
 import '../server/node-environment'
 
 import { bold, cyan, green, red, underline, yellow } from '../lib/picocolors'
