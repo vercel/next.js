@@ -112,6 +112,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    module_federation::ModuleFederationEndpoint,
     next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     path_utils::convention_file_base_name,
@@ -1426,6 +1427,13 @@ impl Project {
             ));
         }
 
+        if let Some(module_federation) = entrypoints.module_federation {
+            endpoint_groups.push((
+                EndpointGroupKey::ModuleFederation,
+                EndpointGroup::from(module_federation),
+            ));
+        }
+
         for (key, route) in entrypoints.routes.iter() {
             match route {
                 Route::Page {
@@ -2187,10 +2195,26 @@ impl Project {
             None
         };
 
+        let module_federation = {
+            let config = self.next_config().turbopack_module_federation().await?;
+            if config.exposes.is_empty() {
+                None
+            } else if let Some(app_project) = *app_project.await? {
+                Some(ResolvedVc::upcast(
+                    ModuleFederationEndpoint::new(self, *app_project)
+                        .to_resolved()
+                        .await?,
+                ))
+            } else {
+                None
+            }
+        };
+
         Ok(Entrypoints {
             routes,
             middleware,
             instrumentation,
+            module_federation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,

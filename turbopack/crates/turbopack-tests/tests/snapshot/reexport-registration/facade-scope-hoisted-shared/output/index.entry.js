@@ -31,7 +31,8 @@ __turbopack_context__.s([
 ]);
 const x = 'x';
 }),
-]);})()(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
+]);})();
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/17f0_snapshot_reexport-registration_facade-scope-hoisted-shared_input_1uvpd4s77o2u3._.js",
     {"otherChunks":[],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-scope-hoisted-shared/input/index.js [test] (ecmascript)"]}
 ]);
