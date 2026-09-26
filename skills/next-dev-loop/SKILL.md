@@ -65,7 +65,7 @@ Once per session, confirm both views are live.
    Then open the target URL:
 
    ```bash
-   agent-browser --session "$SESSION" --restore --headed --enable react-devtools open <url>
+   agent-browser --session "$SESSION" --restore --enable react-devtools open <url>
    ```
 
    `--scope worktree` keeps parallel worktrees and copied checkouts
@@ -75,11 +75,17 @@ Once per session, confirm both views are live.
    launch flags on `open`; agent-browser will reuse, relaunch, or restart
    its scoped background state as needed.
 
-   The browser is the user's. If state was not restored (first run,
-   expired session) and the page is gated, the user drives the login —
-   pause until they confirm. After login, continue using the same session
-   and restore context; `agent-browser close` saves the cookie state so
-   the next `open` restores it.
+   Keep routine verification headless. If the user asks to see the UI, open the
+   current URL in the coding harness's inline browser. It is a separate browser
+   context, so do not assume state carries over. When login or existing
+   `agent-browser` state must carry over, reopen that session headed instead:
+
+   ```bash
+   agent-browser --session "$SESSION" --restore --headed --enable react-devtools open <url>
+   ```
+
+   Pause while the user drives login, then continue with the same session and
+   keep it headed for the rest of the loop.
 
 2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
    lists `get_compilation_issues`. First read the port off the
@@ -146,11 +152,11 @@ manual rather than from memory.
 - A blank read, empty snapshot, `about:blank`, or a "no browser
   session" error — right after `open` or after a click (even if `open`
   reported the page) — is the browser dropping the page (a stale
-  session), not a broken route. Reopen your session at the URL with
-  `--session "$SESSION" --restore` and re-snapshot; if still blank,
-  run `agent-browser --session "$SESSION" --restore close`, then open
-  again. Don't fall back to `curl`; it bypasses the browser you're
-  testing.
+  session), not a broken route. Reopen your session at the URL with the
+  same launch flags as the active loop, then re-snapshot. If still blank, run
+  `agent-browser --session "$SESSION" --restore close`, then reopen with
+  those same flags. Don't fall back to `curl`; it bypasses the browser
+  you're testing.
 - React introspection output is stale after navigation. Re-run.
 - `/_next/mcp` replies are SSE — read the JSON off the `data:` line
   with `sed -n 's/^data: //p'` (a plain `sed 's/^data: //'` leaves the
