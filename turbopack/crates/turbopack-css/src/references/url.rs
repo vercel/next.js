@@ -104,13 +104,15 @@ pub async fn resolve_url_reference(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<Option<RcStr>>> {
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
-        let path = asset.path().await?;
+        let path = asset.path().owned().await?;
 
         let url_path: RcStr = if *chunking_context
             .should_use_absolute_url_references()
             .await?
         {
-            format!("/{}", path.path).into()
+            // Inlined CSS is resolved relative to the document, so the URL must include the
+            // asset base path (e.g. `assetPrefix`) instead of only being root-relative.
+            chunking_context.asset_url(path, None).owned().await?
         } else {
             let context_path = chunking_context.chunk_root_path().await?;
             context_path
