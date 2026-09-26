@@ -23,6 +23,16 @@ impl ShardBits {
         Self(bits)
     }
 
+    /// Returns `None` if `bits` exceeds [`ShardBits::MAX`].
+    pub fn try_new(bits: u8) -> Option<Self> {
+        (bits <= Self::MAX.0).then_some(Self(bits))
+    }
+
+    /// The number of leading key hash bits.
+    pub fn get(self) -> u8 {
+        self.0
+    }
+
     /// The number of shards.
     pub fn count(self) -> u32 {
         1 << self.0
@@ -49,8 +59,28 @@ impl ShardBits {
         start..=end
     }
 
+    /// The shard bits for a family with `bytes` of compacted data that currently uses `self`. The
+    /// shard count only doubles once shards hold more than 1.5 times `target_shard_size`, and only
+    /// halves once they hold less than half of it. A change lands in the middle of that band, so
+    /// a family near a boundary doesn't flip back and forth, which would alternate the file
+    /// boundaries of commits. Never less than `min`.
+    pub fn adjust(self, bytes: u64, target_shard_size: u64, min: ShardBits) -> Self {
+        let bytes = u128::from(bytes);
+        let target = u128::from(target_shard_size.max(1));
+        let mut bits = self.max(min);
+        // shard size > 1.5 * target, i.e. 2 * bytes > 3 * target * count
+        while bits < Self::MAX && 2 * bytes > 3 * target * u128::from(bits.count()) {
+            bits.0 += 1;
+        }
+        // shard size < 0.5 * target, i.e. 2 * bytes < target * count
+        while bits > min && 2 * bytes < target * u128::from(bits.count()) {
+            bits.0 -= 1;
+        }
+        bits
+    }
+
     /// The shard bits for a family with `bytes` of compacted data, so that shards hold about
-    /// `target_shard_size` bytes. Never less than `min`.
+    /// `target_shard_size` bytes. Never less than `min`. Used for families without files.
     pub fn for_size(bytes: u64, target_shard_size: u64, min: ShardBits) -> Self {
         let needed = bytes.div_ceil(target_shard_size.max(1)).max(1);
         // ceil(log2(needed))
@@ -189,6 +219,30 @@ mod tests {
             for (range, &(meta, entry)) in files.ranges.iter().zip(&files.locations) {
                 let expected = [&old[..], &new[..]][meta as usize][entry as usize];
                 assert_eq!(range.min_hash, expected.min_hash);
+            }
+        }
+    }
+
+    #[test]
+    fn test_adjust_has_hysteresis() {
+        const T: u64 = 100;
+        let bits = |b| ShardBits::new(b);
+        // 2 shards of 140 each (1.4x the target) stay 2 shards, 2 of 160 become 4 of 80.
+        assert_eq!(bits(1).adjust(280, T, bits(0)), bits(1));
+        assert_eq!(bits(1).adjust(320, T, bits(0)), bits(2));
+        // 4 shards of 60 stay 4 shards, 4 of 40 become 2 of 80.
+        assert_eq!(bits(2).adjust(240, T, bits(0)), bits(2));
+        assert_eq!(bits(2).adjust(160, T, bits(0)), bits(1));
+        // Large changes take multiple steps at once, and the minimum is respected.
+        assert_eq!(bits(0).adjust(1000, T, bits(0)), bits(3));
+        assert_eq!(bits(4).adjust(0, T, bits(1)), bits(1));
+        assert_eq!(bits(0).adjust(0, T, bits(2)), bits(2));
+        assert_eq!(bits(0).adjust(u64::MAX, 1, bits(0)), ShardBits::MAX);
+        // A change lands inside the band, so adjusting again is stable.
+        for bytes in [0, 50, 149, 151, 499, 1000, 12345] {
+            for start in 0..6 {
+                let once = bits(start).adjust(bytes, T, bits(0));
+                assert_eq!(once.adjust(bytes, T, bits(0)), once, "{bytes} {start}");
             }
         }
     }

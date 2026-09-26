@@ -21,6 +21,7 @@ use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
+    shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -63,7 +64,7 @@ impl Display for MetaEntryFlags {
 }
 
 /// Magic number identifying a `.meta` file.
-pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4D;
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4E;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -308,6 +309,8 @@ pub struct MetaFile {
     /// Byte offset within the backing where the AMQF data region starts.
     /// Entry AMQF offsets and used-keys offsets are relative to this position.
     amqf_data_start: u32,
+    /// The shards the SST files of this meta file were split with.
+    shard_bits: ShardBits,
     /// The offset of the start of the "used keys" AMQF data relative to the AMQF data region.
     start_of_used_keys_amqf_data_offset: u32,
     /// The offset of the end of the "used keys" AMQF data relative to the AMQF data region.
@@ -371,6 +374,9 @@ impl MetaFile {
             value if value == Compression::Zstd3 as u8 => Compression::Zstd3,
             value => bail!("Invalid compression algorithm {value}"),
         };
+        let shard_bits = reader.read_u8()?;
+        let shard_bits = ShardBits::try_new(shard_bits)
+            .with_context(|| format!("Invalid shard bits {shard_bits}"))?;
         if let Some(configs) = family_configs {
             let configured = configs
                 .get(family as usize)
@@ -461,6 +467,7 @@ impl MetaFile {
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
             amqf_data_start,
+            shard_bits,
             start_of_used_keys_amqf_data_offset,
             end_of_used_keys_amqf_data_offset,
             access_mode,
@@ -482,6 +489,11 @@ impl MetaFile {
 
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
+    }
+
+    /// The shards the SST files of this meta file were split with.
+    pub fn shard_bits(&self) -> ShardBits {
+        self.shard_bits
     }
 
     pub fn family(&self) -> u32 {

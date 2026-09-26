@@ -2001,6 +2001,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     let mut meta_file_builder = MetaFileBuilder::new(
                         family,
                         self.config.family_configs[family as usize].compression,
+                        shard_bits,
                     );
 
                     let mut keys_written = 0;
@@ -2519,6 +2520,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .collect();
                 MetaFileInfo {
                     sequence_number: meta_file.sequence_number(),
+                    shard_bits: meta_file.shard_bits().get(),
                     family: meta_file.family(),
                     obsolete_sst_files: meta_file.obsolete_sst_files().to_vec(),
                     entries,
@@ -2611,7 +2613,8 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 }
 
 /// The number of key hash shards of each family (see [`crate::shard`]). It follows the size of the
-/// bottom runs, which is about the size of the live data after compaction.
+/// bottom runs, which is about the size of the live data after compaction, starting from the shards
+/// recorded in the newest meta file of the family (see [`ShardBits::adjust`]).
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
@@ -2623,11 +2626,13 @@ fn shard_bits<const FAMILIES: usize>(
             .filter(|entry| entry.flags().bottom())
             .map(|entry| entry.size())
             .sum::<u64>();
-        ShardBits::for_size(
-            bottom_bytes,
-            config.target_shard_size,
-            config.family_configs[family].min_shard_bits,
-        )
+        let min = config.family_configs[family].min_shard_bits;
+        match meta_files_by_family[family].last() {
+            Some(newest) => newest
+                .shard_bits()
+                .adjust(bottom_bytes, config.target_shard_size, min),
+            None => ShardBits::for_size(bottom_bytes, config.target_shard_size, min),
+        }
     })
 }
 
@@ -2657,6 +2662,8 @@ fn range_to_str(min: u64, max: u64) -> String {
 
 pub struct MetaFileInfo {
     pub sequence_number: u32,
+    /// The shard bits the SST files of this meta file were split with.
+    pub shard_bits: u8,
     pub family: u32,
     pub obsolete_sst_files: Vec<u32>,
     pub entries: Vec<MetaFileEntryInfo>,

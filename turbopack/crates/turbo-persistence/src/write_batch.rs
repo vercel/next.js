@@ -464,6 +464,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     let mut builder = MetaFileBuilder::new(
                         family,
                         self.family_configs[usize_from_u32(family)].compression,
+                        self.shard_bits[usize_from_u32(family)],
                     );
                     for (seq, sst) in sst_files {
                         entries += sst.entries;

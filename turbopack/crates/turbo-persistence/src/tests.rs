@@ -3048,3 +3048,74 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
     Ok(())
 }
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn shard_count_changes_with_hysteresis(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    const KEYS: u32 = 20_000;
+    let commit = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in 0..100u32 {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![1; 64].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        Ok(())
+    };
+    let newest_shard_bits = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<u8> {
+        // `meta_info` lists the newest meta file first.
+        Ok(db.meta_info()?.first().unwrap().shard_bits)
+    };
+    let bottom_bytes = {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                key.to_le_bytes().repeat(8).into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+        db.full_compact()?;
+        db.shutdown()?;
+        db.meta_info()?
+            .into_iter()
+            .flat_map(|meta| meta.entries)
+            .filter(|entry| entry.flags.bottom())
+            .map(|entry| entry.sst_size)
+            .sum::<u64>()
+    };
+    let open_with_target = |target: f64| {
+        let mut config = config_with_mmap::<1>(mmap);
+        config.target_shard_size = (bottom_bytes as f64 / target) as u64;
+        open_db_with_config::<1>(path, config)
+    };
+    // The bottom run is 1.2 times the target: a plain size-based count would double, but it's
+    // within the band.
+    let db = open_with_target(1.2)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 0);
+    drop(db);
+    // 1.6 times the target doubles the shard count.
+    let db = open_with_target(1.6)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 1);
+    drop(db);
+    // Back at 1.2 times the target, the count is read from the meta file and stays: shards hold 0.6
+    // times the target.
+    let db = open_with_target(1.2)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 1);
+    drop(db);
+    // At 0.9 times the target, shards hold 0.45 times the target, so the count halves again.
+    let db = open_with_target(0.9)?;
+    commit(&db)?;
+    assert_eq!(newest_shard_bits(&db)?, 0);
+    for key in 0..KEYS {
+        assert!(db.get(0, &key.to_be_bytes())?.is_some());
+    }
+    Ok(())
+}
