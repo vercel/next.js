@@ -3,11 +3,12 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { existsSync } from 'node:fs'
-import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import zlib from 'node:zlib'
 
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const NEXT_BIN = resolve(REPO_ROOT, 'packages/next/dist/bin/next')
@@ -54,6 +55,11 @@ type BenchStats = {
   max: number
 }
 
+type RequestSample = {
+  totalMs: number
+  ttfbMs: number
+}
+
 type FullRoutePhaseResult = {
   mode: StreamMode
   route: string
@@ -62,12 +68,27 @@ type FullRoutePhaseResult = {
   errors: number
   concurrency: number
   throughputRps: number
-  latency: BenchStats
+  // Null when every request in the phase failed.
+  latency: BenchStats | null
+  ttfb: BenchStats | null
+}
+
+// Byte composition of one route's HTML document. Bytes are uncompressed
+// (undici decompresses before we see the body). Flight bytes are the
+// contents of inline `self.__next_f.push(...)` scripts.
+type RouteDocumentInfo = {
+  route: string
+  bytes: number
+  gzipBytes: number
+  inlineFlightBytes: number
+  inlineFlightShare: number
+  inlineFlightScripts: number
 }
 
 type FullRunResult = {
   mode: StreamMode
   routeResults: FullRoutePhaseResult[]
+  routeDocuments: RouteDocumentInfo[]
 }
 
 function parseBoolean(value: string): boolean {
@@ -172,8 +193,12 @@ function parseCli(): CliOptions {
   const args = new Map<string, string>()
   for (const rawArg of rawArgs) {
     if (!rawArg.startsWith('--')) continue
-    const [rawKey, rawValue] = rawArg.slice(2).split('=')
-    args.set(rawKey, rawValue ?? 'true')
+    const eq = rawArg.indexOf('=')
+    if (eq === -1) {
+      args.set(rawArg.slice(2), 'true')
+    } else {
+      args.set(rawArg.slice(2, eq), rawArg.slice(eq + 1))
+    }
   }
 
   const scenarioRaw = args.get('scenario') ?? 'e2e'
@@ -224,7 +249,8 @@ function parseCli(): CliOptions {
   }
 }
 
-function computeStats(samples: number[]): BenchStats {
+function computeStats(samples: number[]): BenchStats | null {
+  if (samples.length === 0) return null
   const sorted = [...samples].sort((a, b) => a - b)
   const min = sorted[0]
   const max = sorted[sorted.length - 1]
@@ -267,16 +293,22 @@ async function ensureNextBuilt() {
   }
 }
 
-function defaultConfig(): string {
-  return 'module.exports = {}\n'
-}
-
 async function waitForServerReady(
   url: string,
-  timeoutMs: number
+  timeoutMs: number,
+  serverDied?: () => boolean
 ): Promise<void> {
   const start = performance.now()
   while (performance.now() - start < timeoutMs) {
+    // Without this check, a server that dies on startup (e.g. EADDRINUSE
+    // against a stale server on the same port) is indistinguishable from
+    // a slow one — worse, a 200 from whatever else owns the port would
+    // pass, and the run would silently measure the wrong server.
+    if (serverDied?.()) {
+      throw new Error(
+        `Server process exited before becoming ready (is port already in use?)`
+      )
+    }
     try {
       const response = await fetch(url, { cache: 'no-store' })
       await response.arrayBuffer()
@@ -289,10 +321,38 @@ async function waitForServerReady(
   throw new Error(`Server did not become ready within ${timeoutMs}ms`)
 }
 
-async function requestLatencyMs(
+function spawnedServerDied(server: ReturnType<typeof spawn>): () => boolean {
+  return () => server.exitCode !== null || server.signalCode !== null
+}
+
+// The death check alone is racy on a contested port: a stale server can
+// answer the readiness probe before our child fails to bind, and the run
+// would silently measure the wrong server.
+async function assertPortFree(port: number): Promise<void> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 1000)
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+  } catch {
+    return
+  } finally {
+    clearTimeout(timeout)
+  }
+  throw new Error(
+    `Port ${port} is already serving responses — another server is running. ` +
+      `Stop it or pass a different --port.`
+  )
+}
+
+// Reads the body as a stream so TTFB (first body chunk) can be observed
+// separately from total latency. Byte counts are of the decompressed body.
+async function measureRequest(
   url: string,
   timeoutMs: number
-): Promise<number> {
+): Promise<RequestSample> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -302,26 +362,96 @@ async function requestLatencyMs(
       cache: 'no-store',
       signal: controller.signal,
     })
-    await response.arrayBuffer()
     if (!response.ok) {
+      await response.arrayBuffer().catch(() => undefined)
       throw new Error(`Request failed (${response.status}) for ${url}`)
     }
-    return performance.now() - start
+    let ttfbMs = -1
+    if (response.body) {
+      const reader = response.body.getReader()
+      while (true) {
+        const { done } = await reader.read()
+        if (done) break
+        if (ttfbMs < 0) ttfbMs = performance.now() - start
+      }
+    }
+    const totalMs = performance.now() - start
+    if (ttfbMs < 0) ttfbMs = totalMs
+    return { totalMs, ttfbMs }
   } finally {
     clearTimeout(timeout)
   }
 }
 
+// Tolerates individual request failures (like the load phase) so one
+// transient error costs one sample, not the whole run's results.
 async function runSerialRequests(
   url: string,
   count: number,
   timeoutMs: number
-): Promise<number[]> {
-  const latencies: number[] = []
+): Promise<{ samples: RequestSample[]; errors: number }> {
+  const samples: RequestSample[] = []
+  let errors = 0
   for (let i = 0; i < count; i++) {
-    latencies.push(await requestLatencyMs(url, timeoutMs))
+    try {
+      samples.push(await measureRequest(url, timeoutMs))
+    } catch {
+      errors++
+    }
   }
-  return latencies
+  return { samples, errors }
+}
+
+async function inspectRouteDocument(
+  url: string,
+  route: string,
+  timeoutMs: number
+): Promise<RouteDocumentInfo> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+    const text = await response.text()
+    if (!response.ok) {
+      throw new Error(`Request failed (${response.status}) for ${url}`)
+    }
+    const bytes = Buffer.byteLength(text)
+    const gzipBytes = zlib.gzipSync(text).byteLength
+    let inlineFlightBytes = 0
+    let inlineFlightScripts = 0
+    // Inline Flight scripts can carry attributes (e.g. a CSP nonce), so
+    // match any <script ...> tag; the content anchor identifies them.
+    const flightScript = /<script[^>]*>(self\.__next_f\.push\(.*?)<\/script>/gs
+    for (const match of text.matchAll(flightScript)) {
+      inlineFlightBytes += Buffer.byteLength(match[1])
+      inlineFlightScripts++
+    }
+    if (inlineFlightScripts === 0) {
+      // Every App Router document carries inline Flight scripts; a
+      // silent zero would corrupt the flight-share metric.
+      if (text.includes('__next_f')) {
+        throw new Error(
+          `[inspect] ${route}: document contains __next_f but the extraction regex matched no inline Flight scripts — the markup shape changed, update the regex in inspectRouteDocument`
+        )
+      }
+      throw new Error(
+        `[inspect] ${route}: not an App Router document (no __next_f) — this benchmark only measures App Router routes`
+      )
+    }
+    return {
+      route,
+      bytes,
+      gzipBytes,
+      inlineFlightBytes,
+      inlineFlightShare: bytes > 0 ? inlineFlightBytes / bytes : 0,
+      inlineFlightScripts,
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 // Closed-loop load generator: each worker issues the next request only after
@@ -334,8 +464,8 @@ async function runConcurrentRequests(
   totalRequests: number,
   concurrency: number,
   timeoutMs: number
-): Promise<{ latencies: number[]; errors: number }> {
-  const latencies: number[] = []
+): Promise<{ samples: RequestSample[]; errors: number }> {
+  const samples: RequestSample[] = []
   let errors = 0
   let index = 0
 
@@ -345,7 +475,7 @@ async function runConcurrentRequests(
       index++
       if (current >= totalRequests) return
       try {
-        latencies.push(await requestLatencyMs(url, timeoutMs))
+        samples.push(await measureRequest(url, timeoutMs))
       } catch {
         errors++
       }
@@ -353,7 +483,7 @@ async function runConcurrentRequests(
   })
 
   await Promise.all(workers)
-  return { latencies, errors }
+  return { samples, errors }
 }
 
 async function copyIfExists(fromPath: string, toPath: string) {
@@ -363,6 +493,10 @@ async function copyIfExists(fromPath: string, toPath: string) {
   } catch {
     // Ignore missing optional traces.
   }
+}
+
+function formatKb(bytes: number): string {
+  return `${(bytes / 1024).toFixed(1)}KB`
 }
 
 function printFullResults(label: string, results: FullRunResult[]) {
@@ -375,6 +509,14 @@ function printFullResults(label: string, results: FullRunResult[]) {
       result.routeResults.map((entry) => entry.route)
     )) {
       console.log(`  Route: ${route}`)
+      const document = result.routeDocuments.find(
+        (entry) => entry.route === route
+      )
+      if (document) {
+        console.log(
+          `    document ${formatKb(document.bytes)} gzip=${formatKb(document.gzipBytes)} flight=${formatKb(document.inlineFlightBytes)} (${(document.inlineFlightShare * 100).toFixed(1)}%, ${document.inlineFlightScripts} inline scripts)`
+        )
+      }
       const routeEntries = result.routeResults.filter(
         (entry) => entry.route === route
       )
@@ -383,8 +525,15 @@ function printFullResults(label: string, results: FullRunResult[]) {
         console.log(
           `    ${entry.phase} requests=${entry.requests} concurrency=${entry.concurrency}${errorSuffix}`
         )
+        if (entry.latency === null || entry.ttfb === null) {
+          console.log(`      all requests failed`)
+          continue
+        }
         console.log(
           `      throughput=${entry.throughputRps.toFixed(2)} req/s median=${entry.latency.median.toFixed(2)}ms p95=${entry.latency.p95.toFixed(2)}ms stddev=${entry.latency.stddev.toFixed(2)}ms`
+        )
+        console.log(
+          `      ttfb median=${entry.ttfb.median.toFixed(2)}ms p95=${entry.ttfb.p95.toFixed(2)}ms`
         )
       }
     }
@@ -422,6 +571,8 @@ function buildNodeArgs(
 }
 
 async function gracefulKill(server: ReturnType<typeof spawn>) {
+  // once('exit') never resolves for a child that already exited.
+  if (server.exitCode !== null || server.signalCode !== null) return
   const tryKill = async (signal: NodeJS.Signals, timeoutMs: number) => {
     server.kill(signal)
     const didExit = await Promise.race([
@@ -454,9 +605,21 @@ async function runWarmup(
   let prevMean = Infinity
 
   for (let batch = 0; batch < (untilStable ? maxBatches : 1); batch++) {
-    const latencies = await runSerialRequests(url, batchSize, timeoutMs)
+    const { samples, errors } = await runSerialRequests(
+      url,
+      batchSize,
+      timeoutMs
+    )
     totalRequests += batchSize
-    const mean = latencies.reduce((s, v) => s + v, 0) / latencies.length
+    if (samples.length === 0) {
+      throw new Error(
+        `[${label}] warmup: all ${batchSize} requests failed — server is not serving this route`
+      )
+    }
+    if (errors > 0) {
+      console.warn(`[${label}] warmup: ${errors}/${batchSize} requests failed`)
+    }
+    const mean = samples.reduce((s, v) => s + v.totalMs, 0) / samples.length
 
     if (untilStable && batch > 0) {
       const delta = Math.abs(mean - prevMean) / prevMean
@@ -483,8 +646,12 @@ async function runRoutePhases(
   options: CliOptions,
   mode: StreamMode,
   label: string
-): Promise<FullRoutePhaseResult[]> {
+): Promise<{
+  routeResults: FullRoutePhaseResult[]
+  routeDocuments: RouteDocumentInfo[]
+}> {
   const routeResults: FullRoutePhaseResult[] = []
+  const routeDocuments: RouteDocumentInfo[] = []
 
   for (const route of options.routes) {
     const url = `http://127.0.0.1:${options.port}${route}`
@@ -501,23 +668,36 @@ async function runRoutePhases(
       warmupLabel
     )
 
+    // One inspection request outside the timed phases: byte composition is
+    // deterministic per build, so a single sample suffices and the text
+    // scan never contaminates latency measurements.
+    routeDocuments.push(
+      await inspectRouteDocument(url, route, options.timeoutMs)
+    )
+
     console.log(`[${label}/${mode}] route ${route}: single-client phase`)
     const serialStart = performance.now()
-    const serialLatencies = await runSerialRequests(
+    const serialResult = await runSerialRequests(
       url,
       options.serialRequests,
       options.timeoutMs
     )
     const serialDurationMs = performance.now() - serialStart
+    if (serialResult.errors > 0) {
+      console.warn(
+        `[${label}/${mode}] route ${route}: ${serialResult.errors}/${options.serialRequests} serial requests failed`
+      )
+    }
     routeResults.push({
       mode,
       route,
       phase: 'single-client',
       requests: options.serialRequests,
-      errors: 0,
+      errors: serialResult.errors,
       concurrency: 1,
       throughputRps: options.serialRequests / (serialDurationMs / 1000),
-      latency: computeStats(serialLatencies),
+      latency: computeStats(serialResult.samples.map((s) => s.totalMs)),
+      ttfb: computeStats(serialResult.samples.map((s) => s.ttfbMs)),
     })
 
     console.log(`[${label}/${mode}] route ${route}: under-load phase`)
@@ -542,11 +722,12 @@ async function runRoutePhases(
       errors: loadResult.errors,
       concurrency: options.loadConcurrency,
       throughputRps: options.loadRequests / (loadDurationMs / 1000),
-      latency: computeStats(loadResult.latencies),
+      latency: computeStats(loadResult.samples.map((s) => s.totalMs)),
+      ttfb: computeStats(loadResult.samples.map((s) => s.ttfbMs)),
     })
   }
 
-  return routeResults
+  return { routeResults, routeDocuments }
 }
 
 // ---------------------------------------------------------------------------
@@ -558,10 +739,14 @@ async function runMinimalServerSession(
   mode: StreamMode,
   modeArtifactDir: string,
   routeSubset: CliOptions
-): Promise<FullRoutePhaseResult[]> {
+): Promise<{
+  routeResults: FullRoutePhaseResult[]
+  routeDocuments: RouteDocumentInfo[]
+}> {
   let server: ReturnType<typeof spawn> | null = null
   try {
     console.log(`[minimal-server/${mode}] starting server...`)
+    await assertPortFree(options.port)
 
     const serverArgs = buildNodeArgs(options, modeArtifactDir, mode)
     serverArgs.push(MINIMAL_SERVER)
@@ -579,7 +764,8 @@ async function runMinimalServerSession(
 
     await waitForServerReady(
       `http://127.0.0.1:${options.port}${routeSubset.routes[0]}`,
-      options.timeoutMs
+      options.timeoutMs,
+      spawnedServerDied(server)
     )
 
     return await runRoutePhases(routeSubset, mode, 'minimal-server')
@@ -601,62 +787,56 @@ async function runMinimalServerModeBenchmark(
   options: CliOptions,
   mode: StreamMode
 ): Promise<FullRunResult> {
-  const nextConfigPath = resolve(options.appDir, 'next.config.js')
-  const originalConfig = await readFile(nextConfigPath, 'utf8')
   const modeArtifactDir = resolve(options.artifactDir, mode)
 
   await mkdir(modeArtifactDir, { recursive: true })
 
-  try {
-    await writeFile(nextConfigPath, defaultConfig())
-
-    if (options.build) {
-      await ensureGeneratedClientGraph(options)
-      console.log(`\n[minimal-server/${mode}] building app fixture...`)
-      await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
-        ...process.env,
-        NEXT_TELEMETRY_DISABLED: '1',
-      })
-      if (options.captureNextTrace) {
-        await copyIfExists(
-          resolve(options.appDir, '.next/trace-build'),
-          resolve(modeArtifactDir, 'next-trace-build.log')
-        )
-      }
+  if (options.build) {
+    await ensureGeneratedClientGraph(options)
+    console.log(`\n[minimal-server/${mode}] building app fixture...`)
+    await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
+      ...process.env,
+      NEXT_TELEMETRY_DISABLED: '1',
+    })
+    if (options.captureNextTrace) {
+      await copyIfExists(
+        resolve(options.appDir, '.next/trace-build'),
+        resolve(modeArtifactDir, 'next-trace-build.log')
+      )
     }
+  }
 
-    let routeResults: FullRoutePhaseResult[]
+  const routeResults: FullRoutePhaseResult[] = []
+  const routeDocuments: RouteDocumentInfo[] = []
 
-    if (options.isolateRoutes) {
-      routeResults = []
-      for (let i = 0; i < options.routes.length; i++) {
-        if (i > 0) await sleep(1000)
-        const subset = { ...options, routes: [options.routes[i]] }
-        console.log(
-          `[minimal-server/${mode}] isolate-routes: restarting server for ${options.routes[i]}`
-        )
-        routeResults.push(
-          ...(await runMinimalServerSession(
-            options,
-            mode,
-            modeArtifactDir,
-            subset
-          ))
-        )
-      }
-    } else {
-      routeResults = await runMinimalServerSession(
+  if (options.isolateRoutes) {
+    for (let i = 0; i < options.routes.length; i++) {
+      if (i > 0) await sleep(1000)
+      const subset = { ...options, routes: [options.routes[i]] }
+      console.log(
+        `[minimal-server/${mode}] isolate-routes: restarting server for ${options.routes[i]}`
+      )
+      const session = await runMinimalServerSession(
         options,
         mode,
         modeArtifactDir,
-        options
+        subset
       )
+      routeResults.push(...session.routeResults)
+      routeDocuments.push(...session.routeDocuments)
     }
-
-    return { mode, routeResults }
-  } finally {
-    await writeFile(nextConfigPath, originalConfig)
+  } else {
+    const session = await runMinimalServerSession(
+      options,
+      mode,
+      modeArtifactDir,
+      options
+    )
+    routeResults.push(...session.routeResults)
+    routeDocuments.push(...session.routeDocuments)
   }
+
+  return { mode, routeResults, routeDocuments }
 }
 
 async function runMinimalServerBenchmarks(
@@ -687,10 +867,14 @@ async function runE2EServerSession(
   mode: StreamMode,
   modeArtifactDir: string,
   routeSubset: CliOptions
-): Promise<FullRoutePhaseResult[]> {
+): Promise<{
+  routeResults: FullRoutePhaseResult[]
+  routeDocuments: RouteDocumentInfo[]
+}> {
   let server: ReturnType<typeof spawn> | null = null
   try {
     console.log(`[e2e/${mode}] starting production server (next start)...`)
+    await assertPortFree(options.port)
 
     const serverArgs = buildNodeArgs(options, modeArtifactDir, mode)
     serverArgs.push(NEXT_BIN, 'start', '--port', String(options.port))
@@ -707,7 +891,8 @@ async function runE2EServerSession(
 
     await waitForServerReady(
       `http://127.0.0.1:${options.port}${routeSubset.routes[0]}`,
-      options.timeoutMs
+      options.timeoutMs,
+      spawnedServerDied(server)
     )
 
     return await runRoutePhases(routeSubset, mode, 'e2e')
@@ -729,57 +914,56 @@ async function runE2EModeBenchmark(
   options: CliOptions,
   mode: StreamMode
 ): Promise<FullRunResult> {
-  const nextConfigPath = resolve(options.appDir, 'next.config.js')
-  const originalConfig = await readFile(nextConfigPath, 'utf8')
   const modeArtifactDir = resolve(options.artifactDir, mode)
 
   await mkdir(modeArtifactDir, { recursive: true })
 
-  try {
-    await writeFile(nextConfigPath, defaultConfig())
-
-    if (options.build) {
-      await ensureGeneratedClientGraph(options)
-      console.log(`\n[e2e/${mode}] building app fixture...`)
-      await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
-        ...process.env,
-        NEXT_TELEMETRY_DISABLED: '1',
-      })
-      if (options.captureNextTrace) {
-        await copyIfExists(
-          resolve(options.appDir, '.next/trace-build'),
-          resolve(modeArtifactDir, 'next-trace-build.log')
-        )
-      }
+  if (options.build) {
+    await ensureGeneratedClientGraph(options)
+    console.log(`\n[e2e/${mode}] building app fixture...`)
+    await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
+      ...process.env,
+      NEXT_TELEMETRY_DISABLED: '1',
+    })
+    if (options.captureNextTrace) {
+      await copyIfExists(
+        resolve(options.appDir, '.next/trace-build'),
+        resolve(modeArtifactDir, 'next-trace-build.log')
+      )
     }
+  }
 
-    let routeResults: FullRoutePhaseResult[]
+  const routeResults: FullRoutePhaseResult[] = []
+  const routeDocuments: RouteDocumentInfo[] = []
 
-    if (options.isolateRoutes) {
-      routeResults = []
-      for (let i = 0; i < options.routes.length; i++) {
-        if (i > 0) await sleep(1000)
-        const subset = { ...options, routes: [options.routes[i]] }
-        console.log(
-          `[e2e/${mode}] isolate-routes: restarting server for ${options.routes[i]}`
-        )
-        routeResults.push(
-          ...(await runE2EServerSession(options, mode, modeArtifactDir, subset))
-        )
-      }
-    } else {
-      routeResults = await runE2EServerSession(
+  if (options.isolateRoutes) {
+    for (let i = 0; i < options.routes.length; i++) {
+      if (i > 0) await sleep(1000)
+      const subset = { ...options, routes: [options.routes[i]] }
+      console.log(
+        `[e2e/${mode}] isolate-routes: restarting server for ${options.routes[i]}`
+      )
+      const session = await runE2EServerSession(
         options,
         mode,
         modeArtifactDir,
-        options
+        subset
       )
+      routeResults.push(...session.routeResults)
+      routeDocuments.push(...session.routeDocuments)
     }
-
-    return { mode, routeResults }
-  } finally {
-    await writeFile(nextConfigPath, originalConfig)
+  } else {
+    const session = await runE2EServerSession(
+      options,
+      mode,
+      modeArtifactDir,
+      options
+    )
+    routeResults.push(...session.routeResults)
+    routeDocuments.push(...session.routeDocuments)
   }
+
+  return { mode, routeResults, routeDocuments }
 }
 
 async function runE2EBenchmarks(options: CliOptions): Promise<FullRunResult[]> {

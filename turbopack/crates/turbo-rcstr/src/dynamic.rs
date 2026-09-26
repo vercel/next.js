@@ -1,4 +1,4 @@
-use std::{num::NonZeroU8, ptr::NonNull};
+use std::{borrow::Cow, num::NonZeroU8, ptr::NonNull};
 
 use triomphe::Arc;
 
@@ -47,9 +47,11 @@ pub unsafe fn restore_arc(v: TaggedValue) -> Arc<DynamicPrehashedString> {
 
 /// This can create any kind of [Atom], although this lives in the `dynamic`
 /// module.
-pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
-    let text = text.as_ref();
-    if is_atom_inlineable(text) {
+///
+/// Takes a [`Cow`] rather than a `&str` so that an already-owned string can be moved into the atom
+/// instead of being copied into a new allocation.
+pub(crate) fn new_atom(text: Cow<'_, str>) -> RcStr {
+    if is_atom_inlineable(&text) {
         let len = text.len();
         // INLINE_TAG ensures this is never zero
         let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);
@@ -64,7 +66,8 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 
     let prehashed = DynamicPrehashedString {
         // NOTE: This will capture as a Box<str> which will essentially
-        // `shrink_to_fit` the bytes.
+        // `shrink_to_fit` the bytes. `Box<str>`'s own `From<Cow<'_, str>>` impl already moves an
+        // owned string's buffer in rather than copying it.
         value: text.into(),
         hash,
     };
@@ -74,12 +77,12 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 /// Construct a new dynamic RcStr from a DynamicPrehashedString
 pub(crate) fn new_atom_from_prehashed(prehashed: DynamicPrehashedString) -> RcStr {
     let entry: Arc<DynamicPrehashedString> = Arc::new(prehashed);
-    let mut entry = Arc::into_raw(entry);
-    debug_assert!(0 == entry as u8 & TAG_MASK);
-    entry = ((entry as usize) | DYNAMIC_TAG as usize) as *mut DynamicPrehashedString;
+    let entry = Arc::into_raw(entry);
+    debug_assert_eq!(entry.addr() & TAG_MASK as usize, 0);
+    let entry = entry.map_addr(|addr| addr | DYNAMIC_TAG as usize);
     let ptr: NonNull<DynamicPrehashedString> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
-        NonNull::new_unchecked(entry as *mut _)
+        NonNull::new_unchecked(entry.cast_mut())
     };
 
     RcStr {

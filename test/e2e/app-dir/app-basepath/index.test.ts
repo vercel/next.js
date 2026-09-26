@@ -156,7 +156,12 @@ describe('app dir - basepath', () => {
 
       expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
       expect(request.method()).toEqual('POST')
-      expect(response.status()).toEqual(303)
+      expect(response.status()).toEqual(200)
+
+      const headers = await response.allHeaders()
+      expect(headers['x-action-redirect']).toBeDefined()
+      expect(headers.location).toBeUndefined()
+      expect(headers['content-type']).toContain('text/x-component')
     }
   )
 
@@ -204,7 +209,10 @@ describe('app dir - basepath', () => {
     expect(secondRequest.url()).toEqual(`${next.url}${destinationPagePath}`)
     expect(secondRequest.method()).toEqual('GET')
 
-    expect(firstResponse.status()).toEqual(303)
+    expect(firstResponse.status()).toEqual(200)
+    const headers = await firstResponse.allHeaders()
+    expect(headers['x-action-redirect']).toBeDefined()
+    expect(headers.location).toBeUndefined()
     // Since this is an external request to a resource outside of NextJS
     // we expect to see a separate request resolving the external URL.
     expect(secondResponse.status()).toEqual(200)

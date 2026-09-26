@@ -588,6 +588,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn simulate_compactions() {
         const KEY_RANGE: u64 = 10000;

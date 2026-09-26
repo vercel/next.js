@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::source_map::SmallPos,
     ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
@@ -14,17 +15,16 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
-    TreeShakingMode,
     analyzer::imports::{ImportAnnotations, ImportedSymbol},
     chunk::EcmascriptExports,
+    module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
         TURBOPACK_HELPER_WTF8,
-        esm::{EsmAssetReference, EsmExports},
+        esm::{EsmAssetReference, EsmAssetReferenceOptions, EsmExports},
         type_issue::SpecifiedModuleTypeIssue,
     },
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE},
-    tree_shake::{part_of_module, split_module},
 };
 
 #[turbo_tasks::value]
@@ -81,6 +81,8 @@ pub async fn compute_ecmascript_module_exports(
 
     let mut esm_reexport_reference_idxs: Vec<usize> = vec![];
     let mut esm_evaluation_reference_idxs: Vec<usize> = vec![];
+    let namespace_reexports: FxHashSet<usize> =
+        eval_context.imports.reexport_namespaces().collect();
 
     let span = tracing::trace_span!("esm import references");
     let import_references = async {
@@ -101,46 +103,48 @@ pub async fn compute_ecmascript_module_exports(
                 module,
                 ResolvedVc::upcast(module),
                 RcStr::from(&*r.module_path.to_string_lossy()),
-                IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32()),
-                r.annotations.as_ref().map(|a| (**a).clone()),
-                match &r.imported_symbol {
-                    &ImportedSymbol::ModuleEvaluation => {
-                        should_add_evaluation = true;
-                        Some(ModulePart::evaluation())
-                    }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                    ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
-                        if !matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ModuleFragments)
-                        ) {
-                            bail!(
-                                "Internal imports only exist in reexports only mode when \
-                                 importing {:?} from {}",
-                                r.imported_symbol,
-                                r.module_path.to_string_lossy()
-                            );
-                        }
-                        if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
+                EsmAssetReferenceOptions {
+                    issue_source: IssueSource::from_swc_offsets(
+                        source,
+                        r.span.lo.to_u32(),
+                        r.span.hi.to_u32(),
+                    ),
+                    annotations: r.annotations.as_ref().map(|a| (**a).clone()),
+                    export_name: match &r.imported_symbol {
+                        &ImportedSymbol::ModuleEvaluation => {
                             should_add_evaluation = true;
+                            Some(ModulePart::evaluation())
                         }
-                        Some(ModulePart::internal(*part_id))
-                    }
-                    ImportedSymbol::Exports => matches!(
-                        options.tree_shaking_mode,
-                        Some(TreeShakingMode::ModuleFragments)
-                    )
-                    .then(ModulePart::exports),
+                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                        ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
+                            if !options.module_fragments_enabled {
+                                bail!(
+                                    "Internal imports only exist in reexports only mode when \
+                                     importing {:?} from {}",
+                                    r.imported_symbol,
+                                    r.module_path.to_string_lossy()
+                                );
+                            }
+                            if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
+                                should_add_evaluation = true;
+                            }
+                            Some(ModulePart::internal(*part_id))
+                        }
+                        ImportedSymbol::Exports => {
+                            options.module_fragments_enabled.then(ModulePart::exports)
+                        }
+                    },
+                    import_usage: eval_context
+                        .imports
+                        .import_usage
+                        .get(&i)
+                        .cloned()
+                        .unwrap_or_default(),
+                    import_externals,
+                    module_fragments_enabled: options.module_fragments_enabled,
+                    export_usage_passthrough: namespace_reexports.contains(&i).then_some(false),
+                    resolve_override,
                 },
-                eval_context
-                    .imports
-                    .import_usage
-                    .get(&i)
-                    .cloned()
-                    .unwrap_or_default(),
-                import_externals,
-                options.tree_shaking_mode,
-                resolve_override,
             )
             .await?
             .resolved_cell();
@@ -185,6 +189,7 @@ pub async fn compute_ecmascript_module_exports(
                 let esm_exports = EsmExports {
                     exports: esm_exports,
                     star_exports: esm_star_exports,
+                    mangle_export_names: options.mangle_export_names,
                 }
                 .cell();
 
@@ -205,6 +210,7 @@ pub async fn compute_ecmascript_module_exports(
                             EsmExports {
                                 exports: Default::default(),
                                 star_exports: Default::default(),
+                                mangle_export_names: options.mangle_export_names,
                             }
                             .resolved_cell(),
                         )
@@ -216,13 +222,14 @@ pub async fn compute_ecmascript_module_exports(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
+                            mangle_export_names: options.mangle_export_names,
                         }
                         .resolved_cell(),
                     ),
                 }
             } else {
                 match detect_dynamic_export(program) {
-                    DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
+                    DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs(None),
                     DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
                     DetectedDynamicExportType::Value => EcmascriptExports::Value,
                     DetectedDynamicExportType::UsingModuleDeclarations => {
@@ -230,6 +237,7 @@ pub async fn compute_ecmascript_module_exports(
                             EsmExports {
                                 exports: Default::default(),
                                 star_exports: Default::default(),
+                                mangle_export_names: options.mangle_export_names,
                             }
                             .resolved_cell(),
                         )

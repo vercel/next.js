@@ -225,7 +225,8 @@ If `sizes` is missing, the browser assumes the image will be as wide as the view
 
 In addition, `sizes` affects how `srcset` is generated:
 
-- Without `sizes`: Next.js generates a limited `srcset` (e.g. 1x, 2x), suitable for fixed-size images.
+- Without `sizes`, on an image with a `width`: Next.js generates a limited `srcset` (e.g. 1x, 2x), suitable for fixed-size images.
+- Without `sizes`, on a `fill` image: Next.js generates a `srcset` from [`deviceSizes`](#devicesizes) only, as if the image spans the full viewport.
 - With `sizes`: Next.js generates a full `srcset` (e.g. 640w, 750w, etc.), optimized for responsive layouts.
 
 > Learn more about `srcset` and `sizes` on [web.dev](https://web.dev/learn/design/responsive-images/#sizes) and [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#sizes).
@@ -239,7 +240,7 @@ An integer between `1` and `100` that sets the quality of the optimized image. H
 <Image quality={75} />
 ```
 
-If you’ve configured [qualities](#qualities) in `next.config.js`, the value must match one of the allowed entries.
+If you’ve configured [qualities](#qualities) in `next.config.js`, a value outside that list is coerced to the closest allowed entry. For example, with `qualities: [50, 75, 100]`, a `quality` of `80` is served as `75`. Development logs a warning so you can add the value to the allowlist.
 
 > **Good to know**: If the original image is already low quality, setting a high quality value will increase the file size without improving appearance.
 
@@ -667,7 +668,7 @@ module.exports = {
 
 #### `deviceSizes`
 
-`deviceSizes` allows you to specify a list of device width breakpoints. These widths are used when the `next/image` component uses [`sizes`](#sizes) prop to ensure the correct image is served for the user's device.
+`deviceSizes` allows you to specify a list of device width breakpoints. These widths are used when the `next/image` component uses the [`sizes`](#sizes) prop, or the [`fill`](#fill) prop without `sizes`, to ensure the correct image is served for the user's device.
 
 If no configuration is provided, the default below is used:
 
@@ -773,7 +774,7 @@ module.exports = {
 
 #### `minimumCacheTTL`
 
-`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
+`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/images#local-images) which will automatically hash the file contents and cache the image with a long-lived `immutable` `Cache-Control` header.
 
 If no configuration is provided, the default below is used.
 
@@ -1069,7 +1070,7 @@ export default function MyImage() {
 }
 ```
 
-When using `fill`, the parent element must have `position: relative` or `display: block`. This is necessary for the proper rendering of the image element in that layout mode.
+When using `fill`, the parent element must be positioned, with `position: relative`, `fixed`, or `absolute`. The image itself uses `position: absolute`, so it sizes against the nearest positioned ancestor.
 
 ```jsx
 <div style={{ position: 'relative' }}>

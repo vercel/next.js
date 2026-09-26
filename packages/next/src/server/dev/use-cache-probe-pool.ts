@@ -187,6 +187,9 @@ export function installUseCacheProbe(options: InstallOptions): void {
         httpAgentOptions: nextConfig.httpAgentOptions,
         cacheLifeProfiles: nextConfig.cacheLife,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
         staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       },
       timeoutMs: args.timeoutMs,

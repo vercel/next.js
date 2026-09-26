@@ -131,6 +131,22 @@ export default function Home() {
         </li>
       </ul>
 
+      <h2>Rewrite Detection (Prefetch Misprediction)</h2>
+      <p>
+        /products/promo/[id] is rewritten to /products/sale/[id]. The rewrite
+        preserves the /products/[category]/[id] shape, so a pattern learned from
+        a non-rewritten product URL will match and mispredict category as
+        &quot;promo&quot;. The prefetch response must detect the mismatch and
+        mark the pattern instead of rendering the wrong params.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/products/promo/gadget" prefetch={true}>
+            Promo Gadget (rewritten to sale/gadget)
+          </LinkAccordion>
+        </li>
+      </ul>
+
       <h2>Rewrite Detection (Search Params)</h2>
       <p>
         These URLs are rewritten based on search params. /search-rewrite?v=X

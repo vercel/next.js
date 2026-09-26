@@ -6,24 +6,15 @@ import {
 } from 'next-test-utils'
 
 describe('cache-components-route-handler-errors', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
   it("should error when route handlers use segment configs that aren't supported by cacheComponents", async () => {
-    try {
-      await next.start()
-    } catch {
-      // we expect the build to fail
-    }
-
     if (isNextDev) {
+      await next.start()
+
       // Test the first route handler with "dynamic" config
       const browser = await next.browser('/route-with-dynamic')
       await waitForRedbox(browser)
@@ -45,6 +36,8 @@ describe('cache-components-route-handler-errors', () => {
         '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     } else {
+      await expect(next.start()).rejects.toThrow()
+
       // In build mode, check for all three errors in the output
       expect(next.cliOutput).toContain('./app/route-with-dynamic/route.ts')
       expect(next.cliOutput).toContain(
@@ -61,5 +54,5 @@ describe('cache-components-route-handler-errors', () => {
         '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     }
-  })
+  }, 240_000)
 })

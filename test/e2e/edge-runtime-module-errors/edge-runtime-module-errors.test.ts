@@ -126,7 +126,6 @@ describe('Edge runtime module errors', () => {
       // pushes the initial server startup past the default 10s window on
       // loaded CI hardware.
       startServerTimeout: 30_000,
-      skipDeployment: true,
     })
     if (skipped) return
 
@@ -581,7 +580,6 @@ describe('Edge runtime module errors', () => {
       dependencies: {
         nanoid: 'latest',
       },
-      skipDeployment: true,
     })
     if (skipped) return
 

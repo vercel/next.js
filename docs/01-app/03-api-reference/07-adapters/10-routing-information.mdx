@@ -9,6 +9,10 @@ The `routing` object in `onBuildComplete` provides complete routing information 
 
 Routes applied before middleware execution. These include generated header and redirect behavior.
 
+## `routing.middlewareMatchers`
+
+Middleware matcher definitions emitted for this build. Use these to decide whether middleware should be invoked for a given request.
+
 ## `routing.beforeFiles`
 
 Rewrite routes checked before filesystem route matching.

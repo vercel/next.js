@@ -38,12 +38,26 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(0)
         expect(buildResult.cliOutput).toBeDefined()
 
-        // Should only build the specified page
+        // Should only build the specified page and support entries.
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          └ ○ /foo"
         `)
+
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
+        expect(pagesManifest).toContainKeys([
+          '/foo',
+          '/404',
+          '/500',
+          '/_app',
+          '/_document',
+          '/_error',
+        ])
       })
 
       it('should build multiple pages routes', async () => {
@@ -56,10 +70,28 @@ describe('debug-build-paths', () => {
         // Should build both specified pages
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          ├ ○ /bar
          └ ○ /foo"
         `)
+      })
+
+      it('should not include custom page support entries for an API-only build', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'pages/api/hello.ts'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
+        expect(pagesManifest).toContainKeys(['/api/hello'])
+        expect(pagesManifest).not.toContainKeys(['/500'])
+        expect(
+          await next.readFile('.next/server/pages/404.html')
+        ).not.toContain('Custom 404')
       })
 
       it('should build dynamic route with literal [slug] path', async () => {
@@ -93,7 +125,10 @@ describe('debug-build-paths', () => {
          ┌ ○ /
          └ ○ /_not-found
          Route (pages)
-         ┌ ○ /bar
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
+         ├ ○ /bar
          ├ ○ /foo
          └ ○ /with-index"
         `)
@@ -272,7 +307,9 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(0)
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          └ ○ /foo"
         `)
       })

@@ -7,15 +7,15 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPath,
     runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
@@ -26,21 +26,35 @@ use crate::{
 /// in the file. But we must only initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
     hmr_enabled: bool,
+    mode: RcStr,
+    base_url: RcStr,
+    is_ssr: bool,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: FileSystemPath, hmr_enabled: bool) -> Self {
-        ImportMetaBinding { path, hmr_enabled }
+    pub fn new(
+        path: FileSystemPath,
+        hmr_enabled: bool,
+        mode: RcStr,
+        base_url: RcStr,
+        is_ssr: bool,
+    ) -> Self {
+        ImportMetaBinding {
+            path,
+            hmr_enabled,
+            mode,
+            base_url,
+            is_ssr,
+        }
     }
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let rel_path = chunking_context
@@ -68,6 +82,11 @@ impl ImportMetaBinding {
         );
 
         let hmr_enabled = self.hmr_enabled;
+        let mode: Expr = self.mode.as_str().into();
+        let is_prod: Expr = (self.mode == "production").into();
+        let is_dev: Expr = (self.mode != "production").into();
+        let is_ssr: Expr = self.is_ssr.into();
+        let base_url: Expr = self.base_url.as_str().into();
 
         // [NOTE] url property is lazy-evaluated, as it should be computed once
         // turbopack_runtime injects a function to calculate an absolute path.
@@ -75,16 +94,29 @@ impl ImportMetaBinding {
             // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
             let turbopack_module: Expr = TURBOPACK_MODULE.into();
             quote!(
-                "var $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
+                "var $name = { get url() { return $path }, env: { DEV: $is_dev, PROD: \
+                 $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr }, get turbopackHot() { \
+                 return $m.hot } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
+                is_dev: Expr = is_dev,
+                is_prod: Expr = is_prod,
+                mode: Expr = mode,
+                base_url: Expr = base_url,
+                is_ssr: Expr = is_ssr,
                 m: Expr = turbopack_module,
             )
         } else {
             quote!(
-                "var $name = { get url() { return $path } };" as Stmt,
+                "var $name = { get url() { return $path }, env: { DEV: $is_dev, PROD: \
+                 $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
+                is_dev: Expr = is_dev,
+                is_prod: Expr = is_prod,
+                mode: Expr = mode,
+                base_url: Expr = base_url,
+                is_ssr: Expr = is_ssr,
             )
         };
 
@@ -103,23 +135,22 @@ impl From<ImportMetaBinding> for CodeGen {
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ImportMetaRef {
-    ast_path: AstPath,
+    ast_path: AstPathId,
 }
 
 impl ImportMetaRef {
-    pub fn new(ast_path: AstPath) -> Self {
+    pub fn new(ast_path: AstPathId) -> Self {
         ImportMetaRef { ast_path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(meta_ident());
         });
 

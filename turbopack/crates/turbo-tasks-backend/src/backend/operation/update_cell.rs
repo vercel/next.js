@@ -295,7 +295,7 @@ impl Operation for UpdateCellOperation {
                 } => {
                     if let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
                         let mut make_stale = false;
-                        let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
+                        let mut dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
                             let (in_outdated, in_current) = if let Some(k) = key {
                                 let in_outdated = dependent
@@ -327,8 +327,7 @@ impl Operation for UpdateCellOperation {
                             }
                         }
                         make_task_dirty_internal(
-                            dependent,
-                            dependent_task_id,
+                            &mut dependent,
                             make_stale,
                             #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CellChange {

@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
-    debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
+    debug::ValueDebugFormat, take_effects,
 };
 use turbopack_core::issue::CollectibleIssuesExt;
 
@@ -100,18 +100,21 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                 })
                 .collect(),
         ),
-        Route::AppRoute { original_name, .. } => RouteOperation::AppRoute {
+        Route::AppRoute {
+            original_name,
+            has_action_manifest,
+            ..
+        } => RouteOperation::AppRoute {
             original_name: original_name.clone(),
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+            has_action_manifest: *has_action_manifest,
         },
         Route::Conflict => RouteOperation::Conflict,
     }
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Debug, Clone, TraceRawVcs, PartialEq, Eq, Hash, ValueDebugFormat, OperationValue, Encode, Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, ValueDebugFormat, OperationValue, Encode, Decode)]
 enum EndpointSelector {
     RoutePageHtml(RcStr),
     RoutePageData(RcStr),
@@ -194,13 +197,13 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
@@ -220,13 +223,12 @@ pub enum RouteOperation {
     AppRoute {
         original_name: RcStr,
         endpoint: OperationVc<OptionEndpoint>,
+        has_action_manifest: bool,
     },
     Conflict,
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,
     pub html_endpoint: OperationVc<OptionEndpoint>,

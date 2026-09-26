@@ -75,6 +75,7 @@ export const NextBuildContext: Partial<{
   previewProps: __ApiPreviewProps
   mappedPages: MappedPages | undefined
   mappedAppPages: MappedPages | undefined
+  mappedAppDefaults: MappedPages | undefined
   mappedRootPaths: MappedPages
   hasInstrumentationHook: boolean
 

@@ -31,6 +31,7 @@ use turbopack_core::{
 use crate::{
     nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
+    path_utils::convention_file_base_name,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
@@ -84,7 +85,8 @@ impl MiddlewareEndpoint {
             )
             .module();
 
-        let is_proxy = userland_module.ident().await?.path.file_stem() == Some("proxy");
+        let is_proxy =
+            convention_file_base_name(userland_module.ident().await?.path.file_name()) == "proxy";
 
         let module = get_middleware_module(
             *self.asset_context,
@@ -156,10 +158,7 @@ impl MiddlewareEndpoint {
         let next_config = this.project.next_config();
         let i18n = next_config.i18n().await?;
         let has_i18n = i18n.is_some();
-        let has_i18n_locales = i18n
-            .as_ref()
-            .map(|i18n| i18n.locales.len() > 1)
-            .unwrap_or(false);
+        let has_i18n_locales = i18n.is_some();
         let base_path = next_config.base_path().await?;
 
         let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
@@ -348,6 +347,7 @@ impl MiddlewareEndpoint {
             None,
             this.project.module_graph(*userland_module),
             Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
         ))
     }
 }

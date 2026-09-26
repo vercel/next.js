@@ -185,6 +185,80 @@ describe('request insights', () => {
     )
   })
 
+  it('keeps request and Instant Insights data separate for the same request ID', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const listener = jest.fn()
+    const unsubscribe = subscribeRequestInsights(listener)
+
+    recordSpan({
+      name: 'GET /dashboard',
+      requestId: 'req_shared',
+      htmlRequestId: 'html_shared',
+      route: '/dashboard',
+      startTime: 100,
+      durationMs: 40,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    recordSpan({
+      name: 'Instant Insights',
+      requestId: 'req_shared',
+      requestInsightKind: 'instant-insights',
+      htmlRequestId: 'html_shared',
+      route: '/dashboard',
+      startTime: 150,
+      durationMs: 75,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'AppRender.instantInsights',
+      },
+    })
+    recordRequestInsightFetch(
+      {
+        requestId: 'req_shared',
+        kind: 'instant-insights',
+        htmlRequestId: 'html_shared',
+        route: '/dashboard',
+      },
+      {
+        url: 'https://example.com/validation-data',
+        startTime: 175,
+        durationMs: 10,
+      }
+    )
+
+    expect(getRequestInsightsSnapshot().requests).toEqual([
+      expect.objectContaining({
+        requestId: 'req_shared',
+        kind: 'request',
+        startTime: 100,
+        durationMs: 40,
+        fetches: [],
+      }),
+      expect.objectContaining({
+        requestId: 'req_shared',
+        kind: 'instant-insights',
+        startTime: 150,
+        durationMs: 75,
+        fetches: [
+          expect.objectContaining({
+            url: 'https://example.com/validation-data',
+          }),
+        ],
+      }),
+    ])
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'request' })
+    )
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'instant-insights' })
+    )
+
+    unsubscribe()
+  })
+
   it('does not treat aggregate client component loading as a trace span', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 

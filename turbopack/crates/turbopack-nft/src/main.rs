@@ -7,6 +7,7 @@ use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+use turbo_tasks_fs::canonicalize_to_rcstr;
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_nft::nft::node_file_trace;
 use turbopack_trace_utils::{
@@ -89,9 +90,10 @@ async fn main_inner(args: Arguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
+    let project_root = canonicalize_to_rcstr(&current_dir()?)?;
     tt.run_once(async move {
         node_file_trace(
-            current_dir()?.to_str().unwrap().into(),
+            project_root,
             args.entry.into(),
             args.graph,
             args.show_issues,

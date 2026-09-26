@@ -9,7 +9,7 @@ When `config.supportsImmutableAssets` is enabled, Next.js outputs immutable cont
 
 At runtime, these immutable static assets are requested without the `?dpl` query parameter and thus live in a shared namespace across deployments. You must ensure that these assets are immutable and not changed (even after a new deployment) or deleted (for as long as there are active deployments using them) . Next.js may use a truncated shorter content hash as the filename, so `outputs.staticFiles[].immutableHash` contains the full content hash which can be used to validate that no hash collision occurred.
 
-You can use `config.experimental.outputHashSalt` to set a salt for the content hashes, if you want to rotate the hashes for any reason (e.g. after a detected hash collision).
+You can use `config.outputHashSalt` to set a salt for the content hashes, if you want to rotate the hashes for any reason (e.g. after a detected hash collision).
 
 Note that you need to continue supporting non-immutable static assets (which may change between deployments and continue to be requested with the `?dpl` query parameter), e.g. for the `public` folder or for older Next.js versions.
 
@@ -32,7 +32,7 @@ const adapter = {
         config.supportsImmutableAssets ?? true
 
       // Optionally, pass a salt for the content hashes
-      // config.experimental.outputHashSalt = getSaltForCurrentProject()
+      // config.outputHashSalt = getSaltForCurrentProject()
     }
     return config
   },

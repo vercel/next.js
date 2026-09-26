@@ -31,12 +31,12 @@ describe('bfcache-routing', () => {
   itHeaded(
     'should not suspend indefinitely when page is restored from bfcache after an mpa navigation',
     async () => {
-      // bfcache is not currently supported by CDP, so we need to run this particular test in headed mode
+      // bfcache is not currently supported by CDP, so this test only runs in
+      // headed mode (`itHeaded` skips it when the HEADLESS env var is set)
       // https://bugs.chromium.org/p/chromium/issues/detail?id=1317959
 
       const browser = await next.browser('/index.html', {
         baseUrl: port,
-        headless: false,
       })
 
       // we overwrite the typical waitUntil: 'load' option here as the event is never being triggered if we hit the bfcache

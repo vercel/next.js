@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
-describe('next experimental-analyze', () => {
+describe('next analyze', () => {
   if (!shouldUseTurbopack()) {
     // Test suites require at least one test
     it('skips in non-Turbopack tests', () => {})
@@ -38,7 +38,7 @@ describe('next experimental-analyze', () => {
     }, 30000)
 
     const exit = next
-      .runCommand(['experimental-analyze', '--port', '0'], {
+      .runCommand(['analyze', '--port', '0'], {
         onStdout(msg) {
           stdoutBuffer += msg
           const urlMatch = stdoutBuffer.match(/http:\/\/[^\s]+/)
@@ -66,6 +66,32 @@ describe('next experimental-analyze', () => {
       await exit.catch(() => {})
     }
   })
+
+  it('stores the snapshot name in live and historical metadata', async () => {
+    const name = 'My snapshot'
+    const { exitCode, stderr } = await next.runCommand([
+      'analyze',
+      '--output',
+      '--snapshot-name',
+      name,
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stderr).not.toContain('Error')
+
+    const analyzeDir = path.join(next.testDir, '.next/diagnostics/analyze')
+    const metadata = JSON.parse(
+      readFileSync(path.join(analyzeDir, 'data/metadata.json'), 'utf-8')
+    )
+    expect(metadata.snapshotName).toBe(name)
+    expect(metadata).not.toHaveProperty('baselineName')
+
+    const history = JSON.parse(
+      readFileSync(path.join(analyzeDir, 'history/history.json'), 'utf-8')
+    )
+    expect(history.snapshots[0].snapshotName).toBe(name)
+    expect(history.snapshots[0]).not.toHaveProperty('baselineName')
+  })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {
@@ -75,7 +101,7 @@ describe('next experimental-analyze', () => {
         )
 
         const { exitCode, stderr, stdout } = await next.runCommand([
-          'experimental-analyze',
+          'analyze',
           flag,
         ])
 

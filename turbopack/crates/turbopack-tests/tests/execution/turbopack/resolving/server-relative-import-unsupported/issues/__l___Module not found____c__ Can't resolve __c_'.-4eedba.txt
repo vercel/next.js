@@ -1,0 +1,11 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input  Module not found: Can't resolve './input/dir/foo.js'
+  
+  
+  server relative imports are not implemented yet. Please try an import relative to the file you are importing from.
+  
+  
+  | An error happened during resolving.
+  | Parsed request as written in source code: relative-in-lookup-dir './input/dir/foo.js'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input
+  | Type of request: server relative import: not implemented yet
+  |

@@ -8,7 +8,7 @@ describe('Deprecated @next/font warning', () => {
       'pages/index.js': '',
     },
     dependencies: {
-      '@next/font': 'canary',
+      '@next/font': 'workspace:*',
     },
     skipStart: true,
   })

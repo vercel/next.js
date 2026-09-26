@@ -1,5 +1,5 @@
-import { createAsyncLocalStorage } from './async-local-storage'
+import { getOrCreateGlobalAsyncLocalStorage } from './async-local-storage'
 import type { ConsoleAsyncStorage } from './console-async-storage.external'
 
 export const consoleAsyncStorageInstance: ConsoleAsyncStorage =
-  createAsyncLocalStorage()
+  getOrCreateGlobalAsyncLocalStorage('console-async-storage')

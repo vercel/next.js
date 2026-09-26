@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { DebugRenderKind } from '../../shared'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 export default async function Layout({ children }) {
   return (
     <main>

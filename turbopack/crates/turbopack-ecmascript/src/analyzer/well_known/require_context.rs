@@ -47,7 +47,7 @@ pub fn parse_require_context(args: &[JsValue<'_>]) -> Result<RequireContextOptio
     };
 
     let filter = if let Some(filter) = args.get(2) {
-        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
+        if let JsValue::Constant(ConstantValue::Regex((pattern, flags))) = filter {
             EsRegex::new(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");

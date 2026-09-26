@@ -31,10 +31,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
@@ -233,11 +230,11 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn to_endpoint(
+    async fn to_page_endpoint(
         self: Vc<Self>,
         item: Vc<PagesStructureItem>,
         ty: PageEndpointType,
-    ) -> Result<Vc<Box<dyn Endpoint>>> {
+    ) -> Result<Vc<PageEndpoint>> {
         let PagesStructureItem {
             next_router_path,
             original_path,
@@ -245,15 +242,23 @@ impl PagesProject {
         } = &*item.await?;
         let pathname: RcStr = format!("/{}", next_router_path.path).into();
         let original_name = format!("/{}", original_path.path).into();
-        let endpoint = Vc::upcast(PageEndpoint::new(
+        Ok(PageEndpoint::new(
             ty,
             self,
             pathname,
             original_name,
             item,
             self.pages_structure(),
-        ));
-        Ok(endpoint)
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn to_endpoint(
+        self: Vc<Self>,
+        item: Vc<PagesStructureItem>,
+        ty: PageEndpointType,
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
+        Ok(Vc::upcast(self.to_page_endpoint(item, ty)))
     }
 
     #[turbo_tasks::function]
@@ -264,9 +269,16 @@ impl PagesProject {
         ))
     }
 
+    /// The `/_app` endpoint. Its client chunk group is generated first and seeds the availability
+    /// information of every other page, so it must never depend on an individual page.
+    #[turbo_tasks::function]
+    async fn app_page_endpoint(self: Vc<Self>) -> Result<Vc<PageEndpoint>> {
+        Ok(self.to_page_endpoint(*self.pages_structure().await?.app, PageEndpointType::Html))
+    }
+
     #[turbo_tasks::function]
     pub async fn app_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
-        Ok(self.to_endpoint(*self.pages_structure().await?.app, PageEndpointType::Html))
+        Ok(Vc::upcast(self.app_page_endpoint()))
     }
 
     #[turbo_tasks::function]
@@ -596,7 +608,7 @@ struct PageEndpoint {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 enum PageEndpointType {
     Api,
     Html,
@@ -608,7 +620,7 @@ enum PageEndpointType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
@@ -616,7 +628,7 @@ enum SsrChunkType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,
@@ -797,12 +809,24 @@ impl PageEndpoint {
                 .iter()
                 .map(|m| ResolvedVc::upcast(*m))
                 .collect();
+            // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
+            // the page's chunks don't include modules that the browser already downloaded with
+            // `/_app`.
+            let availability_info = if this.pathname == "/_app" {
+                AvailabilityInfo::root()
+            } else {
+                this.pages_project
+                    .app_page_endpoint()
+                    .client_chunk_group()
+                    .await?
+                    .availability_info
+            };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
-                AvailabilityInfo::root(),
+                availability_info,
             );
 
             Ok(client_chunk_group)
@@ -952,29 +976,11 @@ impl PageEndpoint {
                 // We only validate the global css imports when there is not a `app` folder at the
                 // root of the project.
                 if project.app_project().await?.is_none() {
-                    // We recreate the app_module here because the one provided from the
-                    // `internal_ssr_chunk_module` is not the same as the one
-                    // provided from the `client_module_graph`. There can be cases where
-                    // the `app_module` is None, and we are processing the `pages/_app.js` file
-                    // as a page rather than the app module.
-                    let app_module = project
-                        .pages_project()
-                        .client_module_context()
-                        .process(
-                            Vc::upcast(FileSource::new(
-                                this.pages_structure.await?.app.file_path().owned().await?,
-                            )),
-                            ReferenceType::Entry(EntryReferenceSubType::Page),
-                        )
-                        .to_resolved()
-                        .await?
-                        .module();
-
                     validate_pages_css_imports(
                         client_module_graph,
                         per_page_module_graph,
                         self.client_module(),
-                        app_module,
+                        this.pages_structure.await?.app.file_path().owned().await?,
                     )
                     .await?;
                 }
@@ -1619,6 +1625,9 @@ impl PageEndpoint {
             Some(pages_function_name(&this.original_name).into()),
             ssr_module_graph,
             Vc::cell(vec![ssr_module]),
+            // The Pages Router renderer resolves `styled-jsx` through the require hook at
+            // runtime, so those modules have to be traced for pages endpoints.
+            this.pages_project.project().pages_traced_modules(),
         ))
     }
 }
@@ -1706,6 +1715,7 @@ impl Endpoint for PageEndpoint {
 
                     EndpointOutputPaths::NodeJs {
                         server_entry_path,
+                        server_hmr_entry_paths: vec![],
                         server_paths,
                         client_paths,
                     }
@@ -1758,7 +1768,7 @@ impl Endpoint for PageEndpoint {
             .pages_project
             .project()
             .next_config()
-            .chunking_heuristics()
+            .turbopack_chunking()
             .await?
             .entry_heuristics_for(&this.pathname);
 

@@ -12,7 +12,7 @@ It supports having multiple key families, which are stored in separate files, bu
 
 ## On disk format
 
-There is a single `CURRENT` file which stores the latest committed sequence number.
+There is a single `CURRENT` file, a small JSON object holding the latest committed sequence number (`max_sequence_number`) and when that commit happened (`commit_time`). The commit time is stored in the file rather than taken from its mtime so that it survives the directory being copied or restored. External tools read this file, so its field names are a stable contract.
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
@@ -29,7 +29,10 @@ Therefore there are these value types:
 - SMALL: Values 9–4096 bytes packed into shared value blocks within `*.sst` files.
 - MEDIUM: Values 4097 bytes – 64 MB stored in dedicated value blocks within `*.sst` files.
 - BLOB: Values > 64 MB stored in separate `*.blob` files.
-- DELETED: Values that are deleted. (Tombstone)
+- KEY DELETED: Every value for the key is deleted. (Key tombstone)
+- KEY-VALUE DELETED: Only one named key → value pair is deleted, leaving other values for the same
+  key intact. (Key-value tombstone) Only meaningful for `MultiValue` families; see
+  [Key-value tombstones](#key-value-tombstones).
 - Future:
   - MERGE: An application specific update operation that is applied on the old value.
 
@@ -53,6 +56,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 - Header
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
+  - 1 byte compression algorithm, which must match the configuration used to open the database
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -85,9 +89,11 @@ The SST file contains only data without any header.
 
 #### Block Compression
 
-Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header distinguishes them:
+Blocks can be stored compressed or uncompressed. The compression algorithm is specified in the meta file.
 
-- **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
+The 4-byte header distinguishes compressed from uncompressed storage:
+
+- **Header > 0**: Block is compressed with the family's configured algorithm. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
 
 #### Block Checksum
@@ -112,37 +118,40 @@ The hashes are sorted.
 
 - 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
-- foreach entry
+- offset table: foreach entry
+  - 8 bytes key hash (block type 1 only)
   - 1 byte type
   - 3 bytes position in block after header
 - Max block size: 16 KB
 
 A Key block contains n keys, which specify n key value pairs.
 
-The block type determines whether the key hash is stored per entry:
+The block type determines whether the key hash is stored, and with it the order the entries are
+stored in:
 
-- Block type 1 (with hash): Full 8-byte hash stored per entry
-- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes)
+- Block type 1 (with hash): Full 8-byte hash per entry, stored in the offset table. Entries are
+  sorted by `(key hash, key)`.
+- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes). Entries are sorted by **key**.
 
-During lookup, if block type is 2, the full hash is recomputed from the key data.
+See [Entry ordering](#entry-ordering) for why the two differ.
+
+The hash lives in the offset table rather than beside its key so that a lookup's binary search reads
+only that dense array. Fixed-size key blocks apply the same idea; see
+[Two regions, not interleaved](#two-regions-not-interleaved).
 
 Depending on the `type` field entry has a different format:
 
 - 0: normal key (small value)
-  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
   - 2 bytes size
   - 4 bytes position in block
 - 1: blob reference
-  - 8 bytes key hash (if block type 1)
   - key data
   - 4 bytes sequence number
-- 2: deleted key / tombstone (no data)
-  - 8 bytes key hash (if block type 1)
+- 2: deleted key / key tombstone (no data)
   - key data
 - 3: normal key (medium sized value)
-  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
 - 7: merge key (future)
@@ -150,27 +159,83 @@ Depending on the `type` field entry has a different format:
   - 2 byte block index
   - 3 bytes size
   - 4 bytes position in block
-- 8..255: inlined value (currently only values ≤8 bytes are inlined, though the format supports up to 247)
-  - 8 bytes key hash (if block type 1)
+- 8..=16: inlined value, size = type - 8 (the format supports up to 247, but `MAX_INLINE_VALUE_SIZE`
+  currently caps it at 8)
   - key data
   - (type - 8) bytes value data (inline, no separate value block)
+- 17..=25: key-value tombstone, deleted value size = type - 17 (mirrors the inline range and shifts
+  with `MAX_INLINE_VALUE_SIZE`)
+  - key data
+  - (type - 17) bytes of the deleted value, stored inline
 
-The entries are sorted by key hash and key.
+Both ranged kinds are open-ended, so a decoder must test the key-value tombstone range **before**
+the inline range.
+
+##### Entry ordering
+
+Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a key block, the order may be different
+
+- **With hash (types 1 and 3):** sorted by `(key hash, key)`.
+- **No hash (types 2 and 4):** sorted by **key** alone.
+
+
+##### Key-value tombstones
+
+A key-value tombstone names the exact pair to remove, so it must carry a copy of the deleted
+value's bytes. Since the value lives inline in the key block and its length is encoded in the type
+byte, only inline-sized values can be deleted this way — hence `MAX_INLINE_VALUE_SIZE` bounds
+`delete_value`.
+
+The size limit is a consequence of that encoding, not of the comparison logic: matching is a plain
+byte comparison and does not care how a value is stored. Supporting larger deleted values is
+therefore possible but unmotivated — the tombstone stores a second copy of the value, so the cost
+of deleting approaches the cost of the value itself, and reclaiming space is the whole point.
+
+If it is ever needed, the natural encoding is a dedicated is-tombstone bit (e.g. the top bit) on the
+entry type, making "deleted" orthogonal to storage class rather than a parallel type range. That
+would also collapse the current duplication where the tombstone representation mirrors the inline
+one at every layer. Note that blob-backed values need a separate design: comparing against a blob
+means reading it, which would put unbounded I/O in the compaction path, and blob liveness
+accounting would have to handle a tombstone holding a blob reference.
 
 #### Key Block (fixed-size)
 
-Used when all entries in a block have the same key size and value type. Eliminates the per-entry offset table, enabling direct arithmetic indexing during binary search.
+Used when all entries in a block have the same key size, and either the same value type or at least
+the same value size. Eliminates the per-entry offset table, enabling direct arithmetic indexing
+during binary search.
 
 - 1 byte block type (3: fixed-size with hash, 4: fixed-size without hash)
 - 3 bytes entry count
 - 1 byte key size (uniform across all entries)
-- 1 byte value type (shared by all entries, same encoding as variable-size type field)
-- foreach entry (packed at stride = hash_len + key_size + val_size):
-  - 8 bytes key hash (if block type 3)
-  - key data (key_size bytes)
-  - value data (size determined by value type)
+- 1 byte value type (shared by all entries, same encoding as variable-size type field), or
+  `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE` (4) when entries share a value size but not a value type
+- 1 byte value size — only present when the value type is `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`
+- search region, foreach entry at stride `search_stride`:
+  - 8 bytes key hash (block type 3), or key data (block type 4, `key_size` bytes)
+- tail region, foreach entry at stride `tail_stride`:
+  - key data (block type 3 only, `key_size` bytes)
+  - 1 byte value type — only present when the block is mixed-type
+  - value data (size determined by the block's or the entry's value type)
 
-Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
+The mixed-type form exists so that same-sized inline values and key-value tombstones can share a
+fixed-size block: they have equal value sizes but different type bytes. Tag 4 is available as the
+mixed marker because it is not itself a valid entry type.
+
+##### Two regions, not interleaved
+
+Rather than one interleaved record per entry, entries are split into a **search region** and a
+**tail region**, indexed by the same entry number. The search region holds only the bytes binary
+search compares first — the hash for block type `3`, the key for block type `4` (see
+[Entry ordering](#entry-ordering)) — so a probe searches the dense prefix region. The _values_ are then found by index in the **tail**
+after the search succeeds.
+
+Entry positions for index `i` are `header_size + i * search_stride` and
+`header_size + entry_count * search_stride + i * tail_stride`, both with no indirection.
+
+The search region must be in ascending order for that binary search to be valid. This is inherited
+from the `(key hash, key)` order the writer requires of its input, not established per block, so
+reordering entries within a block is a format violation rather than a free choice — see
+[Entry ordering](#entry-ordering).
 
 #### Value Block
 
@@ -183,23 +248,25 @@ The plain value compressed with dynamic compression. Each blob file has an 8-byt
 
 - 4 bytes: uncompressed length (u32 big-endian)
 - 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
-- remaining bytes: LZ4-compressed value data
+- remaining bytes: value data compressed with the blob's key-family configuration
 
 The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 
-Reading start from the current sequence number and goes downwards.
+Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
+files, from newest to oldest; there is no ordering dependency between families.
 
 - We have all SST files memory mapped
-- for i = CURRENT sequence number .. 0
+- for each meta file of the queried key family, newest first
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
-    - Index Block: find key range that contains the key by binary search
+    - Index Block: find key range that contains the key by binary search using the **hash** of the key
       - found -> set block, continue
       - not found -> break
-    - Key Block: find key by binary search
+    - Key Block: find key by binary search, comparing `(hash, key)` in blocks that store a hash and
+      the key alone in blocks that do not (see [Entry ordering](#entry-ordering))
       - found -> lookup value from value block, return
           - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
@@ -258,6 +325,10 @@ During the merge operation we eliminate duplicate keys. When blob references are
 Since the process might exit unexpectedly, to avoid "forgetting" to delete the SST files we keep track of that in a `*.del` file. This file contains the sequence number of SST and blob files that should be deleted. We write that file before the current sequence number is updated. On restart we execute the deletes again.
 
 We limit the number of SST files that are merged at once to avoid long compactions.
+
+Compaction keeps meta files incremental: a new meta file only describes SST files that were merged
+or moved. Metadata for untouched SST files stays in its existing meta file. When every active entry
+in an old meta file is superseded, that meta file is retired in the same compaction commit.
 
 Full example:
 
@@ -321,3 +392,7 @@ Configuration options for compactions are:
 
 - fsync!
 - (this also deleted enqueued files)
+
+## Compatibility
+
+Currently, the database does not support cross version compatibility. Therefore all updates should be considered breaking changes and the only approach is to rewrite the databases.

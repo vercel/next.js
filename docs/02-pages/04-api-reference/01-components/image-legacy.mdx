@@ -458,7 +458,7 @@ module.exports = {
 The following Image Optimization cloud providers are included:
 
 - Default: Works automatically with `next dev`, `next start`, or a custom server
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/concepts/image-optimization?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/image-optimization?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
@@ -565,7 +565,7 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 ### Minimum Cache TTL
 
-You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/pages/api-reference/components/image#src) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
+You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/pages/api-reference/components/image#src) which will automatically hash the file contents and cache the image with a long-lived `immutable` `Cache-Control` header.
 
 If no configuration is provided, the default below is used.
 

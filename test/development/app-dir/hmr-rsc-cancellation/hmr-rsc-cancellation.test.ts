@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, assertNoConsoleErrors } from 'next-test-utils'
-import { parseValidationMessages } from 'e2e-utils/instant-validation'
+import {
+  parseValidationMessages,
+  waitForValidation,
+} from 'e2e-utils/instant-validation'
 import type { Playwright } from 'next-webdriver'
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
@@ -258,6 +261,14 @@ describe('hmr-rsc-cancellation', () => {
     await retry(async () => {
       expect(await browser.elementById('dynamic').text()).toBe('initial')
     })
+    if (cacheComponentsEnabled) {
+      // Loading the page triggers a validation, which is detached from the
+      // response and can write its markers long after the page has rendered.
+      // Wait for it to finish before recording the CLI position below,
+      // otherwise those markers can land in the window the assertions read and
+      // the expected sequence of refresh events no longer matches.
+      await waitForValidation(await browser.url(), () => next.cliOutput)
+    }
     await instrumentBrowser(browser)
     const cliStart = next.cliOutput.length
 
