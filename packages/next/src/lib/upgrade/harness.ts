@@ -37,6 +37,36 @@ const UPGRADE_MODELS = {
   ],
 } as const
 
+function getCodexModels(path: string) {
+  const fallback = UPGRADE_MODELS.codex.filter(({ id }) => id !== 'gpt-6-astra')
+  const result = spawn.sync(path, ['debug', 'models', '--bundled'], {
+    encoding: 'utf8',
+    timeout: 5000,
+    maxBuffer: 20 * 1024 * 1024,
+  })
+  if (result.status !== 0) {
+    Log.warn('Could not read the Codex model catalog; using known models.')
+    return fallback
+  }
+
+  try {
+    const catalog = JSON.parse(result.stdout) as {
+      models?: Array<{ slug: string }>
+    }
+    if (!Array.isArray(catalog.models)) {
+      Log.warn(
+        'Codex model catalog has an unexpected format; using known models.'
+      )
+      return fallback
+    }
+    const available = new Set(catalog.models.map(({ slug }) => slug))
+    return UPGRADE_MODELS.codex.filter(({ id }) => available.has(id))
+  } catch {
+    Log.warn('Could not parse the Codex model catalog; using known models.')
+    return fallback
+  }
+}
+
 type UpgradeHarness = {
   name: keyof typeof UPGRADE_MODELS
   path: string
@@ -228,10 +258,15 @@ function launchHarness(
     prompt = prompt.replace(/[\r\n]+/g, ' ')
   }
 
-  const args =
-    harness.name === 'codex'
-      ? ['--model', model, '-c', `model_reasoning_effort=${effort}`, prompt]
-      : ['--model', model, '--effort', effort, prompt]
+  const args = ['--model', model]
+  if (effort !== 'default') {
+    if (harness.name === 'codex') {
+      args.push('-c', `model_reasoning_effort=${effort}`)
+    } else {
+      args.push('--effort', effort)
+    }
+  }
+  args.push(prompt)
   return runChildProcess(harness.path, args, {
     cwd: directory,
     stdio: 'inherit',
@@ -276,7 +311,15 @@ export async function handoffUpgrade(
     return
   }
 
-  const models = UPGRADE_MODELS[harness.name]
+  const models =
+    harness.name === 'codex'
+      ? getCodexModels(harness.path)
+      : UPGRADE_MODELS.claude
+  if (models.length === 0) {
+    Log.error('No supported models were found for the selected coding agent.')
+    process.exitCode = 1
+    return
+  }
   const modelId = await chooseOption(
     `Which ${getHarnessDisplayName(harness.name)} model should run the upgrade?`,
     Object.fromEntries(models.map(({ id, label }) => [id, label])),
@@ -291,10 +334,16 @@ export async function handoffUpgrade(
 
   const effort = await chooseOption(
     'Which reasoning effort should the upgrade use?',
-    Object.fromEntries(model.efforts.map((value) => [value, value])),
-    model.efforts.indexOf('high')
+    {
+      default: 'Model default',
+      ...Object.fromEntries(model.efforts.map((value) => [value, value])),
+    },
+    0
   )
-  if (!effort || !model.efforts.some((value) => value === effort)) {
+  if (
+    !effort ||
+    (effort !== 'default' && !model.efforts.some((value) => value === effort))
+  ) {
     Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
     process.exitCode = 1
     return
