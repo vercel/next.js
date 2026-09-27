@@ -849,12 +849,6 @@ export async function renderToHTMLImpl(
     (renderOpts.isBuildTimePrerendering ||
       (process.env.__NEXT_DEV_SERVER && (isAutoExport || isFallback)))
 
-  const styledJsxInsertedHTML = () => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
-  }
-
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
     Component,
@@ -1424,10 +1418,12 @@ export async function renderToHTMLImpl(
       jsxStyleRegistry.flush()
     }
 
-    // Registry is now flushed; rawStyledJsxInsertedHTML will be empty.
-    const rawStyledJsxInsertedHTML = await renderToString(
-      styledJsxInsertedHTML()
-    )
+    const remainingStyledJsxStyles = jsxStyleRegistry.styles()
+    jsxStyleRegistry.flush()
+    const rawStyledJsxInsertedHTML =
+      remainingStyledJsxStyles.length > 0
+        ? await renderToString(<>{remainingStyledJsxStyles}</>)
+        : ''
 
     if (content === null) {
       return null
