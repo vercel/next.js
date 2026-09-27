@@ -371,6 +371,7 @@ export async function handoffUpgrade(
   let permissionArgs: string[] = []
   let useAuto = true
   let useWorktree = true
+  let codexModels: ReturnType<typeof getCodexModels> | undefined
 
   while (true) {
     if (stage === 'harness') {
@@ -387,7 +388,7 @@ export async function handoffUpgrade(
     } else if (stage === 'model') {
       const models =
         harness!.name === 'codex'
-          ? getCodexModels(harness!.path)
+          ? (codexModels ??= getCodexModels(harness!.path))
           : UPGRADE_MODELS.claude
       if (models.length === 0 && harness!.name === 'codex') {
         Log.warn('Could not verify Codex models; using the CLI defaults.')

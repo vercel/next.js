@@ -944,6 +944,9 @@ describe('agentic upgrade prompts', () => {
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app')
 
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === 'debug')
+    ).toHaveLength(1)
     expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
     expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
