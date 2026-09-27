@@ -11,13 +11,13 @@ related:
     - app/guides/ai-agents
 ---
 
-Use `next upgrade --ai` to select an upgrade, prepare version-matched migration instructions, and hand the work to a coding agent. The agent applies the changes and verifies the app.
+Use `next upgrade --ai` to choose an upgrade policy and prepare version-matched instructions for a coding agent. The command provides the relevant migration guides and Skills, then asks the agent to apply the changes and verify the app.
 
 The command supports App Router and Pages Router projects. Without `--ai`, [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) runs the interactive codemod workflow instead.
 
 ## Start an upgrade
 
-Run the current upgrade CLI from your app's directory:
+Run the latest upgrade CLI from your app's directory:
 
 ```bash filename="Terminal"
 npx next@canary upgrade --ai=latest
@@ -49,9 +49,9 @@ npx next@canary upgrade --ai
 
 `security` supports stable installations. Canary installations can use `latest` or `future`. RC, beta, and preview installations can use `latest` to move to a newer stable release. Other prerelease channels are not supported.
 
-### Adopt Future Defaults
+### Adopt future defaults
 
-The `future` policy adopts new defaults even when the app already uses the latest Next.js version. It currently offers [Cache Components](/docs/app/guides/migrating-to-cache-components) to eligible App Router projects on Next.js 16.3 or later:
+The `future` policy adopts new defaults even when the app already uses the latest Next.js version. For eligible App Router projects on Next.js 16.3 or later, the command currently prepares the [Cache Components](/docs/app/guides/migrating-to-cache-components) guide and adoption Skill:
 
 ```bash filename="Terminal"
 npx next@canary upgrade --ai=future
@@ -63,7 +63,7 @@ Pages Router projects can use `future` for version upgrades, but the command doe
 
 Before starting an agent session, the CLI checks the installed version, release metadata, and any security data required by the selected policy. It stops with an explanation when no upgrade is needed or it cannot establish a target.
 
-For a ready upgrade, the CLI copies the relevant migration guides into a temporary directory and prepares a task with the selected target. For a major upgrade, the task includes the guide for every major version crossed. It also asks the agent to check for duplicate work, use a separate Git worktree when available, run the relevant checks, and verify the result.
+For a ready upgrade, the CLI copies the relevant migration guides into a temporary directory, prepares the applicable Skills, and creates a task for the selected target. For a major upgrade, the task includes the guide for every major version crossed. It also asks the agent to check for duplicate work, use a separate Git worktree when available, run the relevant checks, and verify the result.
 
 When you run the command inside a coding agent, the CLI prints the task for the current agent to follow. In an interactive terminal, it can start an installed Codex or Claude Code session, or copy the task for another agent. In a non-interactive terminal, it prints the task.
 
