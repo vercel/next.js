@@ -444,7 +444,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockImplementation(async (file) => {
       if (/[/\\]codex(?:\.(?:exe|cmd|bat|com))?$/i.test(String(file))) return
-      throw new Error('not found')
+      throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     })
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(cliSelect).mockResolvedValue({ id: 'cancel' } as never)
@@ -645,6 +645,82 @@ describe('agentic upgrade prompts', () => {
     )
   })
 
+  it.each([
+    [
+      'unavailable',
+      { status: 1, stdout: '' },
+      'Could not read the Codex model catalog; using the CLI defaults.',
+      'exit status 1',
+    ],
+    [
+      'invalid JSON',
+      { status: 0, stdout: '{' },
+      'Could not parse the Codex model catalog; using the CLI defaults.',
+      expect.any(SyntaxError),
+    ],
+    [
+      'unexpected format',
+      { status: 0, stdout: '{}' },
+      'Codex model catalog has an unexpected format; using the CLI defaults.',
+      null,
+    ],
+    [
+      'empty',
+      { status: 0, stdout: JSON.stringify({ models: [] }) },
+      'Could not verify Codex models; using the CLI defaults.',
+      null,
+    ],
+  ])(
+    'uses Codex defaults when the model catalog is %s',
+    async (_, result, warning, cause) => {
+      process.env.PATH = '/agents'
+      overrideTTY(process.stdin)
+      overrideTTY(process.stdout)
+      jest.mocked(getAgentName).mockResolvedValue(null)
+      jest.mocked(access).mockResolvedValue(undefined)
+      jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+      crossSpawn.sync.mockReturnValue(result)
+      jest
+        .mocked(cliSelect)
+        .mockResolvedValueOnce({ id: 'codex' } as never)
+        .mockResolvedValueOnce({ id: 'no' } as never)
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('close', 0, null))
+        return child
+      })
+
+      await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+      expect(cliSelect).toHaveBeenCalledTimes(2)
+      if (cause === null) {
+        expect(Log.warn).toHaveBeenCalledWith(warning)
+      } else {
+        expect(Log.warn).toHaveBeenCalledWith(warning, cause)
+      }
+      expect(crossSpawn).toHaveBeenCalledWith(
+        expectedHarnessPath('codex'),
+        ['Upgrade prompt'],
+        { cwd: '/workspace/app', stdio: 'inherit' }
+      )
+    }
+  )
+
+  it('preserves unexpected agent probe errors as the cause', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    const cause = Object.assign(new Error('too many open files'), {
+      code: 'EMFILE',
+    })
+    jest.mocked(access).mockRejectedValue(cause)
+
+    await expect(
+      handoffUpgrade('Upgrade prompt', '/workspace/app')
+    ).rejects.toMatchObject({ cause })
+  })
+
   it('keeps the existing agent in its session', async () => {
     const prompt = jest.fn(() => 'Prepared upgrade prompt.')
 
@@ -663,6 +739,10 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockReturnValue({
+      status: 0,
+      stdout: JSON.stringify({ models: [{ slug: 'gpt-5.6-terra' }] }),
+    })
     jest
       .mocked(cliSelect)
       .mockResolvedValueOnce({ id: 'codex' } as never)

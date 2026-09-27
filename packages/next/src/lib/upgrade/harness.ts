@@ -38,15 +38,17 @@ const UPGRADE_MODELS = {
 } as const
 
 function getCodexModels(path: string) {
-  const fallback = UPGRADE_MODELS.codex.filter(({ id }) => id !== 'gpt-6-astra')
   const result = spawn.sync(path, ['debug', 'models', '--bundled'], {
     encoding: 'utf8',
     timeout: 5000,
     maxBuffer: 20 * 1024 * 1024,
   })
   if (result.status !== 0) {
-    Log.warn('Could not read the Codex model catalog; using known models.')
-    return fallback
+    Log.warn(
+      'Could not read the Codex model catalog; using the CLI defaults.',
+      result.error ?? (result.stderr?.trim() || `exit status ${result.status}`)
+    )
+    return []
   }
 
   try {
@@ -55,15 +57,18 @@ function getCodexModels(path: string) {
     }
     if (!Array.isArray(catalog.models)) {
       Log.warn(
-        'Codex model catalog has an unexpected format; using known models.'
+        'Codex model catalog has an unexpected format; using the CLI defaults.'
       )
-      return fallback
+      return []
     }
     const available = new Set(catalog.models.map(({ slug }) => slug))
     return UPGRADE_MODELS.codex.filter(({ id }) => available.has(id))
-  } catch {
-    Log.warn('Could not parse the Codex model catalog; using known models.')
-    return fallback
+  } catch (error) {
+    Log.warn(
+      'Could not parse the Codex model catalog; using the CLI defaults.',
+      error
+    )
+    return []
   }
 }
 
@@ -151,7 +156,20 @@ async function findHarnesses(): Promise<UpgradeHarness[]> {
             if ((await stat(file)).isFile()) {
               return { name, path: file }
             }
-          } catch {}
+          } catch (error) {
+            const code = (error as NodeJS.ErrnoException).code
+            if (
+              code === 'ENOENT' ||
+              code === 'EACCES' ||
+              code === 'ENOTDIR' ||
+              code === 'ELOOP'
+            ) {
+              continue
+            }
+            throw new Error(`Could not inspect coding agent at ${file}.`, {
+              cause: error,
+            })
+          }
         }
       }
 
@@ -250,7 +268,7 @@ function launchHarness(
   harness: UpgradeHarness,
   prompt: string,
   directory: string,
-  model: string,
+  model: string | null,
   effort: string
 ): Promise<number> {
   // Windows shell shims cannot carry literal line breaks in an argument.
@@ -258,7 +276,7 @@ function launchHarness(
     prompt = prompt.replace(/[\r\n]+/g, ' ')
   }
 
-  const args = ['--model', model]
+  const args = model === null ? [] : ['--model', model]
   if (effort !== 'default') {
     if (harness.name === 'codex') {
       args.push('-c', `model_reasoning_effort=${effort}`)
@@ -315,38 +333,46 @@ export async function handoffUpgrade(
     harness.name === 'codex'
       ? getCodexModels(harness.path)
       : UPGRADE_MODELS.claude
-  if (models.length === 0) {
+  if (models.length === 0 && harness.name !== 'codex') {
     Log.error('No supported models were found for the selected coding agent.')
     process.exitCode = 1
     return
   }
-  const modelId = await chooseOption(
-    `Which ${getHarnessDisplayName(harness.name)} model should run the upgrade?`,
-    Object.fromEntries(models.map(({ id, label }) => [id, label])),
-    0
-  )
-  const model = models.find(({ id }) => id === modelId)
-  if (!model) {
-    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-    process.exitCode = 1
-    return
-  }
+  let model: (typeof models)[number] | undefined
+  let effort = 'default'
+  if (models.length === 0) {
+    Log.warn('Could not verify Codex models; using the CLI defaults.')
+  } else {
+    const modelId = await chooseOption(
+      `Which ${getHarnessDisplayName(harness.name)} model should run the upgrade?`,
+      Object.fromEntries(models.map(({ id, label }) => [id, label])),
+      0
+    )
+    model = models.find(({ id }) => id === modelId)
+    if (!model) {
+      Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+      process.exitCode = 1
+      return
+    }
 
-  const effort = await chooseOption(
-    'Which reasoning effort should the upgrade use?',
-    {
-      default: 'Model default',
-      ...Object.fromEntries(model.efforts.map((value) => [value, value])),
-    },
-    0
-  )
-  if (
-    !effort ||
-    (effort !== 'default' && !model.efforts.some((value) => value === effort))
-  ) {
-    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-    process.exitCode = 1
-    return
+    const selectedEffort = await chooseOption(
+      'Which reasoning effort should the upgrade use?',
+      {
+        default: 'Model default',
+        ...Object.fromEntries(model.efforts.map((value) => [value, value])),
+      },
+      0
+    )
+    if (
+      !selectedEffort ||
+      (selectedEffort !== 'default' &&
+        !model.efforts.some((value) => value === selectedEffort))
+    ) {
+      Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+      process.exitCode = 1
+      return
+    }
+    effort = selectedEffort
   }
   let useWorktree: boolean
   try {
@@ -367,7 +393,7 @@ export async function handoffUpgrade(
       harness,
       resolvePrompt(prompt, useWorktree),
       directory,
-      model.id,
+      model?.id ?? null,
       effort
     )
   } catch {
