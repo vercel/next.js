@@ -41,7 +41,7 @@ The option accepts these values:
 | `true` (default) | Uses the `security` policy.                                                                                                                |
 | `false`          | Disables upgrade reminders.                                                                                                                |
 | `security`       | Checks stable installations for security advisories and recommends a safe upgrade when one is available.                                   |
-| `latest`         | Recommends a newer major or minor stable release, or a newer canary release for apps already on canary.                                    |
+| `latest`         | Recommends a newer major or minor release on the app's current stable or canary channel.                                                   |
 | `future`         | Uses the `latest` policy and also recommends applicable [Future Defaults](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults). |
 
 The option does not upgrade the app automatically. It only controls reminders and the policy used when `next upgrade --ai` does not include a value.
