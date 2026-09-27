@@ -26,7 +26,7 @@ test('leaves the Future policy and installed version unchanged', () => {
   const config = readFileSync('next.config.js', 'utf8')
 
   expect(manifest.dependencies.next).toBe('16.3.5')
-  expect(config).toMatch(/agenticAutoUpgrade\s*:\s*['"]future['"]/)
+  expect(config).toMatch(/agentUpgrade\s*:\s*['"]future['"]/)
 })
 
 test('mentions the Next.js Future Defaults notification', async () => {

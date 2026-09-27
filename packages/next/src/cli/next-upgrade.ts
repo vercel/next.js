@@ -137,7 +137,7 @@ async function resolveAIUpgradeType(
     PHASE_PRODUCTION_BUILD,
     interopDefault(rawConfig)
   )
-  const policy = config.experimental?.agenticAutoUpgrade
+  const policy = config.experimental?.agentUpgrade
 
   return policy === 'security' || policy === 'latest' || policy === 'future'
     ? policy
@@ -456,7 +456,7 @@ ${taskSummary}
 
 ${useWorktree === null ? "Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place." : useWorktree ? "If the app is in a Git repository, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place." : 'Perform the upgrade in the current checkout.'}
 
-Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+Set \`experimental.agentUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
 ${futureDefaultsPrompt ? `${futureDefaultsPrompt.trimStart()}\n\n` : ''}References:
 ${references}`

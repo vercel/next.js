@@ -277,7 +277,7 @@ const nextDev = async (
       onInterrupt()
       return
     }
-    if (action === 'update' && context.experimental.agenticAutoUpgrade) {
+    if (action === 'update' && context.experimental.agentUpgrade) {
       await handleSessionStop('SIGTERM', false)
       if (interruption) {
         process.exit(128 + os.constants.signals[interruption])
@@ -285,9 +285,7 @@ const nextDev = async (
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
-      process.exit(
-        await runUpgrade(dir, context.experimental.agenticAutoUpgrade)
-      )
+      process.exit(await runUpgrade(dir, context.experimental.agentUpgrade))
     }
     upgradeInProgress = false
     process.off('SIGHUP', onHangup)

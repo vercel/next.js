@@ -1165,9 +1165,10 @@ export default async function build(
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
-        config.experimental.agenticAutoUpgrade === 'security' ||
-        config.experimental.agenticAutoUpgrade === 'latest' ||
-        config.experimental.agenticAutoUpgrade === 'future' ||
+        config.experimental.agentUpgrade === true ||
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'future' ||
         process.env.__NEXT_AGENTIC_AUTO_UPGRADE
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
@@ -1186,9 +1187,9 @@ export default async function build(
           })
           if (
             action === 'update' &&
-            upgradeContext.experimental.agenticAutoUpgrade
+            upgradeContext.experimental.agentUpgrade
           ) {
-            return upgradeContext.experimental.agenticAutoUpgrade
+            return upgradeContext.experimental.agentUpgrade
           }
           if (action === 'interrupt') {
             return 'interrupt' as const

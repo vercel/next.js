@@ -115,7 +115,7 @@ export type UpgradeContext = Pick<
   NextConfigComplete,
   'distDir' | 'cacheComponents'
 > & {
-  experimental: Pick<NextConfigComplete['experimental'], 'agenticAutoUpgrade'>
+  experimental: { agentUpgrade: NudgeKind | false }
 }
 
 type UpgradeReminder = {
@@ -136,8 +136,11 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
     experimental: {
-      agenticAutoUpgrade:
-        getRequestedUpgrade() ?? config.experimental.agenticAutoUpgrade,
+      agentUpgrade:
+        getRequestedUpgrade() ??
+        (config.experimental.agentUpgrade === true
+          ? 'security'
+          : config.experimental.agentUpgrade ?? false),
     },
   }
 }
@@ -149,7 +152,7 @@ export async function assessUpgrade(
   stopBefore: NudgeKind | null = null,
   forceVersionReminder: boolean = false
 ): Promise<UpgradeReminder | null> {
-  const policy = config.experimental.agenticAutoUpgrade
+  const policy = config.experimental.agentUpgrade
   if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
     return null
   }
@@ -269,7 +272,7 @@ async function nudgeUpgradeForAgent(
   const command = `next upgrade --ai=${reminder.policy}`
   const note = getRequestedUpgrade()
     ? `Note: This reminder is enabled by \`__NEXT_AGENTIC_AUTO_UPGRADE=${reminder.policy}\`.`
-    : `Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${reminder.policy}'\`.`
+    : `Note: This reminder is enabled by \`experimental.agentUpgrade: '${reminder.policy}'\`.`
   const message = `${summary}
 
 **${recommendation}**
@@ -445,7 +448,7 @@ export async function nudgeUpgrade(
   signal: AbortSignal | null = null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
-  const policy = requested ?? config.experimental.agenticAutoUpgrade
+  const policy = requested ?? config.experimental.agentUpgrade
   if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
     return
   }
@@ -475,7 +478,7 @@ export async function nudgeUpgrade(
   }
   const reminder = await assessUpgrade(
     directory,
-    { ...config, experimental: { agenticAutoUpgrade: policy } },
+    { ...config, experimental: { agentUpgrade: policy } },
     installedVersion,
     stopBefore,
     requested !== null

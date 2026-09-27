@@ -94,14 +94,19 @@ const initialNextVersion = process.env.__NEXT_VERSION
 const initialRequestedUpgrade = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
 
 const config = (
-  policy: 'security' | 'latest' | 'future' | false,
+  policy: 'security' | 'latest' | 'future' | boolean,
   values: Record<string, unknown> = {}
 ) =>
   ({
     ...values,
     distDir: '.next',
-    experimental: { agenticAutoUpgrade: policy },
+    experimental: { agentUpgrade: policy },
   }) as never
+
+it('uses the security policy when agentUpgrade is true', () => {
+  const context = getUpgradeContext(config(true))
+  expect(context.experimental.agentUpgrade).toBe('security')
+})
 
 beforeEach(async () => {
   delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
@@ -413,7 +418,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agentUpgrade: 'latest'/
       ),
     })
     await expect(
@@ -511,7 +516,7 @@ describe('composed latest nudge', () => {
       })
       await expect(nudge).rejects.toMatchObject({
         message: expect.stringContaining(
-          `experimental.agenticAutoUpgrade: '${policy}'`
+          `experimental.agentUpgrade: '${policy}'`
         ),
       })
 
@@ -638,7 +643,7 @@ describe('composed future nudge', () => {
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|future)\n```[\s\S]*agenticAutoUpgrade: 'future'/
+        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|future)\n```[\s\S]*agentUpgrade: 'future'/
       ),
     })
   })
@@ -784,7 +789,7 @@ describe('human upgrade nudge', () => {
       for (const configured of [false, 'future'] as const) {
         const original = config(configured)
         const context = getUpgradeContext(original)
-        expect(context.experimental.agenticAutoUpgrade).toBe(policy)
+        expect(context.experimental.agentUpgrade).toBe(policy)
         await expect(
           nudgeUpgrade(directory, context, 'dev', new AbortController().signal)
         ).resolves.toBeUndefined()
@@ -881,7 +886,7 @@ describe('human upgrade nudge', () => {
   it('ignores invalid requests and retains the configured policy', async () => {
     process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'invalid'
     const context = getUpgradeContext(config(false))
-    expect(context.experimental.agenticAutoUpgrade).toBe(false)
+    expect(context.experimental.agentUpgrade).toBe(false)
     await nudgeUpgrade(
       directory,
       context,

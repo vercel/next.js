@@ -222,9 +222,10 @@ export async function initialize(opts: {
 
     // Check only development; production startup does not query advisories.
     if (
-      developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
+      developmentConfig.experimental.agentUpgrade === true ||
+      developmentConfig.experimental.agentUpgrade === 'security' ||
+      developmentConfig.experimental.agentUpgrade === 'latest' ||
+      developmentConfig.experimental.agentUpgrade === 'future' ||
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
       process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
@@ -232,7 +233,7 @@ export async function initialize(opts: {
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
       const upgradeContext = getUpgradeContext(developmentConfig)
       const installedVersion = process.env.__NEXT_VERSION || 'unknown'
-      const policy = upgradeContext.experimental.agenticAutoUpgrade
+      const policy = upgradeContext.experimental.agentUpgrade
       const forced = process.env.__NEXT_AGENTIC_AUTO_UPGRADE === policy
       const forceDevToolsForTesting =
         process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
@@ -272,7 +273,7 @@ export async function initialize(opts: {
           })
         })
       } else {
-        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+        void nudgeUpgrade(opts.dir, upgradeContext, 'dev').catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')
           const exitCode =
