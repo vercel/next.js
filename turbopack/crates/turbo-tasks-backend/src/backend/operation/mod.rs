@@ -225,10 +225,6 @@ pub trait ChildExecuteContext<'e>: Send + Sized {
 }
 
 /// Debug-only count of independently acquired task locks.
-///
-/// A task guard borrows this counter from its context. The borrow, not the counter value, ties
-/// the guard to the context and prevents suspension or context destruction while the guard lives.
-/// Release builds have no counter state or bookkeeping.
 struct TaskLockCounter(#[cfg(debug_assertions)] Cell<u8>);
 
 #[cfg(not(debug_assertions))]
