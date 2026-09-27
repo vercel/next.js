@@ -1,14 +1,15 @@
 import { constants } from 'fs'
 import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
+import type { Key } from 'readline'
 
+import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bold, cyan, dim } from '../picocolors'
 import { runChildProcess } from './run-child-process'
-import { selectOption } from './select-option'
 
 const CODEX_EFFORTS = [
   'low',
@@ -101,21 +102,36 @@ async function chooseOption(
 ): Promise<string | null | undefined> {
   Log.bootstrap('')
   Log.bootstrap(`  ${question}`)
+  Log.bootstrap(
+    `  ${dim(`Use ↑/↓ to choose, Enter to confirm, or Esc to ${firstPrompt ? 'cancel' : 'go back'}.`)}\n`
+  )
 
-  const result = await selectOption({
-    values,
-    defaultValue,
-    selected: cyan('❯'),
-    unselected: ' ',
-    indentation: 2,
-    valueRenderer: (value: string, selected: boolean) =>
-      selected ? cyan(bold(value)) : value,
-    firstPrompt,
-  })
-  if (!result) {
-    return result
+  let interrupted = false
+  const onKeypress = (_text: string, key: Key) => {
+    if (key.ctrl && key.name === 'c') {
+      interrupted = true
+    }
   }
-  return result.id
+  process.stdin.on('keypress', onKeypress)
+  try {
+    const { id } = await cliSelect({
+      values,
+      defaultValue,
+      selected: cyan('❯'),
+      unselected: ' ',
+      indentation: 2,
+      valueRenderer: (value: string, selected: boolean) =>
+        selected ? cyan(bold(value)) : value,
+    })
+    return typeof id === 'string' ? id : undefined
+  } catch (error) {
+    if (error !== undefined) {
+      throw error
+    }
+    return interrupted ? null : undefined
+  } finally {
+    process.stdin.removeListener('keypress', onKeypress)
+  }
 }
 
 async function chooseWorktree(): Promise<boolean | null | undefined> {

@@ -11,7 +11,7 @@ import {
   writeFile,
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
-import { selectOption as cliSelect } from 'next/dist/lib/upgrade/select-option'
+import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
@@ -42,8 +42,9 @@ jest.mock('next/dist/build/output/log', () => ({
   info: jest.fn(),
   warn: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/select-option', () => ({
-  selectOption: jest.fn(),
+jest.mock('next/dist/compiled/cli-select', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }))
 jest.mock('next/dist/compiled/cross-spawn', () =>
   Object.assign(jest.fn(), { sync: jest.fn() })
@@ -387,7 +388,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockResolvedValue(undefined)
+    jest.mocked(cliSelect).mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
 
@@ -437,6 +438,10 @@ describe('agentic upgrade prompts', () => {
            "  Multiple coding agents detected. Which one would you like to use?",
          ],
          [
+           "  Use ↑/↓ to choose, Enter to confirm, or Esc to cancel.
+     ",
+         ],
+         [
            "  Upgrade cancelled.
      ",
          ],
@@ -456,7 +461,7 @@ describe('agentic upgrade prompts', () => {
       throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     })
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockResolvedValue(undefined)
+    jest.mocked(cliSelect).mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
 
@@ -643,7 +648,6 @@ describe('agentic upgrade prompts', () => {
     expect(jest.mocked(cliSelect).mock.calls[1][0].values).toEqual({
       'gpt-5.6-terra': 'GPT-5.6-Terra',
       'gpt-5.6-sol': 'GPT-5.6-Sol',
-      cancel: 'Cancel',
     })
     expect(crossSpawn.sync).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
@@ -899,7 +903,10 @@ describe('agentic upgrade prompts', () => {
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
-      .mockResolvedValueOnce(null)
+      .mockImplementationOnce(() => {
+        process.stdin.emit('keypress', '\u0003', { name: 'c', ctrl: true })
+        return Promise.reject(undefined)
+      })
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app')
 
@@ -920,11 +927,11 @@ describe('agentic upgrade prompts', () => {
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'high' })
       .mockResolvedValueOnce({ id: 'yes' })
-      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
       .mockResolvedValueOnce({ id: 'no' })
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
       .mockResolvedValueOnce({ id: 'gpt-6-astra' })
       .mockResolvedValueOnce({ id: 'ultra' })
       .mockResolvedValueOnce({ id: 'yes' })
@@ -996,16 +1003,21 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    crossSpawn.sync.mockReturnValue({
-      status: 0,
-      stdout: '  --ask-for-approval <APPROVAL_POLICY>',
+    crossSpawn.sync.mockImplementation((_path, args) => {
+      if (args[0] === 'debug') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ models: [{ slug: 'gpt-5.6-terra' }] }),
+        }
+      }
+      return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
     })
     jest
       .mocked(cliSelect)
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'high' })
-      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
       .mockResolvedValueOnce({ id: 'max' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
