@@ -1,6 +1,7 @@
 import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import { createServer, type ServerResponse } from 'node:http'
 import path from 'path'
 
 import { SavedSpan } from './constants'
@@ -15,6 +16,7 @@ const COLLECTOR_PORT = 9001
 const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
 const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
 const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
+const CLIENT_COMPONENT_GATE_PORT = 9005
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
@@ -54,6 +56,7 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
       ? {
           env: {
             TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+            TEST_CLIENT_COMPONENT_GATE_PORT: String(CLIENT_COMPONENT_GATE_PORT),
             NEXT_TELEMETRY_DISABLED: '1',
           },
         }
@@ -146,6 +149,424 @@ describe.each(
     expect(response.status).toBe(202)
     expect(response.headers.get('connection')).toBe('close')
   })
+
+  // The custom entrypoint server has an explicit route table and does not
+  // include this streamed page.
+  if (!useDirectEntrypointHandler) {
+    describe('client component loading across streamed renders', () => {
+      const pendingGates = new Map<string, ServerResponse>()
+      const gateArrivals = new Map<string, () => void>()
+      const gateServer = createServer((req, res) => {
+        const id = new URL(req.url || '/', 'http://localhost').searchParams.get(
+          'id'
+        )
+        if (!id) {
+          res.writeHead(400).end()
+          return
+        }
+        pendingGates.set(id, res)
+        gateArrivals.get(id)?.()
+      })
+      let traceNumber = 0
+
+      function newTraceId() {
+        return (++traceNumber).toString(16).padStart(32, '0')
+      }
+
+      function traceparent(traceId: string) {
+        return `00-${traceId}-${'1'.repeat(16)}-01`
+      }
+
+      beforeAll(async () => {
+        await new Promise<void>((resolve, reject) => {
+          gateServer.once('error', reject)
+          gateServer.listen(CLIENT_COMPONENT_GATE_PORT, '127.0.0.1', () => {
+            gateServer.off('error', reject)
+            resolve()
+          })
+        })
+      })
+
+      afterEach(() => {
+        for (const response of pendingGates.values()) {
+          response.end('released')
+        }
+        pendingGates.clear()
+        gateArrivals.clear()
+      })
+
+      afterAll(async () => {
+        await new Promise<void>((resolve, reject) => {
+          gateServer.close((error) => (error ? reject(error) : resolve()))
+        })
+      })
+
+      function waitForGate(id: string): Promise<void> {
+        if (pendingGates.has(id)) return Promise.resolve()
+        return new Promise((resolve) => gateArrivals.set(id, resolve))
+      }
+
+      function releaseGate(id: string) {
+        const response = pendingGates.get(id)
+        expect(response).toBeDefined()
+        pendingGates.delete(id)
+        response!.setHeader('Connection', 'close')
+        response!.end('released')
+      }
+
+      async function openStream(
+        id: string,
+        traceId: string,
+        extra = false,
+        unsampled = false,
+        noLate = false
+      ) {
+        const response = await next.fetch(
+          `/app/test/client-component-loading?id=${id}${extra ? '&variant=extra' : noLate ? '&variant=no-late' : ''}`,
+          {
+            headers: {
+              traceparent: traceparent(traceId),
+              ...(unsampled
+                ? { 'x-custom': 'disable-client-component-trace' }
+                : {}),
+            },
+          }
+        )
+        expect(response.status).toBe(200)
+        expect(response.body).not.toBeNull()
+
+        const reader = response.body!.getReader()
+        const decoder = new TextDecoder()
+        let html = ''
+        while (
+          !html.includes('<span id="early-client">') ||
+          (extra && !html.includes('<span id="extra-early-client">'))
+        ) {
+          const { done, value } = await reader.read()
+          expect(done).toBe(false)
+          html += decoder.decode(value, { stream: true })
+        }
+        return { reader, decoder, html, extra, noLate }
+      }
+
+      async function finishStream(
+        stream: Awaited<ReturnType<typeof openStream>>
+      ) {
+        let { html } = stream
+        while (true) {
+          const { done, value } = await stream.reader.read()
+          if (done) break
+          html += stream.decoder.decode(value, { stream: true })
+        }
+        html += stream.decoder.decode()
+        expect(html).toContain(
+          stream.noLate
+            ? '<span id="no-late-client">'
+            : '<span id="late-client">'
+        )
+        if (stream.extra) {
+          expect(html).toContain('<span id="extra-late-client">')
+        }
+      }
+
+      function loadingSpans(traceId: string): SavedSpan[] {
+        return getCollector()
+          .getSpans()
+          .filter(
+            (span) =>
+              span.traceId === traceId &&
+              span.attributes?.['next.span_type'] ===
+                'NextNodeServer.clientComponentLoading'
+          )
+      }
+
+      async function expectNoLoadingSpanWhileBlocked(...traceIds: string[]) {
+        // The SDK's SimpleSpanProcessor does not await ordinary HTTP exports
+        // in forceFlush. This control route also drains the test exporter's
+        // in-flight requests before we inspect the collector.
+        const response = await next.fetch(
+          '/api/app/test/client-component-flush',
+          { method: 'POST' }
+        )
+        expect(response.status).toBe(204)
+        for (const traceId of traceIds) {
+          expect(loadingSpans(traceId)).toEqual([])
+        }
+      }
+
+      async function loadSpan(traceId: string): Promise<SavedSpan> {
+        return retry(() => {
+          const spans = loadingSpans(traceId)
+          expect(spans).toHaveLength(1)
+          const count = spans[0].attributes?.[
+            'next.clientComponentLoadCount'
+          ] as number
+          expect(count).toBeGreaterThan(0)
+          return spans[0]
+        })
+      }
+
+      async function loadCount(traceId: string): Promise<number> {
+        const span = await loadSpan(traceId)
+        return span.attributes?.['next.clientComponentLoadCount'] as number
+      }
+
+      async function namedSpan(
+        traceId: string,
+        name: string
+      ): Promise<SavedSpan> {
+        return retry(() => {
+          const spans = getCollector()
+            .getSpans()
+            .filter((span) => span.traceId === traceId && span.name === name)
+          expect(spans).toHaveLength(1)
+          return spans[0]
+        })
+      }
+
+      async function sequentialRender(
+        id: string,
+        extra = false,
+        noLate = false
+      ) {
+        const traceId = newTraceId()
+        const streamPromise = openStream(id, traceId, extra, false, noLate)
+        await waitForGate(id)
+        const stream = await streamPromise
+        await expectNoLoadingSpanWhileBlocked(traceId)
+        releaseGate(id)
+        await finishStream(stream)
+        const loadingSpan = await loadSpan(traceId)
+        await namedSpan(traceId, 'test.clientComponentGateReleased')
+        return loadingSpan.attributes?.[
+          'next.clientComponentLoadCount'
+        ] as number
+      }
+
+      async function concurrentRenders({
+        a,
+        b,
+        finishFirst,
+      }: {
+        a: { id: string; extra: boolean }
+        b: { id: string; extra: boolean }
+        finishFirst: 'a' | 'b'
+      }) {
+        const traceA = newTraceId()
+        const traceB = newTraceId()
+        const aPromise = openStream(a.id, traceA, a.extra)
+        await waitForGate(a.id)
+        const streamA = await aPromise
+
+        const bPromise = openStream(b.id, traceB, b.extra)
+        await waitForGate(b.id)
+        const streamB = await bPromise
+
+        await expectNoLoadingSpanWhileBlocked(traceA, traceB)
+
+        // Both early Client Components have reached streamed HTML before
+        // either suspended subtree is released.
+        const first = finishFirst === 'a' ? a : b
+        const second = finishFirst === 'a' ? b : a
+        const firstStream = finishFirst === 'a' ? streamA : streamB
+        const secondStream = finishFirst === 'a' ? streamB : streamA
+        const firstTrace = finishFirst === 'a' ? traceA : traceB
+        const secondTrace = finishFirst === 'a' ? traceB : traceA
+
+        releaseGate(first.id)
+        await finishStream(firstStream)
+        const firstCount = await loadCount(firstTrace)
+        const secondWasStillBlocked = pendingGates.has(second.id)
+
+        releaseGate(second.id)
+        await finishStream(secondStream)
+        const secondCount = await loadCount(secondTrace)
+
+        return {
+          counts:
+            finishFirst === 'a'
+              ? [firstCount, secondCount]
+              : [secondCount, firstCount],
+          secondWasStillBlocked,
+        }
+      }
+
+      it('isolates equal client component loads when A finishes first', async () => {
+        await sequentialRender('equal-warmup')
+        await sequentialRender('equal-warmup-no-late', false, true)
+        getCollector().reset()
+
+        const noLateCount = await sequentialRender(
+          'equal-baseline-no-late',
+          false,
+          true
+        )
+        const baselineA = await sequentialRender('equal-baseline-a')
+        const baselineB = await sequentialRender('equal-baseline-b')
+        const result = await concurrentRenders({
+          a: { id: 'equal-concurrent-a', extra: false },
+          b: { id: 'equal-concurrent-b', extra: false },
+          finishFirst: 'a',
+        })
+
+        expect(baselineA).toBeGreaterThan(noLateCount)
+        expect(baselineA).toBe(baselineB)
+        expect(result.secondWasStillBlocked).toBe(true)
+        expect(result.counts).toEqual([baselineA, baselineB])
+      })
+
+      for (const finishFirst of ['a', 'b'] as const) {
+        it(`isolates unequal client component loads when ${finishFirst.toUpperCase()} finishes first`, async () => {
+          await sequentialRender(`unequal-${finishFirst}-warm-normal`)
+          await sequentialRender(`unequal-${finishFirst}-warm-extra`, true)
+          getCollector().reset()
+
+          const baselineA = await sequentialRender(
+            `unequal-${finishFirst}-baseline-a`
+          )
+          const baselineB = await sequentialRender(
+            `unequal-${finishFirst}-baseline-b`,
+            true
+          )
+          const result = await concurrentRenders({
+            a: {
+              id: `unequal-${finishFirst}-concurrent-a`,
+              extra: false,
+            },
+            b: {
+              id: `unequal-${finishFirst}-concurrent-b`,
+              extra: true,
+            },
+            finishFirst,
+          })
+
+          expect(baselineB).toBeGreaterThan(baselineA)
+          expect(result.secondWasStillBlocked).toBe(true)
+          expect(result.counts).toEqual([baselineA, baselineB])
+        })
+      }
+
+      it('keeps sampled client loads when an unsampled render finishes first', async () => {
+        await sequentialRender('sampling-warmup')
+        const baseline = await sequentialRender('sampling-baseline')
+
+        const sampledTrace = newTraceId()
+        const unsampledTrace = newTraceId()
+        const sampledPromise = openStream('sampled-a', sampledTrace)
+        await waitForGate('sampled-a')
+        const sampledStream = await sampledPromise
+
+        const unsampledPromise = openStream(
+          'unsampled-b',
+          unsampledTrace,
+          true,
+          true
+        )
+        await waitForGate('unsampled-b')
+        const unsampledStream = await unsampledPromise
+
+        await expectNoLoadingSpanWhileBlocked(sampledTrace, unsampledTrace)
+
+        releaseGate('unsampled-b')
+        await finishStream(unsampledStream)
+        const sampledWasStillBlocked = pendingGates.has('sampled-a')
+
+        releaseGate('sampled-a')
+        await finishStream(sampledStream)
+        await namedSpan(sampledTrace, 'test.clientComponentGateReleased')
+
+        expect(sampledWasStillBlocked).toBe(true)
+        expect(
+          getCollector()
+            .getSpans()
+            .filter((span) => span.traceId === unsampledTrace)
+        ).toEqual([])
+        const loadingSpan = await loadSpan(sampledTrace)
+        expect(loadingSpan.attributes?.['next.clientComponentLoadCount']).toBe(
+          baseline
+        )
+      })
+
+      const actionPath = '/app/test/client-component-action'
+
+      async function getActionPage(traceId: string) {
+        const $ = await next.render$(actionPath, undefined, {
+          headers: { traceparent: traceparent(traceId) },
+        })
+        expect($('#action-result').text()).toBe('none')
+        return { $, count: await loadCount(traceId) }
+      }
+
+      function formDataForAction(
+        $: Awaited<ReturnType<typeof next.render$>>,
+        marker: string
+      ) {
+        const form = $('form').first()
+        expect(form.length).toBe(1)
+        const formData = new FormData()
+        const actionFields: string[] = []
+        form.find('input[type="hidden"]').each((_, input) => {
+          const name = $(input).attr('name')
+          if (name) {
+            formData.append(name, $(input).attr('value') ?? '')
+            actionFields.push(name)
+          }
+        })
+        expect(actionFields.some((name) => name.startsWith('$ACTION_'))).toBe(
+          true
+        )
+        formData.set('marker', marker)
+        return formData
+      }
+
+      async function postAction(
+        $: Awaited<ReturnType<typeof next.render$>>,
+        marker: string,
+        traceId: string
+      ) {
+        const response = await next.fetch(actionPath, {
+          method: 'POST',
+          headers: {
+            traceparent: traceparent(traceId),
+            origin: new URL(next.url).origin,
+          },
+          body: formDataForAction($, marker),
+        })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain(
+          `<p id="action-result">${marker}</p>`
+        )
+      }
+
+      async function drainActionGet() {
+        await getActionPage(newTraceId())
+      }
+
+      it('reports client component loading for a consumed Server Action POST rerender', async () => {
+        const { $ } = await getActionPage(newTraceId())
+        const actionTrace = newTraceId()
+        try {
+          await postAction($, 'post-span-marker', actionTrace)
+          await namedSpan(actionTrace, 'test.serverActionCompleted')
+          await loadSpan(actionTrace)
+        } finally {
+          await drainActionGet()
+        }
+      })
+
+      it('does not carry consumed action loading into the next GET', async () => {
+        await getActionPage(newTraceId())
+        const { $, count: baseline } = await getActionPage(newTraceId())
+        try {
+          await postAction($, 'post-followup-marker', newTraceId())
+          const { count: followupCount } = await getActionPage(newTraceId())
+          expect(followupCount).toBe(baseline)
+        } finally {
+          await drainActionGet()
+        }
+      })
+    })
+  }
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it

@@ -3,6 +3,7 @@ import type { Readable } from 'stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
+import type { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 import {
   chainStreams,
@@ -31,6 +32,8 @@ type ContentTypeOption =
   | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
 
 export type AppPageRenderResultMetadata = {
+  /** Request-local metrics for the first response write. Never cache this. */
+  clientComponentLoadTracker?: ClientComponentLoadTracker
   flightData?: Buffer
   cacheControl?: CacheControl
   staticBailoutInfo?: {
@@ -210,6 +213,15 @@ export default class RenderResult<
     return typeof this.response !== 'string'
   }
 
+  /** Whether completion depends on consuming a response stream. */
+  public get hasStreamingResponse(): boolean {
+    return (
+      this.response !== null &&
+      typeof this.response !== 'string' &&
+      !Buffer.isBuffer(this.response)
+    )
+  }
+
   /**
    * Returns the response if it is a string. If the page was dynamic, this will
    * return a promise if the `stream` option is true, or it will throw an error.
@@ -344,6 +356,13 @@ export default class RenderResult<
     this.response = this.readable.pipeThrough(transform)
   }
 
+  /** Replace the response stream while preserving the rest of this result. */
+  public wrapStream(
+    wrap: (stream: ReadableStream<Uint8Array>) => ReadableStream<Uint8Array>
+  ): void {
+    this.response = wrap(this.readable)
+  }
+
   /**
    * Unshifts a new stream to the response. This will convert the response to an
    * array of streams if it is not already one and will add the new stream to
@@ -431,9 +450,19 @@ export default class RenderResult<
       !Array.isArray(this.response) &&
       isNodeReadable(this.response)
     ) {
-      await pipeNodeReadableToNodeResponse(this.response, res, this.waitUntil)
+      await pipeNodeReadableToNodeResponse(
+        this.response,
+        res,
+        this.waitUntil,
+        this.metadata.clientComponentLoadTracker
+      )
       return
     }
-    await pipeToNodeResponse(this.readable, res, this.waitUntil)
+    await pipeToNodeResponse(
+      this.readable,
+      res,
+      this.waitUntil,
+      this.metadata.clientComponentLoadTracker
+    )
   }
 }

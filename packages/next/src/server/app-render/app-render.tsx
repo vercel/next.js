@@ -210,7 +210,11 @@ import {
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
-  getClientComponentLoaderMetrics,
+  ClientComponentLoadTracker,
+  finalizeClientComponentLoadTracker,
+  finalizeClientComponentLoadTrackerOnPrerender,
+  finalizeClientComponentLoadTrackerOnStream,
+  type ClientComponentLoaderMetrics,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
@@ -2586,7 +2590,7 @@ export type BinaryStreamOf<T> = AnyStream
 
 /**
  * Extracted to a separate function to prevent V8 from retaining the entire
- * `prepareAppPageRender` closure scope through globalThis.__next_require__.
+ * the render initialization scope through globalThis.__next_require__.
  * V8 shares a single Context object per scope for all closures; by creating
  * these closures in their own function scope, the globalThis references only
  * retain `instrumented` and `cacheComponents`, not request-specific data like
@@ -2594,10 +2598,9 @@ export type BinaryStreamOf<T> = AnyStream
  */
 function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,
-  cacheComponents: boolean,
-  isTracingEnabled: boolean
+  cacheComponents: boolean
 ) {
-  const instrumented = wrapClientComponentLoader(ComponentMod, isTracingEnabled)
+  const instrumented = wrapClientComponentLoader(ComponentMod)
 
   // When we are prerendering if there is a cacheSignal for tracking
   // cache reads we track calls to `loadChunk` and `require`. This allows us
@@ -2682,6 +2685,47 @@ const generatePrerenderRequestId: GenerateRequestId = async (req) => {
   ).toString('hex')
 }
 
+function initializeClientComponentLoadTracking(
+  renderOpts: RenderOpts,
+  workStore: WorkStore
+): ((metrics: ClientComponentLoaderMetrics | undefined) => void) | undefined {
+  const { ComponentMod, cacheComponents } = renderOpts
+  if (!ComponentMod.__next_app__) return undefined
+
+  const parentSpan = getTracer().getActiveScopeSpan()
+  const isTracingEnabled = parentSpan?.isRecording() ?? false
+  let report:
+    | ((metrics: ClientComponentLoaderMetrics | undefined) => void)
+    | undefined = undefined
+  if (
+    'performance' in globalThis &&
+    (process.env.NEXT_OTEL_PERFORMANCE_PREFIX || isTracingEnabled)
+  ) {
+    workStore.clientComponentLoadTracker = new ClientComponentLoadTracker()
+    report = (metrics) => {
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        isTracingEnabled &&
+        metrics &&
+        metrics.clientComponentLoadEnd >= metrics.clientComponentLoadStart
+      ) {
+        getTracer()
+          .startSpan(NextNodeServerSpan.clientComponentLoading, {
+            parentSpan,
+            startTime: metrics.clientComponentLoadStart,
+            attributes: {
+              'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
+              'next.span_type': NextNodeServerSpan.clientComponentLoading,
+            },
+          })
+          .end(metrics.clientComponentLoadEnd)
+      }
+    }
+  }
+  installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
+  return report
+}
+
 async function prepareAppPageRender(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -2719,18 +2763,6 @@ async function prepareAppPageRender(
     setIsrStatus,
   } = renderOpts
 
-  // We need to expose the bundled `require` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app__) {
-    const isTracingEnabled =
-      getTracer().getActiveScopeSpan()?.isRecording() ?? false
-    installGlobalModuleLoadingHandlers(
-      ComponentMod,
-      cacheComponents,
-      isTracingEnabled
-    )
-  }
-
   if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
@@ -2751,27 +2783,6 @@ async function prepareAppPageRender(
       // We stop tracking fetch metrics when the response closes, since we
       // report them at that time.
       workStore.shouldTrackFetchMetrics = false
-    })
-
-    req.originalRequest.on('end', () => {
-      if ('performance' in globalThis) {
-        const metrics = getClientComponentLoaderMetrics({ reset: true })
-        if (
-          metrics &&
-          metrics.clientComponentLoadEnd >= metrics.clientComponentLoadStart
-        ) {
-          getTracer()
-            .startSpan(NextNodeServerSpan.clientComponentLoading, {
-              startTime: metrics.clientComponentLoadStart,
-              attributes: {
-                'next.clientComponentLoadCount':
-                  metrics.clientComponentLoadCount,
-                'next.span_type': NextNodeServerSpan.clientComponentLoading,
-              },
-            })
-            .end(metrics.clientComponentLoadEnd)
-        }
-      }
     })
   }
 
@@ -3280,31 +3291,55 @@ async function renderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch
 ) {
-  const prepared = await prepareAppPageRender(
-    req,
-    res,
-    url,
-    pagePath,
-    query,
-    renderOpts,
-    workStore,
-    parsedRequestHeaders,
-    sharedContext,
-    interpolatedParams,
-    fallbackRouteParams,
-    routeMatch,
-    generateRenderRequestId,
-    getMissingPrefetchHintPolicy(
-      renderOpts.isBuildTimePrerendering ?? false,
-      false,
-      renderOpts.cacheComponents
-    ),
-    {
-      isPossiblyPartialResponse: false,
-      supportsPerSegmentPrefetching: renderOpts.cacheComponents,
+  const report = initializeClientComponentLoadTracking(renderOpts, workStore)
+  const tracker = workStore.clientComponentLoadTracker
+  try {
+    const prepared = await prepareAppPageRender(
+      req,
+      res,
+      url,
+      pagePath,
+      query,
+      renderOpts,
+      workStore,
+      parsedRequestHeaders,
+      sharedContext,
+      interpolatedParams,
+      fallbackRouteParams,
+      routeMatch,
+      generateRenderRequestId,
+      getMissingPrefetchHintPolicy(
+        renderOpts.isBuildTimePrerendering ?? false,
+        false,
+        renderOpts.cacheComponents
+      ),
+      {
+        isPossiblyPartialResponse: false,
+        supportsPerSegmentPrefetching: renderOpts.cacheComponents,
+      }
+    )
+    const result = await renderAppPage(
+      prepared,
+      postponedState,
+      serverComponentsHmrCache
+    )
+    result.assignMetadata({ clientComponentLoadTracker: tracker })
+    if (tracker && report) {
+      if (!result.hasStreamingResponse) {
+        finalizeClientComponentLoadTracker(tracker, report)
+      } else {
+        result.wrapStream((stream) =>
+          finalizeClientComponentLoadTrackerOnStream(stream, tracker, report)
+        )
+      }
     }
-  )
-  return renderAppPage(prepared, postponedState, serverComponentsHmrCache)
+    return result
+  } catch (renderError) {
+    if (tracker && report) {
+      finalizeClientComponentLoadTracker(tracker, report)
+    }
+    throw renderError
+  }
 }
 
 async function prerenderToHTMLOrFlightImpl(
@@ -3321,31 +3356,48 @@ async function prerenderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch
 ) {
+  const report = initializeClientComponentLoadTracking(renderOpts, workStore)
+  const tracker = workStore.clientComponentLoadTracker
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
-  const prepared = await prepareAppPageRender(
-    req,
-    res,
-    url,
-    pagePath,
-    query,
-    renderOpts,
-    workStore,
-    parsedRequestHeaders,
-    sharedContext,
-    interpolatedParams,
-    fallbackRouteParams,
-    routeMatch,
-    generatePrerenderRequestId,
-    getMissingPrefetchHintPolicy(
-      renderOpts.isBuildTimePrerendering ?? false,
-      true,
-      renderOpts.cacheComponents
-    ),
-    {
-      isPossiblyPartialResponse: isRoutePPREnabled,
-      supportsPerSegmentPrefetching: true,
+  let prepared: PreparedAppPageRender
+  try {
+    prepared = await prepareAppPageRender(
+      req,
+      res,
+      url,
+      pagePath,
+      query,
+      renderOpts,
+      workStore,
+      parsedRequestHeaders,
+      sharedContext,
+      interpolatedParams,
+      fallbackRouteParams,
+      routeMatch,
+      generatePrerenderRequestId,
+      getMissingPrefetchHintPolicy(
+        renderOpts.isBuildTimePrerendering ?? false,
+        true,
+        renderOpts.cacheComponents
+      ),
+      {
+        isPossiblyPartialResponse: isRoutePPREnabled,
+        supportsPerSegmentPrefetching: true,
+      }
+    )
+  } catch (prepareError) {
+    if (tracker && report) {
+      finalizeClientComponentLoadTracker(tracker, report)
     }
-  )
+    throw prepareError
+  }
+  if (tracker && report) {
+    return finalizeClientComponentLoadTrackerOnPrerender(
+      () => prerenderAppPage(prepared),
+      tracker,
+      report
+    )
+  }
   return prerenderAppPage(prepared)
 }
 
@@ -6807,6 +6859,7 @@ function buildDevValidationWorkStore(
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics: false,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
     afterContext: noopAfterContext,
     // Dev validation only ever runs under Cache Components.
@@ -6854,7 +6907,7 @@ export async function runValidationInDevFromSnapshot(
   // so `react-server-dom-*` can resolve client references during the validation
   // prerenders, exactly as the main render does after loading its module.
   if (componentMod.__next_app__) {
-    installGlobalModuleLoadingHandlers(componentMod, true, false)
+    installGlobalModuleLoadingHandlers(componentMod, true)
   }
 
   // `requestFallbackRouteParams` reproduces `ctx.getDynamicParamFromSegment`
@@ -8557,6 +8610,7 @@ async function validateInstantConfigInBuildWithSample(
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: outerWorkStore.runInCleanSnapshot,
     shouldTrackFetchMetrics: false,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }
 

@@ -12,6 +12,7 @@ import { promisify } from 'node:util'
 import setupCompression from 'next/dist/compiled/compression'
 
 import { pipeNodeReadableToNodeResponse } from './pipe-readable'
+import { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 const gunzip = promisify(zlib.gunzip)
 
@@ -172,4 +173,83 @@ describe('pipeNodeReadableToNodeResponse', () => {
     expect(decompressed).toHaveLength(CHUNK_SIZE * CHUNK_COUNT)
     expect(decompressed.every((byte) => byte === FILL)).toBe(true)
   })
+})
+
+describe('client component loading measurement at first write', () => {
+  let server: http.Server | undefined
+  let measure: jest.SpyInstance
+  let pipe: typeof import('./pipe-readable')
+  const previousPrefix = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+
+  beforeAll(() => {
+    process.env.NEXT_OTEL_PERFORMANCE_PREFIX = 'test'
+    jest.isolateModules(() => {
+      pipe = require('./pipe-readable') as typeof import('./pipe-readable')
+    })
+  })
+
+  afterAll(() => {
+    if (previousPrefix === undefined) {
+      delete process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+    } else {
+      process.env.NEXT_OTEL_PERFORMANCE_PREFIX = previousPrefix
+    }
+  })
+
+  beforeEach(() => {
+    measure = jest.spyOn(performance, 'measure').mockImplementation(() => {
+      return {} as PerformanceMeasure
+    })
+  })
+
+  afterEach(async () => {
+    measure.mockRestore()
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve) => server!.close(() => resolve()))
+      server = undefined
+    }
+  })
+
+  it.each(['web', 'node'] as const)(
+    'uses the explicit %s stream tracker snapshot without render context',
+    async (streamKind) => {
+      const tracker = new ClientComponentLoadTracker()
+      tracker.beginRequire(100)
+      tracker.finishRequire(100, 115)
+      tracker.beginRequire(150)
+      tracker.finishRequire(150, 160)
+
+      server = http.createServer((_req, res) => {
+        if (streamKind === 'web') {
+          const readable = new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('hello'))
+              controller.close()
+            },
+          })
+          void pipe
+            .pipeToNodeResponse(readable, res, undefined, tracker)
+            .catch((error) => res.destroy(error))
+        } else {
+          void pipe
+            .pipeNodeReadableToNodeResponse(
+              Readable.from([Buffer.from('hello')]),
+              res,
+              undefined,
+              tracker
+            )
+            .catch((error) => res.destroy(error))
+        }
+      })
+
+      const url = await listen(server)
+      expect(await (await fetch(url)).text()).toBe('hello')
+      expect(measure).toHaveBeenCalledTimes(1)
+      expect(measure).toHaveBeenCalledWith(
+        'test:next-client-component-loading',
+        { start: 100, end: 125 }
+      )
+    }
+  )
 })
