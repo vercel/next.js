@@ -11,7 +11,7 @@ import {
   writeFile,
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
-import cliSelect from 'next/dist/compiled/cli-select'
+import { selectOption as cliSelect } from 'next/dist/lib/upgrade/select-option'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
@@ -42,9 +42,8 @@ jest.mock('next/dist/build/output/log', () => ({
   info: jest.fn(),
   warn: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cli-select', () => ({
-  __esModule: true,
-  default: jest.fn(),
+jest.mock('next/dist/lib/upgrade/select-option', () => ({
+  selectOption: jest.fn(),
 }))
 jest.mock('next/dist/compiled/cross-spawn', () =>
   Object.assign(jest.fn(), { sync: jest.fn() })
@@ -388,7 +387,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockResolvedValue({ id: 'cancel' } as never)
+    jest.mocked(cliSelect).mockResolvedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
 
@@ -423,10 +422,6 @@ describe('agentic upgrade prompts', () => {
              "copy",
              "Copy prompt for another coding agent",
            ],
-           [
-             "cancel",
-             "Cancel",
-           ],
          ],
        },
        "progress": [
@@ -440,10 +435,6 @@ describe('agentic upgrade prompts', () => {
          ],
          [
            "  Multiple coding agents detected. Which one would you like to use?",
-         ],
-         [
-           "  Use ↑/↓ to choose, then press Enter.
-     ",
          ],
          [
            "  Upgrade cancelled.
@@ -465,7 +456,7 @@ describe('agentic upgrade prompts', () => {
       throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     })
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockResolvedValue({ id: 'cancel' } as never)
+    jest.mocked(cliSelect).mockResolvedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
 
@@ -547,36 +538,24 @@ describe('agentic upgrade prompts', () => {
               'gpt-5.6-terra': 'GPT-5.6-Terra',
               'gpt-5.6-sol': 'GPT-5.6-Sol',
               'gpt-6-astra': 'GPT-6-Astra',
-              cancel: 'Cancel',
             }
           : {
               'claude-sonnet-5[1m]': 'Claude Sonnet 5 (1M)',
               opus: 'Claude Opus (latest)',
               fable: 'Claude Fable (latest)',
-              cancel: 'Cancel',
             }
       )
       const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]
       expect(Object.keys(effortMenu.values)).toEqual(
         agent === 'claude'
-          ? ['default', 'low', 'medium', 'high', 'max', 'cancel']
-          : [
-              'default',
-              'low',
-              'medium',
-              'high',
-              'xhigh',
-              'max',
-              'ultra',
-              'cancel',
-            ]
+          ? ['default', 'low', 'medium', 'high', 'max']
+          : ['default', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
       )
       expect(effortMenu.defaultValue).toBe(0)
       const permissionMenu = jest.mocked(cliSelect).mock.calls[3][0]
       expect(permissionMenu.values).toEqual({
         yes: 'Yes',
         no: 'No, ask for approval',
-        cancel: 'Cancel',
       })
       expect(permissionMenu.defaultValue).toBe(0)
       expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
@@ -908,7 +887,7 @@ describe('agentic upgrade prompts', () => {
     )
   })
 
-  it('cancels the handoff when permission selection is cancelled', async () => {
+  it('cancels the handoff when Ctrl+C is pressed at permission selection', async () => {
     process.env.PATH = '/agents'
     overrideTTY(process.stdin)
     overrideTTY(process.stdout)
@@ -920,12 +899,147 @@ describe('agentic upgrade prompts', () => {
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
-      .mockResolvedValueOnce({ id: 'cancel' } as never)
+      .mockResolvedValueOnce(null)
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app')
 
     expect(process.exitCode).toBe(1)
     expect(crossSpawn).not.toHaveBeenCalled()
+  })
+
+  it('goes back through worktree, permission, effort, and model before launching', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'no' })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'gpt-6-astra' })
+      .mockResolvedValueOnce({ id: 'ultra' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
+    expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-6-astra',
+        '-c',
+        'model_reasoning_effort=ultra',
+        '--approve-for-me',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('defaults to the selected model when the previous effort is unavailable', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'ultra' })
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'claude' })
+      .mockResolvedValueOnce({ id: 'opus' })
+      .mockResolvedValueOnce({ id: 'default' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('claude'),
+      ['--model', 'opus', '--permission-mode', 'auto', 'Upgrade prompt'],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('returns from worktree to effort when Auto mode is unavailable', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockReturnValue({
+      status: 0,
+      stdout: '  --ask-for-approval <APPROVAL_POLICY>',
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'max' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+      default: 'Model default',
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: 'xhigh',
+      max: 'max',
+      ultra: 'ultra',
+    })
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=max',
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
   })
 
   it('uses the existing agent settings without prompting interactively', async () => {
