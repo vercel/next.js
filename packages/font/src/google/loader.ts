@@ -123,7 +123,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
           nextFontError(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
         }
 
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
+        const ext = /\.(woff|woff2|eot|ttf|otf)(\?.*)?$/i.exec(googleFontFileUrl)?.[1] ?? 'woff2'
         // Emit font file to .next/static/media
         const selfHostedFileUrl = emitFontFile(
           fontFileBuffer,
