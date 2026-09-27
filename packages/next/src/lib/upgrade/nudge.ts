@@ -158,15 +158,20 @@ export async function assessUpgrade(
     return null
   }
 
+  if (!semver.valid(installedVersion)) {
+    return null
+  }
+  const {
+    getPrereleaseChannel,
+    getUpgradeAssessment,
+    getLatestUpgradeVersion,
+  } = require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   if (
-    !semver.valid(installedVersion) ||
-    (semver.prerelease(installedVersion) &&
-      semver.prerelease(installedVersion)?.[0] !== 'canary')
+    semver.prerelease(installedVersion) &&
+    !getPrereleaseChannel(installedVersion)
   ) {
     return null
   }
-  const { getUpgradeAssessment, getLatestUpgradeVersion } =
-    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   let assessment
   try {
     assessment = await getUpgradeAssessment(
@@ -259,7 +264,7 @@ async function nudgeUpgradeForAgent(
     case 'latest':
       summary = `Next.js ${reminder.latestVersion ?? '[latest version]'} is available. You're using ${reminder.installedVersion}.`
       recommendation = 'We recommend you upgrade Next.js.'
-      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.latestVersion ?? reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
+      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
       break
     case 'future':
       summary = `Installed Next.js ${reminder.installedVersion} includes Future Defaults available for this app:\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`
@@ -284,7 +289,7 @@ When you report back to the user, include this upgrade recommendation even if th
 
 ${
   command
-    ? `At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background in a separate Git worktree unless they request otherwise. Run this command from this app's directory:
+    ? `At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background. If the app is in a Git repository, use a separate Git worktree unless they request otherwise. If the app is not in a Git repository, upgrade it in place. Run this command from this app's directory:
 
 \`\`\`
 ${command}

@@ -322,21 +322,11 @@ impl EcmascriptExports {
 
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
-    /// Splitting happens for either of two reasons:
-    ///
-    /// 1. The module has re-exports (star exports or imported bindings), which lets the
-    ///    tree-shaking optimization separate local definitions from re-exports.
-    /// 2. Its export names may be mangled. The facade then keeps the original names for whatever
-    ///    reads this module from outside, while the locals module carries the mangled ones — see
-    ///    the `references::esm::mangle` module.
-    ///
-    /// A module with **no exports at all** is never split, even when mangling is enabled: there is
-    /// nothing to mangle or tree shake, and splitting is actively unsafe. Such a facade's only edge
-    /// to the original code would be the `ExportUsage::evaluation` reference from
-    /// `EcmascriptModuleFacadeModule::specific_references`, which `BindingUsageInfo` prunes when
-    /// the target looks side-effect free — as a `"sideEffects": false` package declaration
-    /// makes it, even for a body that has side effects. Unsplit, the module runs as a chunk
-    /// group entry regardless.
+    /// Splitting is enabled for modules with re-exports (star exports or imported bindings),
+    /// allowing tree shaking to separate local definitions from re-exports. Do not split a
+    /// local-only module merely to mangle its export names: dynamic imports would resolve to the
+    /// facade while static named imports follow through to the locals module, giving a shared
+    /// module two different runtime identities.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
@@ -349,11 +339,9 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
-                // `has_reexports` already implies a non-empty export list, so the emptiness check
-                // only needs to guard the mangling case.
-                Vc::cell(
-                    has_reexports || (exports.mangle_export_names && !exports.exports.is_empty()),
-                )
+                // TODO: Re-enable mangling-only facade splits once remote-components consumers
+                // can share a singleton across dynamic facade and static locals imports (#99279).
+                Vc::cell(has_reexports)
             }
             _ => Vc::cell(false),
         })

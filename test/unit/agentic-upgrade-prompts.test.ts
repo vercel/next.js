@@ -470,11 +470,11 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md".
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -567,11 +567,11 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -694,6 +694,27 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
+  it('names the stable target in a prerelease latest upgrade handoff', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '17.2.0-rc.1',
+      targetVersion: '17.2.0',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    const prompt = normalizedBootstrapCalls().flat().join('\n')
+    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
+    expect(prompt).toContain('newer stable Next.js release')
+    expect(prompt).toContain('https://registry.npmjs.org/next/latest')
+  })
+
   it('adds the Future Defaults guide after a same-major update', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
@@ -755,11 +776,11 @@ describe('agentic upgrade prompts', () => {
      {
        "prompt": [
          [
-           "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
+           "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -854,11 +875,11 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Complete its duplicate checks before changing files. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 

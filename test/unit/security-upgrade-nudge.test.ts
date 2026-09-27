@@ -45,6 +45,9 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+  getPrereleaseChannel: jest.requireActual(
+    'next/dist/lib/upgrade/prepare-upgrade'
+  ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
     'next/dist/lib/upgrade/prepare-upgrade'
   ).getLatestUpgradeVersion,
@@ -159,7 +162,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'security' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, use a separate Git worktree unless they request otherwise\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -348,9 +351,17 @@ describe('latest nudge release selection', () => {
     ['17.2.0-canary.4', '17.2.0-canary.4', null],
     ['17.2.0-canary.4', '17.1.0-canary.99', null],
     ['17.2.0-canary.4', '17.3.0-rc.1', null],
-    ['17.2.0-rc.1', '17.3.0', null],
+    ['17.2.0-rc.1', '17.3.0', '17.3.0'],
+    ['17.2.0-rc.1', '17.2.0', '17.2.0'],
+    ['17.2.0-beta.1', '17.2.0', '17.2.0'],
+    ['17.2.0-preview.1', '17.2.0', '17.2.0'],
+    ['17.2.0-rc.1', '17.3.0-rc.1', null],
+    ['17.2.0-beta.1', '17.3.0-beta.1', null],
+    ['17.2.0-preview.1', '17.3.0-preview.1', null],
+    ['17.2.0-rc.1', '17.3.0-beta.1', null],
+    ['16.4.0-preview-84cee7e6-20260917', '17.0.0', null],
   ])(
-    'selects %s → %s for a nudge only across major/minor versions',
+    'selects an eligible latest reminder for %s → %s',
     async (installed, latest, expected) => {
       expect(readLatestUpgradeVersion(installed, latest)).toBe(expected)
     }
@@ -388,6 +399,22 @@ describe('latest upgrade nudge', () => {
     }
   )
 
+  it.each(['rc', 'beta', 'preview'] as const)(
+    'links a configured %s reminder to stable latest',
+    async (channel) => {
+      process.env.__NEXT_VERSION = `17.2.0-${channel}.1`
+      mockUpgrade('17.2.0')
+      await expect(
+        nudgeUpgrade(directory, config('latest'), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(
+          'Reference: https://registry.npmjs.org/next/latest'
+        ),
+      })
+    }
+  )
+
   it('stops once and allows a matching retry with a warning', async () => {
     mockUpgrade('17.0.0')
 
@@ -397,7 +424,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'latest' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*If the app is in a Git repository, use a separate Git worktree unless they request otherwise\.[\s\S]*If the app is not in a Git repository, upgrade it in place\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
       ),
     })
     await expect(
@@ -517,18 +544,16 @@ describe('composed future nudge', () => {
     mockUpgrade()
   })
 
-  it.each(['16.3.0-canary.1', '16.4.0-rc.1', '16.4.0-beta.1'])(
-    'does not offer defaults before stable availability or for another prerelease: %s',
-    async (version) => {
-      await expect(
-        assessUpgrade(
-          directory,
-          config('future', { cacheComponents: false }),
-          version
-        )
-      ).resolves.toBeNull()
-    }
-  )
+  it('does not offer defaults before stable availability on canary', async () => {
+    const version = '16.3.0-canary.1'
+    await expect(
+      assessUpgrade(
+        directory,
+        config('future', { cacheComponents: false }),
+        version
+      )
+    ).resolves.toBeNull()
+  })
 
   it('offers available defaults on canary without a version reminder', async () => {
     await expect(
