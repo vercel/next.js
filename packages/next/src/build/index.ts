@@ -323,6 +323,12 @@ export interface PrerenderManifestRoute
    */
   renderingMode: RenderingMode | undefined
 
+  // TODO(ensure-static): communicate this in a better way
+  /**
+   * Whether this page had `ensureStatic = "navigation"`
+   * */
+  _isEnsureStaticPage?: true
+
   /**
    * The headers that are allowed to be used when revalidating this route. These
    * are used internally by Next.js to revalidate routes.
@@ -401,6 +407,12 @@ export interface DynamicPrerenderManifestRoute
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  // TODO(ensure-static): communicate this in a better way
+  /**
+   * Whether this page had `ensureStatic = "navigation"`
+   * */
+  _isEnsureStaticPage?: true
 
   /**
    * The headers that are allowed to be used when revalidating this route. These
@@ -3565,6 +3577,9 @@ export default async function build(
               }
             }
 
+            const isEnsureStaticPage =
+              pageInfos.get(page)?.isEnsureStaticPage === true
+
             // Handle all the static routes.
             for (const route of concretePrerenderCandidates) {
               if (isDynamicRoute(page) && route.pathname === page) continue
@@ -3667,6 +3682,7 @@ export default async function build(
                       : RenderingMode.STATIC
                     : undefined,
                   ...classification,
+                  _isEnsureStaticPage: isEnsureStaticPage || undefined,
                   experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: cacheControl.revalidate,
@@ -3971,6 +3987,7 @@ export default async function build(
                     route.remainingPrerenderableParams,
                   throwOnEmptyStaticShell:
                     prerenderCandidate?.throwOnEmptyStaticShell,
+                  _isEnsureStaticPage: isEnsureStaticPage || undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC

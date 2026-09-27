@@ -2473,6 +2473,8 @@ async function retryUpgradeableFallbackPrefetch(
     await new Promise<void>((resolve) =>
       setTimeout(resolve, FALLBACK_RETRY_DELAY_MS)
     )
+    console.log('retryUpgradeableFallbackPrefetch', attempt, tree.requestKey)
+
     if (task.isCanceled) {
       break
     }

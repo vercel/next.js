@@ -123,16 +123,10 @@ describe('ensureStatic = "navigation" - runtime behavior', () => {
     })
 
     describe('serves blocking static results for params that were not prerendered at build', () => {
-      it('HTML request', async () => {
-        const slug = 'not-prerendered-1'
-        const kind = HTML
-        await testImpl(slug, kind)
-      })
-
-      // TODO(ensure-static): RSC requests are still dynamic until revalidation finishes
-      it.failing('RSC request', async () => {
-        const slug = 'not-prerendered-2'
-        const kind = RSC
+      it.each([
+        { slug: 'not-prerendered-1', kind: HTML },
+        { slug: 'not-prerendered-2', kind: RSC },
+      ])('slug: $slug - $kind', async ({ slug, kind }) => {
         await testImpl(slug, kind)
       })
     })
@@ -170,15 +164,10 @@ describe('ensureStatic = "navigation" - runtime behavior', () => {
     })
 
     describe('serves static results for params that were not prerendered at build', () => {
-      it('HTML request', async () => {
-        const lang = 'de'
-        const kind = HTML
-        await testImpl(lang, kind)
-      })
-      // TODO(ensure-static): RSC requests are still dynamic until revalidation finishes
-      it.failing('RSC request', async () => {
-        const lang = 'jp'
-        const kind = RSC
+      it.each([
+        { lang: 'de', kind: HTML },
+        { lang: 'jp', kind: RSC },
+      ])('lang: $lang - $kind', async ({ lang, kind }) => {
         await testImpl(lang, kind)
       })
     })
