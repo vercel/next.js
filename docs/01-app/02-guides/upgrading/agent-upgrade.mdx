@@ -39,7 +39,7 @@ The CLI reads the version installed in the app. It selects a canary target only 
 | `latest`   | Moves stable, RC, beta, and preview apps to npm's `latest` stable release, or a canary app to the `canary` release. |
 | `future`   | Applies the `latest` policy, then adopts applicable [Future Defaults](#adopt-future-defaults).                      |
 
-Omit the policy to use [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade). If the option is not configured, the command uses `security`:
+Omit the policy to use the string value from [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade). Otherwise, the command uses `security`:
 
 ```bash filename="Terminal"
 npx next@canary upgrade --ai
@@ -67,9 +67,50 @@ For a ready upgrade, the CLI copies the relevant migration guides into a tempora
 
 When you run the command inside a coding agent, the CLI prints the task for the current agent to follow. In an interactive terminal, it can start an installed Codex or Claude Code session, or copy the task for another agent. In a non-interactive terminal, it prints the task.
 
-## Enable upgrade reminders
+## Choose how to run the agent
 
-Set [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) to show upgrade reminders during `next dev` and `next build`:
+When you start the command from an interactive terminal, it asks which installed agent to use. For a new agent session, you can also choose its model, reasoning effort, whether to use Auto permissions, and whether to use a separate Git worktree. The available choices depend on the selected agent and CLI version.
+
+The terminal shows prompts similar to the following:
+
+```txt filename="Terminal"
+Multiple coding agents detected. Which one would you like to use?
+Use ↑/↓ to choose, then press Enter.
+
+❯ Continue with Codex
+  Continue with Claude Code
+  Copy prompt for another coding agent
+  Cancel
+
+Which Codex model should run the upgrade?
+❯ Terra
+  Sol
+  Cancel
+
+Which reasoning effort should the upgrade use?
+  low
+  medium
+❯ high
+  xhigh
+  max
+  ultra
+  Cancel
+
+Use Auto permission mode for Codex?
+❯ Yes
+  No, ask for approval
+  Cancel
+
+Open the upgrade in a separate Git worktree?
+❯ Yes
+  No
+```
+
+When you run the command from an existing coding agent, it provides the prepared task to that agent instead. The agent keeps the model, reasoning effort, and permissions already configured for its session.
+
+## Configure upgrade reminders
+
+Upgrade reminders are enabled by default with the `security` policy. Set [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) to choose another policy or disable reminders:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -83,6 +124,12 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-The option does not upgrade the app automatically. In an interactive terminal, a reminder lets you start the upgrade, continue the current command, or dismiss the reminder for the installed version. When a coding agent encounters a reminder, it reports the available upgrade and can continue the original task after retrying the command.
+Set the option to `false` to disable reminders.
+
+The option does not upgrade the app automatically. In an interactive terminal, `next dev` or `next build` continues while the reminder is open and buffers its output. **Skip** returns to the running command and replays that output. **Upgrade now** stops the command before starting the upgrade. You can also dismiss the reminder for the installed version.
+
+When a coding agent encounters a reminder, it reports the available upgrade and can continue the original task after retrying the command.
+
+During `next dev`, Next.js DevTools can also show a **Vulnerability Insight** when the installed version is affected by a known security vulnerability. The insight provides a copyable prompt for starting a `security` upgrade with a coding agent.
 
 The CLI needs access to release metadata and, for stable targets, security advisory data. If it cannot establish a target, it reports the reason without starting an agent session.

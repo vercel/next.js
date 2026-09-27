@@ -224,7 +224,7 @@ The following options are available for the `next upgrade` command:
 | `--verbose`                      | Show verbose output during the upgrade process.                                                                                                    |
 | `--ai, --experimental-ai [type]` | Prepare a coding agent upgrade with `security`, `latest`, or `future`. Cannot be combined with `--revision`.                                       |
 
-Without a type, `--ai` uses `experimental.agentUpgrade` if configured, or `security` otherwise. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for the upgrade workflow and policy behavior.
+Without a type, `--ai` uses a string policy from `experimental.agentUpgrade`, or `security` otherwise. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for the upgrade workflow and policy behavior.
 
 ### `next analyze` options
 
