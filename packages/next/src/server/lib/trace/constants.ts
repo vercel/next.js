@@ -98,6 +98,9 @@ enum AppRenderSpan {
   instantInsights = 'AppRender.instantInsights',
   instantInsightsPrepareValidation = 'AppRender.instantInsights.prepareValidation',
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
+  instantInsightsWarmup = 'AppRender.instantInsights.warmup',
+  instantInsightsStaticShell = 'AppRender.instantInsights.staticShell',
+  instantInsightsValidate = 'AppRender.instantInsights.validate',
 }
 
 enum DevBundlerServiceSpan {
