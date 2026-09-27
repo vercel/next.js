@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { retry } from '../../../../lib/next-test-utils'
@@ -2428,9 +2428,6 @@ describe('static App Shell prefetch attempt', () => {
         expect(await browser.elementById('slug').text()).toBe(`Slug: ${slug}`)
       })
 
-      // TODO(ensure-static): In deploy, we apparently serve a fallback for RSC prefetches
-      // even though the route is configured as blocking
-      // @gate !deploy
       it('uses a static request for a `prefetch={true}` link to a page that uses static params and was not prerendered', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2448,21 +2445,109 @@ describe('static App Shell prefetch attempt', () => {
         // This param was not prerendered at build, but we should not serve an ISR fallback,
         // because `ensureStatic = "navigation"` requires prerenders to be blocking.
         // It should use a static prefetch.
-        await act(async () => {
-          await browser
-            .elementByCss(
-              `input[data-prefetch="true"][data-link-accordion="${href}"]`
+        if (isNextDeploy) {
+          // TODO(ensure-static): In deploy, we apparently serve an ISR fallback for RSC prefetches
+          // even though the route is configured as blocking.
+          // The client router should retry the request.
+
+          const isActMissingSlugError = (thrown: unknown) => {
+            if (
+              thrown &&
+              typeof thrown === 'object' &&
+              'message' in thrown &&
+              typeof thrown.message === 'string'
+            ) {
+              const error = thrown as Error
+              return (
+                error.message.includes(
+                  'Expected a response containing the given string'
+                ) && error.message.includes(`Slug: ${slug}`)
+              )
+            }
+            return false
+          }
+
+          try {
+            await act(async () => {
+              await browser
+                .elementByCss(
+                  `input[data-prefetch="true"][data-link-accordion="${href}"]`
+                )
+                .click()
+            }, [
+              // Static prefetch
+              {
+                includes: `Slug: ${slug}`,
+                kind: 'static',
+              },
+              // No runtime requests (e.g. runtime follow-up due to ISR fallback)
+              { includes: '', kind: 'runtime', block: 'reject' },
+            ])
+          } catch (err) {
+            // We might not get the slug in the initial request.
+            // TODO: nested with block: true?
+
+            if (!isActMissingSlugError(err)) {
+              throw err
+            }
+
+            console.error(
+              'initial link reveal failed (likely an ISR fallback)',
+              err
             )
-            .click()
-        }, [
-          // Static prefetch
-          {
-            includes: `Slug: ${slug}`,
-            kind: 'static',
-          },
-          // No runtime requests (e.g. runtime follow-up due to ISR fallback)
-          { includes: '', kind: 'runtime', block: 'reject' },
-        ])
+            const interval = 2_000
+            const maxAttempts = 5
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                await act(async () => {
+                  await new Promise<void>((resolve) =>
+                    setTimeout(resolve, interval + 500)
+                  )
+                }, [
+                  // Static prefetch
+                  {
+                    includes: `Slug: ${slug}`,
+                    kind: 'static',
+                  },
+                  // No runtime requests (e.g. runtime follow-up due to ISR fallback)
+                  { includes: '', kind: 'runtime', block: 'reject' },
+                ])
+
+                // if act() succeeded, then we got a complete prerender, and can stop waiting
+                // for retries.
+                break
+              } catch (err) {
+                // act() threw.
+                if (!isActMissingSlugError(err)) {
+                  throw err
+                }
+                // The router did a retry, but got an ISR fallback again.
+                if (attempt < maxAttempts) {
+                  console.error(`Retry ${attempt} failed:`, err)
+                } else {
+                  console.error(`Retry ${attempt} failed, aborting`)
+                  throw err
+                }
+              }
+            }
+          }
+        } else {
+          await act(async () => {
+            await browser
+              .elementByCss(
+                `input[data-prefetch="true"][data-link-accordion="${href}"]`
+              )
+              .click()
+          }, [
+            // Static prefetch
+            {
+              includes: `Slug: ${slug}`,
+              kind: 'static',
+            },
+            // No runtime requests (e.g. runtime follow-up due to ISR fallback)
+            { includes: '', kind: 'runtime', block: 'reject' },
+          ])
+        }
 
         // The prefetch is complete, because the page is required to be fully-static.
         await act(
