@@ -1,7 +1,6 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Pages router doesn't use react-server */
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import type { NextRouter } from '../shared/lib/router/router'
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import type { DomainLocale } from './config'
@@ -41,7 +40,6 @@ import type { Revalidate } from './lib/cache-control'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
-import ReactDOMServerPages from 'next/dist/server/ReactDOMServerPages'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -80,10 +78,7 @@ import { getRequestMeta } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type PagesRenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
-import {
-  streamToString,
-  renderToInitialFizzStream,
-} from './stream-utils/node-web-streams-helper'
+import { streamToString } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -99,7 +94,7 @@ import {
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'
-import { RenderSpan } from './lib/trace/constants'
+import { AppRenderSpan, RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
@@ -134,10 +129,20 @@ function noRouter() {
   throw new Error(message)
 }
 
-async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServerPages.renderToReadableStream(element)
-  await renderStream.allReady
-  return streamToString(renderStream)
+let renderToString: (element: React.ReactElement) => Promise<string>
+if (process.env.__NEXT_USE_NODE_STREAMS) {
+  renderToString = (
+    require('./render-to-string.node') as typeof import('./render-to-string.node')
+  ).renderToString
+} else {
+  const ReactDOMServerPages =
+    require('next/dist/server/ReactDOMServerPages') as typeof import('next/dist/server/ReactDOMServerPages')
+  renderToString = async (element) => {
+    const renderStream =
+      await ReactDOMServerPages.renderToReadableStream(element)
+    await renderStream.allReady
+    return streamToString(renderStream)
+  }
 }
 
 class ServerRouter implements NextRouter {
@@ -1293,7 +1298,7 @@ export async function renderToHTMLImpl(
       renderShell: (
         _App: AppType,
         _Component: NextComponentType
-      ) => Promise<ReactDOMServerReadableStream>
+      ) => Promise<string>
     ) {
       const renderPage: RenderPage = async (
         options: ComponentsEnhancer = {}
@@ -1324,9 +1329,7 @@ export async function renderToHTMLImpl(
         const { App: EnhancedApp, Component: EnhancedComponent } =
           enhanceComponents(options, App, Component)
 
-        const stream = await renderShell(EnhancedApp, EnhancedComponent)
-        await stream.allReady
-        const html = await streamToString(stream)
+        const html = await renderShell(EnhancedApp, EnhancedComponent)
 
         return { html, head }
       }
@@ -1369,15 +1372,14 @@ export async function renderToHTMLImpl(
     }
 
     // Always using react concurrent rendering mode with required react version 18.x
-    const renderShell = async (
+    const renderShell = (
       EnhancedApp: AppType,
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
-      return await renderToInitialFizzStream({
-        ReactDOMServer: ReactDOMServerPages,
-        element: content,
-      })
+      return getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
+        renderToString(content)
+      )
     }
 
     const hasDocumentGetInitialProps =
@@ -1400,9 +1402,7 @@ export async function renderToHTMLImpl(
       }
     } else {
       documentInitialPropsRes = {}
-      const stream = await renderShell(App, Component)
-      await stream.allReady
-      content = await streamToString(stream)
+      content = await renderShell(App, Component)
     }
 
     // @ts-ignore: documentInitialPropsRes is set
