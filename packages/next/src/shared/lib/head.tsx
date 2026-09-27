@@ -12,6 +12,16 @@ export function defaultHead(): JSX.Element[] {
   return head
 }
 
+const VALID_HEAD_TAGS = [
+  'title',
+  'meta',
+  'link',
+  'script',
+  'style',
+  'base',
+  'noscript',
+]
+
 function onlyReactElement(
   list: Array<React.ReactElement<any>>,
   child: React.ReactElement | number | string
@@ -42,6 +52,21 @@ function onlyReactElement(
       )
     )
   }
+
+  // In development, warn about invalid tags
+  if (process.env.NODE_ENV === 'development') {
+    if (
+      typeof child.type === 'string' &&
+      !VALID_HEAD_TAGS.includes(child.type)
+    ) {
+      warnOnce(
+        `<${child.type}> is not a valid child of next/head. ` +
+          `Valid children are: ${VALID_HEAD_TAGS.join(', ')}. ` +
+          `See: https://nextjs.org/docs/messages/invalid-head-child`
+      )
+    }
+  }
+
   return list.concat(child)
 }
 
