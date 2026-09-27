@@ -2554,6 +2554,10 @@ mod task_guard_lifetime_tests {
 
     #[cfg(debug_assertions)]
     #[test]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "WASI uses panic=abort; catch_unwind cannot catch the expected panic"
+    )]
     fn debug_counter_rejects_nested_independent_locks_and_tracks_pairs() {
         let counter = TaskLockCounter::new();
         counter.acquire();
