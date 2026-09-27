@@ -2820,7 +2820,9 @@ async function prepareAppPageRender(
 
   const { flightRouterState, isPrefetchRequest, nonce } = parsedRequestHeaders
 
-  if (parsedRequestHeaders.requestId) {
+  if (requestInsightsIdentity?.debugRequestId) {
+    requestId = requestInsightsIdentity.debugRequestId
+  } else if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
   } else if (requestInsightsIdentity) {
@@ -5105,7 +5107,7 @@ async function runInstantInsightsWithTracing<T>(
 
   return runWithRequestInsightsIdentity(
     {
-      requestId: ctx.requestId,
+      requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
       kind: 'instant-insights',
       htmlRequestId: ctx.htmlRequestId,
       url: ctx.url.href,
