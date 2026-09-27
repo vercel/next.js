@@ -192,33 +192,15 @@ describe('security upgrade nudge', () => {
   })
 
   it.each(['blocked', 'unknown'] as const)(
-    'preserves the advisory and retry behavior when target eligibility is %s',
+    'skips the security nudge when target eligibility is %s',
     async (status) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
         reference: 'https://api.github.com/advisories?affects=next',
         affected: true,
         upgrade: { status, reason: 'Target assessment detail.' },
       })
-      let message = ''
-      try {
-        await run()
-      } catch (error) {
-        expect(error).toMatchObject({ name: 'SecurityFatalError', exitCode: 1 })
-        message = (error as Error).message
-      }
-      expect(message).toContain('affected by a published security advisory')
-      expect(message).toContain('Target assessment detail.')
-      expect(message.includes('next upgrade --ai')).toBe(false)
-      expect(message.includes('can be automatically upgraded')).toBe(false)
-      expect(message).toContain(
-        status === 'unknown'
-          ? 'Upgrade availability could not be checked.'
-          : 'No safe newer target is available'
-      )
       await expect(run()).resolves.toBeUndefined()
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining('Target assessment detail.')
-      )
+      expect(warn).not.toHaveBeenCalled()
     }
   )
 
@@ -353,7 +335,9 @@ describe('latest nudge release selection', () => {
     ['17.2.0-canary.4', '17.3.0-rc.1', null],
     ['17.2.0-rc.1', '17.3.0', '17.3.0'],
     ['17.2.0-rc.1', '17.2.0', '17.2.0'],
+    ['17.2.0-rc.1', '17.2.0-rc.2', null],
     ['17.2.0-beta.1', '17.2.0', '17.2.0'],
+    ['17.2.0-beta.1', '18.0.0-beta.1', null],
     ['17.2.0-preview.1', '17.2.0', '17.2.0'],
     ['17.2.0-rc.1', '17.3.0-rc.1', null],
     ['17.2.0-beta.1', '17.3.0-beta.1', null],
@@ -400,7 +384,7 @@ describe('latest upgrade nudge', () => {
   )
 
   it.each(['rc', 'beta', 'preview'] as const)(
-    'links a configured %s reminder to stable latest',
+    'links a verified %s latest reminder to stable latest',
     async (channel) => {
       process.env.__NEXT_VERSION = `17.2.0-${channel}.1`
       mockUpgrade('17.2.0')
@@ -412,6 +396,11 @@ describe('latest upgrade nudge', () => {
           'Reference: https://registry.npmjs.org/next/latest'
         ),
       })
+      expect(getUpgradeAssessment).toHaveBeenCalledWith(
+        `17.2.0-${channel}.1`,
+        'latest',
+        false
+      )
     }
   )
 
@@ -786,36 +775,37 @@ describe('human upgrade nudge', () => {
   )
 
   it.each(['security', 'latest', 'future'] as const)(
-    'forces a %s request without changing installed-version eligibility',
+    'does not force a %s nudge without a valid installed version',
     async (policy) => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
-      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      process.env.__NEXT_VERSION = 'not-a-version'
       processEnv([], directory)
       updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: policy })
-      jest.mocked(promptUpgrade).mockResolvedValue('update')
       for (const configured of [false, 'future'] as const) {
         const original = config(configured)
         const context = getUpgradeContext(original)
         expect(context.experimental.agenticAutoUpgrade).toBe(policy)
         await expect(
           nudgeUpgrade(directory, context, 'dev', new AbortController().signal)
-        ).resolves.toBe('update')
+        ).resolves.toBeUndefined()
       }
-      expect(promptUpgrade).toHaveBeenCalledWith(
-        expect.stringContaining(`__NEXT_AGENTIC_AUTO_UPGRADE=${policy}`),
-        expect.any(AbortSignal),
-        true
-      )
+      expect(promptUpgrade).not.toHaveBeenCalled()
       expect(getUpgradeAssessment).not.toHaveBeenCalled()
-      const message = jest.mocked(promptUpgrade).mock.calls[0][0]
-      expect(message).toContain('Forced preview:')
-      expect(message).not.toContain(`next upgrade --ai`)
-      expect(message).not.toContain('You requested')
       jest.mocked(getAgentName).mockResolvedValue('codex')
-      await expect(run(policy)).rejects.toMatchObject({
-        message: expect.stringContaining(`next upgrade --ai=${policy}`),
-      })
+      await expect(run(policy)).resolves.toBeUndefined()
+    }
+  )
 
+  it.each(['security', 'latest', 'future'] as const)(
+    'runs an explicitly requested %s upgrade',
+    async (policy) => {
+      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
+      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      processEnv([], directory)
+      updateInitialEnv({
+        __NEXT_AGENTIC_AUTO_UPGRADE: policy,
+        __NEXT_VERSION: '16.4.0-preview-test',
+      })
       jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
         expect(process.env.__NEXT_AGENTIC_AUTO_UPGRADE).toBeUndefined()
         // Future upgrade preparation reloads config and resets the environment.
@@ -829,6 +819,22 @@ describe('human upgrade nudge', () => {
         verbose: false,
         ai: policy,
       })
+    }
+  )
+
+  it.each(['blocked', 'unknown'] as const)(
+    'does not force a nudge when the target is %s',
+    async (status) => {
+      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+      jest.mocked(getUpgradeAssessment).mockResolvedValue({
+        affected: true,
+        reference:
+          'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk',
+        upgrade: { status, reason: 'No verified target.' },
+      })
+      await expect(run('security')).resolves.toBeUndefined()
+      expect(promptUpgrade).not.toHaveBeenCalled()
+      expect(warn).not.toHaveBeenCalled()
     }
   )
 
@@ -1030,18 +1036,14 @@ describe('human upgrade nudge', () => {
   })
 
   it.each(['blocked', 'unknown'] as const)(
-    'omits Update when security target availability is %s',
+    'does not prompt when security target availability is %s',
     async (status) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
         ...securityAssessment,
         upgrade: { status, reason: 'No eligible target.' },
       })
       await run()
-      expect(promptUpgrade).toHaveBeenCalledWith(
-        expect.stringContaining('No eligible target.'),
-        expect.any(AbortSignal),
-        false
-      )
+      expect(promptUpgrade).not.toHaveBeenCalled()
     }
   )
 
