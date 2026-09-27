@@ -65,6 +65,8 @@ Before starting an agent session, the CLI checks the installed version, release 
 
 For a ready upgrade, the CLI copies the relevant migration guides into a temporary directory, prepares the applicable Skills, and creates a task for the selected target. For a major upgrade, the task includes the guide for every major version crossed. It also asks the agent to check for duplicate work, use a separate Git worktree when available, run the relevant checks, and verify the result.
 
+The task also asks the agent to save the selected policy as `experimental.agentUpgrade` in `next.config` for future upgrade reminders. To disable reminders, set the option to `false`.
+
 When you run the command inside a coding agent, the CLI prints the task for the current agent to follow. In an interactive terminal, it can start an installed Codex or Claude Code session, or copy the task for another agent. In a non-interactive terminal, it prints the task.
 
 ## Choose how to run the agent
