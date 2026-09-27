@@ -20,6 +20,7 @@ import { isAppPageRouteModule } from '../route-modules/checks'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from '../../build/static-paths/app'
+import { collectStaticVariantCombinations } from '../../build/variants/combinations'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
@@ -118,6 +119,15 @@ export async function loadStaticPaths({
       // above that the page type is 'app'.
       routeModule as AppPageRouteModule | AppRouteRouteModule
     )
+
+    // The dev server reads the static variant combinations of a route here, and
+    // rejects what it cannot use. Nothing prerenders against them yet, so the
+    // result is discarded.
+    //
+    // The dev server builds static paths only for a dynamic route. A route
+    // without dynamic segments is therefore checked by a production build
+    // alone.
+    await collectStaticVariantCombinations(segments, pathname)
 
     const route = parseNormalizedAppRoute(pathname)
     if (route.dynamicSegments.length === 0) {

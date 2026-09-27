@@ -18,8 +18,22 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
+import type { VariantAssignment } from '../../../server/request/variants'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
+
+/**
+ * Declares the static variant combinations of a route.
+ *
+ * It takes no arguments. Each combination it returns applies to every prerender
+ * of the route: to each combination of static params, and to each fallback
+ * shell. A fallback shell is prerendered where a param is not known, so a
+ * combination that depended on params could not apply to one.
+ */
+type GenerateStaticVariants = () =>
+  | Promise<readonly VariantAssignment[][]>
+  | readonly VariantAssignment[][]
 
 /**
  * Parses the app config and attaches it to the segment.
@@ -61,6 +75,14 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
       )
     }
   }
+
+  if (
+    'unstable_generateStaticVariants' in userland &&
+    typeof userland.unstable_generateStaticVariants === 'function'
+  ) {
+    segment.unstable_generateStaticVariants =
+      userland.unstable_generateStaticVariants as GenerateStaticVariants
+  }
 }
 
 export type AppSegment = {
@@ -70,6 +92,7 @@ export type AppSegment = {
   filePath: string | undefined
   config: AppSegmentConfig | undefined
   generateStaticParams: GenerateStaticParams | undefined
+  unstable_generateStaticVariants: GenerateStaticVariants | undefined
   createEmptyParamsError?: () => Error
 }
 
@@ -104,11 +127,30 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       filePath,
       config: undefined,
       generateStaticParams: undefined,
+      unstable_generateStaticVariants: undefined,
     }
 
     // Only server components can have app segment configurations
     if (!isClientComponent) {
       attach(segment, userland, routeModule.definition.pathname)
+    }
+
+    // The build rejects combinations declared anywhere but on the page of a
+    // route. Prerenders are produced per page, so combinations on a layout
+    // would multiply those of every page beneath it. A default page does not
+    // render the route, so it may not declare them either.
+    //
+    // Only the page carries this segment key, so the comparison finds it
+    // whatever the shape of the tree, and a parallel route is never mistaken
+    // for it.
+    if (segment.unstable_generateStaticVariants && name !== PAGE_SEGMENT_KEY) {
+      // A module that has exports has a file path. The segment name stands in
+      // for it otherwise.
+      const declaredIn = filePath ?? name
+
+      throw new Error(
+        `${declaredIn} exported \`unstable_generateStaticVariants\`, but only a page may declare variant combinations.`
+      )
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
@@ -165,6 +207,7 @@ async function collectAppRouteSegments(
       filePath: undefined,
       config: undefined,
       generateStaticParams: undefined,
+      unstable_generateStaticVariants: undefined,
     } satisfies AppSegment
   })
 
@@ -176,6 +219,17 @@ async function collectAppRouteSegments(
 
   // Extract the segment config from the userland module.
   attach(segment, routeModule.userland, routeModule.definition.pathname)
+
+  // The build rejects combinations declared on a route handler. A route handler
+  // cannot read a variant yet, so its response cannot differ between
+  // combinations.
+  //
+  // TODO(variants): support variants in a route handler.
+  if (segment.unstable_generateStaticVariants) {
+    throw new Error(
+      `${routeModule.definition.pathname} exported \`unstable_generateStaticVariants\`, but variants in a route handler are not supported yet.`
+    )
+  }
 
   return segments
 }
