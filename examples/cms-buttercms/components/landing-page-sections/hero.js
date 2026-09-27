@@ -29,9 +29,9 @@ export default function Hero({
                 <Image
                   src={image}
                   layout="responsive"
-                  height="400px"
-                  width="400px"
-                  alt=""
+                  height={400}
+                  width={400}
+                  alt={headline}
                 />
               </div>
             </div>
