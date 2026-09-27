@@ -22,14 +22,18 @@ const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'max'] as const
 
 const UPGRADE_MODELS = {
   codex: [
-    { id: 'gpt-5.6-terra', label: 'Terra', efforts: CODEX_EFFORTS },
-    { id: 'gpt-5.6-sol', label: 'Sol', efforts: CODEX_EFFORTS },
-    { id: 'gpt-6-astra', label: 'Astra', efforts: CODEX_EFFORTS },
+    { id: 'gpt-5.6-terra', label: 'GPT-5.6-Terra', efforts: CODEX_EFFORTS },
+    { id: 'gpt-5.6-sol', label: 'GPT-5.6-Sol', efforts: CODEX_EFFORTS },
+    { id: 'gpt-6-astra', label: 'GPT-6-Astra', efforts: CODEX_EFFORTS },
   ],
   claude: [
-    { id: 'claude-sonnet-5[1m]', label: 'Sonnet', efforts: CLAUDE_EFFORTS },
-    { id: 'opus', label: 'Opus', efforts: CLAUDE_EFFORTS },
-    { id: 'fable', label: 'Fable', efforts: CLAUDE_EFFORTS },
+    {
+      id: 'claude-sonnet-5[1m]',
+      label: 'Claude Sonnet 5 (1M)',
+      efforts: CLAUDE_EFFORTS,
+    },
+    { id: 'opus', label: 'Claude Opus (latest)', efforts: CLAUDE_EFFORTS },
+    { id: 'fable', label: 'Claude Fable (latest)', efforts: CLAUDE_EFFORTS },
   ],
 } as const
 

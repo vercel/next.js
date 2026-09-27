@@ -510,10 +510,20 @@ describe('agentic upgrade prompts', () => {
         { cwd: '/workspace/app', stdio: 'inherit' }
       )
       const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
-      expect(Object.keys(modelMenu.values)).toEqual(
+      expect(modelMenu.values).toEqual(
         agent === 'codex'
-          ? ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-6-astra', 'cancel']
-          : ['claude-sonnet-5[1m]', 'opus', 'fable', 'cancel']
+          ? {
+              'gpt-5.6-terra': 'GPT-5.6-Terra',
+              'gpt-5.6-sol': 'GPT-5.6-Sol',
+              'gpt-6-astra': 'GPT-6-Astra',
+              cancel: 'Cancel',
+            }
+          : {
+              'claude-sonnet-5[1m]': 'Claude Sonnet 5 (1M)',
+              opus: 'Claude Opus (latest)',
+              fable: 'Claude Fable (latest)',
+              cancel: 'Cancel',
+            }
       )
       const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]
       expect(Object.keys(effortMenu.values)).toEqual(
