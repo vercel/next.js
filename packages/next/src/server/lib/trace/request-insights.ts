@@ -10,6 +10,7 @@ import {
   getRequestInsightKind,
 } from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
+import { isRequestInsightsEnabled, setLocalSpanExporter } from './span-store'
 export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
@@ -56,7 +57,10 @@ class InMemoryRequestInsightsStore {
   private readonly requestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
 
-  recordSpan(span: SpanStoreRecord): void {
+  recordSpan(
+    span: SpanStoreRecord,
+    shouldNotify: boolean = true
+  ): RequestInsight | undefined {
     if (!span.requestId) {
       return
     }
@@ -108,7 +112,23 @@ class InMemoryRequestInsightsStore {
       this.recordFetchForInsight(insight, fetch)
     }
 
-    this.notify(insight)
+    if (shouldNotify) {
+      this.notify(insight)
+    }
+    return insight
+  }
+
+  recordSpans(spans: readonly SpanStoreRecord[]): void {
+    const updatedInsights = new Set<RequestInsight>()
+    for (const span of spans) {
+      const insight = this.recordSpan(span, false)
+      if (insight) {
+        updatedInsights.add(insight)
+      }
+    }
+    for (const insight of updatedInsights) {
+      this.notify(insight)
+    }
   }
 
   recordFetch(identity: RequestInsightIdentity, fetch: RequestInsightFetch) {
@@ -242,6 +262,21 @@ class InMemoryRequestInsightsStore {
       }
     }
   }
+}
+
+export function registerRequestInsightsExporter(): void {
+  setLocalSpanExporter({
+    isEnabled: isRequestInsightsEnabled,
+    export(spans) {
+      getRequestInsightsStore().recordSpans(
+        spans.filter(
+          (span) =>
+            span.attributes?.['next.span_type'] !==
+            CLIENT_COMPONENT_LOADING_SPAN_TYPE
+        )
+      )
+    },
+  })
 }
 
 export function recordRequestInsightSpan(span: SpanStoreRecord): void {

@@ -5,9 +5,20 @@
 import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
-import { createLocalSpan, traceLocalSpan } from './local-span-recorder'
+import {
+  createLocalSpan,
+  getLocalParentSpan,
+  getOpenTelemetrySpan,
+  traceLocalSpan,
+  withLocalSpan,
+} from './local-span-recorder'
 import { runWithRequestInsightsIdentity } from './request-insights-identity'
-import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
+import {
+  runWithLocalSpanSink,
+  setLocalSpanExporter,
+  setSpanRecorderForTest,
+  type SpanStoreRecord,
+} from './span-store'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -32,6 +43,7 @@ describe('local recording span', () => {
       process.env.__NEXT_DEV_SERVER = originalDevServer
     }
     setSpanRecorderForTest(undefined)
+    setLocalSpanExporter(undefined)
     spanRecords.length = 0
   })
 
@@ -177,6 +189,28 @@ describe('local recording span', () => {
     )
   })
 
+  it('compares the public context supplied by the tracer', () => {
+    const span = createLocalSpan({ name: 'local parent' })
+    const publicContext = {
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    }
+
+    withLocalSpan(
+      span,
+      () => {
+        expect(getLocalParentSpan(publicContext)).toBe(span)
+        expect(
+          getLocalParentSpan({ ...publicContext, spanId: '1123456789abcdef' })
+        ).toBeUndefined()
+        expect(getLocalParentSpan(undefined)).toBeUndefined()
+      },
+      publicContext
+    )
+    span.end()
+  })
+
   it('uses the request insights identity before the work store exists', () => {
     runWithRequestInsightsIdentity(
       {
@@ -299,22 +333,64 @@ describe('local recording span', () => {
     ])
   })
 
-  it('releases heavy references after ending while the span remains reachable', async () => {
-    const { span, delegateRef, attributeRef } = createEndedSpanWithReferences()
+  it('keeps the original collector when a span ends in another context', () => {
+    const original = jest.fn()
+    const unrelated = jest.fn()
+    const exporter = jest.fn()
+    setLocalSpanExporter({ isEnabled: () => true, export: exporter })
+    const span = runWithLocalSpanSink(original, () =>
+      createLocalSpan({ name: 'original collector' })
+    )
+    runWithLocalSpanSink(unrelated, () => span.end())
+    span.end()
 
-    spanRecords.length = 0
-    await expectCollected(delegateRef)
-    await expectCollected(attributeRef)
-
-    expect(span.spanContext()).toEqual({
-      traceId: '0123456789abcdef0123456789abcdef',
-      spanId: '0123456789abcdef',
-      traceFlags: 1,
-    })
+    expect(original).toHaveBeenCalledTimes(1)
+    expect(original).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'original collector' })
+    )
+    expect(unrelated).not.toHaveBeenCalled()
+    expect(exporter).not.toHaveBeenCalled()
   })
+
+  it('does not adopt a collector that was entered after the span started', () => {
+    const unrelated = jest.fn()
+    const exporter = jest.fn()
+    setLocalSpanExporter({ isEnabled: () => true, export: exporter })
+    const span = createLocalSpan({ name: 'exported span' })
+    runWithLocalSpanSink(unrelated, () => span.end())
+
+    expect(unrelated).not.toHaveBeenCalled()
+    expect(exporter).toHaveBeenCalledWith([
+      expect.objectContaining({ name: 'exported span' }),
+    ])
+  })
+
+  it.each([true, false])(
+    'releases references after ending with a delegate: %s',
+    async (delegated) => {
+      const { span, delegateRef, attributeRef, collectorRef } =
+        createEndedSpanWithReferences(delegated)
+
+      spanRecords.length = 0
+      await expectCollected(delegateRef)
+      await expectCollected(attributeRef)
+      await expectCollected(collectorRef)
+
+      expect(span.spanContext()).toEqual({
+        traceId: '0123456789abcdef0123456789abcdef',
+        spanId: '0123456789abcdef',
+        traceFlags: delegated ? 1 : 0,
+      })
+      expect(getOpenTelemetrySpan(span)?.spanContext()).toEqual({
+        traceId: '0123456789abcdef0123456789abcdef',
+        spanId: '0123456789abcdef',
+        traceFlags: 1,
+      })
+    }
+  )
 })
 
-function createEndedSpanWithReferences() {
+function createEndedSpanWithReferences(delegated: boolean) {
   const delegate = trace.wrapSpanContext({
     traceId: '0123456789abcdef0123456789abcdef',
     spanId: '0123456789abcdef',
@@ -323,16 +399,25 @@ function createEndedSpanWithReferences() {
   const attributeValue = ['retained-value']
   const delegateRef = new WeakRef(delegate)
   const attributeRef = new WeakRef(attributeValue)
-  const span = createLocalSpan({
-    name: 'test.local-span.retention',
-    delegateSpan: delegate,
-    attributes: {
-      'next.test.payload': attributeValue,
-    },
-  })
+  const collector = () => {
+    void attributeValue.length
+  }
+  const collectorRef = new WeakRef(collector)
+  const span = runWithLocalSpanSink(collector, () =>
+    createLocalSpan({
+      name: 'test.local-span.retention',
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      delegateSpan: delegated ? delegate : undefined,
+      publicParentSpan: delegated ? undefined : delegate,
+      attributes: {
+        'next.test.payload': attributeValue,
+      },
+    })
+  )
 
   span.end()
-  return { span, delegateRef, attributeRef }
+  return { span, delegateRef, attributeRef, collectorRef }
 }
 
 async function expectCollected(ref: WeakRef<object>): Promise<void> {
