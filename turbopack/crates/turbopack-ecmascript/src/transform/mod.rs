@@ -150,7 +150,7 @@ pub trait CustomTransformer: Debug {
 /// the turbo_task caching requirements.
 #[turbo_tasks::value(transparent, serialization = "skip", eq = "manual", cell = "new")]
 #[derive(Debug)]
-pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
+pub struct TransformPlugin(#[turbo_tasks(unsafe_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
 #[async_trait]
 impl CustomTransformer for TransformPlugin {

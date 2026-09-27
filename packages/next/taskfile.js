@@ -43,6 +43,13 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  // The agent-feedback protocol is intentionally kept out of dist/docs so
+  // agents globbing the bundled docs don't read its instructions out of
+  // context. `next internal agent-feedback-instructions` prints it on demand.
+  await task
+    .source(join(__dirname, 'src/agent-feedback/protocol.md'))
+    .target('dist/agent-feedback')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {

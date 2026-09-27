@@ -1,10 +1,22 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import { assertNoConsoleErrors } from 'next-test-utils'
 const describeCacheComponents = isNextDev ? describe.skip : describe
 
-describeCacheComponents('metadata streaming with a custom bot list', () => {
+function runCustomBotTests(parallelRouteMetadata: boolean) {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    overrideFiles: {
+      'next.config.js': `
+        module.exports = {
+          cacheComponents: true,
+          htmlLimitedBots: /MyBot/i,
+          experimental: {
+            parallelRouteMetadata: ${parallelRouteMetadata},
+          },
+        }
+      `,
+    },
   })
 
   it('should serve a fully dynamic render with blocking metadata to a configured HTML-limited bot', async () => {
@@ -54,6 +66,20 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
     const $ = cheerio.load(await res.text())
     expect($('body title').text()).toBe('dynamic title')
     expect($('#dynamic-content').text()).toBe('dynamic content')
+  })
+
+  it('should hydrate blocking metadata without errors', async () => {
+    const browser = await next.browser('/partial', {
+      userAgent: 'MyBot',
+      pushErrorAsConsoleLog: true,
+    })
+
+    expect(
+      await browser
+        .waitForElementByCss('head title', { state: 'attached' })
+        .text()
+    ).toBe('dynamic title')
+    await assertNoConsoleErrors(browser)
   })
 
   it('should continue streaming the body after blocking metadata for a configured HTML-limited bot', async () => {
@@ -135,7 +161,14 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
     expect($('body title').text()).toBe('dynamic title')
     expect($('#dynamic-content').text()).toBe('dynamic content')
   })
-})
+}
+
+describeCacheComponents.each([false, true])(
+  'metadata streaming with a custom bot list (parallelRouteMetadata: %s)',
+  (parallelRouteMetadata) => {
+    runCustomBotTests(parallelRouteMetadata)
+  }
+)
 ;(isNextDev ? describe.skip : describe)(
   'metadata streaming with Cache Components and a built-in bot in the custom pattern',
   () => {

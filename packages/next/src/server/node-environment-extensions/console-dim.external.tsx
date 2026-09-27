@@ -261,7 +261,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         case 'unstable-cache':
         case 'private-cache':
         case 'request':
-        case 'generate-static-params':
+        case 'build-time-generator':
         case undefined:
           if (consoleStore?.dim === true) {
             return applyWithDimming.call(

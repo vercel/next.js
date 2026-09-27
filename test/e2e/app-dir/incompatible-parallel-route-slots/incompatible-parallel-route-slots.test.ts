@@ -53,6 +53,7 @@ describe('incompatible-parallel-route-slots', () => {
       expect(`${stripAnsi(next.cliOutput)}\n${response}`).not.toContain(
         'strict route matching retained the incomplete route matcher'
       )
+      expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).toBe(1)
@@ -71,9 +72,16 @@ describe('incompatible-parallel-route-slots', () => {
       expect(stripAnsi(cliOutput)).not.toContain(
         'strict route matching retained the incomplete route matcher'
       )
+      expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
   })
 })
+
+function expectDefaultStrictRouteMatchingWarning(output: string): void {
+  expect(stripAnsi(output)).toContain(
+    'you can temporarily restore loose route matching by setting `deprecated.looseRouteMatching` to `true`'
+  )
+}
 
 function extractIncompatibleSlotsError(output: string): string {
   const normalizedOutput = stripAnsi(output)

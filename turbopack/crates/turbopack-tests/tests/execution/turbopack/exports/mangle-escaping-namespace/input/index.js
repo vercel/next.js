@@ -1,4 +1,15 @@
 import { getEnums } from './provider'
+import {
+  multiHopExportsInfo,
+  readMultiHopDiamond,
+  enumerateMultiHopNamespace,
+  readMultiHopByComputedKey,
+} from './multi-hop-provider'
+import { readForwardedNamespace } from './forwarded-provider'
+import {
+  forwardedExportsInfo,
+  veryLongMangleableForwardedExportName,
+} from './mangleable-forwarded-barrel'
 import { enumsNs } from './reexport'
 import { getCjs } from './cjs-provider'
 import { read } from './destr'
@@ -45,6 +56,37 @@ it('should keep an escaped CommonJS namespace interop correct', () => {
   const ns = getCjs()
   expect(ns.CJS_A).toBe('cjs-a')
   expect(ns.CJS_B).toBe('cjs-b')
+})
+
+it('should preserve namespace reads through an export-star forwarding edge', () => {
+  expect(readForwardedNamespace()).toBe('forwarded-value')
+})
+
+it('should preserve namespace names through a multi-hop diamond', () => {
+  expect(readMultiHopDiamond()).toEqual(['multi-hop', 'multi-hop'])
+  // Without a mangling-only facade, the escaped namespace and named consumers use the original
+  // export keys from the same source module.
+  expect(multiHopExportsInfo.veryLongMultiHopExportName.canMangle).toBe(false)
+  expect(multiHopExportsInfo.veryLongMultiHopExportName.mangledName).toBeNull()
+  // The escaped namespace must still expose the ORIGINAL names, both by enumeration and by
+  // dynamic (non-statically-analyzable) key access.
+  expect(enumerateMultiHopNamespace()).toEqual([
+    'multiHopExportsInfo',
+    'veryLongMultiHopExportName',
+  ])
+  expect(readMultiHopByComputedKey('veryLongMultiHopExportName')).toBe(
+    'multi-hop'
+  )
+})
+
+it('should still mangle ordinary named reads through an export-star forwarding edge', () => {
+  expect(veryLongMangleableForwardedExportName).toBe('mangleable-forwarded')
+  expect(
+    forwardedExportsInfo.veryLongMangleableForwardedExportName.canMangle
+  ).toBe(true)
+  expect(
+    forwardedExportsInfo.veryLongMangleableForwardedExportName.mangledName
+  ).not.toBe('veryLongMangleableForwardedExportName')
 })
 
 it('should still mangle a sibling module that does not escape', () => {

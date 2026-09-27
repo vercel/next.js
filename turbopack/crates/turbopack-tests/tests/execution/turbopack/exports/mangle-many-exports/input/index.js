@@ -31,10 +31,12 @@ it('should keep all 60 values correct through the mangled keys', () => {
   expect(values()).toEqual(expected)
 })
 
-it('should keep the names of a module read with a computed key', () => {
+it('should keep computed-key namespace reads working without mangling', () => {
   for (let i = 0; i < 60; i++) {
     const n = String(i).padStart(2, '0')
     expect(manyAsNamespace[`exportNumber${n}`]).toBe(`value-${n}`)
   }
+  // The namespace-imported module keeps its public names; the separate named-only module
+  // checked above remains eligible for mangling.
   expect(manyAsNamespace.exportsInfo.exportNumber00.canMangle).toBe(false)
 })

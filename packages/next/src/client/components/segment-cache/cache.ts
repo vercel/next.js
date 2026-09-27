@@ -1,7 +1,15 @@
+import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import type React from 'react'
-import type { Segment as FlightRouterStateSegment } from '../../../shared/lib/app-router-types'
-import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { VaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import {
+  PrefetchHint,
+  StaticAttemptHints,
+} from '../../../shared/lib/app-router-types'
+import {
+  createVaryParams,
+  readVaryParams,
+  SEARCH_PARAMS_VARY_ID,
+  type VaryParams,
+} from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
 import {
   NEXT_DID_POSTPONE_HEADER,
@@ -30,19 +38,15 @@ import {
 } from './scheduler'
 import {
   type RouteVaryPath,
-  type SegmentVaryPath,
-  type PartialSegmentVaryPath,
+  type VaryPath,
+  type PartialVaryPath,
   getRouteVaryPath,
   getFulfilledRouteVaryPath,
   getFulfilledSegmentVaryPath,
   getSegmentVaryPathForRequest,
   getShellSegmentVaryPath,
-  clonePageVaryPathWithNewSearchParams,
-  type PageVaryPath,
-  type LayoutVaryPath,
-  getPartialPageVaryPath,
-  getPartialLayoutVaryPath,
-  getRenderedSearchFromVaryPath,
+  cloneVaryPathWithNewSearchParams,
+  getPartialVaryPath,
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import type {
@@ -56,6 +60,7 @@ import {
   getPathnameFromRequestURL,
   getRenderedPathname,
   getRenderedSearch,
+  normalizeRenderedSearch,
 } from '../../route-params'
 import {
   createCacheMap,
@@ -89,7 +94,11 @@ import { pingVisibleLinks } from '../links'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
-import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
+import {
+  discoverKnownRoute,
+  matchKnownRoute,
+  type KnownRoutePart,
+} from './optimistic-routes'
 import {
   createNavigationSeed,
   decodeTransportTreeIntoRouteTree,
@@ -178,10 +187,9 @@ export type RSCSegmentData = {
    */
   isPartial: boolean
   /**
-   * The params this segment's output depends on (root params already
-   * unioned in), drained from the response's wire iterables at decode. Null
-   * means unknown — tracking wasn't enabled, or the decode had no root
-   * params to union in — so consumers key on all params.
+   * The source of the params this segment's output depends on (root params
+   * included). Null means unknown — tracking wasn't enabled, or the decode
+   * had no root params to union in — so consumers key on all params.
    */
   varyParams: VaryParams | null
   /**
@@ -192,26 +200,17 @@ export type RSCSegmentData = {
   staleTimeSeconds: number | null
 }
 
-type RouteTreeShared<TData> = {
+export type RouteTree<TData> = {
   requestKey: SegmentRequestKey
-  // TODO: Remove the `segment` field, now that it can be reconstructed
-  // from `param`.
-  segment: FlightRouterStateSegment
+  segment: Segment
+  varyPath: VaryPath
   // The vary path used for shell-scoped keying of this segment: the
   // segment's vary path with every non-root param replaced with Fallback
   // (see getShellSegmentVaryPath), so one shell-tier entry serves all param
   // values below the root. Precomputed once during tree construction so we
   // don't have to recompute it on every shell request.
-  shellVaryPath: SegmentVaryPath
+  shellVaryPath: VaryPath
   refreshState: RefreshState | null
-  // Render output for this segment, when the tree was created from a server
-  // response that rendered it. The type parameter encodes a lifecycle
-  // invariant: trees stored long-term in the route cache
-  // (RouteCacheEntry.tree / .metadata) are RouteTree<null> — structure only —
-  // so RSC payloads can never be pinned in memory outside the segment
-  // cache's eviction control. Trees that carry data must be transient:
-  // created for a navigation or cache-write, then dropped once the data is
-  // transferred into CacheNodes / SegmentCacheEntries.
   data: TData
   // Keyed by parallel route slot name. Stored as a Map rather than a plain
   // object because slot names are app-defined; with a plain object, every
@@ -229,17 +228,38 @@ export type RefreshState = {
   renderedSearch: NormalizedSearch
 }
 
-type LayoutRouteTree<TData> = RouteTreeShared<TData> & {
-  isPage: false
-  varyPath: LayoutVaryPath
+// A route's complete render structure. The head is fetched, cached, and
+// rendered like a page segment, but it has no position in the route tree, so
+// it sits beside the tree as its own one-node tree (see
+// createMetadataRouteTree). This is the shape a server response decodes to,
+// the router state holds, and a navigation produces.
+export type RootRouteTree<TData> = {
+  tree: RouteTree<TData>
+  head: RouteTree<TData>
 }
 
-type PageRouteTree<TData> = RouteTreeShared<TData> & {
-  isPage: true
-  varyPath: PageVaryPath
+export function createRootRouteTree<TData>(
+  tree: RouteTree<TData>,
+  head: RouteTree<TData>
+): RootRouteTree<TData> {
+  return { tree, head }
 }
 
-export type RouteTree<TData> = LayoutRouteTree<TData> | PageRouteTree<TData>
+export function doesRouteStructureMatch<TCurrent, TNext>(
+  currentTree: RouteTree<TCurrent>,
+  nextTree: RouteTree<TNext>
+): boolean {
+  // The request key includes the param names and types, but not the values.
+  if (currentTree.requestKey !== nextTree.requestKey) {
+    return false
+  }
+  // The root request key is always empty (even for global Not Found), so we
+  // have to compare the root segment directly.
+  return (
+    nextTree.requestKey !== ROOT_SEGMENT_REQUEST_KEY ||
+    currentTree.segment === nextTree.segment
+  )
+}
 
 type RouteCacheEntryShared = {
   // This is false only if we're certain the route cannot be intercepted. It's
@@ -247,17 +267,17 @@ type RouteCacheEntryShared = {
   // received a response from the server.
   couldBeIntercepted: boolean
 
-  // When true, this entry should not be used as a template for route
-  // prediction. Set when we discover that the URL was rewritten by middleware
-  // to a different route structure (e.g., /foo was rewritten to /bar). Since
-  // rewrite behavior can vary by param value, we can't safely predict the
-  // route structure for other URLs matching this pattern.
+  // The node in the known route tree whose pattern this entry was predicted
+  // from (see matchKnownRoute); the path from the root to that node is the
+  // URL shape. Null for entries the server resolved. A predicted entry is a
+  // guess that the URL's rewrite (if any) behaves statically; if the server's
+  // rendered tree diverges from it, the node is marked so the shape is never
+  // predicted again (see KnownRoutePart.hasDynamicRewrite).
   //
   // This is declared on every entry variant (not just fulfilled entries) so
   // that all RouteCacheEntry objects share a single hidden class; it is
-  // pre-initialized to `false` when the entry is created and only meaningful
-  // once the entry is fulfilled.
-  hasDynamicRewrite: boolean
+  // pre-initialized to `null` when the entry is created.
+  predictedFrom: KnownRoutePart | null
 
   // Map-related fields.
   ref: UnknownMapEntry | null
@@ -271,8 +291,7 @@ export type PendingRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   renderedSearch: null
-  tree: null
-  metadata: null
+  root: null
   supportsPerSegmentPrefetching: false
 }
 
@@ -281,8 +300,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   renderedSearch: null
-  tree: null
-  metadata: null
+  root: null
   supportsPerSegmentPrefetching: boolean
 }
 
@@ -291,8 +309,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: null
   canonicalUrl: string
   renderedSearch: NormalizedSearch
-  tree: RouteTree<null>
-  metadata: RouteTree<null>
+  root: RootRouteTree<null>
   supportsPerSegmentPrefetching: boolean
 }
 
@@ -375,6 +392,12 @@ export type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   blockedTasks: null
   rsc: React.ReactNode | null
   isPartial: boolean
+  // The source of the params `rsc` depends on, recorded under exactly the
+  // condition the entry's key trusts it (see the re-key derivation in
+  // writeSegmentDataIntoCache). Null means unknown: consumers assume the
+  // output depends on every param. A navigation that renders this entry's
+  // `rsc` as its final data carries it onto the CacheNode.
+  varyParams: VaryParams | null
   promise: null
 }
 
@@ -458,13 +481,13 @@ export function getCurrentSegmentCacheVersion(): number {
  */
 export function invalidateEntirePrefetchCache(
   nextUrl: string | null,
-  tree: FlightRouterState
+  root: RootRouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
 
-  pingVisibleLinks(nextUrl, tree)
-  pingInvalidationListeners(nextUrl, tree)
+  pingVisibleLinks(nextUrl, root)
+  pingInvalidationListeners(nextUrl, root)
 }
 
 /**
@@ -476,12 +499,12 @@ export function invalidateEntirePrefetchCache(
  */
 export function invalidateRouteCacheEntries(
   nextUrl: string | null,
-  tree: FlightRouterState
+  root: RootRouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
 
-  pingVisibleLinks(nextUrl, tree)
-  pingInvalidationListeners(nextUrl, tree)
+  pingVisibleLinks(nextUrl, root)
+  pingInvalidationListeners(nextUrl, root)
 }
 
 /**
@@ -493,12 +516,12 @@ export function invalidateRouteCacheEntries(
  */
 export function invalidateSegmentCacheEntries(
   nextUrl: string | null,
-  tree: FlightRouterState
+  root: RootRouteTree<CacheNode>
 ): void {
   currentSegmentCacheVersion++
 
-  pingVisibleLinks(nextUrl, tree)
-  pingInvalidationListeners(nextUrl, tree)
+  pingVisibleLinks(nextUrl, root)
+  pingInvalidationListeners(nextUrl, root)
 }
 
 function attachInvalidationListener(task: PrefetchTask): void {
@@ -538,7 +561,7 @@ function notifyInvalidationListener(task: PrefetchTask): void {
 
 export function pingInvalidationListeners(
   nextUrl: string | null,
-  tree: FlightRouterState
+  root: RootRouteTree<CacheNode>
 ): void {
   // The rough equivalent of pingVisibleLinks, but for onInvalidate callbacks.
   // This is called when the Next-Url or the base tree changes, since those
@@ -548,7 +571,7 @@ export function pingInvalidationListeners(
     const tasks = invalidationListeners
     invalidationListeners = null
     for (const task of tasks) {
-      if (isPrefetchTaskDirty(task, nextUrl, tree)) {
+      if (isPrefetchTaskDirty(task, nextUrl, root)) {
         notifyInvalidationListener(task)
       }
     }
@@ -605,7 +628,7 @@ export function readSegmentCacheEntryForNavigation(
   // The map the navigation is bound to: a locked navigation's driving-task
   // map, or the shared map otherwise.
   map: CacheMap<SegmentCacheEntry>,
-  varyPath: SegmentVaryPath,
+  varyPath: VaryPath,
   restrictToShell: boolean = false
 ): SegmentCacheEntry | null {
   const isRevalidation = false
@@ -646,7 +669,7 @@ export function readSegmentCacheEntryForNavigation(
 function readRevalidatingSegmentCacheEntry(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
-  varyPath: SegmentVaryPath
+  varyPath: VaryPath
 ): SegmentCacheEntry | null {
   const isRevalidation = true
   return getFromCacheMap(
@@ -679,15 +702,14 @@ function createDetachedRouteCacheEntry(): PendingRouteCacheEntry {
     canonicalUrl: null,
     status: EntryStatus.Empty,
     blockedTasks: null,
-    tree: null,
-    metadata: null,
+    root: null,
     // This is initialized to true because we don't know yet whether the route
     // could be intercepted. It's only set to false once we receive a response
     // from the server.
     couldBeIntercepted: true,
     // Similarly, we don't yet know if the route supports PPR.
     supportsPerSegmentPrefetching: false,
-    hasDynamicRewrite: false,
+    predictedFrom: null,
     renderedSearch: null,
 
     // Map-related fields
@@ -808,7 +830,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     routeWithNoSearchParams.renderedSearch !== ''
       ? // Base route was rewritten. Reuse the same rewritten search string.
         routeWithNoSearchParams.renderedSearch
-      : requestedSearch
+      : normalizeRenderedSearch(requestedSearch)
 
   const optimisticUrl = new URL(
     routeWithNoSearchParams.canonicalUrl,
@@ -818,12 +840,17 @@ export function deprecated_requestOptimisticRouteCacheEntry(
   const optimisticCanonicalUrl = createHrefFromUrl(optimisticUrl)
 
   const optimisticRouteTree = deprecated_createOptimisticRouteTree(
-    routeWithNoSearchParams.tree,
+    routeWithNoSearchParams.root.tree,
     optimisticRenderedSearch
   )
-  const optimisticMetadataTree = deprecated_createOptimisticRouteTree(
-    routeWithNoSearchParams.metadata,
-    optimisticRenderedSearch
+  const baseMetadataTree = routeWithNoSearchParams.root.head
+  const optimisticMetadataTree = createMetadataRouteTree(
+    cloneVaryPathWithNewSearchParams(
+      baseMetadataTree.varyPath,
+      optimisticRenderedSearch
+    ),
+    baseMetadataTree.prefetchHints,
+    null
   )
 
   // Clone the base route tree, and override the relevant fields with our
@@ -834,12 +861,11 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     status: EntryStatus.Fulfilled,
     // This isn't cloned because it's instance-specific
     blockedTasks: null,
-    tree: optimisticRouteTree,
-    metadata: optimisticMetadataTree,
+    root: createRootRouteTree(optimisticRouteTree, optimisticMetadataTree),
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
-    hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
+    predictedFrom: null,
 
     // Override the rendered search with the optimistic value.
     renderedSearch: optimisticRenderedSearch,
@@ -875,37 +901,20 @@ function deprecated_createOptimisticRouteTree(
     }
   }
 
-  // We only need to clone the vary path if the route is a page.
-  if (tree.isPage) {
-    // The shell vary path Fallbacks search params, so it's unaffected by the
-    // new rendered search and can be reused as-is.
-    return {
-      requestKey: tree.requestKey,
-      segment: tree.segment,
-      shellVaryPath: tree.shellVaryPath,
-      refreshState: tree.refreshState,
-      // Optimistic trees are structure-only. (The input tree comes from the
-      // route cache, which never carries render output.)
-      data: null,
-      varyPath: clonePageVaryPathWithNewSearchParams(
-        tree.varyPath,
-        newRenderedSearch
-      ),
-      isPage: true,
-      slots: clonedSlots,
-
-      prefetchHints: tree.prefetchHints,
-    }
-  }
-
+  // The shell vary path Fallbacks search params, so it's unaffected by the
+  // new rendered search and can be reused as-is.
   return {
     requestKey: tree.requestKey,
     segment: tree.segment,
     shellVaryPath: tree.shellVaryPath,
     refreshState: tree.refreshState,
+    // Optimistic trees are structure-only. (The input tree comes from the
+    // route cache, which never carries render output.)
     data: null,
-    varyPath: tree.varyPath,
-    isPage: false,
+    varyPath: cloneVaryPathWithNewSearchParams(
+      tree.varyPath,
+      newRenderedSearch
+    ),
     slots: clonedSlots,
     prefetchHints: tree.prefetchHints,
   }
@@ -1075,7 +1084,7 @@ export function upsertSegmentEntry(
   // testing-lock scope boundary still writes into the map its entries
   // live in.
   map: CacheMap<SegmentCacheEntry>,
-  varyPath: SegmentVaryPath,
+  varyPath: VaryPath,
   candidateEntry: SegmentCacheEntry,
   // The fully concrete vary path a read for this segment position resolves
   // against (all concrete param values, i.e. `tree.varyPath`) — the most
@@ -1084,7 +1093,7 @@ export function upsertSegmentEntry(
   // Used to detect and evict stale entries at more specific keypaths that
   // would otherwise shadow the candidate. Pass null when there's no request
   // context; the shadow check is skipped.
-  lookupVaryPath: SegmentVaryPath | null
+  lookupVaryPath: VaryPath | null
 ): SegmentCacheEntry | null {
   // We have a new entry that has not yet been inserted into the cache. Before
   // we do so, we need to confirm whether it takes precedence over the existing
@@ -1201,7 +1210,7 @@ export function upsertSegmentEntry(
 function evictShadowingSegmentEntries(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
-  lookupVaryPath: SegmentVaryPath,
+  lookupVaryPath: VaryPath,
   candidateEntry: SegmentCacheEntry
 ): void {
   // There can in principle be multiple shadowing entries at successively less
@@ -1345,6 +1354,7 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
       bfcacheEntry.rsc,
       dynamicPrefetchStaleAt,
       isPartial,
+      bfcacheEntry.varyParams,
       // bfcache data is concrete, never an ISR fallback.
       false,
       FetchStrategy.Full
@@ -1383,6 +1393,7 @@ export function attemptToUpgradeSegmentFromBFCache(
       bfcacheEntry.rsc,
       dynamicPrefetchStaleAt,
       isPartial,
+      bfcacheEntry.varyParams,
       // bfcache data is concrete, never an ISR fallback.
       false,
       FetchStrategy.Full
@@ -1420,36 +1431,58 @@ function pingBlockedTasks(entry: {
   }
 }
 
-export function createMetadataRouteTree(
-  metadataVaryPath: PageVaryPath,
+/**
+ * The head's request key on the client. The server's own key for the head,
+ * HEAD_REQUEST_KEY, carries no path information: there is only one head per
+ * URL, so the server has no need to distinguish parallel pages. On the client
+ * the request key is the head's cache identity and what doesRouteStructureMatch
+ * compares, so the head takes its page's request key with HEAD_REQUEST_KEY
+ * appended — the key the server would have assigned had the head been a
+ * segment below the page — and two pages' heads never match. The head varies
+ * on the same params as its page, so the rest of its vary path is the page's.
+ * The page must be the route's own: a page in a slot retained from another
+ * URL (one with a refresh state) belongs to that URL's head. When a route has
+ * multiple parallel pages of its own, the first one is used; the keys only
+ * differ in route groups and slot names, so any of them works as long as it
+ * is always the same one.
+ */
+export function getHeadRequestKey(
+  pageRequestKey: SegmentRequestKey
+): SegmentRequestKey {
+  return (pageRequestKey + HEAD_REQUEST_KEY) as SegmentRequestKey
+}
+
+export function createMetadataRouteTree<TData>(
+  metadataVaryPath: VaryPath,
   // The route root's prefetch hints. The head has no node of its own on the
-  // wire, so route-level hints are read from the root on its behalf — the
-  // same convention as pingStaticHead in scheduler.ts.
-  rootPrefetchHints: number
-): RouteTree<null> {
-  // The Head is not actually part of the route tree, but other than that, it's
-  // fetched and cached like a segment. Some functions expect a RouteTree
-  // object, so rather than fork the logic in all those places, we use this
-  // "fake" one.
-  const metadata: RouteTree<null> = {
-    requestKey: HEAD_REQUEST_KEY,
+  // wire, so the route-level hint that applies to it is copied from the root.
+  rootPrefetchHints: number,
+  // The head's payload, with the same lifetimes as a segment node's `data`
+  // (see RouteTree): null in the route cache, the response's decoded
+  // head on a navigation seed, a CacheNode on the router state.
+  data: TData
+): RouteTree<TData> {
+  // The head is a one-node tree beside the route tree (see RootRouteTree). It
+  // has no position in the route tree, but it's fetched, cached, compared, and
+  // rendered like a segment, so it is a RouteTree node like any other.
+  const metadata: RouteTree<TData> = {
+    // The first entry of the head's vary path (see getHeadRequestKey). The
+    // server knows nothing of this key; it is always asked for
+    // HEAD_REQUEST_KEY, which is why the segment stays the bare marker.
+    requestKey: metadataVaryPath.value,
     segment: HEAD_REQUEST_KEY,
     shellVaryPath: getShellSegmentVaryPath(metadataVaryPath),
     refreshState: null,
-    data: null,
+    data,
     varyPath: metadataVaryPath,
-    // The metadata isn't really a "page" (though it isn't really a "segment"
-    // either) but for the purposes of how this field is used, it behaves like
-    // one. If this logic ever gets more complex we can change this to an enum.
-    isPage: true,
     slots: null,
-    // Only the static-attempt bit applies to the head: it's a route-level
+    // Only the static-attempt bits apply to the head: it's a route-level
     // fact ("static per-segment responses may exist for this route"), and
     // it's what lets a shell-tier cached head attempt a static head fetch
     // before deopting to a runtime request (see the shell-tier eligibility
     // check in pingSegmentBundle). The other bits describe tree structure
     // the head doesn't participate in.
-    prefetchHints: rootPrefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch,
+    prefetchHints: rootPrefetchHints & StaticAttemptHints,
   }
   return metadata
 }
@@ -1459,7 +1492,7 @@ export function createMetadataRouteTree(
  * the subtrees that carry data. Called when a tree is stored in the route
  * cache: route cache entries live indefinitely, so retaining render output
  * there would pin RSC payloads in memory outside the segment cache's eviction
- * control. See the lifecycle note on RouteTreeShared.
+ * control. See the lifecycle note on RouteTree.
  */
 function stripDataFromRouteTree(
   tree: RouteTree<RSCSegmentData | null>
@@ -1492,19 +1525,6 @@ function stripDataFromRouteTree(
     string,
     RouteTree<null>
   > | null
-  if (tree.isPage) {
-    return {
-      requestKey: tree.requestKey,
-      segment: tree.segment,
-      shellVaryPath: tree.shellVaryPath,
-      refreshState: tree.refreshState,
-      data: null,
-      varyPath: tree.varyPath,
-      isPage: true,
-      slots: strippedSlots,
-      prefetchHints: tree.prefetchHints,
-    }
-  }
   return {
     requestKey: tree.requestKey,
     segment: tree.segment,
@@ -1512,7 +1532,6 @@ function stripDataFromRouteTree(
     refreshState: tree.refreshState,
     data: null,
     varyPath: tree.varyPath,
-    isPage: false,
     slots: strippedSlots,
     prefetchHints: tree.prefetchHints,
   }
@@ -1521,21 +1540,18 @@ function stripDataFromRouteTree(
 export function fulfillRouteCacheEntry(
   now: number,
   entry: PendingRouteCacheEntry,
-  tree: RouteTree<RSCSegmentData | null>,
-  metadataVaryPath: PageVaryPath,
+  root: RootRouteTree<RSCSegmentData | null>,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
+  renderedSearch: NormalizedSearch,
   supportsPerSegmentPrefetching: boolean
 ): FulfilledRouteCacheEntry {
-  // Get the rendered search from the vary path
-  const renderedSearch =
-    getRenderedSearchFromVaryPath(metadataVaryPath) ?? ('' as NormalizedSearch)
+  const tree = root.tree
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
-  fulfilledEntry.tree = stripDataFromRouteTree(tree)
-  fulfilledEntry.metadata = createMetadataRouteTree(
-    metadataVaryPath,
-    tree.prefetchHints
+  fulfilledEntry.root = createRootRouteTree(
+    stripDataFromRouteTree(tree),
+    stripDataFromRouteTree(root.head)
   )
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
@@ -1556,7 +1572,6 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
-  fulfilledEntry.hasDynamicRewrite = false
   pingBlockedTasks(entry)
   return fulfilledEntry
 }
@@ -1566,20 +1581,20 @@ export function writeRouteIntoCache(
   pathname: NormalizedPathname,
   search: NormalizedSearch,
   nextUrl: string | null,
-  tree: RouteTree<RSCSegmentData | null>,
-  metadataVaryPath: PageVaryPath,
+  root: RootRouteTree<RSCSegmentData | null>,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
+  renderedSearch: NormalizedSearch,
   supportsPerSegmentPrefetching: boolean
 ): FulfilledRouteCacheEntry {
   const pendingEntry = createDetachedRouteCacheEntry()
   const fulfilledEntry = fulfillRouteCacheEntry(
     now,
     pendingEntry,
-    tree,
-    metadataVaryPath,
+    root,
     couldBeIntercepted,
     canonicalUrl,
+    renderedSearch,
     supportsPerSegmentPrefetching
   )
   const varyPath = getFulfilledRouteVaryPath(
@@ -1593,29 +1608,12 @@ export function writeRouteIntoCache(
   return fulfilledEntry
 }
 
-/**
- * Marks a route cache entry as having a dynamic rewrite. Called when we
- * discover that a route pattern has dynamic rewrite behavior - i.e., we used
- * an optimistic route tree for prediction, but the server responded with a
- * different rendered pathname.
- *
- * Once marked, attempts to use this entry as a template for prediction will
- * bail out to server resolution.
- */
-export function markRouteEntryAsDynamicRewrite(
-  entry: FulfilledRouteCacheEntry
-): void {
-  entry.hasDynamicRewrite = true
-  // Note: The caller is responsible for also calling invalidateRouteCacheEntries
-  // to invalidate other entries that may have been derived from this template
-  // before we knew it had a dynamic rewrite.
-}
-
 function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   staleAt: number,
   isPartial: boolean,
+  varyParams: VaryParams | null,
   // Only static (per-segment PPR) responses can be ISR fallbacks; all other
   // callers pass false. Always assigned (even when false) so that re-fulfilling
   // a previously-fallback entry with a concrete response clears the flag and
@@ -1638,6 +1636,7 @@ function fulfillSegmentCacheEntry(
   fulfilledEntry.rsc = rsc
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.isPartial = isPartial
+  fulfilledEntry.varyParams = varyParams
   fulfilledEntry.isUpgradeableISRFallback = isUpgradeableISRFallback
   fulfilledEntry.fetchStrategy = fetchStrategy
   // Resolve any listeners that were waiting for this data.
@@ -1677,7 +1676,7 @@ function rejectSegmentCacheEntry(
 }
 
 export type RouteTreeAccumulator = {
-  metadataVaryPath: PageVaryPath | null
+  metadataVaryPath: VaryPath | null
   // Whether the decoded tree's segment identities diverged from the base
   // tree it was overlaid onto. See NavigationSeed.treeDivergedFromBase.
   treeDivergedFromBase: boolean
@@ -1697,44 +1696,37 @@ export function convertRootFlightRouterStateToRouteTree(
   )
 }
 
-export function convertReusedFlightRouterStateToRouteTree(
-  parentRouteTree: RouteTree<RSCSegmentData | null>,
-  parallelRouteKey: string,
-  flightRouterState: FlightRouterState,
-  renderedSearch: NormalizedSearch,
-  acc: RouteTreeAccumulator
-) {
-  // Create a RouteTree for a FlightRouterState that was reused from an older
-  // route. This happens during a navigation when a parallel route slot does not
-  // match the target route; we reuse whatever slot was already active.
-
-  // Unlike a FlightRouterState, the RouteTree type contains backreferences to
-  // the parent segments. Append the vary path to the parent's vary path.
-  const parentPartialVaryPath = parentRouteTree.isPage
-    ? getPartialPageVaryPath(parentRouteTree.varyPath)
-    : getPartialLayoutVaryPath(parentRouteTree.varyPath)
-  const segment = flightRouterState[0]
-  // And the request key.
-  const parentRequestKey = parentRouteTree.requestKey
-  const requestKeyPart = createSegmentRequestKeyPart(segment)
-  const requestKey = appendSegmentRequestKeyPart(
-    parentRequestKey,
-    parallelRouteKey,
-    requestKeyPart
-  )
-  return convertFlightRouterStateToRouteTree(
-    flightRouterState,
-    requestKey,
-    parentPartialVaryPath,
-    renderedSearch,
-    acc
-  )
+export function rebaseInactiveRouteTree<TData>(
+  treeToRebase: RouteTree<TData>
+): RouteTree<null> {
+  // A parallel route slot that the target route doesn't provide keeps the
+  // slot already active on the current route, under the new parent. The slot
+  // sits at the same route position, so its request keys and vary paths are
+  // unchanged: copy the structure and drop the payloads, which belong to the
+  // previous render and are reused separately by render-tree.
+  let slots: Map<string, RouteTree<null>> | null = null
+  if (treeToRebase.slots !== null) {
+    slots = new Map()
+    for (const [parallelRouteKey, child] of treeToRebase.slots) {
+      slots.set(parallelRouteKey, rebaseInactiveRouteTree(child))
+    }
+  }
+  return {
+    requestKey: treeToRebase.requestKey,
+    segment: treeToRebase.segment,
+    varyPath: treeToRebase.varyPath,
+    shellVaryPath: treeToRebase.shellVaryPath,
+    refreshState: treeToRebase.refreshState,
+    data: null,
+    slots,
+    prefetchHints: treeToRebase.prefetchHints,
+  }
 }
 
 export function convertFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   requestKey: SegmentRequestKey,
-  parentPartialVaryPath: PartialSegmentVaryPath | null,
+  parentPartialVaryPath: PartialVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ): RouteTree<null> {
@@ -1757,6 +1749,9 @@ export function convertFlightRouterStateToRouteTree(
           renderedSearch: compressedRefreshState[1] as NormalizedSearch,
         }
       : null
+  // Use the incoming search params, even if the response has no new data for
+  // this segment. The base tree may still have the previous URL's. History
+  // restores pass in their saved search params instead.
   const renderedSearch =
     refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 
@@ -1766,12 +1761,10 @@ export function convertFlightRouterStateToRouteTree(
     requestKey,
     parentPartialVaryPath,
     renderedSearch,
+    refreshState,
     acc
   )
-  tree.refreshState = refreshState
-  const partialVaryPath = tree.isPage
-    ? getPartialPageVaryPath(tree.varyPath)
-    : getPartialLayoutVaryPath(tree.varyPath)
+  const partialVaryPath = getPartialVaryPath(tree.varyPath)
 
   let slots: Map<string, RouteTree<null>> | null = null
 
@@ -1806,8 +1799,8 @@ export function convertFlightRouterStateToRouteTree(
   return tree
 }
 
-export function convertRouteTreeToFlightRouterState(
-  routeTree: RouteTree<RSCSegmentData | null>
+export function convertRouteTreeToFlightRouterState<TData>(
+  routeTree: RouteTree<TData>
 ): FlightRouterState {
   const parallelRoutes: Record<string, FlightRouterState> = {}
   const slots = routeTree.slots
@@ -2039,10 +2032,17 @@ export async function fetchRouteOnCacheMiss(
       search,
       nextUrl,
       entry,
-      routeTree,
-      metadataVaryPath,
+      {
+        tree: routeTree,
+        head: createMetadataRouteTree(
+          metadataVaryPath,
+          routeTree.prefetchHints,
+          null
+        ),
+      },
       couldBeIntercepted,
       canonicalUrl,
+      renderedSearch,
       supportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
@@ -2203,17 +2203,23 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   const url = new URL(route.canonicalUrl, location.origin)
   const nextUrl = routeKey.nextUrl
 
-  const requestKey = tree.requestKey
-  const normalizedRequestKey =
-    requestKey === ROOT_SEGMENT_REQUEST_KEY
-      ? // The root segment is a special case. To simplify the server-side
-        // handling of these requests, we encode the root segment path as
-        // `_index` instead of as an empty string. This should be treated as
-        // an implementation detail and not as a stable part of the protocol.
-        // It just needs to match the equivalent logic that happens when
-        // prerendering the responses. It should not leak outside of Next.js.
-        ('/_index' as SegmentRequestKey)
-      : requestKey
+  let normalizedRequestKey: SegmentRequestKey
+  if (tree.segment === HEAD_REQUEST_KEY) {
+    // The head's request key is its client cache identity; the server only
+    // knows the head by its bare marker, which is also the head node's
+    // segment (see createMetadataRouteTree).
+    normalizedRequestKey = HEAD_REQUEST_KEY
+  } else if (tree.requestKey === ROOT_SEGMENT_REQUEST_KEY) {
+    // The root segment is a special case. To simplify the server-side
+    // handling of these requests, we encode the root segment path as
+    // `_index` instead of as an empty string. This should be treated as
+    // an implementation detail and not as a stable part of the protocol.
+    // It just needs to match the equivalent logic that happens when
+    // prerendering the responses. It should not leak outside of Next.js.
+    normalizedRequestKey = '/_index' as SegmentRequestKey
+  } else {
+    normalizedRequestKey = tree.requestKey
+  }
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
@@ -2379,12 +2385,12 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   //   response-level value — so the conservative value (true) is passed.
   // - The head is keyed at the route's own metadata vary path: the head has
   //   no tree position, so the decode could only derive a vary path for it
-  //   from a page node in the payload's own tree, which a standalone head
-  //   response (a bare root identity) doesn't have.
-  //   (createMetadataRouteTree stores a PageVaryPath in `varyPath`, so the
-  //   cast is sound.)
+  //   from a page node in the payload's own tree. A per-segment response
+  //   carries only the spine from the root to the requested segment, so any
+  //   response whose terminal isn't a page has no page node to key the head
+  //   from; the standalone head response is one such case.
   const now = Date.now()
-  const metadataVaryPath = route.metadata.varyPath as PageVaryPath
+  const metadataVaryPath = route.root.head.varyPath
   writeResponsePayloadsIntoCache(
     now,
     fetchStrategy,
@@ -2530,23 +2536,33 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.RuntimeShell
     | FetchStrategy.Full,
-  dynamicRequestTree: FlightRouterState,
+  requestTree: FlightRouterState,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
   const key = task.key
   const url = new URL(route.canonicalUrl, location.origin)
   const nextUrl = key.nextUrl
 
+  // When the request tree was derived from a predicted route entry, pass the
+  // node it was predicted from to the write path so the prediction can be
+  // disabled if the server's rendered tree diverges from it. For an entry
+  // the server resolved this is null: a divergence from it says nothing
+  // about route prediction, and its unfulfilled entries take the usual
+  // backoff.
+  let dynamicRequestTree: FlightRouterState
+  let predictedFrom: KnownRoutePart | null
   if (
     spawnedEntries.size === 1 &&
-    spawnedEntries.has(route.metadata.requestKey)
+    spawnedEntries.has(route.root.head.requestKey)
   ) {
-    // The only thing pending is the head. Instruct the server to
-    // skip over everything else.
-    // TODO: Lift this logic into the caller. Or perhaps unify the
-    // "request tree" and the spawnedEntries into the same type so they are
-    // guaranteed to always been in sync.
+    // Only the head is pending, so ask the server for metadata only: it skips
+    // the segments and renders just the head. The stub is not derived from
+    // the route entry, so divergence from it carries no signal.
     dynamicRequestTree = MetadataOnlyRequestTree
+    predictedFrom = null
+  } else {
+    dynamicRequestTree = requestTree
+    predictedFrom = route.predictedFrom
   }
 
   const headers: RequestHeaders = {
@@ -2666,16 +2682,6 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
-    // When the request tree was derived from the route entry's stored
-    // prediction, pass the entry to the write path so it can be marked if the
-    // server's rendered tree diverges from the prediction. A head-only
-    // request uses the MetadataOnlyRequestTree stub rather than a tree
-    // derived from the route entry, so divergence from it carries no signal.
-    // TODO: This special case goes away once the response is diffed against
-    // the base RouteTree (route.tree) instead of the request tree.
-    const predictedFromRoute =
-      dynamicRequestTree !== MetadataOnlyRequestTree ? route : null
-
     // Extract the response's shell-stage payload, when it carries one. No
     // shell can be extracted without cache metadata (only present when
     // Cached Navigations is enabled); for responses without a distinct
@@ -2695,12 +2701,6 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
         fetchStrategy === FetchStrategy.RuntimeShell) &&
       (cacheData?.isResponsePartial ?? false)
 
-    // Captured immediately before the write — in the same synchronous
-    // block, so the false→true transition observed below can only have been
-    // caused by this write, not by a concurrent response for the same route
-    // marking the entry during one of the awaits above.
-    const routeHadDynamicRewrite = route.hasDynamicRewrite
-
     // Aside from writing the data into the cache, this also returns the
     // entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in (Full responses, which stream).
@@ -2710,7 +2710,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       serverData,
       shellResponse,
       dynamicRequestTree,
-      predictedFromRoute,
+      predictedFrom,
       // Navigation responses always include the param values in the tree, so
       // there's no pathname to parse them from (nor a need to).
       null,
@@ -2723,21 +2723,6 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       bufferedResponseSize,
       task.segmentCacheMap
     )
-
-    if (!routeHadDynamicRewrite && route.hasDynamicRewrite) {
-      // The write path discovered that the server rendered a different route
-      // tree than the prediction this request was derived from, and marked
-      // the route entry (see writeServerResponseIntoCache). Invalidate
-      // entries that were derived from the prediction so they're
-      // re-prefetched against the server's actual tree. This mirrors
-      // dispatchRetryDueToTreeMismatch on the navigation path. It can't loop:
-      // the refetched route entry is built from the server's response, so it
-      // only mismatches again if the rewrite's behavior changes again.
-      // TODO: Consider also bounding retries with a counter on the task
-      // object, so a prefetch that repeatedly fails to settle backs off
-      // regardless of the reason.
-      invalidateRouteCacheEntries(key.nextUrl, task.treeAtTimeOfPrefetch)
-    }
 
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
@@ -2791,7 +2776,7 @@ function writeResponsePayloadsIntoCache(
   // The next five are threaded through to every write; see
   // writeServerResponseIntoCache for their meaning.
   baseTree: FlightRouterState | null,
-  predictedFromRoute: FulfilledRouteCacheEntry | null,
+  predictedFrom: KnownRoutePart | null,
   renderedPathname: string | null,
   renderedSearch: string,
   buildId: string | undefined,
@@ -2804,7 +2789,7 @@ function writeResponsePayloadsIntoCache(
   // (Per-segment payloads encode partiality per node and ignore the
   // response-level value entirely.)
   isFullResponsePartial: boolean,
-  metadataVaryPath: PageVaryPath | null,
+  metadataVaryPath: VaryPath | null,
   // The pending entries this response fulfills. Null when the caller owns
   // none (the embedded runtime prefetch stream), in which case every write
   // is a detached upsert.
@@ -2841,7 +2826,7 @@ function writeResponsePayloadsIntoCache(
         FetchStrategy.PPR,
         fullPayload,
         baseTree,
-        predictedFromRoute,
+        predictedFrom,
         renderedPathname,
         renderedSearch,
         buildId,
@@ -2871,7 +2856,7 @@ function writeResponsePayloadsIntoCache(
       fetchStrategy,
       fullPayload,
       baseTree,
-      predictedFromRoute,
+      predictedFrom,
       renderedPathname,
       renderedSearch,
       buildId,
@@ -2923,7 +2908,7 @@ function writeResponsePayloadsIntoCache(
       fetchStrategy,
       fullPayload,
       baseTree,
-      predictedFromRoute,
+      predictedFrom,
       renderedPathname,
       renderedSearch,
       buildId,
@@ -3013,7 +2998,7 @@ function writeResponsePayloadsIntoCache(
       responseFetchStrategy,
       fullPayload,
       baseTree,
-      predictedFromRoute,
+      predictedFrom,
       renderedPathname,
       renderedSearch,
       buildId,
@@ -3030,7 +3015,7 @@ function writeResponsePayloadsIntoCache(
       shellFetchStrategy,
       shellPayload,
       baseTree,
-      predictedFromRoute,
+      predictedFrom,
       renderedPathname,
       renderedSearch,
       buildId,
@@ -3096,19 +3081,18 @@ function writeServerResponseIntoCache(
   // The base router state the response overlays. Null when the response's
   // tree is root-anchored (per-segment prefetch payloads).
   baseTree: FlightRouterState | null,
-  // Non-null when `baseTree` was derived from this route entry. Any
-  // route-derived request tree is a prediction that the URL's rewrite (if
-  // any) behaves statically; if the server's rendered tree diverges from the
-  // base, that prediction failed — the rewrite behaves dynamically, so the
-  // params baked into the request are wrong. The entry is marked as having a
-  // dynamic rewrite — the entry doubles as the stored prediction pattern
-  // (see matchKnownRoute), so this also disables a bad prediction that would
-  // otherwise be re-derived on every retry. The response data is still
-  // written into the cache: it's real data keyed by what the server actually
-  // rendered, useful regardless of whether the prediction matched. The
-  // caller is responsible for invalidating entries derived from the
-  // prediction (see markRouteEntryAsDynamicRewrite).
-  predictedFromRoute: FulfilledRouteCacheEntry | null,
+  // Non-null when `baseTree` was predicted: the node in the known route tree
+  // whose pattern it was predicted from (see matchKnownRoute). The
+  // prediction assumes the URL's rewrite (if any) behaves statically; if the
+  // server's rendered tree diverges from the base, that prediction failed —
+  // the rewrite behaves dynamically, so the params baked into the request
+  // are wrong. The node is marked so the shape is never predicted again, and
+  // the entries that could not be fulfilled are rejected with immediate
+  // expiration so the task retries right away — against the server-resolved
+  // route this time. The response data is still written into the cache: it's
+  // real data keyed by what the server actually rendered, useful regardless
+  // of whether the prediction matched.
+  predictedFrom: KnownRoutePart | null,
   // The pathname the response was rendered for, used to resolve dynamic
   // segments the server sent without a param value (`k: null`). Null for
   // responses that always carry concrete values (navigation responses).
@@ -3125,10 +3109,8 @@ function writeServerResponseIntoCache(
   // partiality per node, so their writes pass the conservative value
   // (true), which is never read.
   isResponsePartial: boolean,
-  // Where to key the head. Null derives it from the decoded tree's first
-  // page node; per-segment payloads pass the route's own metadata vary path
-  // instead, since a standalone head response's tree has no page node.
-  metadataVaryPath: PageVaryPath | null,
+  // Where to key the head; see createNavigationSeed.
+  metadataVaryPath: VaryPath | null,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
   // The strategy tier describing the CONTENT of the payload being written,
   // when it differs from `fetchStrategy` (which drives matching and
@@ -3191,19 +3173,20 @@ function writeServerResponseIntoCache(
     isResponsePartial,
     renderedPathname,
     renderedSearch,
+    metadataVaryPath,
     // Only navigations consume the seed's dynamicStaleAt; cache writes pass
     // unknown to use the default.
     UnknownDynamicStaleTime
   )
   const requiresRuntimeCompleteness =
-    (navigationSeed.routeTree.prefetchHints &
+    (navigationSeed.root.tree.prefetchHints &
       PrefetchHint.SubtreeHasPartialPrefetching) !==
     0
 
   const treeDivergedFromPrediction =
-    predictedFromRoute !== null && navigationSeed.treeDivergedFromBase
+    predictedFrom !== null && navigationSeed.treeDivergedFromBase
   if (treeDivergedFromPrediction) {
-    markRouteEntryAsDynamicRewrite(predictedFromRoute)
+    predictedFrom.hasDynamicRewrite = true
   }
 
   // Only static (per-segment) responses can be ISR fallbacks (`f`). A
@@ -3230,17 +3213,7 @@ function writeServerResponseIntoCache(
       ? readFulfilledValue(response.u, false, /* rejectedValue */ true)
       : null
 
-  const routeTree = navigationSeed.routeTree
-  if (metadataVaryPath === null) {
-    metadataVaryPath = navigationSeed.metadataVaryPath
-  }
-  const metadataTree =
-    metadataVaryPath !== null
-      ? createMetadataRouteTree(
-          metadataVaryPath,
-          navigationSeed.routeTree.prefetchHints
-        )
-      : null
+  const routeTree = navigationSeed.root.tree
 
   // The route tree carries the render output of every segment the response
   // included, so a single traversal from the root writes all of it into
@@ -3260,17 +3233,18 @@ function writeServerResponseIntoCache(
     writtenEntries
   )
 
-  const head = navigationSeed.head
-  if (head !== null && metadataTree !== null) {
-    // The head carries its own staleTime in per-segment prefetch responses;
-    // everywhere else the response-level staleness governs it.
+  const metadataTree = navigationSeed.root.head
+  const headData = metadataTree.data
+  if (headData !== null && headData.rsc !== null) {
+    // The head follows the same stale-time rules as a segment.
     const headStaleAt =
-      navigationSeed.headStaleTimeSeconds !== null
-        ? now + getStaleTimeMs(navigationSeed.headStaleTimeSeconds)
+      headData.staleTimeSeconds !== null
+        ? now + getStaleTimeMs(headData.staleTimeSeconds)
         : staleAt
 
-    // A head has no loading boundary. Match pingRuntimeHead, which spawns
-    // LoadingBoundary head entries using the concrete Full strategy.
+    // A head has no loading boundary. Match the scheduler, which spawns
+    // LoadingBoundary head entries using the concrete Full strategy (see the
+    // head's runtime fetch in pingRootRouteTree).
     const headFetchStrategy =
       fetchStrategy === FetchStrategy.LoadingBoundary
         ? FetchStrategy.Full
@@ -3279,13 +3253,13 @@ function writeServerResponseIntoCache(
       now,
       map,
       headFetchStrategy,
-      head,
+      headData.rsc,
       // The decode already resolved the head's partiality from the wire
       // form and the response-level value — see the head read in
       // createNavigationSeed.
-      navigationSeed.isHeadPartial,
+      headData.isPartial,
       headStaleAt,
-      navigationSeed.headVaryParams,
+      headData.varyParams,
       metadataTree,
       spawnedEntries,
       contentFetchStrategy,
@@ -3311,8 +3285,9 @@ function writeServerResponseIntoCache(
       // When the response diverged from the prediction, the leftover entries
       // can never be fulfilled — their keys were derived from the wrong
       // tree. Reject with an immediate expiration instead of the usual
-      // backoff: the caller invalidates the route, which triggers a
-      // re-prefetch against the server's actual tree.
+      // backoff so the task retries right away. The prediction was disabled
+      // above, so the retry resolves the route on the server instead of
+      // predicting it again.
       treeDivergedFromPrediction ? -1 : now + REJECTION_BACKOFF_MS
     )
   }
@@ -3412,7 +3387,7 @@ function writeSegmentDataIntoCache(
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
-  segmentVaryParams: Set<string> | null,
+  segmentVaryParams: VaryParams | null,
   tree: RouteTree<RSCSegmentData | null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
   // The strategy tier describing the CONTENT of the payload this write came
@@ -3524,43 +3499,60 @@ function writeSegmentDataIntoCache(
   // is good for any value of them (its request path below IS the shell
   // vary path).
   const payloadStrategy = contentFetchStrategy ?? fetchStrategy
-  let fulfilledVaryPath: SegmentVaryPath | null = null
+  let fulfilledVaryPath: VaryPath | null = null
+  // The dependency source the entry records, so a navigation that renders
+  // its content can tell which params that content read. It is the same
+  // evidence the key derivation below trusts, under the same condition, with
+  // the same correction; otherwise null, and consumers assume every param.
+  let recordedVaryParams: VaryParams | null = null
   if (
     process.env.__NEXT_VARY_PARAMS &&
     payloadStrategy !== FetchStrategy.Full &&
     segmentVaryParams !== null
   ) {
-    let varyParams = segmentVaryParams
-    if (payloadStrategy === FetchStrategy.RuntimeShell && varyParams.has('?')) {
-      // SPECIAL CASE: for a RuntimeShell payload, the search params entry
-      // ('?') is dropped from the server's vary evidence before deriving the
-      // key, so the search component of the resulting path is marked as the
-      // fallback. This exists ONLY because of a known compromise in how the
-      // server reports search params: accessing `searchParams` records a
-      // dependency on '?' at access time, even when the render suspends on
-      // that access and cuts the content at the param fallback. A shell
-      // render's page and head segments therefore report '?' while the
-      // emitted bytes contain no search-dependent content. Trusting that
-      // report would key shell-grade content at a concrete search value,
-      // where shell-restricted reads (which generalize every non-root
-      // param — see getShellSegmentVaryPath) can never find it. A
-      // RuntimeShell payload's search-dependent content is reduced to
-      // fallbacks by construction, so its key must not vary on search
-      // regardless of the over-reported evidence. Every other component of
-      // the evidence is still honored as-is.
-      //
-      // Nothing else should rely on this branch; for every other payload
-      // grade — and every other param — the server's evidence
-      // is authoritative.
-      //
-      // TODO: Reconsider special-casing this on the server instead: don't
-      // report a param access that never resolved past the fallback cut in
-      // the emitted stage. A shell payload's evidence would then be
-      // accurate, and this branch could be deleted.
-      varyParams = new Set(varyParams)
-      varyParams.delete('?')
+    // Read the reported set now, when the key is chosen. The payload is fully
+    // buffered by the time it's written, so the source has settled; a read of
+    // null means the report is unavailable and every param varies.
+    let varyParams = readVaryParams(segmentVaryParams)
+    if (varyParams !== null) {
+      if (
+        payloadStrategy === FetchStrategy.RuntimeShell &&
+        varyParams.has(SEARCH_PARAMS_VARY_ID)
+      ) {
+        // SPECIAL CASE: for a RuntimeShell payload, the search params entry
+        // is dropped from the server's vary evidence before deriving the
+        // key, so the search component of the resulting path is marked as
+        // the fallback. This exists ONLY because of a known compromise in
+        // how the server reports search params: accessing `searchParams`
+        // records a dependency on them at access time, even when the render
+        // suspends on that access and cuts the content at the param
+        // fallback. A shell render's page and head segments therefore report
+        // the search params while the emitted bytes contain no
+        // search-dependent content.
+        // Trusting that report would key shell-grade content at a concrete
+        // search value, where shell-restricted reads (which generalize every
+        // non-root param — see getShellSegmentVaryPath) can never find it. A
+        // RuntimeShell payload's search-dependent content is reduced to
+        // fallbacks by construction, so its key must not vary on search
+        // regardless of the over-reported evidence. Every other component of
+        // the evidence is still honored as-is.
+        //
+        // Nothing else should rely on this branch; for every other payload
+        // grade — and every other param — the server's evidence
+        // is authoritative.
+        //
+        // TODO: Reconsider special-casing this on the server instead: don't
+        // report a param access that never resolved past the fallback cut in
+        // the emitted stage. A shell payload's evidence would then be
+        // accurate, and this branch could be deleted.
+        varyParams = new Set(varyParams)
+        varyParams.delete(SEARCH_PARAMS_VARY_ID)
+        recordedVaryParams = createVaryParams(varyParams)
+      } else {
+        recordedVaryParams = segmentVaryParams
+      }
+      fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
     }
-    fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
   }
 
   // The canonical path to (re-)key the entry at. When the derivation above
@@ -3591,7 +3583,7 @@ function writeSegmentDataIntoCache(
   const isOwned =
     ownedEntry !== undefined && ownedEntry.status === EntryStatus.Pending
   let fulfilledEntry: FulfilledSegmentCacheEntry
-  let insertVaryPath: SegmentVaryPath | null
+  let insertVaryPath: VaryPath | null
   if (isOwned) {
     // We own this entry — fulfill it directly.
     fulfilledEntry = fulfillSegmentCacheEntry(
@@ -3599,6 +3591,7 @@ function writeSegmentDataIntoCache(
       rsc,
       staleAt,
       isPartial,
+      recordedVaryParams,
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
@@ -3618,6 +3611,7 @@ function writeSegmentDataIntoCache(
       rsc,
       staleAt,
       isPartial,
+      recordedVaryParams,
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
@@ -3848,10 +3842,10 @@ function addSegmentPathToUrlInOutputExportMode(
  * - `StaticShell` provides the shell-stage variant extracted from a static response —
  *   param-dependent content reduced to pending fallbacks, and never any content that
  *   depends on session data (cookies, headers)
- * - `PPR` can provide static shells for each segment, including prerendered param-dependent
- *   content at concrete paths (excluding dynamic data)
  * - `RuntimeShell` provides the shell stage rendered by a runtime request, which can
  *   additionally include shell-stage content that depends on session data
+ * - `PPR` can provide static shells for each segment, including prerendered param-dependent
+ *   content at concrete paths (excluding dynamic data)
  * - `PPRRuntime` can additionally include content that uses searchParams, params, or cookies
  * - `Full` includes all the content, even if it uses dynamic data
  *

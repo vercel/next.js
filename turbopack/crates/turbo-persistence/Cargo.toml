@@ -5,7 +5,8 @@ edition = "2024"
 license = "MIT"
 
 [features]
-default = []
+default = ["mmap"]
+mmap = ["dep:memmap2"]
 verify_sst_content = []
 strict_checks = []
 stats = ["quick_cache/stats"]
@@ -22,8 +23,8 @@ dashmap = { workspace = true}
 either = { workspace = true }
 fs-err = { workspace = true }
 jiff = { version = "0.2.10", features = ["serde"] }
-lzzzz = { workspace = true }
-memmap2 = "0.9.5"
+lz4_flex = { workspace = true }
+memmap2 = { version = "0.9.5", optional = true }
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }
 # See https://github.com/vercel/next.js/issues/91708 for why we need the legacy_x86_64_support feature
@@ -51,6 +52,7 @@ turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 [[bin]]
 name = "sst_inspect"
 path = "src/bin/sst_inspect.rs"
+required-features = ["mmap"]
 
 [lints]
 workspace = true
@@ -58,3 +60,4 @@ workspace = true
 [[bench]]
 name = "mod"
 harness = false
+required-features = ["mmap"]

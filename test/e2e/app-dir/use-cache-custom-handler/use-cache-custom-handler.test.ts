@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import type { CacheWrite } from './cache-writes'
 
 const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
@@ -129,25 +130,39 @@ describe('use-cache-custom-handler', () => {
   }
 
   it('should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly', async () => {
-    await next.fetch('/nested')
+    const $ = await next.render$('/nested')
+    const values = $('p#inner')
+      .map((_, element) => $(element).text())
+      .get()
+    expect(values).toHaveLength(2)
+    expect(values[0]).toBeTruthy()
+    expect(values[0]).toBe(values[1])
 
     await retry(async () => {
-      const cliOutput = next.cliOutput.slice(outputIndex)
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: inner`,
-        1
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      const nestedWrites = writes.filter(({ tags }) =>
+        tags.some((tag) => ['inner', 'outer1', 'outer2'].includes(tag))
       )
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer1,inner`,
-        1
-      )
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer2,inner`,
-        1
-      )
+      expect(new Set(nestedWrites.map(({ cacheKey }) => cacheKey)).size).toBe(3)
+      expect(nestedWrites).toEqual([
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer1', 'inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer2', 'inner'],
+        }),
+      ])
     })
   })
 

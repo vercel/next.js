@@ -1,5 +1,6 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
+import type { PrerenderResult } from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
@@ -71,8 +72,15 @@ type AppPageUserlandModule = {
   loaderTree: LoaderTree
 }
 
+export type RouteMatch = {
+  // The pathname produced by route preparation, including its delimiter-safe
+  // encoding for path parameters.
+  readonly resolvedPathname: string
+}
+
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
+  routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
@@ -168,7 +176,8 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch
     )
   }
 
@@ -176,7 +185,7 @@ export class AppPageRouteModule extends RouteModule<
     req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
+  ): Promise<PrerenderResult> {
     return prerenderToHTMLOrFlight(
       req,
       res,
@@ -185,7 +194,8 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch
     )
   }
 

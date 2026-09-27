@@ -1070,6 +1070,18 @@ export default function transformer(
     return
   }
 
+  const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
+  const packageJson = JSON.parse(packageJsonContent)
+  const usesNextLint = Object.values(packageJson.scripts || {}).some(
+    (script) => typeof script === 'string' && script.includes('next lint')
+  )
+  if (!usesNextLint) {
+    console.log(
+      'Skipping migration: no next lint script found in package.json.'
+    )
+    return
+  }
+
   const isTypeScript = detectTypeScript(projectRoot)
 
   console.log('Migrating from next lint to the ESLint CLI...')
@@ -1148,7 +1160,6 @@ export default function transformer(
     }
   }
 
-  const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
   const result = updatePackageJsonScripts(packageJsonContent)
 
   if (result.updated) {

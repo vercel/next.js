@@ -380,15 +380,25 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// In deploy mode, concurrent requests could hit different lambdas.
-// @force-gate !deploy
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
   })
 
+  it('should key a joining outer cache by the root params read by its inner cache', async () => {
+    const english = await next.render$('/ca/en/nested?prime=1')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/nested')
+    expect(french('#first')).toHaveLength(0)
+    expect(french('#second').text()).toBe('fr')
+  })
+
   it('should dedupe same root params and isolate different root params', async () => {
+    // In deploy mode, this can flake if Fluid routes concurrent requests
+    // to different function instances: each instance may independently
+    // compute a value before the cache is populated.
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
       next.render$('/ca/en'),

@@ -262,9 +262,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
                 ))
             })
             .try_join()
-            .await?
-            .into_iter()
-            .collect::<Vec<_>>();
+            .await?;
 
         let mut code = RopeBuilder::default();
 

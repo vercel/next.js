@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
-import { expectBuildValidationSkipped } from 'e2e-utils/instant-validation'
+import {
+  createGetInstantInsight,
+  expectBuildValidationSkipped,
+} from 'e2e-utils/instant-validation'
 import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 
 // This fixture intentionally omits `experimental.instantInsights` from
@@ -27,9 +30,30 @@ describe('instant validation - default level', () => {
     return
   }
 
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
+
   if (isNextStart) {
     beforeAll(async () => {
-      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+        )
+      }
     })
     afterEach(async () => {
       await next.stop()
@@ -55,7 +79,7 @@ describe('instant validation - default level', () => {
     describe('dev', () => {
       it('bare page: framework default matches `warning`, implicit validation fires', async () => {
         const browser = await next.browser('/bare')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",

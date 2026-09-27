@@ -1,12 +1,12 @@
 'use client'
 
-import { useSidebarResize } from '@/lib/use-sidebar-resize'
+import type { MouseEventHandler } from 'react'
 import { CompareSidebar } from '@/components/sidebar'
 import { DiffTable } from '@/components/diff-table'
 import { DiffTreemap } from '@/components/diff-treemap'
-import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { StatCard, CountCard } from '@/components/stat-cards'
 import { CompareView, Environment } from '@/components/top-bar'
+import { TableSkeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   diffRoutesWithSizes,
@@ -18,27 +18,30 @@ import { formatSnapshotLabel, type SnapshotMetadata } from '@/lib/snapshot'
 import { cn, formatBytes } from '@/lib/utils'
 
 export interface CompareLayoutProps {
+  model: CompareLayoutModel
+  onResizeSidebar: MouseEventHandler<HTMLButtonElement>
+}
+
+export interface CompareLayoutModel {
   baselineSnapshot: SnapshotMetadata
   comparisonSnapshot: SnapshotMetadata | null
-  compareView: CompareView
-  selectedRoute: string | null
   comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
+  selectedRoute: string | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
   analyzeData: AnalyzeData | null
   baselineAnalyzeData: AnalyzeData | null
-  isAnalyzeLoading: boolean
-  isBaselineAnalyzeLoading: boolean
-  baselineAnalyzeError: unknown | null
-  compressed: boolean
-  searchQuery: string
-  compareSelectedKey: string | null
-  setCompareSelectedKey: (key: string | null) => void
-  modulesData: ModulesData | null
-  baselineModulesData: ModulesData | null
+  modulesData: ModulesData
+  baselineModulesData: ModulesData
   moduleDepthMap: Map<number, number>
   baselineModuleDepthMap: Map<number, number>
   environmentFilter: Environment
+  sidebarWidth: number
+  compareView: CompareView
+  isViewPending: boolean
+  searchQuery: string
+  selectedKey: string | null
+  onSelectedKeyChange: (key: string | null) => void
 }
 
 /**
@@ -49,103 +52,62 @@ export interface CompareLayoutProps {
  * Route selection lives in the top-bar route picker (`RouteTypeahead`),
  * which also renders per-route deltas in compare mode.
  */
-export function CompareLayout({
-  baselineSnapshot,
-  comparisonSnapshot,
-  compareView,
-  selectedRoute,
-  comparisonRouteCount,
-  routeDiff,
-  sourceDiff,
-  analyzeData,
-  baselineAnalyzeData,
-  isAnalyzeLoading,
-  isBaselineAnalyzeLoading,
-  baselineAnalyzeError,
-  compressed,
-  searchQuery,
-  compareSelectedKey,
-  setCompareSelectedKey,
-  modulesData,
-  baselineModulesData,
-  moduleDepthMap,
-  baselineModuleDepthMap,
-  environmentFilter,
-}: CompareLayoutProps) {
-  const { sidebarWidth, startResizing } = useSidebarResize()
-
+export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
-      {/*
-        Stats header. On wide viewports the Route stats sit next to the App
-        stats so the user can compare route-level and app-level deltas
-        without scrolling. Route is on the left because it's the primary
-        scope the user's focused on; App is reference context.
-        On narrow viewports the two strips stack vertically (route above
-        app) and fall back to the original layout.
-      */}
       <div className="flex flex-none flex-col border-b border-border xl:flex-row xl:items-stretch">
         <RouteStatsCard
-          selectedRoute={selectedRoute}
-          sourceDiff={sourceDiff}
-          isAnalyzeLoading={isAnalyzeLoading}
-          isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
-          baselineAnalyzeError={baselineAnalyzeError}
-          compressed={compressed}
+          selectedRoute={model.selectedRoute}
+          sourceDiff={model.sourceDiff}
+          compressed
           className="xl:min-w-0 xl:flex-1 xl:basis-0 xl:border-r xl:border-border"
         />
         <CompareContextStrip
-          baselineSnapshot={baselineSnapshot}
-          comparisonRouteCount={comparisonRouteCount}
-          routeDiff={routeDiff}
-          compressed={compressed}
+          baselineSnapshot={model.baselineSnapshot}
+          comparisonRouteCount={model.comparisonRouteCount}
+          routeDiff={model.routeDiff}
+          compressed
           className="xl:min-w-0 xl:flex-1 xl:basis-0"
         />
       </div>
-
-      {/*
-        Per-route source diff + sidebar. The sidebar slides in when a row or
-        treemap tile is selected and shows the import chain for that source.
-      */}
       <div className="flex flex-1 min-h-0">
         <div className="flex flex-1 min-w-0 flex-col">
           <ComparePerRoutePanel
-            compareView={compareView}
-            selectedRoute={selectedRoute}
-            sourceDiff={sourceDiff}
-            analyzeData={analyzeData}
-            baselineAnalyzeData={baselineAnalyzeData}
-            isAnalyzeLoading={isAnalyzeLoading}
-            isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
-            compressed={compressed}
-            searchQuery={searchQuery}
-            baselineSnapshot={baselineSnapshot}
-            comparisonSnapshot={comparisonSnapshot}
-            compareSelectedKey={compareSelectedKey}
-            onCompareSelectedKeyChange={setCompareSelectedKey}
+            compareView={model.compareView}
+            isViewPending={model.isViewPending}
+            selectedRoute={model.selectedRoute}
+            sourceDiff={model.sourceDiff}
+            analyzeData={model.analyzeData}
+            baselineAnalyzeData={model.baselineAnalyzeData}
+            compressed
+            searchQuery={model.searchQuery}
+            baselineSnapshot={model.baselineSnapshot}
+            comparisonSnapshot={model.comparisonSnapshot}
+            compareSelectedKey={model.selectedKey}
+            onCompareSelectedKeyChange={model.onSelectedKeyChange}
           />
         </div>
         <button
           type="button"
           className="flex-none w-1 bg-border hover:bg-primary cursor-col-resize transition-colors"
-          onMouseDown={startResizing}
+          onMouseDown={onResizeSidebar}
           aria-label="Resize sidebar"
         />
         <CompareSidebar
-          selectedKey={compareSelectedKey}
-          sourceDiff={sourceDiff}
-          analyzeData={analyzeData}
-          baselineAnalyzeData={baselineAnalyzeData}
-          modulesData={modulesData}
-          baselineModulesData={baselineModulesData}
-          moduleDepthMap={moduleDepthMap}
-          baselineModuleDepthMap={baselineModuleDepthMap}
-          environmentFilter={environmentFilter}
-          sidebarWidth={sidebarWidth}
-          aLabel={formatSnapshotLabel(baselineSnapshot)}
+          selectedKey={model.selectedKey}
+          sourceDiff={model.sourceDiff}
+          analyzeData={model.analyzeData}
+          baselineAnalyzeData={model.baselineAnalyzeData}
+          modulesData={model.modulesData}
+          baselineModulesData={model.baselineModulesData}
+          moduleDepthMap={model.moduleDepthMap}
+          baselineModuleDepthMap={model.baselineModuleDepthMap}
+          environmentFilter={model.environmentFilter}
+          sidebarWidth={model.sidebarWidth}
+          aLabel={formatSnapshotLabel(model.baselineSnapshot)}
           bLabel={
-            comparisonSnapshot
-              ? formatSnapshotLabel(comparisonSnapshot)
+            model.comparisonSnapshot
+              ? formatSnapshotLabel(model.comparisonSnapshot)
               : 'Latest'
           }
         />
@@ -163,7 +125,7 @@ export function CompareLayout({
  *
  * A/B label pills below identify which snapshot is which.
  */
-function CompareContextStrip({
+export function CompareContextStrip({
   baselineSnapshot,
   comparisonRouteCount,
   routeDiff,
@@ -256,42 +218,27 @@ function CompareContextStrip({
  * loading, missing data) inline so the header always occupies a consistent
  * slot in the layout.
  */
-function RouteStatsCard({
+export function RouteStatsCard({
   selectedRoute,
   sourceDiff,
-  isAnalyzeLoading,
-  isBaselineAnalyzeLoading,
-  baselineAnalyzeError,
   compressed,
   className,
 }: {
   selectedRoute: string | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
-  isAnalyzeLoading: boolean
-  isBaselineAnalyzeLoading: boolean
-  baselineAnalyzeError: unknown | null
   compressed: boolean
   className?: string
 }) {
-  const isLoading = isAnalyzeLoading || isBaselineAnalyzeLoading
-
   const body = !selectedRoute ? (
     <div className="pt-1 text-xs text-muted-foreground">
       Select a route above to see per-source changes.
     </div>
-  ) : isLoading ? (
-    <div className="pt-1 text-xs text-muted-foreground">Loading…</div>
   ) : !sourceDiff ? (
     <div className="pt-1 text-xs text-muted-foreground">
       No data for this route.
     </div>
   ) : (
-    <RouteStatsBody
-      selectedRoute={selectedRoute}
-      sourceDiff={sourceDiff}
-      baselineAnalyzeError={baselineAnalyzeError}
-      compressed={compressed}
-    />
+    <RouteStatsBody sourceDiff={sourceDiff} compressed={compressed} />
   )
 
   return (
@@ -313,14 +260,10 @@ function RouteStatsCard({
  * is ready yet without nesting the data-dependent hooks/derivations above.
  */
 function RouteStatsBody({
-  selectedRoute: _selectedRoute,
   sourceDiff,
-  baselineAnalyzeError: _baselineAnalyzeError,
   compressed,
 }: {
-  selectedRoute: string
   sourceDiff: DiffSummary<SourceDiffRow>
-  baselineAnalyzeError: unknown | null
   compressed: boolean
 }) {
   const routeSizeA = compressed
@@ -382,14 +325,13 @@ function RouteStatsBody({
  * controlled by `compareView`. Handles missing-route states (the route is new
  * in comparison build B, or was removed) with friendly messaging.
  */
-function ComparePerRoutePanel({
+export function ComparePerRoutePanel({
   compareView,
+  isViewPending,
   selectedRoute,
   sourceDiff,
   analyzeData,
   baselineAnalyzeData,
-  isAnalyzeLoading,
-  isBaselineAnalyzeLoading,
   compressed,
   searchQuery,
   baselineSnapshot,
@@ -398,12 +340,11 @@ function ComparePerRoutePanel({
   onCompareSelectedKeyChange,
 }: {
   compareView: CompareView
+  isViewPending: boolean
   selectedRoute: string | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
   analyzeData: AnalyzeData | null
   baselineAnalyzeData: AnalyzeData | null
-  isAnalyzeLoading: boolean
-  isBaselineAnalyzeLoading: boolean
   compressed: boolean
   searchQuery: string
   baselineSnapshot: SnapshotMetadata
@@ -418,17 +359,26 @@ function ComparePerRoutePanel({
       </div>
     )
   }
-  if (isAnalyzeLoading || isBaselineAnalyzeLoading) {
-    return (
-      <div className="p-4">
-        <TreemapSkeleton />
-      </div>
-    )
-  }
   if (!sourceDiff) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 text-sm text-muted-foreground">
         No data for this route.
+      </div>
+    )
+  }
+
+  if (isViewPending) {
+    return (
+      <div
+        className="flex flex-1 min-h-0 p-4"
+        role="status"
+        aria-label="Loading view"
+      >
+        {compareView === CompareView.Treemap ? (
+          <TreemapSkeleton />
+        ) : (
+          <TableSkeleton />
+        )}
       </div>
     )
   }

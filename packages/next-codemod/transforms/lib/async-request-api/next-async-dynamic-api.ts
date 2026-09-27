@@ -10,14 +10,14 @@ import {
   wrapParentheseIfNeeded,
   insertCommentOnce,
   NEXTJS_ENTRY_FILES,
-  NEXT_CODEMOD_ERROR_PREFIX,
   containsReactHooksCallExpressions,
   isParentUseCallExpression,
   isReactHookName,
 } from './utils'
 import { createParserFromPath } from '../../../lib/parser'
+import { NEXT_CODEMOD_ERROR_PREFIX } from '../../../lib/utils'
 
-const DYNAMIC_IMPORT_WARN_COMMENT = ` @next-codemod-error The APIs under 'next/headers' are async now, need to be manually awaited. `
+const DYNAMIC_IMPORT_WARN_COMMENT = ` ${NEXT_CODEMOD_ERROR_PREFIX} The APIs under 'next/headers' are async now, need to be manually awaited. `
 
 function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   let modified = false
@@ -331,6 +331,20 @@ function castTypesOrAddComment(
     */
 
     const targetType = API_CAST_TYPE_MAP[originRequestApiName]
+    const repairComment = ` ${NEXT_CODEMOD_ERROR_PREFIX} Await this API and update its callers; remove the temporary ${targetType} cast after repairing the migration. `
+    const parentCast = path.parentPath?.node
+    const outerCast = path.parentPath?.parentPath?.node
+    if (
+      j.TSAsExpression.check(parentCast) &&
+      j.TSAsExpression.check(outerCast) &&
+      j.TSTypeReference.check(outerCast.typeAnnotation) &&
+      j.Identifier.check(outerCast.typeAnnotation.typeName) &&
+      outerCast.typeAnnotation.typeName.name === targetType
+    ) {
+      // Re-parsing attaches the leading marker to the outer cast.
+      return insertCommentOnce(outerCast, j, repairComment)
+    }
+    insertCommentOnce(path.node, j, repairComment)
 
     const newCastExpression = j.tsAsExpression(
       j.tsAsExpression(path.node, j.tsUnknownKeyword()),

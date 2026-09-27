@@ -14,7 +14,7 @@ use crate::{
 #[turbo_tasks::value(serialization = "skip", cell = "new", eq = "manual")]
 pub struct EmbeddedFileSystem {
     name: RcStr,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     dir: &'static Dir<'static>,
 }
 

@@ -64,6 +64,37 @@ export default async function Page() {
           <DebugLinks href="/shells/valid-non-prerenderable-cache" />
         </li>
       </ul>
+
+      <h2>ensureStatic</h2>
+      <ul>
+        {[false, 'shell', 'prefetch'].map((ensureStaticConfig) => (
+          <li key={ensureStaticConfig + ''}>
+            <code>{`ensureStatic = ${ensureStaticConfig}`}</code>
+            <ul>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/session-data-without-suspense`}
+                />
+              </li>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/static-params-without-suspense/123`}
+                />
+              </li>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/prefetch-without-suspense`}
+                />
+              </li>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/navigation-without-suspense`}
+                />
+              </li>
+            </ul>
+          </li>
+        ))}
+      </ul>
     </main>
   )
 }

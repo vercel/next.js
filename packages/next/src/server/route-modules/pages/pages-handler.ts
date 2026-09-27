@@ -484,6 +484,10 @@ export const getHandler = ({
               waitUntil: ctx.waitUntil,
             }
           )
+          if (fallbackResponse !== null && 'error' in fallbackResponse) {
+            throw fallbackResponse.error
+          }
+
           if (fallbackResponse) {
             // Remove the cache control from the response to prevent it from being
             // used in the surrounding cache.
@@ -544,6 +548,10 @@ export const getHandler = ({
           prerenderManifest,
           isMinimalMode,
         })
+
+        if (result !== null && 'error' in result) {
+          throw result.error
+        }
 
         // if we got a cache hit this wasn't an ISR fallback
         // but it wasn't generated during build so isn't in the

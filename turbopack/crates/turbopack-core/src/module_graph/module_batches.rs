@@ -7,14 +7,15 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
+use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
+    Vc, turbobail,
 };
 
 use crate::{
@@ -43,7 +44,7 @@ impl BatchingConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, Clone, Serialize, Deserialize, NonLocalValue)]
 pub struct ModuleBatchesGraphEdge {
     pub ty: ChunkingType,
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
@@ -51,7 +52,7 @@ pub struct ModuleBatchesGraphEdge {
     pub active_for_page_entry: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, NonLocalValue, Encode, Decode)]
 struct EntriesList(
     #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 );
@@ -65,8 +66,8 @@ pub struct ModuleBatchesGraph {
     // HashMaps have nondeterministic order, but this map is only used for lookups and not
     // iteration.
     //
-    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
-    #[turbo_tasks(trace_ignore)]
+    // This contains Vcs, but they are already contained in the graph.
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
     batch_groups: FxHashMap<ModuleOrBatch, ResolvedVc<ModuleBatchGroup>>,
@@ -848,7 +849,7 @@ pub async fn compute_module_batches(
             .into_iter()
             .map(async |(key, items)| {
                 if items.len() == 1 {
-                    Ok(Either::Left(std::iter::empty()))
+                    anyhow::Ok(Either::Left(std::iter::empty()))
                 } else {
                     let batch_group = ModuleBatchGroup::new(items.clone(), (*key).clone())
                         .to_resolved()
@@ -858,11 +859,11 @@ pub async fn compute_module_batches(
                     ))
                 }
             })
-            .try_join()
-            .await?
+            .join()
+            .await
             .into_iter()
-            .flatten()
-            .collect::<FxHashMap<_, _>>();
+            .flatten_ok()
+            .collect::<Result<FxHashMap<_, _>>>()?;
 
         // Insert batches into the graph and store the NodeIndices
         let mut batches_count = 0;

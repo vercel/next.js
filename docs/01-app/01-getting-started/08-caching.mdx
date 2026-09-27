@@ -604,6 +604,6 @@ See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration
 
 ## Bots and crawlers
 
-Browsers receive the static shell instantly. Bots and crawlers are detected by their user agent and handled differently: because they need a complete document, Next.js skips the shell and renders the entire page dynamically at request time, then sends the finished HTML once the render completes.
+With [Partial Prerendering](#prerendering), metadata can be dynamic while the rest of the page is prerendered into a static shell. The shell is served immediately and the metadata streams in after. Some bots and crawlers cannot handle this, and need to see the metadata included in the `<head>` tag of the document. Next.js detects them by their user agent, skips the static shell, and renders the page dynamically at request time.
 
-Because the shell is re-rendered instead of reused, work that completed during prerendering now runs at request time for a bot. If part of your shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment, a page that loads for a person can fail to render for a crawler. Make sure the data your shell relies on is also available at request time. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers) in the Streaming guide for more details.
+Data sources available during the build-time prerender have to be available at request time too. Otherwise the render may throw, and these bots receive a 500 error. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers) in the Streaming guide for which user agents this covers and how to change the list.

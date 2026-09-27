@@ -156,7 +156,7 @@ class TestProfile {
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.8";
+const nextjsReactPeerVersion = "19.3.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -406,7 +406,7 @@ async function main() {
 
   const options = {
     concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
-    debug: argv.debug ?? false,
+    debug: argv.debug ?? core.isDebug(),
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
     group: argv.group ?? false,

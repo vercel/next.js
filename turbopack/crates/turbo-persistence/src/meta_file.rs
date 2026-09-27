@@ -1,23 +1,27 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
+    mem::take,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result, bail, ensure};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+#[cfg(feature = "mmap")]
 use fs_err::File;
+#[cfg(feature = "mmap")]
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
+#[cfg(feature = "mmap")]
+use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
-    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -93,19 +97,15 @@ impl EntryHeader {
 /// # Safety
 ///
 /// `MetaEntry` stores a `FilterRef<'static>` with a transmuted lifetime that actually borrows
-/// from the parent [`MetaFile`]'s stable backing bytes. This is safe because entries are only
-/// accessed by reference through `MetaFile` and are never moved out.
+/// from the parent [`MetaFile`]'s stable backing bytes. This is safe as long as an entry never
+/// outlives that backing: entries are only handed out by reference, and the one place that moves
+/// them ([`MetaFile::retain_entries`]) keeps them inside the same `MetaFile`.
 ///
-/// For this reason this type should not implement Clone or Copy.
+/// For this reason this type should not implement Clone or Copy — a copy could outlive the
+/// `MetaFile` that owns the backing it points into.
 pub struct MetaEntry {
     /// The metadata for the static sorted file.
     sst_data: StaticSortedFileMetaData,
-    /// The key family of the SST file.
-    family: u32,
-    /// The minimum hash value of the keys in the SST file.
-    min_hash: u64,
-    /// The maximum hash value of the keys in the SST file.
-    max_hash: u64,
     /// The size of the SST file in bytes.
     size: u64,
     /// The status flags for this entry.
@@ -171,23 +171,6 @@ impl MetaEntry {
         })
     }
 
-    /// Returns the key family and hash range of this file.
-    pub fn range(&self) -> StaticSortedFileRange {
-        StaticSortedFileRange {
-            family: self.family,
-            min_hash: self.min_hash,
-            max_hash: self.max_hash,
-        }
-    }
-
-    pub fn min_hash(&self) -> u64 {
-        self.min_hash
-    }
-
-    pub fn max_hash(&self) -> u64 {
-        self.max_hash
-    }
-
     pub fn block_count(&self) -> u16 {
         self.sst_data.block_count
     }
@@ -236,14 +219,28 @@ pub struct MetaBatchLookupResult {
 /// The key family and hash range of an SST file.
 #[derive(Clone, Copy)]
 pub struct StaticSortedFileRange {
-    pub family: u32,
     pub min_hash: u64,
     pub max_hash: u64,
 }
 
+impl StaticSortedFileRange {
+    /// Whether `hash` falls within this file's span. A lookup can skip the file entirely if not.
+    #[inline(always)]
+    pub fn contains(&self, hash: u64) -> bool {
+        hash >= self.min_hash && hash <= self.max_hash
+    }
+}
+
 enum MetaFileBacking {
+    #[cfg(feature = "mmap")]
     Mmap(Mmap),
-    Bytes(Box<[u8]>),
+    /// Heap bytes for [`AccessMode::File`].
+    ///
+    /// This is an `Arc<[u8]>` rather than a `Box<[u8]>` so that moving the backing into
+    /// [`MetaFile`] does not reborrow the bytes: a `Box` is a unique pointer, so the move
+    /// invalidates the `FilterRef`s that already borrow from it, which Miri reports as undefined
+    /// behavior under Stacked Borrows. An `Arc` moves its handle without retagging the allocation.
+    Bytes(Arc<[u8]>),
 }
 
 impl Deref for MetaFileBacking {
@@ -251,6 +248,7 @@ impl Deref for MetaFileBacking {
 
     fn deref(&self) -> &Self::Target {
         match self {
+            #[cfg(feature = "mmap")]
             MetaFileBacking::Mmap(mmap) => mmap,
             MetaFileBacking::Bytes(bytes) => bytes,
         }
@@ -270,8 +268,11 @@ pub struct MetaFile {
     family: u32,
     /// Compression recorded for this family.
     compression: Compression,
+    /// Stored separately from [`MetaEntry`] so that lookups can operate over a denser data
+    /// structure that's hotter in cache.
+    hash_ranges: Box<[StaticSortedFileRange]>,
     /// The entries of the file. Dropped before `backing` (field declaration order).
-    entries: Vec<MetaEntry>,
+    entries: Box<[MetaEntry]>,
     /// The entries that have been marked as obsolete.
     obsolete_entries: Vec<u32>,
     /// The obsolete SST files.
@@ -317,6 +318,7 @@ impl MetaFile {
         access_mode: AccessMode,
     ) -> Result<Self> {
         let backing = match access_mode {
+            #[cfg(feature = "mmap")]
             AccessMode::Mmap => {
                 let file = File::open(path)?;
                 let mmap = unsafe { MmapOptions::new().map(file.file()) }
@@ -327,7 +329,7 @@ impl MetaFile {
                 advise_mmap_for_persistence(&mmap)?;
                 MetaFileBacking::Mmap(mmap)
             }
-            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into_boxed_slice()),
+            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into()),
         };
         // Parse the header from stable backing bytes via ReadBytesExt on &[u8].
         let mut reader: &[u8] = &backing;
@@ -369,6 +371,7 @@ impl MetaFile {
 
         // Parse entries and eagerly deserialize AMQF filters as zero-copy FilterRefs.
         let mut entries = Vec::with_capacity(count as usize);
+        let mut hash_ranges = Vec::with_capacity(count as usize);
         let mut start_of_amqf_data_offset: u32 = 0;
         for _ in 0..count {
             let (header, rest): (Ref<&[u8], EntryHeader>, _) = Ref::from_prefix(reader)
@@ -400,11 +403,9 @@ impl MetaFile {
             // declaration order), so the borrow remains valid for the lifetime of the MetaEntry.
             let amqf: qfilter::FilterRef<'static> = unsafe { std::mem::transmute(amqf) };
 
+            hash_ranges.push(StaticSortedFileRange { min_hash, max_hash });
             entries.push(MetaEntry {
                 sst_data,
-                family,
-                min_hash,
-                max_hash,
                 size,
                 flags,
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
@@ -423,7 +424,8 @@ impl MetaFile {
             sequence_number,
             family,
             compression,
-            entries,
+            hash_ranges: hash_ranges.into_boxed_slice(),
+            entries: entries.into_boxed_slice(),
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
             amqf_data_start,
@@ -467,6 +469,21 @@ impl MetaFile {
         &self.entries
     }
 
+    /// The hash ranges of this file's entries, in the same order as [`Self::entries`].
+    pub fn hash_ranges(&self) -> &[StaticSortedFileRange] {
+        &self.hash_ranges
+    }
+
+    /// The hash range of the entry at `index`.
+    pub fn hash_range(&self, index: u32) -> StaticSortedFileRange {
+        self.hash_ranges[index as usize]
+    }
+
+    /// The key family and hash range of the entry at `index`.
+    pub fn range(&self, index: u32) -> StaticSortedFileRange {
+        self.hash_range(index)
+    }
+
     pub fn entry(&self, index: u32) -> &MetaEntry {
         let index = index as usize;
         &self.entries[index]
@@ -491,24 +508,39 @@ impl MetaFile {
     }
 
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
+        debug_assert_eq!(
+            self.entries.len(),
+            self.hash_ranges.len(),
+            "hash_ranges must stay parallel to entries"
+        );
         let old_len = self.entries.len();
-        self.entries.retain(|entry| {
-            if predicate(entry.sst_data.sequence_number) {
-                true
-            } else {
-                self.obsolete_entries.push(entry.sst_data.sequence_number);
-                false
-            }
-        });
+        // Filter the two vectors as pairs so they cannot drift apart. Retaining them separately
+        // would leave a lookup indexing one by a position that means something else in the other.
+        //
+        // This rebuilds both vectors rather than compacting in place, which is the more expensive
+        // shape but a fine trade here: the callers are commit and compaction, never a lookup.
+        //
+        // Entries move between slots but never leave this `MetaFile`, so the `FilterRef`s they
+        // hold keep borrowing a mmap that is neither touched nor dropped.
+        let obsolete = &mut self.obsolete_entries;
+        let (entries, hash_ranges): (Vec<_>, Vec<_>) = take(&mut self.entries)
+            .into_iter()
+            .zip(take(&mut self.hash_ranges))
+            .filter(|(entry, _)| {
+                let retain = predicate(entry.sst_data.sequence_number);
+                if !retain {
+                    obsolete.push(entry.sst_data.sequence_number);
+                }
+                retain
+            })
+            .unzip();
+        self.entries = entries.into_boxed_slice();
+        self.hash_ranges = hash_ranges.into_boxed_slice();
         old_len != self.entries.len()
     }
 
     pub fn obsolete_entries(&self) -> &[u32] {
         &self.obsolete_entries
-    }
-
-    pub fn has_active_entries(&self) -> bool {
-        !self.entries.is_empty()
     }
 
     pub fn obsolete_sst_files(&self) -> &[u32] {
@@ -534,10 +566,11 @@ impl MetaFile {
         let mut miss_result = MetaLookupResult::RangeMiss;
         let mut all_results: SmallVec<[LookupValue; 1]> = SmallVec::new();
 
-        for entry in self.entries.iter().rev() {
-            if key_hash < entry.min_hash || key_hash > entry.max_hash {
+        for (index, range) in self.hash_ranges.iter().enumerate().rev() {
+            if !range.contains(key_hash) {
                 continue;
             }
+            let entry = &self.entries[index];
             if !entry.amqf.contains_fingerprint(key_hash) {
                 miss_result = MetaLookupResult::QuickFilterMiss;
                 continue;
@@ -608,9 +641,9 @@ impl MetaFile {
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
-        for entry in self.entries.iter().rev() {
+        for (entry_index, range) in self.hash_ranges.iter().enumerate().rev() {
             let start_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+                .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
                 .err()
                 .unwrap();
             if start_index >= cells.len() {
@@ -621,7 +654,7 @@ impl MetaFile {
                 continue;
             }
             let end_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+                .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
                 .err()
                 .unwrap()
                 .checked_sub(1);
@@ -639,11 +672,9 @@ impl MetaFile {
                 }
                 continue;
             }
+            let entry = &self.entries[entry_index];
             for (hash, index, result) in &mut cells[start_index..=end_index] {
-                debug_assert!(
-                    *hash >= entry.min_hash && *hash <= entry.max_hash,
-                    "Key hash out of range"
-                );
+                debug_assert!(range.contains(*hash), "Key hash out of range");
                 if result.is_some() {
                     continue;
                 }

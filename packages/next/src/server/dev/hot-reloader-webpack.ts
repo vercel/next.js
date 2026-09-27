@@ -466,7 +466,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       this.webpackHotMiddleware.onHMR(client, htmlRequestId)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      this.onDemandEntries?.onHMR(
+        client,
+        () => this.hmrServerError,
+        htmlRequestId
+      )
 
       const enableCacheComponents = this.config.cacheComponents
       // Clients with a request ID are inferred App Router clients. If Cache

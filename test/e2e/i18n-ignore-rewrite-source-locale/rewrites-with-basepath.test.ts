@@ -6,14 +6,9 @@ import fs from 'fs-extra'
 const locales = ['', '/en', '/sv', '/nl']
 
 describe('i18n-ignore-rewrite-source-locale with basepath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   test.each(locales)(
     'get public file by skipping locale in rewrite, locale: %s',

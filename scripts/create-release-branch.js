@@ -88,7 +88,9 @@ async function main() {
   const existingLerna = JSON.parse(
     await fs.promises.readFile(lernaPath, 'utf8')
   )
-  existingLerna.command.publish.allowBranch.push(branchName)
+  // `allowBranch` gates `lerna version`, so it lives under `command.version`.
+  // Release branches need to be added here or the version bump refuses to run.
+  existingLerna.command.version.allowBranch.push(branchName)
 
   await fs.promises.writeFile(lernaPath, JSON.stringify(existingLerna, null, 2))
 

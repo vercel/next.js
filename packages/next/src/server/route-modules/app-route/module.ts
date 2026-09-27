@@ -563,7 +563,7 @@ export class AppRouteRouteModule extends RouteModule<
          */
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
-        const cacheSignal = new CacheSignal()
+        const cacheSignal = new CacheSignal(null)
         let dynamicTracking = createDynamicTrackingState(undefined)
 
         // TODO: Route handlers are never resumed, so it's counter-intuitive
@@ -597,8 +597,8 @@ export class AppRouteRouteModule extends RouteModule<
             resumeDataCache: prerenderResumeDataCache,
             hmrRefreshHash: undefined,
             varyParamsAccumulator: null,
-            runtimeDataAccessed: null,
-            shouldAttemptStaticPrefetch: null,
+            ensureStaticLevel: null,
+            prerenderDataTracking: null,
             isFallbackUpgradeable: false,
           })
 
@@ -696,8 +696,8 @@ export class AppRouteRouteModule extends RouteModule<
           resumeDataCache: prerenderResumeDataCache,
           hmrRefreshHash: undefined,
           varyParamsAccumulator: null,
-          runtimeDataAccessed: null,
-          shouldAttemptStaticPrefetch: null,
+          ensureStaticLevel: null,
+          prerenderDataTracking: null,
           isFallbackUpgradeable: false,
         })
 
@@ -1045,7 +1045,7 @@ export class AppRouteRouteModule extends RouteModule<
                 break
               case 'error':
                 workStore.dynamicShouldError = true
-                request = new Proxy(req, requireStaticRequestHandlers)
+                request = new Proxy(req, ensureStaticRequestHandlers)
                 break
               case undefined:
               case 'auto':
@@ -1363,7 +1363,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
   return new Proxy(request, nextRequestHandlers)
 }
 
-const requireStaticRequestHandlers = {
+const ensureStaticRequestHandlers = {
   get(
     target: NextRequest & RequestSymbolTarget,
     prop: string | symbol,
@@ -1375,7 +1375,7 @@ const requireStaticRequestHandlers = {
           target[nextURLSymbol] ||
           (target[nextURLSymbol] = new Proxy(
             target.nextUrl,
-            requireStaticNextUrlHandlers
+            ensureStaticNextUrlHandlers
           ))
         )
       case 'headers':
@@ -1403,7 +1403,7 @@ const requireStaticRequestHandlers = {
               // to probably embed the static generation logic into the class itself removing the need
               // for any kind of proxying
               target.clone() as NextRequest,
-              requireStaticRequestHandlers
+              ensureStaticRequestHandlers
             ))
         )
       default:
@@ -1414,7 +1414,7 @@ const requireStaticRequestHandlers = {
   // and will be ignored
 }
 
-const requireStaticNextUrlHandlers = {
+const ensureStaticNextUrlHandlers = {
   get(
     target: NextURL & UrlSymbolTarget,
     prop: string | symbol,
@@ -1435,7 +1435,7 @@ const requireStaticNextUrlHandlers = {
         return (
           target[urlCloneSymbol] ||
           (target[urlCloneSymbol] = () =>
-            new Proxy(target.clone(), requireStaticNextUrlHandlers))
+            new Proxy(target.clone(), ensureStaticNextUrlHandlers))
         )
       default:
         return ReflectAdapter.get(target, prop, receiver)
@@ -1508,7 +1508,7 @@ function trackDynamic(
           workUnitStore.usedDynamic = true
         }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

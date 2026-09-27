@@ -35,6 +35,44 @@ describe('instant insights tab overlay', () => {
     })
   }
 
+  function clickIndicatorPill(browser: Playwright) {
+    return browser.eval(`(() => {
+      const portal = document.querySelector('nextjs-portal');
+      const root = portal && portal.shadowRoot;
+      if (!root) return;
+      root.querySelector('[data-issues-open]')?.click();
+    })()`)
+  }
+
+  function getErrorOverlayNavLayout(browser: Playwright) {
+    return evalInPortal(browser, (root) => {
+      const nav = [
+        ...root.querySelectorAll('[data-nextjs-error-overlay-nav]'),
+      ].find((element: Element) => element.getBoundingClientRect().width > 0)
+      const left = nav?.querySelector('[data-side="left"]')
+      const right = nav?.querySelector('[data-side="right"]')
+      const leftContent = left?.firstElementChild
+      const rightContent = right?.firstElementChild
+      if (!nav || !leftContent || !rightContent) return null
+
+      return {
+        leftTop: leftContent.getBoundingClientRect().top,
+        leftBottom: leftContent.getBoundingClientRect().bottom,
+        leftEdge: leftContent.getBoundingClientRect().left,
+        rightTop: rightContent.getBoundingClientRect().top,
+        rightBottom: rightContent.getBoundingClientRect().bottom,
+        rightLeft: rightContent.getBoundingClientRect().left,
+        rightEdge: rightContent.getBoundingClientRect().right,
+        navRightEdge: nav.getBoundingClientRect().right,
+        navBottomEdge: nav.getBoundingClientRect().bottom,
+        navPaddingRight: parseFloat(getComputedStyle(nav).paddingRight),
+        navPaddingBottom: parseFloat(getComputedStyle(nav).paddingBottom),
+        clientWidth: nav.clientWidth,
+        scrollWidth: nav.scrollWidth,
+      }
+    })
+  }
+
   function getErrorOverlayTabCounts(browser: Playwright) {
     return evalInPortal(browser, (root) => {
       const bar = root.querySelector('[data-nextjs-error-overlay-tab-bar]')
@@ -117,6 +155,45 @@ describe('instant insights tab overlay', () => {
     })
 
     expect(await hasErrorOverlayTabBar(browser)).toBe(false)
+  })
+
+  it('should wrap the mobile overlay header only when it does not fit', async () => {
+    const browser = await next.browser('/issue-only')
+
+    await retry(async () => {
+      expect((await getIndicatorPillState(browser))?.text).toMatch(/1\s*Issue/i)
+    })
+
+    await browser.setDimensions({ width: 390, height: 844 })
+    await clickIndicatorPill(browser)
+
+    await retry(async () => {
+      const layout = await getErrorOverlayNavLayout(browser)
+      expect(layout).not.toBeNull()
+      expect(Math.abs(layout!.rightTop - layout!.leftTop)).toBeLessThan(4)
+      expect(
+        Math.abs(
+          layout!.navRightEdge - layout!.rightEdge - layout!.navPaddingRight
+        )
+      ).toBeLessThan(2)
+      expect(layout!.scrollWidth).toBe(layout!.clientWidth)
+    })
+
+    await browser.setDimensions({ width: 320, height: 844 })
+
+    await retry(async () => {
+      const layout = await getErrorOverlayNavLayout(browser)
+      expect(layout).not.toBeNull()
+      expect(layout!.rightTop - layout!.leftTop).toBeGreaterThan(4)
+      expect(Math.abs(layout!.rightLeft - layout!.leftEdge)).toBeLessThan(2)
+      expect(Math.abs(layout!.rightTop - layout!.leftBottom)).toBeLessThan(2)
+      expect(
+        Math.abs(
+          layout!.navBottomEdge - layout!.rightBottom - layout!.navPaddingBottom
+        )
+      ).toBeLessThan(2)
+      expect(layout!.scrollWidth).toBe(layout!.clientWidth)
+    })
   })
 
   it('should show an amber pill when only an Insight is present', async () => {

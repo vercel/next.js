@@ -1,16 +1,17 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
+// Runs a local build and reads its page.js.nft.json file to verify traced files.
+// Deployment mode does not expose those local build artifacts.
+// @force-gate !deploy
 describe('outputFileTracingIncludes read glob', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'lightningcss-wasm': '1.28.2',
     },
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('traces a file from the monorepo node_modules directory', async () => {
     const wasmPath = require.resolve(

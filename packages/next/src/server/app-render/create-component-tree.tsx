@@ -47,10 +47,7 @@ import type {
   UseCacheLayoutProps,
   UseCachePageProps,
 } from '../use-cache/use-cache-wrapper'
-import {
-  addSearchParamsIfPageSegment,
-  DEFAULT_SEGMENT_KEY,
-} from '../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
   BOUNDARY_SUFFIX,
@@ -368,7 +365,7 @@ async function createComponentTreeInternal(
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -412,7 +409,7 @@ async function createComponentTreeInternal(
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -470,10 +467,7 @@ async function createComponentTreeInternal(
 
   // The segment's identity on the wire.
   const transportSegment = segmentToTransportSegment(
-    addSearchParamsIfPageSegment(
-      segmentParam ? segmentParam.treeSegment : segment,
-      query
-    )
+    segmentParam ? segmentParam.treeSegment : segment
   )
 
   // Create object holding the parent params and current params
@@ -600,7 +594,7 @@ async function createComponentTreeInternal(
             ctx.missingPrefetchHintPolicy,
             partialPrefetching,
             getDynamicParamFromSegment,
-            query,
+            ctx.renderOpts.notFoundParams,
             rootLayoutIncludedAtThisLevelOrAbove
           )
         } else {
@@ -741,7 +735,8 @@ async function createComponentTreeInternal(
     prefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
     partialPrefetching,
-    !rootLayoutIncluded
+    !rootLayoutIncluded,
+    ctx.renderOpts.notFoundParams
   )
 
   // Convert the parallel route map into an object after all promises have been resolved.

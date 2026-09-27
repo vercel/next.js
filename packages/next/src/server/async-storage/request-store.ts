@@ -28,7 +28,6 @@ import type { ServerComponentsHmrCache } from '../response-cache'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
-import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 /**
  * Internal request headers that userland `headers()` must not expose. They stay
@@ -146,7 +145,7 @@ export type RequestStoreInputs = {
    * edit, for every client, regardless of whether it runs the HMR client.
    */
   hmrRefreshHash: string | undefined
-  stagedFallbackParams: OpaqueFallbackRouteParams | null | undefined
+  stagedFallbackParams: ReadonlySet<string> | null | undefined
 }
 
 /**
@@ -193,7 +192,7 @@ export function createRequestStoreForRender(
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
   resumeDataCache: ResumeDataCache | null,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  stagedFallbackParams: ReadonlySet<string> | null,
   hmrRefreshHash: string | undefined
 ): RequestStore {
   return createRequestStore({

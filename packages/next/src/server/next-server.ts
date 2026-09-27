@@ -25,6 +25,7 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
+import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -633,10 +634,11 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
+    renderOpts: LoadedRenderOpts,
+    routeMatch: AppRenderRouteMatch
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
-      this.renderHTMLImpl(req, res, pathname, query, renderOpts)
+      this.renderHTMLImpl(req, res, pathname, query, renderOpts, routeMatch)
     )
   }
 
@@ -645,7 +647,8 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
+    renderOpts: LoadedRenderOpts,
+    routeMatch: AppRenderRouteMatch
   ): Promise<RenderResult> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
@@ -666,7 +669,7 @@ export default class NextNodeServer extends BaseServer<
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
 
-        return renderAppPage(
+        const result = await renderAppPage(
           req,
           res,
           pathname,
@@ -682,8 +685,13 @@ export default class NextNodeServer extends BaseServer<
             clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? ''
               : this.deploymentId,
-          }
+          },
+          routeMatch
         )
+        if ('error' in result) {
+          throw result.error
+        }
+        return result
       } else {
         // TODO: re-enable this once we've refactored to use implicit matches
         // throw new Error('Invariant: render should have used routeModule')
@@ -1066,6 +1074,10 @@ export default class NextNodeServer extends BaseServer<
             isFallback: false,
           }
         )
+
+        if (cacheEntry !== null && 'error' in cacheEntry) {
+          throw cacheEntry.error
+        }
 
         if (cacheEntry?.value?.kind !== CachedRouteKind.IMAGE) {
           throw new Error(

@@ -207,7 +207,6 @@ describe.each([
         serverReadyPattern: /- Local:/,
         env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
         dependencies: sharedDeps,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
       if (skipped) return
