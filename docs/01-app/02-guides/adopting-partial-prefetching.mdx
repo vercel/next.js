@@ -22,6 +22,8 @@ Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-na
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
+If the app has not adopted Cache Components, run `npx next@canary upgrade --ai=future` first. The command upgrades Next.js when needed and hands the Cache Components migration to a coding agent. Partial Prefetching is not yet included in the `future` policy, so follow the adoption workflow below afterward.
+
 ## Use the adoption skill (recommended)
 
 The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.

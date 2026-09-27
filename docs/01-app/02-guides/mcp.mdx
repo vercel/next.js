@@ -151,13 +151,13 @@ The agent will:
 
 ### Upgrading and best practices
 
-Get help with Next.js concepts and migrations:
+For upgrades, use `next upgrade --ai` to prepare version-matched migration instructions and hand them to a coding agent:
 
-```bash
-User: "Help me upgrade my Next.js app to version 16"
+```bash filename="Terminal"
+npx next@canary upgrade --ai=latest
 ```
 
-The agent will run the official upgrade codemod (`npx @next/codemod@latest upgrade latest`) and provide step-by-step instructions for handling breaking changes.
+See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for other policies.
 
 Ask conceptual questions:
 

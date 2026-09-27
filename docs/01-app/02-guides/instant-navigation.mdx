@@ -53,21 +53,20 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-To help you automate this process with an agent, there's a Skill for each part, [next-cache-components-adoption](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) and [next-partial-prefetching-adoption](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption). If you'd like to enable everything, give your agent this prompt:
+To automate the migration, first use the `future` policy to upgrade Next.js when needed and adopt Cache Components:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ai=future
+```
+
+Partial Prefetching is not yet included in the `future` policy. After Cache Components is adopted, install its adoption Skill and give the agent the following task:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-adoption
+```
 
 ```prompt
-Adopt Cache Components and Partial Prefetching in this app so its navigations become instant. There is a Skill for each migration.
-
-1. Before you change anything, explain to me in plain terms what Instant Navigation is and what adopting it will change.
-
-2. Install the Skills you need, then verify your changes against a running dev server with next-dev-loop and agent-browser as you go:
-   - next-cache-components-adoption: https://www.skills.sh/vercel/next.js/next-cache-components-adoption
-   - next-partial-prefetching-adoption: https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption
-   - next-dev-loop: https://www.skills.sh/vercel/next.js/next-dev-loop
-
-3. Each Skill leaves decisions to me, like how much of the work lands in each pull request. Put those questions to me and wait for my answers instead of deciding on my behalf. Adopt Cache Components first, then Partial Prefetching, following the workflow each Skill lays out. Don't rush to a passing build.
-
-4. When you finish a step, show me a table of the routes you touched and what changed on each, and talk me through what it means for the app. Keep it to the outcome, not the implementation details.
+Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
 ```
 
 The rest of this guide covers the tools these migrations use, walks a navigation that blocks to instant, inspects what lands in the initial UI, and locks the result in with end-to-end tests.

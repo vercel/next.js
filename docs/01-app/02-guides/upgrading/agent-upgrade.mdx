@@ -1,0 +1,88 @@
+---
+title: Upgrade with a coding agent
+nav_title: Upgrade with a coding agent
+description: Use a coding agent to upgrade and verify a Next.js app.
+version: experimental
+related:
+  links:
+    - app/getting-started/upgrading
+    - app/api-reference/cli/next
+    - app/api-reference/config/next-config-js/agentUpgrade
+    - app/guides/ai-agents
+---
+
+Use `next upgrade --ai` to select an upgrade, prepare version-matched migration instructions, and hand the work to a coding agent. The agent applies the changes and verifies the app.
+
+The command supports App Router and Pages Router projects. Without `--ai`, [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) runs the interactive codemod workflow instead.
+
+## Start an upgrade
+
+Run the current upgrade CLI from your app's directory:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ai=latest
+```
+
+From a workspace root, pass the app directory:
+
+```bash filename="Terminal"
+npx next@canary upgrade apps/web --ai=latest
+```
+
+The CLI reads the version installed in the app. It selects a canary target only when the app already uses a canary version.
+
+## Choose a policy
+
+| Policy     | Behavior                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `security` | For an affected stable version, selects the latest safe release in the earliest eligible major.                     |
+| `latest`   | Moves stable, RC, beta, and preview apps to npm's `latest` stable release, or a canary app to the `canary` release. |
+| `future`   | Applies the `latest` policy, then adopts applicable [Future Defaults](#adopt-future-defaults).                      |
+
+Omit the policy to use [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade). If the option is not configured, the command uses `security`:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ai
+```
+
+`--ai` cannot be combined with `--revision`.
+
+`security` supports stable installations. Canary installations can use `latest` or `future`. RC, beta, and preview installations can use `latest` to move to a newer stable release. Other prerelease channels are not supported.
+
+### Adopt Future Defaults
+
+The `future` policy adopts new defaults even when the app already uses the latest Next.js version. It currently offers [Cache Components](/docs/app/guides/migrating-to-cache-components) to eligible App Router projects on Next.js 16.3 or later:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ai=future
+```
+
+Pages Router projects can use `future` for version upgrades, but the command does not offer Cache Components until the project uses the App Router.
+
+## What the command does
+
+Before starting an agent session, the CLI checks the installed version, release metadata, and any security data required by the selected policy. It stops with an explanation when no upgrade is needed or it cannot establish a target.
+
+For a ready upgrade, the CLI copies the relevant migration guides into a temporary directory and prepares a task with the selected target. For a major upgrade, the task includes the guide for every major version crossed. It also asks the agent to check for duplicate work, use a separate Git worktree when available, run the relevant checks, and verify the result.
+
+When you run the command inside a coding agent, the CLI prints the task for the current agent to follow. In an interactive terminal, it can start an installed Codex or Claude Code session, or copy the task for another agent. In a non-interactive terminal, it prints the task.
+
+## Enable upgrade reminders
+
+Set [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) to show upgrade reminders during `next dev` and `next build`:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: 'latest',
+  },
+}
+
+export default nextConfig
+```
+
+The option does not upgrade the app automatically. In an interactive terminal, a reminder lets you start the upgrade, continue the current command, or dismiss the reminder for the installed version. When a coding agent encounters a reminder, it reports the available upgrade and can continue the original task after retrying the command.
+
+The CLI needs access to release metadata and, for stable targets, security advisory data. If it cannot establish a target, it reports the reason without starting an agent session.
