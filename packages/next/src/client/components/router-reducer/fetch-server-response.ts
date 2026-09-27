@@ -693,6 +693,7 @@ function createHaltingFlightResponse<T>(
   // React attaches `_debugInfo` to the returned promise at runtime.
   return createFromNextReadableStream<T>(wrapper, headers, {
     allowPartialStream: true,
+    observeTiming: true,
   }) as Promise<T> & { _debugInfo?: Array<any> }
 }
 
@@ -877,23 +878,63 @@ export async function createFetch<T>(
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
   requestHeaders: RequestHeaders | undefined,
-  options?: { allowPartialStream?: boolean }
+  options?: { allowPartialStream?: boolean; observeTiming?: boolean }
 ): Promise<T> {
-  return createFromReadableStream(flightStream, {
-    callServer,
-    findSourceMapURL,
-    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-    unstable_allowPartialStream: options?.allowPartialStream,
-  })
+  const debugChannel = createDebugChannel && createDebugChannel(requestHeaders)
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    process.env.__NEXT_REQUEST_INSIGHTS &&
+    options?.observeTiming &&
+    requestHeaders
+  ) {
+    const { createBrowserReactTiming } =
+      require('../../dev/react-render-timing') as typeof import('../../dev/react-render-timing')
+    const timing = createBrowserReactTiming(requestHeaders)
+    if (debugChannel?.readable) {
+      debugChannel.readable = timing.wrapStream(debugChannel.readable)
+    }
+    return timing.run(() =>
+      createFromReadableStream<T>(timing.wrapStream(flightStream), {
+        callServer,
+        findSourceMapURL,
+        debugChannel,
+        unstable_allowPartialStream: options.allowPartialStream,
+      })
+    )
+  } else {
+    return createFromReadableStream(flightStream, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      unstable_allowPartialStream: options?.allowPartialStream,
+    })
+  }
 }
 
 function createFromNextFetch<T>(
   promiseForResponse: Promise<Response>,
   requestHeaders: RequestHeaders
 ): Promise<T> & { _debugInfo?: Array<any> } {
-  return createFromFetch(promiseForResponse, {
-    callServer,
-    findSourceMapURL,
-    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-  })
+  const debugChannel = createDebugChannel && createDebugChannel(requestHeaders)
+  if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+    const { createBrowserReactTiming } =
+      require('../../dev/react-render-timing') as typeof import('../../dev/react-render-timing')
+    const timing = createBrowserReactTiming(requestHeaders)
+    if (debugChannel?.readable) {
+      debugChannel.readable = timing.wrapStream(debugChannel.readable)
+    }
+    return timing.run(() =>
+      createFromFetch<T>(timing.wrapResponse(promiseForResponse), {
+        callServer,
+        findSourceMapURL,
+        debugChannel,
+      })
+    )
+  } else {
+    return createFromFetch(promiseForResponse, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+    })
+  }
 }

@@ -10,7 +10,10 @@ import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
 } from '../../../shared/lib/request-insights'
-import type { RequestInsightUpdate } from './request-insights'
+import type {
+  RequestInsightDebugContext,
+  RequestInsightUpdate,
+} from './request-insights'
 import {
   getRequestInsightTags,
   matchesRequestInsightFilters,
@@ -51,6 +54,7 @@ type HistoryFilter = {
 type IndexedSummary = {
   sequence: number
   request: RequestInsightSummary
+  debugContext?: RequestInsightDebugContext
 }
 
 type PendingAppend = {
@@ -58,6 +62,7 @@ type PendingAppend = {
   byteLength: number
   key: string
   summary: RequestInsightSummary
+  debugContext?: RequestInsightDebugContext
 }
 
 type AppendBatch = {
@@ -77,14 +82,21 @@ class RequestInsightsJournal {
   private size = 0
   private sequence = 0
   private summaries = new Map<string, IndexedSummary>()
-  private pendingRequests = new Set<string>()
+  private pendingRequests = new Map<
+    string,
+    RequestInsightDebugContext | undefined
+  >()
+  private debugRequests = new Map<string, RequestInsightDebugContext | null>()
   private sessionId = createSessionId()
   private generation = 0
   private truncated = false
 
   constructor(readonly file: string) {}
 
-  append(request: RequestInsight): void {
+  append(
+    request: RequestInsight,
+    debugContext?: RequestInsightDebugContext
+  ): void {
     let line: string
     try {
       line = `${JSON.stringify({ version: 1, request } satisfies JournalRecord)}\n`
@@ -95,7 +107,7 @@ class RequestInsightsJournal {
     const byteLength = Buffer.byteLength(line, 'utf8')
     const summary = summarizeRequestInsight(request)
     const key = getRequestInsightKey(request)
-    this.pendingRequests.add(key)
+    this.pendingRequests.set(key, debugContext)
     let batch = this.pendingAppends
     if (!batch || batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES) {
       batch = { records: [], byteLength: 0 }
@@ -116,7 +128,7 @@ class RequestInsightsJournal {
           }
         })
     }
-    batch.records.push({ line, byteLength, key, summary })
+    batch.records.push({ line, byteLength, key, summary, debugContext })
     batch.byteLength += byteLength
   }
 
@@ -148,9 +160,53 @@ class RequestInsightsJournal {
         this.summaries.set(record.key, {
           sequence: ++this.sequence,
           request: record.summary,
+          debugContext: record.debugContext,
         })
+        this.indexDebugRequest(record.debugContext)
       }
     }
+  }
+
+  private indexDebugRequest(
+    context: RequestInsightDebugContext | undefined
+  ): void {
+    if (!context) return
+    const key = `${context.identity.htmlRequestId}:${context.debugRequestId}`
+    const previous = this.debugRequests.get(key)
+    this.debugRequests.set(
+      key,
+      previous === null ||
+        (previous &&
+          getRequestInsightKey(previous.identity) !==
+            getRequestInsightKey(context.identity))
+        ? null
+        : context
+    )
+  }
+
+  getDebugRequest(
+    debugRequestId: string,
+    htmlRequestId: string
+  ): RequestInsightDebugContext | null | undefined {
+    let context = this.debugRequests.get(`${htmlRequestId}:${debugRequestId}`)
+    // A completed request can leave the live window before its queued journal
+    // append runs. Keep its authoritative parent available during that write.
+    for (const pending of this.pendingRequests.values()) {
+      if (
+        pending?.debugRequestId !== debugRequestId ||
+        pending.identity.htmlRequestId !== htmlRequestId
+      )
+        continue
+      if (
+        context === null ||
+        (context &&
+          getRequestInsightKey(context.identity) !==
+            getRequestInsightKey(pending.identity))
+      )
+        return null
+      context = pending
+    }
+    return context
   }
 
   appendArchivedUpdate(
@@ -182,7 +238,8 @@ class RequestInsightsJournal {
     const fetchCount = request?.fetches.length
     this.writes = this.writes
       .then(async () => {
-        const previous = this.summaries.get(key)?.request
+        const previousEntry = this.summaries.get(key)
+        const previous = previousEntry?.request
         if (!previous && !snapshot) {
           return
         }
@@ -276,7 +333,9 @@ class RequestInsightsJournal {
         this.summaries.set(key, {
           sequence: this.summaries.get(key)?.sequence ?? ++this.sequence,
           request: updatedSummary,
+          debugContext: previousEntry?.debugContext,
         })
+        this.indexDebugRequest(previousEntry?.debugContext)
       })
       .catch((error) => {
         console.warn('Failed to write Request Insights journal', error)
@@ -287,6 +346,7 @@ class RequestInsightsJournal {
     await writeFile(this.file, '')
     this.size = 0
     this.summaries.clear()
+    this.debugRequests.clear()
     this.generation++
     this.truncated = true
   }
@@ -298,6 +358,7 @@ class RequestInsightsJournal {
     this.size = 0
     this.sequence = 0
     this.summaries.clear()
+    this.debugRequests.clear()
     this.sessionId = createSessionId()
     this.generation = 0
     this.truncated = false
@@ -413,8 +474,21 @@ type JournalRegistry = {
   journals: Map<string, RequestInsightsJournal>
 }
 
-export function appendRequestInsightToJournal(request: RequestInsight): void {
-  getJournalRegistry().configured?.append(request)
+export function appendRequestInsightToJournal(
+  request: RequestInsight,
+  debugContext?: RequestInsightDebugContext
+): void {
+  getJournalRegistry().configured?.append(request, debugContext)
+}
+
+export function getArchivedRequestInsightDebugContext(
+  debugRequestId: string,
+  htmlRequestId: string
+): RequestInsightDebugContext | null | undefined {
+  return getJournalRegistry().configured?.getDebugRequest(
+    debugRequestId,
+    htmlRequestId
+  )
 }
 
 export function appendRequestInsightUpdateToJournal(

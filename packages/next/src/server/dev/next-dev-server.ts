@@ -90,6 +90,7 @@ import {
   appendRequestInsightUpdateToJournal,
   closeRequestInsightsJournal,
   configureRequestInsightsJournal,
+  getArchivedRequestInsightDebugContext,
   getRequestInsightsHistory as getJournalHistory,
   readRequestInsightsJournal,
 } from '../lib/trace/request-insights-journal'
@@ -289,6 +290,7 @@ export default class DevServer extends Server {
       await configureRequestInsightsJournal(this.distDir)
       configureRequestInsightsHistoryProvider({
         append: appendRequestInsightToJournal,
+        getDebugRequest: getArchivedRequestInsightDebugContext,
         appendUpdate: appendRequestInsightUpdateToJournal,
         appendArchivedUpdate: appendArchivedRequestInsightUpdateToJournal,
         getHistory: (query) => getJournalHistory(this.distDir, query),

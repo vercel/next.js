@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 import {
-  retry,
-  toggleDevToolsIndicatorPopover,
-  waitForNoRedbox,
-} from 'next-test-utils'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+} from 'next/dist/shared/lib/request-insights'
 
 type RequestInsight = {
   requestId: string
@@ -32,6 +31,7 @@ type RequestInsight = {
     traceId?: string
     spanId?: string
     parentSpanId?: string
+    startTime?: number
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
@@ -48,6 +48,346 @@ type RequestInsight = {
 describe('request insights', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
+  })
+
+  it('expands React timings separately and preserves span inspection', async () => {
+    const editorRequests: URL[] = []
+    let mappingRequests = 0
+    const browser = await next.browser('/', {
+      async beforePageLoad(page) {
+        await page.route('**/__nextjs_launch-editor**', async (route) => {
+          editorRequests.push(new URL(route.request().url()))
+          await route.fulfill({ status: 204 })
+        })
+        page.on('request', (request) => {
+          if (request.url().includes('/__nextjs_original-stack-frames'))
+            mappingRequests++
+        })
+      },
+    })
+    await openRequestInsightsPanel(browser)
+    const group = browser
+      .locator('nextjs-portal .request-insights-react-toggle')
+      .first()
+    const intervals = browser.locator(
+      'nextjs-portal [data-react-kind="component"]'
+    )
+    await retry(async () => {
+      expect(await group.getAttribute('aria-expanded')).toBe('false')
+    })
+    expect(await intervals.count()).toBe(0)
+    const mainRows = await browser
+      .locator('nextjs-portal .request-insights-span-row')
+      .count()
+    await group.click()
+    await retry(async () => {
+      expect(await intervals.count()).toBeGreaterThan(0)
+    })
+    const greeting = browser.locator(
+      'nextjs-portal [data-react-kind="component"]:has-text("render Greeting")'
+    )
+    expect(mappingRequests).toBe(0)
+    await greeting.locator('[data-react-source-link]').click()
+    await retry(async () => {
+      expect(editorRequests).toHaveLength(1)
+    })
+    expect(editorRequests[0].searchParams.get('file')).toMatch(
+      /app\/page\.tsx$/
+    )
+    expect(editorRequests[0].searchParams.get('line1')).toBe('6')
+    expect(
+      Number(editorRequests[0].searchParams.get('column1'))
+    ).toBeGreaterThan(0)
+    await greeting.click({ button: 'right' })
+    await browser
+      .locator('nextjs-portal .request-insights-context-menu')
+      .getByText('Open render location', { exact: true })
+      .click()
+    await retry(async () => {
+      expect(editorRequests).toHaveLength(2)
+    })
+    expect(editorRequests[1].search).toBe(editorRequests[0].search)
+    await browser
+      .locator(
+        'nextjs-portal .request-insights-react-pass .request-insights-trace-rows'
+      )
+      .focus()
+    await browser.keydown('Enter')
+    await retry(async () => {
+      expect(editorRequests).toHaveLength(3)
+    })
+    expect(editorRequests[2].search).toBe(editorRequests[0].search)
+    const interval = intervals.first()
+    const spanId = await interval.getAttribute('data-trace-item-id')
+    await interval.hover()
+    await retry(async () => {
+      expect(
+        await browser
+          .locator('nextjs-portal .request-insights-trace-tooltip')
+          .isVisible()
+      ).toBe(true)
+    })
+    await interval.click({ button: 'right' })
+    const menu = browser.locator('nextjs-portal .request-insights-context-menu')
+    await retry(async () => {
+      expect(await menu.innerText()).toContain('Copy span ID')
+      expect(await menu.innerText()).toContain('Copy agent prompt')
+      expect(await menu.innerText()).toContain(spanId!.split(':')[1])
+    })
+    await browser
+      .locator('nextjs-portal .request-insights-context-backdrop')
+      .click({ position: { x: 10, y: 10 } })
+    await retry(async () => {
+      expect(await menu.count()).toBe(0)
+    })
+    await group.click()
+    await retry(async () => {
+      expect(await intervals.count()).toBe(0)
+      expect(
+        await browser
+          .locator('nextjs-portal .request-insights-span-row')
+          .count()
+      ).toBe(mainRows)
+    })
+  })
+
+  it('keeps cached React intervals without counting them as new executions', async () => {
+    const browser = await next.browser('/cached-timings')
+    const generation = await browser.elementByCss('#cached-generation').text()
+    expect(generation).not.toBe('')
+    let before: { requests: RequestInsight[] }
+    await retry(async () => {
+      before = await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+      const coldRequest = before.requests.find(
+        (request: RequestInsight) =>
+          request.kind !== 'instant-insights' &&
+          request.route === '/cached-timings'
+      ) as RequestInsight | undefined
+      expect(coldRequest).toBeDefined()
+      expect(coldRequest!.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'ReactServerComponents.component',
+              'next.span_name': 'render CachedTree',
+              'next.rsc.environment': 'Server',
+            }),
+          }),
+        ])
+      )
+      expect(
+        coldRequest!.spans.filter(
+          (span) => span.name === 'ReactServerComponents.incomplete'
+        )
+      ).toEqual([])
+    })
+    const existing = new Set(
+      before!.requests.map((request: RequestInsight) => request.requestId)
+    )
+    await browser.refresh()
+    expect(await browser.elementByCss('#cached-generation').text()).toBe(
+      generation
+    )
+
+    await retry(async () => {
+      const snapshot = await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+      const request = snapshot.requests.find(
+        (request: RequestInsight) =>
+          !existing.has(request.requestId) &&
+          request.kind !== 'instant-insights' &&
+          request.route === '/cached-timings'
+      ) as RequestInsight | undefined
+      expect(request).toBeDefined()
+      expect(request!.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'ReactServerComponents.component',
+              'next.span_name': 'render CachedLeaf',
+              'next.rsc.environment': 'Cache',
+            }),
+          }),
+        ])
+      )
+      expect(
+        request!.spans.some(
+          (span) => span.name === 'ReactServerComponents.incomplete'
+        )
+      ).toBe(false)
+    })
+  })
+
+  it('records browser-decoded React timings for initial loads, navigation and action responses', async () => {
+    type BrowserRequest = {
+      requestId: string
+      htmlRequestId: string
+      method: string
+    }
+    let navigation: BrowserRequest | undefined
+    let action: BrowserRequest | undefined
+    const browser = await next.browser('/decoder-observations', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          if (
+            new URL(request.url()).pathname !==
+            '/decoder-observations/destination'
+          ) {
+            return
+          }
+          const headers = request.headers()
+          const identity = {
+            requestId: headers['x-nextjs-request-id'],
+            htmlRequestId: headers['x-nextjs-html-request-id'],
+            method: request.method(),
+          }
+          if (request.method() === 'POST' && headers['next-action']) {
+            action = identity
+          } else if (
+            request.method() === 'GET' &&
+            headers.rsc === '1' &&
+            headers['next-router-prefetch'] !== '1'
+          ) {
+            navigation = identity
+          }
+        })
+      },
+    })
+
+    async function readSnapshot() {
+      return (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+    }
+
+    async function existingRequestIds() {
+      return new Set(
+        (await readSnapshot()).requests.map((request) => request.requestId)
+      )
+    }
+
+    async function expectDecodedTimings(
+      identity: BrowserRequest,
+      existing: Set<string>
+    ) {
+      expect(identity.requestId).toBeTruthy()
+      expect(identity.htmlRequestId).toBeTruthy()
+      await retry(async () => {
+        const snapshot = await readSnapshot()
+        const matches = snapshot.requests.filter(
+          (entry) =>
+            !existing.has(entry.requestId) &&
+            entry.kind !== 'instant-insights' &&
+            entry.route === '/decoder-observations/destination' &&
+            entry.htmlRequestId === identity.htmlRequestId &&
+            entry.spans.some(
+              (span) =>
+                span.attributes?.['next.span_type'] ===
+                  REQUEST_INSIGHT_REQUEST_SPAN_TYPE &&
+                span.attributes?.['http.method'] === identity.method
+            ) &&
+            entry.spans.some(
+              (span) =>
+                span.attributes?.['next.span_name'] ===
+                'render DecoderObservedContent'
+            )
+        )
+        expect(matches).toHaveLength(1)
+        const request = matches[0]
+        expect(request.requestId).not.toBe(identity.requestId)
+        expect(request).toMatchObject({
+          htmlRequestId: identity.htmlRequestId,
+          route: '/decoder-observations/destination',
+          source: 'page',
+        })
+        const parent = request.spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+            REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+        )
+        expect(parent?.traceId).toBeTruthy()
+        expect(parent?.spanId).toBeTruthy()
+        const intervals = request.spans.filter(
+          (span) => span.attributes?.['next.rsc.kind'] === 'component'
+        )
+        expect(intervals).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              attributes: expect.objectContaining({
+                'next.span_name': 'render DecoderObservedContent',
+                'next.rsc.observation': 'decoded',
+              }),
+            }),
+          ])
+        )
+        for (const interval of intervals) {
+          expect(interval.traceId).toBe(parent!.traceId)
+          expect(interval.parentSpanId).toBe(parent!.spanId)
+          expect(interval.spanId).toBeTruthy()
+        }
+        expect(new Set(intervals.map((span) => span.spanId)).size).toBe(
+          intervals.length
+        )
+        const observedContent = intervals.filter(
+          (span) =>
+            span.attributes?.['next.span_name'] ===
+            'render DecoderObservedContent'
+        )
+        const intervalKeys = observedContent.map((span) =>
+          JSON.stringify([
+            span.attributes?.['next.rsc.render_id'],
+            span.startTime,
+            span.durationMs,
+          ])
+        )
+        expect(new Set(intervalKeys).size).toBe(intervalKeys.length)
+      })
+    }
+
+    const initialRequestId = await browser.eval('self.__next_r')
+    await retry(async () => {
+      const snapshot = await readSnapshot()
+      expect(snapshot.requests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            htmlRequestId: initialRequestId,
+            route: '/decoder-observations',
+            spans: expect.arrayContaining([
+              expect.objectContaining({
+                attributes: expect.objectContaining({
+                  'next.rsc.kind': 'component',
+                }),
+              }),
+            ]),
+          }),
+        ])
+      )
+    })
+
+    const beforeNavigation = await existingRequestIds()
+    await browser.elementById('decoder-navigation').click()
+    const generation = await browser.elementById('decoder-generation').text()
+    expect(generation).not.toBe('')
+    expect(navigation).toBeDefined()
+    await expectDecodedTimings(navigation!, beforeNavigation)
+
+    const beforeAction = await existingRequestIds()
+    await browser.elementById('decoder-rerender').click()
+    await retry(async () => {
+      expect(await browser.elementById('decoder-generation').text()).not.toBe(
+        generation
+      )
+    })
+    expect(action).toBeDefined()
+    expect(action!.requestId).not.toBe(navigation!.requestId)
+    expect(action!.htmlRequestId).toBe(navigation!.htmlRequestId)
+    await expectDecodedTimings(action!, beforeAction)
+    await waitForNoRedbox(browser)
   })
 
   function createRequest(index: number, fetchCount = 0): RequestInsight {
@@ -72,7 +412,7 @@ describe('request insights', () => {
   async function openRequestInsightsPanel(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
-    await toggleDevToolsIndicatorPopover(browser)
+    await browser.locator('nextjs-portal #next-logo').click()
     await browser.elementByCss('[data-request-insights]').click()
     await browser.waitForElementByCss('.request-insights-list-toolbar')
     // The panel selector menu stays mounted for its exit animation and its
@@ -152,6 +492,15 @@ describe('request insights', () => {
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
     await next.render('/')
 
     await retry(async () => {
@@ -161,7 +510,10 @@ describe('request insights', () => {
         requests: RequestInsight[]
       }
       const pageRequests = snapshot.requests.filter(
-        (request) => request.route === '/'
+        (request) =>
+          !existingRequestIds.has(request.requestId) &&
+          request.kind !== 'instant-insights' &&
+          request.route === '/'
       )
       const requestsWithRelevantSpans = pageRequests.filter((request) =>
         request.spans.some((span) => {
@@ -463,8 +815,8 @@ describe('request insights', () => {
     })
   })
 
-  it('records Instant Insights separately from its originating request', async () => {
-    await next.render('/instant-insights')
+  it('records Instant Insights phases without replaying the request React timings', async () => {
+    await next.browser('/instant-insights')
 
     await retry(async () => {
       const snapshot = (await next
@@ -530,6 +882,43 @@ describe('request insights', () => {
           span.attributes?.['next.span_type'] ===
           'AppRender.instantInsights.runValidation'
       )
+      const spansById = new Map(
+        instantInsights?.spans.flatMap((span) =>
+          span.spanId ? [[span.spanId, span] as const] : []
+        )
+      )
+      const isDescendantOfRunValidation = (
+        span: RequestInsight['spans'][number] | undefined
+      ) => {
+        const visited = new Set<string>()
+        let ancestor = span
+        while (
+          ancestor?.parentSpanId &&
+          ancestor.parentSpanId !== runValidationSpan?.spanId
+        ) {
+          expect(visited.has(ancestor.parentSpanId)).toBe(false)
+          visited.add(ancestor.parentSpanId)
+          ancestor = spansById.get(ancestor.parentSpanId)
+        }
+        return ancestor?.parentSpanId === runValidationSpan?.spanId
+      }
+      expect(
+        instantInsights?.spans.filter(
+          (span) =>
+            isDescendantOfRunValidation(span) &&
+            String(span.attributes?.['next.span_type']).startsWith(
+              'ReactServerComponents.'
+            )
+        )
+      ).toEqual([])
+      expect(
+        request?.spans.some(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'ReactServerComponents.component' &&
+            span.attributes?.['next.rsc.observation'] === 'decoded'
+        )
+      ).toBe(true)
       const workerLoadSpan = instantInsights?.spans.find(
         (span) =>
           span.attributes?.['next.span_type'] ===
@@ -552,27 +941,6 @@ describe('request insights', () => {
         )
       }
       if (isTurbopack) {
-        const spansById = new Map(
-          instantInsights?.spans.flatMap((span) =>
-            span.spanId ? [[span.spanId, span] as const] : []
-          )
-        )
-        const expectDescendantOfRunValidation = (
-          span: RequestInsight['spans'][number] | undefined
-        ) => {
-          const visited = new Set<string>()
-          let ancestor = span
-          while (
-            ancestor?.parentSpanId &&
-            ancestor.parentSpanId !== runValidationSpan?.spanId
-          ) {
-            expect(visited.has(ancestor.parentSpanId)).toBe(false)
-            visited.add(ancestor.parentSpanId)
-            ancestor = spansById.get(ancestor.parentSpanId)
-          }
-          expect(ancestor?.parentSpanId).toBe(runValidationSpan?.spanId)
-        }
-
         expect(workerLoadSpan).toEqual(
           expect.objectContaining({
             name: 'load route module',
@@ -580,7 +948,7 @@ describe('request insights', () => {
             status: 'ok',
           })
         )
-        expectDescendantOfRunValidation(workerLoadSpan)
+        expect(isDescendantOfRunValidation(workerLoadSpan)).toBe(true)
       } else {
         // The dev validation worker only runs with Turbopack. Do not invent a
         // worker span for the in-process Webpack validation path.
