@@ -48,6 +48,8 @@ bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 >
 > - If you see a peer dependencies warning, you may need to update `react` and `react-dom` to the suggested versions, or use the `--force` or `--legacy-peer-deps` flag to ignore the warning. This won't be necessary once both Next.js 15 and React 19 are stable.
 
+<AppOnly>
+
 ## React 19
 
 - The minimum versions of `react` and `react-dom` is now 19.
@@ -541,6 +543,18 @@ module.exports = nextConfig
 ```
 
 [Layouts](/docs/app/api-reference/file-conventions/layout) and [loading states](/docs/app/api-reference/file-conventions/loading) are still cached and reused on navigation.
+
+</AppOnly>
+
+<PagesOnly>
+
+## Pages Router on React 18
+
+Next.js 15 maintains backward compatibility for the Pages Router with React 18, allowing users to continue using React 18 while benefiting from improvements in Next.js 15.
+
+Since the first Release Candidate (RC1), we've shifted our focus to include support for React 18 based on community feedback. This flexibility enables you to adopt Next.js 15 while using the Pages Router with React 18, giving you greater control over your upgrade path.
+
+</PagesOnly>
 
 ## `next/font`
 
