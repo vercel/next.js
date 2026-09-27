@@ -25,7 +25,7 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
@@ -2612,30 +2612,43 @@ fn rebuild_shard_index<const FAMILIES: usize>(
     }
 }
 
-/// The number of key hash shards of each family (see [`crate::shard`]). It follows the size of the
-/// bottom runs, which is about the size of the live data after compaction, starting from the shards
-/// recorded in the newest meta file of the family (see [`ShardBits::maybe_reshard`]).
+/// The number of key hash shards of each family (see [`crate::shard`]). It starts at
+/// `FamilyConfig::initial_shard_bits`, is recorded in every meta file, and follows the size of the
+/// bottom runs, which is about the size of the live data after compaction (see
+/// [`ShardBits::maybe_reshard`]).
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
 ) -> [ShardBits; FAMILIES] {
     std::array::from_fn(|family| {
-        let bottom_bytes = meta_files_by_family[family]
+        let meta_files = &meta_files_by_family[family];
+        let Some(newest) = meta_files.last() else {
+            return config.family_configs[family].initial_shard_bits;
+        };
+        let current = newest.shard_bits();
+        // Estimate the size of the family from the shards that have a bottom run: before the first
+        // bottom merges, or while the rewrite budget spreads them over multiple compactions, other
+        // shards don't have one yet.
+        let mut bottom_bytes = 0;
+        let mut covered_shards = FxHashSet::default();
+        for (entry, range) in meta_files
             .iter()
-            .flat_map(|meta| meta.entries())
-            .filter(|entry| entry.flags().bottom())
-            .map(|entry| entry.size())
-            .sum::<u64>();
-        let min = config.family_configs[family].min_shard_bits;
-        match meta_files_by_family[family].last() {
-            Some(newest) => {
-                newest
-                    .shard_bits()
-                    .maybe_reshard(bottom_bytes, config.target_shard_size, min)
+            .flat_map(|meta| meta.entries().iter().zip(meta.hash_ranges()))
+        {
+            if entry.flags().bottom() {
+                bottom_bytes += entry.size();
+                covered_shards
+                    .extend(current.shard_of(range.min_hash)..=current.shard_of(range.max_hash));
             }
-            // A family without files has no bottom run either, so it starts with its minimum.
-            None => min,
         }
+        if covered_shards.is_empty() {
+            return current;
+        }
+        let estimated_bytes = (u128::from(bottom_bytes) * u128::from(current.count())
+            / covered_shards.len() as u128)
+            .try_into()
+            .unwrap_or(u64::MAX);
+        current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
 }
 

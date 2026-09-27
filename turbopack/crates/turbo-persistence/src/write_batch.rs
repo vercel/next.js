@@ -226,12 +226,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         // these operations async, or we could integrate with the parallel::map operation that is
         // driving the work to slow down task submission in this case.
         for mut global_collector in full_collectors {
-            // When the global collector is full, we create a new SST file.
-            let ssts = self.create_sst_files(
+            // When the global collector is full, we create a new SST file. A full collector holds a
+            // single shard: collectors are split into shards when they fill up.
+            let sst = self.create_single_shard_sst_file(
                 family,
                 global_collector.sorted(self.family_configs[usize_from_u32(family)].kind),
             )?;
-            self.new_sst_files.lock().extend(ssts);
+            self.new_sst_files.lock().push(sst);
             drop(global_collector);
         }
         Ok(())
@@ -330,6 +331,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
+                    // A collector that never filled up was never split into shards, so its
+                    // entries can span all shards.
                     let ssts =
                         self.create_sst_files(family, collector.sorted(family_config.kind))?;
                     collector.clear();
@@ -346,11 +349,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let ssts = self
-                                .create_sst_files(family, collector.sorted(family_config.kind))?;
-                            collector.clear();
-                            self.new_sst_files.lock().extend(ssts);
-                            collector.drop_contents();
+                            let sst = self.create_single_shard_sst_file(
+                                family,
+                                collector.sorted(family_config.kind),
+                            )?;
+                            collector.clear_and_drop_capacity();
+                            self.new_sst_files.lock().push(sst);
                         }
                         anyhow::Ok(())
                     })?;
@@ -513,9 +517,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         Ok(NewFile { seq, file, size })
     }
 
-    /// Creates a new SST file with the given collector data.
     #[tracing::instrument(level = "trace", skip(self, collector_data), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
-    /// Writes the sorted entries into one SST file per shard of the family.
+    /// Writes sorted entries that can span multiple shards into one SST file per shard.
     fn create_sst_files(
         &self,
         family: u32,
@@ -536,6 +539,28 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         Ok(files)
     }
 
+    /// Creates a new SST file with the given collector data, whose entries all belong to the same
+    /// shard.
+    fn create_single_shard_sst_file(
+        &self,
+        family: u32,
+        collector_data: (&[CollectorEntry<K>], usize),
+    ) -> Result<NewFile> {
+        let shard_bits = self.shard_bits[usize_from_u32(family)];
+        debug_assert!(
+            collector_data.0.first().is_none_or(|first| {
+                let shard = shard_bits.shard_of(first.key.hash);
+                collector_data
+                    .0
+                    .iter()
+                    .all(|e| shard_bits.shard_of(e.key.hash) == shard)
+            }),
+            "the entries of an SST file must belong to the same shard"
+        );
+        self.create_sst_file(family, collector_data)
+    }
+
+    /// Creates a new SST file with the given collector data.
     fn create_sst_file(
         &self,
         family: u32,

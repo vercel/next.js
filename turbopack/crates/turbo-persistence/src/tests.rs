@@ -163,7 +163,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
-            min_shard_bits: crate::shard::ShardBits::new(0),
+            initial_shard_bits: crate::shard::ShardBits::new(0),
         }],
         access_mode: if mmap {
             crate::mmap_access_mode()
@@ -1581,7 +1581,7 @@ fn multi_value_config() -> DbConfig<1> {
         name: "test",
         kind: FamilyKind::MultiValue,
         compression: Compression::Lz4,
-        min_shard_bits: crate::shard::ShardBits::new(0),
+        initial_shard_bits: crate::shard::ShardBits::new(0),
     };
     config
 }
@@ -2852,14 +2852,10 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
     // Two shards, so every commit writes one SST per shard into its meta file.
-    let config = || {
-        let mut config = config_with_mmap::<1>(mmap);
-        config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
-        config
-    };
-    let db = open_db_with_config::<1>(path, config())?;
+    let config = || two_shard_config(mmap);
+    let db = open_db_with_config::<1>(path, config()?)?;
 
-    const KEYS: u32 = 2_000;
+    const KEYS: u32 = TWO_SHARD_KEYS;
     for generation in 0..4u32 {
         let batch = db.write_batch()?;
         for key in 0..KEYS {
@@ -2910,7 +2906,7 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
     );
     drop(db);
 
-    let reopened = open_db_with_config::<1>(path, config())?;
+    let reopened = open_db_with_config::<1>(path, config()?)?;
     assert_eq!(reopened.meta_info()?.len(), 2);
     for key in 0..KEYS {
         assert_eq!(
@@ -2919,6 +2915,37 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
         );
     }
     Ok(())
+}
+
+/// The number of keys the tests using [`two_shard_config`] write per commit.
+const TWO_SHARD_KEYS: u32 = 2_000;
+
+/// A config that starts with 2 shards, and a target shard size that keeps 2 shards for
+/// [`TWO_SHARD_KEYS`] keys with 4 byte values: the size of one shard of them after compaction.
+fn two_shard_config(mmap: bool) -> Result<DbConfig<1>> {
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
+    let tempdir = tempfile::tempdir()?;
+    let db = open_db_with_config::<1>(tempdir.path(), config.clone())?;
+    let batch = db.write_batch()?;
+    for key in 0..TWO_SHARD_KEYS {
+        batch.put(
+            0,
+            key.to_be_bytes().to_vec(),
+            0u32.to_be_bytes().to_vec().into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+    db.full_compact()?;
+    let bottom_bytes = db
+        .meta_info()?
+        .into_iter()
+        .flat_map(|meta| meta.entries)
+        .filter(|entry| entry.flags.bottom())
+        .map(|entry| entry.sst_size)
+        .sum::<u64>();
+    config.target_shard_size = bottom_bytes / 2;
+    Ok(config)
 }
 
 /// Counts the entries of the family's hot and other bottom SST files.
@@ -2946,7 +2973,7 @@ fn bottom_merge_writes_read_keys_into_hot_files(#[case] mmap: bool) -> Result<()
     let path = tempdir.path();
     let config = || {
         let mut config = config_with_mmap::<1>(mmap);
-        config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
+        config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
         config
     };
     const KEYS: u32 = 2_000;
@@ -3011,10 +3038,8 @@ fn bottom_merge_writes_read_keys_into_hot_files(#[case] mmap: bool) -> Result<()
 fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-    let mut config = config_with_mmap::<1>(mmap);
-    config.family_configs[0].min_shard_bits = crate::shard::ShardBits::new(1);
-    let db = open_db_with_config::<1>(path, config)?;
-    const KEYS: u32 = 2_000;
+    let db = open_db_with_config::<1>(path, two_shard_config(mmap)?)?;
+    const KEYS: u32 = TWO_SHARD_KEYS;
     let put_all = |generation: u32| -> Result<()> {
         let batch = db.write_batch()?;
         for key in 0..KEYS {
@@ -3118,6 +3143,38 @@ fn shard_count_changes_with_hysteresis(#[case] mmap: bool) -> Result<()> {
     commit(&db)?;
     assert_eq!(newest_shard_bits(&db)?, 0);
     for key in 0..KEYS {
+        assert!(db.get(0, &key.to_be_bytes())?.is_some());
+    }
+    Ok(())
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(2);
+    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+    let commit = || -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in 0..1000u32 {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![1; 8].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        Ok(())
+    };
+    // `meta_info` lists the newest meta file first.
+    let newest_shard_bits = || -> Result<u8> { Ok(db.meta_info()?.first().unwrap().shard_bits) };
+    // Without a bottom run there is nothing to size the shards by, so the count is kept.
+    commit()?;
+    commit()?;
+    assert_eq!(newest_shard_bits()?, 2);
+    // Once compacted, the tiny family shrinks to a single shard, far below the initial count.
+    db.full_compact()?;
+    commit()?;
+    assert_eq!(newest_shard_bits()?, 0);
+    for key in 0..1000u32 {
         assert!(db.get(0, &key.to_be_bytes())?.is_some());
     }
     Ok(())

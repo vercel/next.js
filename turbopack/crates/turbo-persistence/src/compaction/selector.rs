@@ -191,9 +191,15 @@ fn plan_family<T: Compactable>(
         if above.is_empty() {
             continue;
         }
+        // A bottom file is older than the files above it that overlap it. After the shard count
+        // shrank, a component can also hold a newer bottom file of another former shard, which
+        // covers different keys.
         debug_assert!(
-            bottom.last() < above.first(),
-            "bottom files must be older than the files above them"
+            bottom.iter().all(|&b| above.iter().all(|&a| {
+                let (b_range, a_range) = (compactables[b].range(), compactables[a].range());
+                b < a || b_range.end() < a_range.start() || a_range.end() < b_range.start()
+            })),
+            "bottom files must be older than the files above them that they overlap"
         );
         // The bottom run consists of multiple files when the bottom merge output exceeds the size
         // of a file, or when the component spans multiple shards after the shard count grew.
@@ -257,7 +263,7 @@ fn plan_family<T: Compactable>(
     let mut result = Vec::new();
     for (candidate, cost, above) in bottom_candidates {
         // The first job always runs, even when the budget is 0.
-        if spent <= budget {
+        if result.is_empty() || spent < budget {
             spent = spent.saturating_add(cost);
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom {
@@ -447,6 +453,18 @@ mod tests {
             ..CompactConfig::full()
         };
         assert_eq!(plan(&files, 2, &config).len(), 1);
+    }
+
+    #[test]
+    fn test_budget_stops_when_exactly_spent() {
+        // Five shards, each a 100 byte bottom file and 200 bytes above it, three of those fresh:
+        // the budget is 2 * 600 = 1200, which four jobs of 300 bytes spend exactly.
+        let mut files = (0..8)
+            .map(|shard| file(shard, 3, 100, true, false))
+            .take(5)
+            .collect::<Vec<_>>();
+        files.extend((0..5).map(|shard| file(shard, 3, 200, false, shard < 3)));
+        assert_eq!(plan(&files, 3, &test_config()).len(), 4);
     }
 
     #[test]

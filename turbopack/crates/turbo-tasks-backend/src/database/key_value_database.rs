@@ -39,7 +39,7 @@ impl KeySpace {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
-                min_shard_bits: ShardBits::new(match self {
+                initial_shard_bits: ShardBits::new(match self {
                     KeySpace::Infra => 0,
                     _ => 2,
                 }),
@@ -48,14 +48,14 @@ impl KeySpace {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Zstd3,
-                min_shard_bits: ShardBits::new(3),
+                initial_shard_bits: ShardBits::new(3),
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
                 compression: Compression::Lz4,
-                min_shard_bits: ShardBits::new(0),
+                initial_shard_bits: ShardBits::new(0),
             },
         }
     }

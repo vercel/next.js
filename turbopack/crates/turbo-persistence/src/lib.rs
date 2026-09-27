@@ -72,11 +72,11 @@ pub struct FamilyConfig {
     pub compression: Compression,
     /// Initial sharding factor for the family. There will be 2^ShardBits shards of each family.
     ///
-    /// The shard count grows with the size of the family, see [`DbConfig::target_shard_size`].
+    /// The shard count follows the size of the family, see [`DbConfig::target_shard_size`].
     /// This is just a hint to bootstrap the family. `0` would always work, but families with lots
     /// of data would benefit from starting with many shards since this influences how initial
     /// commits shard outputs.
-    pub min_shard_bits: shard::ShardBits,
+    pub initial_shard_bits: shard::ShardBits,
 }
 
 /// Database-wide configuration with per-family storage settings.
@@ -143,7 +143,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
-                min_shard_bits: shard::ShardBits::new(0),
+                initial_shard_bits: shard::ShardBits::new(0),
             }; FAMILIES],
             access_mode: default_access_mode(),
             target_shard_size: 256 * 1024 * 1024,
