@@ -252,7 +252,7 @@ async function nudgeUpgradeForAgent(
   switch (reminder.kind) {
     case 'security':
       summary =
-        'Your version of Next.js is affected by a published security advisory.'
+        'Your version of Next.js is affected by a known security vulnerability.'
       recommendation = 'We strongly recommend you upgrade Next.js.'
       reference = reminder.reference
       break
