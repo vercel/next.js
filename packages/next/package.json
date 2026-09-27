@@ -38,6 +38,8 @@
     "head.d.ts",
     "image.js",
     "image.d.ts",
+    "image-optimizer-transform.js",
+    "image-optimizer-transform.d.ts",
     "link.js",
     "link.d.ts",
     "offline.js",
