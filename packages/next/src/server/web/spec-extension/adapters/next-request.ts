@@ -13,6 +13,26 @@ export class ResponseAborted extends Error {
   public readonly name = ResponseAbortedName
 }
 
+function attachAbortListener(
+  target: Writable | NodeJS.EventEmitter | undefined,
+  event: string,
+  onAbort: () => void
+): () => void {
+  if (!target || typeof target.once !== 'function') {
+    return () => {}
+  }
+
+  target.once(event, onAbort)
+
+  return () => {
+    if (typeof target.off === 'function') {
+      target.off(event, onAbort)
+    } else if (typeof target.removeListener === 'function') {
+      target.removeListener(event, onAbort)
+    }
+  }
+}
+
 /**
  * Creates an AbortController tied to the closing of a ServerResponse (or other
  * appropriate Writable).
@@ -22,15 +42,43 @@ export class ResponseAborted extends Error {
  */
 export function createAbortController(response: Writable): AbortController {
   const controller = new AbortController()
+  const cleanup: Array<() => void> = []
+  const responseWithSocket = response as Writable & {
+    socket?: NodeJS.WritableStream &
+      NodeJS.EventEmitter & { destroyed?: boolean }
+  }
+
+  const abortIfDisconnected = () => {
+    if (response.writableFinished || controller.signal.aborted) return
+
+    controller.abort(new ResponseAborted())
+  }
 
   // If `finish` fires first, then `res.end()` has been called and the close is
   // just us finishing the stream on our side. If `close` fires first, then we
   // know the client disconnected before we finished.
-  response.once('close', () => {
-    if (response.writableFinished) return
+  cleanup.push(attachAbortListener(response, 'close', abortIfDisconnected))
 
-    controller.abort(new ResponseAborted())
-  })
+  const socket = responseWithSocket.socket
+  if (socket) {
+    cleanup.push(attachAbortListener(socket, 'close', abortIfDisconnected))
+    cleanup.push(attachAbortListener(socket, 'end', abortIfDisconnected))
+    cleanup.push(attachAbortListener(socket, 'error', abortIfDisconnected))
+
+    if (socket.destroyed) {
+      abortIfDisconnected()
+    }
+  }
+
+  controller.signal.addEventListener(
+    'abort',
+    () => {
+      for (const dispose of cleanup) {
+        dispose()
+      }
+    },
+    { once: true }
+  )
 
   return controller
 }
@@ -45,7 +93,14 @@ export function createAbortController(response: Writable): AbortController {
  */
 export function signalFromNodeResponse(response: Writable): AbortSignal {
   const { errored, destroyed } = response
-  if (errored || destroyed) {
+  const responseWithSocket = response as Writable & {
+    socket?: { destroyed?: boolean }
+  }
+  if (
+    errored ||
+    destroyed ||
+    (responseWithSocket.socket?.destroyed && !response.writableFinished)
+  ) {
     return AbortSignal.abort(errored ?? new ResponseAborted())
   }
 
