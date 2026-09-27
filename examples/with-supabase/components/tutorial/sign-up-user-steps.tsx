@@ -73,6 +73,50 @@ export function SignUpUserSteps() {
           </Link>
         </TutorialStep>
       ) : null}
+      <TutorialStep title="Update email template links">
+        <p>
+          To use the auth routes in this template, you'll need to change the
+          email template to support a server-side authentication flow.
+        </p>
+
+        <p className="mt-4">
+          Go to the{" "}
+          <Link
+            className="text-primary hover:text-foreground"
+            href={"https://supabase.com/dashboard/project/_/auth/templates"}
+          >
+            Auth templates
+          </Link>{" "}
+          page in your dashboard. In the{" "}
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+            Confirm signup
+          </span>{" "}
+          template, change{" "}
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+            {`{{ .ConfirmationURL }}`}
+          </span>{" "}
+          to:
+        </p>
+        <pre className="mt-4 text-black text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
+          {`{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`}
+        </pre>
+
+        <p className="mt-4">
+          You'll need to make a similar change for all email templates that use{" "}
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+            {`{{ .ConfirmationURL }}`}
+          </span>
+          .
+        </p>
+        <Link
+          href="https://supabase.com/docs/guides/auth/server-side/nextjs"
+          target="_blank"
+          className="text-primary/50 hover:text-primary flex items-center text-sm gap-1 mt-4"
+        >
+          Setting up Server-Side Auth for Next.js Docs{" "}
+          <ArrowUpRight size={14} />
+        </Link>
+      </TutorialStep>
       <TutorialStep title="Sign up your first user">
         <p>
           Head over to the{" "}
