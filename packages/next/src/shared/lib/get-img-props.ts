@@ -24,10 +24,11 @@ export interface StaticRequire {
 
 export type StaticImport = StaticRequire | StaticImageData
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
-> & {
+export interface ImageProps
+  extends Omit<
+    JSX.IntrinsicElements['img'],
+    'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
+  > {
   src: string | StaticImport
   alt: string
   width?: number | `${number}`
