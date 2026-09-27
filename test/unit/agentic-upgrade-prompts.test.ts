@@ -464,6 +464,12 @@ describe('agentic upgrade prompts', () => {
       ['--model', 'gpt-5.6-sol', '-c', 'model_reasoning_effort=max'],
     ],
     [
+      'codex',
+      'gpt-6-astra',
+      'high',
+      ['--model', 'gpt-6-astra', '-c', 'model_reasoning_effort=high'],
+    ],
+    [
       'claude',
       'claude-sonnet-5[1m]',
       'high',
@@ -506,7 +512,7 @@ describe('agentic upgrade prompts', () => {
       const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
       expect(Object.keys(modelMenu.values)).toEqual(
         agent === 'codex'
-          ? ['gpt-5.6-terra', 'gpt-5.6-sol', 'cancel']
+          ? ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-6-astra', 'cancel']
           : ['claude-sonnet-5[1m]', 'opus', 'fable', 'cancel']
       )
       const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]

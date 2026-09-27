@@ -24,6 +24,7 @@ const UPGRADE_MODELS = {
   codex: [
     { id: 'gpt-5.6-terra', label: 'Terra', efforts: CODEX_EFFORTS },
     { id: 'gpt-5.6-sol', label: 'Sol', efforts: CODEX_EFFORTS },
+    { id: 'gpt-6-astra', label: 'Astra', efforts: CODEX_EFFORTS },
   ],
   claude: [
     { id: 'claude-sonnet-5[1m]', label: 'Sonnet', efforts: CLAUDE_EFFORTS },
