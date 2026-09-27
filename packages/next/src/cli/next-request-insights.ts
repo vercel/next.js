@@ -1,11 +1,11 @@
 import path from 'path'
 import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
 import { getProjectDir } from '../lib/get-project-dir'
-import type {
-  RequestInsight,
-  RequestInsightsSnapshot,
-} from '../next-devtools/shared/request-insights'
-import { getRequestInsightKind } from '../next-devtools/shared/request-insights'
+import {
+  getRequestInsightKind,
+  type RequestInsight,
+  type RequestInsightsSnapshot,
+} from '../shared/lib/request-insights'
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import {
