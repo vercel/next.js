@@ -41,6 +41,8 @@ Contributions to Next.js are welcome and highly appreciated. However, before you
 
 We have a list of **[good first issues](https://github.com/vercel/next.js/labels/good%20first%20issue)** that contain bugs that have a relatively limited scope. This is a great place for newcomers and beginners alike to get started, gain experience, and get familiar with our contribution process.
 
+Tip: Filter issues by the labels `good first issue` and `help wanted` to find beginner-friendly tasks faster.
+
 ---
 ## Security
 
