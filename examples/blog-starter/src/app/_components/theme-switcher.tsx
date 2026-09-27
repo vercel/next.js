@@ -57,12 +57,12 @@ let updateDOM: () => void;
  * Switch button to quickly toggle user preference.
  */
 const Switch = () => {
-  const [mode, setMode] = useState<ColorSchemePreference>(
-    () =>
-      ((typeof localStorage !== "undefined" &&
-        localStorage.getItem(STORAGE_KEY)) ??
-        "system") as ColorSchemePreference,
-  );
+  const [mode, setMode] = useState<ColorSchemePreference>(() => {
+    if (typeof localStorage === "undefined") return "system";
+    return (
+      (localStorage.getItem(STORAGE_KEY) as ColorSchemePreference) ?? "system"
+    );
+  });
 
   useEffect(() => {
     // store global functions to local variables to avoid any interference
