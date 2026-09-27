@@ -608,10 +608,6 @@ export function createAppPageEntrypoint({
         const value = params?.[param.paramName]
         return value == null || (Array.isArray(value) && value.length === 0)
       })
-    const hasUnresolvedRootFallbackParams =
-      prerenderInfo?.fallback === null &&
-      (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
-
     // SSG writes and navigation RDC reads use the same shell key. Completion
     // uses the matched shell rather than the fully resolved pathname. A request
     // for `/prefix/c/foo` can complete `/prefix/[one]/[two]` to
@@ -1168,25 +1164,6 @@ export function createAppPageEntrypoint({
           // or evicted without removing the path from the build manifest.
           if (fallbackMode === FallbackMode.NOT_FOUND && isPrerendered) {
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-          }
-
-          if (
-            nextConfig.partialPrefetching &&
-            prerenderInfo?.fallback === null &&
-            // TODO(ensure-static): express this in a cleaner way
-            !isEnsureStaticPage &&
-            !hasOmittedConcreteFallbackParam &&
-            !hasUnresolvedRootFallbackParams &&
-            remainingPrerenderableParams.length > 0
-          ) {
-            // Generic source shells without unresolved root params don't have a
-            // concrete fallback file of their own, so they're marked as blocking.
-            // When we can complete the shell into a more specific
-            // prerendered shell for this request, treat it like a prerender
-            // fallback so we can serve that shell instead of blocking on the full
-            // route. Root-param shells stay blocking, since unknown root branches
-            // should not inherit a shell from another generated branch.
-            fallbackMode = FallbackMode.PRERENDER
           }
 
           // When serving a request that requires blocking metadata, we want to
