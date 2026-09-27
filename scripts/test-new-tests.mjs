@@ -46,14 +46,14 @@ async function main() {
   let argv = await yargs(process.argv.slice(2))
     .string('mode')
     .string('group')
-    .string('preview-builds-base-url')
     .boolean('flake-detection').argv
 
   let testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
   const attempts = isFlakeDetectionMode ? 3 : 1
   const previewBuildsBaseUrl =
-    argv['preview-builds-base-url'] || 'https://vercel-packages.vercel.app/next'
+    process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL ||
+    'https://vercel-packages.vercel.app/next'
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -193,7 +193,6 @@ async function main() {
         env: {
           ...process.env,
           NEXT_TEST_MODE: testMode,
-          NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
           NEXT_TEST_VERSION: nextTestVersion,
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,

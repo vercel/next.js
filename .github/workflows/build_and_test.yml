@@ -630,8 +630,7 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -656,8 +655,7 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
@@ -684,8 +682,7 @@ jobs:
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
