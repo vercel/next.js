@@ -82,4 +82,44 @@ describe('server-navigation-error', () => {
       `)
     })
   })
+
+  describe('proxy', () => {
+    it('should error on navigation API redirect ', async () => {
+      const browser = await next.browser('/proxy/redirect')
+      // FIXME: the first request to middleware error load didn't show the redbox, need one more reload
+      await browser.refresh()
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Next.js navigation API is not allowed to be used in Proxy.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "proxy.ts (8:13) @ proxy
+       >  8 |     redirect('/')
+            |             ^",
+         "stack": [
+           "proxy proxy.ts (8:13)",
+         ],
+       }
+      `)
+    })
+
+    it('should error on navigation API not-found', async () => {
+      const browser = await next.browser('/proxy/not-found')
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Next.js navigation API is not allowed to be used in Proxy.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "proxy.ts (6:13) @ proxy
+       > 6 |     notFound()
+           |             ^",
+         "stack": [
+           "proxy proxy.ts (6:13)",
+         ],
+       }
+      `)
+    })
+  })
 })
