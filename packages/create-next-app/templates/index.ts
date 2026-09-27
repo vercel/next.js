@@ -408,13 +408,13 @@ export const installTemplate = async ({
       );
     } else if (pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [
-        "ignoredBuiltDependencies:",
+        "allowBuilds:",
         // Sharp has prebuilt binaries for the platforms next-swc has binaries.
         // If it needs to build binaries from source, next-swc wouldn't work either.
         // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
-        "  - sharp",
+        "  sharp: true",
         // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
-        "  - unrs-resolver",
+        "  unrs-resolver: true",
         "",
       ].join(os.EOL);
       await fs.writeFile(
