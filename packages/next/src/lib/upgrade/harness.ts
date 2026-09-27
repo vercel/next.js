@@ -372,6 +372,10 @@ export async function handoffUpgrade(
   let useAuto = true
   let useWorktree = true
   let codexModels: ReturnType<typeof getCodexModels> | undefined
+  let codexAutoReview: boolean | undefined
+  let claudePermissionSupport:
+    | ReturnType<typeof getClaudePermissionSupport>
+    | undefined
 
   while (true) {
     if (stage === 'harness') {
@@ -452,12 +456,12 @@ export async function handoffUpgrade(
         effort = selectedEffort
       }
       if (harness!.name === 'codex') {
-        autoPermissionArgs = supportsCodexAutoReview(harness!.path)
-          ? ['--approve-for-me']
-          : null
+        codexAutoReview ??= supportsCodexAutoReview(harness!.path)
+        autoPermissionArgs = codexAutoReview ? ['--approve-for-me'] : null
         approvalPermissionArgs = [...CODEX_APPROVAL_ARGS]
       } else {
-        const { auto, approvalMode } = getClaudePermissionSupport(harness!.path)
+        const { auto, approvalMode } = (claudePermissionSupport ??=
+          getClaudePermissionSupport(harness!.path))
         if (!approvalMode) {
           Log.error('Could not determine a supported Claude approval mode.')
           process.exitCode = 1

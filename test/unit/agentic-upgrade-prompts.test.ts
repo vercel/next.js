@@ -947,6 +947,9 @@ describe('agentic upgrade prompts', () => {
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === 'debug')
     ).toHaveLength(1)
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+    ).toHaveLength(1)
     expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
     expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -999,6 +1002,48 @@ describe('agentic upgrade prompts', () => {
     )
   })
 
+  it('reuses Claude permission support after going back', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'claude' })
+      .mockResolvedValueOnce({ id: 'opus' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'medium' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+    ).toHaveLength(1)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('claude'),
+      [
+        '--model',
+        'opus',
+        '--effort',
+        'medium',
+        '--permission-mode',
+        'auto',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
   it('returns from worktree to effort when Auto mode is unavailable', async () => {
     process.env.PATH = '/agents'
     overrideTTY(process.stdin)
@@ -1031,6 +1076,9 @@ describe('agentic upgrade prompts', () => {
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app')
 
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+    ).toHaveLength(1)
     expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
       default: 'Model default',
       low: 'low',
