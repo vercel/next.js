@@ -23,7 +23,9 @@ export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
 function getRequestedUpgrade() {
   const policy = process.env.__NEXT_AGENT_UPGRADE
-  return policy === 'security' || policy === 'latest' || policy === 'experimental-future'
+  return policy === 'security' ||
+    policy === 'latest' ||
+    policy === 'experimental-future'
     ? policy
     : null
 }
@@ -140,7 +142,7 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
         getRequestedUpgrade() ??
         (config.experimental.agentUpgrade === true
           ? 'security'
-          : config.experimental.agentUpgrade ?? false),
+          : (config.experimental.agentUpgrade ?? false)),
     },
   }
 }
@@ -153,7 +155,11 @@ export async function assessUpgrade(
   forceVersionReminder: boolean = false
 ): Promise<UpgradeReminder | null> {
   const policy = config.experimental.agentUpgrade
-  if (policy !== 'security' && policy !== 'latest' && policy !== 'experimental-future') {
+  if (
+    policy !== 'security' &&
+    policy !== 'latest' &&
+    policy !== 'experimental-future'
+  ) {
     return null
   }
   if (stopBefore === 'security') {
@@ -229,7 +235,10 @@ export async function assessUpgrade(
     }
   }
 
-  if (policy !== 'experimental-future' || stopBefore === 'experimental-future') {
+  if (
+    policy !== 'experimental-future' ||
+    stopBefore === 'experimental-future'
+  ) {
     return null
   }
   const pending = getPendingFutureDefaults(directory, config, installedVersion)
@@ -447,7 +456,11 @@ export async function nudgeUpgrade(
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agentUpgrade
-  if (policy !== 'security' && policy !== 'latest' && policy !== 'experimental-future') {
+  if (
+    policy !== 'security' &&
+    policy !== 'latest' &&
+    policy !== 'experimental-future'
+  ) {
     return
   }
   if (requested && isCI) {

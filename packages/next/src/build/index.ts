@@ -1185,10 +1185,7 @@ export default async function build(
           ).catch((error) => {
             Log.warn(`Could not offer the upgrade: ${String(error)}`)
           })
-          if (
-            action === 'update' &&
-            upgradeContext.experimental.agentUpgrade
-          ) {
+          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
             return upgradeContext.experimental.agentUpgrade
           }
           if (action === 'interrupt') {

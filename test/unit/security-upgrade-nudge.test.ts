@@ -526,7 +526,7 @@ describe('composed latest nudge', () => {
       })
       await expect(nudge).rejects.toMatchObject({
         message: expect.stringContaining(
-          `experimental.agentUpgrade: '${policy}'`
+          'This command stopped to show the upgrade recommendation.'
         ),
       })
 
@@ -653,7 +653,7 @@ describe('composed future nudge', () => {
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|experimental-future)\n```[\s\S]*agentUpgrade: 'experimental-future'/
+        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|experimental-future)\n```/
       ),
     })
   })

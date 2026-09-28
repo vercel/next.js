@@ -273,6 +273,7 @@ export async function initialize(opts: {
           })
         })
       } else {
+        // CI skips the DevTools assessment, but agents still need the nudge.
         void nudgeUpgrade(
           opts.dir,
           upgradeContext,
