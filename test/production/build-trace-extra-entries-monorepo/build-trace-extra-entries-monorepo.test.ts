@@ -3,12 +3,10 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries in monorepo', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should build and trace correctly', async () => {
       const appDir = path.join(next.testDir, 'app')
@@ -29,7 +27,7 @@ describe('build trace with extra entries in monorepo', () => {
 
   // @force-gate webpack
   describe('standalone output outside outputFileTracingRoot', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: {
         app: new FileRef(path.join(__dirname, 'app/app')),
         '../other': new FileRef(path.join(__dirname, 'other')),
@@ -43,9 +41,7 @@ describe('build trace with extra entries in monorepo', () => {
         },
       },
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('warns and completes the build', async () => {
       const { exitCode, cliOutput } = await next.runCommand(['build'])

@@ -4,15 +4,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
 describe('not-found-non-document-adapter', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let launcher: ChildProcess
   let port: number

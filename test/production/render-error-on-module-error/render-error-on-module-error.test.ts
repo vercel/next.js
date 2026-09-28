@@ -2,11 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Module Init Error', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should render error page', async () => {
       const browser = await next.browser('/')

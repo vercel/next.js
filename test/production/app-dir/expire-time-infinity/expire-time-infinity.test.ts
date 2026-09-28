@@ -6,13 +6,10 @@ describe('expire-time-infinity', () => {
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('serves a well-formed cache-control header for an Infinity expireTime', async () => {
     await next.start()

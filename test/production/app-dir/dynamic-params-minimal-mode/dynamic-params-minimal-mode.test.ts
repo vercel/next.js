@@ -6,7 +6,6 @@ describe('dynamicParams: false in minimal mode', () => {
     files: __dirname,
     // This fixture invokes the renderer directly, bypassing a deployment's
     // public router. Public requests to these unlisted URLs must still 404.
-    skipDeployment: true,
     env: {
       NEXT_PRIVATE_TEST_HEADERS: '1',
       NEXT_PRIVATE_MINIMAL_MODE: '1',

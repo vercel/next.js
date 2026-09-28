@@ -3,11 +3,9 @@ import { waitFor } from 'next-test-utils'
 
 describe('Root Catch-all Cache', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     const getRandom = async (path: string) => {
       const $ = await next.render$(path)

@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Empty JSConfig Support', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should compile successfully', async () => {
       const { exitCode, cliOutput } = await next.build()

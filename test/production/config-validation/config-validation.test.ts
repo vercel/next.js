@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('next.config.js validation', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it.each([
       {

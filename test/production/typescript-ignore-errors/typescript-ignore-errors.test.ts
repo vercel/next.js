@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('TypeScript with error handling options', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     for (const incremental of [false, true]) {
       for (const ignoreBuildErrors of [false, true]) {

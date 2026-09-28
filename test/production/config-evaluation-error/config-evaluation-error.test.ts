@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('next.config evaluation error', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     async function buildAndGetOutput(): Promise<string> {
       const start = next.cliOutput.length

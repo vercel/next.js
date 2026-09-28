@@ -12,7 +12,6 @@ describe('socket-io', () => {
     },
     // the socket.io setup relies on patching next's `http.Server` instance,
     // which we can't do when deployed
-    skipDeployment: true,
   })
 
   it('should support socket.io without falling back to polling', async () => {

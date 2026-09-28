@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Invalid config syntax', () => {
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should error when next.config.js contains syntax error', async () => {
       await next.patchFile(
