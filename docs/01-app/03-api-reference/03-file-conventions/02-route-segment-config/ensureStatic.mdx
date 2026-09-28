@@ -95,6 +95,16 @@ Client Components can load request-specific content in the browser. Inside `<Sus
 
 Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams()` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and fails validation.
 
+#### How validation works
+
+The `'navigation'` level validates the fully rendered route during development and `next build`. In development, errors appear in the dev overlay with the source location and suggested fixes. During `next build`, the error includes the APIs that can prevent the route from being prerendered.
+
+The error guidance depends on where the data is accessed:
+
+- [Page or layout content](/docs/messages/ensure-static-route)
+- [`generateMetadata()`](/docs/messages/ensure-static-metadata)
+- [`generateViewport()`](/docs/messages/ensure-static-viewport)
+
 ### `false`
 
 Behaves like `'auto'`, but fails the build if another segment on the route sets `'shell'`, `'prefetch'`, or `'navigation'`. It is compatible with `'auto'`, `false`, and segments without the export. Use it on a route that should not be made static, so that a level added later to a shared layout is caught instead of applied.
