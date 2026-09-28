@@ -1924,11 +1924,11 @@ export function registerHeadAndReportingTests(
                  "description": "Next.js encountered URL data outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
-                 "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:26) @ Prefetch
-               > 26 |   await unstable_prefetch()
-                    |                          ^",
+                 "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
+               > 26 |   await prefetch()
+                    |                 ^",
                  "stack": [
-                   "Prefetch app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:26)",
+                   "Prefetch app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17)",
                    "Page app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (20:7)",
                  ],
                }
@@ -2174,14 +2174,14 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered unstable_navigation() outside of Suspense.",
+                 "description": "Next.js encountered navigation() outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
-                 "source": "app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:28) @ Navigation
-               > 26 |   await unstable_navigation()
-                    |                            ^",
+                 "source": "app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19) @ Navigation
+               > 26 |   await navigation()
+                    |                   ^",
                  "stack": [
-                   "Navigation app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:28)",
+                   "Navigation app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19)",
                    "Page app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (20:7)",
                  ],
                }
@@ -2193,9 +2193,9 @@ export function registerHeadAndReportingTests(
               const error = extractBuildValidationError(result.cliOutput)
               expect(error).toMatch(errorPattern)
               expect(error).toMatchInlineSnapshot(`
-               "Error: Route "/shells/ensure-static/navigation/navigation-without-suspense": Next.js encountered \`unstable_navigation()\` during prerendering or a navigation.
+               "Error: Route "/shells/ensure-static/navigation/navigation-without-suspense": Next.js encountered \`navigation()\` during prerendering or a navigation.
 
-               \`unstable_navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+               \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
