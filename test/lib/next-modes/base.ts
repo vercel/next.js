@@ -55,6 +55,11 @@ export interface NextInstanceOpts {
   installCommand?: InstallCommand
   buildCommand?: string
   buildArgs?: string[]
+  /** Exact fixture-relative build outputs to expose through readFile/readJSON
+   * in deploy mode. Small artifacts only: 8 MiB raw, 256 KiB encoded in logs.
+   * Never request secrets; these files become part of the deployment build log.
+   */
+  deployBuildArtifacts?: string[]
   startCommand?: string
   startArgs?: string[]
   env?: Record<string, string>

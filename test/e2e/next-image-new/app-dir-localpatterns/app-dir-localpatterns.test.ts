@@ -8,7 +8,7 @@ import {
 describe('Image localPatterns config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    deployBuildArtifacts: ['.next/images-manifest.json'],
   })
 
   async function getSrc(browser: Playwright, id: string) {

@@ -4,7 +4,7 @@ import { retry } from 'next-test-utils'
 describe('Unoptimized Image Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    deployBuildArtifacts: ['.next/images-manifest.json'],
   })
 
   function runTests(url: string) {
