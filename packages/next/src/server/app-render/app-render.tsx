@@ -3289,7 +3289,7 @@ async function renderToHTMLOrFlightImpl(
   routeMatch: RouteMatch
 ) {
   const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
-  let trackingBoundToStream = false
+  let trackingBoundToOutput = false
   try {
     const prepared = await prepareAppPageRender(
       req,
@@ -3321,13 +3321,13 @@ async function renderToHTMLOrFlightImpl(
       serverComponentsHmrCache
     )
     result.assignMetadata({ clientComponentLoadTracker: tracker })
-    if (tracker && result.hasStreamingResponse) {
-      result.wrapStream((stream) => tracker.finishOnStreamCompletion(stream))
-      trackingBoundToStream = true
+    if (tracker) {
+      result.onOutputSettled(() => tracker.finish())
+      trackingBoundToOutput = true
     }
     return result
   } finally {
-    if (!trackingBoundToStream) tracker?.finish()
+    if (!trackingBoundToOutput) tracker?.finish()
   }
 }
 

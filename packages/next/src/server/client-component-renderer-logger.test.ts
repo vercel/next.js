@@ -296,56 +296,7 @@ describe('client component renderer logger', () => {
     })
   })
 
-  it.each(['close', 'error', 'cancel'] as const)(
-    'finalizes a dynamic render when its stream ends by %s',
-    async (termination) => {
-      let resolveReport!: () => void
-      const reported = new Promise<void>((resolve) => {
-        resolveReport = resolve
-      })
-      const report = jest.fn(() => resolveReport())
-      const tracker = new ClientComponentLoadTracker(report)
-      tracker.beginRequire(100)
-      tracker.finishRequire(100, 120)
-      const sourceCancel = jest.fn()
-      let sourceController!: ReadableStreamDefaultController<Uint8Array>
-      const source = new ReadableStream<Uint8Array>({
-        start(controller) {
-          sourceController = controller
-        },
-        cancel: sourceCancel,
-      })
-      const reader = tracker.finishOnStreamCompletion(source).getReader()
-
-      if (termination === 'close') {
-        sourceController.close()
-        await expect(reader.read()).resolves.toEqual({
-          done: true,
-          value: undefined,
-        })
-      } else if (termination === 'error') {
-        const error = new Error('render stream failed')
-        sourceController.error(error)
-        await expect(reader.read()).rejects.toBe(error)
-      } else {
-        await reader.cancel('consumer stopped')
-      }
-      await reported
-
-      expect(report).toHaveBeenCalledTimes(1)
-      expect(report).toHaveBeenCalledWith({
-        clientComponentLoadStart: 100,
-        clientComponentLoadEnd: 120,
-        clientComponentLoadTimes: 20,
-        clientComponentLoadCount: 1,
-      })
-      if (termination === 'cancel') {
-        expect(sourceCancel).toHaveBeenCalledWith('consumer stopped')
-      }
-    }
-  )
-
-  it('reports once after every pending chunk settles without holding the stream open', async () => {
+  it('reports once after every pending chunk settles', async () => {
     let resolveReport!: () => void
     const reported = new Promise<void>((resolve) => {
       resolveReport = resolve
@@ -354,18 +305,8 @@ describe('client component renderer logger', () => {
     const tracker = new ClientComponentLoadTracker(report)
     tracker.beginChunk(100)
     tracker.beginChunk(110)
-    const source = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.close()
-      },
-    })
-    const reader = tracker.finishOnStreamCompletion(source).getReader()
-
-    await expect(reader.read()).resolves.toEqual({
-      done: true,
-      value: undefined,
-    })
-    await new Promise<void>((resolve) => setImmediate(resolve))
+    tracker.finish()
+    await Promise.resolve()
     expect(report).not.toHaveBeenCalled()
 
     tracker.finishChunk(110, 130)

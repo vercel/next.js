@@ -83,20 +83,6 @@ export class ClientComponentLoadTracker {
     })
   }
 
-  /** Finish when the response stream closes, errors, or is canceled. */
-  finishOnStreamCompletion(
-    source: ReadableStream<Uint8Array>
-  ): ReadableStream<Uint8Array> {
-    const bridge = new TransformStream<Uint8Array, Uint8Array>()
-    // pipeTo propagates source errors and consumer cancellation through the
-    // bridge. Observe its settlement independently from the response.
-    void source
-      .pipeTo(bridge.writable)
-      .finally(() => this.finish())
-      .catch(() => {})
-    return bridge.readable
-  }
-
   private recordStart(startTime: number): void {
     if (!this.hasLoads) {
       this.hasLoads = true

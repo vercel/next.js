@@ -213,15 +213,6 @@ export default class RenderResult<
     return typeof this.response !== 'string'
   }
 
-  /** Whether completion depends on consuming a response stream. */
-  public get hasStreamingResponse(): boolean {
-    return (
-      this.response !== null &&
-      typeof this.response !== 'string' &&
-      !Buffer.isBuffer(this.response)
-    )
-  }
-
   /**
    * Returns the response if it is a string. If the page was dynamic, this will
    * return a promise if the `stream` option is true, or it will throw an error.
@@ -356,11 +347,40 @@ export default class RenderResult<
     this.response = this.readable.pipeThrough(transform)
   }
 
-  /** Replace the response stream while preserving the rest of this result. */
-  public wrapStream(
-    wrap: (stream: ReadableStream<Uint8Array>) => ReadableStream<Uint8Array>
-  ): void {
-    this.response = wrap(this.readable)
+  /**
+   * Observe the body held at registration, excluding later push/unshift output.
+   * `completed` is true at EOF or immediately for string, Buffer, and null
+   * bodies; those bodies retain their representation. Stream errors and
+   * cancellation report false. This does not wait for waitUntil or HTTP finish.
+   */
+  public onOutputSettled(callback: (completed: boolean) => void): void {
+    if (
+      this.response === null ||
+      typeof this.response === 'string' ||
+      Buffer.isBuffer(this.response)
+    ) {
+      try {
+        callback(true)
+      } catch {
+        // Output observers must not change response delivery.
+      }
+      return
+    }
+
+    const source = this.readable
+    const bridge = new TransformStream<Uint8Array, Uint8Array>()
+    const notify = (completed: boolean) => {
+      try {
+        callback(completed)
+      } catch {
+        // Output observers must not change response delivery.
+      }
+    }
+    void source.pipeTo(bridge.writable).then(
+      () => notify(true),
+      () => notify(false)
+    )
+    this.response = bridge.readable
   }
 
   /**
