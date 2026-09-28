@@ -85,15 +85,15 @@ Data cached with `use cache` can be prerendered. Calling [`unstable_prefetch()`]
 
 #### Dynamic route parameters
 
-Dynamic routes must provide [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with at least one result. Each result must include all dynamic parameters for the route, even if a parameter is only read in a Client Component or is unused.
+Dynamic routes must provide [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) with at least one result. Each result must include all dynamic parameters for the route, even if a parameter is only read in a Client Component or is unused.
 
-Parameters returned by `generateStaticParams` can be read during prerendering. For parameter values that were not prerendered at build time, Next.js waits for the static result to be generated before serving the response.
+Parameters returned by `generateStaticParams()` can be read during prerendering. For parameter values that were not prerendered at build time, Next.js waits for the static result to be generated before serving the response.
 
 #### Client Components
 
 Client Components can load request-specific content in the browser. Inside `<Suspense>`, `use(browser())` and [`use(io())`](/docs/app/api-reference/functions/io) are allowed. The prerender includes the fallback for the deferred content. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
-Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and fails validation.
+Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams()` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and fails validation.
 
 ### `false`
 

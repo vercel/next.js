@@ -1,4 +1,13 @@
 import {
+  createRuntimeBodyErrorInStaticRoute,
+  createDynamicBodyErrorInStaticRoute,
+  createNonPrerenderableBodyErrorInStaticRoute,
+  createRuntimeMetadataErrorInStaticRoute,
+  createDynamicMetadataErrorInStaticRoute,
+  createNonPrerenderableMetadataErrorInStaticRoute,
+  createRuntimeViewportErrorInStaticRoute,
+  createDynamicViewportErrorInStaticRoute,
+  createNonPrerenderableViewportErrorInStaticRoute,
   createDynamicBodyError,
   createDynamicBodyErrorInNavigation,
   createDynamicMetadataError,
@@ -770,4 +779,68 @@ describe('deriveCauseFromCodeFrame', () => {
       deriveCauseFromCodeFrame('blocking-route', 'dynamic', frame)
     ).toBeUndefined()
   })
+})
+
+describe('fully static route errors', () => {
+  it.each([
+    [createRuntimeBodyErrorInStaticRoute, 'static-route', 'runtime'],
+    [createDynamicBodyErrorInStaticRoute, 'static-route', 'dynamic'],
+    [createNonPrerenderableBodyErrorInStaticRoute, 'static-route', 'dynamic'],
+    [createRuntimeMetadataErrorInStaticRoute, 'static-metadata', 'runtime'],
+    [createDynamicMetadataErrorInStaticRoute, 'static-metadata', 'dynamic'],
+    [
+      createNonPrerenderableMetadataErrorInStaticRoute,
+      'static-metadata',
+      'dynamic',
+    ],
+    [createRuntimeViewportErrorInStaticRoute, 'static-viewport', 'runtime'],
+    [createDynamicViewportErrorInStaticRoute, 'static-viewport', 'dynamic'],
+    [
+      createNonPrerenderableViewportErrorInStaticRoute,
+      'static-viewport',
+      'dynamic',
+    ],
+  ] as const)('classifies %p as %s (%s)', (createError, kind, variant) => {
+    const error = createError(ROUTE)
+    expect(getBlockingRouteErrorDetails(error)).toEqual({
+      type: 'static-route',
+      kind,
+      variant,
+      headline: error.message.split('\n')[0].replace(`Route "${ROUTE}": `, ''),
+    })
+    // This is a build constraint, not optional instant-navigation validation.
+    expect(isInstantNavigationError(error)).toBe(false)
+    const cards = getCards(kind, variant)
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards.map((card) => card.group)).not.toContain('stream')
+    expect(cards.map((card) => card.group)).not.toContain('block')
+    expect(cards.map((card) => card.group)).toEqual(
+      Array.from(
+        error.message.matchAll(/^\s*-\s*\[([a-z]+)\]/gm),
+        (match) => match[1]
+      )
+    )
+    for (const card of cards) {
+      expect(card.link?.split('#')[0]).toBe(
+        error.message.split('Learn more: ')[1]
+      )
+    }
+  })
+
+  it.each(['static-route', 'static-metadata', 'static-viewport'] as const)(
+    'does not recommend caching connection() for %s',
+    (kind) => {
+      const cause = deriveCauseFromCodeFrame(
+        kind,
+        'dynamic',
+        '> 4 | await connection()'
+      )
+      expect(cause).toBe('connection')
+      const cards = getCards(kind, 'dynamic', cause)
+      expect(cards.map((card) => card.group)).not.toContain('cache')
+      expect(cards.map((card) => card.id)).toContain(
+        'remove-the-static-requirement'
+      )
+    }
+  )
 })

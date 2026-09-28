@@ -101,6 +101,7 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
+  if (errorDetails.type === 'static-route') return 'Blocking Route'
   if (errorDetails.type === 'client-hook') {
     return `Blocking Route`
   }
@@ -135,6 +136,7 @@ type ErrorDetails =
   | NoErrorDetails
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
+  | StaticRouteErrorDetails
   | ClientHookErrorDetails
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
@@ -158,6 +160,13 @@ type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: GuidanceVariant
   inNavigation: boolean
+}
+
+type StaticRouteErrorDetails = {
+  type: 'static-route'
+  kind: 'static-route' | 'static-metadata' | 'static-viewport'
+  variant: GuidanceVariant
+  headline: string
 }
 
 type ClientHookErrorDetails = {
@@ -275,7 +284,14 @@ export function deriveCauseFromCodeFrame(
   codeFrame: string | null | undefined
 ): 'connection' | undefined {
   if (variant !== 'dynamic') return undefined
-  if (kind !== 'blocking-route' && kind !== 'metadata' && kind !== 'viewport')
+  if (
+    kind !== 'blocking-route' &&
+    kind !== 'metadata' &&
+    kind !== 'viewport' &&
+    kind !== 'static-route' &&
+    kind !== 'static-metadata' &&
+    kind !== 'static-viewport'
+  )
     return undefined
   if (!codeFrame) return undefined
   for (const line of stripAnsi(codeFrame).split('\n')) {
@@ -433,6 +449,19 @@ export function getBlockingRouteErrorDetails(
 ): null | ErrorDetails {
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
+
+  const staticRouteMatch =
+    /https:\/\/nextjs\.org\/docs\/messages\/ensure-static-(route|metadata|viewport)\b/.exec(
+      message
+    )
+  if (staticRouteMatch) {
+    return {
+      type: 'static-route',
+      kind: `static-${staticRouteMatch[1]}` as StaticRouteErrorDetails['kind'],
+      variant: getGuidanceVariant(message),
+      headline: message.split('\n')[0].replace(/^Route "[^"]*": /, ''),
+    }
+  }
 
   const clientHookMatch =
     /Next\.js encountered URL data `([^`]+)` in a Client Component outside of `<Suspense>`\./.exec(
@@ -999,6 +1028,51 @@ export function Errors({
           </Suspense>
         </ErrorOverlayLayout>
       )
+    case 'static-route': {
+      return (
+        <ErrorOverlayLayout
+          errorType={errorType}
+          errorMessage={
+            <HotlinkedText
+              text={errorDetails.headline}
+              matcher={matchLinkType}
+            />
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              kind={errorDetails.kind}
+              variant={errorDetails.variant}
+            />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant={errorDetails.variant}
+              kind={errorDetails.kind}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    }
     case 'dynamic-metadata': {
       switch (errorDetails.variant) {
         case 'runtime':

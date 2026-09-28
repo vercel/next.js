@@ -13,6 +13,7 @@ export type FixCardGroup =
   | 'render'
   | 'upgrade'
   | 'disable'
+  | 'remove'
 
 export type FixCardIcon =
   | 'align-left'
@@ -44,6 +45,7 @@ export const FIX_CARD_GROUPS: Record<
   render: { label: 'Render', color: 'gray', icon: 'layout' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
   disable: { label: 'Disable', color: 'gray', icon: 'minus' },
+  remove: { label: 'Remove', color: 'red', icon: 'minus' },
 }
 
 export type FixCard = {
@@ -680,7 +682,254 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
+const staticRouteRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-data',
+    title: 'Use static data',
+    group: 'static',
+    snippets: [
+      { text: "const title = 'My page'", highlight: true },
+      { text: '' },
+      { text: 'return <h1>{title}</h1>' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#use-static-data',
+  },
+  {
+    id: 'remove-the-static-requirement',
+    title: 'Remove the static requirement',
+    group: 'remove',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '- export const ensureStatic =', highlight: true },
+      { text: "-   'navigation'", highlight: true },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-static-requirement',
+  },
+]
+
+const staticRouteDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-data',
+    title: 'Cache the data',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function getData() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await db.query(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#cache-the-data',
+  },
+  {
+    id: 'use-static-data',
+    title: 'Use static data',
+    group: 'static',
+    snippets: [
+      { text: "const title = 'My page'", highlight: true },
+      { text: '' },
+      { text: 'return <h1>{title}</h1>' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#use-static-data',
+  },
+  {
+    id: 'remove-the-static-requirement',
+    title: 'Remove the static requirement',
+    group: 'remove',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '- export const ensureStatic =', highlight: true },
+      { text: "-   'navigation'", highlight: true },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-static-requirement',
+  },
+]
+const staticMetadataRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      {
+        text: 'export function generateMetadata() {',
+      },
+      {
+        text: "  return { title: 'My page' }",
+        highlight: true,
+      },
+      {
+        text: '}',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#use-static-metadata',
+  },
+  {
+    id: 'remove-the-static-requirement',
+    title: 'Remove the static requirement',
+    group: 'remove',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '- export const ensureStatic =', highlight: true },
+      { text: "-   'navigation'", highlight: true },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#remove-the-static-requirement',
+  },
+]
+
+const staticMetadataDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-metadata',
+    title: 'Cache the metadata',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateMetadata() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getMeta(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#cache-the-metadata',
+  },
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      {
+        text: 'export function generateMetadata() {',
+      },
+      {
+        text: "  return { title: 'My page' }",
+        highlight: true,
+      },
+      {
+        text: '}',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#use-static-metadata',
+  },
+  {
+    id: 'remove-the-static-requirement',
+    title: 'Remove the static requirement',
+    group: 'remove',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '- export const ensureStatic =', highlight: true },
+      { text: "-   'navigation'", highlight: true },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#remove-the-static-requirement',
+  },
+]
+const staticViewportRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      {
+        text: 'export function generateViewport() {',
+      },
+      {
+        text: "  return { themeColor: 'black' }",
+        highlight: true,
+      },
+      {
+        text: '}',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#use-static-viewport',
+  },
+  {
+    id: 'remove-the-static-requirement',
+    title: 'Remove the static requirement',
+    group: 'remove',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '- export const ensureStatic =', highlight: true },
+      { text: "-   'navigation'", highlight: true },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#remove-the-static-requirement',
+  },
+]
+
+const staticViewportDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-viewport',
+    title: 'Cache the viewport',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateViewport() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getViewport(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#cache-the-viewport',
+  },
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      {
+        text: 'export function generateViewport() {',
+      },
+      {
+        text: "  return { themeColor: 'black' }",
+        highlight: true,
+      },
+      {
+        text: '}',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#use-static-viewport',
+  },
+  {
+    id: 'remove-the-static-requirement',
+    title: 'Remove the static requirement',
+    group: 'remove',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '- export const ensureStatic =', highlight: true },
+      { text: "-   'navigation'", highlight: true },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#remove-the-static-requirement',
+  },
+]
 export type GuidanceKind =
+  | 'static-route'
+  | 'static-metadata'
+  | 'static-viewport'
   | 'blocking-route'
   | 'client-hook'
   | 'metadata'
@@ -693,6 +942,9 @@ export type GuidanceKind =
 export type GuidanceVariant = 'link' | 'runtime' | 'navigation' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
+  'static-viewport': 'https://nextjs.org/docs/messages/ensure-static-viewport',
+  'static-metadata': 'https://nextjs.org/docs/messages/ensure-static-metadata',
+  'static-route': 'https://nextjs.org/docs/messages/ensure-static-route',
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
   'client-hook':
     'https://nextjs.org/docs/messages/blocking-prerender-client-hook',
@@ -798,6 +1050,12 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 }
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
+  'static-viewport':
+    'This route is configured to be fully static, but data prevents it from being prerendered.',
+  'static-metadata':
+    'This route is configured to be fully static, but data prevents it from being prerendered.',
+  'static-route':
+    'This route is configured to be fully static, but data prevents it from being prerendered.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':
@@ -869,6 +1127,21 @@ export function getCards(
   cause?: string
 ): FixCard[] {
   switch (kind) {
+    case 'static-viewport':
+      return variant === 'runtime'
+        ? staticViewportRuntimeCards
+        : filterCacheForConnection(staticViewportDynamicCards, variant, cause)
+
+    case 'static-metadata':
+      return variant === 'runtime'
+        ? staticMetadataRuntimeCards
+        : filterCacheForConnection(staticMetadataDynamicCards, variant, cause)
+
+    case 'static-route':
+      return variant === 'runtime'
+        ? staticRouteRuntimeCards
+        : filterCacheForConnection(staticRouteDynamicCards, variant, cause)
+
     case 'blocking-route': {
       switch (variant) {
         case 'link':
@@ -924,4 +1197,11 @@ export function getCards(
     default:
       return kind satisfies never
   }
+}
+
+export function getStaticRouteDocsUrl(
+  kind: GuidanceKind,
+  variant: GuidanceVariant
+): string {
+  return `${DOCS_URLS[kind]}#${variant === 'runtime' ? 'runtime-data' : 'uncached-data'}`
 }
