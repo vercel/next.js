@@ -337,6 +337,22 @@ export type TurbopackModuleFederationSharedConfig =
       version?: string | false
     }
 
+export type TurbopackModuleFederationDtsOptions =
+  | false
+  | {
+      /** Generate a standard type archive and API for this exposed container. */
+      generateTypes:
+        | true
+        | {
+            /** Relative path to a TypeScript configuration within this project. */
+            tsConfigPath?: string
+            /** Fail on declaration errors (default: true). */
+            abortOnError?: boolean
+            extractThirdParty?: boolean
+            extractRemoteTypes?: boolean
+          }
+    }
+
 export interface TurbopackModuleFederationOptions {
   /** Name of this container. Required when exposing modules. */
   name?: string
@@ -364,6 +380,8 @@ export interface TurbopackModuleFederationOptions {
   runtimePlugins?: Array<string | [string, unknown]>
   /** Package supplying the enhanced runtime-tools entrypoints. */
   implementation?: string
+  /** Opt-in producer declaration generation; requires @module-federation/dts-plugin. */
+  dts?: TurbopackModuleFederationDtsOptions
 }
 
 export interface WebpackConfigContext {
