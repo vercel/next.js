@@ -103,7 +103,7 @@ mod tests {
     use super::{TryLockAndRemove, try_lock_and_remove};
 
     #[test]
-    fn eviction_does_not_remove_a_newer_mapping() {
+    fn try_lock_and_remove_requires_matching_values() {
         let map = FxDashMap::<String, u32>::default();
         map.insert("task".to_string(), 2);
         assert!(matches!(

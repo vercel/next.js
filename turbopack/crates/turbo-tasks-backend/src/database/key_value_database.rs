@@ -47,7 +47,7 @@ impl KeySpace {
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
-                // Colliding TaskIds are encoded together in one value per hash.
+                // TaskCache maps each hash to one list of TaskIds to handle rare collisions.
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             },
