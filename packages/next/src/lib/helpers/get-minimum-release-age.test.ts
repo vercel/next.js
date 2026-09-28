@@ -18,6 +18,21 @@ jest.mock('node:child_process', () => ({
 
 const mockExecFileSync = jest.mocked(execFileSync)
 
+beforeEach(() => {
+  jest.spyOn(crossSpawn, 'sync').mockImplementation(
+    (command, args, options) =>
+      ({
+        status: 0,
+        stdout: mockExecFileSync(command, args, options) as string,
+        stderr: '',
+      }) as never
+  )
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
+})
+
 describe('upgrade package manager detection', () => {
   it('finds Bun from a workspace root lockfile', () => {
     const root = mkdtempSync(join(tmpdir(), 'next-upgrade-pkg-manager-'))

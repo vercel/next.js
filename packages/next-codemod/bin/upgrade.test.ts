@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import execa from 'execa'
+import crossSpawn from 'next/dist/compiled/cross-spawn'
 import { getPkgManager } from '../lib/handle-package'
 import { ageEligibleVersions, packageInfo } from './upgrade'
 
@@ -274,11 +275,20 @@ describe('codemod minimum release age', () => {
         }
         return { stdout: 'Options: --minimum-release-age=<seconds>' } as never
       })
+      const spawnSync = jest.spyOn(crossSpawn, 'sync').mockImplementation(
+        (command, args) =>
+          ({
+            status: 0,
+            stdout: mockSync(command, args).stdout,
+            stderr: '',
+          }) as never
+      )
       try {
         await expect(ageEligibleVersions('react', '^19.0.0')).resolves.toEqual([
           '19.2.1',
         ])
       } finally {
+        spawnSync.mockRestore()
         exists.mockRestore()
         read.mockRestore()
         if (originalXdg === undefined) {
