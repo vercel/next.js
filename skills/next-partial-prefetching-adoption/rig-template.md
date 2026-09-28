@@ -72,16 +72,21 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-For a local rig, a typical sequence is:
+Prefer an existing Playwright `webServer` configuration to own the local
+server lifecycle. Ensure its command serves the production build with
+`next start`. With `webServer` managing startup and cleanup, run the build and
+test commands without starting another server manually:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
-pnpm start --port 3000
 BASE_URL=http://localhost:3000 pnpm playwright test tests/prefetch-preservation.spec.ts
 ```
 
-Adapt the script names and port to the project. Keep the production server
-running while the test command executes. Follow the public
+If the rig does not use `webServer`, start `pnpm start --port 3000` in a
+separate terminal after the build, keep it running during the test command,
+and stop it afterward. Use only one server lifecycle for the measured app.
+
+Adapt the script names and port to the project. Follow the public
 [client-navigation test](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): load the source route, confirm the real
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
