@@ -209,7 +209,19 @@ async function uploadPackageTarball({
       { cause: error }
     )
   }
-  if (!response.ok) {
+
+  if (response.status === 409) {
+    /** @type {{ downloadUrl: string }} */
+    const body = await response.json()
+    // The server treats commits as immutable and rejects re-uploads once a
+    // tarball exists. Re-runs legitimately re-request paths that already
+    // went up (e.g. a re-run that rebuilds native packages re-requests the
+    // unchanged JS-only ones), so a conflict means this package is done.
+    console.info(`${packageName} is already published, skipping`)
+    return body.downloadUrl
+  }
+
+  if (!response.ok && response.status !== 409) {
     throw new Error(
       `Failed to authorize the upload of ${packageName}: ${response.status}.${await readResponseDetails(response)}`
     )
@@ -267,7 +279,7 @@ async function main() {
           getOidcToken,
         })
       )
-      console.info(`Uploaded ${packageName} -> ${downloadUrl}`)
+      console.info(`${packageName} available at ${downloadUrl}`)
     } catch (error) {
       failedUploads.push(
         new Error(`Failed to upload ${packageName}`, { cause: error })

@@ -165,8 +165,8 @@ describe('deployment lifecycle', () => {
   it('collects failed build logs before start rejects, without requiring build IDs', async () => {
     const next = await instance()
     deployResult.stderr = 'Build command failed\n'
-    await expect(next.start()).rejects.toThrow('Failed to deploy project')
-    expect(next.cliOutput).toContain(deployResult.stderr)
+    await expect(next.start()).rejects.toThrow(deployResult.stderr)
+    expect(next.cliOutput).not.toContain(deployResult.stderr)
     expect(next.cliOutput).toContain(diagnostic)
     expect(next.buildId).toBeUndefined()
     expect(next.url).toBe(deploymentUrl + '/')
@@ -175,6 +175,22 @@ describe('deployment lifecycle', () => {
       expect.arrayContaining(['inspect', '--logs', deploymentUrl + '/']),
       expect.anything()
     )
+  })
+
+  it('uses one build transcript without hiding repeated compiler diagnostics', async () => {
+    const next = await instance()
+    deployResult.stderr = `${diagnostic}\n${diagnostic}\n`
+    logs.stderr = `2026-09-18T19:00:00.000Z  ${diagnostic}\n2026-09-18T19:00:00.001Z  ${diagnostic}\n`
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    expect(next.cliOutput).toBe(`${diagnostic}\n${diagnostic}\n`)
+  })
+
+  it('retains CLI diagnostics when fetched build logs are empty', async () => {
+    const next = await instance()
+    deployResult.stderr = 'Build command failed'
+    logs.stderr = ''
+    await expect(next.start()).rejects.toThrow(deployResult.stderr)
+    expect(next.cliOutput).toContain(deployResult.stderr)
   })
 
   it('retains CLI diagnostics when failure happens before a deployment URL is returned', async () => {

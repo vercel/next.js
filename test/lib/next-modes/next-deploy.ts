@@ -130,7 +130,11 @@ export class NextDeployInstance extends NextInstance {
       // their CLI output even when there are no remote build logs to fetch.
       this._parsedUrl = new URL(result.stdout.trim())
       this._url = this._parsedUrl.href
-      this._cliOutput += await fetchBuildLogs()
+      const buildLogs = await fetchBuildLogs()
+      // The deploy CLI may already replay build logs. Use one fetched transcript
+      // so assertions can count diagnostics without counting those replays.
+      // Keep the original CLI diagnostics in the error and as a fallback.
+      if (buildLogs.trim()) this._cliOutput = buildLogs
     } catch (cause) {
       error.cause = cause
     }
@@ -496,6 +500,11 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
+    if (process.env.__NEXT_PARTIAL_PREFETCHING) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING=${process.env.__NEXT_PARTIAL_PREFETCHING}`
+      )
+    }
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
@@ -555,7 +564,10 @@ export class NextDeployInstance extends NextInstance {
           if (logs.exitCode !== 0 && logs.exitCode !== 1) {
             throw new Error(`Failed to get build output logs: ${logs.stderr}`)
           }
-          return logs.stdout + logs.stderr
+          return (logs.stdout + logs.stderr).replace(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/gm,
+            ''
+          )
         },
         'Failed to deploy project'
       )

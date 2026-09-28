@@ -1,17 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AnalyzeData } from './analyze-data'
+import { analyzeDataUrl } from './analyzer-data'
 import { totalsFromAnalyzeData, type RouteSizeTotals } from './diff'
 import { fetchStrict } from './utils'
-
-/**
- * Resolve the URL of an `analyze.data` file for a given route, parameterised
- * by base directory (`'data'` for the live build, `'history/<id>'` for a
- * historical snapshot).
- */
-function analyzeDataUrl(route: string, baseDir: string): string {
-  if (route === '/') return `${baseDir}/analyze.data`
-  return `${baseDir}/${route.replace(/^\//, '')}/analyze.data`
-}
 
 /**
  * Result of loading route totals for one side. `totals` is keyed by route.
@@ -56,7 +47,7 @@ export function useRouteTotals(
     Promise.all(
       routes.map(async (route) => {
         try {
-          const resp = await fetchStrict(analyzeDataUrl(route, baseDir))
+          const resp = await fetchStrict(analyzeDataUrl(baseDir, route))
           const data = new AnalyzeData(await resp.arrayBuffer())
           return [route, totalsFromAnalyzeData(data)] as const
         } catch {

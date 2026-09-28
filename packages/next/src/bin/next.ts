@@ -206,8 +206,7 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .option('--turbo', 'Builds using Turbopack.')
   .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using the bundled webpack.')
-  .option('--custom-webpack', 'Builds using your project-installed webpack.')
+  .option('--webpack', 'Builds using webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -252,9 +251,6 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
-    if (options.customWebpack) {
-      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
-    }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
@@ -297,8 +293,8 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Analyzes only App Router routes.')
   .option(
-    '--baseline-name <name>',
-    'Name this baseline in the snapshot metadata, overriding branch/sha in the comparison UI.'
+    '--snapshot-name <name>',
+    'Name this snapshot in the metadata, overriding branch/sha in the comparison UI.'
   )
   .option(
     '-o, --output',
@@ -345,11 +341,7 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using the bundled webpack.')
-  .option(
-    '--custom-webpack',
-    'Starts development mode using your project-installed webpack.'
-  )
+  .option('--webpack', 'Starts development mode using webpack.')
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -413,9 +405,6 @@ program
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
-      }
-      if (options.customWebpack) {
-        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'

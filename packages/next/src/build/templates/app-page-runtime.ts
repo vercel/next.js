@@ -5,6 +5,7 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
+  type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
@@ -498,6 +499,7 @@ export function createAppPageEntrypoint({
     // because we can't cache the HTML (as it's also dynamic).
     const staticPrefetchDataRoute =
       prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+    const isEnsureStaticPage = prerenderInfo?._isEnsureStaticPage === true
 
     let isDynamicRSCRequest =
       isRoutePPREnabled &&
@@ -506,7 +508,11 @@ export function createAppPageEntrypoint({
       // If generated at build time, treat the RSC request as static
       // so we can serve the prebuilt .rsc without a dynamic render.
       // Only do this for routes that have a concrete prefetchDataRoute.
-      !staticPrefetchDataRoute
+      !staticPrefetchDataRoute &&
+      // Do not serve `ensureStatic = "navigation"` with a dynamic response,
+      // (we want to do a blocking prerender instead)
+      // TODO(ensure-static): express this in a cleaner way
+      !isEnsureStaticPage
 
     // During a PPR revalidation, the RSC request is not dynamic if postponed
     // metadata is absent. An empty string represents a resume request without
@@ -855,10 +861,12 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
+        const routeMatch: RouteMatch = { resolvedPathname }
         const context: AppPageRouteHandlerContext = {
           query,
           params,
           page: normalizedSrcPage,
+          routeMatch,
           sharedContext: {
             buildId,
             deploymentId,
@@ -1165,6 +1173,8 @@ export function createAppPageEntrypoint({
           if (
             nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
+            // TODO(ensure-static): express this in a cleaner way
+            !isEnsureStaticPage &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
             remainingPrerenderableParams.length > 0
