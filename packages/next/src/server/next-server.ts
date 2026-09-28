@@ -58,6 +58,7 @@ import {
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import { isAppRouteRouteModule } from './route-modules/checks'
 import { sendRenderResult } from './send-payload'
 import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
@@ -350,6 +351,12 @@ export default class NextNodeServer extends BaseServer<
         // otherwise if the fetch is patched by user code, we will be patching it
         // too late and there won't be any caching behaviors
         ComponentMod.patchFetch()
+
+        // App Routes load their userland module lazily, so requiring the
+        // entry alone doesn't evaluate the route handler's code.
+        if (isAppRouteRouteModule(ComponentMod.routeModule)) {
+          await ComponentMod.routeModule.ensureUserland()
+        }
       } catch (_err) {
         // Intentionally ignored because this is a preload step.
       }
