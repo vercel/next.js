@@ -606,6 +606,10 @@ export async function resolveAgeEligibleVersion(
 ): Promise<string> {
   const packument = await fetchPackument(pkg)
   const alsoPackument = also ? await fetchPackument(also) : null
+  const taggedRange =
+    pkg.range && Object.hasOwn(packument['dist-tags'], pkg.range)
+      ? packument['dist-tags'][pkg.range]
+      : null
   const now = Date.now()
   const eligible = (
     candidate: AgeGatedPackage,
@@ -633,6 +637,14 @@ export async function resolveAgeEligibleVersion(
   }
   const candidates = Object.keys(packument.versions)
     .filter((version) => {
+      if (taggedRange !== null) {
+        return (
+          semver.valid(version) !== null &&
+          version === taggedRange &&
+          eligible(pkg, packument, version) &&
+          (!also || !alsoPackument || eligible(also, alsoPackument, version))
+        )
+      }
       if (!semver.valid(version) || !matchesChannel(version, channel)) {
         return false
       }

@@ -795,6 +795,48 @@ describe('resolveAgeEligibleVersion', () => {
     ).resolves.toBe('16.1.2')
   })
 
+  it.each(['15.5.1', '15.6.0-canary.1'])(
+    'resolves a custom dist-tag to %s shared with the codemod',
+    async (version) => {
+      global.fetch = jest.fn(async (input) =>
+        Response.json(
+          String(input).includes('codemod')
+            ? packument({ [version]: 72 }, 'latest')
+            : packument({ [version]: 72 }, 'next-15')
+        )
+      )
+      await expect(
+        resolveAgeEligibleVersion(
+          { name: 'next', minimumReleaseAge: 1, range: 'next-15' },
+          'latest',
+          { name: '@next/codemod', minimumReleaseAge: 1 }
+        )
+      ).resolves.toBe(version)
+    }
+  )
+
+  it('rejects a custom tag when its codemod is too recent', async () => {
+    global.fetch = jest.fn(async (input) =>
+      Response.json(
+        packument(
+          { '15.5.1': String(input).includes('codemod') ? 1 : 72 },
+          'next-15'
+        )
+      )
+    )
+    await expect(
+      resolveAgeEligibleVersion(
+        {
+          name: 'next',
+          minimumReleaseAge: 48 * 60 * 60 * 1000,
+          range: 'next-15',
+        },
+        'latest',
+        { name: '@next/codemod', minimumReleaseAge: 48 * 60 * 60 * 1000 }
+      )
+    ).rejects.toThrow("project's minimum release age")
+  })
+
   it('selects a canary shared by Next.js and the codemod', async () => {
     global.fetch = jest.fn(async (input) =>
       Response.json(

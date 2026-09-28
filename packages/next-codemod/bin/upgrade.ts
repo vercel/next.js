@@ -159,9 +159,29 @@ function bunAuthorization(registry: string, name: string): string | null {
   return null
 }
 
-function packageInfo(name: string, version: string): Record<string, unknown> {
+export async function packageInfo(
+  name: string,
+  version: string
+): Promise<Record<string, unknown>> {
   const manager = getPkgManager(cwd)
   const spec = `${name}@${version}`
+  const registry = manager === 'bun' ? agePolicy(name).registry : null
+  const authorization = registry ? bunAuthorization(registry, name) : null
+  if (authorization) {
+    const response = await fetch(
+      `${registry}${encodeURIComponent(name).replace('%40', '@')}/${encodeURIComponent(version)}`,
+      {
+        headers: { Authorization: authorization },
+        signal: AbortSignal.timeout(10_000),
+        cache: 'no-store',
+        redirect: 'error',
+      }
+    )
+    if (!response.ok) {
+      throw new Error(`Could not read ${spec} (HTTP ${response.status}).`)
+    }
+    return response.json()
+  }
   if (
     manager === 'yarn' &&
     compareVersions(
@@ -176,15 +196,18 @@ function packageInfo(name: string, version: string): Record<string, unknown> {
   const args =
     manager === 'yarn'
       ? ['npm', 'info', spec, '--json']
-      : manager === 'bun'
-        ? ['info', spec, '--json']
-        : [
-            'view',
-            spec,
-            '--json',
-            ...(manager === 'npm' ? ['--no-workspaces'] : []),
-          ]
-  return JSON.parse(execa.sync(manager, args, { cwd }).stdout)
+      : [
+          'view',
+          spec,
+          '--json',
+          ...(registry ? [`--registry=${registry}`] : []),
+          ...(manager === 'npm' || manager === 'bun'
+            ? ['--no-workspaces']
+            : []),
+        ]
+  return JSON.parse(
+    execa.sync(manager === 'bun' ? 'npm' : manager, args, { cwd }).stdout
+  )
 }
 
 function agePolicy(name: string): {
@@ -252,16 +275,14 @@ function agePolicy(name: string): {
       registry ??= configValue('yarn', 'npmRegistryServer')
     }
   } else if (manager === 'bun') {
-    if (
-      !execa
-        .sync('bun', ['install', '--help'])
-        .stdout.includes('--minimum-release-age')
-    ) {
-      return { age: 0, exclusions: [], registry: 'https://registry.npmjs.org/' }
-    }
+    const supportsAge = execa
+      .sync('bun', ['install', '--help'])
+      .stdout.includes('--minimum-release-age')
     const config = bunConfig().install
-    age = Number(config?.minimumReleaseAge ?? 0) * 1_000
-    exclusions = config?.minimumReleaseAgeExcludes
+    if (supportsAge) {
+      age = Number(config?.minimumReleaseAge ?? 0) * 1_000
+      exclusions = config?.minimumReleaseAgeExcludes
+    }
     const setting =
       (scope
         ? (config?.scopes as Record<string, unknown> | undefined)?.[`@${scope}`]
@@ -565,7 +586,7 @@ export async function runUpgrade(
     }
 
     // Then fetch the full package info for that specific version
-    targetNextPackageJson = packageInfo('next', targetVersion) as {
+    targetNextPackageJson = (await packageInfo('next', targetVersion)) as {
       version: string
       peerDependencies: Record<string, string>
     }
@@ -784,9 +805,8 @@ export async function runUpgrade(
   if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
     let eslintRange: string | undefined
     try {
-      const eslintConfigNextPeerDeps = packageInfo(
-        'eslint-config-next',
-        targetNextVersion
+      const eslintConfigNextPeerDeps = (
+        await packageInfo('eslint-config-next', targetNextVersion)
       ).peerDependencies as Record<string, string> | undefined
       eslintRange = eslintConfigNextPeerDeps?.eslint
     } catch (e) {

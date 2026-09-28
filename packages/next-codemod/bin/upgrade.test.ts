@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import execa from 'execa'
 import { getPkgManager } from '../lib/handle-package'
-import { ageEligibleVersions } from './upgrade'
+import { ageEligibleVersions, packageInfo } from './upgrade'
 
 jest.mock('execa', () => ({
   __esModule: true,
@@ -190,6 +190,37 @@ describe('codemod minimum release age', () => {
   })
 
   describe('bun', () => {
+    it('uses npm metadata lookup when Bun has no info or age support', async () => {
+      mockGetPkgManager.mockReturnValue('bun')
+      const exists = jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+      mockSync.mockImplementation((command, args) => {
+        if (command === 'bun' && args[0] === 'install') {
+          return { stdout: 'Options: --frozen-lockfile' } as never
+        }
+        if (command === 'npm' && args[0] === 'view') {
+          return { stdout: JSON.stringify({ version: '16.0.1' }) } as never
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`)
+      })
+      try {
+        await expect(packageInfo('next', '16.0.1')).resolves.toEqual({
+          version: '16.0.1',
+        })
+        expect(mockSync).toHaveBeenCalledWith(
+          'npm',
+          expect.arrayContaining([
+            'view',
+            'next@16.0.1',
+            '--json',
+            '--no-workspaces',
+          ]),
+          expect.objectContaining({ cwd: process.cwd() })
+        )
+      } finally {
+        exists.mockRestore()
+      }
+    })
+
     it('reads the Bun age gate from bunfig.toml', async () => {
       mockGetPkgManager.mockReturnValue('bun')
       const originalXdg = process.env.XDG_CONFIG_HOME
@@ -275,6 +306,18 @@ describe('codemod minimum release age', () => {
         ).resolves.toEqual(['16.0.1'])
         expect(global.fetch).toHaveBeenCalledWith(
           'https://mirror.example/@next%2Fcodemod',
+          expect.objectContaining({
+            headers: { Authorization: 'Bearer test-token' },
+          })
+        )
+        jest
+          .mocked(global.fetch)
+          .mockResolvedValueOnce(Response.json({ version: '16.0.1' }))
+        await expect(packageInfo('@next/codemod', '16.0.1')).resolves.toEqual({
+          version: '16.0.1',
+        })
+        expect(global.fetch).toHaveBeenCalledWith(
+          'https://mirror.example/@next%2Fcodemod/16.0.1',
           expect.objectContaining({
             headers: { Authorization: 'Bearer test-token' },
           })

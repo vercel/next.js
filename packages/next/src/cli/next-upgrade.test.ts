@@ -83,4 +83,23 @@ describe('next upgrade minimum release age', () => {
       { stdio: 'inherit', cwd: '/app' }
     )
   })
+
+  it('passes custom dist-tags to the age resolver', async () => {
+    jest.mocked(resolveAgeEligibleVersion).mockResolvedValue('15.5.1')
+    await spawnNextUpgrade(undefined, {
+      revision: 'next-15',
+      verbose: false,
+      ai: false,
+    })
+    expect(resolveAgeEligibleVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'next', range: 'next-15' }),
+      'latest',
+      expect.objectContaining({ name: '@next/codemod' })
+    )
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['dlx', '@next/codemod@15.5.1', 'upgrade', '15.5.1'],
+      { stdio: 'inherit', cwd: '/app' }
+    )
+  })
 })
