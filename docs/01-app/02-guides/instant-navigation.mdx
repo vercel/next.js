@@ -53,13 +53,13 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-To automate the migration, first use the `future` policy to upgrade Next.js when needed and adopt Cache Components:
+To automate the migration, first use the `experimental-future` policy to upgrade Next.js when needed and adopt Cache Components:
 
 ```bash filename="Terminal"
-npx next@canary upgrade --ai=future
+npx next@canary upgrade --ai=experimental-future
 ```
 
-Partial Prefetching is not yet included in the `future` policy. After Cache Components is adopted, install its adoption Skill and give the agent the following task:
+Partial Prefetching is not yet included in the `experimental-future` policy. After Cache Components is adopted, install its adoption Skill and give the agent the following task:
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption
