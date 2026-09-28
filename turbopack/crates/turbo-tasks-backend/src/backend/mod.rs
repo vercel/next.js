@@ -2112,6 +2112,10 @@ impl TurboTasksBackend {
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
+
+                let outdated_collectibles_dependencies =
+                    task.iter_collectibles_dependencies().collect();
+                task.set_outdated_collectibles_dependencies(outdated_collectibles_dependencies);
             }
         }
 
