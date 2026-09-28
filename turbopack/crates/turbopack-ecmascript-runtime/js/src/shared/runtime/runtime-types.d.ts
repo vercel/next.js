@@ -172,7 +172,8 @@ interface TurbopackBaseContext<M> {
   m: Module
   c: ModuleCache<M>
   M: ModuleFactories
-  S: ModuleFederationRuntimeState
+  R: ModuleFederationRuntimeState
+  S: ResolvePathFromModule
   l: LoadChunk
   L: LoadChunkByUrl
   h: GetChunkRelativeURL
