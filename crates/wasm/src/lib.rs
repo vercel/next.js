@@ -226,6 +226,58 @@ pub fn expand_next_js_template(
     .map_err(convert_err)
 }
 
+const DEFAULT_MAX_WIDTH: usize = 240;
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum WasmCodeFrameColorMode {
+    Mode(next_code_frame::CodeFrameColorMode),
+    Bool(bool),
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct WasmCodeFrameOptions {
+    lines_above: Option<usize>,
+    lines_below: Option<usize>,
+    max_width: Option<usize>,
+    color: Option<WasmCodeFrameColorMode>,
+    highlight_code: Option<bool>,
+    message: Option<String>,
+    language: Option<String>,
+}
+
+impl From<WasmCodeFrameOptions> for next_code_frame::CodeFrameOptions {
+    fn from(opts: WasmCodeFrameOptions) -> Self {
+        let color = match opts.color {
+            None | Some(WasmCodeFrameColorMode::Bool(false)) => {
+                next_code_frame::CodeFrameColorMode::None
+            }
+            Some(WasmCodeFrameColorMode::Mode(next_code_frame::CodeFrameColorMode::Error))
+            | Some(WasmCodeFrameColorMode::Bool(true)) => {
+                next_code_frame::CodeFrameColorMode::Error
+            }
+            Some(WasmCodeFrameColorMode::Mode(m)) => m,
+        };
+        let highlight_code = opts
+            .highlight_code
+            .unwrap_or(color != next_code_frame::CodeFrameColorMode::None);
+        let language = match opts.language.as_deref() {
+            Some("css") => next_code_frame::Language::Css,
+            _ => next_code_frame::Language::JavaScript,
+        };
+        next_code_frame::CodeFrameOptions {
+            lines_above: opts.lines_above.unwrap_or(2),
+            lines_below: opts.lines_below.unwrap_or(3),
+            max_width: opts.max_width.unwrap_or(DEFAULT_MAX_WIDTH),
+            color,
+            highlight_code,
+            message: opts.message,
+            language,
+        }
+    }
+}
+
 #[wasm_bindgen(js_name = "codeFrameColumns")]
 pub fn code_frame_columns(
     source: Box<[u8]>,
@@ -235,7 +287,12 @@ pub fn code_frame_columns(
     console_error_panic_hook::set_once();
 
     let location: next_code_frame::CodeFrameLocation = serde_wasm_bindgen::from_value(location)?;
-    let options: next_code_frame::CodeFrameOptions = serde_wasm_bindgen::from_value(options)?;
+    let options: next_code_frame::CodeFrameOptions = if options.is_undefined() || options.is_null() {
+        Default::default()
+    } else {
+        let opts: WasmCodeFrameOptions = serde_wasm_bindgen::from_value(options)?;
+        opts.into()
+    };
     next_code_frame::render_code_frame(
         str::from_utf8(&source)
             .map_err(|e| JsError::new(&format!("Failed to render code frame: {e}")))?,
@@ -244,3 +301,4 @@ pub fn code_frame_columns(
     )
     .map_err(|e| JsError::new(&format!("Failed to render code frame: {e}")))
 }
+

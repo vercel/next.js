@@ -1534,7 +1534,7 @@ async function loadWasm(importPath = '') {
       return rawBindings.codeFrameColumns(
         Buffer.from(source),
         location,
-        options
+        removeUndefined(options)
       )
     },
     lockfileTryAcquire(_filePath: string, _content?: string | null) {
