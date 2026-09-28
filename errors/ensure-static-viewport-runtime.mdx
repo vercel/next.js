@@ -1,0 +1,103 @@
+---
+title: Next.js encountered runtime data in `generateViewport()` on a route that must be fully static
+kind: insight
+---
+
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide.
+</div>
+
+A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring fully static server output.
+
+During [prerendering](/docs/app/glossary#prerendering), `generateViewport()` read request-specific data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache. This data is not available in fully static output.
+
+Uncached `fetch` requests, database calls, and `connection()` have different fixes. See [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-dynamic).
+
+<FixCardGrid>
+  <FixCard
+    group="static"
+    title="Use static viewport"
+    href="#use-static-viewport"
+    snippets={[
+      { text: 'export function generateViewport() {' },
+      { text: "  return { themeColor: 'black' }", highlight: true },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="static-params"
+    title="Provide static parameters"
+    href="#provide-static-parameters"
+    snippets={[
+      { text: '// app/[slug]/page.tsx' },
+      { text: 'export const generateStaticParams =' },
+      { text: "  () => [{ slug: 'hello' }]", highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+## Use static viewport
+
+Replace the request-specific data with values available during prerendering:
+
+```jsx filename="app/dashboard/layout.jsx"
+export function generateViewport() {
+  return { themeColor: 'black' }
+}
+
+export default function Layout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+If every value is fixed, a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export may be simpler.
+
+## Provide static parameters
+
+If the viewport depends on route parameters, return the parameter values to prerender from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params):
+
+```jsx filename="app/blog/[slug]/page.jsx"
+export function generateStaticParams() {
+  return [{ slug: 'hello' }]
+}
+
+export async function generateViewport({ params }) {
+  const { slug } = await params
+  return { themeColor: slug === 'hello' ? 'black' : 'white' }
+}
+```
+
+Include every dynamic parameter. An empty array does not satisfy the fully static requirement.
+
+## Extend the cache lifetime
+
+A cache with a short lifetime can also count as runtime data. For fully static navigation, `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero. Increase the lifetime only when serving shared, older viewport data is acceptable.
+
+## Verifying the fix
+
+Reload the route in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), then run [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering.
+
+Wrapping the access in Suspense or setting `instant = false` does not relax the fully static requirement.
+
+## Don't want this validation?
+
+If the route requires a request-time viewport, remove `unstable_ensureStatic = 'navigation'` from the pages or layouts that set it.
+
+## Related Insights
+
+- [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-dynamic)
+- [Runtime data on a route that must be fully static](/docs/messages/ensure-static-route-runtime)
+- [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-runtime)

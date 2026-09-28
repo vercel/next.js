@@ -1,7 +1,6 @@
 ---
 title: unstable_ensureStatic
 description: API reference for the unstable_ensureStatic route segment config, which controls static rendering for a route's App Shell, prefetches, or whole page.
-version: experimental
 related:
   title: Next Steps
   description: Learn how prefetching and prerendering stages work.
@@ -101,9 +100,9 @@ The `'navigation'` level validates the fully rendered route during development a
 
 The error guidance depends on where the data is accessed:
 
-- [Page or layout content](/docs/messages/ensure-static-route)
-- [`generateMetadata()`](/docs/messages/ensure-static-metadata)
-- [`generateViewport()`](/docs/messages/ensure-static-viewport)
+- Page or layout content: [runtime data](/docs/messages/ensure-static-route-runtime) or [uncached data](/docs/messages/ensure-static-route-dynamic)
+- `generateMetadata()`: [runtime data](/docs/messages/ensure-static-metadata-runtime) or [uncached data](/docs/messages/ensure-static-metadata-dynamic)
+- `generateViewport()`: [runtime data](/docs/messages/ensure-static-viewport-runtime) or [uncached data](/docs/messages/ensure-static-viewport-dynamic)
 
 ### `false`
 

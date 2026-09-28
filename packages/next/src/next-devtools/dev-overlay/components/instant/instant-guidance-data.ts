@@ -695,7 +695,7 @@ const staticParamsCard: FixCard = {
     { text: "  () => [{ slug: 'hello' }]", highlight: true },
   ],
   copyable: true,
-  link: 'https://nextjs.org/docs/messages/ensure-static-route#provide-static-parameters',
+  link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#provide-static-parameters',
 }
 
 const staticRouteRuntimeCards: FixCard[] = [
@@ -709,7 +709,7 @@ const staticRouteRuntimeCards: FixCard[] = [
       { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-data-access',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#remove-the-data-access',
   },
   staticParamsCard,
   {
@@ -722,7 +722,7 @@ const staticRouteRuntimeCards: FixCard[] = [
       { text: "return <p>{params.get('q')}</p>" },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#read-search-parameters-on-the-client',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#read-search-parameters-on-the-client',
   },
 ]
 
@@ -744,7 +744,7 @@ const staticRouteDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#cache-the-data',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route-dynamic#cache-the-data',
   },
   {
     id: 'remove-the-data-access',
@@ -756,7 +756,7 @@ const staticRouteDynamicCards: FixCard[] = [
       { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-data-access',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route-dynamic#remove-the-data-access',
   },
 ]
 const staticMetadataRuntimeCards: FixCard[] = [
@@ -777,11 +777,11 @@ const staticMetadataRuntimeCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#use-static-metadata',
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-runtime#use-static-metadata',
   },
   {
     ...staticParamsCard,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#provide-static-parameters',
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-runtime#provide-static-parameters',
   },
 ]
 
@@ -803,7 +803,7 @@ const staticMetadataDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#cache-the-metadata',
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-dynamic#cache-the-metadata',
   },
   {
     id: 'use-static-metadata',
@@ -822,7 +822,7 @@ const staticMetadataDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#use-static-metadata',
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-dynamic#use-static-metadata',
   },
 ]
 const staticViewportRuntimeCards: FixCard[] = [
@@ -843,11 +843,11 @@ const staticViewportRuntimeCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#use-static-viewport',
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-runtime#use-static-viewport',
   },
   {
     ...staticParamsCard,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#provide-static-parameters',
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-runtime#provide-static-parameters',
   },
 ]
 
@@ -869,7 +869,7 @@ const staticViewportDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#cache-the-viewport',
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-dynamic#cache-the-viewport',
   },
   {
     id: 'use-static-viewport',
@@ -888,7 +888,7 @@ const staticViewportDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#use-static-viewport',
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-dynamic#use-static-viewport',
   },
 ]
 export type GuidanceKind =
@@ -1168,5 +1168,8 @@ export function getStaticRouteDocsUrl(
   kind: GuidanceKind,
   variant: GuidanceVariant
 ): string {
-  return `${DOCS_URLS[kind]}#${variant === 'runtime' ? 'runtime-data' : 'uncached-data'}`
+  if (variant === 'runtime' || variant === 'dynamic') {
+    return `${DOCS_URLS[kind]}-${variant}`
+  }
+  return DOCS_URLS[kind]
 }

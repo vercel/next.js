@@ -33,7 +33,10 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
-import { getCards } from '../components/instant/instant-guidance-data'
+import {
+  getCards,
+  getStaticRouteDocsUrl,
+} from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
@@ -822,7 +825,7 @@ describe('fully static route errors', () => {
     )
     for (const card of cards) {
       expect(card.link?.split('#')[0]).toBe(
-        error.message.split('Learn more: ')[1]
+        getStaticRouteDocsUrl(kind, variant)
       )
     }
   })

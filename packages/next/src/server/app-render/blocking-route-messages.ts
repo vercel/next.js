@@ -220,7 +220,7 @@ export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
       `  - [remove] Remove the data access\n` +
       `  - [static-params] For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`\n` +
       `  - [client] For \`searchParams\`: read them on the client with \`useSearchParams()\`\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-route`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-route-runtime`
   )
 }
 
@@ -231,7 +231,7 @@ export function createDynamicBodyErrorInStaticRoute(route: string): Error {
       `Ways to fix this:\n` +
       `  - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [remove] Remove the data access\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-route`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic`
   )
 }
 
@@ -257,7 +257,7 @@ export function createRuntimeMetadataErrorInStaticRoute(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n` +
       `  - [static-params] For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata-runtime`
   )
 }
 
@@ -268,7 +268,7 @@ export function createDynamicMetadataErrorInStaticRoute(route: string): Error {
       `Ways to fix this:\n` +
       `  - [cache] Cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata-dynamic`
   )
 }
 
@@ -293,7 +293,7 @@ export function createRuntimeViewportErrorInStaticRoute(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n` +
       `  - [static-params] For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport-runtime`
   )
 }
 
@@ -304,7 +304,7 @@ export function createDynamicViewportErrorInStaticRoute(route: string): Error {
       `Ways to fix this:\n` +
       `  - [cache] Cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport-dynamic`
   )
 }
 
