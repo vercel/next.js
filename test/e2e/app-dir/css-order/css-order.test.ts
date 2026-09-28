@@ -657,6 +657,8 @@ describe.each(
 // Webpack currently applies the client child's CSS module after the parent module in
 // App Router server-component-with-client-child cases. Gate only those known divergences;
 // the other package sideEffects scenarios share expectations across both bundlers.
+// The fixture creates dummy packages locally; they are unavailable to deployment builds.
+// @force-gate !deploy
 describe.each(
   process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
 )('css-order sideEffects %s', (_label: string, value: CssChunkingValue) => {
