@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 
 describe('searchparams-reuse-loading', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -243,7 +243,7 @@ describe('searchparams-reuse-loading', () => {
                     resolve: async () => {
                       await route.continue()
                       // wait a moment to ensure the response is received
-                      await new Promise((res) => setTimeout(res, 500))
+                      await waitFor(500)
                       resolvePromise()
                     },
                   })
@@ -360,7 +360,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })
@@ -446,7 +446,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })
@@ -532,7 +532,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })

@@ -1,3 +1,4 @@
+import { waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('development HMR refresh', () => {
@@ -11,7 +12,7 @@ describe('development HMR refresh', () => {
 
     await browser.eval(`window.doesNotReloadCheck = true`)
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 10000))
+    await waitFor(10000)
 
     expect(await browser.eval('window.doesNotReloadCheck')).toBe(true)
   })
