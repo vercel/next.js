@@ -2767,19 +2767,7 @@ async function prepareAppPageRender(
     nextFontManifest,
     assetPrefix = '',
     enableTainting,
-    cacheComponents,
-    setIsrStatus,
   } = renderOpts
-
-  if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
-    // Reset the ISR status at start of request.
-    const { pathname } = new URL(req.url || '/', 'http://n')
-    setIsrStatus(
-      pathname,
-      // Only pages using the Node runtime can use ISR, Edge is always dynamic.
-      process.env.NEXT_RUNTIME === 'edge' ? false : undefined
-    )
-  }
 
   if (
     // The type check here ensures that `req` is correctly typed, and the
@@ -3074,9 +3062,11 @@ async function renderAppPage(
   const { cachedNavigations } = renderOpts.experimental
   const {
     isHmrRefresh,
+    isPrefetchRequest,
     isRSCRequest,
     isRuntimePrefetchRequest,
     isAppShellPrefetchRequest,
+    isRouteTreePrefetchRequest,
   } = parsedRequestHeaders
   const isPossibleActionRequest = ctx.isPossibleServerAction
 
@@ -3116,22 +3106,66 @@ async function renderAppPage(
   )
   const requestStore = createRequestStore()
 
-  if (
+  const setDevIsrStatus =
     process.env.__NEXT_DEV_SERVER &&
     setIsrStatus &&
     !cacheComponents &&
-    // Only pages using the Node runtime can use ISR, so we only need to
-    // update the status for those.
-    // The type check here ensures that `req` is correctly typed, and the
-    // environment variable check provides dead code elimination.
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    isNodeNextRequest(req)
-  ) {
-    req.originalRequest.on('end', () => {
-      const { pathname } = new URL(req.url || '/', 'http://n')
-      const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
-      setIsrStatus(pathname, isStatic)
-    })
+    !isPossibleActionRequest &&
+    !isPrefetchRequest &&
+    !isRuntimePrefetchRequest &&
+    !isRouteTreePrefetchRequest
+      ? setIsrStatus
+      : undefined
+
+  if (setDevIsrStatus) {
+    // Edge routes cannot use ISR. Node routes remain pending until rendering
+    // completes; request body consumption does not determine render status.
+    setDevIsrStatus(
+      url.pathname,
+      process.env.NEXT_RUNTIME === 'edge' ? false : undefined
+    )
+  }
+
+  let hadSSRRenderError = false
+  const onSSRRenderError = setDevIsrStatus
+    ? () => {
+        hadSSRRenderError = true
+      }
+    : undefined
+
+  function finishDevIsrStatus(result: RenderResult): RenderResult {
+    if (!setDevIsrStatus || process.env.NEXT_RUNTIME === 'edge') return result
+
+    const publish = () => {
+      if (
+        !result.isNull &&
+        !hadSSRRenderError &&
+        workStore.reactServerErrorsByDigest.size === 0 &&
+        (result.metadata.statusCode ?? 200) < 500
+      ) {
+        setDevIsrStatus(
+          url.pathname,
+          !requestStore.usedDynamic && !workStore.forceDynamic
+        )
+      }
+    }
+
+    if (result.hasStreamingResponse) {
+      result.wrapStream((source) => {
+        const bridge = new TransformStream<Uint8Array, Uint8Array>()
+        // A clean stream completion publishes the status. Errors and consumer
+        // cancellation leave it pending instead of guessing Static.
+        // Source errors propagate through the returned stream.
+        void source
+          .pipeTo(bridge.writable)
+          .then(publish)
+          .catch(() => {})
+        return bridge.readable
+      })
+    } else {
+      publish()
+    }
+    return result
   }
 
   // MARK: RSC request
@@ -3167,11 +3201,13 @@ async function renderAppPage(
         )
       } else {
         // MARK: RSC dynamic
-        return generateDynamicFlightRenderResult(
-          req,
-          ctx,
-          requestStore,
-          undefined
+        return finishDevIsrStatus(
+          await generateDynamicFlightRenderResult(
+            req,
+            ctx,
+            requestStore,
+            undefined
+          )
         )
       }
     }
@@ -3266,7 +3302,8 @@ async function renderAppPage(
       // so the restarted render wouldn't be correct.
       didExecuteServerAction ? undefined : createRequestStore,
       stagedFallbackParams,
-      tracker
+      tracker,
+      onSSRRenderError
     )
 
     // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
@@ -3308,7 +3345,7 @@ async function renderAppPage(
     }
 
     // Create the new render result for the response.
-    return new RenderResult(stream, options)
+    return finishDevIsrStatus(new RenderResult(stream, options))
   } catch (renderError) {
     // Returning a stream may precede SSR readiness, which finishes success.
     // Only failures finish here; a finally would seal successful renders early.
@@ -3673,7 +3710,8 @@ async function renderToStream(
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
   stagedFallbackParams: OpaqueFallbackRouteParams | null,
-  tracker: ClientComponentLoadTracker | undefined
+  tracker: ClientComponentLoadTracker | undefined,
+  onRenderError?: () => void
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
@@ -3829,6 +3867,7 @@ async function renderToStream(
     )
 
     function onHTMLRenderSSRError(err: DigestedError) {
+      onRenderError?.()
       // We don't need to silence logs here. onHTMLRenderSSRError won't be called
       // at all if the error was logged before in the RSC error handler.
       const silenceLog = false

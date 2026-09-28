@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitForStaticIndicator } from 'next-test-utils'
+import { gate, retry, waitForStaticIndicator } from 'next-test-utils'
 
 const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
@@ -91,6 +91,48 @@ describe('dev indicator - route type', () => {
   })
 
   describe('with App Router', () => {
+    it('classifies a completed static not-found page', async () => {
+      const path = '/app/no-such-page'
+      const response = await next.fetch(path)
+      expect(response.status).toBe(404)
+
+      const browser = await next.browser(path)
+      const hasCacheComponents = await gate(
+        (conditions) => conditions.cacheComponents
+      )
+
+      expect(await browser.elementByCss('#not-found-page').text()).toBe(
+        'This static page was not found.'
+      )
+      await waitForStaticIndicator(
+        browser,
+        hasCacheComponents ? undefined : 'Static'
+      )
+    })
+
+    it.each([
+      ['static', 'Static'],
+      ['dynamic', 'Dynamic'],
+    ] as const)(
+      'preserves the %s route indicator after a Server Action',
+      async (route, routeType) => {
+        const browser = await next.browser(`/app/static-indicator/${route}`)
+        const hasCacheComponents = await gate(
+          (conditions) => conditions.cacheComponents
+        )
+        const expected = hasCacheComponents ? undefined : routeType
+        await waitForStaticIndicator(browser, expected)
+
+        await browser.elementByCss('main button').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#action-result').text()).toBe(
+            'Action complete'
+          )
+        })
+        await waitForStaticIndicator(browser, expected)
+      }
+    )
+
     describe('when loading a dynamic page', () => {
       if (withCacheComponents) {
         describe('with Cache Components enabled', () => {
@@ -104,6 +146,12 @@ describe('dev indicator - route type', () => {
             await waitForStaticIndicator(browser, undefined)
 
             await browser.elementByCss("[href='/pages']").click()
+
+            await retry(async () => {
+              expect(await browser.elementByCss('main > p').text()).toBe(
+                'hello world'
+              )
+            })
 
             await waitForStaticIndicator(browser, 'Static')
           })
@@ -145,6 +193,12 @@ describe('dev indicator - route type', () => {
 
             await browser.elementByCss("[href='/pages/gssp']").click()
 
+            await retry(async () => {
+              expect(await browser.elementByCss('main > p').text()).toBe(
+                'hello world'
+              )
+            })
+
             await waitForStaticIndicator(browser, 'Dynamic')
           })
         })
@@ -170,5 +224,61 @@ describe('dev indicator - route type', () => {
         })
       }
     })
+  })
+})
+
+describe('dev indicator after a custom server consumes the request', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    startCommand: 'node server.js',
+    serverReadyPattern: /- Local:/,
+    skipDeployment: true,
+  })
+
+  if (skipped) return
+
+  it('classifies App Router document loads and navigation after rendering', async () => {
+    const browser = await next.browser('/app/static-indicator/dynamic')
+    const hasCacheComponents = await gate(
+      (conditions) => conditions.cacheComponents
+    )
+    await waitForStaticIndicator(
+      browser,
+      hasCacheComponents ? undefined : 'Dynamic'
+    )
+
+    await browser.elementByCss("[href='/app/static-indicator/static']").click()
+    await waitForStaticIndicator(
+      browser,
+      hasCacheComponents ? undefined : 'Static'
+    )
+  })
+
+  it('reclassifies an App Router page after HMR', async () => {
+    const browser = await next.browser('/app/static-indicator/static')
+    const hasCacheComponents = await gate(
+      (conditions) => conditions.cacheComponents
+    )
+    await waitForStaticIndicator(
+      browser,
+      hasCacheComponents ? undefined : 'Static'
+    )
+
+    const original = await next.readFile(
+      'app/app/static-indicator/static/page.tsx'
+    )
+    await next.patchFile(
+      'app/app/static-indicator/static/page.tsx',
+      original.replace('// await connection()', 'await connection()')
+    )
+
+    try {
+      await waitForStaticIndicator(
+        browser,
+        hasCacheComponents ? undefined : 'Dynamic'
+      )
+    } finally {
+      await next.patchFile('app/app/static-indicator/static/page.tsx', original)
+    }
   })
 })
