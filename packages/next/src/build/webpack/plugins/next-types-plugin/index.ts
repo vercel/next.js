@@ -262,7 +262,8 @@ const pluginState = getProxiedPluginState({
 })
 
 function formatRouteToRouteType(route: string) {
-  const isDynamic = isDynamicRoute(route)
+  // Use non-strict mode to also detect segments with literal prefixes before params, e.g. /@[username]
+  const isDynamic = isDynamicRoute(route, false)
   if (isDynamic) {
     route = route
       .split('/')
@@ -277,6 +278,13 @@ function formatRouteToRouteType(route: string) {
           }
           // /[slug]
           return `\${SafeSlug<T>}`
+        }
+        // Handle segments with a literal prefix before a bracket param, e.g. @[username]
+        if (part.includes('[')) {
+          return part
+            .replace(/\[\[\.\.\.([^\]]+)\]\]/g, `\${OptionalCatchAllSlug<T>}`)
+            .replace(/\[\.\.\.([^\]]+)\]/g, `\${CatchAllSlug<T>}`)
+            .replace(/\[([^\]]+)\]/g, `\${SafeSlug<T>}`)
         }
         return part
       })
