@@ -694,6 +694,9 @@ importers:
       react-dom:
         specifier: npm:react-dom@19.3.0-canary-8b0da1c6-20260922
         version: 19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922)
+      react-virtuoso:
+        specifier: 4.18.13
+        version: 4.18.13(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922)
       swr:
         specifier: ^2.2.4
         version: 2.2.4(react@19.3.0-canary-8b0da1c6-20260922)
@@ -16168,6 +16171,12 @@ packages:
     peerDependencies:
       react: ^15.3.0 || ^16.0.0-alpha
       react-dom: ^15.3.0 || ^16.0.0-alpha
+
+  react-virtuoso@4.18.13:
+    resolution: {integrity: sha512-M4kP7zbV7JmLrnJYs0X2FBA8gnNlHisSYuKMyeJVYtWz31CAJeP57dgPJzfneUdKDKmL9SiqvcBQ32si8CfQSQ==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
 
   react@0.0.0-experimental-8b0da1c6-20260922:
     resolution: {integrity: sha512-6FfA5KzWk8kT+SM6IzWe8DlAj/iKvJ8LSD4jVyrm56kvvuzCPPe2pzhpseP1ZjdWdMnviq+S5/agjMEkIHlsyA==}
@@ -35622,6 +35631,11 @@ snapshots:
       react: 19.3.0-canary-8b0da1c6-20260922
       react-dom: 19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922)
       react-lifecycles-compat: 3.0.4
+
+  react-virtuoso@4.18.13(react-dom@19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922))(react@19.3.0-canary-8b0da1c6-20260922):
+    dependencies:
+      react: 19.3.0-canary-8b0da1c6-20260922
+      react-dom: 19.3.0-canary-8b0da1c6-20260922(react@19.3.0-canary-8b0da1c6-20260922)
 
   react@0.0.0-experimental-8b0da1c6-20260922: {}
 
