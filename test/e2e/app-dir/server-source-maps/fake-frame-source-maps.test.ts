@@ -128,15 +128,14 @@ describe('app-dir - server source maps - fake frame source maps', () => {
     'internal-pkg': `link:./internal-pkg`,
     'external-pkg': `file:./external-pkg`,
   }
-  const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
-    skipDeployment: true,
+    // Use the declared pnpm version on Vercel to install link: dependencies.
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
     // Expose the inspector on a random port.
     startArgs: ['--inspect=0'],
   })
-
-  if (skipped) return
 
   async function findServerInspectorTarget(): Promise<InspectorTarget> {
     const ports = [
