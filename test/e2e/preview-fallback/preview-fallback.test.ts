@@ -15,6 +15,20 @@ describe('Preview mode with fallback pages', () => {
 
   let previewCookie: string
 
+  async function getDraftModeCookie() {
+    const response = await next.fetch('/api/enable-draft')
+    expect(response.status).toBe(200)
+    const setCookie = response.headers.get('set-cookie')
+    expect(setCookie).toBeTruthy()
+    const cookies = setCookie!.split(',').map((value) => cookie.parse(value))
+    const bypass = cookies.find(
+      (value) => value.__prerender_bypass
+    )?.__prerender_bypass
+    expect(Boolean(bypass)).toBe(true)
+    expect(cookies.some((value) => value.__next_preview_data)).toBe(false)
+    return cookie.serialize('__prerender_bypass', bypass!)
+  }
+
   it('should get preview cookie correctly', async () => {
     const res = await next.fetch('/api/enable')
     previewCookie = ''
@@ -292,5 +306,95 @@ describe('Preview mode with fallback pages', () => {
       previewData: null,
       params: { post: 'second' },
     })
+  })
+
+  // @force-gate !deploy || adapter
+  it('should preview an unlisted fallback: false page in Draft Mode', async () => {
+    const pathname = '/no-fallback/draft-only'
+    expect((await next.fetch(pathname)).status).toBe(404)
+
+    const response = await next.fetch(pathname, {
+      headers: { cookie: await getDraftModeCookie() },
+    })
+    const props = JSON.parse(
+      cheerio
+        .load(await response.text())('#props')
+        .text()
+    )
+    expect(props).toEqual({
+      preview: true,
+      previewData: {},
+      params: { post: 'draft-only' },
+    })
+    expect((await next.fetch(pathname)).status).toBe(404)
+  })
+
+  // @force-gate !deploy || adapter
+  it('should preview an unlisted data request in Draft Mode', async () => {
+    const knownHtml = await next.render('/no-fallback/first')
+    const buildId = JSON.parse(
+      cheerio.load(knownHtml)('#__NEXT_DATA__').text()
+    ).buildId
+    const pathname = '/_next/data/' + buildId + '/no-fallback/draft-only.json'
+    expect((await next.fetch(pathname)).status).toBe(404)
+
+    const response = await next.fetch(pathname, {
+      headers: { cookie: await getDraftModeCookie() },
+    })
+    expect((await response.json()).pageProps).toEqual({
+      preview: true,
+      previewData: {},
+      params: { post: 'draft-only' },
+    })
+    expect((await next.fetch(pathname)).status).toBe(404)
+  })
+
+  // @force-gate !deploy || adapter
+  it('should reject invalid preview data on an unlisted fallback: false path', async () => {
+    const headers = {
+      cookie: (await getDraftModeCookie()) + '; __next_preview_data=invalid',
+    }
+    const response = await next.fetch('/no-fallback/draft-only', { headers })
+    expect(response.status).toBe(404)
+    expect(
+      cheerio
+        .load(await response.text())('#props')
+        .text()
+    ).toBe('')
+
+    const knownHtml = await next.render('/no-fallback/first')
+    const buildId = JSON.parse(
+      cheerio.load(knownHtml)('#__NEXT_DATA__').text()
+    ).buildId
+    const dataPath = '/_next/data/' + buildId + '/no-fallback/draft-only.json'
+    const dataResponse = await next.fetch(dataPath, { headers })
+    expect(dataResponse.status).toBe(404)
+  })
+
+  // @force-gate !deploy || adapter
+  it('should not replace a prerendered page when previewing it in Draft Mode', async () => {
+    const pathname = '/no-fallback/first'
+    const beforeHtml = await next.render(pathname)
+    const beforeProps = JSON.parse(cheerio.load(beforeHtml)('#props').text())
+    expect(beforeProps.preview).toBe(false)
+
+    const response = await next.fetch(pathname, {
+      headers: { cookie: await getDraftModeCookie() },
+    })
+    const draftProps = JSON.parse(
+      cheerio
+        .load(await response.text())('#props')
+        .text()
+    )
+    expect(draftProps).toEqual({
+      preview: true,
+      previewData: {},
+      params: { post: 'first' },
+    })
+
+    const afterHtml = await next.render(pathname)
+    expect(JSON.parse(cheerio.load(afterHtml)('#props').text())).toEqual(
+      beforeProps
+    )
   })
 })
