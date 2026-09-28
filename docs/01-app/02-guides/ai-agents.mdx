@@ -201,10 +201,14 @@ The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next
 
 The Skill supports both a series of pull requests and a single-branch migration.
 
-The `experimental-future` upgrade policy prepares this Skill for the agent and upgrades Next.js first when needed:
-
 ```bash filename="Terminal"
-npx next@canary upgrade --ai=experimental-future
+npx skills add vercel/next.js --skill next-cache-components-adoption
+```
+
+Then give the agent this prompt:
+
+```prompt
+Adopt Cache Components in this project using the next-cache-components-adoption Skill.
 ```
 
 ### `next-cache-components-optimizer`

@@ -19,15 +19,24 @@ When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 The migration is driven by **instant navigation validation**. With Cache Components enabled, Next.js validates in development whether navigating into each route renders instantly, and surfaces the code that would block it as an error or insight.
 
-## Use a coding agent (recommended)
+## Use the adoption skill (recommended)
 
-Run the `experimental-future` upgrade policy from your app's directory:
+The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
+
+- **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR. This automates the [Adopting incrementally](#adopting-incrementally) flow below.
+- **Direct.** Adopts every route in place on one branch.
+
+Install the skill:
 
 ```bash filename="Terminal"
-npx next@canary upgrade --ai=experimental-future
+npx skills add vercel/next.js --skill next-cache-components-adoption
 ```
 
-The command upgrades Next.js when needed, then prepares the Cache Components guide and adoption Skill for the agent. It can adopt Cache Components without changing the installed version when the app already uses Next.js 16.3 or later. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults).
+Then give the agent this prompt:
+
+```prompt
+Adopt Cache Components in this project using the next-cache-components-adoption skill.
+```
 
 ## Or migrate by hand
 
