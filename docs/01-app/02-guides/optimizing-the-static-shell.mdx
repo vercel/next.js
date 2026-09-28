@@ -52,6 +52,8 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+For client navigations, consider enabling [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) as well. With Partial Prefetching enabled, `<Link prefetch={true}>` can include cached URL-specific content before the click, making more UI available immediately on navigation. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) to choose which content to prefetch.
+
 ## Patterns
 
 The following patterns can make more useful UI available in the static shell:
@@ -482,7 +484,7 @@ The form awaits both URL promises before starting the query that depends on thei
 export async function TeamSettings({
   params,
   searchParams,
-}: Pick<PageProps<'/[team]/settings'>, 'params' | 'searchParams'>) {
+}: PageProps<'/[team]/settings'>) {
   const [{ team }, { section = 'profile' }] = await Promise.all([
     params,
     searchParams,
