@@ -756,41 +756,36 @@ export async function runUpgrade(
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
-      await Promise.all([
-        loadHighestNPMVersionMatching(`types-react@rc`),
-        loadHighestNPMVersionMatching(`types-react-dom@rc`),
-      ])
     if (allDependencies['@types/react']) {
+      const targetReactTypesVersion =
+        await loadHighestNPMVersionMatching(`types-react@rc`)
       versionMapping['@types/react'] = {
         version: `npm:types-react@${targetReactTypesVersion}`,
         required: false,
       }
     }
     if (allDependencies['@types/react-dom']) {
+      const targetReactDOMTypesVersion =
+        await loadHighestNPMVersionMatching(`types-react-dom@rc`)
       versionMapping['@types/react-dom'] = {
         version: `npm:types-react-dom@${targetReactDOMTypesVersion}`,
         required: false,
       }
     }
   } else {
-    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
-      await Promise.all([
-        loadHighestNPMVersionMatching(
-          `@types/react@${targetNextPackageJson.peerDependencies['react']}`
-        ),
-        loadHighestNPMVersionMatching(
-          `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
-        ),
-      ])
-
     if (allDependencies['@types/react']) {
+      const targetReactTypesVersion = await loadHighestNPMVersionMatching(
+        `@types/react@${targetNextPackageJson.peerDependencies['react']}`
+      )
       versionMapping['@types/react'] = {
         version: targetReactTypesVersion,
         required: false,
       }
     }
     if (allDependencies['@types/react-dom']) {
+      const targetReactDOMTypesVersion = await loadHighestNPMVersionMatching(
+        `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
+      )
       versionMapping['@types/react-dom'] = {
         version: targetReactDOMTypesVersion,
         required: false,
