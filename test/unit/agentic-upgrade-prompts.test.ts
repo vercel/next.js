@@ -66,6 +66,7 @@ jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
 }))
 jest.mock('next/dist/lib/helpers/get-minimum-release-age', () => ({
+  NoAgeEligibleReleaseError: class extends Error {},
   getAgeGateRegistry: jest.fn(),
   getAgeGatedPackage: jest.fn(),
   getMinimumReleaseAge: jest.fn(),
