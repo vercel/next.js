@@ -3490,16 +3490,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kovan"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "069314825b47e60f2882bf6fc90ab66e3eb37ee5e4407de6357a124842fc3b26"
-dependencies = [
- "once_cell",
- "portable-atomic",
-]
-
-[[package]]
 name = "kqueue"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9234,7 +9224,6 @@ dependencies = [
  "indexmap 2.14.0",
  "indoc",
  "jiff",
- "kovan",
  "lz4_flex",
  "parking_lot",
  "rand 0.10.1",
@@ -9246,6 +9235,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "smallvec",
+ "static_assertions",
  "tempfile",
  "thiserror 1.0.69",
  "thread_local",

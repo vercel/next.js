@@ -25,7 +25,10 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHashSet;
 use tracing::info_span;
 
-use crate::{backend::AnyOperation, utils::ptr_eq_arc::PtrEqArc};
+use crate::{
+    backend::{AnyOperation, task_page_map::StorageAccessToken},
+    utils::ptr_eq_arc::PtrEqArc,
+};
 
 /// High bit: set while a snapshot is requested or in flight.
 /// Low bits: count of operations currently executing (not suspended).
@@ -200,7 +203,11 @@ pub struct OperationGuard<'a, O> {
     coord: &'a SnapshotCoordinator<O>,
 }
 
-impl<O> OperationGuard<'_, O> {
+impl<'a, O> OperationGuard<'a, O> {
+    pub(crate) fn access_token(&self) -> StorageAccessToken<'a> {
+        StorageAccessToken::operation()
+    }
+
     /// Suspend this operation if a snapshot is requested. Otherwise a no-op. The closure is called
     /// only when actually suspending and must produce a handle to this operation so the
     /// snapshotter can persist it for replay on the next startup.
@@ -287,7 +294,11 @@ pub struct SnapshotPhase<'a, O> {
     suspended_operations: Vec<Arc<O>>,
 }
 
-impl<O> SnapshotPhase<'_, O> {
+impl<'a, O> SnapshotPhase<'a, O> {
+    pub(crate) fn access_token(&self) -> StorageAccessToken<'a> {
+        StorageAccessToken::exclusive()
+    }
+
     /// Operations that were suspended at the moment the snapshot started.
     /// The snapshotter must persist these so they can be replayed on the
     /// next startup.

@@ -4,9 +4,10 @@ use std::{
     hash::BuildHasher,
     ops::{Deref, DerefMut},
     sync::{
-        Arc,
+        Arc, OnceLock,
         atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
     },
+    time::Instant,
 };
 
 use thread_local::ThreadLocal;
@@ -16,10 +17,12 @@ use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, p
 
 use crate::{
     backend::{
-        dense_task_map::{CHUNK_SIZE, TaskMap, TaskMapGuard},
+        AnyOperation,
+        snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage_schema::{
             DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
         },
+        task_page_map::{PAGE_SIZE, StorageAccessToken, TaskMap, TaskMapGuard},
     },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
@@ -238,15 +241,20 @@ impl Storage {
         }
         if !already_modified && promoted {
             let previous = modified_count.fetch_add(1, Ordering::Relaxed);
-            debug_assert!(previous < CHUNK_SIZE as u8);
+            debug_assert!(previous < PAGE_SIZE as u8);
         }
     }
 
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
     /// snapshots). Optionally sets the `persistent_task_type` eagerly so it's available for
     /// persistence snapshots without needing to propagate it through `connect_child`.
-    pub fn initialize_new_task(&self, task_id: TaskId, task_type: Option<CachedTaskTypeArc>) {
-        let mut task = self.access_mut(task_id);
+    pub fn initialize_new_task(
+        &self,
+        access: StorageAccessToken<'_>,
+        task_id: TaskId,
+        task_type: Option<CachedTaskTypeArc>,
+    ) {
+        let mut task = self.access_mut(access, task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
         task.gc_pin_for_construction();
@@ -283,63 +291,87 @@ impl Storage {
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     >(
         &'l self,
-        guard: SnapshotGuard<'l>,
+        mut guard: SnapshotGuard<'l>,
         process: &'l P,
         drain_entries: bool,
     ) -> Vec<SnapshotShard<'l, P>> {
+        let exclusive_phase = if drain_entries {
+            // Release the concurrent snapshot admission before requesting deletion exclusion.
+            guard.operation.take();
+            let phase = guard.coordinator.begin_exclusion();
+            Some(phase)
+        } else {
+            if guard.operation.get().is_none() {
+                // Unit-level callers may enter take_snapshot directly; production arms the guard
+                // immediately after releasing the initial exclusion phase.
+                guard.begin_concurrent_phase();
+            }
+            None
+        };
+        let access = exclusive_phase
+            .as_ref()
+            .map_or_else(|| guard.access_token(), |phase| phase.access_token());
         let guard = Arc::new(guard);
 
-        let shards: Vec<Option<SnapshotShard<'l, P>>> = self.map.parallel_collect(|chunk| {
-            // Once snapshot mode is active, new writes use the during-snapshot flags and do not
-            // increment this counter. Each chunk can therefore be claimed independently.
-            let modified_count = chunk.take_modified_count().unwrap_or(0);
-            if modified_count == 0 && !drain_entries {
-                return None;
-            }
-
-            let work = if drain_entries {
-                let mut entries = Vec::with_capacity(modified_count as usize);
-                chunk.for_each_mut(|task| {
-                    if task.flags.any_modified() {
-                        let task_id = *task.key();
-                        debug_assert!(
-                            !task_id.is_transient(),
-                            "found a modified transient task: {task_id:?}"
-                        );
-                        entries.push((task_id, task.take_and_vacate()));
-                    } else {
-                        // Unmodified tasks, including all transient tasks, can reset in place;
-                        // only modified tasks need a detached value for persistence.
-                        task.vacate();
-                    }
-                });
-                if entries.is_empty() {
+        let shards: Vec<Option<SnapshotShard<'l, P>>> =
+            self.map.parallel_collect(access, |chunk| {
+                // Once snapshot mode is active, new writes use the during-snapshot flags and do not
+                // increment this counter. Each chunk can therefore be claimed independently.
+                let modified_count = chunk.take_modified_count().unwrap_or(0);
+                if modified_count == 0 && !drain_entries {
                     return None;
                 }
-                ShardWork::Drain(entries.into_iter())
-            } else {
-                let mut modified = Vec::with_capacity(modified_count as usize);
-                chunk.for_each_mut(|task| {
-                    if task.flags.any_modified() {
-                        let task_id = *task.key();
-                        debug_assert!(
-                            !task_id.is_transient(),
-                            "found a modified transient task: {task_id:?}"
-                        );
-                        modified.push(task_id);
-                    }
-                });
-                debug_assert!(!modified.is_empty());
-                ShardWork::Keep(modified)
-            };
 
-            Some(SnapshotShard {
-                work,
-                storage: self,
-                process,
-                _guard: guard.clone(),
-            })
-        });
+                let work = if drain_entries {
+                    let mut entries = Vec::with_capacity(modified_count as usize);
+                    chunk.for_each_mut(|task| {
+                        if task.flags.any_modified() {
+                            let task_id = *task.key();
+                            debug_assert!(
+                                !task_id.is_transient(),
+                                "found a modified transient task: {task_id:?}"
+                            );
+                            entries.push((task_id, task.take_and_vacate()));
+                        } else {
+                            // Unmodified tasks, including all transient tasks, can reset in place;
+                            // only modified tasks need a detached value for persistence.
+                            task.vacate();
+                        }
+                    });
+                    if entries.is_empty() {
+                        return None;
+                    }
+                    ShardWork::Drain(entries.into_iter())
+                } else {
+                    let mut modified = Vec::with_capacity(modified_count as usize);
+                    chunk.for_each_mut(|task| {
+                        if task.flags.any_modified() {
+                            let task_id = *task.key();
+                            debug_assert!(
+                                !task_id.is_transient(),
+                                "found a modified transient task: {task_id:?}"
+                            );
+                            modified.push(task_id);
+                        }
+                    });
+                    debug_assert!(!modified.is_empty());
+                    ShardWork::Keep(modified)
+                };
+
+                Some(SnapshotShard {
+                    work,
+                    storage: self,
+                    process,
+                    _guard: guard.clone(),
+                })
+            });
+        if drain_entries {
+            self.map.reclaim_empty_pages(access);
+        }
+        drop(exclusive_phase);
+        if drain_entries {
+            guard.begin_concurrent_phase();
+        }
         shards.into_iter().flatten().collect()
     }
 
@@ -352,17 +384,24 @@ impl Storage {
     /// Safety invariant: `start_snapshot` and `end_snapshot` are always called
     /// sequentially within a single `snapshot_and_persist` invocation (the sole
     /// caller). There is no concurrent snapshot lifecycle, so they cannot race.
-    pub fn start_snapshot(&self) -> (SnapshotGuard<'_>, bool) {
+    pub fn start_snapshot<'a>(
+        &'a self,
+        coordinator: &'a SnapshotCoordinator<AnyOperation>,
+        access: StorageAccessToken<'a>,
+    ) -> (SnapshotGuard<'a>, bool) {
         // Enter snapshot mode first so concurrent track_modification calls switch
         // to the _during_snapshot path and stop incrementing per-chunk counts.
         self.snapshot_mode.store(true, Ordering::SeqCst);
         // Don't reset counts here: take_snapshot claims them chunk by chunk.
         let has_modifications = self
             .map
-            .chunks()
+            .pages(access)
             .iter()
             .any(|chunk| chunk.modified_count() > 0);
-        (SnapshotGuard::new(self), has_modifications)
+        (
+            SnapshotGuard::new(self, coordinator, access),
+            has_modifications,
+        )
     }
 
     /// End snapshot mode.
@@ -375,7 +414,7 @@ impl Storage {
     /// 1. Leave snapshot mode so new modifications go to the modified flags directly.
     /// 2. Promote `modified_during_snapshot` → `modified` for tasks that were accessed during
     ///    snapshot mode (tracked in the small `snapshots` map).
-    fn end_snapshot(&self) {
+    fn end_snapshot(&self, access: StorageAccessToken<'_>) {
         // Leave snapshot mode first. After this, concurrent track_modification calls
         // will set modified flags directly instead of going through the snapshots map.
         self.snapshot_mode.store(false, Ordering::SeqCst);
@@ -402,16 +441,12 @@ impl Storage {
         });
         let pending: Vec<TaskId> = pending.into_iter().flatten().collect();
         parallel::for_each(&pending, |&key| {
-            if let Some(mut task) = self.map.get(key) {
+            if let Some(mut task) = self.map.get(key, access) {
                 let modified_count = task.modified_count_ptr();
                 // SAFETY: `task` holds a guard that keeps its chunk alive through this call.
                 self.promote_during_snapshot_flags(&mut task, unsafe { &*modified_count });
             }
         });
-
-        // Shutdown drain may have vacated every slot. All snapshot iterators and their task guards
-        // are gone before the shared SnapshotGuard calls this method.
-        self.map.retire_empty_chunks();
     }
 
     /// Returns true if actively snapshotting (modifications should go to snapshots map).
@@ -420,87 +455,104 @@ impl Storage {
         self.snapshot_mode.load(Ordering::SeqCst)
     }
 
-    pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
+    pub fn access_mut<'a>(
+        &'a self,
+        access: StorageAccessToken<'a>,
+        key: TaskId,
+    ) -> StorageWriteGuard<'a> {
         let inner = self
             .map
-            .get(key)
-            .unwrap_or_else(|| self.map.get_or_insert(key));
+            .get(key, access)
+            .unwrap_or_else(|| self.map.get_or_insert(key, access));
         StorageWriteGuard {
             storage: self,
             inner,
         }
     }
 
-    /// A locked entry that can be vacated while the guard is still held.
-    pub fn access_entry_mut(&self, key: TaskId) -> TaskEntryGuard<'_> {
+    /// A locked entry that can be removed without reopening its slot.
+    pub fn access_entry_mut<'a>(
+        &'a self,
+        access: StorageAccessToken<'a>,
+        key: TaskId,
+    ) -> TaskEntryGuard<'a> {
         TaskEntryGuard {
-            inner: self.access_mut(key),
+            inner: self.access_mut(access, key),
         }
     }
 
-    /// Read-only access to an already resident task. The closure runs under the task lock, so
-    /// it must be cheap and must not re-enter the same task.
-    pub fn with_task<R>(&self, key: TaskId, f: impl FnOnce(&TaskStorage) -> R) -> Option<R> {
-        let task = self.map.get(key)?;
+    /// Read-only access to an already resident task. The callback must not re-enter this task.
+    pub fn with_task<R>(
+        &self,
+        access: StorageAccessToken<'_>,
+        key: TaskId,
+        f: impl FnOnce(&TaskStorage) -> R,
+    ) -> Option<R> {
+        let task = self.map.get(key, access)?;
         Some(f(&task))
     }
 
     /// The number of tasks resident in the map.
     #[doc(hidden)]
-    pub fn resident_task_count_for_testing(&self) -> usize {
-        self.map.len()
+    pub fn resident_task_count_for_testing(&self, access: StorageAccessToken<'_>) -> usize {
+        self.map.len(access)
     }
 
-
-    /// The number of directory chunks for both persistent and transient tasks.
-    pub fn shard_count(&self) -> usize {
-        self.map.chunks().len()
+    /// Live pointer-page indices in both ID spaces; only live pages become GC jobs.
+    pub fn shard_indices(&self, access: StorageAccessToken<'_>) -> Vec<(bool, usize)> {
+        self.map.page_indices(access)
     }
 
-    /// Scan one resident chunk and enqueue candidates using the authoritative GC predicate.
-    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
-        let chunks = self.map.chunks();
-        chunks[index].for_each_mut(|task| {
+    pub fn gc_scan_shard(
+        &self,
+        access: StorageAccessToken<'_>,
+        (transient, index): (bool, usize),
+        mut on_candidate: impl FnMut(TaskId),
+    ) {
+        let Some(page) = self.map.page(index, transient, access) else {
+            return;
+        };
+        page.for_each_mut(|task| {
             if task.gc_collectible() {
                 on_candidate(*task.key());
             }
         });
     }
 
-    /// Return the set of all known live roots.
-    pub fn gc_scan_roots(&self) -> impl Iterator<Item = TaskId> {
-        let per_chunk: Vec<Vec<TaskId>> =
-            parallel::map_collect(&self.map.chunks(), |chunk| {
-                let mut roots = Vec::new();
-                chunk.for_each_mut(|task| {
-                    if !task.key().is_transient() && task.gc_is_root() {
-                        roots.push(*task.key());
-                    }
-                });
-                roots
+    /// Return the set of persistent live roots.
+    pub fn gc_scan_roots(&self, access: StorageAccessToken<'_>) -> impl Iterator<Item = TaskId> {
+        let per_page: Vec<Vec<TaskId>> = self.map.parallel_collect(access, |page| {
+            let mut roots = Vec::new();
+            page.for_each_mut(|task| {
+                if !task.key().is_transient() && task.gc_is_root() {
+                    roots.push(*task.key());
+                }
             });
-        per_chunk.into_iter().flatten()
+            roots
+        });
+        per_page.into_iter().flatten()
     }
 
-    pub fn access_pair_mut(
-        &self,
+    pub fn access_pair_mut<'a>(
+        &'a self,
+        access: StorageAccessToken<'a>,
         key1: TaskId,
         key2: TaskId,
-    ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
+    ) -> (StorageWriteGuard<'a>, StorageWriteGuard<'a>) {
         assert_ne!(key1, key2, "cannot mutably access the same task twice");
         if key1 < key2 {
-            let value1 = self.access_mut(key1);
-            let value2 = self.access_mut(key2);
+            let value1 = self.access_mut(access, key1);
+            let value2 = self.access_mut(access, key2);
             (value1, value2)
         } else {
-            let value2 = self.access_mut(key2);
-            let value1 = self.access_mut(key1);
+            let value2 = self.access_mut(access, key2);
+            let value1 = self.access_mut(access, key1);
             (value1, value2)
         }
     }
 
-    pub fn drop_contents(&self) {
-        self.map.clear();
+    pub fn drop_contents(&self, access: StorageAccessToken<'_>) {
+        self.map.clear(access);
         drop_contents(&self.snapshots);
     }
 
@@ -520,12 +572,35 @@ impl Storage {
     /// - `No`: skip
     ///
     /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
-    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
+    ///
+    /// The expensive scan races normal execution under operation admission. Only final pointer
+    /// removal runs under a short coordinator exclusion, where candidates are rechecked.
+    pub fn evict_after_snapshot(
+        &self,
+        coordinator: &SnapshotCoordinator<AnyOperation>,
+        parent_span: Option<Id>,
+    ) -> EvictionCounts {
+        self.evict_after_snapshot_with_hook(coordinator, parent_span, || {})
+    }
+
+    fn evict_after_snapshot_with_hook(
+        &self,
+        coordinator: &SnapshotCoordinator<AnyOperation>,
+        parent_span: Option<Id>,
+        before_exclusion: impl FnOnce(),
+    ) -> EvictionCounts {
+        let candidate_operation = coordinator.begin_operation();
+        let candidate_access = candidate_operation.access_token();
         let span = tracing::trace_span!(
             parent: parent_span,
             "evict_after_snapshot",
             total_task_cache_keys = self.task_cache.len(),
-            total_map_keys = self.map.len(),
+            total_map_keys = self.map.len(candidate_access),
+            candidate_count = tracing::field::Empty,
+            removed_count = tracing::field::Empty,
+            reclaimed_pages = tracing::field::Empty,
+            exclusion_wait = tracing::field::Empty,
+            exclusion_hold = tracing::field::Empty,
             counts = tracing::field::Empty,
         )
         .entered();
@@ -534,94 +609,124 @@ impl Storage {
             "evict_after_snapshot must not be called during snapshot mode"
         );
 
-        let counts: Vec<EvictionCounts> = self.map.parallel_collect(|chunk| {
-            let mut evicted = EvictionCounts::default();
-            // Removals that would invert task_cache -> task lock ordering are deferred until no
-            // task lock is held.
-            let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
-            // Remove a task type from `task_cache`, deferring on contention until no task lock is
-            // held. Shared by the GC-deleted and ordinary key-eviction paths.
-            let remove_from_task_cache =
-                |evicted: &mut EvictionCounts,
-                 deferred: &mut Vec<CachedTaskTypeArc>,
-                 task_type: &CachedTaskTypeArc| {
-                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                        TryLockAndRemove::Removed => evicted.key_evictions += 1,
-                        TryLockAndRemove::NotFound => {}
-                        TryLockAndRemove::WouldBlock => deferred.push(task_type.clone()),
+        let scan_results: Vec<(EvictionCounts, Vec<TaskId>)> =
+            self.map.parallel_collect(candidate_access, |chunk| {
+                let mut evicted = EvictionCounts::default();
+                let mut candidates = Vec::new();
+                // Removals that would invert task_cache -> task lock ordering are deferred until no
+                // task lock is held.
+                let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+                let remove_from_task_cache =
+                    |evicted: &mut EvictionCounts,
+                     deferred: &mut Vec<CachedTaskTypeArc>,
+                     task_type: &CachedTaskTypeArc| {
+                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                            TryLockAndRemove::Removed => evicted.key_evictions += 1,
+                            TryLockAndRemove::NotFound => {}
+                            TryLockAndRemove::WouldBlock => deferred.push(task_type.clone()),
+                        }
+                    };
+                chunk.for_each_mut(|mut task| {
+                    let task_id = *task.key();
+                    if task_id.is_transient() && !task.flags.deleted() {
+                        evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                        return;
                     }
-                };
-            chunk.for_each_mut(|mut task| {
-                let task_id = *task.key();
-                if task_id.is_transient() && !task.flags.deleted() {
-                    evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
-                    return;
-                }
-                // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
-                // can drop them fully now.
-                if task.flags.deleted() {
-                    if let Some(task_type) = task.get_persistent_task_type() {
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
+                    // Tombstoned tasks can be removed under exclusion, including transient tasks
+                    // which have no inverse persistent cache entry.
+                    if task.flags.deleted() {
+                        if let Some(task_type) = task.get_persistent_task_type() {
+                            remove_from_task_cache(
+                                &mut evicted,
+                                &mut deferred_task_cache_removals,
+                                task_type,
+                            );
+                        }
+                        candidates.push(task_id);
+                        return;
                     }
-                    evicted.full += 1;
-                    task.vacate();
-                    return;
-                }
-                let (key_evictability, value_evictability) = task.evictability();
-                match key_evictability {
-                    KeyEvictability::Evictable => {
-                        let task_type = task.get_persistent_task_type().unwrap();
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
+                    let (key_evictability, value_evictability) = task.evictability();
+                    match key_evictability {
+                        KeyEvictability::Evictable => {
+                            let task_type = task.get_persistent_task_type().unwrap();
+                            remove_from_task_cache(
+                                &mut evicted,
+                                &mut deferred_task_cache_removals,
+                                task_type,
+                            );
+                        }
+                        KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                     }
-                    KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
-                }
-                match value_evictability {
-                    ValueEvictability::Evictable { meta, data } => {
-                        match task.drop_partial(data, meta) {
-                            DropPartialOutcome::Empty => {
-                                evicted.full += 1;
-                                task.vacate();
-                            }
-                            DropPartialOutcome::HasResidue => {
-                                if data && meta {
-                                    evicted.data_and_meta += 1;
-                                } else if data {
-                                    evicted.data_only += 1;
-                                } else {
-                                    debug_assert!(meta);
-                                    evicted.meta_only += 1;
+                    match value_evictability {
+                        ValueEvictability::Evictable { meta, data } => {
+                            match task.drop_partial(data, meta) {
+                                DropPartialOutcome::Empty => candidates.push(task_id),
+                                DropPartialOutcome::HasResidue => {
+                                    if data && meta {
+                                        evicted.data_and_meta += 1;
+                                    } else if data {
+                                        evicted.data_only += 1;
+                                    } else {
+                                        debug_assert!(meta);
+                                        evicted.meta_only += 1;
+                                    }
                                 }
                             }
                         }
+                        ValueEvictability::Unevictable(reason) => {
+                            evicted.unevictable_reasons[reason.index()] += 1;
+                        }
                     }
-                    ValueEvictability::Unevictable(reason) => {
-                        evicted.unevictable_reasons[reason.index()] += 1;
+                });
+                for task_type in deferred_task_cache_removals {
+                    if self.task_cache.remove(task_type.as_ref()).is_some() {
+                        evicted.key_evictions += 1;
                     }
                 }
+                (evicted, candidates)
             });
-            for task_type in deferred_task_cache_removals {
-                if self.task_cache.remove(task_type.as_ref()).is_some() {
-                    evicted.key_evictions += 1;
-                }
-            }
-            evicted
-        });
-
-        // All parallel task guards are gone; detach and flush chunks whose last slot was vacated.
-        self.map.retire_empty_chunks();
 
         let mut totals = EvictionCounts::default();
-        for evicted in counts {
+        let mut candidates = Vec::new();
+        for (evicted, mut chunk_candidates) in scan_results {
             totals += evicted;
+            candidates.append(&mut chunk_candidates);
         }
+        span.record("candidate_count", candidates.len());
+        drop(candidate_operation);
+        before_exclusion();
+
+        let wait_start = Instant::now();
+        let exclusion = coordinator.begin_exclusion();
+        let exclusion_wait = wait_start.elapsed();
+        let hold_start = Instant::now();
+        let access = exclusion.access_token();
+        let mut removed = 0usize;
+        for task_id in candidates {
+            let Some(task) = self.map.get(task_id, access) else {
+                continue;
+            };
+            // Execution may have restored or modified this task after the candidate scan. Only the
+            // GC tombstone or an actually empty payload remains removable after quiescence.
+            if !task.flags.deleted() && !task.is_empty() {
+                continue;
+            }
+            if let Some(task_type) = task.get_persistent_task_type()
+                && self.task_cache.remove(task_type.as_ref()).is_some()
+            {
+                totals.key_evictions += 1;
+            }
+            task.vacate();
+            totals.full += 1;
+            removed += 1;
+        }
+        let reclaimed_pages = self.map.reclaim_empty_pages(access);
+        let exclusion_hold = hold_start.elapsed();
+        drop(exclusion);
+        span.record("removed_count", removed);
+        span.record("reclaimed_pages", reclaimed_pages);
+        span.record("exclusion_wait", tracing::field::debug(exclusion_wait));
+        span.record("exclusion_hold", tracing::field::debug(exclusion_hold));
         // Shrink task_cache only when we evicted more entries than remain — i.e. the map
         // is less than half full. Rehashing each surviving CachedTaskType isn't free, so
         // we gate it on meaningful slack. Within that, walk shards in parallel and shrink
@@ -742,7 +847,7 @@ impl StorageWriteGuard<'_> {
                 let bumped = !flags.any_modified();
                 if bumped {
                     let previous = self.inner.modified_count().fetch_add(1, Ordering::Relaxed);
-                    debug_assert!(previous < CHUNK_SIZE as u8);
+                    debug_assert!(previous < PAGE_SIZE as u8);
                 }
                 self.inner.flags.set_modified(category, true);
                 TrackOutcome::Tracked { category, bumped }
@@ -891,6 +996,12 @@ enum ScratchBufferSlot {
 
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
+    coordinator: &'l SnapshotCoordinator<AnyOperation>,
+    initial_access: StorageAccessToken<'l>,
+    /// Keeps resident pointers alive while normal snapshot shards perform deferred lookups. A
+    /// OnceLock allows shutdown drain to arm admission after its parallel exclusive scan has
+    /// already cloned the shared SnapshotGuard into shard iterators.
+    operation: OnceLock<OperationGuard<'l, AnyOperation>>,
     /// Per-thread scratch buffers for encoding task data. Buffers are taken
     /// by `SnapshotShardIter` on creation and returned on drop, allowing reuse
     /// across multiple shards processed by the same thread. When the guard is
@@ -900,11 +1011,30 @@ pub struct SnapshotGuard<'l> {
 }
 
 impl<'l> SnapshotGuard<'l> {
-    fn new(storage: &'l Storage) -> Self {
+    fn new(
+        storage: &'l Storage,
+        coordinator: &'l SnapshotCoordinator<AnyOperation>,
+        access: StorageAccessToken<'l>,
+    ) -> Self {
         Self {
             storage,
+            coordinator,
+            initial_access: access,
+            operation: OnceLock::new(),
             scratch_buffers: ThreadLocal::new(),
         }
+    }
+
+    pub(crate) fn begin_concurrent_phase(&self) {
+        self.operation
+            .set(self.coordinator.begin_operation())
+            .unwrap_or_else(|_| panic!("snapshot guard operation admission was already armed"));
+    }
+
+    fn access_token(&self) -> StorageAccessToken<'l> {
+        self.operation
+            .get()
+            .map_or(self.initial_access, OperationGuard::access_token)
     }
 
     fn take_scratch_buffer(&self) -> TurboBincodeBuffer {
@@ -940,7 +1070,10 @@ impl<'l> SnapshotGuard<'l> {
 
 impl Drop for SnapshotGuard<'_> {
     fn drop(&mut self) {
-        self.storage.end_snapshot();
+        // The production caller transitions this guard to an operation admission immediately after
+        // releasing its initial exclusion. If unwinding happens before that handoff, the original
+        // exclusion phase still outlives us and `access` remains valid.
+        self.storage.end_snapshot(self.access_token());
     }
 }
 
@@ -1015,7 +1148,8 @@ where
         match &mut self.shard.work {
             ShardWork::Keep(modified) => {
                 let task_id = modified.pop()?;
-                let mut inner = self.shard.storage.map.get(task_id).unwrap();
+                let access = self.shard._guard.access_token();
+                let mut inner = self.shard.storage.map.get(task_id, access).unwrap();
                 let item = serialize_task(task_id, &inner);
                 // Clear the modified flags that were captured into the snapshot copy,
                 // then promote modified_during_snapshot → modified so the task stays
@@ -1061,12 +1195,100 @@ mod tests {
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
-    use super::{SpecificTaskDataCategory, Storage, TrackOutcome};
-    use crate::backing_storage::SnapshotItem;
+    use super::{SpecificTaskDataCategory, Storage, TaskDataCategory, TrackOutcome};
+    use crate::{
+        backend::{
+            AnyOperation, snapshot_coordinator::SnapshotCoordinator,
+            task_page_map::StorageAccessToken,
+        },
+        backing_storage::SnapshotItem,
+    };
+
+    fn access() -> StorageAccessToken<'static> {
+        StorageAccessToken::operation()
+    }
+
+    fn coordinator() -> &'static SnapshotCoordinator<AnyOperation> {
+        Box::leak(Box::new(SnapshotCoordinator::new()))
+    }
 
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x4000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn eviction_rechecks_candidate_after_concurrent_restore() {
+        let storage = Storage::new(2, true);
+        let coordinator = SnapshotCoordinator::<AnyOperation>::new();
+        let task_id = non_transient_task(1);
+        {
+            let operation = coordinator.begin_operation();
+            let mut task = storage.access_mut(operation.access_token(), task_id);
+            task.flags.set_restored(TaskDataCategory::All);
+        }
+
+        let counts = storage.evict_after_snapshot_with_hook(&coordinator, None, || {
+            let operation = coordinator.begin_operation();
+            let mut task = storage.access_mut(operation.access_token(), task_id);
+            task.set_output(crate::data::OutputValue::Output(task_id));
+            task.flags.set_meta_restored(true);
+            task.flags.set_meta_modified(true);
+        });
+        assert_eq!(counts.full, 0, "re-modified candidate must remain resident");
+        let operation = coordinator.begin_operation();
+        let task = storage.map.get(task_id, operation.access_token()).unwrap();
+        assert_eq!(
+            task.get_output(),
+            Some(&crate::data::OutputValue::Output(task_id))
+        );
+    }
+
+    #[test]
+    fn exclusive_removal_waits_for_admitted_task_guard() {
+        let storage = Arc::new(Storage::new(2, true));
+        let coordinator = Arc::new(SnapshotCoordinator::<AnyOperation>::new());
+        let task_id = non_transient_task(1);
+        {
+            let operation = coordinator.begin_operation();
+            storage.access_mut(operation.access_token(), task_id);
+        }
+
+        let (holding_tx, holding_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let reader_storage = Arc::clone(&storage);
+        let reader_coordinator = Arc::clone(&coordinator);
+        let reader = thread::spawn(move || {
+            let operation = reader_coordinator.begin_operation();
+            let task = reader_storage.access_mut(operation.access_token(), task_id);
+            holding_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+            drop(task);
+            drop(operation);
+        });
+        holding_rx.recv().unwrap();
+
+        let (removed_tx, removed_rx) = mpsc::channel();
+        let remover_storage = Arc::clone(&storage);
+        let remover_coordinator = Arc::clone(&coordinator);
+        let remover = thread::spawn(move || {
+            let phase = remover_coordinator.begin_exclusion();
+            remover_storage
+                .map
+                .get(task_id, phase.access_token())
+                .unwrap()
+                .vacate();
+            remover_storage
+                .map
+                .reclaim_empty_pages(phase.access_token());
+            removed_tx.send(()).unwrap();
+        });
+        assert!(removed_rx.recv_timeout(Duration::from_millis(50)).is_err());
+        release_tx.send(()).unwrap();
+        removed_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        reader.join().unwrap();
+        remover.join().unwrap();
+        assert_eq!(storage.map.loaded_page_count(), 0);
     }
 
     #[test]
@@ -1090,7 +1312,7 @@ mod tests {
             let barrier = barrier.clone();
             let done_tx = done_tx.clone();
             thread::spawn(move || {
-                let _guard = storage.access_mut(non_transient_task(id));
+                let _guard = storage.access_mut(access(), non_transient_task(id));
                 barrier.wait();
                 done_tx.send(()).unwrap();
             });
@@ -1112,8 +1334,11 @@ mod tests {
             thread::spawn(move || {
                 barrier.wait();
                 for _ in 0..10_000 {
-                    let guards = storage
-                        .access_pair_mut(non_transient_task(first), non_transient_task(second));
+                    let guards = storage.access_pair_mut(
+                        access(),
+                        non_transient_task(first),
+                        non_transient_task(second),
+                    );
                     drop(guards);
                 }
                 done_tx.send(()).unwrap();
@@ -1143,20 +1368,21 @@ mod tests {
     async fn task_first_modified_during_snapshot_is_carried_forward() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(!has_modifications);
 
         {
-            let mut task = storage.access_mut(task_id);
+            let mut task = storage.access_mut(access(), task_id);
             let _ = task.track_modification(SpecificTaskDataCategory::Data, "test");
             assert!(task.flags.data_modified_during_snapshot());
             assert!(!task.flags.data_modified());
         }
 
         drop(snapshot_guard);
-        let (_next_snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (_next_snapshot_guard, has_modifications) =
+            storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
-        let task = storage.access_mut(task_id);
+        let task = storage.access_mut(access(), task_id);
         assert!(task.flags.data_modified());
         assert!(!task.flags.data_modified_during_snapshot());
     }
@@ -1187,12 +1413,12 @@ mod tests {
 
         // Step 1: modify the task outside snapshot mode (data_modified = true).
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         }
 
         // Step 2: enter snapshot mode.
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
 
         // Step 3: `take_snapshot` scans the chunk. At this point the task has
@@ -1205,7 +1431,7 @@ mod tests {
         // modified → `(true, true)` branch: creates a snapshot copy (carrying the
         // modified bits) and sets `data_modified_during_snapshot=true`.
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
             // We should have set a snapshot bit
             assert!(guard.flags.data_modified_during_snapshot())
@@ -1224,14 +1450,14 @@ mod tests {
         assert_eq!(items[0].task_id(), task_id);
 
         {
-            let guard = storage.access_mut(task_id);
+            let guard = storage.access_mut(access(), task_id);
             // The iterator should have promoted modified_during_snapshot → modified.
             assert!(guard.flags.data_modified());
         }
 
         // The during-snapshot modification must be reflected in per-chunk modified counts so
         // the next snapshot cycle picks it up. Verify by starting another snapshot.
-        let (_guard2, has_modifications) = storage.start_snapshot();
+        let (_guard2, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(
             has_modifications,
             "per-chunk modified counts must be non-zero after promoting modified_during_snapshot"
@@ -1259,14 +1485,14 @@ mod tests {
 
         // Step 1: modify meta only, outside snapshot mode.
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
             assert!(guard.flags.meta_modified());
             assert!(!guard.flags.data_modified());
         }
 
         // Step 2: enter snapshot mode.
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
 
         // Step 3: take_snapshot — task goes into modified list (meta_modified = true).
@@ -1275,7 +1501,7 @@ mod tests {
         // Step 4: modify data during snapshot. The `(true, false)` branch fires:
         // data was not previously modified, so snapshots gets a None entry.
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
             assert!(guard.flags.data_modified_during_snapshot());
             assert!(!guard.flags.meta_modified_during_snapshot());
@@ -1291,7 +1517,7 @@ mod tests {
         assert_eq!(items[0].task_id(), task_id);
 
         {
-            let guard = storage.access_mut(task_id);
+            let guard = storage.access_mut(access(), task_id);
             // meta_modified was cleared by the iterator (it was the pre-snapshot flag).
             assert!(!guard.flags.meta_modified());
             // data_modified_during_snapshot was promoted to data_modified.
@@ -1300,7 +1526,7 @@ mod tests {
         }
 
         // Next snapshot cycle must pick up the promoted data_modified.
-        let (_guard2, has_modifications) = storage.start_snapshot();
+        let (_guard2, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(
             has_modifications,
             "per-chunk modified counts must be non-zero after promoting \
@@ -1319,12 +1545,12 @@ mod tests {
 
         // Modify the task outside snapshot mode so it lands in the modified list.
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         }
-        assert!(storage.map.get(task_id).is_some());
+        assert!(storage.map.get(task_id, access()).is_some());
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
 
         // Take the snapshot in drain mode.
@@ -1341,24 +1567,24 @@ mod tests {
 
         // The entry must be gone from the map now that it has been persisted.
         assert!(
-            storage.map.get(task_id).is_none(),
+            storage.map.get(task_id, access()).is_none(),
             "task entry should be removed from the map after being persisted in drain mode"
         );
     }
 
-    /// In drain mode, fully consuming the iterators empties every occupied slot. Chunk allocations
-    /// remain stable until `Storage` itself is dropped, but no `TaskStorage` value is retained.
+    /// In drain mode, the exclusive scan detaches every task box and then reclaims empty pointer
+    /// pages before returning the owned modified values for serialization.
     #[tokio::test(flavor = "multi_thread")]
-    async fn drain_entries_clears_dense_slots() {
+    async fn drain_entries_reclaims_pointer_pages() {
         let storage = Storage::new(2, true);
         let task_ids: Vec<_> = (1..=256).map(non_transient_task).collect();
         for &task_id in &task_ids {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         }
-        assert_eq!(storage.map.len(), task_ids.len());
+        assert_eq!(storage.map.len(access()), task_ids.len());
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
         let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
         let items: Vec<_> = shards
@@ -1366,13 +1592,8 @@ mod tests {
             .flat_map(|shard| shard.into_iter())
             .collect();
         assert_eq!(items.len(), task_ids.len());
-        assert_eq!(storage.map.len(), 0);
-        for chunk in storage.map.chunks() {
-            for offset in chunk.probably_occupied_offsets() {
-                assert!(chunk.get(offset).is_none());
-            }
-            assert!(chunk.probably_occupied_offsets().is_empty());
-        }
+        assert_eq!(storage.map.len(access()), 0);
+        assert_eq!(storage.map.loaded_page_count(), 0);
     }
 
     /// In drain mode, `take_snapshot`'s scan removes *both* kinds of entry from the map: unmodified
@@ -1389,14 +1610,14 @@ mod tests {
         // One modified task (gets serialized) and one unmodified task (e.g. restored from disk but
         // never dirtied) that just occupies memory and must not be serialized.
         {
-            let mut guard = storage.access_mut(modified_id);
+            let mut guard = storage.access_mut(access(), modified_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         }
         // `access_mut` inserts an entry; leaving it without track_modification keeps it unmodified.
-        let _ = storage.access_mut(unmodified_id);
-        assert!(storage.map.get(unmodified_id).is_some());
+        let _ = storage.access_mut(access(), unmodified_id);
+        assert!(storage.map.get(unmodified_id, access()).is_some());
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
 
         let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
@@ -1404,11 +1625,11 @@ mod tests {
         // The scan moved the modified table out and freed the unmodified entry, so both ids are
         // already absent from the map before any iterator is consumed.
         assert!(
-            storage.map.get(unmodified_id).is_none(),
+            storage.map.get(unmodified_id, access()).is_none(),
             "unmodified entry should be removed during take_snapshot in drain mode"
         );
         assert!(
-            storage.map.get(modified_id).is_none(),
+            storage.map.get(modified_id, access()).is_none(),
             "modified entry should be moved out of the map during take_snapshot in drain mode"
         );
 
@@ -1428,7 +1649,7 @@ mod tests {
         let task_id = non_transient_task(1);
 
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let outcome = guard.track_modification(SpecificTaskDataCategory::Data, "test");
             assert!(guard.flags.data_modified());
             guard.undo_track_modification(outcome);
@@ -1437,7 +1658,7 @@ mod tests {
         }
 
         // Counter is back to zero: the next snapshot sees no modifications.
-        let (_guard, has_modifications) = storage.start_snapshot();
+        let (_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(
             !has_modifications,
             "undo must decrement the chunk counter so no modifications remain"
@@ -1451,7 +1672,7 @@ mod tests {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
 
-        let mut guard = storage.access_mut(task_id);
+        let mut guard = storage.access_mut(access(), task_id);
         // First track is the real modification.
         let _first = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         // Second track on the same category changes nothing.
@@ -1473,7 +1694,7 @@ mod tests {
         let task_id = non_transient_task(1);
 
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _data = guard.track_modification(SpecificTaskDataCategory::Data, "test");
             let meta = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
             assert!(guard.flags.meta_modified());
@@ -1483,7 +1704,7 @@ mod tests {
         }
 
         // Data is still modified, so the counter is still non-zero.
-        let (_guard, has_modifications) = storage.start_snapshot();
+        let (_guard, has_modifications) = storage.start_snapshot(coordinator(), access());
         assert!(has_modifications);
     }
 
@@ -1495,11 +1716,11 @@ mod tests {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
         // Insert the task (unmodified) so it exists in the map.
-        let _ = storage.access_mut(task_id);
+        let _ = storage.access_mut(access(), task_id);
 
-        let (_snapshot_guard, _) = storage.start_snapshot();
+        let (_snapshot_guard, _) = storage.start_snapshot(coordinator(), access());
 
-        let mut guard = storage.access_mut(task_id);
+        let mut guard = storage.access_mut(access(), task_id);
         let outcome = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         assert!(matches!(
             outcome,
@@ -1530,13 +1751,13 @@ mod tests {
 
         // Modify before snapshot so the category is part of the snapshot.
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(access(), task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         }
 
-        let (_snapshot_guard, _) = storage.start_snapshot();
+        let (_snapshot_guard, _) = storage.start_snapshot(coordinator(), access());
 
-        let mut guard = storage.access_mut(task_id);
+        let mut guard = storage.access_mut(access(), task_id);
         let outcome = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         assert!(matches!(
             outcome,
