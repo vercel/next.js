@@ -91,7 +91,7 @@ function mockUpgrade(targetVersion = process.env.__NEXT_VERSION || '16.4.0') {
 
 let directory: string
 const initialNextVersion = process.env.__NEXT_VERSION
-const initialRequestedUpgrade = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+const initialRequestedUpgrade = process.env.__NEXT_AGENT_UPGRADE
 
 const config = (
   policy: 'security' | 'latest' | 'experimental-future' | boolean,
@@ -109,7 +109,7 @@ it('uses the security policy when agentUpgrade is true', () => {
 })
 
 beforeEach(async () => {
-  delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+  delete process.env.__NEXT_AGENT_UPGRADE
   process.env.__NEXT_VERSION = '16.4.0'
   directory = await mkdtemp(join(tmpdir(), 'security-upgrade-nudge-'))
   await mkdir(join(directory, 'app'))
@@ -117,9 +117,9 @@ beforeEach(async () => {
 
 afterEach(async () => {
   if (initialRequestedUpgrade === undefined) {
-    delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+    delete process.env.__NEXT_AGENT_UPGRADE
   } else {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = initialRequestedUpgrade
+    process.env.__NEXT_AGENT_UPGRADE = initialRequestedUpgrade
   }
   if (initialNextVersion === undefined) {
     delete process.env.__NEXT_VERSION
@@ -167,7 +167,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```/
+        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*upgrade recommendation\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -208,6 +208,16 @@ describe('security upgrade nudge', () => {
       expect(warn).not.toHaveBeenCalled()
     }
   )
+
+  it('reuses the startup assessment for the agent nudge', async () => {
+    const assessment = assessUpgrade(directory, config('security'), '13.0.0')
+
+    await expect(
+      nudgeUpgrade(directory, config('security'), 'dev', null, assessment)
+    ).resolves.toBeUndefined()
+
+    expect(getUpgradeAssessment).toHaveBeenCalledTimes(1)
+  })
 
   it('stays silent when the version is unaffected', async () => {
     await run()
@@ -284,7 +294,7 @@ describe('security upgrade nudge', () => {
 
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(
-        /continuing after the reminder you configured[\s\S]*Reference:/
+        /continuing after the upgrade reminder[\s\S]*Reference:/
       )
     )
   })
@@ -418,7 +428,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agentUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*upgrade recommendation\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```[\s\S]*registry\.npmjs\.org/
       ),
     })
     await expect(
@@ -428,7 +438,7 @@ describe('latest upgrade nudge', () => {
     expect(getUpgradeAssessment).toHaveBeenCalledTimes(2)
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*continuing after the reminder you configured[\s\S]*registry\.npmjs\.org/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*continuing after the upgrade reminder[\s\S]*registry\.npmjs\.org/
       )
     )
   })
@@ -785,10 +795,10 @@ describe('human upgrade nudge', () => {
   it.each(['security', 'latest', 'experimental-future'] as const)(
     'does not force a %s nudge without a valid installed version',
     async (policy) => {
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
+      process.env.__NEXT_AGENT_UPGRADE = policy
       process.env.__NEXT_VERSION = 'not-a-version'
       processEnv([], directory)
-      updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: policy })
+      updateInitialEnv({ __NEXT_AGENT_UPGRADE: policy })
       for (const configured of [false, 'experimental-future'] as const) {
         const original = config(configured)
         const context = getUpgradeContext(original)
@@ -807,18 +817,18 @@ describe('human upgrade nudge', () => {
   it.each(['security', 'latest', 'experimental-future'] as const)(
     'runs an explicitly requested %s upgrade',
     async (policy) => {
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
+      process.env.__NEXT_AGENT_UPGRADE = policy
       process.env.__NEXT_VERSION = '16.4.0-preview-test'
       processEnv([], directory)
       updateInitialEnv({
-        __NEXT_AGENTIC_AUTO_UPGRADE: policy,
+        __NEXT_AGENT_UPGRADE: policy,
         __NEXT_VERSION: '16.4.0-preview-test',
       })
       jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
-        expect(process.env.__NEXT_AGENTIC_AUTO_UPGRADE).toBeUndefined()
+        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
         // Future upgrade preparation reloads config and resets the environment.
         resetEnv()
-        expect(process.env.__NEXT_AGENTIC_AUTO_UPGRADE).toBeUndefined()
+        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
         expect(process.env.__NEXT_VERSION).toBe('16.4.0-preview-test')
       })
       await runUpgrade(directory, policy)
@@ -833,7 +843,7 @@ describe('human upgrade nudge', () => {
   it.each(['blocked', 'unknown'] as const)(
     'does not force a nudge when the target is %s',
     async (status) => {
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+      process.env.__NEXT_AGENT_UPGRADE = 'security'
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
         affected: true,
         reference:
@@ -852,7 +862,7 @@ describe('human upgrade nudge', () => {
     jest.clearAllMocks()
     await run('security')
     expect(promptUpgrade).not.toHaveBeenCalled()
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+    process.env.__NEXT_AGENT_UPGRADE = 'security'
     jest.mocked(promptUpgrade).mockResolvedValue('skip')
     await expect(run('security')).resolves.toBe('skip')
     expect(promptUpgrade).toHaveBeenCalledTimes(1)
@@ -864,7 +874,7 @@ describe('human upgrade nudge', () => {
   })
 
   it('uses real release data for a forced latest nudge with config disabled', async () => {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'latest'
+    process.env.__NEXT_AGENT_UPGRADE = 'latest'
     mockUpgrade('16.4.1')
     await nudgeUpgrade(
       directory,
@@ -887,7 +897,7 @@ describe('human upgrade nudge', () => {
   })
 
   it('ignores invalid requests and retains the configured policy', async () => {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'invalid'
+    process.env.__NEXT_AGENT_UPGRADE = 'invalid'
     const context = getUpgradeContext(config(false))
     expect(context.experimental.agentUpgrade).toBe(false)
     await nudgeUpgrade(
@@ -906,7 +916,7 @@ describe('human upgrade nudge', () => {
   })
 
   it('does not open an explicitly requested prompt after cancellation', async () => {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+    process.env.__NEXT_AGENT_UPGRADE = 'security'
     const controller = new AbortController()
     controller.abort()
     await run('security', controller.signal)
@@ -1098,7 +1108,7 @@ describe('human upgrade nudge', () => {
       await run()
       expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
       expect(promptUpgrade).toHaveBeenCalledTimes(0)
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+      process.env.__NEXT_AGENT_UPGRADE = 'security'
       await run()
       expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
       expect(promptUpgrade).toHaveBeenCalledTimes(0)

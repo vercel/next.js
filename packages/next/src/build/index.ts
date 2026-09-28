@@ -1169,7 +1169,7 @@ export default async function build(
         config.experimental.agentUpgrade === 'security' ||
         config.experimental.agentUpgrade === 'latest' ||
         config.experimental.agentUpgrade === 'experimental-future' ||
-        process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+        process.env.__NEXT_AGENT_UPGRADE
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')

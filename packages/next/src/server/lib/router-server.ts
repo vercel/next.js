@@ -226,7 +226,7 @@ export async function initialize(opts: {
       developmentConfig.experimental.agentUpgrade === 'security' ||
       developmentConfig.experimental.agentUpgrade === 'latest' ||
       developmentConfig.experimental.agentUpgrade === 'experimental-future' ||
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE ||
       process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
       const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
@@ -234,7 +234,7 @@ export async function initialize(opts: {
       const upgradeContext = getUpgradeContext(developmentConfig)
       const installedVersion = process.env.__NEXT_VERSION || 'unknown'
       const policy = upgradeContext.experimental.agentUpgrade
-      const forced = process.env.__NEXT_AGENTIC_AUTO_UPGRADE === policy
+      const forced = process.env.__NEXT_AGENT_UPGRADE === policy
       const forceDevToolsForTesting =
         process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
       const assessment: ReturnType<typeof assessUpgrade> =
@@ -273,7 +273,13 @@ export async function initialize(opts: {
           })
         })
       } else {
-        void nudgeUpgrade(opts.dir, upgradeContext, 'dev').catch((error) => {
+        void nudgeUpgrade(
+          opts.dir,
+          upgradeContext,
+          'dev',
+          null,
+          isCI || forceDevToolsForTesting ? null : assessment
+        ).catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')
           const exitCode =

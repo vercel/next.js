@@ -22,7 +22,7 @@ type NudgeOptions = {
 export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
 function getRequestedUpgrade() {
-  const policy = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+  const policy = process.env.__NEXT_AGENT_UPGRADE
   return policy === 'security' || policy === 'latest' || policy === 'experimental-future'
     ? policy
     : null
@@ -270,14 +270,11 @@ async function nudgeUpgradeForAgent(
       break
   }
   const command = `next upgrade --ai=${reminder.policy}`
-  const note = getRequestedUpgrade()
-    ? `Note: This reminder is enabled by \`__NEXT_AGENTIC_AUTO_UPGRADE=${reminder.policy}\`.`
-    : `Note: This reminder is enabled by \`experimental.agentUpgrade: '${reminder.policy}'\`.`
   const message = `${summary}
 
 **${recommendation}**
 
-This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
+This command stopped to show the upgrade recommendation. Retry the same command to continue the original task.
 
 When you report back to the user, include this upgrade recommendation even if the retry succeeds.
 
@@ -287,7 +284,7 @@ At the end of the task, ask the user once: "Would you like me to run the '${remi
 ${command}
 \`\`\`
 
-${reference ? `Reference: ${reference}\n\n` : ''}${note}`
+${reference ? `Reference: ${reference}` : ''}`
   let retryAllowed = false
   try {
     retryAllowed = await allowNudgeRetry(
@@ -302,7 +299,7 @@ ${reference ? `Reference: ${reference}\n\n` : ''}${note}`
   }
   if (retryAllowed) {
     Log.warn(
-      `${summary} This command is continuing after the reminder you configured.${reference ? `\nReference: ${reference}` : ''}`
+      `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
     )
     return
   }
@@ -426,8 +423,8 @@ async function nudgeUpgradeForHuman(
 
 export async function runUpgrade(directory: string, policy: NudgeKind) {
   // The agent's dev/build commands must not trigger this explicit request again.
-  delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
-  updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: undefined })
+  delete process.env.__NEXT_AGENT_UPGRADE
+  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
   await spawnNextUpgrade(directory, {
     revision: 'latest',
@@ -445,7 +442,8 @@ export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null = null,
+  initialAssessment: Promise<UpgradeReminder | null> | null = null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agentUpgrade
@@ -476,13 +474,15 @@ export async function nudgeUpgrade(
       return
     }
   }
-  const reminder = await assessUpgrade(
-    directory,
-    { ...config, experimental: { agentUpgrade: policy } },
-    installedVersion,
-    stopBefore,
-    requested !== null
-  )
+  const reminder = await (stopBefore === null && initialAssessment
+    ? initialAssessment
+    : assessUpgrade(
+        directory,
+        { ...config, experimental: { agentUpgrade: policy } },
+        installedVersion,
+        stopBefore,
+        requested !== null
+      ))
   if (!reminder || signal?.aborted) {
     return
   }
