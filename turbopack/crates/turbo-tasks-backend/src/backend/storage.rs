@@ -850,7 +850,8 @@ impl StorageWriteGuard<'_> {
             return TrackOutcome::NoChange;
         }
         #[cfg(feature = "trace_task_modification")]
-        let _span = (!modified).then(|| tracing::trace_span!("mark_modified", name).entered());
+        let _span = (!flags.is_modified(category))
+            .then(|| tracing::trace_span!("mark_modified", name).entered());
         match (self.storage.snapshot_mode(), flags.is_modified(category)) {
             (false, false) => {
                 // Not in snapshot mode and item is unmodified
