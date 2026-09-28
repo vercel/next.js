@@ -414,6 +414,7 @@ export default defineConfig([
       'evals/next-upgrade/results/**/*',
       'evals/next-upgrade/shared/**/*',
       'examples/**/*',
+      'packages/next-codemod/bin/upgrade.test.ts',
       'test/**/*',
       '**/*.d.ts',
       'turbopack/**/*',

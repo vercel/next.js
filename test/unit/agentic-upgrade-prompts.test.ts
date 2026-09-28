@@ -300,7 +300,7 @@ describe('agentic upgrade prompts', () => {
     expect(process.env.__NEXT_UPGRADE_USE_CURRENT_CLI).toBeUndefined()
   })
 
-  it('pins the age-eligible canary for delegation and assessment', async () => {
+  it('delegates to an eligible canary and assesses a pinned CLI', async () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     const version = '99.0.0-canary.35'
     jest.mocked(getMinimumReleaseAge).mockReturnValue(48 * 60 * 60 * 1000)
@@ -348,9 +348,8 @@ describe('agentic upgrade prompts', () => {
       })
     )
 
-    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = version
-    process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION = version
-    process.env.__NEXT_VERSION = version
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
+    process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION = cliVersion
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'unaffected',
       reason: 'Already current.',
@@ -363,15 +362,14 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith(
       '/workspace/app',
       'latest',
-      version,
+      cliVersion,
       expect.objectContaining({ name: 'next' })
     )
   })
 
   it('keeps a newer invoking canary when the eligible release is older', async () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-    process.env.__NEXT_VERSION = '99.0.0-canary.40'
-    const eligibleVersion = '99.0.0-canary.35'
+    const eligibleVersion = cliVersion.replace(/canary\.\d+$/, 'canary.0')
     jest.mocked(getMinimumReleaseAge).mockReturnValue(48 * 60 * 60 * 1000)
     jest.mocked(resolveAgeEligibleVersion).mockResolvedValue(eligibleVersion)
     jest.mocked(prepareUpgrade).mockResolvedValue({
