@@ -423,7 +423,9 @@ impl TurboTasksBackend {
                 return TestSnapshotOutcome::default();
             }
         };
-        let eviction_counts = self.storage.evict_after_snapshot(&self.snapshot_coord, None);
+        let eviction_counts = self
+            .storage
+            .evict_after_snapshot(&self.snapshot_coord, None);
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
@@ -437,7 +439,6 @@ impl TurboTasksBackend {
         let operation = self.start_operation();
         self.storage
             .resident_task_count_for_testing(operation.access_token())
-    }
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only

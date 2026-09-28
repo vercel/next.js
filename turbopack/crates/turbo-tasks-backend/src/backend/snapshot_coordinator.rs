@@ -195,6 +195,11 @@ impl<O> SnapshotCoordinator<O> {
             suspended_operations,
         }
     }
+
+    /// Exclude operations for a snapshot, eviction-removal, GC, or shutdown phase.
+    pub fn begin_exclusion(&self) -> SnapshotPhase<'_, O> {
+        self.begin_snapshot()
+    }
 }
 
 /// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements the

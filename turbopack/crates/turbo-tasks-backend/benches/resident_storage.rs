@@ -1,9 +1,10 @@
 use std::{
     hint::black_box,
+    mem::size_of,
     num::NonZeroU64,
     sync::{
         Arc, OnceLock,
-        atomic::{AtomicU8, AtomicUsize, Ordering},
+        atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering},
     },
     thread,
     time::Instant,
@@ -296,7 +297,7 @@ fn report_reclamation(count: u32, stride: u32) {
     let before = TurboMalloc::allocation_counters();
     let dense = dense_map(count, stride);
     let live = TurboMalloc::allocation_counters();
-    let loaded_before = dense.loaded_page_count();
+    let loaded_before = dense.pages(operation()).len();
     for i in 1..=count {
         assert!(dense_remove_discard(&dense, task_id(i * stride)));
     }
@@ -314,9 +315,9 @@ fn report_reclamation(count: u32, stride: u32) {
          after_counter_delta={after_delta}",
         count * stride,
         task_page_map::PAGE_SIZE,
-        TaskMap::<Payload>::directory_entry_size(),
-        dense.directory_entry_count(),
-        dense.loaded_page_count(),
+        size_of::<AtomicPtr<()>>(),
+        ((count as usize * stride as usize) >> PAGE_SHIFT) + 1,
+        dense.pages(operation()).len(),
     );
     black_box(dense);
 }

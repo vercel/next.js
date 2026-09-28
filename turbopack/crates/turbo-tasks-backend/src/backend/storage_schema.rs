@@ -100,7 +100,6 @@ impl fmt::Debug for IntrusiveTaskLock {
     }
 }
 
-
 /// The complete task storage schema.
 ///
 /// This struct defines all storage fields for a task. The `#[task_storage]` macro
@@ -1950,7 +1949,6 @@ mod tests {
         drop(guard);
         result
     }
-
 
     #[test]
     fn const_new_slots_have_independent_unlocked_mutexes() {

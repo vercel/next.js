@@ -752,10 +752,6 @@ pub struct TaskEntryGuard<'a> {
 }
 
 impl<'a> TaskEntryGuard<'a> {
-    pub fn discard(self) {
-        self.inner.inner.vacate();
-    }
-
     pub fn into_write_guard(self) -> StorageWriteGuard<'a> {
         self.inner
     }
@@ -1295,12 +1291,11 @@ mod tests {
     fn new_task_is_pinned_during_construction() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
-        storage.initialize_new_task(task_id, None);
-        let task = storage.access_mut(task_id);
+        storage.initialize_new_task(access(), task_id, None);
+        let task = storage.access_mut(access(), task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
         assert!(!task.gc_collectible());
     }
-
 
     #[test]
     fn unrelated_task_locks_do_not_block_each_other() {

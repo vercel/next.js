@@ -37,6 +37,7 @@ use crate::{
         snapshot_coordinator::SnapshotPhase,
         storage::{SpecificTaskDataCategory, TaskDataCategory},
         storage_schema::TaskStorageAccessors,
+        task_page_map::StorageAccessToken,
     },
     backing_storage::SnapshotItem,
 };
@@ -224,7 +225,7 @@ impl TurboTasksBackend {
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();
 
-        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
+        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now, phase.access_token());
 
         let aged_out_count = aged_out.len();
         // TODO(perf): recycle the task ids of collected tasks.
@@ -373,12 +374,13 @@ impl TurboTasksBackend {
         &self,
         map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
+        access: StorageAccessToken<'_>,
     ) -> Vec<TaskId> {
         let ttl_ms = self.gc_root_ttl.as_millis() as u64;
 
         let mut aged_out = Vec::new();
         map.retain(|id, counter| {
-            if self.storage.with_task(*id, |_| ()).is_some() {
+            if self.storage.with_task(access, *id, |_| ()).is_some() {
                 // Resident: `gc_scan_roots` decides. Drop it either way.
                 return false;
             }
