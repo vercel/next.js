@@ -672,6 +672,21 @@ describe('prepare latest upgrade', () => {
     }
   )
 
+  it('uses the age-eligible canary for a canary app assessment', async () => {
+    const directory = await createApp('17.2.0-canary.4')
+    global.fetch = jest.fn(async () => {
+      throw new Error('The canary tag should not be fetched')
+    })
+
+    await expect(
+      prepareUpgrade(directory, 'latest', '17.2.0-canary.5')
+    ).resolves.toMatchObject({
+      status: 'ready',
+      targetVersion: '17.2.0-canary.5',
+    })
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+  })
+
   it.each(['17.2.0-canary.4', '17.2.0-canary.3'])(
     'adopts available defaults without a version change when the tag is %s',
     async (target) => {

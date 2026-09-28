@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { existsSync, readFileSync } from 'fs'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
@@ -7,7 +8,13 @@ import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
+import {
+  getMinimumReleaseAge,
+  resolveAgeEligibleVersion,
+  type AgeGatedPackageManager,
+} from '../lib/helpers/get-minimum-release-age'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { getPkgManager } from '../lib/helpers/get-pkg-manager'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
@@ -24,6 +31,40 @@ type NextUpgradeOptions = {
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
 const SKILLS_CLI_VERSION = '1.5.26'
+
+function getUpgradePackageManager(directory: string): AgeGatedPackageManager {
+  let current = directory
+  while (true) {
+    const packageJsonPath = join(current, 'package.json')
+    if (existsSync(packageJsonPath)) {
+      const manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+        packageManager: string | undefined
+      }
+      const name = /^(npm|pnpm|yarn|bun)@/.exec(
+        manifest.packageManager ?? ''
+      )?.[1]
+      if (name) {
+        return name as AgeGatedPackageManager
+      }
+    }
+    for (const [lockfile, manager] of [
+      ['bun.lock', 'bun'],
+      ['bun.lockb', 'bun'],
+      ['pnpm-lock.yaml', 'pnpm'],
+      ['yarn.lock', 'yarn'],
+      ['package-lock.json', 'npm'],
+    ] as const) {
+      if (existsSync(join(current, lockfile))) {
+        return manager
+      }
+    }
+    const parent = dirname(current)
+    if (parent === current) {
+      return getPkgManager(directory)
+    }
+    current = parent
+  }
+}
 
 type PrepareUpgradeDocumentInput = {
   directory: string
@@ -144,7 +185,18 @@ async function resolveAIUpgradeType(
     : 'security'
 }
 
-async function resolveCanaryVersion(): Promise<string> {
+async function resolveCanaryVersion(
+  directory: string,
+  manager: AgeGatedPackageManager
+): Promise<string> {
+  const minimumReleaseAge = getMinimumReleaseAge(directory, manager, 'next')
+  if (minimumReleaseAge > 0) {
+    return resolveAgeEligibleVersion(
+      [{ name: 'next', minimumReleaseAge }],
+      'canary'
+    )
+  }
+
   try {
     const response = await fetch('https://registry.npmjs.org/next/canary', {
       signal: AbortSignal.timeout(10_000),
@@ -174,11 +226,15 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions
 ) {
   const baseDir = getProjectDir(directory)
+  const packageManager = getUpgradePackageManager(baseDir)
 
   if (options.ai) {
     try {
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      let eligibleCanaryVersion =
+        process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION ?? null
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      delete process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
 
       if (expectedVersion !== undefined) {
@@ -190,9 +246,16 @@ export async function spawnNextUpgrade(
         }
       } else {
         Log.info(dim('Preparing upgrade...'))
-        const canaryVersion = await resolveCanaryVersion()
+        const canaryVersion = await resolveCanaryVersion(
+          baseDir,
+          packageManager
+        )
+        eligibleCanaryVersion = canaryVersion
         if (process.env.__NEXT_VERSION !== canaryVersion) {
-          const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
+          const [command, ...runnerArgs] = getNpxCommand(
+            baseDir,
+            packageManager
+          ).split(' ')
           const aiArgument =
             typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
           const args = [
@@ -213,6 +276,7 @@ export async function spawnNextUpgrade(
             env: {
               ...process.env,
               __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
+              __NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION: canaryVersion,
               // Older canaries recognize only this recursion guard.
               __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
             },
@@ -245,9 +309,11 @@ export async function spawnNextUpgrade(
       const { prepareUpgrade } =
         require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
       const assessmentSpinner = createSpinner('Preparing upgrade')
-      const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
-        assessmentSpinner?.stop()
-      )
+      const result = await (
+        eligibleCanaryVersion === null
+          ? prepareUpgrade(baseDir, upgradeType)
+          : prepareUpgrade(baseDir, upgradeType, eligibleCanaryVersion)
+      ).finally(() => assessmentSpinner?.stop())
 
       if (result.status !== 'ready') {
         Log.info(result.reason)
@@ -475,15 +541,59 @@ ${references}`
     return
   }
 
-  const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
-    getNpxCommand(baseDir).split(' ')
+  const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] = getNpxCommand(
+    baseDir,
+    packageManager
+  ).split(' ')
+
+  const codemodAge = getMinimumReleaseAge(
+    baseDir,
+    packageManager,
+    '@next/codemod'
+  )
+  const nextAge = getMinimumReleaseAge(baseDir, packageManager, 'next')
+  let codemodVersion = 'canary'
+  let targetRevision = options.revision
+
+  if (options.revision === 'canary' && (codemodAge > 0 || nextAge > 0)) {
+    const version = await resolveAgeEligibleVersion(
+      [
+        { name: 'next', minimumReleaseAge: nextAge },
+        { name: '@next/codemod', minimumReleaseAge: codemodAge },
+      ],
+      'canary'
+    )
+    codemodVersion = version
+    targetRevision = version
+  } else {
+    if (codemodAge > 0) {
+      codemodVersion = await resolveAgeEligibleVersion(
+        [{ name: '@next/codemod', minimumReleaseAge: codemodAge }],
+        'canary'
+      )
+    }
+    const targetChannel =
+      options.revision === 'major' ? 'latest' : options.revision
+    if (
+      nextAge > 0 &&
+      (targetChannel === 'latest' ||
+        targetChannel === 'rc' ||
+        targetChannel === 'beta' ||
+        targetChannel === 'preview')
+    ) {
+      targetRevision = await resolveAgeEligibleVersion(
+        [{ name: 'next', minimumReleaseAge: nextAge }],
+        targetChannel
+      )
+    }
+  }
 
   const upgradeProcessCommandArgs = [
     ...upgradeProcessDefaultArgs,
     // Needs to be bleeding edge (canary) to pick up latest codemods.
-    '@next/codemod@canary',
+    `@next/codemod@${codemodVersion}`,
     'upgrade',
-    options.revision,
+    targetRevision,
   ]
 
   if (options.verbose) {

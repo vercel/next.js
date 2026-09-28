@@ -15,6 +15,10 @@ import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
+import {
+  getMinimumReleaseAge,
+  resolveAgeEligibleVersion,
+} from 'next/dist/lib/helpers/get-minimum-release-age'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -57,6 +61,10 @@ jest.mock('next/dist/lib/get-project-dir', () => ({
 }))
 jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
+}))
+jest.mock('next/dist/lib/helpers/get-minimum-release-age', () => ({
+  getMinimumReleaseAge: jest.fn(),
+  resolveAgeEligibleVersion: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
   bold: (text: string) => text,
@@ -143,6 +151,9 @@ describe('agentic upgrade prompts', () => {
   const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
   const originalExpectedCliVersion =
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  const originalEligibleCanaryVersion =
+    process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION
+  const originalNextVersion = process.env.__NEXT_VERSION
   const originalFetch = global.fetch
   const originalExitCode = process.exitCode
 
@@ -173,6 +184,7 @@ describe('agentic upgrade prompts', () => {
     process.exitCode = undefined
 
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
+    jest.mocked(getMinimumReleaseAge).mockReturnValue(0)
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
     jest.mocked(createSpinner).mockReturnValue({
       stop: jest.fn(),
@@ -223,6 +235,17 @@ describe('agentic upgrade prompts', () => {
       process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
         originalExpectedCliVersion
     }
+    if (originalEligibleCanaryVersion === undefined) {
+      delete process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION
+    } else {
+      process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION =
+        originalEligibleCanaryVersion
+    }
+    if (originalNextVersion === undefined) {
+      delete process.env.__NEXT_VERSION
+    } else {
+      process.env.__NEXT_VERSION = originalNextVersion
+    }
     while (restoreDescriptors.length > 0) {
       restoreDescriptors.pop()?.()
     }
@@ -245,6 +268,56 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledTimes(1)
     expect(process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION).toBeUndefined()
     expect(process.env.__NEXT_UPGRADE_USE_CURRENT_CLI).toBeUndefined()
+  })
+
+  it('pins the age-eligible canary for delegation and assessment', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    const version = '99.0.0-canary.35'
+    jest.mocked(getMinimumReleaseAge).mockReturnValue(48 * 60 * 60 * 1000)
+    jest.mocked(resolveAgeEligibleVersion).mockResolvedValue(version)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'canary',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    expect(resolveAgeEligibleVersion).toHaveBeenCalledWith(
+      [{ name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 }],
+      'canary'
+    )
+    expect(crossSpawn).toHaveBeenCalledWith(
+      'npx',
+      [`next@${version}`, 'upgrade', '/workspace/app', '--ai=latest'],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          __NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION: version,
+        }),
+      })
+    )
+
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = version
+    process.env.__NEXT_UPGRADE_ELIGIBLE_CANARY_VERSION = version
+    process.env.__NEXT_VERSION = version
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'unaffected',
+      reason: 'Already current.',
+    })
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'canary',
+      verbose: false,
+      ai: 'latest',
+    })
+    expect(prepareUpgrade).toHaveBeenCalledWith(
+      '/workspace/app',
+      'latest',
+      version
+    )
   })
 
   it('rejects a worker running a different CLI version', async () => {

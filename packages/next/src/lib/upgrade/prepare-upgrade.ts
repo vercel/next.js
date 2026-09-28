@@ -22,7 +22,8 @@ type UpgradePreparation =
 
 export async function prepareUpgrade(
   directory: string,
-  targetRequest: string = 'security'
+  targetRequest: string = 'security',
+  eligibleCanaryVersion: string | null = null
 ): Promise<UpgradePreparation> {
   if (
     targetRequest !== 'security' &&
@@ -49,7 +50,9 @@ export async function prepareUpgrade(
 
   const { upgrade } = await getUpgradeAssessment(
     installedVersion,
-    targetRequest
+    targetRequest,
+    false,
+    eligibleCanaryVersion
   )
   if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
     throw new Error(upgrade.reason)
@@ -96,7 +99,8 @@ export type UpgradeAssessment = {
 export async function getUpgradeAssessment(
   installedVersion: string,
   policy: 'security' | 'latest' | 'future',
-  onlyIfAffected: boolean = false
+  onlyIfAffected: boolean = false,
+  eligibleCanaryVersion: string | null = null
 ): Promise<UpgradeAssessment> {
   if (!semver.valid(installedVersion)) {
     throw new Error('The running Next.js version is not valid semver.')
@@ -196,7 +200,10 @@ export async function getUpgradeAssessment(
         }
       }
     } else {
-      const release = await fetchLatestRelease(installedVersion)
+      const release = await fetchLatestRelease(
+        installedVersion,
+        eligibleCanaryVersion
+      )
       if (!release) {
         throw new Error(
           channel === 'canary'
@@ -367,11 +374,26 @@ export function getLatestUpgradeVersion(
   return targetVersion
 }
 
-async function fetchLatestRelease(installedVersion: string): Promise<{
+async function fetchLatestRelease(
+  installedVersion: string,
+  eligibleCanaryVersion: string | null
+): Promise<{
   version: string
   reference: string
 } | null> {
   const channel = getPrereleaseChannel(installedVersion)
+  if (channel === 'canary' && eligibleCanaryVersion !== null) {
+    if (
+      !semver.valid(eligibleCanaryVersion) ||
+      getPrereleaseChannel(eligibleCanaryVersion) !== 'canary'
+    ) {
+      return null
+    }
+    return {
+      version: eligibleCanaryVersion,
+      reference: `${NPM_REGISTRY}next/${eligibleCanaryVersion}`,
+    }
+  }
   const releaseChannel = channel === 'canary' ? 'canary' : 'latest'
   const reference = `${NPM_REGISTRY}next/${releaseChannel}`
   const { value } = await fetchJSON(reference)
