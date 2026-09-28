@@ -291,57 +291,36 @@ function matchesChannel(version: string, channel: ReleaseChannel): boolean {
     : prerelease?.[0] === channel
 }
 
-/** Select the newest release every package manager age gate permits. */
+/** Select the newest published release allowed by the age gate. */
 export async function resolveAgeEligibleVersion(
-  packages: AgeGatedPackage[],
-  channel: ReleaseChannel,
-  range: string | null = null
+  pkg: AgeGatedPackage,
+  channel: ReleaseChannel
 ): Promise<string> {
-  if (packages.length === 0) {
-    throw new Error('No packages were provided for upgrade resolution.')
-  }
-
-  const packuments = await Promise.all(
-    packages.map(async (pkg) => ({
-      ...pkg,
-      packument: await fetchPackument(pkg.name),
-    }))
-  )
+  const packument = await fetchPackument(pkg.name)
   const now = Date.now()
-  const candidates = Object.keys(packuments[0].packument.versions)
+  const candidates = Object.keys(packument.versions)
     .filter((version) => {
-      if (
-        !semver.valid(version) ||
-        !matchesChannel(version, channel) ||
-        (range !== null && !semver.satisfies(version, range))
-      ) {
+      if (!semver.valid(version) || !matchesChannel(version, channel)) {
         return false
       }
 
-      return packuments.every(({ minimumReleaseAge, packument }) => {
-        const taggedVersion = packument['dist-tags'][channel]
-        if (
-          !semver.valid(taggedVersion) ||
-          semver.gt(version, taggedVersion) ||
-          !(version in packument.versions)
-        ) {
-          return false
-        }
-        if (minimumReleaseAge === 0) {
-          return true
-        }
-        const published = Date.parse(packument.time[version])
-        return (
-          Number.isFinite(published) && published <= now - minimumReleaseAge
-        )
-      })
+      const taggedVersion = packument['dist-tags'][channel]
+      if (!semver.valid(taggedVersion) || semver.gt(version, taggedVersion)) {
+        return false
+      }
+      if (pkg.minimumReleaseAge === 0) {
+        return true
+      }
+      const published = Date.parse(packument.time[version])
+      return (
+        Number.isFinite(published) && published <= now - pkg.minimumReleaseAge
+      )
     })
     .sort(semver.rcompare)
 
   if (candidates.length === 0) {
-    const names = packages.map(({ name }) => name).join(' and ')
     throw new Error(
-      `No ${channel} version of ${names} satisfies the project's minimum release age.`
+      `No ${channel} version of ${pkg.name} satisfies the project's minimum release age.`
     )
   }
   return candidates[0]

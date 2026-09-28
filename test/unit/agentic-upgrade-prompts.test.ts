@@ -288,7 +288,7 @@ describe('agentic upgrade prompts', () => {
     })
 
     expect(resolveAgeEligibleVersion).toHaveBeenCalledWith(
-      [{ name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 }],
+      { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
       'canary'
     )
     expect(crossSpawn).toHaveBeenCalledWith(

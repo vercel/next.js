@@ -2,16 +2,50 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { getNpxCommand } from './get-npx-command'
+import { getPkgManager } from './get-pkg-manager'
 import {
   getMinimumReleaseAge,
   resolveAgeEligibleVersion,
-} from 'next/dist/lib/helpers/get-minimum-release-age'
+} from './get-minimum-release-age'
 
 jest.mock('node:child_process', () => ({
   execFileSync: jest.fn(),
 }))
 
 const mockExecFileSync = jest.mocked(execFileSync)
+
+describe('upgrade package manager detection', () => {
+  it('finds Bun from a workspace root lockfile', () => {
+    const root = mkdtempSync(join(tmpdir(), 'next-upgrade-pkg-manager-'))
+    try {
+      const app = join(root, 'apps', 'web')
+      mkdirSync(app, { recursive: true })
+      writeFileSync(join(root, 'bun.lock'), '')
+
+      expect(getPkgManager(app, 'upgrade')).toBe('bun')
+      expect(getNpxCommand(app, getPkgManager(app, 'upgrade'))).toBe('bunx')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('uses a workspace packageManager field', () => {
+    const root = mkdtempSync(join(tmpdir(), 'next-upgrade-pkg-manager-'))
+    try {
+      const app = join(root, 'apps', 'web')
+      mkdirSync(app, { recursive: true })
+      writeFileSync(
+        join(root, 'package.json'),
+        JSON.stringify({ packageManager: 'pnpm@10.33.0' })
+      )
+
+      expect(getPkgManager(app, 'upgrade')).toBe('pnpm')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('getMinimumReleaseAge', () => {
   const directory = '/app'
@@ -388,13 +422,13 @@ describe('resolveAgeEligibleVersion', () => {
 
     await expect(
       resolveAgeEligibleVersion(
-        [{ name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 }],
+        { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
         'canary'
       )
     ).resolves.toBe('17.1.0-canary.2')
   })
 
-  it('selects a version shared by next and the codemod', async () => {
+  it('selects eligible versions independently for next and the codemod', async () => {
     global.fetch = jest.fn(async (input) =>
       Response.json(
         String(input).includes('codemod')
@@ -413,10 +447,13 @@ describe('resolveAgeEligibleVersion', () => {
 
     await expect(
       resolveAgeEligibleVersion(
-        [
-          { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
-          { name: '@next/codemod', minimumReleaseAge: 48 * 60 * 60 * 1000 },
-        ],
+        { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
+        'canary'
+      )
+    ).resolves.toBe('17.1.0-canary.2')
+    await expect(
+      resolveAgeEligibleVersion(
+        { name: '@next/codemod', minimumReleaseAge: 48 * 60 * 60 * 1000 },
         'canary'
       )
     ).resolves.toBe('17.1.0-canary.1')
@@ -429,7 +466,7 @@ describe('resolveAgeEligibleVersion', () => {
 
     await expect(
       resolveAgeEligibleVersion(
-        [{ name: 'next', minimumReleaseAge: 1 }],
+        { name: 'next', minimumReleaseAge: 1 },
         'canary'
       )
     ).rejects.toThrow('No canary version of next')
@@ -442,7 +479,7 @@ describe('resolveAgeEligibleVersion', () => {
 
     await expect(
       resolveAgeEligibleVersion(
-        [{ name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 }],
+        { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
         'canary'
       )
     ).rejects.toThrow("project's minimum release age")

@@ -1,5 +1,4 @@
 import { spawn } from 'child_process'
-import { existsSync, readFileSync } from 'fs'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
@@ -31,40 +30,6 @@ type NextUpgradeOptions = {
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
 const SKILLS_CLI_VERSION = '1.5.26'
-
-function getUpgradePackageManager(directory: string): AgeGatedPackageManager {
-  let current = directory
-  while (true) {
-    const packageJsonPath = join(current, 'package.json')
-    if (existsSync(packageJsonPath)) {
-      const manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
-        packageManager: string | undefined
-      }
-      const name = /^(npm|pnpm|yarn|bun)@/.exec(
-        manifest.packageManager ?? ''
-      )?.[1]
-      if (name) {
-        return name as AgeGatedPackageManager
-      }
-    }
-    for (const [lockfile, manager] of [
-      ['bun.lock', 'bun'],
-      ['bun.lockb', 'bun'],
-      ['pnpm-lock.yaml', 'pnpm'],
-      ['yarn.lock', 'yarn'],
-      ['package-lock.json', 'npm'],
-    ] as const) {
-      if (existsSync(join(current, lockfile))) {
-        return manager
-      }
-    }
-    const parent = dirname(current)
-    if (parent === current) {
-      return getPkgManager(directory)
-    }
-    current = parent
-  }
-}
 
 type PrepareUpgradeDocumentInput = {
   directory: string
@@ -99,7 +64,10 @@ async function prepareUpgradeSkill(
 ): Promise<string> {
   const spawnCommand =
     require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
-  const [command, ...runnerArgs] = getNpxCommand(input.directory).split(' ')
+  const [command, ...runnerArgs] = getNpxCommand(
+    input.directory,
+    getPkgManager(input.directory, 'upgrade')
+  ).split(' ')
   const source =
     `https://github.com/vercel/next.js/tree/v${input.nextVersion}/skills/` +
     skill
@@ -192,7 +160,7 @@ async function resolveCanaryVersion(
   const minimumReleaseAge = getMinimumReleaseAge(directory, manager, 'next')
   if (minimumReleaseAge > 0) {
     return resolveAgeEligibleVersion(
-      [{ name: 'next', minimumReleaseAge }],
+      { name: 'next', minimumReleaseAge },
       'canary'
     )
   }
@@ -226,7 +194,7 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions
 ) {
   const baseDir = getProjectDir(directory)
-  const packageManager = getUpgradePackageManager(baseDir)
+  const packageManager = getPkgManager(baseDir, 'upgrade')
 
   if (options.ai) {
     try {
@@ -427,7 +395,7 @@ export async function spawnNextUpgrade(
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
-          const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
+          const codemodCommand = `${getNpxCommand(baseDir, packageManager)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')
           if (!guide.includes(CODEMOD_COMMAND_PLACEHOLDER)) {
             throw new Error('Could not prepare the upgrade guide.')
@@ -555,37 +523,26 @@ ${references}`
   let codemodVersion = 'canary'
   let targetRevision = options.revision
 
-  if (options.revision === 'canary' && (codemodAge > 0 || nextAge > 0)) {
-    const version = await resolveAgeEligibleVersion(
-      [
-        { name: 'next', minimumReleaseAge: nextAge },
-        { name: '@next/codemod', minimumReleaseAge: codemodAge },
-      ],
+  if (codemodAge > 0) {
+    codemodVersion = await resolveAgeEligibleVersion(
+      { name: '@next/codemod', minimumReleaseAge: codemodAge },
       'canary'
     )
-    codemodVersion = version
-    targetRevision = version
-  } else {
-    if (codemodAge > 0) {
-      codemodVersion = await resolveAgeEligibleVersion(
-        [{ name: '@next/codemod', minimumReleaseAge: codemodAge }],
-        'canary'
-      )
-    }
-    const targetChannel =
-      options.revision === 'major' ? 'latest' : options.revision
-    if (
-      nextAge > 0 &&
-      (targetChannel === 'latest' ||
-        targetChannel === 'rc' ||
-        targetChannel === 'beta' ||
-        targetChannel === 'preview')
-    ) {
-      targetRevision = await resolveAgeEligibleVersion(
-        [{ name: 'next', minimumReleaseAge: nextAge }],
-        targetChannel
-      )
-    }
+  }
+  const targetChannel =
+    options.revision === 'major' ? 'latest' : options.revision
+  if (
+    nextAge > 0 &&
+    (targetChannel === 'latest' ||
+      targetChannel === 'canary' ||
+      targetChannel === 'rc' ||
+      targetChannel === 'beta' ||
+      targetChannel === 'preview')
+  ) {
+    targetRevision = await resolveAgeEligibleVersion(
+      { name: 'next', minimumReleaseAge: nextAge },
+      targetChannel
+    )
   }
 
   const upgradeProcessCommandArgs = [

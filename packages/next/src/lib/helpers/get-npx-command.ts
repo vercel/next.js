@@ -1,10 +1,9 @@
 import { execSync } from 'child_process'
-import { getPkgManager } from './get-pkg-manager'
-import type { AgeGatedPackageManager } from './get-minimum-release-age'
+import { getPkgManager, type PackageManager } from './get-pkg-manager'
 
 export function getNpxCommand(
   baseDir: string,
-  pkgManager: AgeGatedPackageManager = getPkgManager(baseDir)
+  pkgManager: PackageManager | 'bun' = getPkgManager(baseDir)
 ) {
   let command = 'npx --yes'
   if (pkgManager === 'pnpm') {

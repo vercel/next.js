@@ -1,10 +1,69 @@
 import fs from 'fs'
 import path from 'path'
 import { execSync } from 'child_process'
+import findUp from 'next/dist/compiled/find-up'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn'
 
-export function getPkgManager(baseDir: string): PackageManager {
+export function getPkgManager(baseDir: string): PackageManager
+export function getPkgManager(
+  baseDir: string,
+  mode: 'upgrade'
+): PackageManager | 'bun'
+export function getPkgManager(
+  baseDir: string,
+  mode?: 'upgrade'
+): PackageManager | 'bun' {
+  if (mode === 'upgrade') {
+    const marker = findUp.sync(
+      (directory) => {
+        const packageJsonPath = path.join(directory, 'package.json')
+        if (fs.existsSync(packageJsonPath)) {
+          const manifest = JSON.parse(
+            fs.readFileSync(packageJsonPath, 'utf8')
+          ) as { packageManager: string | undefined }
+          if (/^(npm|pnpm|yarn|bun)@/.test(manifest.packageManager ?? '')) {
+            return packageJsonPath
+          }
+        }
+        for (const lockfile of [
+          'bun.lock',
+          'bun.lockb',
+          'pnpm-lock.yaml',
+          'yarn.lock',
+          'package-lock.json',
+        ]) {
+          const lockfilePath = path.join(directory, lockfile)
+          if (fs.existsSync(lockfilePath)) {
+            return lockfilePath
+          }
+        }
+        return undefined
+      },
+      { cwd: baseDir }
+    )
+    if (marker) {
+      const packageJsonPath = path.join(path.dirname(marker), 'package.json')
+      if (marker === packageJsonPath) {
+        const manifest = JSON.parse(
+          fs.readFileSync(packageJsonPath, 'utf8')
+        ) as { packageManager: string }
+        return manifest.packageManager.split('@')[0] as PackageManager | 'bun'
+      }
+      const lockfile = path.basename(marker)
+      if (lockfile === 'bun.lock' || lockfile === 'bun.lockb') {
+        return 'bun'
+      }
+      if (lockfile === 'pnpm-lock.yaml') {
+        return 'pnpm'
+      }
+      if (lockfile === 'yarn.lock') {
+        return 'yarn'
+      }
+      return 'npm'
+    }
+  }
+
   try {
     const userAgent = process.env.npm_config_user_agent
     if (userAgent) {
