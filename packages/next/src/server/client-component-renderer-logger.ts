@@ -17,22 +17,18 @@ export class ClientComponentLoadTracker {
   private hasLoads = false
   private pending = 0
   private sealed = false
-  private finalizationRegistered = false
-  private completion:
-    | Promise<ClientComponentLoaderMetrics | undefined>
-    | undefined = undefined
   private resolveCompletion:
     | ((metrics: ClientComponentLoaderMetrics | undefined) => void)
     | undefined = undefined
 
+  constructor(
+    private readonly report: (
+      metrics: ClientComponentLoaderMetrics | undefined
+    ) => void = () => {}
+  ) {}
+
   isSealed(): boolean {
     return this.sealed
-  }
-
-  registerFinalization(): boolean {
-    if (this.finalizationRegistered) return false
-    this.finalizationRegistered = true
-    return true
   }
 
   beginRequire(startTime: number): void {
@@ -67,20 +63,38 @@ export class ClientComponentLoadTracker {
     }
   }
 
-  seal(): Promise<ClientComponentLoaderMetrics | undefined> {
-    if (this.completion !== undefined) {
-      return this.completion
-    }
-
+  /** Stop accepting new loads and report after any in-flight loads settle. */
+  finish(): void {
+    if (this.sealed) return
     this.sealed = true
+    let completion: Promise<ClientComponentLoaderMetrics | undefined>
     if (this.pending === 0) {
-      this.completion = Promise.resolve(this.snapshot())
+      completion = Promise.resolve(this.snapshot())
     } else {
-      this.completion = new Promise((resolve) => {
+      completion = new Promise((resolve) => {
         this.resolveCompletion = resolve
       })
     }
-    return this.completion
+
+    // Telemetry is best-effort and must not keep the response open or mask a
+    // render error, including when reporting fails.
+    void completion.then(this.report).catch((error) => {
+      console.error('Failed to report client component loading metrics:', error)
+    })
+  }
+
+  /** Finish when the response stream closes, errors, or is canceled. */
+  finishOnStreamCompletion(
+    source: ReadableStream<Uint8Array>
+  ): ReadableStream<Uint8Array> {
+    const bridge = new TransformStream<Uint8Array, Uint8Array>()
+    // pipeTo propagates source errors and consumer cancellation through the
+    // bridge. Observe its settlement independently from the response.
+    void source
+      .pipeTo(bridge.writable)
+      .finally(() => this.finish())
+      .catch(() => {})
+    return bridge.readable
   }
 
   private recordStart(startTime: number): void {
@@ -100,52 +114,6 @@ export class ClientComponentLoadTracker {
       this.resolveCompletion = undefined
       resolve(this.snapshot())
     }
-  }
-}
-
-/** Seal without keeping waitUntil open for pending chunks. */
-export function finalizeClientComponentLoadTracker(
-  tracker: ClientComponentLoadTracker,
-  report: (metrics: ClientComponentLoaderMetrics | undefined) => void
-): void {
-  if (!tracker.registerFinalization()) return
-  void tracker
-    .seal()
-    .then(report)
-    .catch((error) => {
-      // Telemetry is best-effort; a reporting failure must not reject an
-      // unobserved promise after the request has closed.
-      console.error('Failed to report client component loading metrics:', error)
-    })
-}
-
-/** Finish a dynamic render when its Web Stream pipe settles. */
-export function finalizeClientComponentLoadTrackerOnStream(
-  source: ReadableStream<Uint8Array>,
-  tracker: ClientComponentLoadTracker,
-  report: (metrics: ClientComponentLoaderMetrics | undefined) => void
-): ReadableStream<Uint8Array> {
-  const bridge = new TransformStream<Uint8Array, Uint8Array>()
-  // pipeTo propagates source errors and consumer cancellation through the
-  // bridge. Observe its settlement independently so telemetry cannot change
-  // the stream's result or create an unhandled rejection.
-  void source
-    .pipeTo(bridge.writable)
-    .finally(() => finalizeClientComponentLoadTracker(tracker, report))
-    .catch(() => {})
-  return bridge.readable
-}
-
-/** Finish a prerender after it has produced its result or thrown. */
-export async function finalizeClientComponentLoadTrackerOnPrerender<T>(
-  operation: () => Promise<T>,
-  tracker: ClientComponentLoadTracker,
-  report: (metrics: ClientComponentLoaderMetrics | undefined) => void
-): Promise<T> {
-  try {
-    return await operation()
-  } finally {
-    finalizeClientComponentLoadTracker(tracker, report)
   }
 }
 

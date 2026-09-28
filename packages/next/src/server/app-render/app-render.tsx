@@ -211,10 +211,6 @@ import {
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
   ClientComponentLoadTracker,
-  finalizeClientComponentLoadTracker,
-  finalizeClientComponentLoadTrackerOnPrerender,
-  finalizeClientComponentLoadTrackerOnStream,
-  type ClientComponentLoaderMetrics,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
@@ -2688,7 +2684,7 @@ const generatePrerenderRequestId: GenerateRequestId = async (req) => {
 function initializeClientComponentLoadTracking(
   renderOpts: RenderOpts,
   workStore: WorkStore
-): ((metrics: ClientComponentLoaderMetrics | undefined) => void) | undefined {
+): ClientComponentLoadTracker | undefined {
   const { ComponentMod, cacheComponents } = renderOpts
   if (!ComponentMod.__next_app__) return undefined
 
@@ -2696,15 +2692,14 @@ function initializeClientComponentLoadTracking(
   // bypass the inner HTML render span. Reporting also runs after its scope.
   const parentSpan = getTracer().getActiveScopeSpan()
   const isTracingEnabled = parentSpan?.isRecording() ?? false
-  let report:
-    | ((metrics: ClientComponentLoaderMetrics | undefined) => void)
-    | undefined = undefined
+  installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
+
+  let tracker: ClientComponentLoadTracker | undefined
   if (
     'performance' in globalThis &&
     (process.env.NEXT_OTEL_PERFORMANCE_PREFIX || isTracingEnabled)
   ) {
-    workStore.clientComponentLoadTracker = new ClientComponentLoadTracker()
-    report = (metrics) => {
+    tracker = new ClientComponentLoadTracker((metrics) => {
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
         isTracingEnabled &&
@@ -2722,10 +2717,10 @@ function initializeClientComponentLoadTracking(
           })
           .end(metrics.clientComponentLoadEnd)
       }
-    }
+    })
+    workStore.clientComponentLoadTracker = tracker
   }
-  installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
-  return report
+  return tracker
 }
 
 async function prepareAppPageRender(
@@ -3293,8 +3288,8 @@ async function renderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch
 ) {
-  const report = initializeClientComponentLoadTracking(renderOpts, workStore)
-  const tracker = workStore.clientComponentLoadTracker
+  const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
+  let trackingBoundToStream = false
   try {
     const prepared = await prepareAppPageRender(
       req,
@@ -3326,21 +3321,13 @@ async function renderToHTMLOrFlightImpl(
       serverComponentsHmrCache
     )
     result.assignMetadata({ clientComponentLoadTracker: tracker })
-    if (tracker && report) {
-      if (!result.hasStreamingResponse) {
-        finalizeClientComponentLoadTracker(tracker, report)
-      } else {
-        result.wrapStream((stream) =>
-          finalizeClientComponentLoadTrackerOnStream(stream, tracker, report)
-        )
-      }
+    if (tracker && result.hasStreamingResponse) {
+      result.wrapStream((stream) => tracker.finishOnStreamCompletion(stream))
+      trackingBoundToStream = true
     }
     return result
-  } catch (renderError) {
-    if (tracker && report) {
-      finalizeClientComponentLoadTracker(tracker, report)
-    }
-    throw renderError
+  } finally {
+    if (!trackingBoundToStream) tracker?.finish()
   }
 }
 
@@ -3358,12 +3345,10 @@ async function prerenderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch
 ) {
-  const report = initializeClientComponentLoadTracking(renderOpts, workStore)
-  const tracker = workStore.clientComponentLoadTracker
-  const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
-  let prepared: PreparedAppPageRender
+  const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
   try {
-    prepared = await prepareAppPageRender(
+    const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
+    const prepared = await prepareAppPageRender(
       req,
       res,
       url,
@@ -3387,20 +3372,10 @@ async function prerenderToHTMLOrFlightImpl(
         supportsPerSegmentPrefetching: true,
       }
     )
-  } catch (prepareError) {
-    if (tracker && report) {
-      finalizeClientComponentLoadTracker(tracker, report)
-    }
-    throw prepareError
+    return await prerenderAppPage(prepared)
+  } finally {
+    tracker?.finish()
   }
-  if (tracker && report) {
-    return finalizeClientComponentLoadTrackerOnPrerender(
-      () => prerenderAppPage(prepared),
-      tracker,
-      report
-    )
-  }
-  return prerenderAppPage(prepared)
 }
 
 export type AppPageRender = (

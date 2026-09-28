@@ -152,9 +152,6 @@ class CustomPropagator implements TextMapPropagator {
 class CustomSampler implements Sampler {
   shouldSample(context) {
     const value = context.getValue(customKey)
-    if (value === 'disable-client-component-trace') {
-      return { decision: SamplingDecision.NOT_RECORD }
-    }
     return {
       decision: SamplingDecision.RECORD_AND_SAMPLED,
       attributes: value ? { custom: value } : {},

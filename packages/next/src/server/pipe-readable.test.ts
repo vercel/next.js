@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net'
 import { EventEmitter } from 'node:events'
 import http from 'node:http'
 import zlib from 'node:zlib'
-import { Readable } from 'node:stream'
+import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 import setupCompression from 'next/dist/compiled/compression'
 
@@ -212,43 +212,66 @@ describe('client component loading measurement at first write', () => {
   })
 
   it.each(['web', 'node'] as const)(
-    'uses the explicit %s stream tracker snapshot without render context',
+    'measures the explicit %s tracker when the first chunk is written',
     async (streamKind) => {
       const tracker = new ClientComponentLoadTracker()
       tracker.beginRequire(100)
       tracker.finishRequire(100, 115)
       tracker.beginRequire(150)
       tracker.finishRequire(150, 160)
+      tracker.beginChunk(200)
+      const firstWrite = new Promise<void>((resolve) => {
+        measure.mockImplementation(() => {
+          resolve()
+          return {} as PerformanceMeasure
+        })
+      })
+
+      function loadAfterFirstWrite() {
+        tracker.beginRequire(300)
+        tracker.finishRequire(300, 330)
+      }
 
       server = http.createServer((_req, res) => {
         if (streamKind === 'web') {
           const readable = new ReadableStream<Uint8Array>({
             start(controller) {
-              controller.enqueue(new TextEncoder().encode('hello'))
-              controller.close()
+              setImmediate(() => {
+                tracker.finishChunk(200, 250)
+                controller.enqueue(new TextEncoder().encode('hello'))
+                void firstWrite.then(() => {
+                  loadAfterFirstWrite()
+                  controller.enqueue(new TextEncoder().encode(' world'))
+                  controller.close()
+                })
+              })
             },
           })
           void pipe
             .pipeToNodeResponse(readable, res, undefined, tracker)
             .catch((error) => res.destroy(error))
         } else {
+          const readable = new PassThrough()
           void pipe
-            .pipeNodeReadableToNodeResponse(
-              Readable.from([Buffer.from('hello')]),
-              res,
-              undefined,
-              tracker
-            )
+            .pipeNodeReadableToNodeResponse(readable, res, undefined, tracker)
             .catch((error) => res.destroy(error))
+          setImmediate(() => {
+            tracker.finishChunk(200, 250)
+            readable.write('hello')
+            void firstWrite.then(() => {
+              loadAfterFirstWrite()
+              readable.end(' world')
+            })
+          })
         }
       })
 
       const url = await listen(server)
-      expect(await (await fetch(url)).text()).toBe('hello')
+      expect(await (await fetch(url)).text()).toBe('hello world')
       expect(measure).toHaveBeenCalledTimes(1)
       expect(measure).toHaveBeenCalledWith(
         'test:next-client-component-loading',
-        { start: 100, end: 125 }
+        { start: 100, end: 175 }
       )
     }
   )
