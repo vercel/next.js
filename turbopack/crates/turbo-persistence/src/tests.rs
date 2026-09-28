@@ -2918,10 +2918,12 @@ fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> R
 }
 
 /// The number of keys the tests using [`two_shard_config`] write per commit.
+#[cfg(not(miri))]
 const TWO_SHARD_KEYS: u32 = 2_000;
 
 /// A config that starts with 2 shards, and a target shard size that keeps 2 shards for
 /// [`TWO_SHARD_KEYS`] keys with 4 byte values: the size of one shard of them after compaction.
+#[cfg(not(miri))]
 fn two_shard_config(mmap: bool) -> Result<DbConfig<1>> {
     let mut config = config_with_mmap::<1>(mmap);
     config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
@@ -2949,6 +2951,7 @@ fn two_shard_config(mmap: bool) -> Result<DbConfig<1>> {
 }
 
 /// Counts the entries of the family's hot and other bottom SST files.
+#[cfg(not(miri))]
 fn bottom_entry_counts(db: &TurboPersistence<RayonParallelScheduler, 1>) -> Result<(usize, usize)> {
     let mut hot = 0;
     let mut cold = 0;
@@ -2965,6 +2968,9 @@ fn bottom_entry_counts(db: &TurboPersistence<RayonParallelScheduler, 1>) -> Resu
     Ok((hot, cold))
 }
 
+// The compaction tests below write thousands of keys and took 4 to over 28 minutes under Miri.
+// They exercise the compaction policy, not unsafe code.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -3032,6 +3038,7 @@ fn bottom_merge_writes_read_keys_into_hot_files(#[case] mmap: bool) -> Result<()
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -3077,6 +3084,7 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -3148,6 +3156,7 @@ fn shard_count_changes_with_hysteresis(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]

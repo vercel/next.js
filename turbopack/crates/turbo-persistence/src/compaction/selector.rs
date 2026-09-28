@@ -741,6 +741,8 @@ mod tests {
         }
     }
 
+    // This 200-commit simulation didn't finish in 28 minutes under Miri. It has no unsafe code.
+    #[cfg(not(miri))]
     #[test]
     fn simulate_compactions() {
         let config = simulation_config(50, 2.0);
