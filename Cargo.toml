@@ -254,6 +254,7 @@ async-trait = "0.1.64"
 base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
+boxcar = "0.2.14"
 bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
 byteorder = "1.5.0"
 bytes = "1.11.1"
@@ -285,6 +286,7 @@ image = { version = "0.25.8", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
+kovan = "0.1.20"
 lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",

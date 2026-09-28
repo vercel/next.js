@@ -725,6 +725,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "boxcar"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36f64beae40a84da1b4b26ff2761a5b895c12adc41dc25aaee1c4f2bbfe97a6e"
+
+[[package]]
 name = "brotli-decompressor"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3484,6 +3490,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kovan"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "069314825b47e60f2882bf6fc90ab66e3eb37ee5e4407de6357a124842fc3b26"
+dependencies = [
+ "once_cell",
+ "portable-atomic",
+]
+
+[[package]]
 name = "kqueue"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5129,9 +5145,9 @@ dependencies = [
 
 [[package]]
 name = "portable-atomic"
-version = "1.11.0"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
+checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
 
 [[package]]
 name = "portable-atomic-util"
@@ -9208,6 +9224,7 @@ dependencies = [
  "auto-hash-map",
  "bincode",
  "bitfield",
+ "boxcar",
  "codspeed-criterion-compat",
  "crossbeam-utils",
  "dashmap 7.0.0-rc2",
@@ -9217,6 +9234,7 @@ dependencies = [
  "indexmap 2.14.0",
  "indoc",
  "jiff",
+ "kovan",
  "lz4_flex",
  "parking_lot",
  "rand 0.10.1",

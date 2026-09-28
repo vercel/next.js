@@ -24,9 +24,15 @@ type InnerMap<K, V, const I: usize> = AutoMap<K, V, BuildHasherDefault<FxHasher>
 #[derive(Debug, Clone)]
 pub struct CounterMap<K, V, const I: usize>(InnerMap<K, V, I>);
 
+impl<K, V, const I: usize> CounterMap<K, V, I> {
+    pub const fn new() -> Self {
+        Self(InnerMap::with_hasher())
+    }
+}
+
 impl<K, V, const I: usize> Default for CounterMap<K, V, I> {
     fn default() -> Self {
-        Self(InnerMap::default())
+        Self::new()
     }
 }
 
@@ -84,11 +90,6 @@ impl CounterValue for i32 {
 }
 
 impl<K, V, const I: usize> CounterMap<K, V, I> {
-    #[cfg(test)]
-    pub fn new() -> Self {
-        Self(AutoMap::default())
-    }
-
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
