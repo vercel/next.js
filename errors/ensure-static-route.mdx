@@ -119,7 +119,7 @@ Visitors share the cached result until it is revalidated. Choose a lifetime that
 ### Gotchas
 
 - Caching does not make request-specific cookies, headers, or search parameters static. Moving their reads outside a cached function still requires per-request server work.
-- Remove [`connection()`](/docs/app/api-reference/functions/connection) if it was only forcing an otherwise cacheable operation to run per request. If per-request work is required, [remove the static requirement](#remove-the-static-requirement) instead.
+- Remove [`connection()`](/docs/app/api-reference/functions/connection) if it was only forcing an otherwise cacheable operation to run per request. If per-request work is required, [remove the static requirement](#dont-want-this-validation) instead.
 
 ### Short-lived caches
 
