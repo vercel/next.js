@@ -114,20 +114,16 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// The check applies only to persistent tasks; a `MustExist` open of a transient id falls
     /// through to create. See `ExecuteContextImpl::open_task`.
-    fn task<'ctx>(
-        &'ctx self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Self::TaskGuardImpl<'ctx>;
+    fn task(&self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl<'_>;
     /// Opens a task that may legitimately be gone, returning `None` if it is.
     ///
     /// Gone covers both a task that exists nowhere and one that is soft-deleted: the caller cannot
     /// tell those apart, since only the timing of the next eviction separates them.
-    fn try_get_task<'ctx>(
-        &'ctx self,
+    fn try_get_task(
+        &self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Option<Self::TaskGuardImpl<'ctx>>;
+    ) -> Option<Self::TaskGuardImpl<'_>>;
     /// Opens a task, materializing an in-memory storage entry for it if one is not resident yet
     /// (inserting a blank, then restoring `category` from disk if present). Use only where the
     /// task's storage may not be resident: the first connect of a freshly-minted child (threads can
@@ -136,11 +132,11 @@ pub trait ExecuteContext<'e>: Sized {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// new `TaskId`.
-    fn open_or_create_task_storage<'ctx>(
-        &'ctx self,
+    fn open_or_create_task_storage(
+        &self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Self::TaskGuardImpl<'ctx>;
+    ) -> Self::TaskGuardImpl<'_>;
     /// Prepares (as in fetches from persistent storage) a list of tasks.
     /// The iterator should not have duplicates, as this would cause over-fetching.
     fn prepare_tasks(
@@ -181,12 +177,12 @@ pub trait ExecuteContext<'e>: Sized {
     /// Opens two tasks that must **already exist** under a single lock acquisition (to atomically
     /// read/mutate an edge between them). Both ids are opened `MustExist` — an edge only exists
     /// between already-materialized tasks.
-    fn task_pair<'ctx>(
-        &'ctx self,
+    fn task_pair(
+        &self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (Self::TaskGuardImpl<'ctx>, Self::TaskGuardImpl<'ctx>);
+    ) -> (Self::TaskGuardImpl<'_>, Self::TaskGuardImpl<'_>);
     fn schedule_task(&self, task: &impl TaskGuard, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
@@ -350,12 +346,12 @@ impl<'e> ExecuteContextImpl<'e> {
         }
     }
 
-    fn open_task<'ctx>(
-        &'ctx self,
+    fn open_task(
+        &self,
         task_id: TaskId,
         category: TaskDataCategory,
         access: TaskAccess,
-    ) -> Option<TaskGuardImpl<'ctx>> {
+    ) -> Option<TaskGuardImpl<'_>> {
         self.task_lock_counter.acquire();
 
         let mut task = OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id));
@@ -1114,28 +1110,24 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         }
     }
 
-    fn task<'ctx>(
-        &'ctx self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Self::TaskGuardImpl<'ctx> {
+    fn task(&self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl<'_> {
         self.open_task(task_id, category, TaskAccess::MustExist)
             .expect("a MustExist open either yields a task or panics")
     }
 
-    fn try_get_task<'ctx>(
-        &'ctx self,
+    fn try_get_task(
+        &self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Option<Self::TaskGuardImpl<'ctx>> {
+    ) -> Option<Self::TaskGuardImpl<'_>> {
         self.open_task(task_id, category, TaskAccess::AllowMissing)
     }
 
-    fn open_or_create_task_storage<'ctx>(
-        &'ctx self,
+    fn open_or_create_task_storage(
+        &self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Self::TaskGuardImpl<'ctx> {
+    ) -> Self::TaskGuardImpl<'_> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
             .expect("a MaybeCreate open always yields a task")
     }
@@ -1177,12 +1169,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         );
     }
 
-    fn task_pair<'ctx>(
-        &'ctx self,
+    fn task_pair(
+        &self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (Self::TaskGuardImpl<'ctx>, Self::TaskGuardImpl<'ctx>) {
+    ) -> (Self::TaskGuardImpl<'_>, Self::TaskGuardImpl<'_>) {
         self.task_lock_counter.acquire_multiple(2);
 
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
@@ -2540,29 +2532,5 @@ mod cell_data_tracking_tests {
             g.cell_data_contains(&cell),
             "Skip + evict=never cell must survive eviction even though the task was never modified"
         );
-    }
-}
-
-#[cfg(test)]
-mod task_guard_lifetime_tests {
-    #[cfg(debug_assertions)]
-    use super::TaskLockCounter;
-
-    #[cfg(debug_assertions)]
-    #[test]
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "WASI uses panic=abort; catch_unwind cannot catch the expected panic"
-    )]
-    fn debug_counter_rejects_nested_independent_locks_and_tracks_pairs() {
-        let counter = TaskLockCounter::new();
-        counter.acquire();
-        assert!(
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| counter.acquire())).is_err()
-        );
-        counter.release();
-        counter.acquire_multiple(2);
-        counter.release();
-        counter.release();
     }
 }

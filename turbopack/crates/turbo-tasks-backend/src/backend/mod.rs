@@ -909,8 +909,9 @@ impl TurboTasksBackend {
                 drop(task);
             }
 
-            // End every task guard's shared context borrow before executing queued work or
-            // converting errors through mutable context access.
+            // The `if let` scrutinee can hold a task guard until the whole branch ends, even
+            // after dropping its binding. Finish that scope and release the outer optional guard
+            // before borrowing the context mutably for queue execution or error conversion.
             drop(reader_task);
             if let Some(queue) = queue_to_execute {
                 queue.execute(&mut ctx);
