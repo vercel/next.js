@@ -127,7 +127,8 @@ impl TaskSlot {
     }
 
     /// # Safety
-    /// The caller must own this slot's task lock.
+    /// The caller must own this slot's task lock, or hold an exclusive shard write guard that
+    /// prevents every concurrent access to this slot.
     pub(crate) unsafe fn get(&self) -> &TaskStorage {
         // SAFETY: Forwarded from the caller.
         unsafe { &*self.as_ptr() }
