@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
 import { TableVirtuoso } from 'react-virtuoso'
 import {
   ArrowDown,
@@ -142,9 +142,11 @@ export function DiffTable<Row extends DiffRow>({
     })
   }
 
-  const sorted = useMemo(
-    () => sortRows(summary.rows, sortColumn, sortDirection, useCompressed),
-    [summary.rows, sortColumn, sortDirection, useCompressed]
+  const sorted = sortRows(
+    summary.rows,
+    sortColumn,
+    sortDirection,
+    useCompressed
   )
 
   const onHeaderClick = (column: SortColumn) => {
@@ -158,38 +160,34 @@ export function DiffTable<Row extends DiffRow>({
     }
   }
 
-  const filtered = useMemo(() => {
-    const q = searchQuery?.trim().toLowerCase() ?? ''
-    return sorted.filter((row) => {
-      if (!isSingle && statusFilter !== 'all') {
-        if (statusFilter === 'changes' && row.status === 'identical')
-          return false
-        if (statusFilter !== 'changes' && row.status !== statusFilter) {
-          return false
-        }
+  const q = searchQuery?.trim().toLowerCase() ?? ''
+  const filtered = sorted.filter((row) => {
+    if (!isSingle && statusFilter !== 'all') {
+      if (statusFilter === 'changes' && row.status === 'identical') return false
+      if (statusFilter !== 'changes' && row.status !== statusFilter) {
+        return false
       }
-      if (q !== '') {
-        const key = row.key.toLowerCase()
-        const name = row.name.toLowerCase()
-        if (!key.includes(q) && !name.includes(q)) return false
-      }
-      return true
-    })
-  }, [sorted, isSingle, statusFilter, searchQuery])
+    }
+    if (q !== '') {
+      const key = row.key.toLowerCase()
+      const name = row.name.toLowerCase()
+      if (!key.includes(q) && !name.includes(q)) return false
+    }
+    return true
+  })
 
   // Group filtered rows by package, preserving the user's chosen sort order.
   // Groups themselves are sorted by their aggregate using the same column +
   // direction so ranking is consistent whether you look at the package roll-up
   // or its contents. Rows without a `packageName` (project-relative paths)
   // render flat as before.
-  const renderItems = useMemo(
-    () => buildRenderItems(filtered, sortColumn, sortDirection, useCompressed),
-    [filtered, sortColumn, sortDirection, useCompressed]
+  const renderItems = buildRenderItems(
+    filtered,
+    sortColumn,
+    sortDirection,
+    useCompressed
   )
-  const visibleItems = useMemo(
-    () => expandRenderItems(renderItems, expandedPackages),
-    [renderItems, expandedPackages]
-  )
+  const visibleItems = expandRenderItems(renderItems, expandedPackages)
 
   const totalDelta = useCompressed
     ? summary.totalCompressedB - summary.totalCompressedA

@@ -1,7 +1,7 @@
 'use client'
 
 import type React from 'react'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { CircleHelp } from 'lucide-react'
 import {
   Tooltip,
@@ -210,10 +210,10 @@ export function CompareSidebar({
   aLabel: string
   bLabel: string
 }) {
-  const selectedRow = useMemo(() => {
-    if (!selectedKey || !sourceDiff) return null
-    return sourceDiff.rows.find((r) => r.key === selectedKey) ?? null
-  }, [selectedKey, sourceDiff])
+  const selectedRow =
+    selectedKey && sourceDiff
+      ? (sourceDiff.rows.find((row) => row.key === selectedKey) ?? null)
+      : null
 
   return (
     <div

@@ -756,7 +756,8 @@ export function TreemapVisualizer({
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
 
-  // Build ancestor chain for focused source (list of source indices from root to focused)
+  // Stable chains keep the imperative canvas draw effect from re-running on
+  // unrelated renders; the focused chain also feeds the expensive layout below.
   const focusedAncestorChain = useMemo(() => {
     const chain: number[] = []
     let currentIndex = focusedSourceIndex
@@ -859,6 +860,8 @@ export function TreemapVisualizer({
     }
   }, [])
 
+  // Layout walks the entire focused subtree; hover and selection only redraw
+  // the cached layout in the canvas effect below.
   const layout = useMemo(() => {
     // Compute layout using the focused source index
     const focusedLayout = computeTreemapLayoutFromAnalyze(

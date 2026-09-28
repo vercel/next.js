@@ -245,7 +245,8 @@ function useAnalyzerModel(compare: boolean) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [analyzeData])
 
-  // Compute module depth map from active entries
+  // React Compiler currently skips this hook. Keep the graph traversal cached
+  // across selection and filter updates until that bailout is resolved.
   const moduleDepthMap = useMemo(() => {
     if (!analyzeData) return new Map()
 
@@ -253,6 +254,8 @@ function useAnalyzerModel(compare: boolean) {
     return computeModuleDepthMap(modulesData, activeEntries)
   }, [modulesData, analyzeData])
 
+  // This hook isn't compiled; stable predicate identity keeps the source diff
+  // and treemap layout below cached.
   const filterSource = useMemo(() => {
     if (!analyzeData) return () => true
 
@@ -279,7 +282,8 @@ function useAnalyzerModel(compare: boolean) {
   // of every source for the current route. We synthesize this by diffing
   // the build against itself, which produces an all-`identical` summary
   // that we feed into `<DiffTable mode="single">`. This keeps a single
-  // sources-listing implementation regardless of mode.
+  // sources-listing implementation regardless of mode. Diffing walks every
+  // source, so keep this cached while this hook isn't compiled.
   const singleSourceListing = useMemo(() => {
     if (!analyzeData || baselineSnapshot) return null
     return diffSources(analyzeData, analyzeData, {
@@ -444,20 +448,14 @@ function ValidComparisonContent({
     baselineRoutes,
     baselineBaseDir
   )
-  const routeDiff = useMemo(() => {
-    if (!model.currentRouteTotals) return null
-    return diffRoutesWithSizes(
-      baselineRoutes,
-      model.currentRoutes,
-      baselineRouteTotals,
-      model.currentRouteTotals
-    )
-  }, [
-    baselineRoutes,
-    model.currentRoutes,
-    baselineRouteTotals,
-    model.currentRouteTotals,
-  ])
+  const routeDiff = model.currentRouteTotals
+    ? diffRoutesWithSizes(
+        baselineRoutes,
+        model.currentRoutes,
+        baselineRouteTotals,
+        model.currentRouteTotals
+      )
+    : null
   const layoutProps = {
     baselineSnapshot,
     comparisonSnapshot: model.comparisonSnapshot,
@@ -538,55 +536,46 @@ function ComparisonContent({
   baselineAnalyzeData: AnalyzeData | null
   layoutProps: ComparisonLayoutProps
 }) {
-  const baselineModuleDepthMap = useMemo(() => {
-    if (!baselineAnalyzeData) return new Map()
-    const activeEntries = computeActiveEntries(
-      layoutProps.baselineModulesData,
-      baselineAnalyzeData
-    )
-    return computeModuleDepthMap(layoutProps.baselineModulesData, activeEntries)
-  }, [layoutProps.baselineModulesData, baselineAnalyzeData])
-  const compareFilterSource = useMemo(() => {
-    return (side: 'A' | 'B', sourceIndex: number): boolean => {
-      const data = side === 'A' ? baselineAnalyzeData : model.analyzeData
-      if (!data) return false
-      const flags = data.getSourceFlags(sourceIndex)
-      const hasEnvironment =
-        (model.environmentFilter === Environment.Client && flags.client) ||
-        (model.environmentFilter === Environment.Server && flags.server)
-      const hasType =
-        (model.typeFilter.includes('js') && flags.js) ||
-        (model.typeFilter.includes('css') && flags.css) ||
-        (model.typeFilter.includes('json') && flags.json) ||
-        (model.typeFilter.includes('asset') && flags.asset)
-      return hasEnvironment && hasType
-    }
-  }, [
-    baselineAnalyzeData,
-    model.analyzeData,
-    model.environmentFilter,
-    model.typeFilter,
-  ])
-  const sourceDiff = useMemo(() => {
-    if (!model.analyzeData && !baselineAnalyzeData) return null
-    return diffSources(baselineAnalyzeData, model.analyzeData ?? null, {
-      filterSource: compareFilterSource,
-    })
-  }, [model.analyzeData, baselineAnalyzeData, compareFilterSource])
+  const baselineModuleDepthMap = baselineAnalyzeData
+    ? computeModuleDepthMap(
+        layoutProps.baselineModulesData,
+        computeActiveEntries(
+          layoutProps.baselineModulesData,
+          baselineAnalyzeData
+        )
+      )
+    : new Map<number, number>()
+  const compareFilterSource = (
+    side: 'A' | 'B',
+    sourceIndex: number
+  ): boolean => {
+    const data = side === 'A' ? baselineAnalyzeData : model.analyzeData
+    if (!data) return false
+    const flags = data.getSourceFlags(sourceIndex)
+    const hasEnvironment =
+      (model.environmentFilter === Environment.Client && flags.client) ||
+      (model.environmentFilter === Environment.Server && flags.server)
+    const hasType =
+      (model.typeFilter.includes('js') && flags.js) ||
+      (model.typeFilter.includes('css') && flags.css) ||
+      (model.typeFilter.includes('json') && flags.json) ||
+      (model.typeFilter.includes('asset') && flags.asset)
+    return hasEnvironment && hasType
+  }
+  const sourceDiff =
+    model.analyzeData || baselineAnalyzeData
+      ? diffSources(baselineAnalyzeData, model.analyzeData ?? null, {
+          filterSource: compareFilterSource,
+        })
+      : null
   const alternateEnvironment = getAlternateEnvironment(model.environmentFilter)
-  const hasAlternateEnvironmentSources = useMemo(
-    () =>
-      [model.analyzeData, baselineAnalyzeData].some(
-        (data) =>
-          data &&
-          hasEnvironmentSources(data, alternateEnvironment, model.typeFilter)
-      ),
-    [
-      model.analyzeData,
-      baselineAnalyzeData,
-      alternateEnvironment,
-      model.typeFilter,
-    ]
+  const hasAlternateEnvironmentSources = [
+    model.analyzeData,
+    baselineAnalyzeData,
+  ].some(
+    (data) =>
+      data &&
+      hasEnvironmentSources(data, alternateEnvironment, model.typeFilter)
   )
   const compareModel: CompareLayoutModel = {
     ...layoutProps,
