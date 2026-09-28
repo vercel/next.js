@@ -1,6 +1,7 @@
 import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
+  waitFor,
   waitForRedbox,
   waitForNoRedbox,
   getRedboxHeader,
@@ -766,7 +767,7 @@ describe('Image Component Default Tests', () => {
       `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
     )
     if (isNextDev) {
-      await new Promise((r) => setTimeout(r, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -1204,7 +1205,7 @@ describe('Image Component Default Tests', () => {
         )
         expect(result).toBeGreaterThan(0)
       })
-      await new Promise((r) => setTimeout(r, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -1288,7 +1289,7 @@ describe('Image Component Default Tests', () => {
         )
         expect(result).toBeGreaterThan(0)
       })
-      await new Promise((r) => setTimeout(r, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .filter((log) => log.startsWith('Image with src'))
@@ -1354,7 +1355,7 @@ describe('Image Component Default Tests', () => {
       expect(result).toBeGreaterThan(0)
     })
 
-    await new Promise((r) => setTimeout(r, 1000))
+    await waitFor(1000)
 
     const computedWidth = await getComputed(browser, id, 'width')
     const computedHeight = await getComputed(browser, id, 'height')
@@ -1402,7 +1403,7 @@ describe('Image Component Default Tests', () => {
     await retry(async () => {
       expect(await getSrc(browser, 'img-blur')).toMatch(/^\/_next\/image/)
     })
-    await new Promise((r) => setTimeout(r, 1000))
+    await waitFor(1000)
 
     expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
       'opacity(0.5)'
@@ -1477,7 +1478,7 @@ describe('Image Component Default Tests', () => {
     })
     if (isNextDev) {
       it('should not log incorrect warnings', async () => {
-        await new Promise((r) => setTimeout(r, 1000))
+        await waitFor(1000)
         const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
@@ -1488,7 +1489,7 @@ describe('Image Component Default Tests', () => {
       })
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await next.browser('/fill-warnings')
-        await new Promise((r) => setTimeout(r, 1000))
+        await waitFor(1000)
         const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
@@ -1507,7 +1508,7 @@ describe('Image Component Default Tests', () => {
       })
       it('should not log warnings when image unmounts', async () => {
         browser = await next.browser('/should-not-warn-unmount')
-        await new Promise((r) => setTimeout(r, 1000))
+        await waitFor(1000)
         const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
@@ -1532,7 +1533,7 @@ describe('Image Component Default Tests', () => {
         expect(result).not.toBe(0)
       })
 
-      await new Promise((r) => setTimeout(r, 500))
+      await waitFor(500)
 
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
@@ -1685,7 +1686,7 @@ describe('Image Component Default Tests', () => {
 
   it('should be valid HTML', async () => {
     const browser = await next.browser('/valid-html-w3c')
-    await new Promise((r) => setTimeout(r, 1000))
+    await waitFor(1000)
     expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
     const url = await browser.url()
     const result = (await validateHTML({
