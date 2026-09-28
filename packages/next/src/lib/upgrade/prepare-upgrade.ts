@@ -3,6 +3,11 @@ import { createRequire } from 'module'
 import { join } from 'path'
 import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
+import {
+  NoAgeEligibleReleaseError,
+  resolveAgeEligibleVersion,
+  type AgeGatedPackage,
+} from '../helpers/get-minimum-release-age'
 import loadConfig from '../../server/config'
 import { PHASE_INFO } from '../../shared/lib/constants'
 import {
@@ -23,7 +28,8 @@ type UpgradePreparation =
 export async function prepareUpgrade(
   directory: string,
   targetRequest: string = 'security',
-  eligibleCanaryVersion: string | null = null
+  eligibleCanaryVersion: string | null = null,
+  ageGatedPackage: AgeGatedPackage | null = null
 ): Promise<UpgradePreparation> {
   if (
     targetRequest !== 'security' &&
@@ -48,11 +54,21 @@ export async function prepareUpgrade(
     throw new Error('Could not determine the installed Next.js version.')
   }
 
+  if (ageGatedPackage && targetRequest !== 'security') {
+    eligibleCanaryVersion = await resolveAgeEligibleVersion(
+      ageGatedPackage,
+      semver.prerelease(installedVersion)?.[0] === 'canary'
+        ? 'canary'
+        : 'latest'
+    )
+  }
+
   const { upgrade } = await getUpgradeAssessment(
     installedVersion,
     targetRequest,
     false,
-    eligibleCanaryVersion
+    eligibleCanaryVersion,
+    ageGatedPackage
   )
   if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
     throw new Error(upgrade.reason)
@@ -100,7 +116,8 @@ export async function getUpgradeAssessment(
   installedVersion: string,
   policy: 'security' | 'latest' | 'future',
   onlyIfAffected: boolean = false,
-  eligibleCanaryVersion: string | null = null
+  eligibleCanaryVersion: string | null = null,
+  ageGatedPackage: AgeGatedPackage | null = null
 ): Promise<UpgradeAssessment> {
   if (!semver.valid(installedVersion)) {
     throw new Error('The running Next.js version is not valid semver.')
@@ -187,16 +204,61 @@ export async function getUpgradeAssessment(
           ? await readNpmAdvisories(candidates.map(({ version }) => version))
           : []),
       ]
-      try {
-        targetVersion = selectSecurityTarget(
-          installedVersion,
-          releases,
-          ranges
-        )!.version
-      } catch (error) {
-        return {
-          ...assessment,
-          upgrade: { status: 'blocked', reason: (error as Error).message },
+      if (ageGatedPackage && ageGatedPackage.minimumReleaseAge > 0) {
+        let safeTarget: string | null = null
+        const majors = [
+          ...new Set(releases.map((release) => semver.major(release.version))),
+        ].sort((a, b) => a - b)
+        for (const candidateMajor of majors) {
+          if (candidateMajor < semver.major(installedVersion)) {
+            continue
+          }
+          let candidate: string
+          try {
+            candidate = await resolveAgeEligibleVersion(
+              {
+                ...ageGatedPackage,
+                range: `>=${candidateMajor}.0.0 <${candidateMajor + 1}.0.0`,
+              },
+              'latest'
+            )
+          } catch (error) {
+            if (error instanceof NoAgeEligibleReleaseError) {
+              continue
+            }
+            throw error
+          }
+          if (
+            semver.gt(candidate, installedVersion) &&
+            !ranges.some((range) => semver.satisfies(candidate, range))
+          ) {
+            safeTarget = candidate
+            break
+          }
+        }
+        if (safeTarget === null) {
+          return {
+            ...assessment,
+            upgrade: {
+              status: 'blocked',
+              reason:
+                "No safe Next.js update satisfies the project's minimum release age.",
+            },
+          }
+        }
+        targetVersion = safeTarget
+      } else {
+        try {
+          targetVersion = selectSecurityTarget(
+            installedVersion,
+            releases,
+            ranges
+          )!.version
+        } catch (error) {
+          return {
+            ...assessment,
+            upgrade: { status: 'blocked', reason: (error as Error).message },
+          }
         }
       }
     } else {
@@ -382,10 +444,12 @@ async function fetchLatestRelease(
   reference: string
 } | null> {
   const channel = getPrereleaseChannel(installedVersion)
-  if (channel === 'canary' && eligibleCanaryVersion !== null) {
+  if (eligibleCanaryVersion !== null) {
     if (
       !semver.valid(eligibleCanaryVersion) ||
-      getPrereleaseChannel(eligibleCanaryVersion) !== 'canary'
+      (channel === 'canary'
+        ? getPrereleaseChannel(eligibleCanaryVersion) !== 'canary'
+        : semver.prerelease(eligibleCanaryVersion) !== null)
     ) {
       return null
     }

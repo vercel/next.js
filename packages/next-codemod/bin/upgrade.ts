@@ -1,11 +1,15 @@
 import * as os from 'os'
+import execa from 'execa'
 import prompts from 'prompts'
 import fs from 'fs'
+import picomatch from 'picomatch'
 import {
   satisfies as satisfiesVersionRange,
   compare as compareVersions,
   major,
   minor,
+  prerelease,
+  valid,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -39,11 +43,257 @@ const optionalNextjsPackages = [
   '@next/third-parties',
 ]
 
+function configValue(manager: 'npm' | 'pnpm' | 'yarn', key: string): unknown {
+  const args = ['config', 'get', key, '--json']
+  if (manager === 'npm') {
+    args.push('--no-workspaces')
+  }
+  const value = execa
+    .sync(manager, args, { cwd, encoding: 'utf8' })
+    .stdout.trim()
+  return value === '' || value === 'undefined' ? null : JSON.parse(value)
+}
+
+function bunConfig(): { install?: Record<string, unknown> } {
+  const globalDirectory =
+    process.env.XDG_CONFIG_HOME ||
+    process.env.HOME ||
+    process.env.USERPROFILE ||
+    os.homedir()
+  const files = [
+    path.join(globalDirectory, '.bunfig.toml'),
+    path.join(cwd, 'bunfig.toml'),
+  ].filter(fs.existsSync)
+  if (files.length === 0) {
+    return {}
+  }
+  const parsed = JSON.parse(
+    execa.sync(
+      'bun',
+      [
+        '-e',
+        'const files = JSON.parse(await Bun.stdin.text()); console.log(JSON.stringify(files.map((file) => Bun.TOML.parse(file))))',
+      ],
+      {
+        cwd,
+        input: JSON.stringify(
+          files.map((file) => fs.readFileSync(file, 'utf8'))
+        ),
+        encoding: 'utf8',
+      }
+    ).stdout
+  ) as Array<{ install?: Record<string, unknown> }>
+  return {
+    install: Object.assign({}, ...parsed.map((item) => item.install ?? {})),
+  }
+}
+
+function agePolicy(name: string): {
+  age: number
+  exclusions: string[]
+  registry: string
+} {
+  const manager = getPkgManager(cwd)
+  const scope = /^@([^/]+)\//.exec(name)?.[1]
+  let age: unknown = 0
+  let exclusions: unknown = null
+  let registry: unknown = null
+  if (manager === 'pnpm') {
+    if (
+      compareVersions(
+        execa.sync('pnpm', ['--version']).stdout.trim(),
+        '10.16.0'
+      ) < 0
+    ) {
+      return { age: 0, exclusions: [], registry: 'https://registry.npmjs.org/' }
+    }
+    age = configValue('pnpm', 'minimumReleaseAge')
+    exclusions = configValue('pnpm', 'minimumReleaseAgeExclude')
+    registry = scope ? configValue('pnpm', `@${scope}:registry`) : null
+    registry ??= configValue('pnpm', 'registry')
+    age = age === null ? 0 : Number(age) * 60_000
+  } else if (manager === 'npm') {
+    if (
+      compareVersions(
+        execa.sync('npm', ['--version']).stdout.trim(),
+        '11.10.0'
+      ) < 0
+    ) {
+      return { age: 0, exclusions: [], registry: 'https://registry.npmjs.org/' }
+    }
+    age = configValue('npm', 'min-release-age')
+    exclusions = configValue('npm', 'min-release-age-exclude')
+    registry = scope ? configValue('npm', `@${scope}:registry`) : null
+    registry ??= configValue('npm', 'registry')
+    age = age === null ? 0 : Number(age) * 86_400_000
+  } else if (manager === 'yarn') {
+    const version = execa.sync('yarn', ['--version']).stdout.trim()
+    if (compareVersions(version, '4.10.0') < 0) {
+      return { age: 0, exclusions: [], registry: 'https://registry.npmjs.org/' }
+    }
+    age = scope
+      ? configValue(
+          'yarn',
+          `npmScopes[${JSON.stringify(scope)}].npmMinimalAgeGate`
+        )
+      : null
+    age ??= configValue('yarn', 'npmMinimalAgeGate')
+    exclusions = configValue('yarn', 'npmPreapprovedPackages')
+    age = Number(age) * 60_000
+    registry =
+      compareVersions(version, '2.0.0') < 0
+        ? configValue('yarn', 'registry')
+        : scope
+          ? configValue(
+              'yarn',
+              `npmScopes[${JSON.stringify(scope)}].npmRegistryServer`
+            )
+          : null
+    if (compareVersions(version, '2.0.0') >= 0) {
+      registry ??= configValue('yarn', 'npmRegistryServer')
+    }
+  } else if (manager === 'bun') {
+    if (
+      !execa
+        .sync('bun', ['install', '--help'])
+        .stdout.includes('--minimum-release-age')
+    ) {
+      return { age: 0, exclusions: [], registry: 'https://registry.npmjs.org/' }
+    }
+    const config = bunConfig().install
+    age = Number(config?.minimumReleaseAge ?? 0) * 1_000
+    exclusions = config?.minimumReleaseAgeExcludes
+    const setting = config?.registry
+    registry =
+      process.env.npm_config_registry ||
+      (typeof setting === 'string'
+        ? setting
+        : (setting as { url?: string } | undefined)?.url)
+  }
+  if (!Number.isFinite(age) || Number(age) < 0) {
+    throw new Error(`Invalid minimum release age for ${name}.`)
+  }
+  if (
+    exclusions !== null &&
+    exclusions !== undefined &&
+    (!Array.isArray(exclusions) ||
+      !exclusions.every((entry) => typeof entry === 'string'))
+  ) {
+    throw new Error(`Invalid minimum release age exclusions for ${name}.`)
+  }
+  const resolvedRegistry = registry ?? 'https://registry.npmjs.org/'
+  if (
+    typeof resolvedRegistry !== 'string' ||
+    !/^https?:\/\//.test(resolvedRegistry)
+  ) {
+    throw new Error(`Could not determine the registry for ${name}.`)
+  }
+  return {
+    age: Number(age),
+    exclusions: (exclusions ?? []) as string[],
+    registry: resolvedRegistry.endsWith('/')
+      ? resolvedRegistry
+      : `${resolvedRegistry}/`,
+  }
+}
+
+export async function ageEligibleVersions(
+  name: string,
+  range: string,
+  also: string[] = []
+): Promise<string[] | null> {
+  const packages = [name, ...also]
+  const policies = packages.map(agePolicy)
+  if (policies.every((policy) => policy.age === 0)) {
+    return null
+  }
+  const packuments = await Promise.all(
+    packages.map(async (pkg, index) => {
+      const response = await fetch(
+        `${policies[index].registry}${encodeURIComponent(pkg).replace('%40', '@')}`,
+        {
+          signal: AbortSignal.timeout(10_000),
+          cache: 'no-store',
+          redirect: 'error',
+        }
+      )
+      if (!response.ok) {
+        throw new Error(
+          `Could not read ${pkg} releases (HTTP ${response.status}).`
+        )
+      }
+      return response.json() as Promise<{
+        'dist-tags': Record<string, string>
+        versions: Record<string, unknown>
+        time: Record<string, string>
+      }>
+    })
+  )
+  const now = Date.now()
+  const taggedVersion = packuments[0]['dist-tags'][range]
+  const versions = Object.keys(packuments[0].versions).filter((version) => {
+    if (!valid(version)) {
+      return false
+    }
+    if (valid(range)) {
+      return version === range
+    }
+    if (taggedVersion) {
+      return (
+        valid(taggedVersion) &&
+        compareVersions(version, taggedVersion) <= 0 &&
+        (range === 'latest'
+          ? prerelease(version) === null
+          : prerelease(version)?.[0] === range)
+      )
+    }
+    return satisfiesVersionRange(version, range)
+  })
+  return versions
+    .filter((version) =>
+      packages.every((pkg, index) => {
+        const policy = policies[index]
+        const packument = packuments[index]
+        if (!Object.hasOwn(packument.versions, version)) {
+          return false
+        }
+        if (
+          policy.age === 0 ||
+          policy.exclusions.some(
+            (pattern) =>
+              picomatch.isMatch(pkg, pattern) ||
+              picomatch.isMatch(`${pkg}@${version}`, pattern)
+          )
+        ) {
+          return true
+        }
+        const published = Date.parse(packument.time[version])
+        return Number.isFinite(published) && published <= now - policy.age
+      })
+    )
+    .sort(compareVersions)
+}
+
 /**
  * @param query
  * @example loadHighestNPMVersionMatching("react@^18.3.0 || ^19.0.0") === Promise<"19.0.0">
  */
-async function loadHighestNPMVersionMatching(query: string) {
+async function loadHighestNPMVersionMatching(
+  query: string,
+  also: string[] = []
+) {
+  const separator = query.lastIndexOf('@')
+  const packageName = query.slice(0, separator)
+  const range = query.slice(separator + 1)
+  const eligible = await ageEligibleVersions(packageName, range, also)
+  if (eligible !== null) {
+    if (eligible.length === 0) {
+      throw new Error(
+        `No ${query} release satisfies the project's minimum release age.`
+      )
+    }
+    return eligible[eligible.length - 1]
+  }
   const versionsJSON = execSync(
     `npm --silent view "${query}" --json --field version`,
     { encoding: 'utf-8' }
@@ -259,7 +509,14 @@ export async function runUpgrade(
   const targetReactVersion = shouldStayOnReact18
     ? '18.3.1'
     : await loadHighestNPMVersionMatching(
-        `react@${targetNextPackageJson.peerDependencies['react']}`
+        `react@${targetNextPackageJson.peerDependencies['react']}`,
+        [
+          'react-dom',
+          ...(appPackageJson.dependencies?.['react-is'] ||
+          appPackageJson.devDependencies?.['react-is']
+            ? ['react-is']
+            : []),
+        ]
       )
 
   if (
@@ -292,8 +549,6 @@ export async function runUpgrade(
 
     execCommand = getNpxCommand(packageManager)
   }
-
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   const dependenciesToInstall: [string, string][] = []
   const devDependenciesToInstall: [string, string][] = []
@@ -375,6 +630,7 @@ export async function runUpgrade(
   // don't want to silently upgrade eslint majors for projects that use
   // eslint for unrelated reasons.
   if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
+    let eslintRange: string | undefined
     try {
       const eslintConfigNextPeerDepsJSON = execSync(
         `npm --silent view "eslint-config-next@${targetNextVersion}" peerDependencies --json`,
@@ -384,28 +640,28 @@ export async function runUpgrade(
         eslintConfigNextPeerDepsJSON.trim() === ''
           ? {}
           : JSON.parse(eslintConfigNextPeerDepsJSON)
-      const eslintRange = eslintConfigNextPeerDeps?.eslint
-      if (eslintRange) {
-        // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
-        // eslint-plugin-react, support its API removals (e.g. context.getFilename).
-        const cappedRange = eslintRange
-          .split('||')
-          .map((range) => `${range.trim()} <10`)
-          .join(' || ')
-        const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${cappedRange}`
-        )
-        versionMapping['eslint'] = {
-          version: targetEslintVersion,
-          required: false,
-        }
-      }
+      eslintRange = eslintConfigNextPeerDeps?.eslint
     } catch (e) {
       if (verbose) {
         console.warn(
           `  Could not determine eslint peer range from eslint-config-next@${targetNextVersion}. Leaving eslint version alone.`,
           e
         )
+      }
+    }
+    if (eslintRange) {
+      // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
+      // eslint-plugin-react, support its API removals (e.g. context.getFilename).
+      const cappedRange = eslintRange
+        .split('||')
+        .map((range) => `${range.trim()} <10`)
+        .join(' || ')
+      const targetEslintVersion = await loadHighestNPMVersionMatching(
+        `eslint@${cappedRange}`
+      )
+      versionMapping['eslint'] = {
+        version: targetEslintVersion,
+        required: false,
       }
     }
   }
@@ -432,6 +688,23 @@ export async function runUpgrade(
       dependenciesToInstall.push([packageName, version])
     }
   }
+
+  for (const [name, version] of [
+    ...dependenciesToInstall,
+    ...devDependenciesToInstall,
+  ]) {
+    const alias = /^npm:(.+)@([^@]+)$/.exec(version)
+    const actualName = alias ? alias[1] : name
+    const actualVersion = alias ? alias[2] : version
+    const eligible = await ageEligibleVersions(actualName, actualVersion)
+    if (eligible !== null && !eligible.includes(actualVersion)) {
+      throw new Error(
+        `${name}@${actualVersion} does not satisfy the project's minimum release age.`
+      )
+    }
+  }
+
+  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   console.log(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`

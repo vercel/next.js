@@ -16,7 +16,9 @@ import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import {
+  getAgeGateRegistry,
   getMinimumReleaseAge,
+  getMinimumReleaseAgeExclusions,
   resolveAgeEligibleVersion,
 } from 'next/dist/lib/helpers/get-minimum-release-age'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
@@ -63,7 +65,9 @@ jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
 }))
 jest.mock('next/dist/lib/helpers/get-minimum-release-age', () => ({
+  getAgeGateRegistry: jest.fn(),
   getMinimumReleaseAge: jest.fn(),
+  getMinimumReleaseAgeExclusions: jest.fn(),
   resolveAgeEligibleVersion: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
@@ -185,6 +189,10 @@ describe('agentic upgrade prompts', () => {
 
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
     jest.mocked(getMinimumReleaseAge).mockReturnValue(0)
+    jest.mocked(getMinimumReleaseAgeExclusions).mockReturnValue([])
+    jest
+      .mocked(getAgeGateRegistry)
+      .mockReturnValue('https://registry.npmjs.org/')
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
     jest.mocked(createSpinner).mockReturnValue({
       stop: jest.fn(),
@@ -288,8 +296,21 @@ describe('agentic upgrade prompts', () => {
     })
 
     expect(resolveAgeEligibleVersion).toHaveBeenCalledWith(
-      { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
-      'canary'
+      {
+        name: 'next',
+        minimumReleaseAge: 48 * 60 * 60 * 1000,
+        exclusions: [],
+        registry: 'https://registry.npmjs.org/',
+        range: undefined,
+      },
+      'canary',
+      {
+        name: '@next/codemod',
+        minimumReleaseAge: 48 * 60 * 60 * 1000,
+        exclusions: [],
+        registry: 'https://registry.npmjs.org/',
+        range: undefined,
+      }
     )
     expect(crossSpawn).toHaveBeenCalledWith(
       'npx',
@@ -316,7 +337,34 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith(
       '/workspace/app',
       'latest',
-      version
+      version,
+      expect.objectContaining({ name: 'next' })
+    )
+  })
+
+  it('keeps a newer invoking canary when the eligible release is older', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    process.env.__NEXT_VERSION = '99.0.0-canary.40'
+    const eligibleVersion = '99.0.0-canary.35'
+    jest.mocked(getMinimumReleaseAge).mockReturnValue(48 * 60 * 60 * 1000)
+    jest.mocked(resolveAgeEligibleVersion).mockResolvedValue(eligibleVersion)
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'unaffected',
+      reason: 'Already current.',
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'canary',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledWith(
+      '/workspace/app',
+      'latest',
+      eligibleVersion,
+      expect.objectContaining({ name: 'next' })
     )
   })
 

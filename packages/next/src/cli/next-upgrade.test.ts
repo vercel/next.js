@@ -1,0 +1,65 @@
+import { EventEmitter } from 'node:events'
+import { spawn } from 'child_process'
+import { spawnNextUpgrade } from './next-upgrade'
+import { getProjectDir } from '../lib/get-project-dir'
+import { getPkgManager } from '../lib/helpers/get-pkg-manager'
+import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import {
+  getAgeGateRegistry,
+  getMinimumReleaseAge,
+  getMinimumReleaseAgeExclusions,
+  resolveAgeEligibleVersion,
+} from '../lib/helpers/get-minimum-release-age'
+
+jest.mock('child_process', () => ({
+  ...jest.requireActual('child_process'),
+  spawn: jest.fn(),
+}))
+jest.mock('../lib/get-project-dir', () => ({ getProjectDir: jest.fn() }))
+jest.mock('../lib/helpers/get-pkg-manager', () => ({
+  getPkgManager: jest.fn(),
+}))
+jest.mock('../lib/helpers/get-npx-command', () => ({
+  getNpxCommand: jest.fn(),
+}))
+jest.mock('../lib/helpers/get-minimum-release-age', () => ({
+  getAgeGateRegistry: jest.fn(),
+  getMinimumReleaseAge: jest.fn(),
+  getMinimumReleaseAgeExclusions: jest.fn(),
+  resolveAgeEligibleVersion: jest.fn(),
+}))
+
+describe('next upgrade minimum release age', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.mocked(getProjectDir).mockReturnValue('/app')
+    jest.mocked(getPkgManager).mockReturnValue('pnpm')
+    jest.mocked(getNpxCommand).mockReturnValue('pnpm dlx')
+    jest.mocked(getMinimumReleaseAge).mockReturnValue(48 * 60 * 60 * 1000)
+    jest.mocked(getMinimumReleaseAgeExclusions).mockReturnValue([])
+    jest
+      .mocked(getAgeGateRegistry)
+      .mockReturnValue('https://registry.npmjs.org/')
+    jest.mocked(resolveAgeEligibleVersion).mockResolvedValue('17.0.0-canary.35')
+    jest.mocked(spawn).mockReturnValue(new EventEmitter() as never)
+  })
+
+  it('uses the shared eligible canary for the codemod and Next.js', async () => {
+    await spawnNextUpgrade(undefined, {
+      revision: 'canary',
+      verbose: false,
+      ai: false,
+    })
+
+    expect(resolveAgeEligibleVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'next' }),
+      'canary',
+      expect.objectContaining({ name: '@next/codemod' })
+    )
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['dlx', '@next/codemod@17.0.0-canary.35', 'upgrade', '17.0.0-canary.35'],
+      { stdio: 'inherit', cwd: '/app' }
+    )
+  })
+})

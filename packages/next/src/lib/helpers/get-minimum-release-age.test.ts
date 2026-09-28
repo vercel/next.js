@@ -1,11 +1,14 @@
 import { execFileSync } from 'node:child_process'
+import crossSpawn from 'next/dist/compiled/cross-spawn'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getNpxCommand } from './get-npx-command'
 import { getPkgManager } from './get-pkg-manager'
 import {
+  getAgeGateRegistry,
   getMinimumReleaseAge,
+  getMinimumReleaseAgeExclusions,
   resolveAgeEligibleVersion,
 } from './get-minimum-release-age'
 
@@ -55,6 +58,46 @@ describe('getMinimumReleaseAge', () => {
   })
 
   describe('pnpm', () => {
+    it('uses a Windows-safe launcher for command shims', () => {
+      const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+      const sync = jest.spyOn(crossSpawn, 'sync')
+      Object.defineProperty(process, 'platform', {
+        configurable: true,
+        value: 'win32',
+      })
+      try {
+        sync
+          .mockReturnValueOnce({
+            status: 0,
+            stdout: '10.33.0',
+            stderr: '',
+          } as never)
+          .mockReturnValueOnce({ status: 0, stdout: '0', stderr: '' } as never)
+        expect(getMinimumReleaseAge(directory, 'pnpm')).toBe(0)
+        expect(sync).toHaveBeenCalledWith(
+          'pnpm',
+          ['--version'],
+          expect.objectContaining({ cwd: directory })
+        )
+      } finally {
+        sync.mockRestore()
+        Object.defineProperty(process, 'platform', platform)
+      }
+    })
+    it('reads version-qualified exclusions without removing the package age', () => {
+      mockExecFileSync
+        .mockReturnValueOnce('10.33.0' as never)
+        .mockReturnValueOnce('2880' as never)
+        .mockReturnValueOnce('["next@17.0.0-canary.35"]' as never)
+        .mockReturnValueOnce('["next@17.0.0-canary.35"]' as never)
+
+      expect(getMinimumReleaseAge(directory, 'pnpm', 'next')).toBe(
+        48 * 60 * 60 * 1000
+      )
+      expect(getMinimumReleaseAgeExclusions(directory, 'pnpm')).toEqual([
+        'next@17.0.0-canary.35',
+      ])
+    })
     it('reads minutes from effective config', () => {
       mockExecFileSync
         .mockReturnValueOnce('10.33.0' as never)
@@ -104,6 +147,19 @@ describe('getMinimumReleaseAge', () => {
   })
 
   describe('npm', () => {
+    it('uses the configured registry in a workspace', () => {
+      mockExecFileSync.mockReturnValueOnce(
+        '"https://mirror.example/npm"' as never
+      )
+      expect(getAgeGateRegistry(directory, 'npm', 'next')).toBe(
+        'https://mirror.example/npm/'
+      )
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        'npm',
+        ['config', 'get', 'registry', '--json', '--no-workspaces'],
+        expect.objectContaining({ cwd: directory })
+      )
+    })
     it('ignores the setting on versions that do not implement it', () => {
       mockExecFileSync.mockReturnValue('9.8.1' as never)
 
@@ -121,7 +177,7 @@ describe('getMinimumReleaseAge', () => {
       )
       expect(mockExecFileSync).toHaveBeenLastCalledWith(
         'npm',
-        ['config', 'get', 'min-release-age', '--json'],
+        ['config', 'get', 'min-release-age', '--json', '--no-workspaces'],
         expect.objectContaining({ cwd: directory })
       )
     })
@@ -155,6 +211,21 @@ describe('getMinimumReleaseAge', () => {
   })
 
   describe('yarn', () => {
+    it('uses the scoped registry for scoped packages', () => {
+      mockExecFileSync
+        .mockReturnValueOnce('4.10.0' as never)
+        .mockReturnValueOnce('"https://mirror.example/scoped"' as never)
+      expect(getAgeGateRegistry(directory, 'yarn', '@next/codemod')).toBe(
+        'https://mirror.example/scoped/'
+      )
+    })
+    it('reads the age gate in Yarn 4.10', () => {
+      mockExecFileSync
+        .mockReturnValueOnce('4.10.0' as never)
+        .mockReturnValueOnce('1440' as never)
+
+      expect(getMinimumReleaseAge(directory, 'yarn')).toBe(24 * 60 * 60 * 1000)
+    })
     it('uses no age gate on Yarn Classic', () => {
       mockExecFileSync.mockReturnValue('1.22.19' as never)
 
@@ -243,6 +314,40 @@ describe('getMinimumReleaseAge', () => {
   })
 
   describe('bun', () => {
+    it('reads global config from USERPROFILE when HOME is unavailable', () => {
+      const root = mkdtempSync(join(tmpdir(), 'next-bun-age-'))
+      writeFileSync(
+        join(root, '.bunfig.toml'),
+        '[install]\nminimumReleaseAge = 86400\n'
+      )
+      try {
+        mockExecFileSync
+          .mockReturnValueOnce(
+            'Options: --minimum-release-age=<seconds>' as never
+          )
+          .mockReturnValueOnce(
+            JSON.stringify([{ install: { minimumReleaseAge: 86400 } }]) as never
+          )
+        expect(
+          getMinimumReleaseAge(root, 'bun', null, {
+            ...process.env,
+            XDG_CONFIG_HOME: '',
+            HOME: '',
+            USERPROFILE: root,
+          })
+        ).toBe(24 * 60 * 60 * 1000)
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    })
+    it('uses the registry from the environment', () => {
+      expect(
+        getAgeGateRegistry(directory, 'bun', 'next', {
+          ...process.env,
+          npm_config_registry: 'https://mirror.example/bun',
+        })
+      ).toBe('https://mirror.example/bun/')
+    })
     it('reads global and project config, with project precedence', () => {
       const root = mkdtempSync(join(tmpdir(), 'next-bun-age-'))
       const project = join(root, 'project')
@@ -483,5 +588,69 @@ describe('resolveAgeEligibleVersion', () => {
         'canary'
       )
     ).rejects.toThrow("project's minimum release age")
+  })
+
+  it('accepts only the version-qualified exemption', async () => {
+    global.fetch = jest.fn(async () =>
+      Response.json(
+        packument({
+          '17.0.0-canary.34': 72,
+          '17.0.0-canary.35': 1,
+          '17.0.0-canary.36': 1,
+        })
+      )
+    )
+    await expect(
+      resolveAgeEligibleVersion(
+        {
+          name: 'next',
+          minimumReleaseAge: 48 * 60 * 60 * 1000,
+          exclusions: ['next@17.0.0-canary.35'],
+        },
+        'canary'
+      )
+    ).resolves.toBe('17.0.0-canary.35')
+  })
+
+  it('limits stable selections to the requested range', async () => {
+    global.fetch = jest.fn(async () =>
+      Response.json(
+        packument(
+          {
+            '16.1.1': 72,
+            '16.1.2': 72,
+            '16.2.0': 72,
+          },
+          'latest'
+        )
+      )
+    )
+    await expect(
+      resolveAgeEligibleVersion(
+        {
+          name: 'next',
+          minimumReleaseAge: 1,
+          range: '~16.1.0',
+        },
+        'latest'
+      )
+    ).resolves.toBe('16.1.2')
+  })
+
+  it('selects a canary shared by Next.js and the codemod', async () => {
+    global.fetch = jest.fn(async (input) =>
+      Response.json(
+        String(input).includes('codemod')
+          ? packument({ '17.0.0-canary.34': 72, '17.0.0-canary.35': 1 })
+          : packument({ '17.0.0-canary.34': 72, '17.0.0-canary.35': 72 })
+      )
+    )
+    await expect(
+      resolveAgeEligibleVersion(
+        { name: 'next', minimumReleaseAge: 48 * 60 * 60 * 1000 },
+        'canary',
+        { name: '@next/codemod', minimumReleaseAge: 48 * 60 * 60 * 1000 }
+      )
+    ).resolves.toBe('17.0.0-canary.34')
   })
 })

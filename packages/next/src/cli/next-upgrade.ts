@@ -2,14 +2,18 @@ import { spawn } from 'child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
-import { major, prerelease, valid } from 'next/dist/compiled/semver'
+import { createRequire } from 'module'
+import { major, minor, prerelease, valid, gte } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import {
   getMinimumReleaseAge,
+  getMinimumReleaseAgeExclusions,
+  getAgeGateRegistry,
   resolveAgeEligibleVersion,
+  type AgeGatedPackage,
   type AgeGatedPackageManager,
 } from '../lib/helpers/get-minimum-release-age'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
@@ -157,12 +161,19 @@ async function resolveCanaryVersion(
   directory: string,
   manager: AgeGatedPackageManager
 ): Promise<string> {
-  const minimumReleaseAge = getMinimumReleaseAge(directory, manager, 'next')
-  if (minimumReleaseAge > 0) {
-    return resolveAgeEligibleVersion(
-      { name: 'next', minimumReleaseAge },
-      'canary'
+  const nextPackage = getAgeGatedPackage(directory, manager, 'next')
+  const codemodPackage = getAgeGatedPackage(directory, manager, '@next/codemod')
+  if (
+    nextPackage.minimumReleaseAge > 0 ||
+    codemodPackage.minimumReleaseAge > 0
+  ) {
+    nextPackage.registry ??= getAgeGateRegistry(directory, manager, 'next')
+    codemodPackage.registry ??= getAgeGateRegistry(
+      directory,
+      manager,
+      '@next/codemod'
     )
+    return resolveAgeEligibleVersion(nextPackage, 'canary', codemodPackage)
   }
 
   try {
@@ -171,21 +182,40 @@ async function resolveCanaryVersion(
       cache: 'no-store',
       redirect: 'error',
     })
-
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
     }
-
     const { version } = await response.json()
     if (typeof version !== 'string' || valid(version) !== version) {
       throw new Error('Invalid canary version')
     }
-
     return version
   } catch (error) {
     throw new Error('Could not fetch the latest Next.js canary from npm.', {
       cause: error,
     })
+  }
+}
+
+function getAgeGatedPackage(
+  directory: string,
+  manager: AgeGatedPackageManager,
+  name: string,
+  range: string | undefined = undefined
+): AgeGatedPackage {
+  const minimumReleaseAge = getMinimumReleaseAge(directory, manager, name)
+  return {
+    name,
+    minimumReleaseAge,
+    exclusions:
+      minimumReleaseAge > 0
+        ? getMinimumReleaseAgeExclusions(directory, manager)
+        : [],
+    registry:
+      minimumReleaseAge > 0
+        ? getAgeGateRegistry(directory, manager, name)
+        : undefined,
+    range,
   }
 }
 
@@ -219,7 +249,10 @@ export async function spawnNextUpgrade(
           packageManager
         )
         eligibleCanaryVersion = canaryVersion
-        if (process.env.__NEXT_VERSION !== canaryVersion) {
+        if (
+          prerelease(process.env.__NEXT_VERSION ?? '')?.[0] !== 'canary' ||
+          !gte(process.env.__NEXT_VERSION!, canaryVersion)
+        ) {
           const [command, ...runnerArgs] = getNpxCommand(
             baseDir,
             packageManager
@@ -277,10 +310,18 @@ export async function spawnNextUpgrade(
       const { prepareUpgrade } =
         require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
       const assessmentSpinner = createSpinner('Preparing upgrade')
+      const nextPackage = getAgeGatedPackage(baseDir, packageManager, 'next')
       const result = await (
-        eligibleCanaryVersion === null
-          ? prepareUpgrade(baseDir, upgradeType)
-          : prepareUpgrade(baseDir, upgradeType, eligibleCanaryVersion)
+        nextPackage.minimumReleaseAge > 0
+          ? prepareUpgrade(
+              baseDir,
+              upgradeType,
+              eligibleCanaryVersion,
+              nextPackage
+            )
+          : eligibleCanaryVersion === null
+            ? prepareUpgrade(baseDir, upgradeType)
+            : prepareUpgrade(baseDir, upgradeType, eligibleCanaryVersion)
       ).finally(() => assessmentSpinner?.stop())
 
       if (result.status !== 'ready') {
@@ -391,7 +432,15 @@ export async function spawnNextUpgrade(
         }
 
         if (crossesMajor) {
-          const codemodVersion = process.env.__NEXT_VERSION
+          const codemodPackage = getAgeGatedPackage(
+            baseDir,
+            packageManager,
+            '@next/codemod'
+          )
+          const codemodVersion =
+            codemodPackage.minimumReleaseAge > 0
+              ? await resolveAgeEligibleVersion(codemodPackage, 'canary')
+              : process.env.__NEXT_VERSION
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
@@ -514,35 +563,66 @@ ${references}`
     packageManager
   ).split(' ')
 
-  const codemodAge = getMinimumReleaseAge(
+  const codemodPackage = getAgeGatedPackage(
     baseDir,
     packageManager,
     '@next/codemod'
   )
-  const nextAge = getMinimumReleaseAge(baseDir, packageManager, 'next')
+  const nextPackage = getAgeGatedPackage(baseDir, packageManager, 'next')
   let codemodVersion = 'canary'
   let targetRevision = options.revision
 
-  if (codemodAge > 0) {
-    codemodVersion = await resolveAgeEligibleVersion(
-      { name: '@next/codemod', minimumReleaseAge: codemodAge },
-      'canary'
+  if (codemodPackage.minimumReleaseAge > 0) {
+    codemodVersion = await resolveAgeEligibleVersion(codemodPackage, 'canary')
+  }
+  if (
+    options.revision === 'canary' &&
+    (codemodPackage.minimumReleaseAge > 0 || nextPackage.minimumReleaseAge > 0)
+  ) {
+    codemodPackage.registry ??= getAgeGateRegistry(
+      baseDir,
+      packageManager,
+      '@next/codemod'
     )
+    nextPackage.registry ??= getAgeGateRegistry(baseDir, packageManager, 'next')
+    const sharedVersion = await resolveAgeEligibleVersion(
+      nextPackage,
+      'canary',
+      codemodPackage
+    )
+    codemodVersion = sharedVersion
+    targetRevision = sharedVersion
   }
   const targetChannel =
     options.revision === 'major' ? 'latest' : options.revision
   if (
-    nextAge > 0 &&
+    nextPackage.minimumReleaseAge > 0 &&
+    targetRevision === options.revision &&
     (targetChannel === 'latest' ||
       targetChannel === 'canary' ||
       targetChannel === 'rc' ||
       targetChannel === 'beta' ||
       targetChannel === 'preview')
   ) {
-    targetRevision = await resolveAgeEligibleVersion(
-      { name: 'next', minimumReleaseAge: nextAge },
-      targetChannel
-    )
+    targetRevision = await resolveAgeEligibleVersion(nextPackage, targetChannel)
+  }
+  if (
+    nextPackage.minimumReleaseAge > 0 &&
+    (options.revision === 'minor' || options.revision === 'patch')
+  ) {
+    const installed = JSON.parse(
+      await readFile(
+        createRequire(join(baseDir, 'package.json')).resolve(
+          'next/package.json'
+        ),
+        'utf8'
+      )
+    ) as { version: string }
+    nextPackage.range =
+      options.revision === 'patch'
+        ? `~${major(installed.version)}.${minor(installed.version)}.0`
+        : `^${major(installed.version)}.0.0`
+    targetRevision = await resolveAgeEligibleVersion(nextPackage, 'latest')
   }
 
   const upgradeProcessCommandArgs = [

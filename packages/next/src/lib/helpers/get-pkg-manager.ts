@@ -73,15 +73,23 @@ export function getPkgManager(
         return 'pnpm'
       } else if (userAgent.startsWith('npm')) {
         return 'npm'
+      } else if (mode === 'upgrade' && userAgent.startsWith('bun/')) {
+        return 'bun'
       }
     }
     for (const { lockFile, packageManager } of [
+      ...(mode === 'upgrade'
+        ? [
+            { lockFile: 'bun.lock', packageManager: 'bun' },
+            { lockFile: 'bun.lockb', packageManager: 'bun' },
+          ]
+        : []),
       { lockFile: 'yarn.lock', packageManager: 'yarn' },
       { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
       { lockFile: 'package-lock.json', packageManager: 'npm' },
     ]) {
       if (fs.existsSync(path.join(baseDir, lockFile))) {
-        return packageManager as PackageManager
+        return packageManager as PackageManager | 'bun'
       }
     }
     try {

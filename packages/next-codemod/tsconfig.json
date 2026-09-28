@@ -12,5 +12,5 @@
     "useUnknownInCatchVariables": false
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "transforms/__testfixtures__/**"]
+  "exclude": ["node_modules", "transforms/__testfixtures__/**", "**/*.test.ts"]
 }

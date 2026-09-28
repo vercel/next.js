@@ -1,5 +1,7 @@
+import crossSpawn from 'next/dist/compiled/cross-spawn'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import picomatch from 'picomatch'
 import semver from 'next/dist/compiled/semver'
@@ -13,13 +15,29 @@ function run(
   env: NodeJS.ProcessEnv,
   input: string | undefined = undefined
 ): string {
-  return execFileSync(command, args, {
+  if (process.platform !== 'win32') {
+    return execFileSync(command, args, {
+      cwd: directory,
+      encoding: 'utf8',
+      env,
+      input,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
+  }
+  const result = crossSpawn.sync(command, args, {
     cwd: directory,
     encoding: 'utf8',
     env,
     input,
     stdio: ['pipe', 'pipe', 'pipe'],
-  }).trim()
+  })
+  if (result.error) {
+    throw result.error
+  }
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr}`)
+  }
+  return result.stdout.trim()
 }
 
 function versionAtLeast(
@@ -50,7 +68,11 @@ function readJsonConfig(
   directory: string,
   env: NodeJS.ProcessEnv
 ): unknown {
-  const output = run(manager, ['config', 'get', key, '--json'], directory, env)
+  const args = ['config', 'get', key, '--json']
+  if (manager === 'npm') {
+    args.push('--no-workspaces')
+  }
+  const output = run(manager, args, directory, env)
   if (output === '' || output === 'undefined') {
     return null
   }
@@ -74,7 +96,8 @@ function readBunAgePolicy(
   directory: string,
   env: NodeJS.ProcessEnv
 ): { age: unknown; excludes: unknown } {
-  const globalDirectory = env.XDG_CONFIG_HOME || env.HOME
+  const globalDirectory =
+    env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
   const paths = [
     globalDirectory ? join(globalDirectory, '.bunfig.toml') : null,
     join(directory, 'bunfig.toml'),
@@ -179,7 +202,7 @@ export function getMinimumReleaseAge(
 
   if (manager === 'yarn') {
     const version = run('yarn', ['--version'], directory, env)
-    if (!versionAtLeast(version, 4, 12)) {
+    if (!versionAtLeast(version, 4, 10)) {
       return 0
     }
     const scope = /^@([^/]+)\//.exec(packageName ?? '')?.[1]
@@ -198,7 +221,7 @@ export function getMinimumReleaseAge(
     if (age === null) {
       const value = readJsonConfig('yarn', 'npmMinimalAgeGate', directory, env)
       // Yarn stores duration settings in the unit specified by its definition.
-      // npmMinimalAgeGate uses minutes and defaults to one day in Yarn 4.12+.
+      // npmMinimalAgeGate uses minutes.
       age = parseNonNegativeNumber(value, 'npmMinimalAgeGate') * 60_000
     }
     if (age === 0 || packageName === null) {
@@ -237,9 +260,14 @@ export function getMinimumReleaseAge(
 
 type ReleaseChannel = 'latest' | 'canary' | 'rc' | 'beta' | 'preview'
 
+export class NoAgeEligibleReleaseError extends Error {}
+
 export type AgeGatedPackage = {
   name: string
   minimumReleaseAge: number
+  exclusions?: string[]
+  registry?: string
+  range?: string
 }
 
 type Packument = {
@@ -249,6 +277,105 @@ type Packument = {
 }
 
 const NPM_REGISTRY = 'https://registry.npmjs.org/'
+
+export function getMinimumReleaseAgeExclusions(
+  directory: string,
+  manager: AgeGatedPackageManager,
+  env: NodeJS.ProcessEnv = process.env
+): string[] {
+  let value: unknown
+  if (manager === 'pnpm') {
+    value = readJsonConfig('pnpm', 'minimumReleaseAgeExclude', directory, env)
+  } else if (manager === 'npm') {
+    value = readJsonConfig('npm', 'min-release-age-exclude', directory, env)
+  } else if (manager === 'yarn') {
+    value = readJsonConfig('yarn', 'npmPreapprovedPackages', directory, env)
+  } else if (manager === 'bun') {
+    value = readBunAgePolicy(directory, env).excludes
+  } else {
+    throw new Error(`Unsupported package manager: ${manager}`)
+  }
+  if (value === null || value === undefined) {
+    return []
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every((entry) => typeof entry === 'string')
+  ) {
+    throw new Error('Invalid minimum release age exclusions')
+  }
+  return value
+}
+
+export function getAgeGateRegistry(
+  directory: string,
+  manager: AgeGatedPackageManager,
+  packageName: string,
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  const scope = /^@([^/]+)\//.exec(packageName)?.[1]
+  let registry: unknown
+  if (manager === 'yarn') {
+    const classic = !versionAtLeast(
+      run('yarn', ['--version'], directory, env),
+      2,
+      0
+    )
+    if (classic) {
+      registry = readJsonConfig('yarn', 'registry', directory, env)
+    } else if (scope) {
+      registry = readJsonConfig(
+        'yarn',
+        `npmScopes[${JSON.stringify(scope)}].npmRegistryServer`,
+        directory,
+        env
+      )
+    }
+    if (!classic) {
+      registry ??= readJsonConfig('yarn', 'npmRegistryServer', directory, env)
+    }
+  } else if (manager === 'bun') {
+    registry = env.npm_config_registry
+    if (!registry) {
+      const globalDirectory =
+        env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
+      for (const bunfig of [
+        globalDirectory ? join(globalDirectory, '.bunfig.toml') : null,
+        join(directory, 'bunfig.toml'),
+      ]) {
+        if (bunfig && existsSync(bunfig)) {
+          const parsed = JSON.parse(
+            run(
+              'bun',
+              [
+                '-e',
+                'console.log(JSON.stringify(Bun.TOML.parse(await Bun.stdin.text())))',
+              ],
+              directory,
+              env,
+              readFileSync(bunfig, 'utf8')
+            )
+          ) as { install?: { registry?: string | { url?: string } } }
+          const setting = parsed.install?.registry
+          registry =
+            typeof setting === 'string' ? setting : (setting?.url ?? registry)
+        }
+      }
+    }
+    registry ??= NPM_REGISTRY
+  } else {
+    if (scope) {
+      registry = readJsonConfig(manager, `@${scope}:registry`, directory, env)
+    }
+    registry ??= readJsonConfig(manager, 'registry', directory, env)
+  }
+  if (typeof registry !== 'string' || !/^https?:\/\//.test(registry)) {
+    throw new Error(
+      `Could not determine the ${manager} registry for ${packageName}.`
+    )
+  }
+  return registry.endsWith('/') ? registry : `${registry}/`
+}
 
 function isPackument(value: unknown): value is Packument {
   if (!value || typeof value !== 'object') {
@@ -265,9 +392,12 @@ function isPackument(value: unknown): value is Packument {
   )
 }
 
-async function fetchPackument(name: string): Promise<Packument> {
+async function fetchPackument(
+  name: string,
+  registry: string
+): Promise<Packument> {
   const path = encodeURIComponent(name).replace('%40', '@')
-  const response = await fetch(`${NPM_REGISTRY}${path}`, {
+  const response = await fetch(`${registry}${path}`, {
     signal: AbortSignal.timeout(10_000),
     cache: 'no-store',
     redirect: 'error',
@@ -294,13 +424,44 @@ function matchesChannel(version: string, channel: ReleaseChannel): boolean {
 /** Select the newest published release allowed by the age gate. */
 export async function resolveAgeEligibleVersion(
   pkg: AgeGatedPackage,
-  channel: ReleaseChannel
+  channel: ReleaseChannel,
+  also: AgeGatedPackage | null = null
 ): Promise<string> {
-  const packument = await fetchPackument(pkg.name)
+  const packument = await fetchPackument(pkg.name, pkg.registry ?? NPM_REGISTRY)
+  const alsoPackument = also
+    ? await fetchPackument(also.name, also.registry ?? NPM_REGISTRY)
+    : null
   const now = Date.now()
+  const eligible = (
+    candidate: AgeGatedPackage,
+    metadata: Packument,
+    version: string
+  ) => {
+    if (!Object.hasOwn(metadata.versions, version)) {
+      return false
+    }
+    if (
+      candidate.minimumReleaseAge === 0 ||
+      candidate.exclusions?.some(
+        (pattern) =>
+          picomatch.isMatch(candidate.name, pattern) ||
+          picomatch.isMatch(`${candidate.name}@${version}`, pattern)
+      )
+    ) {
+      return true
+    }
+    const published = Date.parse(metadata.time[version])
+    return (
+      Number.isFinite(published) &&
+      published <= now - candidate.minimumReleaseAge
+    )
+  }
   const candidates = Object.keys(packument.versions)
     .filter((version) => {
       if (!semver.valid(version) || !matchesChannel(version, channel)) {
+        return false
+      }
+      if (pkg.range && !semver.satisfies(version, pkg.range)) {
         return false
       }
 
@@ -308,18 +469,19 @@ export async function resolveAgeEligibleVersion(
       if (!semver.valid(taggedVersion) || semver.gt(version, taggedVersion)) {
         return false
       }
-      if (pkg.minimumReleaseAge === 0) {
-        return true
-      }
-      const published = Date.parse(packument.time[version])
       return (
-        Number.isFinite(published) && published <= now - pkg.minimumReleaseAge
+        eligible(pkg, packument, version) &&
+        (!also ||
+          !alsoPackument ||
+          (semver.valid(alsoPackument['dist-tags'][channel]) &&
+            !semver.gt(version, alsoPackument['dist-tags'][channel]) &&
+            eligible(also, alsoPackument, version)))
       )
     })
     .sort(semver.rcompare)
 
   if (candidates.length === 0) {
-    throw new Error(
+    throw new NoAgeEligibleReleaseError(
       `No ${channel} version of ${pkg.name} satisfies the project's minimum release age.`
     )
   }

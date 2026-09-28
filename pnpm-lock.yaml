@@ -1846,6 +1846,9 @@ importers:
       jscodeshift:
         specifier: 17.0.0
         version: 17.0.0(@babel/preset-env@7.26.9(@babel/core@7.26.10))
+      picomatch:
+        specifier: 4.0.1
+        version: 4.0.1
       picocolors:
         specifier: 1.0.0
         version: 1.0.0
@@ -1868,6 +1871,9 @@ importers:
       '@types/jscodeshift':
         specifier: 0.11.0
         version: 0.11.0
+      '@types/picomatch':
+        specifier: 2.3.3
+        version: 2.3.3
       '@types/prompts':
         specifier: 2.4.2
         version: 2.4.2
