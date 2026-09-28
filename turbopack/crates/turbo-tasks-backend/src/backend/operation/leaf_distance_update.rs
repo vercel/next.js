@@ -3,7 +3,6 @@ use std::{
     collections::{BinaryHeap, hash_map::Entry},
 };
 
-use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 #[cfg(feature = "trace_leaf_distance_update")]
 use tracing::{span::Span, trace_span};
@@ -15,9 +14,7 @@ use crate::backend::{
     storage_schema::TaskStorageAccessors,
 };
 
-/// The maximum number of leaf distance updates to process before yielding back to the executor.
-/// This prevents long blocking operations and allows to interrupt the processing for persistent
-/// caching.
+/// The maximum number of leaf distance updates processed in one step.
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 
 /// We avoid incrementing the leaf distance by 1 each time to avoid frequent updates.
@@ -26,13 +23,11 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 const BASE_LEAF_DISTANCE_BUFFER: u32 = 128;
 
 /// An leaf distance update job that is enqueued.
-#[derive(Encode, Decode, Clone)]
 struct LeafDistanceUpdate {
     dependencies_distance: u32,
     dependencies_max_distance_in_buffer: u32,
     done: bool,
     #[cfg(feature = "trace_leaf_distance_update")]
-    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -48,7 +43,7 @@ impl LeafDistanceUpdate {
 /// A queue of leaf distance update jobs.
 /// It will execute these jobs in order of their minimum dependency leaf distance.
 /// This ensures that we never have to re-process a task.
-#[derive(Default, Encode, Decode, Clone)]
+#[derive(Default)]
 pub struct LeafDistanceUpdateQueue {
     queue: BinaryHeap<(Reverse<u32>, TaskId)>,
     leaf_distance_updates: FxHashMap<TaskId, LeafDistanceUpdate>,
@@ -83,8 +78,6 @@ impl LeafDistanceUpdateQueue {
                     dependencies_distance: dependency_distance,
                     dependencies_max_distance_in_buffer: dependency_max_distance_in_buffer,
                     done: false,
-                    #[cfg(feature = "trace_leaf_distance_update")]
-                    span: Some(Span::current()),
                 });
                 self.queue.push((Reverse(dependency_distance), task_id));
             }
@@ -101,7 +94,7 @@ impl LeafDistanceUpdateQueue {
                     dependencies_max_distance_in_buffer,
                     ref mut done,
                     #[cfg(feature = "trace_leaf_distance_update")]
-                    ref span,
+                    span,
                 } = self.leaf_distance_updates.get_mut(&task_id).unwrap();
                 if queue_dependencies_distance != dependencies_distance {
                     // Stale entry in queue
@@ -110,7 +103,7 @@ impl LeafDistanceUpdateQueue {
                     continue;
                 }
                 #[cfg(feature = "trace_leaf_distance_update")]
-                let _guard = span.as_ref().map(|s| s.clone().entered());
+                let _guard = span.map(|s| s.entered());
                 *done = true;
                 self.update_leaf_distance(
                     ctx,
@@ -182,11 +175,6 @@ impl Operation for LeafDistanceUpdateQueue {
         if self.is_empty() {
             return;
         }
-        loop {
-            ctx.operation_suspend_point(&self);
-            if self.process(ctx) {
-                return;
-            }
-        }
+        while !self.process(ctx) {}
     }
 }

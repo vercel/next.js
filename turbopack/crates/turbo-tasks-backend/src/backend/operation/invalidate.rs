@@ -1,4 +1,3 @@
-use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
@@ -18,74 +17,22 @@ use crate::{
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
-#[derive(Encode, Decode, Clone, Default)]
-#[allow(clippy::large_enum_variant)]
-pub enum InvalidateOperation {
-    MakeDirty {
-        task_ids: SmallVec<[TaskId; 4]>,
-        #[cfg(feature = "task_dirty_cause")]
-        cause: TaskDirtyCause,
-    },
-    AggregationUpdate {
-        queue: AggregationUpdateQueue,
-    },
-    #[default]
-    Done,
-}
-
-impl InvalidateOperation {
-    pub fn run(
-        task_ids: SmallVec<[TaskId; 4]>,
-        #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
-        mut ctx: impl ExecuteContext<'_>,
-    ) {
-        InvalidateOperation::MakeDirty {
-            task_ids,
+pub fn invalidate(
+    task_ids: SmallVec<[TaskId; 4]>,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    mut ctx: impl ExecuteContext<'_>,
+) {
+    let mut queue = AggregationUpdateQueue::new();
+    for task_id in task_ids {
+        try_make_task_dirty(
+            task_id,
             #[cfg(feature = "task_dirty_cause")]
-            cause,
-        }
-        .execute(&mut ctx)
+            cause.clone(),
+            &mut queue,
+            &mut ctx,
+        );
     }
-}
-
-impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
-        loop {
-            ctx.operation_suspend_point(&self);
-            match self {
-                InvalidateOperation::MakeDirty {
-                    task_ids,
-                    #[cfg(feature = "task_dirty_cause")]
-                    cause,
-                } => {
-                    let mut queue = AggregationUpdateQueue::new();
-                    for task_id in task_ids {
-                        try_make_task_dirty(
-                            task_id,
-                            #[cfg(feature = "task_dirty_cause")]
-                            cause.clone(),
-                            &mut queue,
-                            ctx,
-                        );
-                    }
-                    if queue.is_empty() {
-                        self = InvalidateOperation::Done
-                    } else {
-                        self = InvalidateOperation::AggregationUpdate { queue }
-                    }
-                    continue;
-                }
-                InvalidateOperation::AggregationUpdate { ref mut queue } => {
-                    if queue.process(ctx) {
-                        self = InvalidateOperation::Done
-                    }
-                }
-                InvalidateOperation::Done => {
-                    return;
-                }
-            }
-        }
-    }
+    queue.execute(&mut ctx);
 }
 
 /// Marks a task dirty. The task must exist.

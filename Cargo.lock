@@ -9051,7 +9051,6 @@ dependencies = [
  "either",
  "indexmap 2.14.0",
  "mime",
- "ringmap",
  "serde",
  "smallvec",
  "turbo-tasks-hash",

@@ -29,10 +29,10 @@ use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
 
 use crate::{
     backend::{
-        AnyOperation, TurboTasksBackend,
+        TurboTasksBackend,
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext,
-            ExecuteContextImpl, TaskGuard, capture_all_edges,
+            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, ExecuteContextImpl,
+            TaskGuard, capture_all_edges, cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
         storage::{SpecificTaskDataCategory, TaskDataCategory},
@@ -73,7 +73,7 @@ enum GcJob {
 
 /// Decides when a GC pass should stop early because it is delaying real work.
 struct GcBudget<'a> {
-    phase: &'a SnapshotPhase<'a, AnyOperation>,
+    phase: &'a SnapshotPhase<'a>,
     started: Instant,
     /// The minimum quantum of work this pass does before any interrupt is honoured.
     min_progress: Duration,
@@ -208,7 +208,7 @@ impl TurboTasksBackend {
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-        phase: &SnapshotPhase<'_, AnyOperation>,
+        phase: &SnapshotPhase<'_>,
         interruptible: bool,
     ) -> (GcStats, GcPassResult, Option<Vec<(TaskId, TtlCounter)>>) {
         // Record the time at the beginning of the loop to have a consistent timestamp for the roots
@@ -288,7 +288,7 @@ impl TurboTasksBackend {
                     // It is almost certainly already marked modified, so this is mostly a no-op.
                     let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 }
-                drop(task); // drop the lock so CleanupOldEdgesOperation can run
+                drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
                 // If we happened to delete a known root at this point record it so we can reconcile
@@ -299,8 +299,7 @@ impl TurboTasksBackend {
                 // Delete outgoing edges but don't update the aggregation graph yet.
                 // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
                 // we defer all rebalancing to the end
-                let deferred =
-                    CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx);
+                let deferred = cleanup_old_edges_deletions_only(task_id, old_edges, &mut ctx);
                 result.deferred_balance_edges.extend(deferred.balance_edges);
                 result
                     .deferred_dirty_dependents
@@ -458,11 +457,9 @@ impl TurboTasksBackend {
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.
         if let Some(roots) = roots
-            && let Err(err) = self.backing_storage.save_snapshot(
-                Vec::new(),
-                Some(roots),
-                Vec::<Vec<SnapshotItem>>::new(),
-            )
+            && let Err(err) = self
+                .backing_storage
+                .save_snapshot(Some(roots), Vec::<Vec<SnapshotItem>>::new())
         {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");
         }
