@@ -176,6 +176,10 @@ export const conditions: Record<string, Condition> = {
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
   ),
+  partialPrefetchingGlobal: lazyCondition(
+    'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',
+    (config) => config.partialPrefetching
+  ),
   ppr: lazyCondition(
     'partial prerendering is enabled (implied by `cacheComponents`)',
     (config) => config.experimental?.ppr
