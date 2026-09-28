@@ -479,7 +479,8 @@ function sortRenderItems<Row extends DiffRow>(
       if (comparison !== 0) return comparison
     }
 
-    return a.name < b.name ? -1 : 1
+    // Break numeric ties using the same locale-aware order as the name column.
+    return a.name.localeCompare(b.name)
   })
 }
 
