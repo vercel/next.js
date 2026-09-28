@@ -2,7 +2,7 @@ import crossSpawn from 'next/dist/compiled/cross-spawn'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import picomatch from 'next/dist/compiled/picomatch'
 import semver from 'next/dist/compiled/semver'
 
@@ -102,18 +102,28 @@ function isExcluded(value: unknown, packageName: string | null): boolean {
   return value.some((pattern) => picomatch.isMatch(packageName, pattern))
 }
 
+function bunConfigPaths(directory: string, env: NodeJS.ProcessEnv): string[] {
+  const globalDirectory =
+    env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
+  const ancestors: string[] = []
+  let current = resolve(directory)
+  while (true) {
+    ancestors.unshift(join(current, 'bunfig.toml'))
+    const parent = dirname(current)
+    if (parent === current) {
+      break
+    }
+    current = parent
+  }
+  return [join(globalDirectory, '.bunfig.toml'), ...new Set(ancestors)]
+}
+
 function readBunAgePolicy(
   directory: string,
   env: NodeJS.ProcessEnv
 ): { age: unknown; excludes: unknown } {
-  const globalDirectory =
-    env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
-  const paths = [
-    globalDirectory ? join(globalDirectory, '.bunfig.toml') : null,
-    join(directory, 'bunfig.toml'),
-  ]
-  const contents = paths
-    .filter((path): path is string => path !== null && existsSync(path))
+  const contents = bunConfigPaths(directory, env)
+    .filter((path) => existsSync(path))
     .map((path) => readFileSync(path, 'utf8'))
 
   if (contents.length === 0) {
@@ -349,13 +359,9 @@ export function getAgeGateRegistry(
   } else if (manager === 'bun') {
     registry = env.npm_config_registry
     if (!registry) {
-      const globalDirectory =
-        env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
-      for (const bunfig of [
-        globalDirectory ? join(globalDirectory, '.bunfig.toml') : null,
-        join(directory, 'bunfig.toml'),
-      ]) {
-        if (bunfig && existsSync(bunfig)) {
+      let scopedRegistry: unknown
+      for (const bunfig of bunConfigPaths(directory, env)) {
+        if (existsSync(bunfig)) {
           const parsed = JSON.parse(
             run(
               'bun',
@@ -367,12 +373,27 @@ export function getAgeGateRegistry(
               env,
               readFileSync(bunfig, 'utf8')
             )
-          ) as { install?: { registry?: string | { url?: string } } }
+          ) as {
+            install?: {
+              registry?: string | { url?: string }
+              scopes?: Record<string, string | { url?: string }>
+            }
+          }
           const setting = parsed.install?.registry
           registry =
             typeof setting === 'string' ? setting : (setting?.url ?? registry)
+          const scopedSetting = scope
+            ? parsed.install?.scopes?.[`@${scope}`]
+            : undefined
+          if (scopedSetting !== undefined) {
+            scopedRegistry =
+              typeof scopedSetting === 'string'
+                ? scopedSetting
+                : scopedSetting?.url
+          }
         }
       }
+      registry = scopedRegistry ?? registry
     }
     registry ??= NPM_REGISTRY
   } else {
@@ -431,15 +452,13 @@ function isPackument(value: unknown): value is Packument {
 function getBunAuthorization(
   directory: string,
   registry: string,
+  packageName: string,
   env: NodeJS.ProcessEnv
 ): string | null {
-  const globalDirectory =
-    env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
+  const scope = /^@[^/]+/.exec(packageName)?.[0]
   let setting: unknown
-  for (const bunfig of [
-    join(globalDirectory, '.bunfig.toml'),
-    join(directory, 'bunfig.toml'),
-  ]) {
+  let scopedSetting: unknown
+  for (const bunfig of bunConfigPaths(directory, env)) {
     if (existsSync(bunfig)) {
       const config = JSON.parse(
         run(
@@ -452,14 +471,19 @@ function getBunAuthorization(
           env,
           readFileSync(bunfig, 'utf8')
         )
-      ) as { install?: { registry?: unknown } }
+      ) as {
+        install?: { registry?: unknown; scopes?: Record<string, unknown> }
+      }
       setting = config.install?.registry ?? setting
+      scopedSetting =
+        (scope ? config.install?.scopes?.[scope] : undefined) ?? scopedSetting
     }
   }
-  if (!setting || typeof setting !== 'object') {
+  const effectiveSetting = scopedSetting ?? setting
+  if (!effectiveSetting || typeof effectiveSetting !== 'object') {
     return null
   }
-  const auth = setting as {
+  const auth = effectiveSetting as {
     url?: string
     token?: string
     username?: string
@@ -494,7 +518,7 @@ async function fetchPackument(pkg: AgeGatedPackage): Promise<Packument> {
   const { name, registry = NPM_REGISTRY, directory, manager } = pkg
   const bunAuthorization =
     directory && manager === 'bun'
-      ? getBunAuthorization(directory, registry, process.env)
+      ? getBunAuthorization(directory, registry, pkg.name, process.env)
       : null
   if (bunAuthorization) {
     const path = encodeURIComponent(name).replace('%40', '@')

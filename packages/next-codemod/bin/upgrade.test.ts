@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import execa from 'execa'
 import { getPkgManager } from '../lib/handle-package'
 import { ageEligibleVersions } from './upgrade'
@@ -231,7 +232,7 @@ describe('codemod minimum release age', () => {
       }
     })
 
-    it('uses Bun registry credentials for release times', async () => {
+    it('uses workspace Bun scope credentials for release times', async () => {
       mockGetPkgManager.mockReturnValue('bun')
       const originalXdg = process.env.XDG_CONFIG_HOME
       const originalToken = process.env.BUN_TEST_TOKEN
@@ -240,7 +241,9 @@ describe('codemod minimum release age', () => {
       const exists = jest
         .spyOn(fs, 'existsSync')
         .mockImplementation(
-          (file) => String(file) === '/virtual-bun-config/.bunfig.toml'
+          (file) =>
+            String(file) ===
+            path.join(path.dirname(process.cwd()), 'bunfig.toml')
         )
       const read = jest.spyOn(fs, 'readFileSync').mockReturnValue('' as never)
       mockSync.mockImplementation((_command, args) => {
@@ -250,9 +253,11 @@ describe('codemod minimum release age', () => {
               {
                 install: {
                   minimumReleaseAge: 172800,
-                  registry: {
-                    url: 'https://mirror.example/',
-                    token: '$BUN_TEST_TOKEN',
+                  scopes: {
+                    '@next': {
+                      url: 'https://mirror.example/',
+                      token: '$BUN_TEST_TOKEN',
+                    },
                   },
                 },
               },
@@ -265,11 +270,11 @@ describe('codemod minimum release age', () => {
         Response.json(packument({ '16.0.1': 72, '16.0.2': 1 }))
       )
       try {
-        await expect(ageEligibleVersions('next', '^16.0.0')).resolves.toEqual([
-          '16.0.1',
-        ])
+        await expect(
+          ageEligibleVersions('@next/codemod', '^16.0.0')
+        ).resolves.toEqual(['16.0.1'])
         expect(global.fetch).toHaveBeenCalledWith(
-          'https://mirror.example/next',
+          'https://mirror.example/@next%2Fcodemod',
           expect.objectContaining({
             headers: { Authorization: 'Bearer test-token' },
           })

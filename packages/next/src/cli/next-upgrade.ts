@@ -548,12 +548,9 @@ ${references}`
   let codemodVersion = 'canary'
   let targetRevision = options.revision
 
-  if (codemodPackage.minimumReleaseAge > 0) {
-    codemodVersion = await resolveAgeEligibleVersion(codemodPackage, 'canary')
-  }
   if (
-    options.revision === 'canary' &&
-    (codemodPackage.minimumReleaseAge > 0 || nextPackage.minimumReleaseAge > 0)
+    codemodPackage.minimumReleaseAge > 0 ||
+    nextPackage.minimumReleaseAge > 0
   ) {
     codemodPackage.registry ??= getAgeGateRegistry(
       baseDir,
@@ -561,44 +558,55 @@ ${references}`
       '@next/codemod'
     )
     nextPackage.registry ??= getAgeGateRegistry(baseDir, packageManager, 'next')
+
+    if (options.revision === 'minor' || options.revision === 'patch') {
+      const installed = JSON.parse(
+        await readFile(
+          createRequire(join(baseDir, 'package.json')).resolve(
+            'next/package.json'
+          ),
+          'utf8'
+        )
+      ) as { version: string }
+      nextPackage.range =
+        options.revision === 'patch'
+          ? `~${major(installed.version)}.${minor(installed.version)}.0`
+          : `^${major(installed.version)}.0.0`
+    } else if (
+      options.revision !== 'major' &&
+      options.revision !== 'latest' &&
+      options.revision !== 'canary' &&
+      options.revision !== 'rc' &&
+      options.revision !== 'beta' &&
+      options.revision !== 'preview'
+    ) {
+      nextPackage.range = options.revision
+    }
+
+    const targetChannel =
+      options.revision === 'major' ||
+      options.revision === 'minor' ||
+      options.revision === 'patch'
+        ? 'latest'
+        : options.revision === 'latest' ||
+            options.revision === 'canary' ||
+            options.revision === 'rc' ||
+            options.revision === 'beta' ||
+            options.revision === 'preview'
+          ? options.revision
+          : ((prerelease(options.revision)?.[0] as
+              | 'canary'
+              | 'rc'
+              | 'beta'
+              | 'preview'
+              | undefined) ?? 'latest')
     const sharedVersion = await resolveAgeEligibleVersion(
       nextPackage,
-      'canary',
+      targetChannel,
       codemodPackage
     )
     codemodVersion = sharedVersion
     targetRevision = sharedVersion
-  }
-  const targetChannel =
-    options.revision === 'major' ? 'latest' : options.revision
-  if (
-    nextPackage.minimumReleaseAge > 0 &&
-    targetRevision === options.revision &&
-    (targetChannel === 'latest' ||
-      targetChannel === 'canary' ||
-      targetChannel === 'rc' ||
-      targetChannel === 'beta' ||
-      targetChannel === 'preview')
-  ) {
-    targetRevision = await resolveAgeEligibleVersion(nextPackage, targetChannel)
-  }
-  if (
-    nextPackage.minimumReleaseAge > 0 &&
-    (options.revision === 'minor' || options.revision === 'patch')
-  ) {
-    const installed = JSON.parse(
-      await readFile(
-        createRequire(join(baseDir, 'package.json')).resolve(
-          'next/package.json'
-        ),
-        'utf8'
-      )
-    ) as { version: string }
-    nextPackage.range =
-      options.revision === 'patch'
-        ? `~${major(installed.version)}.${minor(installed.version)}.0`
-        : `^${major(installed.version)}.0.0`
-    targetRevision = await resolveAgeEligibleVersion(nextPackage, 'latest')
   }
 
   const upgradeProcessCommandArgs = [

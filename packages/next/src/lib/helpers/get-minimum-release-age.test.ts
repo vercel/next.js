@@ -400,6 +400,64 @@ describe('getMinimumReleaseAge', () => {
       }
     })
 
+    it('reads the workspace ancestor Bun policy', () => {
+      const root = mkdtempSync(join(tmpdir(), 'next-bun-age-'))
+      const app = join(root, 'apps', 'web')
+      mkdirSync(app, { recursive: true })
+      writeFileSync(
+        join(root, 'bunfig.toml'),
+        '[install]\nminimumReleaseAge = 172800\n'
+      )
+      try {
+        mockExecFileSync
+          .mockReturnValueOnce(
+            'Options: --minimum-release-age=<seconds>' as never
+          )
+          .mockReturnValueOnce(
+            JSON.stringify([
+              { install: { minimumReleaseAge: 172800 } },
+            ]) as never
+          )
+        expect(
+          getMinimumReleaseAge(app, 'bun', null, {
+            ...process.env,
+            XDG_CONFIG_HOME: join(root, 'global'),
+          })
+        ).toBe(48 * 60 * 60 * 1000)
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    })
+
+    it('uses the scoped Bun registry in a workspace ancestor', () => {
+      const root = mkdtempSync(join(tmpdir(), 'next-bun-scope-'))
+      const app = join(root, 'apps', 'web')
+      mkdirSync(app, { recursive: true })
+      writeFileSync(
+        join(root, 'bunfig.toml'),
+        '[install.scopes]\n"@next" = "https://scope.example/"\n'
+      )
+      try {
+        mockExecFileSync.mockReturnValueOnce(
+          JSON.stringify({
+            install: {
+              registry: 'https://default.example/',
+              scopes: { '@next': 'https://scope.example/' },
+            },
+          }) as never
+        )
+        expect(
+          getAgeGateRegistry(app, 'bun', '@next/codemod', {
+            ...process.env,
+            npm_config_registry: '',
+            XDG_CONFIG_HOME: join(root, 'global'),
+          })
+        ).toBe('https://scope.example/')
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    })
+
     it('returns zero when no age is configured', () => {
       const root = mkdtempSync(join(tmpdir(), 'next-bun-age-'))
       try {

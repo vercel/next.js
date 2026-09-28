@@ -71,9 +71,19 @@ function bunConfig(): { install?: Record<string, unknown> } {
     process.env.HOME ||
     process.env.USERPROFILE ||
     os.homedir()
+  const ancestors: string[] = []
+  let current = path.resolve(cwd)
+  while (true) {
+    ancestors.unshift(path.join(current, 'bunfig.toml'))
+    const parent = path.dirname(current)
+    if (parent === current) {
+      break
+    }
+    current = parent
+  }
   const files = [
     path.join(globalDirectory, '.bunfig.toml'),
-    path.join(cwd, 'bunfig.toml'),
+    ...new Set(ancestors),
   ].filter(fs.existsSync)
   if (files.length === 0) {
     return {}
@@ -95,12 +105,26 @@ function bunConfig(): { install?: Record<string, unknown> } {
     ).stdout
   ) as Array<{ install?: Record<string, unknown> }>
   return {
-    install: Object.assign({}, ...parsed.map((item) => item.install ?? {})),
+    install: {
+      ...Object.assign({}, ...parsed.map((item) => item.install ?? {})),
+      scopes: Object.assign(
+        {},
+        ...parsed.map(
+          (item) =>
+            (item.install?.scopes as Record<string, unknown> | undefined) ?? {}
+        )
+      ),
+    },
   }
 }
 
-function bunAuthorization(registry: string): string | null {
-  const setting = bunConfig().install?.registry
+function bunAuthorization(registry: string, name: string): string | null {
+  const install = bunConfig().install
+  const scope = /^@[^/]+/.exec(name)?.[0]
+  const setting =
+    (scope
+      ? (install?.scopes as Record<string, unknown> | undefined)?.[scope]
+      : undefined) ?? install?.registry
   if (!setting || typeof setting !== 'object') {
     return null
   }
@@ -238,7 +262,10 @@ function agePolicy(name: string): {
     const config = bunConfig().install
     age = Number(config?.minimumReleaseAge ?? 0) * 1_000
     exclusions = config?.minimumReleaseAgeExcludes
-    const setting = config?.registry
+    const setting =
+      (scope
+        ? (config?.scopes as Record<string, unknown> | undefined)?.[`@${scope}`]
+        : undefined) ?? config?.registry
     registry =
       process.env.npm_config_registry ||
       (typeof setting === 'string'
@@ -286,7 +313,9 @@ export async function ageEligibleVersions(
     packages.map(async (pkg, index) => {
       const manager = getPkgManager(cwd)
       const authorization =
-        manager === 'bun' ? bunAuthorization(policies[index].registry) : null
+        manager === 'bun'
+          ? bunAuthorization(policies[index].registry, pkg)
+          : null
       if (authorization) {
         const response = await fetch(
           `${policies[index].registry}${encodeURIComponent(pkg).replace('%40', '@')}`,
@@ -796,8 +825,6 @@ export async function runUpgrade(
     overrides['@types/react-dom'] = versionMapping['@types/react-dom'].version
   }
 
-  writeOverridesField(appPackageJson, packageManager, overrides)
-
   for (const [packageName, { version, required }] of Object.entries(
     versionMapping
   )) {
@@ -823,6 +850,7 @@ export async function runUpgrade(
     }
   }
 
+  writeOverridesField(appPackageJson, packageManager, overrides)
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   console.log(

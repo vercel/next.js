@@ -45,6 +45,26 @@ describe('next upgrade minimum release age', () => {
     jest.mocked(spawn).mockReturnValue(new EventEmitter() as never)
   })
 
+  it('uses a shared eligible stable release for ordinary upgrades', async () => {
+    jest.mocked(resolveAgeEligibleVersion).mockResolvedValue('16.1.2')
+    await spawnNextUpgrade(undefined, {
+      revision: 'latest',
+      verbose: false,
+      ai: false,
+    })
+
+    expect(resolveAgeEligibleVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'next' }),
+      'latest',
+      expect.objectContaining({ name: '@next/codemod' })
+    )
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['dlx', '@next/codemod@16.1.2', 'upgrade', '16.1.2'],
+      { stdio: 'inherit', cwd: '/app' }
+    )
+  })
+
   it('uses the shared eligible canary for the codemod and Next.js', async () => {
     await spawnNextUpgrade(undefined, {
       revision: 'canary',
