@@ -2692,6 +2692,8 @@ function initializeClientComponentLoadTracking(
   const { ComponentMod, cacheComponents } = renderOpts
   if (!ComponentMod.__next_app__) return undefined
 
+  // This tracker covers preparation and actions too, which can outlive or
+  // bypass the inner HTML render span. Reporting also runs after its scope.
   const parentSpan = getTracer().getActiveScopeSpan()
   const isTracingEnabled = parentSpan?.isRecording() ?? false
   let report:

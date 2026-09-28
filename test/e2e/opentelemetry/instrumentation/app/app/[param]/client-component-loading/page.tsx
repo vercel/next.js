@@ -42,9 +42,15 @@ async function GatedContent({
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ id: string; variant?: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const { id, variant } = await searchParams
+  if (typeof id !== 'string') {
+    throw new Error('Missing client component gate id')
+  }
+  if (variant !== undefined && variant !== 'extra' && variant !== 'no-late') {
+    throw new Error('Invalid client component loading variant')
+  }
   const extra = variant === 'extra'
   const noLate = variant === 'no-late'
 

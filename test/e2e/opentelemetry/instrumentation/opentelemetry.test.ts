@@ -302,6 +302,16 @@ describe.each(
             'next.clientComponentLoadCount'
           ] as number
           expect(count).toBeGreaterThan(0)
+          const requestSpans = getCollector()
+            .getSpans()
+            .filter(
+              (span) =>
+                span.traceId === traceId &&
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest'
+            )
+          expect(requestSpans).toHaveLength(1)
+          expect(spans[0].parentId).toBe(requestSpans[0].id)
           return spans[0]
         })
       }
@@ -619,6 +629,15 @@ describe.each(
                 parentId: env.span.rootParentId,
                 spans: [
                   {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: { code: 0 },
+                  },
+                  {
                     name: 'render route (app) /app/[param]/rsc-fetch',
                     attributes: {
                       'next.route': '/app/[param]/rsc-fetch',
@@ -697,18 +716,6 @@ describe.each(
                         },
                         kind: 0,
                         status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
                       },
                       {
                         name: 'start response',
@@ -1316,6 +1323,15 @@ describe.each(
                 parentId: env.span.rootParentId,
                 spans: [
                   {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 12 : 10,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: { code: 0 },
+                  },
+                  {
                     name: 'render route (app) /app/[param]/rsc-fetch/error',
                     attributes: {
                       'next.route': '/app/[param]/rsc-fetch/error',
@@ -1383,18 +1399,6 @@ describe.each(
                         status: { code: 0 },
                       },
                       {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
-                      },
-                      {
                         name: 'start response',
                         attributes: {
                           'next.span_name': 'start response',
@@ -1448,6 +1452,15 @@ describe.each(
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
                 spans: [
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: { code: 0 },
+                  },
                   {
                     name: 'render route (app) /app/[param]/loading/error',
                     attributes: {
@@ -1509,18 +1522,6 @@ describe.each(
                         },
                         kind: 0,
                         status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
                       },
                       {
                         name: 'start response',
@@ -1906,6 +1907,16 @@ describe.each(
                   },
                   ...(isNextDev
                     ? [
+                        {
+                          name: 'NextNodeServer.clientComponentLoading',
+                          attributes: {
+                            'next.clientComponentLoadCount': expect.any(Number),
+                            'next.span_type':
+                              'NextNodeServer.clientComponentLoading',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
                         {
                           name: 'render route (app) /_not-found',
                           attributes: {
@@ -2598,6 +2609,9 @@ describe('opentelemetry with disabled fetch tracing', () => {
               parentId: undefined,
               spans: [
                 {
+                  name: 'NextNodeServer.clientComponentLoading',
+                },
+                {
                   name: 'render route (app) /app/[param]/rsc-fetch',
                   spans: [
                     {
@@ -2616,9 +2630,6 @@ describe('opentelemetry with disabled fetch tracing', () => {
                     },
                     {
                       name: 'generateMetadata /app/[param]/rsc-fetch/page',
-                    },
-                    {
-                      name: 'NextNodeServer.clientComponentLoading',
                     },
                     {
                       name: 'start response',
@@ -2687,6 +2698,15 @@ describe('opentelemetry with custom server', () => {
             kind: 1,
             status: { code: 0 },
             spans: [
+              {
+                attributes: {
+                  'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                  'next.span_type': 'NextNodeServer.clientComponentLoading',
+                },
+                kind: 0,
+                name: 'NextNodeServer.clientComponentLoading',
+                status: { code: 0 },
+              },
               {
                 name: 'render route (app) /app/[param]/rsc-fetch',
                 attributes: {
@@ -2762,17 +2782,6 @@ describe('opentelemetry with custom server', () => {
                     },
                     kind: 0,
                     status: { code: 0 },
-                  },
-                  {
-                    attributes: {
-                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
-                      'next.span_type': 'NextNodeServer.clientComponentLoading',
-                    },
-                    kind: 0,
-                    name: 'NextNodeServer.clientComponentLoading',
-                    status: {
-                      code: 0,
-                    },
                   },
                   {
                     name: 'start response',
