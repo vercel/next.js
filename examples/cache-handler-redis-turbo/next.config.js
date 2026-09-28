@@ -25,6 +25,7 @@ const nextConfig = {
     process.env.NODE_ENV === "production"
       ? require.resolve("./cache-handler.js")
       : undefined,
+  cacheMaxMemorySize: 0,
   // `'use cache'` directive handler (plural API, Next.js 16+).
   // `remote` is the cache kind that should be coupled to a backing remote store.
   cacheHandlers: {

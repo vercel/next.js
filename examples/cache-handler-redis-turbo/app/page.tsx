@@ -17,10 +17,13 @@ export default function HomePage() {
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         <Link className="link" href="/cet">
-          ISR demo (singular cacheHandler) &rarr;
+          Remote Cache Components: time demo &rarr;
         </Link>
         <Link className="link" href="/use-cache">
-          &quot;use cache&quot; demo (plural cacheHandlers) &rarr;
+          Remote Cache Components: fact demo &rarr;
+        </Link>
+        <Link className="link" href="/isr">
+          ISR demo (singular cacheHandler) &rarr;
         </Link>
       </div>
     </main>

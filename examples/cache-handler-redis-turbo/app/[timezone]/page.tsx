@@ -22,7 +22,7 @@ const timeZones = {
 } as const;
 
 /**
- * `'use cache'` with a short cacheLife so the cache-state watcher can show
+ * `'use cache: remote'` with a short cacheLife so the cache-state watcher can show
  * the fresh → stale transition. Tagged with "time-data" so the server action
  * can invalidate it via `updateTag("time-data")`.
  *
@@ -30,7 +30,7 @@ const timeZones = {
  * `next build` without network access).
  */
 async function getTimeData(ianaTimeZone: string): Promise<CachedTime> {
-  "use cache";
+  "use cache: remote";
   cacheLife("minutes");
   cacheTag("time-data");
 
@@ -58,7 +58,7 @@ async function getTimeData(ianaTimeZone: string): Promise<CachedTime> {
 
 /**
  * Async content component rendered inside <Suspense> so that uncached data
- * access (the `await params` + `'use cache'` fetch) doesn't block the
+ * access (the `await params` + `'use cache: remote'` fetch) doesn't block the
  * entire route from prerendering.
  */
 async function TimeContent({
@@ -81,10 +81,7 @@ async function TimeContent({
         {timeData.timeZone} Time {timeData.dateTime}
       </div>
       <Suspense fallback={null}>
-        <CacheStateWatcher
-          revalidateAfter={60 * 1000}
-          time={generatedAt}
-        />
+        <CacheStateWatcher revalidateAfter={60 * 1000} time={generatedAt} />
       </Suspense>
       <RevalidateFrom />
     </>
@@ -115,7 +112,9 @@ export default async function Page({ params }: PageProps<"/[timezone]">) {
       </main>
       <footer className="footer">
         <Link
-          href={process.env.NEXT_PUBLIC_REDIS_INSIGHT_URL}
+          href={
+            process.env.NEXT_PUBLIC_REDIS_INSIGHT_URL ?? "http://localhost:8001"
+          }
           className="link"
           target="_blank"
           rel="noopener noreferrer"

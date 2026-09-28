@@ -1,7 +1,7 @@
 /**
  * Cache Components handler (plural `cacheHandlers` API, Next.js 16+).
  *
- * Used by the `'use cache'` directive, `cacheTag`, `cacheLife`, and
+ * Used by the `'use cache: remote'` directive, `cacheTag`, `cacheLife`, and
  * `revalidateTag` when `cacheComponents: true` is set in `next.config.js`.
  *
  * `@trieb.work/nextjs-turbo-redis-cache` ships a ready-to-export

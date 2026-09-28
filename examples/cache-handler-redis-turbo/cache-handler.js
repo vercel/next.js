@@ -8,11 +8,13 @@
  * monitoring logic belongs in the adapter instance and should be wired there.
  */
 const { PHASE_PRODUCTION_BUILD } = require("next/constants");
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
 
 let cachedHandler;
 
 class CacheHandler {
-  constructor() {
+  constructor({ serverDistDir }) {
     if (cachedHandler) {
       return cachedHandler;
     }
@@ -38,8 +40,10 @@ class CacheHandler {
       // REDIS_URL is recommended; falls back to REDISHOST/REDISPORT, then
       // redis://localhost:6379.
       // redisUrl: process.env.REDIS_URL,
-      // Optional: isolate cache entries per deployment.
-      // keyPrefix: process.env.VERCEL_URL ?? "turbo-example:",
+      keyPrefix:
+        process.env.KEY_PREFIX ||
+        process.env.VERCEL_URL ||
+        readFileSync(join(serverDistDir, "..", "BUILD_ID"), "utf8").trim(),
     });
 
     return cachedHandler;

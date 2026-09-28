@@ -8,7 +8,7 @@ type UselessFact = {
 };
 
 /**
- * `'use cache'` directive (Next.js 16+ Cache Components).
+ * `'use cache: remote'` directive (Next.js 16+ Cache Components).
  *
  * This function's return value is cached via the plural `cacheHandlers`
  * API — pointed at `cache-components-handler.js` in next.config.js.
@@ -20,7 +20,7 @@ type UselessFact = {
  * `next build` without network access).
  */
 async function getUselessFact(): Promise<UselessFact> {
-  "use cache";
+  "use cache: remote";
   cacheLife("minutes");
   cacheTag("use-cache-fact");
 
@@ -52,7 +52,7 @@ export default async function UseCachePage() {
       </header>
       <main className="widget">
         <div className="card">
-          <h2>&quot;use cache&quot; — shared via Redis</h2>
+          <h2>&quot;use cache: remote&quot; — shared via Redis</h2>
           <div className="value">{fact.text}</div>
           <span className="badge">cacheLife: minutes</span>
         </div>
@@ -60,7 +60,9 @@ export default async function UseCachePage() {
       </main>
       <footer className="footer">
         <Link
-          href={process.env.NEXT_PUBLIC_REDIS_INSIGHT_URL}
+          href={
+            process.env.NEXT_PUBLIC_REDIS_INSIGHT_URL ?? "http://localhost:8001"
+          }
           className="link"
           target="_blank"
           rel="noopener noreferrer"
