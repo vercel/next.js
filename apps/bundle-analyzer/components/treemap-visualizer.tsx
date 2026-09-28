@@ -860,45 +860,33 @@ export function TreemapVisualizer({
     }
   }, [])
 
-  // Layout walks the entire focused subtree; hover and selection only redraw
-  // the cached layout in the canvas effect below.
-  const layout = useMemo(() => {
-    // Compute layout using the focused source index
-    const focusedLayout = computeTreemapLayoutFromAnalyze(
-      analyzeData,
-      focusedSourceIndex,
-      {
-        x: 0,
-        y: 12 * focusedAncestorChain.length,
-        width: dimensions.cssWidth,
-        height: dimensions.cssHeight,
-      },
-      filterSource,
-      sizeMode
-    )
-
-    // If we're not at the root, wrap with ancestor title bars
-    if (focusedAncestorChain.length > 1) {
-      return wrapLayoutWithAncestorsUsingIndices(
-        focusedLayout,
-        focusedAncestorChain,
-        analyzeData,
-        dimensions.cssWidth,
-        dimensions.cssHeight,
-        12
-      )
-    }
-
-    return focusedLayout
-  }, [
+  // Layout walks the entire focused subtree; hover and selection redraw it
+  // in the canvas effect below.
+  const focusedLayout = computeTreemapLayoutFromAnalyze(
     analyzeData,
     focusedSourceIndex,
-    focusedAncestorChain,
-    dimensions.cssWidth,
-    dimensions.cssHeight,
+    {
+      x: 0,
+      y: 12 * focusedAncestorChain.length,
+      width: dimensions.cssWidth,
+      height: dimensions.cssHeight,
+    },
     filterSource,
-    sizeMode,
-  ])
+    sizeMode
+  )
+
+  // If we're not at the root, wrap with ancestor title bars
+  const layout =
+    focusedAncestorChain.length > 1
+      ? wrapLayoutWithAncestorsUsingIndices(
+          focusedLayout,
+          focusedAncestorChain,
+          analyzeData,
+          dimensions.cssWidth,
+          dimensions.cssHeight,
+          12
+        )
+      : focusedLayout
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current
