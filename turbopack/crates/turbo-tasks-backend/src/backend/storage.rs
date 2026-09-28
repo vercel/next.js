@@ -476,7 +476,6 @@ impl Storage {
         }
     }
 
-
     /// Read-only access to an already resident task. Returns `None` if the task isn't memory
     /// resident. The closure runs while the task lock and Papaya protection are held, so it must be
     /// cheap and must not re-enter this task or the map.
@@ -489,16 +488,6 @@ impl Storage {
     #[doc(hidden)]
     pub fn resident_task_count_for_testing(&self) -> usize {
         self.map.len()
-    }
-
-    #[doc(hidden)]
-    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
-        self.map
-            .task_ids()
-            .into_iter()
-            .filter(|task_id| !task_id.is_transient())
-            .count()
-    }
     }
 
     /// Snapshot the IDs used to seed GC's unbounded work scope. Workers independently pin, lock,
@@ -521,7 +510,7 @@ impl Storage {
         let task_ids = self.gc_task_ids();
         let mut roots = Vec::new();
         self.map.for_each_locked(&task_ids, |task_id, task| {
-            if task.gc_is_root() {
+            if !task_id.is_transient() && task.gc_is_root() {
                 roots.push(task_id);
             }
         });
@@ -1089,7 +1078,6 @@ mod tests {
 
     fn snapshot_value(storage: &Storage, task_id: TaskId) -> Option<bool> {
         storage.snapshots.get(&task_id).map(|value| value.is_some())
-    }
     }
 
     #[test]

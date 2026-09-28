@@ -243,7 +243,9 @@ impl TurboTasksBackend {
             .map(|ids| GcJob::ScanBatch(ids.to_vec()))
             .collect::<Vec<_>>();
         let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
-            batches.into_iter().chain(aged_out.into_iter().map(GcJob::Collect)),
+            batches
+                .into_iter()
+                .chain(aged_out.into_iter().map(GcJob::Collect)),
             Default::default,
             |spawner, job, (stats, result): &mut (GcStats, GcPassResult)| {
                 if let Some(budget) = &budget
