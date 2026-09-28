@@ -73,6 +73,8 @@ interface DiffTableProps<Row extends DiffRow> {
    * the toolbar input affects both views consistently.
    */
   searchQuery?: string
+  /** Empty-state message shown when the active source filters remove all rows. */
+  emptyState?: ReactNode
 }
 
 const virtuosoComponents = {
@@ -112,6 +114,7 @@ export function DiffTable<Row extends DiffRow>({
   caption,
   mode = 'compare',
   searchQuery,
+  emptyState,
 }: DiffTableProps<Row>) {
   const isSingle = mode === 'single'
   // Compare mode shows only changed sources by default. In single mode every
@@ -311,9 +314,11 @@ export function DiffTable<Row extends DiffRow>({
       />
       {visibleItems.length === 0 ? (
         <div className="absolute inset-x-0 top-20 px-4 py-8 text-center text-sm text-muted-foreground">
-          {!isSingle && statusFilter === 'changes' && !searchQuery?.trim()
-            ? 'No changes to show.'
-            : 'No matching rows.'}
+          {summary.rows.length === 0 && emptyState
+            ? emptyState
+            : !isSingle && statusFilter === 'changes' && !searchQuery?.trim()
+              ? 'No changes to show.'
+              : 'No matching rows.'}
         </div>
       ) : null}
     </div>

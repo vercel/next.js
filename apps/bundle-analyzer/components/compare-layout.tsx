@@ -88,13 +88,6 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
             hasAlternateEnvironmentSources={
               model.hasAlternateEnvironmentSources
             }
-            onSwitchEnvironment={() =>
-              model.setEnvironmentFilter(
-                model.environmentFilter === Environment.Client
-                  ? Environment.Server
-                  : Environment.Client
-              )
-            }
             baselineSnapshot={model.baselineSnapshot}
             comparisonSnapshot={model.comparisonSnapshot}
             compareSelectedKey={model.selectedKey}
@@ -350,7 +343,6 @@ export function ComparePerRoutePanel({
   searchQuery,
   environmentFilter,
   hasAlternateEnvironmentSources,
-  onSwitchEnvironment,
   baselineSnapshot,
   comparisonSnapshot,
   compareSelectedKey,
@@ -366,7 +358,6 @@ export function ComparePerRoutePanel({
   searchQuery: string
   environmentFilter: Environment
   hasAlternateEnvironmentSources: boolean
-  onSwitchEnvironment: () => void
   baselineSnapshot: SnapshotMetadata
   comparisonSnapshot: SnapshotMetadata | null
   compareSelectedKey: string | null
@@ -409,10 +400,7 @@ export function ComparePerRoutePanel({
       sourceDiff.rows.length === 0 &&
       hasAlternateEnvironmentSources ? (
         <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">
-          <AlternateEnvironmentEmptyState
-            environment={environmentFilter}
-            onSwitch={onSwitchEnvironment}
-          />
+          <AlternateEnvironmentEmptyState environment={environmentFilter} />
         </div>
       ) : compareView === CompareView.Treemap ? (
         <DiffTreemap
@@ -437,10 +425,7 @@ export function ComparePerRoutePanel({
           searchQuery={searchQuery}
           emptyState={
             hasAlternateEnvironmentSources ? (
-              <AlternateEnvironmentEmptyState
-                environment={environmentFilter}
-                onSwitch={onSwitchEnvironment}
-              />
+              <AlternateEnvironmentEmptyState environment={environmentFilter} />
             ) : undefined
           }
           selectedKey={compareSelectedKey}
