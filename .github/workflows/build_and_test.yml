@@ -22,11 +22,15 @@ env:
 
 jobs:
   optimize-ci:
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/pr_stack_optimizer.yml
-    secrets: inherit
 
   changes:
     name: Determine changes
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,6 +161,7 @@ jobs:
 
   build-next:
     name: build-next
+    needs: ['optimize-ci']
     permissions:
       contents: read
       id-token: write
@@ -251,11 +256,16 @@ jobs:
         # `*.browser.{ts,tsx}` sibling was added/removed without running
         # `pnpm generate-browser-variant-aliases` and committing the result.
         pnpm generate-browser-variant-aliases
+        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
+        pnpm --dir .github/actions/pr-stack-ci-gate types
+        pnpm --dir .github/actions/pr-stack-ci-gate build
+        pnpm --dir .github/actions/pr-stack-ci-gate test
         git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

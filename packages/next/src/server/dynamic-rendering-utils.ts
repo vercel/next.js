@@ -562,7 +562,7 @@ const logRuntimeUpgradeableFallback = process.env
 /**
  * Signals that we cannot recover both a runtime shell and a static (PPR) shell
  * from the same render. Use this whenever the stage of a promise varies on
- * `RequestStore.needsAppShell`.
+ * `RequestStore.needsRuntimeShell`.
  * */
 export function trackIncompatibleShellContent(
   workUnitStore: RequestStore,

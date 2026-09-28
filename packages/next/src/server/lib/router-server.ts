@@ -68,6 +68,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { isCI } from '../ci-info'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
@@ -191,6 +192,7 @@ export async function initialize(opts: {
     | undefined = undefined
 
   let originalFetch = globalThis.fetch
+  let hasVulnerabilityInsight: Promise<boolean> = Promise.resolve(false)
 
   if (opts.dev) {
     const { Telemetry } =
@@ -223,10 +225,34 @@ export async function initialize(opts: {
       developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
       developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
       developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+      process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
-      const { nudgeUpgrade, getUpgradeContext } =
+      const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      const upgradeContext = getUpgradeContext(developmentConfig)
+      const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+      const policy = upgradeContext.experimental.agenticAutoUpgrade
+      const forced = process.env.__NEXT_AGENTIC_AUTO_UPGRADE === policy
+      const forceDevToolsForTesting =
+        process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+      const assessment: ReturnType<typeof assessUpgrade> =
+        isCI || forceDevToolsForTesting
+          ? Promise.resolve(null)
+          : assessUpgrade(
+              opts.dir,
+              upgradeContext,
+              installedVersion,
+              null,
+              forced
+            )
+      hasVulnerabilityInsight = assessment.then(
+        (result) => result?.kind === 'security' || forceDevToolsForTesting,
+        (error) => {
+          Log.warn(`Could not check the DevTools security insight: ${error}`)
+          return false
+        }
+      )
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
         // TODO: Do not block dev startup while prompting for an upgrade.
         // Preserve all logs for display after the prompt and stop dev before Update.
@@ -242,7 +268,7 @@ export async function initialize(opts: {
           }
           process.on('message', resume)
           process.send!({
-            nextUpgradeContext: getUpgradeContext(developmentConfig),
+            nextUpgradeContext: upgradeContext,
           })
         })
       } else {
@@ -298,6 +324,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        hasVulnerabilityInsight,
       })
     )
 

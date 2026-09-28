@@ -1093,7 +1093,6 @@ export abstract class RouteModule<
     } catch (_) {}
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
-    addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
     let deploymentId
     if (nextConfig.experimental?.runtimeServerDeploymentId) {

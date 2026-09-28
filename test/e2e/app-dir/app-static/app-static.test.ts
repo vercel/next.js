@@ -785,10 +785,8 @@ describe('app-dir static/dynamic handling', () => {
         ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
         : await next.readFile('.next/server/app/blog/seb.rsc')
 
-      // During SSG, pages that correspond with dynamic routes shouldn't have any search
-      // parameters in the `__PAGE__` segment string. The only time we expect to see
-      // search parameters in the `__PAGE__` segment string is when the RSC data is
-      // requested from the client with search parameters.
+      // Page segments contain only structural identity. Search params are
+      // carried separately, including in responses for dynamic routes.
       expect(data).not.toContain('__PAGE__?')
       expect(data).toContain('__PAGE__')
     })

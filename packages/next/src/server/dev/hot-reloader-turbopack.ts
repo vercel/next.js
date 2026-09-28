@@ -891,6 +891,22 @@ export async function createHotReloaderTurbopack(
     client.send(data)
   }
 
+  let hasVulnerabilityInsight = false
+  opts.hasVulnerabilityInsight.then((enabled) => {
+    if (enabled) {
+      hasVulnerabilityInsight = true
+      for (const client of [
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
+      ]) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT,
+          hasVulnerabilityInsight: true,
+        })
+      }
+    }
+  })
+
   let updateInProgress = false
   let pendingServerComponentChanges = false
 
@@ -1757,6 +1773,7 @@ export async function createHotReloaderTurbopack(
             warnings: [],
             hash: '',
             versionInfo,
+            hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,
             },

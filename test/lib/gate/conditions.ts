@@ -13,8 +13,9 @@
  * ## The two tiers
  *
  * **`staticCondition`** — the value is known before any test runs (run mode,
- * bundler, React version). These are the only conditions `@force-gate` accepts,
- * because a real Jest skip has to be decided while tests are being collected.
+ * bundler, operating system, React version). These are the only conditions
+ * `@force-gate` accepts, because a real Jest skip has to be decided while tests
+ * are being collected.
  *
  * **`lazyCondition`** — a predicate over the *resolved* `next.config` of the
  * fixture the suite booted (`NextInstance.getResolvedConfig()`). The value is
@@ -130,6 +131,18 @@ export const conditions: Record<string, Condition> = {
   wasm: staticCondition(
     'using the wasm SWC binary (`NEXT_TEST_WASM`)',
     () => getGateTestContext().wasm
+  ),
+  linux: staticCondition(
+    'running on Linux',
+    () => process.platform === 'linux'
+  ),
+  macos: staticCondition(
+    'running on macOS',
+    () => process.platform === 'darwin'
+  ),
+  windows: staticCondition(
+    'running on Windows',
+    () => process.platform === 'win32'
   ),
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
