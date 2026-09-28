@@ -1,6 +1,7 @@
 import { constants } from 'fs'
 import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
+import type { Key } from 'readline'
 
 import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
@@ -96,15 +97,25 @@ function resolvePrompt(
 async function chooseOption(
   question: string,
   values: Record<string, string>,
-  defaultValue: number
-): Promise<string | undefined> {
+  defaultValue: number,
+  firstPrompt = false
+): Promise<string | null | undefined> {
   Log.bootstrap('')
   Log.bootstrap(`  ${question}`)
-  Log.bootstrap(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
+  Log.bootstrap(
+    `  ${dim(`Use ↑/↓ to choose, Enter to confirm, or Esc to ${firstPrompt ? 'cancel' : 'go back'}.`)}\n`
+  )
 
+  let interrupted = false
+  const onKeypress = (_text: string, key: Key) => {
+    if (key.ctrl && key.name === 'c') {
+      interrupted = true
+    }
+  }
+  process.stdin.on('keypress', onKeypress)
   try {
     const { id } = await cliSelect({
-      values: { ...values, cancel: 'Cancel' },
+      values,
       defaultValue,
       selected: cyan('❯'),
       unselected: ' ',
@@ -112,25 +123,33 @@ async function chooseOption(
       valueRenderer: (value: string, selected: boolean) =>
         selected ? cyan(bold(value)) : value,
     })
-    return typeof id === 'string' && id !== 'cancel' ? id : undefined
+    return typeof id === 'string' ? id : undefined
   } catch (error) {
-    if (error) {
+    if (error !== undefined) {
       throw error
     }
-    return undefined
+    return interrupted ? null : undefined
+  } finally {
+    process.stdin.removeListener('keypress', onKeypress)
   }
 }
 
-async function chooseWorktree(): Promise<boolean> {
-  Log.bootstrap('  Open the upgrade in a separate Git worktree?')
-  const { id } = await cliSelect({
-    values: { yes: 'Yes', no: 'No' },
-    defaultValue: 0,
-    selected: cyan('❯'),
-    unselected: ' ',
-    indentation: 2,
-  })
-  return id === 'yes'
+async function chooseWorktree(): Promise<boolean | null | undefined> {
+  const choice = await chooseOption(
+    'Open the upgrade in a separate Git worktree?',
+    { yes: 'Yes', no: 'No' },
+    0
+  )
+  if (choice === null || choice === undefined) {
+    return choice
+  }
+  if (choice === 'yes') {
+    return true
+  }
+  if (choice === 'no') {
+    return false
+  }
+  throw new Error(`Unknown worktree choice: ${choice}`)
 }
 
 function getHarnessDisplayName(name: UpgradeHarness['name']): string {
@@ -222,46 +241,32 @@ async function findHarnesses(): Promise<UpgradeHarness[]> {
 }
 
 async function chooseHarness(
-  harnesses: UpgradeHarness[]
+  harnesses: UpgradeHarness[],
+  previousName: UpgradeHarness['name'] | undefined
 ): Promise<UpgradeHarness | 'copy' | undefined> {
   const question =
     harnesses.length === 1
       ? `${getHarnessDisplayName(harnesses[0].name)} detected. Would you like to proceed?`
       : 'Multiple coding agents detected. Which one would you like to use?'
 
-  Log.bootstrap('')
-  Log.bootstrap(`  ${question}`)
-  Log.bootstrap(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
-
-  try {
-    const { id } = await cliSelect({
-      values: {
-        ...Object.fromEntries(
-          harnesses.map(({ name }) => [
-            name,
-            `Continue with ${getHarnessDisplayName(name)}`,
-          ])
-        ),
-        copy: 'Copy prompt for another coding agent',
-        cancel: 'Cancel',
-      },
-      // cli-select indexes rows numerically, even when values is an object.
-      defaultValue: 0,
-      selected: cyan('❯'),
-      unselected: ' ',
-      indentation: 2,
-      valueRenderer: (value: string, selected: boolean) =>
-        selected ? cyan(bold(value)) : value,
-    })
-    return id === 'copy' ? 'copy' : harnesses.find(({ name }) => name === id)
-  } catch (error) {
-    // cli-select rejects without an error when Escape or Ctrl+C cancels the menu.
-    if (error) {
-      throw error
-    }
-
-    return undefined
-  }
+  const id = await chooseOption(
+    question,
+    {
+      ...Object.fromEntries(
+        harnesses.map(({ name }) => [
+          name,
+          `Continue with ${getHarnessDisplayName(name)}`,
+        ])
+      ),
+      copy: 'Copy prompt for another coding agent',
+    },
+    Math.max(
+      0,
+      harnesses.findIndex(({ name }) => name === previousName)
+    ),
+    true
+  )
+  return id === 'copy' ? 'copy' : harnesses.find(({ name }) => name === id)
 }
 
 function copyUpgradePrompt(prompt: string, noHarness = false): void {
@@ -356,129 +361,170 @@ export async function handoffUpgrade(
     return
   }
 
-  // Let the selected agent take over the terminal with the chosen permissions.
-  const harness = await chooseHarness(installed)
+  let stage: 'harness' | 'model' | 'effort' | 'permission' | 'worktree' =
+    'harness'
+  let harness: UpgradeHarness | undefined
+  let model: { id: string; efforts: readonly string[] } | undefined
+  let effort: string | undefined
+  let autoPermissionArgs: string[] | null = null
+  let approvalPermissionArgs: string[] = []
+  let permissionArgs: string[] = []
+  let useAuto = true
+  let useWorktree = true
+  let codexModels: ReturnType<typeof getCodexModels> | undefined
+  let codexAutoReview: boolean | undefined
+  let claudePermissionSupport:
+    | ReturnType<typeof getClaudePermissionSupport>
+    | undefined
 
-  if (harness === 'copy') {
-    copyUpgradePrompt(resolvePrompt(prompt, null))
-    return
-  }
-
-  if (!harness) {
-    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-    process.exitCode = 1
-    return
-  }
-
-  const models =
-    harness.name === 'codex'
-      ? getCodexModels(harness.path)
-      : UPGRADE_MODELS.claude
-  if (models.length === 0 && harness.name !== 'codex') {
-    Log.error('No supported models were found for the selected coding agent.')
-    process.exitCode = 1
-    return
-  }
-  let model: (typeof models)[number] | undefined
-  let effort = 'default'
-  if (models.length === 0) {
-    Log.warn('Could not verify Codex models; using the CLI defaults.')
-  } else {
-    const modelId = await chooseOption(
-      `Which ${getHarnessDisplayName(harness.name)} model should run the upgrade?`,
-      Object.fromEntries(models.map(({ id, label }) => [id, label])),
-      0
-    )
-    model = models.find(({ id }) => id === modelId)
-    if (!model) {
-      Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-      process.exitCode = 1
+  while (true) {
+    if (stage === 'harness') {
+      const choice = await chooseHarness(installed, harness?.name)
+      if (choice === 'copy') {
+        copyUpgradePrompt(resolvePrompt(prompt, null))
+        return
+      }
+      if (!choice) {
+        break
+      }
+      harness = choice
+      stage = 'model'
+    } else if (stage === 'model') {
+      const models =
+        harness!.name === 'codex'
+          ? (codexModels ??= getCodexModels(harness!.path))
+          : UPGRADE_MODELS.claude
+      if (models.length === 0 && harness!.name === 'codex') {
+        Log.warn('Could not verify Codex models; using the CLI defaults.')
+        model = undefined
+        effort = 'default'
+        stage = 'effort'
+        continue
+      }
+      if (models.length === 0) {
+        Log.error(
+          'No supported models were found for the selected coding agent.'
+        )
+        process.exitCode = 1
+        return
+      }
+      const previousModelId = model?.id
+      const modelId = await chooseOption(
+        `Which ${getHarnessDisplayName(harness!.name)} model should run the upgrade?`,
+        Object.fromEntries(models.map(({ id, label }) => [id, label])),
+        Math.max(
+          0,
+          models.findIndex(({ id }) => id === previousModelId)
+        )
+      )
+      if (modelId === null) {
+        break
+      }
+      if (modelId === undefined) {
+        stage = 'harness'
+        continue
+      }
+      model = models.find(({ id }) => id === modelId)
+      if (!model) {
+        throw new Error(`Unknown upgrade model: ${modelId}`)
+      }
+      stage = 'effort'
+    } else if (stage === 'effort') {
+      if (model) {
+        const efforts = ['default', ...model.efforts]
+        const previousEffortIndex = efforts.indexOf(effort ?? 'default')
+        const selectedEffort = await chooseOption(
+          'Which reasoning effort should the upgrade use?',
+          Object.fromEntries(
+            efforts.map((value) => [
+              value,
+              value === 'default' ? 'Model default' : value,
+            ])
+          ),
+          Math.max(0, previousEffortIndex)
+        )
+        if (selectedEffort === null) {
+          break
+        }
+        if (selectedEffort === undefined) {
+          stage = 'model'
+          continue
+        }
+        if (!efforts.includes(selectedEffort)) {
+          throw new Error(`Unknown upgrade effort: ${selectedEffort}`)
+        }
+        effort = selectedEffort
+      }
+      if (harness!.name === 'codex') {
+        codexAutoReview ??= supportsCodexAutoReview(harness!.path)
+        autoPermissionArgs = codexAutoReview ? ['--approve-for-me'] : null
+        approvalPermissionArgs = [...CODEX_APPROVAL_ARGS]
+      } else {
+        const { auto, approvalMode } = (claudePermissionSupport ??=
+          getClaudePermissionSupport(harness!.path))
+        if (!approvalMode) {
+          Log.error('Could not determine a supported Claude approval mode.')
+          process.exitCode = 1
+          return
+        }
+        autoPermissionArgs = auto ? ['--permission-mode', 'auto'] : null
+        approvalPermissionArgs = ['--permission-mode', approvalMode]
+      }
+      if (autoPermissionArgs) {
+        stage = 'permission'
+      } else {
+        Log.info(
+          dim('Auto permission mode is unavailable; using approval requests.')
+        )
+        permissionArgs = approvalPermissionArgs
+        stage = 'worktree'
+      }
+    } else if (stage === 'permission') {
+      const permissionChoice = await chooseOption(
+        `Use Auto permission mode for ${getHarnessDisplayName(harness!.name)}?`,
+        { yes: 'Yes', no: 'No, ask for approval' },
+        useAuto ? 0 : 1
+      )
+      if (permissionChoice === null) {
+        break
+      }
+      if (permissionChoice === undefined) {
+        stage = model ? 'effort' : 'harness'
+        continue
+      }
+      useAuto = permissionChoice === 'yes'
+      permissionArgs = useAuto ? autoPermissionArgs! : approvalPermissionArgs
+      stage = 'worktree'
+    } else {
+      const choice = await chooseWorktree()
+      if (choice === null) {
+        break
+      }
+      if (choice === undefined) {
+        stage = autoPermissionArgs ? 'permission' : model ? 'effort' : 'harness'
+        continue
+      }
+      useWorktree = choice
+      Log.bootstrap(
+        `  Continuing with ${cyan(bold(getHarnessDisplayName(harness!.name)))}...\n`
+      )
+      try {
+        process.exitCode = await launchHarness(
+          harness!,
+          resolvePrompt(prompt, useWorktree),
+          directory,
+          model?.id ?? null,
+          effort!,
+          permissionArgs
+        )
+      } catch {
+        Log.error(`Could not start ${getHarnessDisplayName(harness!.name)}.`)
+        process.exitCode = 1
+      }
       return
     }
-
-    const selectedEffort = await chooseOption(
-      'Which reasoning effort should the upgrade use?',
-      {
-        default: 'Model default',
-        ...Object.fromEntries(model.efforts.map((value) => [value, value])),
-      },
-      0
-    )
-    if (
-      !selectedEffort ||
-      (selectedEffort !== 'default' &&
-        !model.efforts.some((value) => value === selectedEffort))
-    ) {
-      Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-      process.exitCode = 1
-      return
-    }
-    effort = selectedEffort
-  }
-  let autoPermissionArgs: string[] | null
-  let approvalPermissionArgs: string[]
-  if (harness.name === 'codex') {
-    autoPermissionArgs = supportsCodexAutoReview(harness.path)
-      ? ['--approve-for-me']
-      : null
-    approvalPermissionArgs = [...CODEX_APPROVAL_ARGS]
-  } else {
-    const { auto, approvalMode } = getClaudePermissionSupport(harness.path)
-    if (!approvalMode) {
-      Log.error('Could not determine a supported Claude approval mode.')
-      process.exitCode = 1
-      return
-    }
-    autoPermissionArgs = auto ? ['--permission-mode', 'auto'] : null
-    approvalPermissionArgs = ['--permission-mode', approvalMode]
   }
 
-  let permissionArgs = approvalPermissionArgs
-  if (autoPermissionArgs) {
-    const useAuto = await chooseOption(
-      `Use Auto permission mode for ${getHarnessDisplayName(harness.name)}?`,
-      { yes: 'Yes', no: 'No, ask for approval' },
-      0
-    )
-    if (useAuto !== 'yes' && useAuto !== 'no') {
-      Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-      process.exitCode = 1
-      return
-    }
-    if (useAuto === 'yes') {
-      permissionArgs = autoPermissionArgs
-    }
-  } else {
-    Log.info(
-      dim('Auto permission mode is unavailable; using approval requests.')
-    )
-  }
-
-  let useWorktree: boolean
-  try {
-    useWorktree = await chooseWorktree()
-  } catch (error) {
-    if (error) {
-      throw error
-    }
-    process.exitCode = 1
-    return
-  }
-
-  Log.bootstrap(
-    `  Continuing with ${cyan(bold(getHarnessDisplayName(harness.name)))}...\n`
-  )
-  try {
-    process.exitCode = await launchHarness(
-      harness,
-      resolvePrompt(prompt, useWorktree),
-      directory,
-      model?.id ?? null,
-      effort,
-      permissionArgs
-    )
-  } catch {
-    Log.error(`Could not start ${getHarnessDisplayName(harness.name)}.`)
-    process.exitCode = 1
-  }
+  Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+  process.exitCode = 1
 }
