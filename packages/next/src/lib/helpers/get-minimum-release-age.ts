@@ -104,6 +104,31 @@ function isExcluded(value: unknown, packageName: string | null): boolean {
   return value.some((pattern) => picomatch.isMatch(packageName, pattern))
 }
 
+function matchesAgeExclusion(
+  name: string,
+  version: string,
+  pattern: string,
+  manager: AgeGatedPackageManager | undefined
+): boolean {
+  if (
+    picomatch.isMatch(name, pattern) ||
+    picomatch.isMatch(`${name}@${version}`, pattern)
+  ) {
+    return true
+  }
+  if (manager !== 'yarn') {
+    return false
+  }
+  const separator = pattern.lastIndexOf('@')
+  const range = pattern.slice(separator + 1).replace(/^npm:/, '')
+  return (
+    separator > 0 &&
+    pattern.slice(0, separator) === name &&
+    semver.validRange(range) !== null &&
+    semver.satisfies(version, range)
+  )
+}
+
 function bunConfigPaths(directory: string, env: NodeJS.ProcessEnv): string[] {
   const globalDirectory =
     env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
@@ -638,10 +663,8 @@ export async function resolveAgeEligibleVersion(
     }
     if (
       candidate.minimumReleaseAge === 0 ||
-      candidate.exclusions?.some(
-        (pattern) =>
-          picomatch.isMatch(candidate.name, pattern) ||
-          picomatch.isMatch(`${candidate.name}@${version}`, pattern)
+      candidate.exclusions?.some((pattern) =>
+        matchesAgeExclusion(candidate.name, version, pattern, candidate.manager)
       )
     ) {
       return true

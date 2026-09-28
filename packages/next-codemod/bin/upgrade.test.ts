@@ -252,6 +252,29 @@ describe('codemod minimum release age', () => {
         ageEligibleVersions('@types/react', '^19.0.0')
       ).resolves.toEqual(['19.2.1'])
     })
+
+    it('honors a version-range preapproval', async () => {
+      mockGetPkgManager.mockReturnValue('yarn')
+      mockSync.mockImplementation((_command, args) => {
+        if (args[0] === '--version') {
+          return { stdout: '4.14.1' } as never
+        }
+        if (args[0] === 'npm') {
+          return { stdout: viewOutput({ '16.0.1': 1 }) } as never
+        }
+        if (String(args[2]).includes('npmMinimalAgeGate')) {
+          return { stdout: '2880' } as never
+        }
+        if (args.includes('npmPreapprovedPackages')) {
+          return { stdout: '["next@npm:^16.0.0"]' } as never
+        }
+        return { stdout: '"https://mirror.example/"' } as never
+      })
+
+      await expect(ageEligibleVersions('next', 'latest')).resolves.toEqual([
+        '16.0.1',
+      ])
+    })
   })
 
   describe('bun', () => {
@@ -293,7 +316,9 @@ describe('codemod minimum release age', () => {
       const exists = jest
         .spyOn(fs, 'existsSync')
         .mockImplementation(
-          (file) => String(file) === '/virtual-bun-config/.bunfig.toml'
+          (file) =>
+            path.normalize(String(file)) ===
+            path.normalize('/virtual-bun-config/.bunfig.toml')
         )
       const read = jest
         .spyOn(fs, 'readFileSync')

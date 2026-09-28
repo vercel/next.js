@@ -10,6 +10,7 @@ import {
   minor,
   prerelease,
   valid,
+  validRange,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -168,6 +169,31 @@ function registryAccess(registry: string) {
   url.username = ''
   url.password = ''
   return { registry: url.toString(), authorization }
+}
+
+function matchesAgeExclusion(
+  name: string,
+  version: string,
+  pattern: string,
+  manager: PackageManager
+): boolean {
+  if (
+    picomatch.isMatch(name, pattern) ||
+    picomatch.isMatch(`${name}@${version}`, pattern)
+  ) {
+    return true
+  }
+  if (manager !== 'yarn') {
+    return false
+  }
+  const separator = pattern.lastIndexOf('@')
+  const range = pattern.slice(separator + 1).replace(/^npm:/, '')
+  return (
+    separator > 0 &&
+    pattern.slice(0, separator) === name &&
+    validRange(range) !== null &&
+    satisfiesVersionRange(version, range)
+  )
 }
 
 export async function packageInfo(
@@ -339,6 +365,7 @@ export async function ageEligibleVersions(
   range: string,
   also: string[] = []
 ): Promise<string[] | null> {
+  const manager = getPkgManager(cwd)
   const packages = [name, ...also]
   const policies = packages.map(agePolicy)
   if (policies.every((policy) => policy.age === 0)) {
@@ -346,7 +373,6 @@ export async function ageEligibleVersions(
   }
   const packuments = await Promise.all(
     packages.map(async (pkg, index) => {
-      const manager = getPkgManager(cwd)
       const access = registryAccess(policies[index].registry)
       const authorization =
         access.authorization ??
@@ -443,10 +469,8 @@ export async function ageEligibleVersions(
         }
         if (
           policy.age === 0 ||
-          policy.exclusions.some(
-            (pattern) =>
-              picomatch.isMatch(pkg, pattern) ||
-              picomatch.isMatch(`${pkg}@${version}`, pattern)
+          policy.exclusions.some((pattern) =>
+            matchesAgeExclusion(pkg, version, pattern, manager)
           )
         ) {
           return true

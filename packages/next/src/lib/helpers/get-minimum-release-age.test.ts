@@ -826,6 +826,27 @@ describe('resolveAgeEligibleVersion', () => {
     ).resolves.toBe('17.0.0-canary.35')
   })
 
+  it('honors Yarn preapproved version ranges', async () => {
+    mockExecFileSync
+      .mockReset()
+      .mockReturnValueOnce(
+        JSON.stringify(packument({ '16.0.1': 1 }, 'latest')) as never
+      )
+    await expect(
+      resolveAgeEligibleVersion(
+        {
+          name: 'next',
+          minimumReleaseAge: 48 * 60 * 60 * 1000,
+          exclusions: ['next@^16.0.0'],
+          registry: 'https://mirror.example/',
+          directory: '/app',
+          manager: 'yarn',
+        },
+        'latest'
+      )
+    ).resolves.toBe('16.0.1')
+  })
+
   it('limits stable selections to the requested range', async () => {
     global.fetch = jest.fn(async () =>
       Response.json(

@@ -269,6 +269,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/git-worktree.js",
            "/node_modules/next/dist/lib/has-necessary-dependencies.js",
            "/node_modules/next/dist/lib/helpers/get-cache-directory.js",
+           "/node_modules/next/dist/lib/helpers/get-minimum-release-age.js",
            "/node_modules/next/dist/lib/helpers/get-npx-command.js",
            "/node_modules/next/dist/lib/helpers/get-online.js",
            "/node_modules/next/dist/lib/helpers/get-pkg-manager.js",
