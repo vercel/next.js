@@ -275,17 +275,14 @@ describe('parameter matching', () => {
         routing.dynamicRoutes.map((route) => [route.source, route])
       )
 
-      // Legacy dynamicParams=false and Pages Router fallback:false routes use
-      // this preview-only gate so normal misses do not reach the function.
+      // Like dynamicParams=false and Pages Router fallback:false, closed
+      // matchers require the build's Draft Mode bypass cookie. The legacy
+      // preview-data cookie is not required; normal misses stay closed.
       const fallbackFalseHas = [
         {
           type: 'cookie',
           key: '__prerender_bypass',
           value: prerenderManifest.preview.previewModeId,
-        },
-        {
-          type: 'cookie',
-          key: '__next_preview_data',
         },
       ]
       for (const [pattern, pathname] of [
@@ -300,7 +297,7 @@ describe('parameter matching', () => {
         )
 
         // Canary collapses document, RSC, and segment requests into one
-        // matcher. The preview-only gate must cover every request form.
+        // matcher. The bypass-cookie gate must cover every request form.
         const regex = new RegExp(emittedRoute.sourceRegex)
         for (const suffix of ['', '.rsc', '.segments/_tree.segment.rsc']) {
           expect(pathname + suffix).toMatch(regex)
