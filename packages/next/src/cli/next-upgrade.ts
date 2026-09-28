@@ -9,11 +9,9 @@ import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import {
-  getMinimumReleaseAge,
-  getMinimumReleaseAgeExclusions,
   getAgeGateRegistry,
+  getAgeGatedPackage,
   resolveAgeEligibleVersion,
-  type AgeGatedPackage,
   type AgeGatedPackageManager,
 } from '../lib/helpers/get-minimum-release-age'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
@@ -194,28 +192,6 @@ async function resolveCanaryVersion(
     throw new Error('Could not fetch the latest Next.js canary from npm.', {
       cause: error,
     })
-  }
-}
-
-function getAgeGatedPackage(
-  directory: string,
-  manager: AgeGatedPackageManager,
-  name: string,
-  range: string | undefined = undefined
-): AgeGatedPackage {
-  const minimumReleaseAge = getMinimumReleaseAge(directory, manager, name)
-  return {
-    name,
-    minimumReleaseAge,
-    exclusions:
-      minimumReleaseAge > 0
-        ? getMinimumReleaseAgeExclusions(directory, manager)
-        : [],
-    registry:
-      minimumReleaseAge > 0
-        ? getAgeGateRegistry(directory, manager, name)
-        : undefined,
-    range,
   }
 }
 

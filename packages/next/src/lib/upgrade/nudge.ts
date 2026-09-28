@@ -12,6 +12,11 @@ import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
 import { getPendingFutureDefaults } from './future-defaults'
 import { isCI } from '../../server/ci-info'
+import { getPkgManager } from '../helpers/get-pkg-manager'
+import {
+  getAgeGatedPackage,
+  resolveAgeEligibleVersion,
+} from '../helpers/get-minimum-release-age'
 
 type NudgeOptions = {
   directory: string
@@ -173,11 +178,34 @@ export async function assessUpgrade(
   }
   let assessment
   try {
-    assessment = await getUpgradeAssessment(
-      installedVersion,
-      policy,
-      stopBefore === 'latest'
+    const nextPackage = getAgeGatedPackage(
+      directory,
+      getPkgManager(directory, 'upgrade'),
+      'next'
     )
+    const ageGatedPackage =
+      nextPackage.minimumReleaseAge > 0 ? nextPackage : null
+    const eligibleVersion = ageGatedPackage
+      ? await resolveAgeEligibleVersion(
+          ageGatedPackage,
+          getPrereleaseChannel(installedVersion) === 'canary'
+            ? 'canary'
+            : 'latest'
+        )
+      : null
+    assessment = ageGatedPackage
+      ? await getUpgradeAssessment(
+          installedVersion,
+          policy,
+          stopBefore === 'latest',
+          eligibleVersion,
+          ageGatedPackage
+        )
+      : await getUpgradeAssessment(
+          installedVersion,
+          policy,
+          stopBefore === 'latest'
+        )
   } catch {
     Log.warn(
       'Could not check Next.js security advisories. Continuing without an upgrade assessment.'

@@ -21,6 +21,28 @@ import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 jest.mock('next/dist/cli/next-upgrade', () => ({
   spawnNextUpgrade: jest.fn(),
 }))
+let mockAgePolicy: {
+  name: string
+  minimumReleaseAge: number
+} | null = null
+let mockEligibleVersion: string | null = null
+jest.mock('../../packages/next/src/lib/helpers/get-minimum-release-age', () => {
+  const actual = jest.requireActual(
+    '../../packages/next/src/lib/helpers/get-minimum-release-age'
+  ) as typeof import('../../packages/next/src/lib/helpers/get-minimum-release-age')
+  return {
+    ...actual,
+    getAgeGatedPackage: (
+      ...args: Parameters<typeof actual.getAgeGatedPackage>
+    ) => mockAgePolicy ?? actual.getAgeGatedPackage(...args),
+    resolveAgeEligibleVersion: (
+      ...args: Parameters<typeof actual.resolveAgeEligibleVersion>
+    ) =>
+      mockEligibleVersion === null
+        ? actual.resolveAgeEligibleVersion(...args)
+        : Promise.resolve(mockEligibleVersion),
+  }
+})
 jest.mock(
   '../../packages/next/src/cli/next-upgrade.js',
   () => jest.requireMock('next/dist/cli/next-upgrade'),
@@ -358,6 +380,31 @@ describe('latest upgrade nudge', () => {
     jest.mocked(getAgentName).mockResolvedValue('codex')
     mockUpgrade()
   })
+
+  it.each(['latest', 'future', 'security'] as const)(
+    'passes an eligible target and age policy to the %s assessment',
+    async (policy) => {
+      const packagePolicy = {
+        name: 'next',
+        minimumReleaseAge: 48 * 60 * 60 * 1000,
+      }
+      mockAgePolicy = packagePolicy
+      mockEligibleVersion = '16.4.1'
+      try {
+        await assessUpgrade(directory, config(policy), '16.4.0')
+        expect(getUpgradeAssessment).toHaveBeenCalledWith(
+          '16.4.0',
+          policy,
+          false,
+          '16.4.1',
+          packagePolicy
+        )
+      } finally {
+        mockAgePolicy = null
+        mockEligibleVersion = null
+      }
+    }
+  )
 
   it.each(['latest', 'future'] as const)(
     'links a canary %s reminder to the selected channel',

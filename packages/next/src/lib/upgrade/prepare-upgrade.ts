@@ -230,7 +230,10 @@ export async function getUpgradeAssessment(
           }
           if (
             semver.gt(candidate, installedVersion) &&
-            !ranges.some((range) => semver.satisfies(candidate, range))
+            !ranges.some((range) => semver.satisfies(candidate, range)) &&
+            !(await readNpmAdvisories([candidate])).some((range) =>
+              semver.satisfies(candidate, range)
+            )
           ) {
             safeTarget = candidate
             break

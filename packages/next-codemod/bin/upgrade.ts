@@ -51,7 +51,18 @@ function configValue(manager: 'npm' | 'pnpm' | 'yarn', key: string): unknown {
   const value = execa
     .sync(manager, args, { cwd, encoding: 'utf8' })
     .stdout.trim()
-  return value === '' || value === 'undefined' ? null : JSON.parse(value)
+  if (value === '' || value === 'undefined') {
+    return null
+  }
+  if (
+    (key === 'registry' ||
+      key.endsWith(':registry') ||
+      key.includes('npmRegistryServer')) &&
+    /^https?:\/\//.test(value)
+  ) {
+    return value
+  }
+  return JSON.parse(value)
 }
 
 function bunConfig(): { install?: Record<string, unknown> } {
@@ -86,6 +97,70 @@ function bunConfig(): { install?: Record<string, unknown> } {
   return {
     install: Object.assign({}, ...parsed.map((item) => item.install ?? {})),
   }
+}
+
+function bunAuthorization(registry: string): string | null {
+  const setting = bunConfig().install?.registry
+  if (!setting || typeof setting !== 'object') {
+    return null
+  }
+  const auth = setting as {
+    url?: string
+    token?: string
+    username?: string
+    password?: string
+  }
+  if (`${auth.url?.replace(/\/$/, '')}/` !== registry) {
+    return null
+  }
+  const expand = (value: string): string => {
+    const variable = /^\$([A-Za-z_][A-Za-z0-9_]*)$/.exec(value)?.[1]
+    if (!variable) {
+      return value
+    }
+    const resolved = process.env[variable]
+    if (!resolved) {
+      throw new Error(
+        `Missing Bun registry credential environment variable ${variable}.`
+      )
+    }
+    return resolved
+  }
+  if (typeof auth.token === 'string') {
+    return `Bearer ${expand(auth.token)}`
+  }
+  if (typeof auth.username === 'string' && typeof auth.password === 'string') {
+    return `Basic ${Buffer.from(`${expand(auth.username)}:${expand(auth.password)}`).toString('base64')}`
+  }
+  return null
+}
+
+function packageInfo(name: string, version: string): Record<string, unknown> {
+  const manager = getPkgManager(cwd)
+  const spec = `${name}@${version}`
+  if (
+    manager === 'yarn' &&
+    compareVersions(
+      execa.sync('yarn', ['--version'], { cwd }).stdout,
+      '2.0.0'
+    ) < 0
+  ) {
+    return JSON.parse(
+      execSync(`npm --silent view "${spec}" --json`, { encoding: 'utf-8' })
+    )
+  }
+  const args =
+    manager === 'yarn'
+      ? ['npm', 'info', spec, '--json']
+      : manager === 'bun'
+        ? ['info', spec, '--json']
+        : [
+            'view',
+            spec,
+            '--json',
+            ...(manager === 'npm' ? ['--no-workspaces'] : []),
+          ]
+  return JSON.parse(execa.sync(manager, args, { cwd }).stdout)
 }
 
 function agePolicy(name: string): {
@@ -209,24 +284,60 @@ export async function ageEligibleVersions(
   }
   const packuments = await Promise.all(
     packages.map(async (pkg, index) => {
-      const response = await fetch(
-        `${policies[index].registry}${encodeURIComponent(pkg).replace('%40', '@')}`,
-        {
-          signal: AbortSignal.timeout(10_000),
-          cache: 'no-store',
-          redirect: 'error',
-        }
-      )
-      if (!response.ok) {
-        throw new Error(
-          `Could not read ${pkg} releases (HTTP ${response.status}).`
+      const manager = getPkgManager(cwd)
+      const authorization =
+        manager === 'bun' ? bunAuthorization(policies[index].registry) : null
+      if (authorization) {
+        const response = await fetch(
+          `${policies[index].registry}${encodeURIComponent(pkg).replace('%40', '@')}`,
+          {
+            headers: { Authorization: authorization },
+            signal: AbortSignal.timeout(10_000),
+            cache: 'no-store',
+            redirect: 'error',
+          }
         )
+        if (!response.ok) {
+          throw new Error(
+            `Could not read ${pkg} releases (HTTP ${response.status}).`
+          )
+        }
+        return response.json() as Promise<{
+          'dist-tags': Record<string, string>
+          versions: Record<string, unknown>
+          time: Record<string, string>
+        }>
       }
-      return response.json() as Promise<{
+      const output =
+        manager === 'yarn'
+          ? execa.sync('yarn', ['npm', 'info', pkg, '--json'], { cwd }).stdout
+          : execa.sync(
+              manager === 'bun' ? 'npm' : manager,
+              [
+                'view',
+                pkg,
+                'time',
+                'versions',
+                'dist-tags',
+                '--json',
+                `--registry=${policies[index].registry}`,
+                ...(manager === 'npm' || manager === 'bun'
+                  ? ['--no-workspaces']
+                  : []),
+              ],
+              { cwd }
+            ).stdout
+      const metadata = JSON.parse(output) as {
         'dist-tags': Record<string, string>
-        versions: Record<string, unknown>
+        versions: string[]
         time: Record<string, string>
-      }>
+      }
+      return {
+        ...metadata,
+        versions: Object.fromEntries(
+          metadata.versions.map((version) => [version, true])
+        ),
+      }
     })
   )
   const now = Date.now()
@@ -391,20 +502,33 @@ export async function runUpgrade(
     version: string
     peerDependencies: Record<string, string>
   }
+  const eligibleTargetVersions = await ageEligibleVersions(
+    'next',
+    resolvedRevision
+  )
+  if (eligibleTargetVersions !== null && eligibleTargetVersions.length === 0) {
+    throw new Error(
+      `No next@${resolvedRevision} release satisfies the project's minimum release age.`
+    )
+  }
 
   try {
     // First, find the highest matching version
-    const versionsJSON = execSync(
-      `npm --silent view "next@${resolvedRevision}" --json --field version`,
-      { encoding: 'utf-8' }
-    )
-    const versionOrVersions = JSON.parse(versionsJSON)
     let targetVersion: string
-    if (Array.isArray(versionOrVersions)) {
-      versionOrVersions.sort(compareVersions)
-      targetVersion = versionOrVersions[versionOrVersions.length - 1]
+    if (eligibleTargetVersions !== null) {
+      targetVersion = eligibleTargetVersions[eligibleTargetVersions.length - 1]
     } else {
-      targetVersion = versionOrVersions
+      const versionsJSON = execSync(
+        `npm --silent view "next@${resolvedRevision}" --json --field version`,
+        { encoding: 'utf-8' }
+      )
+      const versionOrVersions = JSON.parse(versionsJSON)
+      if (Array.isArray(versionOrVersions)) {
+        versionOrVersions.sort(compareVersions)
+        targetVersion = versionOrVersions[versionOrVersions.length - 1]
+      } else {
+        targetVersion = versionOrVersions
+      }
     }
 
     if (options.verbose) {
@@ -412,11 +536,10 @@ export async function runUpgrade(
     }
 
     // Then fetch the full package info for that specific version
-    const targetNextPackage = execSync(
-      `npm --silent view "next@${targetVersion}" --json`,
-      { encoding: 'utf-8' }
-    )
-    targetNextPackageJson = JSON.parse(targetNextPackage)
+    targetNextPackageJson = packageInfo('next', targetVersion) as {
+      version: string
+      peerDependencies: Record<string, string>
+    }
   } catch (e) {
     if (options.verbose) {
       console.error('  Error fetching package info:', e)
@@ -632,14 +755,10 @@ export async function runUpgrade(
   if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
     let eslintRange: string | undefined
     try {
-      const eslintConfigNextPeerDepsJSON = execSync(
-        `npm --silent view "eslint-config-next@${targetNextVersion}" peerDependencies --json`,
-        { encoding: 'utf-8' }
-      )
-      const eslintConfigNextPeerDeps =
-        eslintConfigNextPeerDepsJSON.trim() === ''
-          ? {}
-          : JSON.parse(eslintConfigNextPeerDepsJSON)
+      const eslintConfigNextPeerDeps = packageInfo(
+        'eslint-config-next',
+        targetNextVersion
+      ).peerDependencies as Record<string, string> | undefined
       eslintRange = eslintConfigNextPeerDeps?.eslint
     } catch (e) {
       if (verbose) {

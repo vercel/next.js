@@ -5,9 +5,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { getPkgManager } from '../lib/helpers/get-pkg-manager'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import {
-  getAgeGateRegistry,
-  getMinimumReleaseAge,
-  getMinimumReleaseAgeExclusions,
+  getAgeGatedPackage,
   resolveAgeEligibleVersion,
 } from '../lib/helpers/get-minimum-release-age'
 
@@ -23,9 +21,7 @@ jest.mock('../lib/helpers/get-npx-command', () => ({
   getNpxCommand: jest.fn(),
 }))
 jest.mock('../lib/helpers/get-minimum-release-age', () => ({
-  getAgeGateRegistry: jest.fn(),
-  getMinimumReleaseAge: jest.fn(),
-  getMinimumReleaseAgeExclusions: jest.fn(),
+  getAgeGatedPackage: jest.fn(),
   resolveAgeEligibleVersion: jest.fn(),
 }))
 
@@ -35,11 +31,16 @@ describe('next upgrade minimum release age', () => {
     jest.mocked(getProjectDir).mockReturnValue('/app')
     jest.mocked(getPkgManager).mockReturnValue('pnpm')
     jest.mocked(getNpxCommand).mockReturnValue('pnpm dlx')
-    jest.mocked(getMinimumReleaseAge).mockReturnValue(48 * 60 * 60 * 1000)
-    jest.mocked(getMinimumReleaseAgeExclusions).mockReturnValue([])
     jest
-      .mocked(getAgeGateRegistry)
-      .mockReturnValue('https://registry.npmjs.org/')
+      .mocked(getAgeGatedPackage)
+      .mockImplementation((directory, manager, name) => ({
+        name,
+        minimumReleaseAge: 48 * 60 * 60 * 1000,
+        exclusions: [],
+        registry: 'https://registry.npmjs.org/',
+        directory,
+        manager,
+      }))
     jest.mocked(resolveAgeEligibleVersion).mockResolvedValue('17.0.0-canary.35')
     jest.mocked(spawn).mockReturnValue(new EventEmitter() as never)
   })

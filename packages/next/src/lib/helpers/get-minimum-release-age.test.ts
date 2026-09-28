@@ -58,6 +58,14 @@ describe('getMinimumReleaseAge', () => {
   })
 
   describe('pnpm', () => {
+    it('accepts an unquoted registry config value', () => {
+      mockExecFileSync.mockReturnValueOnce(
+        'https://mirror.example/npm/' as never
+      )
+      expect(getAgeGateRegistry(directory, 'pnpm', 'next')).toBe(
+        'https://mirror.example/npm/'
+      )
+    })
     it('uses a Windows-safe launcher for command shims', () => {
       const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
       const sync = jest.spyOn(crossSpawn, 'sync')
@@ -512,6 +520,98 @@ describe('resolveAgeEligibleVersion', () => {
   afterEach(() => {
     global.fetch = originalFetch
     jest.useRealTimers()
+  })
+
+  it('reads metadata through the authenticated manager command', async () => {
+    mockExecFileSync.mockReset().mockReturnValueOnce(
+      JSON.stringify({
+        ...packument({ '17.1.0-canary.1': 72, '17.1.0-canary.2': 1 }),
+        versions: ['17.1.0-canary.1', '17.1.0-canary.2'],
+      }) as never
+    )
+    await expect(
+      resolveAgeEligibleVersion(
+        {
+          name: 'next',
+          minimumReleaseAge: 48 * 60 * 60 * 1000,
+          registry: 'https://mirror.example/',
+          directory: '/app',
+          manager: 'pnpm',
+        },
+        'canary'
+      )
+    ).resolves.toBe('17.1.0-canary.1')
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'pnpm',
+      [
+        'view',
+        'next',
+        'time',
+        'versions',
+        'dist-tags',
+        '--json',
+        '--registry=https://mirror.example/',
+      ],
+      expect.objectContaining({ cwd: '/app' })
+    )
+    expect(global.fetch).toBe(originalFetch)
+  })
+
+  it('uses Bun registry credentials without exposing them to a subprocess', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'next-bun-auth-'))
+    writeFileSync(
+      join(root, 'bunfig.toml'),
+      '[install]\nregistry = { url = "https://mirror.example/", token = "$BUN_TEST_TOKEN" }\n'
+    )
+    const previousToken = process.env.BUN_TEST_TOKEN
+    const previousConfigHome = process.env.XDG_CONFIG_HOME
+    process.env.BUN_TEST_TOKEN = 'test-token'
+    process.env.XDG_CONFIG_HOME = root
+    mockExecFileSync.mockReset().mockReturnValueOnce(
+      JSON.stringify({
+        install: {
+          registry: {
+            url: 'https://mirror.example/',
+            token: '$BUN_TEST_TOKEN',
+          },
+        },
+      }) as never
+    )
+    global.fetch = jest.fn(async () =>
+      Response.json(packument({ '17.1.0-canary.1': 72 }))
+    )
+    try {
+      await expect(
+        resolveAgeEligibleVersion(
+          {
+            name: 'next',
+            minimumReleaseAge: 48 * 60 * 60 * 1000,
+            registry: 'https://mirror.example/',
+            directory: root,
+            manager: 'bun',
+          },
+          'canary'
+        )
+      ).resolves.toBe('17.1.0-canary.1')
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://mirror.example/next',
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer test-token' },
+        })
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+      if (previousToken === undefined) {
+        delete process.env.BUN_TEST_TOKEN
+      } else {
+        process.env.BUN_TEST_TOKEN = previousToken
+      }
+      if (previousConfigHome === undefined) {
+        delete process.env.XDG_CONFIG_HOME
+      } else {
+        process.env.XDG_CONFIG_HOME = previousConfigHome
+      }
+    }
   })
 
   it('selects the newest canary old enough for the age gate', async () => {

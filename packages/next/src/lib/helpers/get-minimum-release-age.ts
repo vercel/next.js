@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import picomatch from 'picomatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import semver from 'next/dist/compiled/semver'
 
 export type AgeGatedPackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
@@ -22,6 +22,7 @@ function run(
       env,
       input,
       stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 16 * 1024 * 1024,
     }).trim()
   }
   const result = crossSpawn.sync(command, args, {
@@ -30,6 +31,7 @@ function run(
     env,
     input,
     stdio: ['pipe', 'pipe', 'pipe'],
+    maxBuffer: 16 * 1024 * 1024,
   })
   if (result.error) {
     throw result.error
@@ -75,6 +77,14 @@ function readJsonConfig(
   const output = run(manager, args, directory, env)
   if (output === '' || output === 'undefined') {
     return null
+  }
+  if (
+    (key === 'registry' ||
+      key.endsWith(':registry') ||
+      key.includes('npmRegistryServer')) &&
+    /^https?:\/\//.test(output)
+  ) {
+    return output
   }
   return JSON.parse(output)
 }
@@ -268,6 +278,8 @@ export type AgeGatedPackage = {
   exclusions?: string[]
   registry?: string
   range?: string
+  directory?: string
+  manager?: AgeGatedPackageManager
 }
 
 type Packument = {
@@ -377,6 +389,30 @@ export function getAgeGateRegistry(
   return registry.endsWith('/') ? registry : `${registry}/`
 }
 
+export function getAgeGatedPackage(
+  directory: string,
+  manager: AgeGatedPackageManager,
+  name: string,
+  range: string | undefined = undefined
+): AgeGatedPackage {
+  const minimumReleaseAge = getMinimumReleaseAge(directory, manager, name)
+  return {
+    name,
+    minimumReleaseAge,
+    exclusions:
+      minimumReleaseAge > 0
+        ? getMinimumReleaseAgeExclusions(directory, manager)
+        : [],
+    registry:
+      minimumReleaseAge > 0
+        ? getAgeGateRegistry(directory, manager, name)
+        : undefined,
+    range,
+    directory,
+    manager,
+  }
+}
+
 function isPackument(value: unknown): value is Packument {
   if (!value || typeof value !== 'object') {
     return false
@@ -392,10 +428,127 @@ function isPackument(value: unknown): value is Packument {
   )
 }
 
-async function fetchPackument(
-  name: string,
-  registry: string
-): Promise<Packument> {
+function getBunAuthorization(
+  directory: string,
+  registry: string,
+  env: NodeJS.ProcessEnv
+): string | null {
+  const globalDirectory =
+    env.XDG_CONFIG_HOME || env.HOME || env.USERPROFILE || homedir()
+  let setting: unknown
+  for (const bunfig of [
+    join(globalDirectory, '.bunfig.toml'),
+    join(directory, 'bunfig.toml'),
+  ]) {
+    if (existsSync(bunfig)) {
+      const config = JSON.parse(
+        run(
+          'bun',
+          [
+            '-e',
+            'console.log(JSON.stringify(Bun.TOML.parse(await Bun.stdin.text())))',
+          ],
+          directory,
+          env,
+          readFileSync(bunfig, 'utf8')
+        )
+      ) as { install?: { registry?: unknown } }
+      setting = config.install?.registry ?? setting
+    }
+  }
+  if (!setting || typeof setting !== 'object') {
+    return null
+  }
+  const auth = setting as {
+    url?: string
+    token?: string
+    username?: string
+    password?: string
+  }
+  if (`${auth.url?.replace(/\/$/, '')}/` !== registry) {
+    return null
+  }
+  const expand = (value: string): string => {
+    const variable = /^\$([A-Za-z_][A-Za-z0-9_]*)$/.exec(value)?.[1]
+    if (!variable) {
+      return value
+    }
+    const resolved = env[variable]
+    if (!resolved) {
+      throw new Error(
+        `Missing Bun registry credential environment variable ${variable}.`
+      )
+    }
+    return resolved
+  }
+  if (typeof auth.token === 'string') {
+    return `Bearer ${expand(auth.token)}`
+  }
+  if (typeof auth.username === 'string' && typeof auth.password === 'string') {
+    return `Basic ${Buffer.from(`${expand(auth.username)}:${expand(auth.password)}`).toString('base64')}`
+  }
+  return null
+}
+
+async function fetchPackument(pkg: AgeGatedPackage): Promise<Packument> {
+  const { name, registry = NPM_REGISTRY, directory, manager } = pkg
+  const bunAuthorization =
+    directory && manager === 'bun'
+      ? getBunAuthorization(directory, registry, process.env)
+      : null
+  if (bunAuthorization) {
+    const path = encodeURIComponent(name).replace('%40', '@')
+    const response = await fetch(`${registry}${path}`, {
+      headers: { Authorization: bunAuthorization },
+      signal: AbortSignal.timeout(10_000),
+      cache: 'no-store',
+      redirect: 'error',
+    })
+    if (!response.ok) {
+      throw new Error(
+        `Could not read ${name} releases (HTTP ${response.status}).`
+      )
+    }
+    const value: unknown = await response.json()
+    if (!isPackument(value)) {
+      throw new Error(`Could not read ${name} release times.`)
+    }
+    return value
+  }
+  if (directory && manager) {
+    // Use the selected manager's registry client so its configured credentials
+    // are applied to private registries without exposing tokens in our output.
+    const output =
+      manager === 'yarn'
+        ? run('yarn', ['npm', 'info', name, '--json'], directory, process.env)
+        : run(
+            manager === 'bun' ? 'npm' : manager,
+            [
+              'view',
+              name,
+              'time',
+              'versions',
+              'dist-tags',
+              '--json',
+              `--registry=${registry}`,
+              ...(manager === 'npm' || manager === 'bun'
+                ? ['--no-workspaces']
+                : []),
+            ],
+            directory,
+            process.env
+          )
+    const value: unknown = JSON.parse(output)
+    if (isPackument(value) && Array.isArray(value.versions)) {
+      value.versions = Object.fromEntries(
+        value.versions.map((version: string) => [version, true])
+      )
+    }
+    if (!isPackument(value)) {
+      throw new Error(`Could not read ${name} release times.`)
+    }
+    return value
+  }
   const path = encodeURIComponent(name).replace('%40', '@')
   const response = await fetch(`${registry}${path}`, {
     signal: AbortSignal.timeout(10_000),
@@ -427,10 +580,8 @@ export async function resolveAgeEligibleVersion(
   channel: ReleaseChannel,
   also: AgeGatedPackage | null = null
 ): Promise<string> {
-  const packument = await fetchPackument(pkg.name, pkg.registry ?? NPM_REGISTRY)
-  const alsoPackument = also
-    ? await fetchPackument(also.name, also.registry ?? NPM_REGISTRY)
-    : null
+  const packument = await fetchPackument(pkg)
+  const alsoPackument = also ? await fetchPackument(also) : null
   const now = Date.now()
   const eligible = (
     candidate: AgeGatedPackage,

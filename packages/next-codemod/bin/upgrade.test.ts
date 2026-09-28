@@ -30,6 +30,14 @@ function packument(ages: Record<string, number>, tag = 'latest') {
   }
 }
 
+function viewOutput(ages: Record<string, number>, tag = 'latest') {
+  const metadata = packument(ages, tag)
+  return JSON.stringify({
+    ...metadata,
+    versions: Object.keys(metadata.versions),
+  })
+}
+
 describe('codemod minimum release age', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(now)
@@ -44,35 +52,50 @@ describe('codemod minimum release age', () => {
   describe('pnpm', () => {
     it('selects a React version eligible for React DOM too', async () => {
       mockGetPkgManager.mockReturnValue('pnpm')
-      mockSync.mockImplementation((command, args) => {
+      mockSync.mockImplementation((_command, args) => {
         if (args[0] === '--version') return { stdout: '10.33.0' } as never
+        if (args[0] === 'view') {
+          return {
+            stdout: viewOutput(
+              args[1] === 'react-dom'
+                ? { '19.2.1': 72, '19.2.2': 1 }
+                : { '19.2.1': 72, '19.2.2': 72 }
+            ),
+          } as never
+        }
         if (args.includes('minimumReleaseAge'))
           return { stdout: '2880' } as never
         if (args.includes('minimumReleaseAgeExclude'))
           return { stdout: '[]' } as never
-        return { stdout: '"https://mirror.example/"' } as never
+        return { stdout: 'https://mirror.example/' } as never
       })
-      global.fetch = jest.fn(async (input) =>
-        Response.json(
-          String(input).includes('react-dom')
-            ? packument({ '19.2.1': 72, '19.2.2': 1 })
-            : packument({ '19.2.1': 72, '19.2.2': 72 })
-        )
-      )
 
       await expect(
         ageEligibleVersions('react', '^19.0.0', ['react-dom'])
       ).resolves.toEqual(['19.2.1'])
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://mirror.example/react-dom',
-        expect.any(Object)
+      expect(mockSync).toHaveBeenCalledWith(
+        'pnpm',
+        expect.arrayContaining([
+          'view',
+          'react-dom',
+          '--registry=https://mirror.example/',
+        ]),
+        expect.objectContaining({ cwd: expect.any(String) })
       )
     })
 
     it('honors a version-qualified exemption', async () => {
       mockGetPkgManager.mockReturnValue('pnpm')
-      mockSync.mockImplementation((command, args) => {
+      mockSync.mockImplementation((_command, args) => {
         if (args[0] === '--version') return { stdout: '10.33.0' } as never
+        if (args[0] === 'view') {
+          return {
+            stdout: viewOutput(
+              { '17.0.0-canary.34': 72, '17.0.0-canary.35': 1 },
+              'canary'
+            ),
+          } as never
+        }
         if (args.includes('minimumReleaseAge'))
           return { stdout: '2880' } as never
         if (args.includes('minimumReleaseAgeExclude')) {
@@ -80,31 +103,53 @@ describe('codemod minimum release age', () => {
         }
         return { stdout: '"https://registry.npmjs.org/"' } as never
       })
-      global.fetch = jest.fn(async () =>
-        Response.json(
-          packument({ '17.0.0-canary.34': 72, '17.0.0-canary.35': 1 }, 'canary')
-        )
-      )
 
       await expect(
         ageEligibleVersions('next', '17.0.0-canary.35')
       ).resolves.toEqual(['17.0.0-canary.35'])
+    })
+
+    it('finds an older eligible Next.js target for a standalone upgrade', async () => {
+      mockGetPkgManager.mockReturnValue('pnpm')
+      mockSync.mockImplementation((_command, args) => {
+        if (args[0] === '--version') {
+          return { stdout: '10.33.0' } as never
+        }
+        if (args[0] === 'view') {
+          return {
+            stdout: viewOutput({ '16.0.1': 72, '16.0.2': 1 }),
+          } as never
+        }
+        if (args.includes('minimumReleaseAge')) {
+          return { stdout: '2880' } as never
+        }
+        if (args.includes('minimumReleaseAgeExclude')) {
+          return { stdout: '[]' } as never
+        }
+        return { stdout: 'https://mirror.example/' } as never
+      })
+
+      await expect(ageEligibleVersions('next', '^16.0.0')).resolves.toEqual([
+        '16.0.1',
+      ])
     })
   })
 
   describe('npm', () => {
     it('reads days and excludes recent releases', async () => {
       mockGetPkgManager.mockReturnValue('npm')
-      mockSync.mockImplementation((command, args) => {
+      mockSync.mockImplementation((_command, args) => {
         if (args[0] === '--version') return { stdout: '11.10.0' } as never
+        if (args[0] === 'view') {
+          return {
+            stdout: viewOutput({ '19.2.1': 72, '19.2.2': 1 }),
+          } as never
+        }
         if (args.includes('min-release-age')) return { stdout: '2' } as never
         if (args.includes('min-release-age-exclude'))
           return { stdout: '[]' } as never
         return { stdout: '"https://mirror.example/"' } as never
       })
-      global.fetch = jest.fn(async () =>
-        Response.json(packument({ '19.2.1': 72, '19.2.2': 1 }))
-      )
 
       await expect(ageEligibleVersions('react', '^19.0.0')).resolves.toEqual([
         '19.2.1',
@@ -123,17 +168,19 @@ describe('codemod minimum release age', () => {
     })
     it('reads scoped settings on Yarn 4.10', async () => {
       mockGetPkgManager.mockReturnValue('yarn')
-      mockSync.mockImplementation((command, args) => {
+      mockSync.mockImplementation((_command, args) => {
         if (args[0] === '--version') return { stdout: '4.10.0' } as never
+        if (args[0] === 'npm') {
+          return {
+            stdout: viewOutput({ '19.2.1': 72, '19.2.2': 1 }),
+          } as never
+        }
         if (String(args[2]).includes('npmMinimalAgeGate'))
           return { stdout: '2880' } as never
         if (args.includes('npmPreapprovedPackages'))
           return { stdout: '[]' } as never
         return { stdout: '"https://mirror.example/"' } as never
       })
-      global.fetch = jest.fn(async () =>
-        Response.json(packument({ '19.2.1': 72, '19.2.2': 1 }))
-      )
 
       await expect(
         ageEligibleVersions('@types/react', '^19.0.0')
@@ -154,7 +201,7 @@ describe('codemod minimum release age', () => {
       const read = jest
         .spyOn(fs, 'readFileSync')
         .mockReturnValue('[install]\nminimumReleaseAge = 172800\n' as never)
-      mockSync.mockImplementation((command, args) => {
+      mockSync.mockImplementation((_command, args) => {
         if (args[0] === '-e') {
           return {
             stdout: JSON.stringify([
@@ -162,11 +209,13 @@ describe('codemod minimum release age', () => {
             ]),
           } as never
         }
+        if (args[0] === 'view') {
+          return {
+            stdout: viewOutput({ '19.2.1': 72, '19.2.2': 1 }),
+          } as never
+        }
         return { stdout: 'Options: --minimum-release-age=<seconds>' } as never
       })
-      global.fetch = jest.fn(async () =>
-        Response.json(packument({ '19.2.1': 72, '19.2.2': 1 }))
-      )
       try {
         await expect(ageEligibleVersions('react', '^19.0.0')).resolves.toEqual([
           '19.2.1',
@@ -178,6 +227,65 @@ describe('codemod minimum release age', () => {
           delete process.env.XDG_CONFIG_HOME
         } else {
           process.env.XDG_CONFIG_HOME = originalXdg
+        }
+      }
+    })
+
+    it('uses Bun registry credentials for release times', async () => {
+      mockGetPkgManager.mockReturnValue('bun')
+      const originalXdg = process.env.XDG_CONFIG_HOME
+      const originalToken = process.env.BUN_TEST_TOKEN
+      process.env.XDG_CONFIG_HOME = '/virtual-bun-config'
+      process.env.BUN_TEST_TOKEN = 'test-token'
+      const exists = jest
+        .spyOn(fs, 'existsSync')
+        .mockImplementation(
+          (file) => String(file) === '/virtual-bun-config/.bunfig.toml'
+        )
+      const read = jest.spyOn(fs, 'readFileSync').mockReturnValue('' as never)
+      mockSync.mockImplementation((_command, args) => {
+        if (args[0] === '-e') {
+          return {
+            stdout: JSON.stringify([
+              {
+                install: {
+                  minimumReleaseAge: 172800,
+                  registry: {
+                    url: 'https://mirror.example/',
+                    token: '$BUN_TEST_TOKEN',
+                  },
+                },
+              },
+            ]),
+          } as never
+        }
+        return { stdout: 'Options: --minimum-release-age=<seconds>' } as never
+      })
+      global.fetch = jest.fn(async () =>
+        Response.json(packument({ '16.0.1': 72, '16.0.2': 1 }))
+      )
+      try {
+        await expect(ageEligibleVersions('next', '^16.0.0')).resolves.toEqual([
+          '16.0.1',
+        ])
+        expect(global.fetch).toHaveBeenCalledWith(
+          'https://mirror.example/next',
+          expect.objectContaining({
+            headers: { Authorization: 'Bearer test-token' },
+          })
+        )
+      } finally {
+        exists.mockRestore()
+        read.mockRestore()
+        if (originalXdg === undefined) {
+          delete process.env.XDG_CONFIG_HOME
+        } else {
+          process.env.XDG_CONFIG_HOME = originalXdg
+        }
+        if (originalToken === undefined) {
+          delete process.env.BUN_TEST_TOKEN
+        } else {
+          process.env.BUN_TEST_TOKEN = originalToken
         }
       }
     })

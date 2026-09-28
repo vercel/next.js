@@ -17,6 +17,7 @@ import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import {
   getAgeGateRegistry,
+  getAgeGatedPackage,
   getMinimumReleaseAge,
   getMinimumReleaseAgeExclusions,
   resolveAgeEligibleVersion,
@@ -66,6 +67,7 @@ jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
 }))
 jest.mock('next/dist/lib/helpers/get-minimum-release-age', () => ({
   getAgeGateRegistry: jest.fn(),
+  getAgeGatedPackage: jest.fn(),
   getMinimumReleaseAge: jest.fn(),
   getMinimumReleaseAgeExclusions: jest.fn(),
   resolveAgeEligibleVersion: jest.fn(),
@@ -193,6 +195,26 @@ describe('agentic upgrade prompts', () => {
     jest
       .mocked(getAgeGateRegistry)
       .mockReturnValue('https://registry.npmjs.org/')
+    jest
+      .mocked(getAgeGatedPackage)
+      .mockImplementation((directory, manager, name, range) => {
+        const minimumReleaseAge = getMinimumReleaseAge(directory, manager, name)
+        return {
+          name,
+          minimumReleaseAge,
+          exclusions:
+            minimumReleaseAge > 0
+              ? getMinimumReleaseAgeExclusions(directory, manager)
+              : [],
+          registry:
+            minimumReleaseAge > 0
+              ? getAgeGateRegistry(directory, manager, name)
+              : undefined,
+          range,
+          directory,
+          manager,
+        }
+      })
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
     jest.mocked(createSpinner).mockReturnValue({
       stop: jest.fn(),
@@ -302,6 +324,8 @@ describe('agentic upgrade prompts', () => {
         exclusions: [],
         registry: 'https://registry.npmjs.org/',
         range: undefined,
+        directory: '/workspace/app',
+        manager: expect.any(String),
       },
       'canary',
       {
@@ -310,6 +334,8 @@ describe('agentic upgrade prompts', () => {
         exclusions: [],
         registry: 'https://registry.npmjs.org/',
         range: undefined,
+        directory: '/workspace/app',
+        manager: expect.any(String),
       }
     )
     expect(crossSpawn).toHaveBeenCalledWith(
