@@ -720,11 +720,9 @@ function hasEnvironmentSources(
     const hasEnvironment =
       (environment === Environment.Client && flags.client) ||
       (environment === Environment.Server && flags.server)
-    const hasType =
-      (typeFilter.includes('js') && flags.js) ||
-      (typeFilter.includes('css') && flags.css) ||
-      (typeFilter.includes('json') && flags.json) ||
-      (typeFilter.includes('asset') && flags.asset)
+    const hasType = typeFilter.some(
+      (type) => flags[type as 'js' | 'css' | 'json' | 'asset']
+    )
     if (hasEnvironment && hasType) {
       return true
     }
@@ -745,9 +743,10 @@ export function AlternateEnvironmentEmptyState({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const currentLabel = environment === Environment.Client ? 'client' : 'server'
-  const alternateLabel =
-    environment === Environment.Client ? 'server' : 'client'
+  const [currentLabel, alternateLabel] =
+    environment === Environment.Client
+      ? ['client', 'server']
+      : ['server', 'client']
   const nextSearchParams = new URLSearchParams(searchParams.toString())
   nextSearchParams.set('environment', alternateLabel)
   const href = `${pathname}?${nextSearchParams.toString()}`
