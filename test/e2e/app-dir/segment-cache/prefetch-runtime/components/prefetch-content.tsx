@@ -1,4 +1,4 @@
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 import { Suspense } from 'react'
 
 /**
@@ -35,6 +35,6 @@ export function PrefetchContent({ text }: { text: string }) {
 }
 
 async function Inner({ text }: { text: string }) {
-  await unstable_prefetch()
+  await prefetch()
   return <div id="prefetch-content">{text}</div>
 }
