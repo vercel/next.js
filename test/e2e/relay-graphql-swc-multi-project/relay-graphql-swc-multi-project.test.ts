@@ -44,8 +44,7 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       startCommand: isNextDev
         ? 'pnpm run dev-project-a'
         : 'pnpm run start-project-a',
-      // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-      skipDeployment: true,
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
     })
 
     relayCompilerValidate(next)
@@ -78,8 +77,7 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       startCommand: isNextDev
         ? 'pnpm run dev-project-b'
         : 'pnpm run start-project-b',
-      // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-      skipDeployment: true,
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
     })
 
     relayCompilerValidate(next)
