@@ -848,7 +848,7 @@ nodeContextPrototype.q = exportUrl;
 nodeContextPrototype.M = moduleFactories;
 // Cast moduleCache to ModuleWithDirection for production mode
 nodeContextPrototype.c = moduleCache;
-nodeContextPrototype.S = resolvePathFromModule;
+nodeContextPrototype.p = resolvePathFromModule;
 nodeContextPrototype.C = clearChunkCache;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);
