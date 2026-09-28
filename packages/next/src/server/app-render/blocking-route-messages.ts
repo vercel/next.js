@@ -217,7 +217,7 @@ export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
     `Route "${route}": Next.js encountered runtime data on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache prevents it from being prerendered.\n\n` +
       `Ways to fix this:\n` +
-      `  - [remove] Remove the dynamic data access\n` +
+      `  - [remove] Remove the data access\n` +
       `  - [static-params] For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`\n` +
       `  - [client] For \`searchParams\`: read them on the client with \`useSearchParams()\`\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-route`
@@ -230,7 +230,7 @@ export function createDynamicBodyErrorInStaticRoute(route: string): Error {
       `This route is configured to be fully static, but an uncached \`fetch(...)\`, database call, or \`connection()\` prevents it from being prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
-      `  - [remove] Remove the dynamic data access\n\n` +
+      `  - [remove] Remove the data access\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-route`
   )
 }
@@ -243,7 +243,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
       `This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
-      `  - [remove] Remove the dynamic data access\n` +
+      `  - [remove] Remove the data access\n` +
       `  - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`\n` +
       `  - For \`searchParams\`: read them on the client with \`useSearchParams()\`\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-route`

@@ -195,6 +195,7 @@ describe('ensureStatic = "navigation"', () => {
     }
     const snapshot = await createRedboxSnapshot(browser, next)
     if (
+      !Array.isArray(snapshot) &&
       snapshot.description?.includes('on a route that must be fully static')
     ) {
       const guidance = await browser.eval(() => {
@@ -273,7 +274,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -329,7 +330,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -385,7 +386,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -441,7 +442,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -497,7 +498,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -978,7 +979,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -1250,7 +1251,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -1307,7 +1308,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -1390,7 +1391,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
@@ -1411,7 +1412,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [remove] Remove the dynamic data access
+           - [remove] Remove the data access
            - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
            - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 

@@ -48,9 +48,9 @@ This variant covers request-specific data from `cookies()`, `headers()`, `params
     title="Provide static parameters"
     href="#provide-static-parameters"
     snippets={[
-      { text: 'export function generateStaticParams() {' },
-      { text: "  return [{ slug: 'hello' }]", highlight: true },
-      { text: '}' },
+      { text: '// app/[slug]/page.tsx' },
+      { text: 'export const generateStaticParams =' },
+      { text: "  () => [{ slug: 'hello' }]", highlight: true },
     ]}
   />
 </FixCardGrid>

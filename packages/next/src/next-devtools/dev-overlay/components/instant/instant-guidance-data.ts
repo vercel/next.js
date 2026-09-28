@@ -690,9 +690,9 @@ const staticParamsCard: FixCard = {
   title: 'Provide static parameters',
   group: 'static-params',
   snippets: [
-    { text: 'export function generateStaticParams() {' },
-    { text: "  return [{ slug: 'hello' }]", highlight: true },
-    { text: '}' },
+    { text: '// app/[slug]/page.tsx' },
+    { text: 'export const generateStaticParams =' },
+    { text: "  () => [{ slug: 'hello' }]", highlight: true },
   ],
   copyable: true,
   link: 'https://nextjs.org/docs/messages/ensure-static-route#provide-static-parameters',
@@ -700,16 +700,16 @@ const staticParamsCard: FixCard = {
 
 const staticRouteRuntimeCards: FixCard[] = [
   {
-    id: 'remove-the-dynamic-data-access',
-    title: 'Remove the dynamic data access',
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
     group: 'remove',
     snippets: [
-      { text: "- import { cookies } from 'next/headers'", highlight: true },
+      { text: 'async function Page() {' },
       { text: '- const store = await cookies()', highlight: true },
       { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-dynamic-data-access',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-data-access',
   },
   staticParamsCard,
   {
@@ -747,16 +747,16 @@ const staticRouteDynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/ensure-static-route#cache-the-data',
   },
   {
-    id: 'remove-the-dynamic-data-access',
-    title: 'Remove the dynamic data access',
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
     group: 'remove',
     snippets: [
-      { text: "import { connection } from 'next/server'" },
+      { text: 'async function Page() {' },
       { text: '- await connection()', highlight: true },
       { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-dynamic-data-access',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-data-access',
   },
 ]
 const staticMetadataRuntimeCards: FixCard[] = [

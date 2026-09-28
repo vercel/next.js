@@ -35,10 +35,10 @@ This variant covers request-specific data from `cookies()`, `headers()`, `params
 <FixCardGrid>
   <FixCard
     group="remove"
-    title="Remove the dynamic data access"
-    href="#remove-the-dynamic-data-access"
+    title="Remove the data access"
+    href="#remove-the-data-access"
     snippets={[
-      { text: "- import { cookies } from 'next/headers'", highlight: true },
+      { text: 'async function Page() {' },
       { text: '- const store = await cookies()', highlight: true },
       { text: '  return <Content />' },
     ]}
@@ -48,9 +48,9 @@ This variant covers request-specific data from `cookies()`, `headers()`, `params
     title="Provide static parameters"
     href="#provide-static-parameters"
     snippets={[
-      { text: 'export function generateStaticParams() {' },
-      { text: "  return [{ slug: 'hello' }]", highlight: true },
-      { text: '}' },
+      { text: '// app/[slug]/page.tsx' },
+      { text: 'export const generateStaticParams =' },
+      { text: "  () => [{ slug: 'hello' }]", highlight: true },
     ]}
   />
   <FixCard
@@ -82,10 +82,10 @@ This variant covers uncached `fetch` requests, database calls, and `connection()
   />
   <FixCard
     group="remove"
-    title="Remove the dynamic data access"
-    href="#remove-the-dynamic-data-access"
+    title="Remove the data access"
+    href="#remove-the-data-access"
     snippets={[
-      { text: "import { connection } from 'next/server'" },
+      { text: 'async function Page() {' },
       { text: '- await connection()', highlight: true },
       { text: '  return <Content />' },
     ]}
@@ -125,13 +125,13 @@ Visitors share the cached result until it is revalidated. Choose a lifetime that
 
 An existing cache can also cause this error. For fully static navigation, its `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero. Increase the lifetime only if serving shared, older content is acceptable. Otherwise, allow request-time rendering.
 
-## Remove the dynamic data access
+## Remove the data access
 
 Choose this fix when the content does not need to vary by request.
 
 ### Patterns
 
-Replace the dynamic data access with a fixed value:
+Replace the data access with a fixed value:
 
 ```jsx filename="app/page.jsx"
 export const unstable_ensureStatic = 'navigation'
