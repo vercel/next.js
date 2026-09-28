@@ -23,8 +23,8 @@ describe('param-matching-generator-errors', () => {
     ['headers', 'headers()'],
     ['connection', 'connection()'],
     ['draft-mode', 'draftMode()'],
-    ['prefetch', 'unstable_prefetch()'],
-    ['navigation', 'unstable_navigation()'],
+    ['prefetch', 'prefetch()'],
+    ['navigation', 'navigation()'],
   ])(
     'names the matching generator when %s is unavailable',
     async (route, api) => {

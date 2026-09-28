@@ -1,7 +1,7 @@
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 
 export async function unstable_generateParamMatching() {
-  await unstable_prefetch()
+  await prefetch()
   return { slug: 'blocking' }
 }
 

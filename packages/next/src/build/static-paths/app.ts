@@ -1003,6 +1003,19 @@ export async function buildAppStaticPaths({
       })
     : undefined
 
+  // Validate the effective route policy, after layout overrides and parallel
+  // branches have been merged. Navigation mode cannot serve a fallback and
+  // resume it, or leave any parameter permanently dynamic.
+  if (isEnsureStaticPage && paramMatching) {
+    for (const [paramName, mode] of Object.entries(paramMatching)) {
+      if (mode === 'fallback' || mode === 'dynamic') {
+        throw new Error(
+          `Route "${page}" cannot configure parameter "${paramName}" as "${mode}" with \`unstable_ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
+        )
+      }
+    }
+  }
+
   const routeParams = await workAsyncStorage.run(
     store,
     generateRouteStaticParams,
@@ -1128,7 +1141,9 @@ export async function buildAppStaticPaths({
       // so empty `routeParams` implies that no `generateStaticParams` is present at all
       throwMissingGspErrorInStaticRoute(page)
     } else if (!hadAllParamsGenerated) {
-      throwIncompleteStaticParamsErrorInStaticRoute(page, [...missingParamNames])
+      throwIncompleteStaticParamsErrorInStaticRoute(page, [
+        ...missingParamNames,
+      ])
     }
   }
 
@@ -1248,6 +1263,16 @@ export async function buildAppStaticPaths({
       throwOnEmptyStaticShell: true,
     }
 
+    if (isEnsureStaticPage && fallbackRouteParams.length > 0) {
+      // Navigation mode still needs the generic render's prefetch data. Other
+      // prefixes only need matchers: /en/[slug] can admit a novel slug beneath
+      // a closed language without rendering or serving a partial fallback.
+      if (pathname === page) {
+        prerenderedRoutesByPathname.set(pathname, prerenderCandidate)
+      }
+      return
+    }
+
     // Explicit blocking policies do not produce fallback outputs, but may
     // still need a render for prefetch hints and shell validation. Keep their
     // candidates until we know whether a more specific render covers them.
@@ -1318,10 +1343,9 @@ export async function buildAppStaticPaths({
         if (!paramValue) {
           if (
             isRoutePPREnabled &&
-            // `ensureStatic = "navigation"` does not currently use fallbacks
-            // with some of the params filled in. We only use create route with all
-            // the params set to fallback so that ISR is set up correctly.
-            !isEnsureStaticPage
+            // Navigation mode does not render intermediate fallbacks, but
+            // parameter matching may still need their specialized matchers.
+            (!isEnsureStaticPage || paramMatching !== undefined)
           ) {
             // Mark remaining params as fallback params.
             fallbackRouteParams.push({ paramName, paramType })
@@ -1425,7 +1449,7 @@ export async function buildAppStaticPaths({
       // Explicit matching can skip candidates covered by a descendant.
       // Without matching configuration, preserve every historical render:
       // its output may still contribute the route's prefetch hints.
-      if (paramMatching !== undefined) {
+      if (paramMatching !== undefined && !isEnsureStaticPage) {
         prerenderedRoutes = prerenderedRoutes.filter(
           (candidate) =>
             candidate.fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER ||
