@@ -116,7 +116,10 @@ function normalizedWriteFileCalls() {
   )
 }
 
-function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
+function overrideTTY(
+  target: NodeJS.ReadStream | NodeJS.WriteStream,
+  value: boolean = true
+): void {
   const descriptor = Object.getOwnPropertyDescriptor(target, 'isTTY')
   restoreDescriptors.push(() => {
     if (descriptor) {
@@ -127,7 +130,7 @@ function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
   })
   Object.defineProperty(target, 'isTTY', {
     configurable: true,
-    value: true,
+    value,
   })
 }
 
@@ -500,6 +503,8 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('leaves the worktree choice open outside a TTY', async () => {
+    overrideTTY(process.stdin, false)
+    overrideTTY(process.stdout, false)
     jest.mocked(getAgentName).mockResolvedValue(null)
     const prompt = jest.fn((useWorktree: boolean | null) =>
       useWorktree === null ? 'Choice pending prompt' : 'Selected prompt'
@@ -552,7 +557,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -649,7 +654,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -858,7 +863,7 @@ describe('agentic upgrade prompts', () => {
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
@@ -957,7 +962,7 @@ describe('agentic upgrade prompts', () => {
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. If the app is not in a Git repository, upgrade it in place.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
      Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
