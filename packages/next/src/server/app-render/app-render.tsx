@@ -945,7 +945,8 @@ async function generateDynamicFlightRenderResult(
     preloadCallbacks?: PreloadCallbacks
     temporaryReferences?: WeakMap<any, string>
     waitUntil?: Promise<unknown>
-  }
+  },
+  tracker?: ClientComponentLoadTracker
 ): Promise<RenderResult> {
   const { htmlRequestId, renderOpts, requestId, workStore } = ctx
 
@@ -1016,7 +1017,7 @@ async function generateDynamicFlightRenderResult(
     )
 
     return new FlightRenderResult(
-      flightStream,
+      tracker ? tracker.bindToStream(flightStream) : flightStream,
       { fetchMetrics: workStore.fetchMetrics },
       options?.waitUntil
     )
@@ -1052,7 +1053,7 @@ async function generateDynamicFlightRenderResult(
     )
 
     return new FlightRenderResult(
-      flightStream,
+      tracker ? tracker.bindToStream(flightStream) : flightStream,
       { fetchMetrics: workStore.fetchMetrics },
       options?.waitUntil
     )
@@ -1067,7 +1068,8 @@ async function generateDynamicFlightRenderResult(
 async function generateStagedDynamicFlightRenderResultNode(
   req: BaseNextRequest,
   ctx: AppRenderContext,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  tracker: ClientComponentLoadTracker | undefined
 ): Promise<RenderResult> {
   const { componentMod, workStore, renderOpts } = ctx
   const { routeModule } = componentMod
@@ -1238,9 +1240,12 @@ async function generateStagedDynamicFlightRenderResultNode(
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
 
-  return new FlightRenderResult(flightStream, {
-    fetchMetrics: workStore.fetchMetrics,
-  })
+  return new FlightRenderResult(
+    tracker ? tracker.bindToStream(flightStream) : flightStream,
+    {
+      fetchMetrics: workStore.fetchMetrics,
+    }
+  )
 }
 
 /**
@@ -1397,7 +1402,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: (() => RequestStore) | undefined,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  tracker: ClientComponentLoadTracker | undefined
 ): Promise<RenderResult> {
   const {
     htmlRequestId,
@@ -1595,9 +1601,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
   }
 
-  return new FlightRenderResult(stream, {
-    fetchMetrics: workStore.fetchMetrics,
-  })
+  return new FlightRenderResult(
+    tracker ? tracker.bindToStream(stream) : stream,
+    {
+      fetchMetrics: workStore.fetchMetrics,
+    }
+  )
 }
 
 async function generateRuntimePrefetchResult(
@@ -3041,7 +3050,8 @@ async function prerenderAppPage({
 async function renderAppPage(
   { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
   postponedState: PostponedState | null,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  tracker: ClientComponentLoadTracker | undefined
 ) {
   const {
     res,
@@ -3138,18 +3148,26 @@ async function renderAppPage(
           ctx,
           requestStore,
           createRequestStore,
-          stagedFallbackParams
+          stagedFallbackParams,
+          tracker
         )
       } else if (cacheComponents && cachedNavigations) {
         // MARK: RSC cacheComponents
         return generateStagedDynamicFlightRenderResultNode(
           req,
           ctx,
-          requestStore
+          requestStore,
+          tracker
         )
       } else {
         // MARK: RSC dynamic
-        return generateDynamicFlightRenderResult(req, ctx, requestStore)
+        return generateDynamicFlightRenderResult(
+          req,
+          ctx,
+          requestStore,
+          undefined,
+          tracker
+        )
       }
     }
   }
@@ -3162,7 +3180,14 @@ async function renderAppPage(
       req,
       res,
       ComponentMod,
-      generateFlight: generateDynamicFlightRenderResult,
+      generateFlight: (actionReq, actionCtx, actionRequestStore, options) =>
+        generateDynamicFlightRenderResult(
+          actionReq,
+          actionCtx,
+          actionRequestStore,
+          options,
+          tracker
+        ),
       workStore,
       requestStore,
       serverActions,
@@ -3188,10 +3213,13 @@ async function renderAppPage(
           stagedFallbackParams
         )
 
-        return new RenderResult(stream, {
-          metadata,
-          contentType: HTML_CONTENT_TYPE_HEADER,
-        })
+        return new RenderResult(
+          tracker ? tracker.bindToStream(stream) : stream,
+          {
+            metadata,
+            contentType: HTML_CONTENT_TYPE_HEADER,
+          }
+        )
       } else if (actionRequestResult.type === 'done') {
         if (actionRequestResult.result) {
           actionRequestResult.result.assignMetadata(metadata)
@@ -3269,7 +3297,10 @@ async function renderAppPage(
   }
 
   // Create the new render result for the response.
-  return new RenderResult(stream, options)
+  return new RenderResult(
+    tracker ? tracker.bindToStream(stream) : stream,
+    options
+  )
 }
 
 async function renderToHTMLOrFlightImpl(
@@ -3289,7 +3320,6 @@ async function renderToHTMLOrFlightImpl(
   routeMatch: RouteMatch
 ) {
   const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
-  let trackingBoundToOutput = false
   try {
     const prepared = await prepareAppPageRender(
       req,
@@ -3318,16 +3348,13 @@ async function renderToHTMLOrFlightImpl(
     const result = await renderAppPage(
       prepared,
       postponedState,
-      serverComponentsHmrCache
+      serverComponentsHmrCache,
+      tracker
     )
     result.assignMetadata({ clientComponentLoadTracker: tracker })
-    if (tracker) {
-      result.onOutputSettled(() => tracker.finish())
-      trackingBoundToOutput = true
-    }
     return result
   } finally {
-    if (!trackingBoundToOutput) tracker?.finish()
+    tracker?.finishIfNotStreaming()
   }
 }
 

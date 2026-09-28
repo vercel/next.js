@@ -348,42 +348,6 @@ export default class RenderResult<
   }
 
   /**
-   * Observe the body held at registration, excluding later push/unshift output.
-   * `completed` is true at EOF or immediately for string, Buffer, and null
-   * bodies; those bodies retain their representation. Stream errors and
-   * cancellation report false. This does not wait for waitUntil or HTTP finish.
-   */
-  public onOutputSettled(callback: (completed: boolean) => void): void {
-    if (
-      this.response === null ||
-      typeof this.response === 'string' ||
-      Buffer.isBuffer(this.response)
-    ) {
-      try {
-        callback(true)
-      } catch {
-        // Output observers must not change response delivery.
-      }
-      return
-    }
-
-    const source = this.readable
-    const bridge = new TransformStream<Uint8Array, Uint8Array>()
-    const notify = (completed: boolean) => {
-      try {
-        callback(completed)
-      } catch {
-        // Output observers must not change response delivery.
-      }
-    }
-    void source.pipeTo(bridge.writable).then(
-      () => notify(true),
-      () => notify(false)
-    )
-    this.response = bridge.readable
-  }
-
-  /**
    * Unshifts a new stream to the response. This will convert the response to an
    * array of streams if it is not already one and will add the new stream to
    * the start of the array. When this response is piped, all of the streams
