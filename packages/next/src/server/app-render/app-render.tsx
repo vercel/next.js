@@ -3150,21 +3150,11 @@ async function renderAppPage(
       }
     }
 
-    if (result.hasStreamingResponse) {
-      result.wrapStream((source) => {
-        const bridge = new TransformStream<Uint8Array, Uint8Array>()
-        // A clean stream completion publishes the status. Errors and consumer
-        // cancellation leave it pending instead of guessing Static.
-        // Source errors propagate through the returned stream.
-        void source
-          .pipeTo(bridge.writable)
-          .then(publish)
-          .catch(() => {})
-        return bridge.readable
-      })
-    } else {
-      publish()
-    }
+    // A clean output completion publishes the status. Errors and consumer
+    // cancellation leave it pending instead of guessing Static.
+    result.onOutputSettled((completed) => {
+      if (completed) publish()
+    })
     return result
   }
 
