@@ -46,8 +46,8 @@ export function createLinkBodyErrorInNavigation(route: string): Error {
 export function createNavigationBodyErrorInNavigation(route: string): Error {
   // TODO(cache-stages): docs link
   return new Error(
-    `Route "${route}": Next.js encountered \`unstable_navigation()\` during prerendering or a navigation.\n\n` +
-      `\`unstable_navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered \`navigation()\` during prerendering or a navigation.\n\n` +
+      `\`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
@@ -109,8 +109,8 @@ export function createRuntimeMetadataError(route: string): Error {
 export function createNavigationMetadataError(route: string): Error {
   // TODO(cache-stages): docs link
   return new Error(
-    `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateMetadata()\`.\n\n` +
-      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_navigation()\` called in \`generateMetadata()\` prevents it from being prefetched.\n\n` +
+    `Route "${route}": Next.js encountered \`navigation()\` in \`generateMetadata()\`.\n\n` +
+      `This route's metadata is blocked, but the rest of its content can be prefetched. \`navigation()\` called in \`generateMetadata()\` prevents it from being prefetched.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
@@ -154,8 +154,8 @@ export function createRuntimeViewportError(route: string): Error {
 export function createNavigationViewportError(route: string): Error {
   // TODO(cache-stages): docs link
   return new Error(
-    `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateViewport()\`.\n\n` +
-      `\`unstable_navigation()\` in \`generateViewport()\` prevents creating a shell, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered \`navigation()\` in \`generateViewport()\`.\n\n` +
+      `\`navigation()\` in \`generateViewport()\` prevents creating a shell, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +

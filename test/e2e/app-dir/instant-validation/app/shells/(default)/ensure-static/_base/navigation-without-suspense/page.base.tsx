@@ -1,4 +1,4 @@
-import { unstable_navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 
 // NOTE: the page must export the following literally, we can't
 // reexport them from here:
@@ -23,6 +23,6 @@ export default async function Page() {
 }
 
 async function Navigation() {
-  await unstable_navigation()
+  await navigation()
   return <div>Navigation data</div>
 }

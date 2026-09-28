@@ -1006,6 +1006,13 @@ export interface ExperimentalConfig {
   turbopackLazyDynamicImports?: boolean
 
   /**
+   * Compile SSR dynamic import targets when they are first reached during server rendering in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImportsSSR?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    *
    * Defaults to `true`.
