@@ -284,14 +284,7 @@ export function deriveCauseFromCodeFrame(
   codeFrame: string | null | undefined
 ): 'connection' | undefined {
   if (variant !== 'dynamic') return undefined
-  if (
-    kind !== 'blocking-route' &&
-    kind !== 'metadata' &&
-    kind !== 'viewport' &&
-    kind !== 'static-route' &&
-    kind !== 'static-metadata' &&
-    kind !== 'static-viewport'
-  )
+  if (kind !== 'blocking-route' && kind !== 'metadata' && kind !== 'viewport')
     return undefined
   if (!codeFrame) return undefined
   for (const line of stripAnsi(codeFrame).split('\n')) {

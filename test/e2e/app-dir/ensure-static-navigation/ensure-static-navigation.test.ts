@@ -184,7 +184,8 @@ describe('ensureStatic = "navigation"', () => {
 
   const getRedboxErrors = async (
     browser: Playwright,
-    state: 'open' | 'collapsed'
+    state: 'open' | 'collapsed',
+    expectInsight = true
   ) => {
     // TODO: wait for validation
     if (state === 'collapsed') {
@@ -201,6 +202,7 @@ describe('ensureStatic = "navigation"', () => {
           .map((portal) => portal.shadowRoot)
           .find((root) => root?.querySelector('[data-nextjs-card-grid]'))
         return {
+          hasCards: root !== undefined,
           titles: Array.from(
             root?.querySelectorAll('[data-nextjs-fix-card-description]') ?? [],
             (card) => card.textContent
@@ -214,7 +216,11 @@ describe('ensureStatic = "navigation"', () => {
             ?.getAttribute('href'),
         }
       })
-      expect(guidance.titles).toContain('Remove the static requirement')
+      expect(guidance.hasCards).toBe(expectInsight)
+      if (!expectInsight) {
+        return snapshot
+      }
+      expect(guidance.titles).not.toContain('Remove the static requirement')
       expect(guidance.titles).not.toContain('Allow blocking route')
       expect(guidance.titles).not.toContain(
         'Provide a placeholder with Suspense'
@@ -222,11 +228,9 @@ describe('ensureStatic = "navigation"', () => {
       expect(guidance.docs).toMatch(
         /^https:\/\/nextjs\.org\/docs\/messages\/ensure-static-/
       )
+      const docsPage = guidance.docs?.split('#')[0]
       for (const link of guidance.links) {
-        expect(link).toMatch(new RegExp(`^${guidance.docs}#`))
-      }
-      if (snapshot.source?.includes('await connection()')) {
-        expect(guidance.titles).not.toContain('Cache the data')
+        expect(link).toMatch(new RegExp(`^${docsPage}#`))
       }
     }
     return snapshot
@@ -269,8 +273,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/uncached-data/page.tsx:15:16)
@@ -324,8 +329,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/connection/page.tsx:17:19)
@@ -379,8 +385,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/instant-false/connection-blocking/page.tsx:20:19)
@@ -434,8 +441,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/suspense-above-body/connection-blocking/page.tsx:20:19)
@@ -489,8 +497,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at UseServerData (app/default/dynamic-data-passed-to-client/client.tsx:6:19)
@@ -580,7 +589,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params/[slug]
-             at <unknown> (../../../packages/next/dist/build/utils.js:808:15) {
+             at ignore-listed frames {
            type: 'Error'
          }"
         `)
@@ -620,7 +629,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params-passed-to-client/[slug]
-             at <unknown> (../../../packages/next/dist/build/utils.js:808:15) {
+             at ignore-listed frames {
            type: 'Error'
          }"
         `)
@@ -657,7 +666,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params-client-segment/[slug]
-             at <unknown> (../../../packages/next/dist/build/utils.js:808:15) {
+             at ignore-listed frames {
            type: 'Error'
          }"
         `)
@@ -699,20 +708,17 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-metadata
-             at Next.Metadata [Server] (<anonymous>)
-             at a (<anonymous>)
-             at div (<anonymous>)
-             at MetadataWrapper (../../../packages/next/dist/esm/lib/metadata/metadata.js:65:53)
-           63 |                     children: /*#__PURE__*/ _jsx(Suspense, {
-           64 |                         name: "Next.Metadata",
-         > 65 |                         children: /*#__PURE__*/ _jsx(Metadata, {})
-              |                                                     ^
-           66 |                     })
-           67 |                 }),
-           68 |                 /*#__PURE__*/ _jsx(MetadataBlocker, {})
+             at Module.generateMetadata (app/default/dynamic-metadata/page.tsx:7:19)
+            5 |
+            6 | export async function generateMetadata(): Promise<Metadata> {
+         >  7 |   await connection()
+              |                   ^
+            8 |   return {
+            9 |     title: 'Dynamic title',
+           10 |   }
          To debug the issue, start the app in development mode by running \`next dev\`, then open "/default/dynamic-metadata" in your browser to investigate the error.
          Error occurred prerendering page "/default/dynamic-metadata". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -755,18 +761,17 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-viewport
-             at Next.Viewport [Server] (<anonymous>)
-             at ViewportWrapper (../../../packages/next/dist/esm/lib/metadata/metadata.js:31:41)
-           29 |     function ViewportWrapper() {
-           30 |         return /*#__PURE__*/ _jsx(ViewportBoundary, {
-         > 31 |             children: /*#__PURE__*/ _jsx(Viewport, {})
-              |                                         ^
-           32 |         });
-           33 |     }
-           34 |     // Metadata resolution must start while rendering so it observes the current
+             at Module.generateViewport (app/default/dynamic-viewport/page.tsx:7:19)
+            5 |
+            6 | export async function generateViewport(): Promise<Viewport> {
+         >  7 |   await connection()
+              |                   ^
+            8 |   return {
+            9 |     themeColor: '#d692b7',
+           10 |   }
          To debug the issue, start the app in development mode by running \`next dev\`, then open "/default/dynamic-viewport" in your browser to investigate the error.
          Error occurred prerendering page "/default/dynamic-viewport". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -860,7 +865,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-empty/[slug]
-             at <unknown> (../../../packages/next/dist/build/utils.js:808:15) {
+             at ignore-listed frames {
            type: 'Error'
          }"
         `)
@@ -895,7 +900,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-incomplete/[slug]/[snail]
-             at <unknown> (../../../packages/next/dist/build/utils.js:808:15) {
+             at ignore-listed frames {
            type: 'Error'
          }"
         `)
@@ -931,7 +936,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-incomplete-unused/[slug]/[snail]
-             at <unknown> (../../../packages/next/dist/build/utils.js:808:15) {
+             at ignore-listed frames {
            type: 'Error'
          }"
         `)
@@ -946,13 +951,20 @@ describe('ensureStatic = "navigation"', () => {
       const route = '/default/excluded-caches/non-prerenderable-cache'
       if (isNextDev) {
         const browser = await next.browser(route)
-        const error = await getRedboxErrors(browser, 'collapsed')
+        const error = await getRedboxErrors(browser, 'collapsed', false)
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered runtime data on a route that must be fully static.",
+           "description": "Route "/default/excluded-caches/non-prerenderable-cache": Next.js encountered runtime data on a route that must be fully static.
+
+         This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache prevents it from being prerendered.
+
+         Ways to fix this:
+           - [remove] Remove the dynamic data access
+           - [static-params] For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - [client] For \`searchParams\`: read them on the client with \`useSearchParams()\`",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Console Error",
            "source": "app/default/excluded-caches/non-prerenderable-cache/page.tsx (17:9) @ Inner
          > 17 |   await nonPrerenderableCache()
               |         ^",
@@ -973,8 +985,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/excluded-caches/non-prerenderable-cache/page.tsx:17:9)
@@ -1244,8 +1257,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/mixed-server-client/connection-and-browser/page.tsx:21:19)
@@ -1300,8 +1314,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:21:19)
@@ -1382,8 +1397,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/mixed-server-client/connection-and-use-io/page.tsx:21:19)
@@ -1402,8 +1418,9 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-           - [static] Replace the dynamic data access with static data
-           - [remove] Remove \`unstable_ensureStatic = "navigation"\` from every page or layout that sets it to allow per-request server data
+           - [remove] Remove the dynamic data access
+           - For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
+           - For \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at ClientIO (app/default/mixed-server-client/connection-and-use-io/client.tsx:6:6)

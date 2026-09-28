@@ -816,7 +816,7 @@ describe('fully static route errors', () => {
     expect(cards.map((card) => card.group)).not.toContain('block')
     expect(cards.map((card) => card.group)).toEqual(
       Array.from(
-        error.message.matchAll(/^\s*-\s*\[([a-z]+)\]/gm),
+        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
         (match) => match[1]
       )
     )
@@ -828,18 +828,16 @@ describe('fully static route errors', () => {
   })
 
   it.each(['static-route', 'static-metadata', 'static-viewport'] as const)(
-    'does not recommend caching connection() for %s',
+    'does not infer card filtering from the code frame for %s',
     (kind) => {
       const cause = deriveCauseFromCodeFrame(
         kind,
         'dynamic',
         '> 4 | await connection()'
       )
-      expect(cause).toBe('connection')
-      const cards = getCards(kind, 'dynamic', cause)
-      expect(cards.map((card) => card.group)).not.toContain('cache')
-      expect(cards.map((card) => card.id)).toContain(
-        'remove-the-static-requirement'
+      expect(cause).toBeUndefined()
+      expect(getCards(kind, 'dynamic', cause)).toEqual(
+        getCards(kind, 'dynamic')
       )
     }
   )

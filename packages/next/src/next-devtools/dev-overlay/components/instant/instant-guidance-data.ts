@@ -5,6 +5,7 @@ export type FixCardGroup =
   | 'block'
   | 'cache'
   | 'static'
+  | 'static-params'
   | 'dynamic'
   | 'client'
   | 'defer'
@@ -25,6 +26,7 @@ export type FixCardIcon =
   | 'minus'
   | 'minus-circle'
   | 'pointer-click'
+  | 'route'
   | 'server-stack'
   | 'timer'
   | 'zap'
@@ -37,6 +39,7 @@ export const FIX_CARD_GROUPS: Record<
   block: { label: 'Block', color: 'red', icon: 'loading' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
+  'static-params': { label: 'Static params', color: 'gray', icon: 'route' },
   dynamic: { label: 'Dynamic', color: 'blue', icon: 'server-stack' },
   client: { label: 'Client', color: 'amber', icon: 'layout' },
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
@@ -682,30 +685,44 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
+const staticParamsCard: FixCard = {
+  id: 'provide-static-parameters',
+  title: 'Provide static parameters',
+  group: 'static-params',
+  snippets: [
+    { text: 'export function generateStaticParams() {' },
+    { text: "  return [{ slug: 'hello' }]", highlight: true },
+    { text: '}' },
+  ],
+  copyable: true,
+  link: 'https://nextjs.org/docs/messages/ensure-static-route#provide-static-parameters',
+}
+
 const staticRouteRuntimeCards: FixCard[] = [
   {
-    id: 'use-static-data',
-    title: 'Use static data',
-    group: 'static',
-    snippets: [
-      { text: "const title = 'My page'", highlight: true },
-      { text: '' },
-      { text: 'return <h1>{title}</h1>' },
-    ],
-    copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#use-static-data',
-  },
-  {
-    id: 'remove-the-static-requirement',
-    title: 'Remove the static requirement',
+    id: 'remove-the-dynamic-data-access',
+    title: 'Remove the dynamic data access',
     group: 'remove',
     snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
+      { text: "- import { cookies } from 'next/headers'", highlight: true },
+      { text: '- const store = await cookies()', highlight: true },
+      { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-static-requirement',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-dynamic-data-access',
+  },
+  staticParamsCard,
+  {
+    id: 'read-search-parameters-on-the-client',
+    title: 'Read search parameters on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: 'const params = useSearchParams()', highlight: true },
+      { text: "return <p>{params.get('q')}</p>" },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#read-search-parameters-on-the-client',
   },
 ]
 
@@ -730,28 +747,16 @@ const staticRouteDynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/ensure-static-route#cache-the-data',
   },
   {
-    id: 'use-static-data',
-    title: 'Use static data',
-    group: 'static',
-    snippets: [
-      { text: "const title = 'My page'", highlight: true },
-      { text: '' },
-      { text: 'return <h1>{title}</h1>' },
-    ],
-    copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#use-static-data',
-  },
-  {
-    id: 'remove-the-static-requirement',
-    title: 'Remove the static requirement',
+    id: 'remove-the-dynamic-data-access',
+    title: 'Remove the dynamic data access',
     group: 'remove',
     snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
+      { text: "import { connection } from 'next/server'" },
+      { text: '- await connection()', highlight: true },
+      { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-static-requirement',
+    link: 'https://nextjs.org/docs/messages/ensure-static-route#remove-the-dynamic-data-access',
   },
 ]
 const staticMetadataRuntimeCards: FixCard[] = [
@@ -775,16 +780,8 @@ const staticMetadataRuntimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/ensure-static-metadata#use-static-metadata',
   },
   {
-    id: 'remove-the-static-requirement',
-    title: 'Remove the static requirement',
-    group: 'remove',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
-    ],
-    copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#remove-the-static-requirement',
+    ...staticParamsCard,
+    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#provide-static-parameters',
   },
 ]
 
@@ -827,18 +824,6 @@ const staticMetadataDynamicCards: FixCard[] = [
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-metadata#use-static-metadata',
   },
-  {
-    id: 'remove-the-static-requirement',
-    title: 'Remove the static requirement',
-    group: 'remove',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
-    ],
-    copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata#remove-the-static-requirement',
-  },
 ]
 const staticViewportRuntimeCards: FixCard[] = [
   {
@@ -861,16 +846,8 @@ const staticViewportRuntimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/ensure-static-viewport#use-static-viewport',
   },
   {
-    id: 'remove-the-static-requirement',
-    title: 'Remove the static requirement',
-    group: 'remove',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
-    ],
-    copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#remove-the-static-requirement',
+    ...staticParamsCard,
+    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#provide-static-parameters',
   },
 ]
 
@@ -912,18 +889,6 @@ const staticViewportDynamicCards: FixCard[] = [
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-viewport#use-static-viewport',
-  },
-  {
-    id: 'remove-the-static-requirement',
-    title: 'Remove the static requirement',
-    group: 'remove',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
-    ],
-    copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport#remove-the-static-requirement',
   },
 ]
 export type GuidanceKind =
@@ -1130,17 +1095,17 @@ export function getCards(
     case 'static-viewport':
       return variant === 'runtime'
         ? staticViewportRuntimeCards
-        : filterCacheForConnection(staticViewportDynamicCards, variant, cause)
+        : staticViewportDynamicCards
 
     case 'static-metadata':
       return variant === 'runtime'
         ? staticMetadataRuntimeCards
-        : filterCacheForConnection(staticMetadataDynamicCards, variant, cause)
+        : staticMetadataDynamicCards
 
     case 'static-route':
       return variant === 'runtime'
         ? staticRouteRuntimeCards
-        : filterCacheForConnection(staticRouteDynamicCards, variant, cause)
+        : staticRouteDynamicCards
 
     case 'blocking-route': {
       switch (variant) {

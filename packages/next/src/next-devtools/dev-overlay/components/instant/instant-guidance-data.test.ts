@@ -33,7 +33,9 @@ const GUIDANCE_VARIANTS = [
 ] as const satisfies GuidanceVariant[]
 
 function tagsFromMessage(message: string): string[] {
-  return Array.from(message.matchAll(/^\s*-\s*\[([a-z]+)\]/gm)).map((m) => m[1])
+  return Array.from(message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm)).map(
+    (m) => m[1]
+  )
 }
 
 function groupsFromCards(

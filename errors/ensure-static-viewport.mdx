@@ -44,13 +44,13 @@ This variant covers request-specific data from `cookies()`, `headers()`, `params
     ]}
   />
   <FixCard
-    group="remove"
-    title="Remove the static requirement"
-    href="#remove-the-static-requirement"
+    group="static-params"
+    title="Provide static parameters"
+    href="#provide-static-parameters"
     snippets={[
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
+      { text: 'export function generateStaticParams() {' },
+      { text: "  return [{ slug: 'hello' }]", highlight: true },
+      { text: '}' },
     ]}
   />
 </FixCardGrid>
@@ -78,16 +78,6 @@ This variant covers uncached `fetch` requests, database calls, and `connection()
       { text: 'export function generateViewport() {' },
       { text: "  return { themeColor: 'black' }", highlight: true },
       { text: '}' },
-    ]}
-  />
-  <FixCard
-    group="remove"
-    title="Remove the static requirement"
-    href="#remove-the-static-requirement"
-    snippets={[
-      { text: '// page.tsx or layout.tsx' },
-      { text: '- export const ensureStatic =', highlight: true },
-      { text: "-   'navigation'", highlight: true },
     ]}
   />
 </FixCardGrid>
@@ -156,13 +146,11 @@ The returned viewport is determined during prerendering rather than per request.
 - If every value is fixed, a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export is equivalent and may be simpler.
 - This fixes the viewport only. Page content and other segments must also satisfy the fully static requirement.
 
-## Other options
-
-### Provide static parameters
+## Provide static parameters
 
 Choose this fix when the route reads dynamic [`params`](/docs/app/api-reference/file-conventions/page#params-optional).
 
-#### Patterns
+### Patterns
 
 Return at least one complete parameter set from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params). For example, a page at `app/blog/[slug]/page.jsx` can export:
 
@@ -177,14 +165,16 @@ export default async function Page({ params }) {
 }
 ```
 
-#### Trade-off
+### Trade-off
 
 The returned paths are prerendered at build time. Other parameter values wait for a blocking prerender before Next.js serves their static output.
 
-#### Gotchas
+### Gotchas
 
 - Include every dynamic parameter, including parameters that are unused or only read by Client Components. An empty array does not satisfy this requirement.
 - This fixes parameter access only. It does not make cookies, headers, or server-side search parameters static.
+
+## Other options
 
 ### Extend the cache lifetime
 
@@ -207,42 +197,12 @@ export async function getContent() {
 
 #### Trade-off
 
-Visitors share cached content for longer. If the data must stay fresher than these limits allow, [allow request-time rendering](#remove-the-static-requirement) instead.
+Visitors share cached content for longer. If the data must stay fresher than these limits allow, [remove the fully static requirement](#dont-want-this-validation) instead.
 
 #### Gotchas
 
 - For fully static navigation, `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero. Check nested cached functions too.
 - Extending a cache lifetime does not make cookies, headers, or server-side search parameters static.
-
-## Remove the static requirement
-
-Choose this fix when server content must depend on the current request, such as a session read through [`cookies`](/docs/app/api-reference/functions/cookies) or [`headers`](/docs/app/api-reference/functions/headers).
-
-### Patterns
-
-Delete `export const unstable_ensureStatic = 'navigation'` from **every page and layout on the route that sets it**. Keep the page or layout itself:
-
-```jsx filename="app/layout.jsx"
-export default function Layout({ children }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  )
-}
-```
-
-Then follow the ordinary [Cache Components](/docs/app/getting-started/cache-components) rendering rules, including Suspense boundaries around request-time content. Removing the static requirement does not disable instant-navigation validation.
-
-### Trade-off
-
-The route can perform server work on individual requests. Next.js no longer enforces fully static output for navigation.
-
-### Gotchas
-
-- Removing the export from a child does not remove a parent layout's requirement. Check ancestor layouts and [parallel routes](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#combining-levels-across-layouts-and-pages).
-- Setting `unstable_ensureStatic = false` is incompatible with `'navigation'` elsewhere on the same route.
-- Changing a shared layout affects every route that uses it. Keep the requirement on individual static pages if only one route needs request-time work.
 
 ## Verifying the fix
 
@@ -252,7 +212,13 @@ The default build output is abbreviated. Run `next build --debug-prerender` for 
 
 ## Why `instant = false` does not clear this error
 
-The route explicitly requires fully static server output. This is separate from instant-navigation validation. Changing `instant` or `experimental.instantInsights.validationLevel` cannot remove that requirement. Use [Remove the static requirement](#remove-the-static-requirement) if the route needs per-request server work.
+The route explicitly requires fully static server output. This is separate from instant-navigation validation. Changing `instant` or `experimental.instantInsights.validationLevel` cannot remove that requirement. If the route needs per-request server work, [remove this validation](#dont-want-this-validation).
+
+## Don't want this validation?
+
+`unstable_ensureStatic = 'navigation'` is an explicit opt-in. It was likely added because this route must avoid per-request server work, so keep it when fully static output is part of the route's contract.
+
+If request-time server data is intentional and you do not need that guarantee, remove the export from each page or layout on the route that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/cache-components) rendering rules. Removing the export allows per-request server work; it does not disable the separate instant-navigation validation.
 
 ## Related Insights
 

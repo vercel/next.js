@@ -2630,6 +2630,7 @@ export async function cache(
             }
             case 'request': {
               if (isValidationRender(workUnitStore)) {
+                workUnitStore.hasShortLivedCache = true
                 // These throws force an explicit cache life decision on an
                 // outer cache that a nested cache would otherwise silently
                 // shorten (see `shouldReportNestedCacheError` above). Otherwise
@@ -3381,6 +3382,7 @@ export async function cache(
               return hangingPromise
             case 'request': {
               if (isValidationRender(workUnitStore)) {
+                workUnitStore.hasShortLivedCache = true
                 // A short-lived entry is a dynamic hole, excluded from the
                 // static shell, so we end the cache signal read here (the
                 // prerender case does the same) to avoid this cache hit being
