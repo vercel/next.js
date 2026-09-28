@@ -5,7 +5,10 @@ const nextConfig = {
       name: 'nextHost',
       remotes: {
         catalog: `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
-        workerCatalog: `workerCatalog@${process.env.MF_REMOTE_ORIGIN}/worker/remoteEntry.js`,
+        workerCatalog: {
+          external: `workerCatalog@${process.env.MF_REMOTE_ORIGIN}/worker/remoteEntry.js`,
+          shareScope: 'worker',
+        },
       },
       shared: {
         'shared-value': {
@@ -32,6 +35,7 @@ const nextConfig = {
           version: '1.0.0',
           requiredVersion: '^1.0.0',
         },
+        'default-shared': {},
       },
     },
   },
