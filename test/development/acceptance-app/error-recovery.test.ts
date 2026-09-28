@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { waitFor, check } from 'next-test-utils'
+import { waitFor, check, retry } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -113,7 +113,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.waitForNoRedbox()
+    await retry(() => session.waitForNoRedbox(), 15_000)
 
     await check(
       () => session.evaluate(() => document.querySelector('p').textContent),

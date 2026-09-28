@@ -308,6 +308,11 @@ describe('searchparams-reuse-loading', () => {
         // Dev mode doesn't perform full prefetches, so this test is conditional
         await browser.elementByCss(`[href='${path}']`).click()
 
+        // Wait for the full prefetch to finish before navigating. Otherwise a
+        // slow CI worker can click while the prefetch response is still in
+        // flight and time out waiting for the destination to render.
+        await browser.waitForIdleNetwork()
+
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
           .click()
