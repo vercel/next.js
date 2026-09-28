@@ -396,8 +396,9 @@ export async function ageEligibleVersions(
     if (!valid(version)) {
       return false
     }
-    if (valid(range)) {
-      return version === range
+    const exactVersion = valid(range)
+    if (exactVersion) {
+      return version === exactVersion
     }
     if (
       taggedVersion &&
@@ -871,6 +872,25 @@ export async function runUpgrade(
     }
   }
 
+  const reactCodemodVersions = shouldRunReactCodemods
+    ? await ageEligibleVersions('codemod', 'latest')
+    : null
+  const reactTypesCodemodVersions = shouldRunReactTypesCodemods
+    ? await ageEligibleVersions('types-react-codemod', 'latest')
+    : null
+  if (reactCodemodVersions?.length === 0) {
+    throw new Error(
+      "No codemod release satisfies the project's minimum release age."
+    )
+  }
+  if (reactTypesCodemodVersions?.length === 0) {
+    throw new Error(
+      "No types-react-codemod release satisfies the project's minimum release age."
+    )
+  }
+  const reactCodemodVersion = reactCodemodVersions?.at(-1) ?? 'latest'
+  const reactTypesCodemodVersion = reactTypesCodemodVersions?.at(-1) ?? 'latest'
+
   writeOverridesField(appPackageJson, packageManager, overrides)
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
@@ -912,7 +932,7 @@ export async function runUpgrade(
     // and the lockfile; the recipe refuses to run on a dirty tree otherwise.
     try {
       execSync(
-        `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
+        `${execCommand} codemod@${reactCodemodVersion} react/19/migration-recipe --no-interactive --allow-dirty`,
         { stdio: 'inherit' }
       )
     } catch (error) {
@@ -931,9 +951,12 @@ export async function runUpgrade(
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
     // `--yes` skips prompts and applies all codemods automatically
     // https://github.com/eps1lon/types-react-codemod/blob/8463103233d6b70aad3cd6bee1814001eae51b28/README.md?plain=1#L52
-    execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
-      stdio: 'inherit',
-    })
+    execSync(
+      `${execCommand} types-react-codemod@${reactTypesCodemodVersion} --yes preset-19 .`,
+      {
+        stdio: 'inherit',
+      }
+    )
   }
   console.log() // new line
   if (codemods.length > 0) {

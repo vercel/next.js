@@ -23,6 +23,7 @@ function run(
       input,
       stdio: ['pipe', 'pipe', 'pipe'],
       maxBuffer: 16 * 1024 * 1024,
+      timeout: 10_000,
     }).trim()
   }
   const result = crossSpawn.sync(command, args, {
@@ -32,6 +33,7 @@ function run(
     input,
     stdio: ['pipe', 'pipe', 'pipe'],
     maxBuffer: 16 * 1024 * 1024,
+    timeout: 10_000,
   })
   if (result.error) {
     throw result.error

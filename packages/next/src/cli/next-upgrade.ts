@@ -420,6 +420,11 @@ export async function spawnNextUpgrade(
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
+          if (major(codemodVersion) < major(result.targetVersion)) {
+            throw new Error(
+              `The age-eligible @next/codemod@${codemodVersion} cannot upgrade to Next.js ${result.targetVersion}.`
+            )
+          }
           const codemodCommand = `${getNpxCommand(baseDir, packageManager)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')
           if (!guide.includes(CODEMOD_COMMAND_PLACEHOLDER)) {

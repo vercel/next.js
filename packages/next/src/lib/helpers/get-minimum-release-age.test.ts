@@ -632,7 +632,7 @@ describe('resolveAgeEligibleVersion', () => {
         '--json',
         '--registry=https://mirror.example/',
       ],
-      expect.objectContaining({ cwd: '/app' })
+      expect.objectContaining({ cwd: '/app', timeout: 10_000 })
     )
     expect(global.fetch).toBe(originalFetch)
   })

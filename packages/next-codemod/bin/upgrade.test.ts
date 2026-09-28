@@ -160,6 +160,12 @@ describe('codemod minimum release age', () => {
       await expect(ageEligibleVersions('next', '^16.0.0')).resolves.toEqual([
         '16.0.1',
       ])
+      await expect(ageEligibleVersions('next', 'v16.0.1')).resolves.toEqual([
+        '16.0.1',
+      ])
+      await expect(ageEligibleVersions('codemod', 'latest')).resolves.toEqual([
+        '16.0.1',
+      ])
     })
   })
 
