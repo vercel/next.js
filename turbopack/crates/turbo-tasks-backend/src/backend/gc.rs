@@ -37,6 +37,7 @@ use crate::{
         snapshot_coordinator::SnapshotPhase,
         storage::{SpecificTaskDataCategory, TaskDataCategory},
         storage_schema::TaskStorageAccessors,
+        task_page_map::StorageAccessToken,
     },
     backing_storage::SnapshotItem,
 };
@@ -64,9 +65,8 @@ pub enum TtlCounter {
 
 /// One unit of GC work.
 enum GcJob {
-    /// Scan one shard of the resident map (by index) and enqueue its candidates as
-    /// [`GcJob::Collect`].
-    ScanShard(usize),
+    /// Scan one live pointer page in either TaskId space.
+    ScanShard((bool, usize)),
     /// Collect a single task.
     Collect(TaskId),
 }
@@ -225,7 +225,7 @@ impl TurboTasksBackend {
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();
 
-        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
+        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now, phase.access_token());
 
         let aged_out_count = aged_out.len();
         // TODO(perf): recycle the task ids of collected tasks.
@@ -240,9 +240,12 @@ impl TurboTasksBackend {
             None
         };
 
+        let access = phase.access_token();
         let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
-            // Start by scanning all shards and collecting the aged out roots from prior sessions.
-            (0..self.storage.shard_count())
+            // Scan live pages from both ID spaces, as well as aged-out durable roots.
+            self.storage
+                .shard_indices(access)
+                .into_iter()
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
             Default::default,
@@ -256,7 +259,7 @@ impl TurboTasksBackend {
                 let task_id = match job {
                     GcJob::ScanShard(index) => {
                         let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
-                        self.storage.gc_scan_shard(index, collector);
+                        self.storage.gc_scan_shard(access, index, collector);
                         return ControlFlow::Continue(());
                     }
                     GcJob::Collect(task_id) => task_id,
@@ -347,7 +350,7 @@ impl TurboTasksBackend {
         // We don't do this in the GC pass because a task detected as a root 'early' might become a
         // non-root later due to other operations (e.g. it might get promoted to a live aggregation
         // root).
-        for id in self.storage.gc_scan_roots() {
+        for id in self.storage.gc_scan_roots(access) {
             roots.insert(id, TtlCounter::MostRecent);
         }
 
@@ -371,12 +374,13 @@ impl TurboTasksBackend {
         &self,
         map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
+        access: StorageAccessToken<'_>,
     ) -> Vec<TaskId> {
         let ttl_ms = self.gc_root_ttl.as_millis() as u64;
 
         let mut aged_out = Vec::new();
         map.retain(|id, counter| {
-            if self.storage.with_task(*id, |_| ()).is_some() {
+            if self.storage.with_task(access, *id, |_| ()).is_some() {
                 // Resident: `gc_scan_roots` decides. Drop it either way.
                 return false;
             }

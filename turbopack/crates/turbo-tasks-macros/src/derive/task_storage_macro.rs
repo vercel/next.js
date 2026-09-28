@@ -1102,6 +1102,11 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             #[doc = "Mask for all persisted flags (meta + data)"]
             pub const PERSISTED_MASK: u16 = #persisted_mask;
 
+            #[doc = "Construct empty task flags in a const context"]
+            pub const fn empty() -> Self {
+                Self(0)
+            }
+
             #[doc = "Get the raw bits value"]
             pub fn bits(&self) -> u16 {
                 self.0
@@ -1406,14 +1411,15 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
             #(#field_defs,)*
             #flags_field
             #lazy_field
-            #[doc = "Per-task lock used with a shared resident-map guard."]
-            lock: IntrusiveTaskLock,
+            #[doc = "Intrusive lock protecting this stable task allocation"]
+            pub(crate) lock: IntrusiveTaskLock,
         }
 
         #[automatically_derived]
         impl TaskStorage {
-            pub fn new() -> Self {
-                Self::default()
+            #[doc = "Constructs a fresh task payload with an unlocked intrusive mutex."]
+            pub const fn new() -> Self {
+                Self::empty_task()
             }
         }
     }

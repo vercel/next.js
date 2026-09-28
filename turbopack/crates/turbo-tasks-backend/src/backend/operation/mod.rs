@@ -35,6 +35,7 @@ use crate::{
         snapshot_coordinator::{OperationGuard, SnapshotPhase},
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
+        task_page_map::StorageAccessToken,
     },
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
@@ -103,7 +104,7 @@ pub trait ExecuteContext<'e>: Sized {
     type TaskGuardImpl<'ctx>: TaskGuard + 'ctx
     where
         Self: 'ctx;
-    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
+    fn child_context<'l>(&'l self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
     where
         'e: 'l;
     /// Opens a task that must **already exist**, restoring the requested `category` if needed. A
@@ -214,6 +215,8 @@ pub trait ExecuteContext<'e>: Sized {
         arg: &dyn DynTaskInputs,
     ) -> Option<(TaskId, CachedTaskTypeArc)>;
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
+    /// Proof that this context is covered by an operation admission or exclusion phase.
+    fn storage_access_token(&self) -> StorageAccessToken<'_>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -272,12 +275,57 @@ impl TaskLockCounter {
     }
 }
 
+#[derive(Clone, Copy)]
+enum EpochOwner<'e> {
+    Operation(&'e OperationGuard<'e, AnyOperation>),
+    Exclusion(&'e SnapshotPhase<'e, AnyOperation>),
+}
+
+impl<'e> EpochOwner<'e> {
+    fn access_token(self) -> StorageAccessToken<'e> {
+        match self {
+            Self::Operation(guard) => guard.access_token(),
+            Self::Exclusion(phase) => phase.access_token(),
+        }
+    }
+}
+
 enum ExecutePhase<'e> {
     Normal {
         guard: Option<OperationGuard<'e, AnyOperation>>,
+        access: StorageAccessToken<'e>,
     },
-    Child,
-    Gc(&'e (dyn Fn(TaskId) + Send + Sync)),
+    Child {
+        owner: EpochOwner<'e>,
+        access: StorageAccessToken<'e>,
+    },
+    Gc {
+        collector: &'e (dyn Fn(TaskId) + Send + Sync),
+        phase: &'e SnapshotPhase<'e, AnyOperation>,
+        access: StorageAccessToken<'e>,
+    },
+}
+
+impl<'e> ExecutePhase<'e> {
+    fn access_token(&self) -> StorageAccessToken<'e> {
+        match self {
+            Self::Normal { access, .. } | Self::Child { access, .. } | Self::Gc { access, .. } => {
+                *access
+            }
+        }
+    }
+
+    fn child_owner(&self) -> EpochOwner<'_> {
+        match self {
+            Self::Normal { guard, .. } => EpochOwner::Operation(
+                guard
+                    .as_ref()
+                    .expect("normal context retains its operation admission"),
+            ),
+            Self::Child { owner, .. } => *owner,
+            Self::Gc { phase, .. } => EpochOwner::Exclusion(phase),
+        }
+    }
 }
 
 pub struct ExecuteContextImpl<'e> {
@@ -295,11 +343,14 @@ impl<'e> ExecuteContextImpl<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
+        let guard = backend.start_operation();
+        let access = guard.access_token();
         Self {
             backend,
             turbo_tasks,
             phase: ExecutePhase::Normal {
-                guard: backend.start_operation(),
+                guard: Some(guard),
+                access,
             },
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
@@ -314,11 +365,14 @@ impl<'e> ExecuteContextImpl<'e> {
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
         shutdown_guard: RwLockReadGuard<'e, bool>,
     ) -> Self {
+        let guard = backend.start_operation();
+        let access = guard.access_token();
         Self {
             backend,
             turbo_tasks,
             phase: ExecutePhase::Normal {
-                guard: backend.start_operation(),
+                guard: Some(guard),
+                access,
             },
             _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
@@ -340,7 +394,11 @@ impl<'e> ExecuteContextImpl<'e> {
         Self {
             backend,
             turbo_tasks,
-            phase: ExecutePhase::Gc(gc_collectible),
+            phase: ExecutePhase::Gc {
+                collector: gc_collectible,
+                phase: _phase,
+                access: _phase.access_token(),
+            },
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
@@ -354,7 +412,11 @@ impl<'e> ExecuteContextImpl<'e> {
     ) -> Option<TaskGuardImpl<'_>> {
         self.task_lock_counter.acquire();
 
-        let mut task = OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id));
+        let mut task = OpenedTask::Owned(
+            self.backend
+                .storage
+                .access_entry_mut(self.phase.access_token(), task_id),
+        );
         // Treat deleted tasks under Allowmissing as missing
         if access == TaskAccess::AllowMissing && task.flags.deleted() {
             self.task_lock_counter.release();
@@ -439,7 +501,11 @@ impl<'e> ExecuteContextImpl<'e> {
                 task = if let Some(cat) = wait_category(data_restoring, meta_restoring) {
                     OpenedTask::Restored(self.wait_for_restore_or_panic(task_id, cat))
                 } else {
-                    OpenedTask::Owned(self.backend.storage.access_entry_mut(task_id))
+                    OpenedTask::Owned(
+                        self.backend
+                            .storage
+                            .access_entry_mut(self.phase.access_token(), task_id),
+                    )
                 };
                 if waiting_for_restore {
                     // This caller owns the pin and releases it only after acquiring the task
@@ -485,7 +551,13 @@ impl<'e> ExecuteContextImpl<'e> {
                         // also fine.
                         if task.gc_transient_ref_count() == 0 {
                             match task {
-                                OpenedTask::Owned(g) => g.discard(),
+                                OpenedTask::Owned(mut guard) => {
+                                    // Pointer pages cannot detach a task while other operations
+                                    // are admitted. Keep this inert placeholder until the next
+                                    // exclusive eviction/shutdown phase, but make future
+                                    // AllowMissing opens observe it as absent immediately.
+                                    guard.flags.set_deleted(true);
+                                }
                                 OpenedTask::Restored(_) => {
                                     unreachable!(
                                         "a task restored by another thread exists and is never \
@@ -590,7 +662,10 @@ impl<'e> ExecuteContextImpl<'e> {
         // Fast path: the restoring thread usually finishes its I/O before this waiter gets here.
         // Avoid registering a listener when the requested category is already available.
         {
-            let task = self.backend.storage.access_mut(task_id);
+            let task = self
+                .backend
+                .storage
+                .access_mut(self.phase.access_token(), task_id);
             if task.flags.is_restored(category) {
                 return Ok(task);
             }
@@ -600,7 +675,10 @@ impl<'e> ExecuteContextImpl<'e> {
             // Register before taking the task lock to avoid a lost wakeup when another restorer is
             // still active. It is harmless when this thread becomes the replacement restorer.
             let listener = self.backend.storage.restored.listen();
-            let mut task = self.backend.storage.access_mut(task_id);
+            let mut task = self
+                .backend
+                .storage
+                .access_mut(self.phase.access_token(), task_id);
 
             if task.flags.is_restored(category) {
                 return Ok(task);
@@ -631,7 +709,10 @@ impl<'e> ExecuteContextImpl<'e> {
                 let storage_meta = restore_meta
                     .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
 
-                let mut task = self.backend.storage.access_mut(task_id);
+                let mut task = self
+                    .backend
+                    .storage
+                    .access_mut(self.phase.access_token(), task_id);
                 let mut restore_error = None;
                 if let Some(result) = storage_data
                     && let Err(error) =
@@ -706,7 +787,10 @@ impl<'e> ExecuteContextImpl<'e> {
         if !self.backend.should_restore() {
             for (task_id, category) in task_ids {
                 self.task_lock_counter.acquire();
-                let task = self.backend.storage.access_mut(task_id);
+                let task = self
+                    .backend
+                    .storage
+                    .access_mut(self.phase.access_token(), task_id);
                 debug_assert!(
                     task.flags.is_restored(category),
                     "task {task_id} should already be marked restored when there is no backing \
@@ -730,7 +814,10 @@ impl<'e> ExecuteContextImpl<'e> {
                     // Transient tasks have restored flags set at allocation time,
                     // so they never need DB restoration.
                     if call_prepared_task_callback_for_transient_tasks {
-                        let task = self.backend.storage.access_mut(id);
+                        let task = self
+                            .backend
+                            .storage
+                            .access_mut(self.phase.access_token(), id);
                         debug_assert!(
                             task.flags.is_restored(category),
                             "transient task {id} should already be marked restored"
@@ -774,7 +861,10 @@ impl<'e> ExecuteContextImpl<'e> {
             let task_id = entry.task_id;
             let category = entry.category;
             self.task_lock_counter.acquire();
-            let mut task = self.backend.storage.access_mut(task_id);
+            let mut task = self
+                .backend
+                .storage
+                .access_mut(self.phase.access_token(), task_id);
             let mut ready = true;
 
             if category.includes_data() && !task.flags.data_restored() {
@@ -908,7 +998,10 @@ impl<'e> ExecuteContextImpl<'e> {
             let task_id = entry.task_id;
 
             self.task_lock_counter.acquire();
-            let mut task = self.backend.storage.access_mut(task_id);
+            let mut task = self
+                .backend
+                .storage
+                .access_mut(self.phase.access_token(), task_id);
 
             if let Some(result) = entry.data_restore_result.take() {
                 match apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data) {
@@ -949,7 +1042,7 @@ impl<'e> ExecuteContextImpl<'e> {
                 if entry.transient_ref_pinned {
                     self.backend
                         .storage
-                        .access_mut(entry.task_id)
+                        .access_mut(self.phase.access_token(), entry.task_id)
                         .update_and_get_transient_ref_count(-1);
                 }
             }
@@ -1100,13 +1193,16 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     where
         Self: 'ctx;
 
-    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l>
+    fn child_context<'l>(&'l self) -> impl ChildExecuteContext<'l> + use<'e, 'l>
     where
         'e: 'l,
     {
+        let owner = self.phase.child_owner();
         ChildExecuteContextImpl {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
+            access: owner.access_token(),
+            owner,
         }
     }
 
@@ -1177,7 +1273,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     ) -> (Self::TaskGuardImpl<'_>, Self::TaskGuardImpl<'_>) {
         self.task_lock_counter.acquire_multiple(2);
 
-        let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+        let (mut task1, mut task2) =
+            self.backend
+                .storage
+                .access_pair_mut(self.phase.access_token(), task_id1, task_id2);
 
         // `task_pair` is always a `MustExist` open (both endpoints of an existing edge). Existence
         // check mirroring `open_task` (persistent tasks only — a transient task materializes lazily
@@ -1278,7 +1377,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 drop(self.wait_for_restore_or_panic(task_id2, cat));
             }
 
-            let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+            let (t1, t2) =
+                self.backend
+                    .storage
+                    .access_pair_mut(self.phase.access_token(), task_id1, task_id2);
             task1 = t1;
             task2 = t2;
             if waiting1 {
@@ -1378,14 +1480,17 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
-        let ExecutePhase::Normal { guard: Some(guard) } = &mut self.phase else {
+        let ExecutePhase::Normal {
+            guard: Some(guard), ..
+        } = &mut self.phase
+        else {
             return;
         };
         guard.suspend_point(|| op.clone().into());
     }
 
     fn note_maybe_collectible(&self, task: &impl TaskGuard) {
-        if let ExecutePhase::Gc(collector) = self.phase
+        if let ExecutePhase::Gc { collector, .. } = self.phase
             && task.is_gc_collectible()
         {
             collector(task.id());
@@ -1436,11 +1541,17 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
         self.backend.debug_get_task_description(task_id)
     }
+
+    fn storage_access_token(&self) -> StorageAccessToken<'_> {
+        self.phase.access_token()
+    }
 }
 
 struct ChildExecuteContextImpl<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+    access: StorageAccessToken<'e>,
+    owner: EpochOwner<'e>,
 }
 
 impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
@@ -1448,7 +1559,10 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
         ExecuteContextImpl {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
-            phase: ExecutePhase::Child,
+            phase: ExecutePhase::Child {
+                owner: self.owner,
+                access: self.access,
+            },
             // A child context runs inside its parent's execution, which the foreground drain
             // already waits for, so it needs no shutdown guard of its own.
             _shutdown_guard: None,
@@ -2149,7 +2263,7 @@ mod filter_transient_tracking_tests {
         counter: &'a TaskLockCounter,
         task_id: TaskId,
     ) -> TaskGuardImpl<'a> {
-        let mut write = storage.access_mut(task_id);
+        let mut write = storage.access_mut(StorageAccessToken::operation(), task_id);
         write.flags.set_restored(TaskDataCategory::All);
         counter.acquire();
         TaskGuardImpl {
@@ -2424,7 +2538,7 @@ mod cell_data_tracking_tests {
         counter: &'a TaskLockCounter,
         task_id: TaskId,
     ) -> TaskGuardImpl<'a> {
-        let mut write = storage.access_mut(task_id);
+        let mut write = storage.access_mut(StorageAccessToken::operation(), task_id);
         write.flags.set_restored(TaskDataCategory::All);
         counter.acquire();
         TaskGuardImpl {
@@ -2525,7 +2639,9 @@ mod cell_data_tracking_tests {
         // Run the post-snapshot eviction sweep: the task is clean (not modified),
         // so data is eligible to drop, but the Skip+never value is retained as
         // residue. The entry stays in the map with the value still present.
-        storage.evict_after_snapshot(None);
+        let coordinator =
+            crate::backend::snapshot_coordinator::SnapshotCoordinator::<AnyOperation>::new();
+        storage.evict_after_snapshot(&coordinator, None);
 
         let g = guard_for(&storage, &counter, task_id);
         assert!(
