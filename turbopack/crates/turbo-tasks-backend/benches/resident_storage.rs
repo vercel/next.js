@@ -9,7 +9,7 @@ use std::{
     time::Instant,
 };
 
-use criterion::{BenchmarkId, Criterion, Throughput};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard, lock_api::RawMutex as _};
 use turbo_tasks::{FxDashMap, TaskId};
 use turbo_tasks_malloc::TurboMalloc;
@@ -218,6 +218,50 @@ fn dense_map(count: u32, stride: u32) -> TaskMap<Payload> {
     map
 }
 
+fn dense_remove(map: &TaskMap<Payload>, id: TaskId) -> Option<Payload> {
+    map.get(id).map(|task| task.take_and_vacate())
+}
+
+fn dense_remove_discard(map: &TaskMap<Payload>, id: TaskId) -> bool {
+    let Some(task) = map.get(id) else {
+        return false;
+    };
+    task.vacate();
+    true
+}
+
+fn scan_dense(map: &TaskMap<Payload>, use_bitmap: bool) -> u64 {
+    let mut sum = 0;
+    for chunk in map.chunks() {
+        if use_bitmap {
+            chunk.for_each_mut(|value| sum ^= value.value());
+        } else {
+            chunk.for_each_all_mut(|value| sum ^= value.value());
+        }
+    }
+    sum
+}
+
+fn scan_dense_parallel(
+    runtime: &tokio::runtime::Runtime,
+    map: &TaskMap<Payload>,
+    use_bitmap: bool,
+) -> u64 {
+    let chunks = map.chunks();
+    runtime.block_on(async {
+        let sums: Vec<u64> = turbo_tasks::parallel::map_collect(&chunks, |chunk| {
+            let mut sum = 0;
+            if use_bitmap {
+                chunk.for_each_mut(|value| sum ^= value.value());
+            } else {
+                chunk.for_each_all_mut(|value| sum ^= value.value());
+            }
+            sum
+        });
+        sums.into_iter().fold(0, |sum, value| sum ^ value)
+    })
+}
+
 fn memory_delta<M>(build: impl FnOnce() -> M) -> (i128, usize) {
     TurboMalloc::collect(true);
     let before = TurboMalloc::allocation_counters();
@@ -281,7 +325,7 @@ fn report_reclamation(count: u32) {
     let live = TurboMalloc::allocation_counters();
     let loaded_before = dense.loaded_chunk_count();
     for raw in 1..=count {
-        assert!(dense.remove_discard(task_id(raw)));
+        assert!(dense_remove_discard(&dense, task_id(raw)));
     }
     let retired = dense.retire_empty_chunks();
     TurboMalloc::collect(true);
@@ -423,7 +467,7 @@ pub fn resident_storage(c: &mut Criterion) {
         b.iter(|| {
             next = next % LOOKUP_TASKS + 1;
             let id = task_id(next);
-            black_box(dense.remove(id));
+            black_box(dense_remove(&dense, id));
             let mut item = dense.get_or_insert(id);
             item.set(next);
             black_box(item.value());
@@ -448,7 +492,7 @@ pub fn resident_storage(c: &mut Criterion) {
         b.iter(|| {
             next = next % LOOKUP_TASKS + 1;
             let id = task_id(next);
-            black_box(dense.remove_discard(id));
+            black_box(dense_remove_discard(&dense, id));
             dense.get_or_insert(id).set(next);
         })
     });
@@ -466,7 +510,7 @@ pub fn resident_storage(c: &mut Criterion) {
                     let dense = dense.clone();
                     scope.spawn(move || {
                         for _ in 0..per_thread {
-                            black_box(dense.remove_discard(id));
+                            black_box(dense_remove_discard(&dense, id));
                             dense.get_or_insert(id).set(*id);
                         }
                     });
@@ -623,6 +667,10 @@ pub fn resident_storage(c: &mut Criterion) {
     // models incremental scans after the first eviction/restoration pass established sparsity.
     for chunk in dense.chunks() {
         for offset in chunk.probably_occupied_offsets() {
+            // TaskId zero is reserved; the all-true first bitmap contains it as a stale hint.
+            if !chunk.transient && chunk.base_id + offset == 0 {
+                continue;
+            }
             drop(chunk.get(offset));
         }
     }
@@ -646,4 +694,39 @@ pub fn resident_storage(c: &mut Criterion) {
         })
     });
     sparse_iteration.finish();
+
+    let mut bitmap = c.benchmark_group("resident_storage_bitmap");
+    for (shape, count, stride) in [
+        ("dense", 65_536, 1),
+        ("half", 32_768, 2),
+        ("ten_percent", 6_553, 10),
+        ("one_percent", 655, 100),
+    ] {
+        for (strategy, use_bitmap) in [("bitmap", true), ("all_slots", false)] {
+            bitmap.bench_function(format!("{shape}/first_serial/{strategy}"), |b| {
+                b.iter_batched(
+                    || dense_map(count, stride),
+                    |map| black_box(scan_dense(&map, use_bitmap)),
+                    BatchSize::SmallInput,
+                )
+            });
+            bitmap.bench_function(format!("{shape}/first_parallel/{strategy}"), |b| {
+                b.iter_batched(
+                    || dense_map(count, stride),
+                    |map| black_box(scan_dense_parallel(&runtime, &map, use_bitmap)),
+                    BatchSize::SmallInput,
+                )
+            });
+
+            let map = dense_map(count, stride);
+            black_box(scan_dense(&map, true));
+            bitmap.bench_function(format!("{shape}/subsequent_serial/{strategy}"), |b| {
+                b.iter(|| black_box(scan_dense(&map, use_bitmap)))
+            });
+            bitmap.bench_function(format!("{shape}/subsequent_parallel/{strategy}"), |b| {
+                b.iter(|| black_box(scan_dense_parallel(&runtime, &map, use_bitmap)))
+            });
+        }
+    }
+    bitmap.finish();
 }
