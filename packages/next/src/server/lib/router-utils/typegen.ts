@@ -448,14 +448,17 @@ export function generateValidatorFile(
       .filter(
         (filePath) => filePath.endsWith('.ts') || filePath.endsWith('.tsx')
       )
-      .filter(
-        // Don't include metadata routes or pages
-        // (e.g. /manifest.webmanifest)
-        (filePath) =>
-          type !== 'AppPageConfig' ||
-          filePath.endsWith('page.ts') ||
-          filePath.endsWith('page.tsx')
-      )
+      .filter((filePath) => {
+        // Metadata files have different exports from pages and route handlers.
+        if (type === 'AppPageConfig') {
+          return filePath.endsWith('page.ts') || filePath.endsWith('page.tsx')
+        }
+        if (type === 'RouteHandlerConfig') {
+          // Match custom page extensions too, such as route.api.ts.
+          return /(?:^|\/)route\.[^/]+$/.test(filePath)
+        }
+        return true
+      })
       .map((filePath) => {
         // Keep the file extension for TypeScript imports to support node16 module resolution
         const importPath = filePath
@@ -689,14 +692,17 @@ export function generateValidatorFileStrict(
       .filter(
         (filePath) => filePath.endsWith('.ts') || filePath.endsWith('.tsx')
       )
-      .filter(
-        // Don't include metadata routes or pages
-        // (e.g. /manifest.webmanifest)
-        (filePath) =>
-          type !== 'AppPageConfig' ||
-          filePath.endsWith('page.ts') ||
-          filePath.endsWith('page.tsx')
-      )
+      .filter((filePath) => {
+        // Metadata files have different exports from pages and route handlers.
+        if (type === 'AppPageConfig') {
+          return filePath.endsWith('page.ts') || filePath.endsWith('page.tsx')
+        }
+        if (type === 'RouteHandlerConfig') {
+          // Match custom page extensions too, such as route.api.ts.
+          return /(?:^|\/)route\.[^/]+$/.test(filePath)
+        }
+        return true
+      })
       .map((filePath) => {
         // Keep the file extension for TypeScript imports to support node16 module resolution
         const importPath = filePath

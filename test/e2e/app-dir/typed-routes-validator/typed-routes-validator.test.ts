@@ -1,6 +1,6 @@
 import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir, retry } from 'next-test-utils'
+import { getDistDir, retry, runNextCommand } from 'next-test-utils'
 
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
@@ -348,4 +348,27 @@ describe('typed-routes-validator', () => {
       }
     })
   }
+
+  it('should exclude metadata files from route handler validation after typegen', async () => {
+    const { code } = await runNextCommand(['typegen', next.testDir])
+    expect(code).toBe(0)
+
+    const validator = await next.readFile('.next/types/validator.ts')
+    expect(validator).not.toContain('/app/icon.tsx')
+    expect(validator).toContain('/app/send-email/route.ts')
+
+    const { exitCode, stdout, stderr } = await execa(
+      'pnpm',
+      ['tsc', '--noEmit'],
+      {
+        cwd: next.testDir,
+        reject: false,
+      }
+    )
+    expect({ exitCode, stdout, stderr }).toEqual({
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    })
+  })
 })
