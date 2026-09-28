@@ -98,7 +98,7 @@ export function DiffTreemap({
     sourceIndexByKey.set(row.key, idx)
   }
 
-  const getFileColorOverride = (node: LayoutNode): string | undefined => {
+  function getFileColorOverride(node: LayoutNode): string | undefined {
     if (node.sourceIndex === undefined) return undefined
     const row = rowBySourceIndex.get(node.sourceIndex)
     if (!row) return COLOR_NEUTRAL
@@ -108,7 +108,7 @@ export function DiffTreemap({
   // Show size deltas on tiles instead of absolute sizes. Identical files fall
   // back to the default (absolute size) since ±0 on every unchanged tile
   // would be noise.
-  const getFileSizeLabel = (node: LayoutNode): string | undefined => {
+  function getFileSizeLabel(node: LayoutNode): string | undefined {
     if (node.sourceIndex === undefined) return undefined
     const row = rowBySourceIndex.get(node.sourceIndex)
     if (!row || row.status === 'identical') return undefined

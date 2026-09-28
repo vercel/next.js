@@ -545,10 +545,7 @@ function ComparisonContent({
         )
       )
     : new Map<number, number>()
-  const compareFilterSource = (
-    side: 'A' | 'B',
-    sourceIndex: number
-  ): boolean => {
+  function compareFilterSource(side: 'A' | 'B', sourceIndex: number): boolean {
     const data = side === 'A' ? baselineAnalyzeData : model.analyzeData
     if (!data) return false
     const flags = data.getSourceFlags(sourceIndex)
