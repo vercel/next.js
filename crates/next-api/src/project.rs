@@ -1018,9 +1018,7 @@ impl ProjectContainer {
 }
 
 #[derive(Clone)]
-// The HMR entry map holds session-local pinned operations. Persisting just the other fields and
-// defaulting this map after restore would leave clean endpoint tasks with no registrations, so
-// recreate the entire Project each session and keep the registry alive for that session.
+// HMR registrations are session-local, so Project must not be persisted or evicted.
 #[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
@@ -1033,8 +1031,7 @@ pub struct Project {
     /// E.g. `apps/my-app`
     project_path: RcStr,
 
-    // This map holds pinned operations for the lifetime of the current dev session. It is
-    // intentionally excluded from Turbo Tasks tracing; Project is never evicted.
+    // The registry lives with Project and needs no Turbo Tasks tracing.
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     server_hmr_entry_map: Option<Arc<ServerHmrEntryMap>>,
 
