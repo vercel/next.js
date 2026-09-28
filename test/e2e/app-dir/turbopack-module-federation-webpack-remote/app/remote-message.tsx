@@ -22,7 +22,6 @@ export function RemoteMessage() {
 
   useEffect(() => {
     async function load() {
-      // @ts-expect-error -- configured with a local fallback at runtime
       const fallbackModule = await import('local-fallback')
       setFallback(fallbackModule.value)
       setMessage('fallback loaded')
