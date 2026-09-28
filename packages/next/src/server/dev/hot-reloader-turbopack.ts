@@ -253,9 +253,7 @@ function setupServerHmr(
   }
 ) {
   let pending = Promise.resolve()
-  // Each pull snapshots only the requested endpoint's entries. Keep independent
-  // baselines so building one route does not discard another route's version.
-  const versions = new Map<string, ServerHmrVersion>()
+  const versions = new Map<EntryKey, ServerHmrVersion>()
   let needsReEvaluation = false
 
   async function recover() {
@@ -268,7 +266,7 @@ function setupServerHmr(
     }
   }
 
-  function apply(entryPaths: string[]): Promise<void> {
+  function apply(entryKey: EntryKey): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
@@ -276,16 +274,14 @@ function setupServerHmr(
       }
 
       try {
-        const versionKey = [...entryPaths].sort().join('\0')
-        // `issues` is intentionally dropped: this pull scans project-wide chunk
-        // lists, so its issues may belong to an unrelated or removed route, and
-        // endpoint writes already report route-scoped issues.
+        // `issues` is intentionally dropped: the endpoint write for this route
+        // already reported them.
         const { value: update } = await project.getServerHmrUpdate(
-          versions.get(versionKey),
-          entryPaths
+          entryKey,
+          versions.get(entryKey)
         )
         if (update.version) {
-          versions.set(versionKey, update.version)
+          versions.set(entryKey, update.version)
         }
         switch (update.kind) {
           case 'none':
@@ -2136,8 +2132,7 @@ export async function createHotReloaderTurbopack(
           // Set by `handleWrittenEndpoint` below, so the pull is gated on the
           // same predicate as the require-cache handling rather than a second,
           // coarser reading of `route.type`.
-          let shouldPullServerHmr = false
-          let serverHmrEntryPaths: string[] = []
+          let serverHmrEntryKey: EntryKey | undefined
           try {
             await handleRouteType({
               dev,
@@ -2166,12 +2161,8 @@ export async function createHotReloaderTurbopack(
                     id,
                     result.value.serverPaths.map(({ path }) => path)
                   )
-                  shouldPullServerHmr ||= participatesInServerHmr(
-                    id,
-                    result.value
-                  )
-                  if (result.value.serverHmrEntryPaths.length > 0) {
-                    serverHmrEntryPaths = result.value.serverHmrEntryPaths
+                  if (participatesInServerHmr(id, result.value)) {
+                    serverHmrEntryKey = id
                   }
                   return clearRequireCache(id, result.value, {
                     force: forceDeleteCache,
@@ -2182,8 +2173,8 @@ export async function createHotReloaderTurbopack(
 
             // The only server HMR pull, driven by the request being built — which
             // is what makes evaluating a changed module lazy.
-            if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
-              await serverHmr?.apply(serverHmrEntryPaths)
+            if (serverHmrEntryKey) {
+              await serverHmr?.apply(serverHmrEntryKey)
             }
           } finally {
             finishBuilding()

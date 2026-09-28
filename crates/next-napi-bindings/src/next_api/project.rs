@@ -1915,7 +1915,9 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::value(serialization = "skip")]
+// These snapshots contain ReadRefs: keep them alive for the duration of a pull instead of
+// evicting their cells while the JS caller still holds a version.
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 struct ServerHmrSnapshotWithEffects {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
     version: ReadRef<ServerHmrChunkListVersion>,
@@ -1923,7 +1925,8 @@ struct ServerHmrSnapshotWithEffects {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "skip")]
+// The ReadRefs in this snapshot must remain valid until the pull has finished.
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 struct ServerHmrSnapshot {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
     version: ReadRef<ServerHmrChunkListVersion>,
@@ -1932,9 +1935,9 @@ struct ServerHmrSnapshot {
 #[turbo_tasks::function(operation, root)]
 async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
-    entry_paths: Vec<RcStr>,
+    entry_key: next_api::aggregate_hmr::ServerHmrEntryKey,
 ) -> Result<Vc<ServerHmrSnapshot>> {
-    let chunk_lists = project.server_hmr_chunks_for_entries(entry_paths).await?;
+    let chunk_lists = project.await?.server_hmr_chunk_lists(&entry_key).await?;
     let version = ServerHmrChunkListVersion::from_chunk_lists(chunk_lists.as_slice())
         .await?
         .cell()
@@ -1951,10 +1954,10 @@ async fn project_server_hmr_snapshot_operation(
 #[turbo_tasks::function(operation, root)]
 async fn server_hmr_snapshot_with_effects_operation(
     project: ResolvedVc<Project>,
-    entry_paths: Vec<RcStr>,
+    entry_key: next_api::aggregate_hmr::ServerHmrEntryKey,
 ) -> Result<Vc<ServerHmrSnapshotWithEffects>> {
     tracing::info!("server hmr snapshot");
-    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths);
+    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_key);
     // Build-graph failures must reach the JS recovery path.
     let snapshot = snapshot_op
         .read_strongly_consistent()
@@ -2007,8 +2010,8 @@ impl NapiServerHmrUpdate {
 #[napi]
 pub async fn project_get_server_hmr_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
+    entry_key: RcStr,
     from: Option<&External<ServerHmrVersion>>,
-    entry_paths: Vec<RcStr>,
 ) -> napi::Result<TurbopackResult<NapiServerHmrUpdate>> {
     let container = project.container;
     let turbo_tasks = project.turbopack_ctx.turbo_tasks();
@@ -2021,7 +2024,10 @@ pub async fn project_get_server_hmr_update(
             let project = container.project().to_resolved().await?;
             // HACK(bgw): Remove this mark call
             mark_top_level_task();
-            let snapshot_op = server_hmr_snapshot_with_effects_operation(project, entry_paths);
+            let snapshot_op = server_hmr_snapshot_with_effects_operation(
+                project,
+                next_api::aggregate_hmr::ServerHmrEntryKey::new(entry_key),
+            );
             let read =
                 read_strongly_consistent_and_apply_effects(snapshot_op, |v| &v.effects).await?;
             Ok((project, read))

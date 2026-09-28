@@ -106,7 +106,7 @@ use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
     additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
-    aggregate_hmr::ServerHmrChunkLists,
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrEntryKey, ServerHmrEntryMap},
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -116,8 +116,8 @@ use crate::{
     pages::PagesProject,
     path_utils::convention_file_base_name,
     route::{
-        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
-        Route,
+        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups,
+        EndpointOutput, Endpoints, Route,
     },
     versioned_content_map::VersionedContentMap,
 };
@@ -971,6 +971,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
+            server_hmr_entry_map: dev.then(|| Arc::new(ServerHmrEntryMap::default())),
             build_id,
             encryption_key,
             preview_props,
@@ -1017,7 +1018,10 @@ impl ProjectContainer {
 }
 
 #[derive(Clone)]
-#[turbo_tasks::value]
+// The HMR entry map holds session-local pinned operations. Persisting just the other fields and
+// defaulting this map after restore would leave clean endpoint tasks with no registrations, so
+// recreate the entire Project each session and keep the registry alive for that session.
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -1028,6 +1032,11 @@ pub struct Project {
     /// a Unix path.
     /// E.g. `apps/my-app`
     project_path: RcStr,
+
+    // This map holds pinned operations for the lifetime of the current dev session. It is
+    // intentionally excluded from Turbo Tasks tracing; Project is never evicted.
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    server_hmr_entry_map: Option<Arc<ServerHmrEntryMap>>,
 
     /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
     /// Unix path. Corresponds to next.config.js's `distDir`.
@@ -1090,8 +1099,35 @@ pub struct Project {
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
-    #[bincode(with = "turbo_bincode::indexmap")]
     pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
+}
+
+impl Project {
+    pub fn register_server_hmr_entry(
+        &self,
+        entry_key: ServerHmrEntryKey,
+        output: OperationVc<EndpointOutput>,
+    ) {
+        if let Some(server_hmr_entry_map) = &self.server_hmr_entry_map {
+            server_hmr_entry_map.set(entry_key, output);
+        }
+    }
+
+    pub async fn server_hmr_chunk_lists(
+        &self,
+        entry_key: &ServerHmrEntryKey,
+    ) -> Result<ReadRef<ServerHmrChunkLists>> {
+        let output = self
+            .server_hmr_entry_map
+            .as_ref()
+            .and_then(|server_hmr_entry_map| server_hmr_entry_map.get(entry_key));
+        if let Some(output) = output
+            && let Some(chunk_lists) = output.connect().await?.server_hmr_chunks
+        {
+            return chunk_lists.await;
+        }
+        Ok(ReadRef::new_owned(ServerHmrChunkLists::new(vec![])))
+    }
 }
 
 #[turbo_tasks::value]
@@ -2593,11 +2629,6 @@ impl Project {
         .await
     }
 
-    #[turbo_tasks::function]
-    async fn server_hmr_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.node_root().await?.join("server/app")?.cell())
-    }
-
     /// Get client HMR content by chunk_name.
     #[turbo_tasks::function]
     async fn hmr_content(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<OptionVersionedContent>> {
@@ -2670,27 +2701,6 @@ impl Project {
         } else {
             Ok(Update::Missing.cell())
         }
-    }
-
-    /// Server entry chunks shared by all pull baselines.
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
-        let Some(map) = self.await?.versioned_content_map else {
-            bail!("must be in dev mode to hmr")
-        };
-        let root = self.server_hmr_root_path().owned().await?;
-        Ok(map.server_hmr_chunks_in_path(root))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks_for_entries(
-        self: Vc<Self>,
-        entry_paths: Vec<RcStr>,
-    ) -> Result<Vc<ServerHmrChunkLists>> {
-        let mut chunk_lists =
-            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
-        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
-        Ok(chunk_lists.cell())
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.
