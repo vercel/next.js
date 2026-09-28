@@ -2782,6 +2782,7 @@ export async function cache(
             }
             case 'request': {
               if (isValidationRender(workUnitStore)) {
+                workUnitStore.hasShortLivedCache = true
                 // End the cache signal read (once, in case an earlier block
                 // already did) so the delayed value isn't counted as a pending
                 // read at a staged rendering boundary.
@@ -3430,6 +3431,7 @@ export async function cache(
               // it's below `MIN_PREFETCHABLE_STALE`, from prerenders
               // entirely.
               if (isValidationRender(workUnitStore)) {
+                workUnitStore.hasShortLivedCache = true
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the delayed value isn't counted as a
                 // pending read at a staged rendering boundary.
