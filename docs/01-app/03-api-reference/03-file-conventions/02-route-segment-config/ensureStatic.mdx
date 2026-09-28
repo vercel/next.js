@@ -64,11 +64,11 @@ Because the shell cannot include session data, [instant validation](/docs/app/ap
 
 Serves the App Shell and per-link prefetches, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), from static output. Reads of `cookies()` and `headers()` behave as if they were below [`unstable_navigation()`](/docs/app/api-reference/functions/navigation): the content that reads them renders on the navigation.
 
-Without Partial Prefetching, this is how Cache Components prefetches by default, so the value has no additional effect.
+Without Partial Prefetching, default prefetches already use static output, so this value has no additional effect. `<Link prefetch={true}>` can still prefetch request-time content, the same as a navigation.
 
 ### `'navigation'`
 
-Requires every segment of the route to prerender completely, so initial loads and client navigations use static output. This works with or without Partial Prefetching.
+Requires every segment of the route to prerender completely, so initial loads and client navigations use static output. This level also works with Cache Components alone, without enabling Partial Prefetching.
 
 Unlike `'shell'` and `'prefetch'`, this level does not allow server content to wait for a later rendering stage.
 
@@ -76,7 +76,7 @@ Server content that requires per-request work fails `next build` and shows an er
 
 - Uncached data, such as a `fetch` or database call without [`use cache`](/docs/app/api-reference/directives/use-cache).
 - [`connection()`](/docs/app/api-reference/functions/connection), `cookies()`, `headers()`, and server-side `searchParams`.
-- A `use cache` scope whose [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes. A short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time is allowed.
+- A `use cache` scope whose [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, whose [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or whose [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`. A `stale` time between 30 seconds and five minutes is allowed.
 - A promise for request-dependent server data passed to a Client Component, whether or not the component reads it.
 
 These constraints also apply to [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport).
