@@ -147,4 +147,38 @@ describe('age-gated security upgrade', () => {
       },
     })
   })
+
+  it('tries an older eligible patch when the newest patch has an advisory', async () => {
+    mockReleases(72)
+    const fetchReleases = global.fetch
+    global.fetch = jest.fn(async (input, init) => {
+      const url = String(input)
+      if (url === 'https://registry.npmjs.org/next') {
+        const response = await fetchReleases(input, init)
+        const metadata = await response.json()
+        metadata.versions['16.0.3'] = { version: '16.0.3' }
+        metadata.time['16.0.3'] = new Date(
+          now - 72 * 60 * 60 * 1000
+        ).toISOString()
+        return Response.json(metadata)
+      }
+      if (
+        url ===
+          'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk' &&
+        String(init?.body) === '{"next":["16.0.3"]}'
+      ) {
+        return Response.json({ next: [{ vulnerable_versions: '16.0.3' }] })
+      }
+      return fetchReleases(input, init)
+    })
+
+    await expect(
+      getUpgradeAssessment('16.0.0', 'security', false, null, {
+        name: 'next',
+        minimumReleaseAge: age,
+      })
+    ).resolves.toMatchObject({
+      upgrade: { status: 'ready', targetVersion: '16.0.2' },
+    })
+  })
 })

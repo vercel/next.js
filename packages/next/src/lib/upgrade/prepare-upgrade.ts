@@ -213,29 +213,38 @@ export async function getUpgradeAssessment(
           if (candidateMajor < semver.major(installedVersion)) {
             continue
           }
-          let candidate: string
-          try {
-            candidate = await resolveAgeEligibleVersion(
-              {
-                ...ageGatedPackage,
-                range: `>=${candidateMajor}.0.0 <${candidateMajor + 1}.0.0`,
-              },
-              'latest'
-            )
-          } catch (error) {
-            if (error instanceof NoAgeEligibleReleaseError) {
-              continue
+          let upperBound = `<${candidateMajor + 1}.0.0`
+          while (true) {
+            let candidate: string
+            try {
+              candidate = await resolveAgeEligibleVersion(
+                {
+                  ...ageGatedPackage,
+                  range: `>=${candidateMajor}.0.0 ${upperBound}`,
+                },
+                'latest'
+              )
+            } catch (error) {
+              if (error instanceof NoAgeEligibleReleaseError) {
+                break
+              }
+              throw error
             }
-            throw error
+            if (!semver.gt(candidate, installedVersion)) {
+              break
+            }
+            if (
+              !ranges.some((range) => semver.satisfies(candidate, range)) &&
+              !(await readNpmAdvisories([candidate])).some((range) =>
+                semver.satisfies(candidate, range)
+              )
+            ) {
+              safeTarget = candidate
+              break
+            }
+            upperBound = `<${candidate}`
           }
-          if (
-            semver.gt(candidate, installedVersion) &&
-            !ranges.some((range) => semver.satisfies(candidate, range)) &&
-            !(await readNpmAdvisories([candidate])).some((range) =>
-              semver.satisfies(candidate, range)
-            )
-          ) {
-            safeTarget = candidate
+          if (safeTarget !== null) {
             break
           }
         }

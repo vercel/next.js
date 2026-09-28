@@ -11,6 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import {
   getAgeGateRegistry,
   getAgeGatedPackage,
+  NoAgeEligibleReleaseError,
   resolveAgeEligibleVersion,
   type AgeGatedPackageManager,
 } from '../lib/helpers/get-minimum-release-age'
@@ -220,14 +221,23 @@ export async function spawnNextUpgrade(
         }
       } else {
         Log.info(dim('Preparing upgrade...'))
-        const canaryVersion = await resolveCanaryVersion(
-          baseDir,
-          packageManager
-        )
+        let canaryVersion: string | null
+        try {
+          canaryVersion = await resolveCanaryVersion(baseDir, packageManager)
+        } catch (error) {
+          if (
+            !(error instanceof NoAgeEligibleReleaseError) ||
+            prerelease(process.env.__NEXT_VERSION ?? '')?.[0] !== 'canary'
+          ) {
+            throw error
+          }
+          canaryVersion = null
+        }
         eligibleCanaryVersion = canaryVersion
         if (
-          prerelease(process.env.__NEXT_VERSION ?? '')?.[0] !== 'canary' ||
-          !gte(process.env.__NEXT_VERSION!, canaryVersion)
+          canaryVersion !== null &&
+          (prerelease(process.env.__NEXT_VERSION ?? '')?.[0] !== 'canary' ||
+            !gte(process.env.__NEXT_VERSION!, canaryVersion))
         ) {
           const [command, ...runnerArgs] = getNpxCommand(
             baseDir,
@@ -414,9 +424,10 @@ export async function spawnNextUpgrade(
             '@next/codemod'
           )
           const codemodVersion =
-            codemodPackage.minimumReleaseAge > 0
+            eligibleCanaryVersion ??
+            (codemodPackage.minimumReleaseAge > 0
               ? await resolveAgeEligibleVersion(codemodPackage, 'canary')
-              : process.env.__NEXT_VERSION
+              : process.env.__NEXT_VERSION)
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
