@@ -4,18 +4,17 @@ use std::{
     borrow::Borrow,
     env,
     hash::BuildHasherDefault,
+    mem::size_of,
     path::PathBuf,
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
 use anyhow::{Context, Result, ensure};
 use auto_hash_map::AutoMap;
-use bincode::{Decode, de::Decoder};
 use rustc_hash::{FxHashMap, FxHasher};
 use smallvec::SmallVec;
 use turbo_bincode::{
-    TurboBincodeBuffer, new_turbo_bincode_decoder, smallvec as bincode_smallvec,
-    turbo_bincode_decode, turbo_bincode_encode,
+    TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
 };
 use turbo_persistence::{ArcBytes, CommitStats};
 use turbo_tasks::{
@@ -92,33 +91,52 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
 /// One encoded value per TaskCache hash, with most buckets fitting inline.
 type TaskIdBucket = SmallVec<[TaskId; 3]>;
 
+/// TaskIds fit in 31 bits; the unused high bit signals that another ID follows.
+const TASK_CACHE_CONTINUATION_BIT: u32 = 1 << 31;
+
 /// Snapshot add/delete intents for one stable hash. The usual one or two IDs stay inline.
 /// `true` adds an ID, `false` removes it (removal wins if shards disagree).
 type TaskCacheIntents = AutoMap<TaskId, bool, BuildHasherDefault<FxHasher>, 2>;
 
-/// Encode a borrowed slice as a bincode list of TaskIds.
-fn encode_task_ids(
-    task_ids: &[TaskId],
-) -> std::result::Result<TurboBincodeBuffer, bincode::error::EncodeError> {
-    turbo_bincode_encode(&task_ids)
+/// Store each TaskId as a little-endian word, with a continuation bit on nonfinal IDs.
+/// Most TaskCache buckets contain only one ID and occupy exactly four bytes.
+fn encode_task_ids(task_ids: &[TaskId]) -> Result<TurboBincodeBuffer> {
+    ensure!(!task_ids.is_empty(), "empty TaskCache bucket");
+    let capacity = task_ids
+        .len()
+        .checked_mul(size_of::<u32>())
+        .context("TaskCache bucket length overflow")?;
+    let mut bytes = TurboBincodeBuffer::with_capacity(capacity);
+    for (index, id) in task_ids.iter().enumerate() {
+        let raw = **id;
+        debug_assert_eq!(raw & TASK_CACHE_CONTINUATION_BIT, 0);
+        let word = raw
+            | if index + 1 < task_ids.len() {
+                TASK_CACHE_CONTINUATION_BIT
+            } else {
+                0
+            };
+        bytes.extend_from_slice(&word.to_le_bytes());
+    }
+    Ok(bytes)
 }
 
 fn decode_task_ids(bytes: &[u8]) -> Result<TaskIdBucket> {
-    let mut decoder = new_turbo_bincode_decoder(bytes);
-    let len = usize::decode(&mut decoder)?;
-    // The decoder uses NoLimit; bound the allocation before SmallVec::with_capacity.
-    // Every encoded TaskId consumes at least one byte.
+    let (words, remainder) = bytes.as_chunks::<4>();
     ensure!(
-        len <= decoder.reader().buffer.len(),
-        "TaskCache bucket length exceeds available bytes"
+        !words.is_empty() && remainder.is_empty(),
+        "invalid TaskCache bucket length"
     );
-    let mut decoder = new_turbo_bincode_decoder(bytes);
-    let ids: TaskIdBucket = bincode_smallvec::decode(&mut decoder)?;
-    ensure!(
-        decoder.reader().buffer.is_empty(),
-        "trailing bytes in TaskCache bucket"
-    );
-    ensure!(!ids.is_empty(), "empty TaskCache bucket");
+    let word_count = words.len();
+    let mut ids = TaskIdBucket::with_capacity(word_count);
+    for (index, chunk) in words.iter().enumerate() {
+        let word = u32::from_le_bytes(*chunk);
+        ensure!(
+            (word & TASK_CACHE_CONTINUATION_BIT != 0) == (index + 1 < word_count),
+            "invalid TaskCache continuation bit"
+        );
+        ids.push(TaskId::try_from(word & !TASK_CACHE_CONTINUATION_BIT)?);
+    }
     Ok(ids)
 }
 
@@ -434,9 +452,11 @@ impl TurboBackingStorage {
             })?;
 
             if !task_cache_changes.is_empty() {
-                // Snapshot owns the only database write batch, so if the entire committed
-                // database is empty no prior TaskCache bucket can exist. Skip batch_get's
-                // hashing/sorting of keys on the first snapshot; later snapshots read again.
+                // The snapshot already owns the database's only write batch: no other batch can
+                // commit while we read. batch_get therefore sees all previously committed
+                // collision siblings, even those absent from the in-memory type map.
+                // If the entire committed database is empty, skip batch_get's hashing/sorting
+                // on the first snapshot; later snapshots read again.
                 let hashes: Vec<_> = task_cache_changes.keys().copied().collect();
                 let was_empty = self.inner.database.is_empty();
                 let span = tracing::trace_span!(
@@ -467,9 +487,9 @@ impl TurboBackingStorage {
                     "batch_read_hits",
                     old_values.iter().filter(|value| value.is_some()).count(),
                 );
-                // Each hash is unique after merging shard intents. No worker reads TaskCache
-                // after batch_get returns, and the batch supports concurrent writes to
-                // distinct keys. Keep small snapshots serial to avoid scheduling overhead.
+                // All committed TaskCache buckets are read before any TaskCache writes to this
+                // batch. Merged intents contain each hash only once, so workers write distinct
+                // keys while the batch supports concurrent puts and deletes.
                 let reconcile =
                     |(hash, old_value): (TaskTypeHash, Option<ArcBytes>)| -> Result<()> {
                         let _entered = span.enter();
@@ -500,6 +520,8 @@ impl TurboBackingStorage {
                         Ok(())
                     };
                 let entries: Vec<_> = hashes.into_iter().zip(old_values).collect();
+                // try_for_each_owned chunks multi-item inputs, but would schedule even two
+                // hashes on a multi-core host; avoid overhead on typical small snapshots.
                 if entries.len() < 64 {
                     for entry in entries {
                         reconcile(entry)?;
@@ -697,29 +719,59 @@ mod tests {
 
     #[test]
     fn task_cache_bucket_codec_roundtrips_inline_and_spilled_lists() -> Result<()> {
-        let ids: Vec<_> = (1..=4).map(|id| TaskId::try_from(id).unwrap()).collect();
-        for len in 1..=4 {
+        let ids: Vec<_> = (1..=5).map(TaskId::try_from).collect::<Result<_, _>>()?;
+        for len in 1..=5 {
             assert_eq!(
                 decode_task_ids(&encode_task_ids(&ids[..len])?)?.as_slice(),
                 &ids[..len]
             );
+            assert_eq!(encode_task_ids(&ids[..len])?.len(), len * 4);
         }
-        let mut invalid = encode_task_ids(&ids[..1])?.to_vec();
-        invalid.push(0);
-        assert!(
-            decode_task_ids(&invalid).is_err(),
-            "trailing bytes must be rejected"
-        );
-        assert!(
-            decode_task_ids(&encode_task_ids(&[])?).is_err(),
-            "empty buckets are invalid"
-        );
-        let oversized_len = turbo_bincode_encode(&u64::MAX)?;
-        assert!(
-            decode_task_ids(&oversized_len).is_err(),
-            "an impossible bucket length must fail before allocation"
-        );
         Ok(())
+    }
+
+    #[test]
+    fn task_cache_bucket_uses_continuation_words() -> Result<()> {
+        // TaskIds are nonzero and at most 31 bits, leaving bit 31 for continuation.
+        for (raw, bytes) in [
+            (1u32, [1, 0, 0, 0]),
+            (250, [250, 0, 0, 0]),
+            (251, [251, 0, 0, 0]),
+            (65_535, [255, 255, 0, 0]),
+            (65_536, [0, 0, 1, 0]),
+            (0x3fff_ffff, [255, 255, 255, 0x3f]),
+            (0x7fff_ffff, [255, 255, 255, 0x7f]),
+        ] {
+            let id = TaskId::try_from(raw)?;
+            assert_eq!(encode_task_ids(&[id])?.as_slice(), &bytes);
+            assert_eq!(decode_task_ids(&bytes)?.as_slice(), &[id]);
+        }
+        let ids = [TaskId::try_from(1)?, TaskId::try_from(65_536)?];
+        let bytes = [1, 0, 0, 0x80, 0, 0, 1, 0];
+        assert_eq!(encode_task_ids(&ids)?.as_slice(), &bytes);
+        assert_eq!(decode_task_ids(&bytes)?.as_slice(), &ids);
+        Ok(())
+    }
+
+    #[test]
+    fn task_cache_bucket_rejects_invalid_continuation_words() {
+        assert!(
+            encode_task_ids(&[]).is_err(),
+            "empty buckets cannot be encoded"
+        );
+        for bytes in [
+            &[][..],
+            &[1][..],
+            &[1, 0, 0][..],
+            &[0, 0, 0, 0][..],
+            &[0, 0, 0, 0x80][..],
+            &[0, 0, 0, 0x80, 1, 0, 0, 0][..],
+            &[1, 0, 0, 0x80][..],
+            &[1, 0, 0, 0, 2, 0, 0, 0][..],
+            &[1, 0, 0, 0, 2][..],
+        ] {
+            assert!(decode_task_ids(bytes).is_err(), "invalid bucket: {bytes:?}");
+        }
     }
 
     /// Helper to populate a single-value collision list using the concurrent batch API.
@@ -783,6 +835,14 @@ mod tests {
             "Should return all 3 task IDs for the colliding hash"
         );
 
+        db.shutdown()?;
+        drop(db);
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        assert_eq!(
+            task_cache_ids(&db, collision_hash)?,
+            vec![task_id_1, task_id_2, task_id_3],
+            "colliding TaskIds survive database reopen"
+        );
         db.shutdown()?;
         Ok(())
     }
