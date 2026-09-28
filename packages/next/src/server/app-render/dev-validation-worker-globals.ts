@@ -38,7 +38,6 @@ export type SerializedAccumulatedChunks = Record<
 export interface SerializedValidationInputs {
   accumulatedChunks: SerializedAccumulatedChunks
   debugChunks: Uint8Array[] | null
-  hasShortLivedCache: boolean
   startTime: number
   stageEndTimes: StageEndTimes
 }

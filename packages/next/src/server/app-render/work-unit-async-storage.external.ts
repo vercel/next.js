@@ -99,13 +99,6 @@ export interface RequestStore extends CommonWorkUnitStore {
    * */
   hasIncompatibleShellContent?: boolean
 
-  /**
-   * DEV-only, mutable.
-   * Whether static validation deferred a cache entry whose lifetime is too
-   * short to guarantee fully static output.
-   * */
-  hasShortLivedCache?: boolean
-
   cacheSignal?: CacheSignal | null
   /**
    * These params resolve after the static stage without replacing their

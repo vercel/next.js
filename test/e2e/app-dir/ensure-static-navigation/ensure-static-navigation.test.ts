@@ -951,20 +951,13 @@ describe('ensureStatic = "navigation"', () => {
       const route = '/default/excluded-caches/non-prerenderable-cache'
       if (isNextDev) {
         const browser = await next.browser(route)
-        const error = await getRedboxErrors(browser, 'collapsed', false)
+        const error = await getRedboxErrors(browser, 'collapsed')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Route "/default/excluded-caches/non-prerenderable-cache": Next.js encountered runtime data on a route that must be fully static.
-
-         This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache prevents it from being prerendered.
-
-         Ways to fix this:
-           - [remove] Remove the dynamic data access
-           - [static-params] For \`params\`: specify a static set of params to prerender with \`generateStaticParams()\`
-           - [client] For \`searchParams\`: read them on the client with \`useSearchParams()\`",
+           "description": "Next.js encountered runtime data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Console Error",
+           "label": "Blocking Route",
            "source": "app/default/excluded-caches/non-prerenderable-cache/page.tsx (17:9) @ Inner
          > 17 |   await nonPrerenderableCache()
               |         ^",

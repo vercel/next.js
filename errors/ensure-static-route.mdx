@@ -268,7 +268,7 @@ The route explicitly requires fully static server output. This is separate from 
 
 `unstable_ensureStatic = 'navigation'` is an explicit opt-in. It was likely added because this route must avoid per-request server work, so keep it when fully static output is part of the route's contract.
 
-If request-time server data is intentional and you do not need that guarantee, remove the export from each page or layout on the route that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/cache-components) rendering rules. Removing the export allows per-request server work; it does not disable the separate instant-navigation validation.
+If request-time server data is intentional and you do not need that guarantee, remove the export from each page or layout on the route that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules. Removing the export allows per-request server work; it does not disable the separate instant-navigation validation.
 
 ## Related Insights
 

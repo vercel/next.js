@@ -2630,7 +2630,6 @@ export async function cache(
             }
             case 'request': {
               if (isValidationRender(workUnitStore)) {
-                workUnitStore.hasShortLivedCache = true
                 // These throws force an explicit cache life decision on an
                 // outer cache that a nested cache would otherwise silently
                 // shorten (see `shouldReportNestedCacheError` above). Otherwise
@@ -2782,7 +2781,6 @@ export async function cache(
             }
             case 'request': {
               if (isValidationRender(workUnitStore)) {
-                workUnitStore.hasShortLivedCache = true
                 // End the cache signal read (once, in case an earlier block
                 // already did) so the delayed value isn't counted as a pending
                 // read at a staged rendering boundary.
@@ -3383,7 +3381,6 @@ export async function cache(
               return hangingPromise
             case 'request': {
               if (isValidationRender(workUnitStore)) {
-                workUnitStore.hasShortLivedCache = true
                 // A short-lived entry is a dynamic hole, excluded from the
                 // static shell, so we end the cache signal read here (the
                 // prerender case does the same) to avoid this cache hit being
@@ -3431,7 +3428,6 @@ export async function cache(
               // it's below `MIN_PREFETCHABLE_STALE`, from prerenders
               // entirely.
               if (isValidationRender(workUnitStore)) {
-                workUnitStore.hasShortLivedCache = true
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the delayed value isn't counted as a
                 // pending read at a staged rendering boundary.

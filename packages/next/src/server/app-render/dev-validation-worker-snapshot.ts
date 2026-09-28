@@ -54,7 +54,6 @@ export async function buildDevValidationSnapshot(
   ): Promise<SerializedValidationInputs> => ({
     accumulatedChunks: inputs.accumulatedChunks,
     debugChunks: await getDebugChunksOnce(inputs.debugChannelClient),
-    hasShortLivedCache: inputs.hasShortLivedCache,
     startTime: inputs.startTime,
     stageEndTimes: inputs.stageEndTimes,
   })
