@@ -17,7 +17,6 @@ import {
 import {
   delta,
   formatDelta,
-  sortByImpact,
   type DiffRow,
   type DiffSummary,
   type DiffStatus,
@@ -99,7 +98,7 @@ const virtuosoComponents = {
  *
  *   | Name | A (before) | B (after) | Δ |
  *
- * Rows are sorted by absolute delta (largest impact first).
+ * In compare mode, rows are sorted by signed delta (largest increase first).
  */
 export function DiffTable<Row extends DiffRow>({
   summary,
@@ -116,7 +115,7 @@ export function DiffTable<Row extends DiffRow>({
   const isSingle = mode === 'single'
   const [statusFilter, setStatusFilter] = useState<DiffStatus | 'all'>('all')
   // Default sort:
-  //   - compare mode: rank by largest absolute delta (most-impactful change first).
+  //   - compare mode: rank by signed delta (largest increase first).
   //   - single mode: rank by size descending (largest contributors first).
   const [sortColumn, setSortColumn] = useState<SortColumn>(
     isSingle ? 'b' : 'delta'
@@ -137,16 +136,10 @@ export function DiffTable<Row extends DiffRow>({
     })
   }
 
-  const sorted = useMemo(() => {
-    // The default `delta`/`desc` mode preserves the existing impact-ranked
-    // sort, which keeps `identical` rows pinned at the bottom regardless of
-    // direction. Other columns sort lexicographically (name) or numerically
-    // (A, B) using the user's chosen direction.
-    if (sortColumn === 'delta' && sortDirection === 'desc') {
-      return sortByImpact(summary.rows, useCompressed)
-    }
-    return sortRows(summary.rows, sortColumn, sortDirection, useCompressed)
-  }, [summary.rows, sortColumn, sortDirection, useCompressed])
+  const sorted = useMemo(
+    () => sortRows(summary.rows, sortColumn, sortDirection, useCompressed),
+    [summary.rows, sortColumn, sortDirection, useCompressed]
+  )
 
   const onHeaderClick = (column: SortColumn) => {
     if (column === sortColumn) {
@@ -459,11 +452,13 @@ function sortRenderItems<Row extends DiffRow>(
     }
   }
 
-  return [...items].sort((left, right) => {
+  return items.toSorted((left, right) => {
     const a = values(left)
     const b = values(right)
-    if (a.identical && !b.identical) return 1
-    if (b.identical && !a.identical) return -1
+    if (column !== 'delta') {
+      if (a.identical && !b.identical) return 1
+      if (b.identical && !a.identical) return -1
+    }
 
     if (column === 'name') {
       const comparison = a.name.localeCompare(b.name)
@@ -471,10 +466,7 @@ function sortRenderItems<Row extends DiffRow>(
     } else {
       const aValue = a[column]
       const bValue = b[column]
-      const comparison =
-        column === 'delta' && direction === 'desc'
-          ? Math.abs(bValue) - Math.abs(aValue)
-          : (aValue - bValue) * sign
+      const comparison = (aValue - bValue) * sign
       if (comparison !== 0) return comparison
     }
 
@@ -652,9 +644,9 @@ function PackageCountBreakdown({
 /**
  * Sorts rows by the chosen column and direction. The `name` column compares
  * using a locale-aware lexicographic ordering; numeric columns compare by
- * value. `identical` rows are always pinned to the bottom — they aren't part
- * of the "what changed" story and would otherwise dominate the top of an
- * ascending sort.
+ * value. For non-delta columns, `identical` rows are pinned to the bottom —
+ * they aren't part of the "what changed" story and would otherwise dominate
+ * the top of an ascending sort. For delta, zero belongs between gains and losses.
  */
 function sortRows<Row extends DiffRow>(
   rows: Row[],
@@ -669,9 +661,11 @@ function sortRows<Row extends DiffRow>(
     if (column === 'b') return useCompressed ? row.compressedB : row.sizeB
     return delta(row, useCompressed)
   }
-  return [...rows].sort((a, b) => {
-    if (a.status === 'identical' && b.status !== 'identical') return 1
-    if (b.status === 'identical' && a.status !== 'identical') return -1
+  return rows.toSorted((a, b) => {
+    if (column !== 'delta') {
+      if (a.status === 'identical' && b.status !== 'identical') return 1
+      if (b.status === 'identical' && a.status !== 'identical') return -1
+    }
     const av = compareKey(a)
     const bv = compareKey(b)
     if (typeof av === 'string' && typeof bv === 'string') {
