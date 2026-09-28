@@ -625,8 +625,6 @@ export async function handleEntrypoints({
   currentEntrypoints.global.document = value.pagesDocumentEndpoint
   currentEntrypoints.global.error = value.pagesErrorEndpoint
 
-  currentEntrypoints.global.instrumentation = value.instrumentation
-
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
 
@@ -667,7 +665,7 @@ export async function handleEntrypoints({
     })
   }
 
-  const { middleware, instrumentation } = value
+  const { middleware, instrumentation, moduleFederation } = value
 
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is
@@ -732,6 +730,26 @@ export async function handleEntrypoints({
     await dev.hooks.propagateServerField(
       'actualInstrumentationHookFile',
       dev.serverFields.actualInstrumentationHookFile
+    )
+  }
+
+  currentEntrypoints.global.instrumentation = instrumentation
+  currentEntrypoints.global.moduleFederation = moduleFederation
+
+  if (moduleFederation) {
+    const key = getEntryKey('assets', 'client', 'module-federation')
+    const writtenEndpoint = await moduleFederation.writeToDisk()
+    dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    dev?.hooks.subscribeToChanges(
+      key,
+      /** includeIssues=*/ false,
+      moduleFederation,
+      () => ({ type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES }),
+      (error) => ({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in Module Federation subscription: ${error}`,
+      })
     )
   }
 
