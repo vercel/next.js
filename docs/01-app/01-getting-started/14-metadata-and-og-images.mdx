@@ -132,7 +132,11 @@ Learn more about [streaming metadata](/docs/app/api-reference/functions/generate
 
 ### Memoizing data requests
 
-There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once. For example, to fetch the blog post information for both the metadata and the page:
+There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once.
+
+> **Good to know**: React `cache()` and `fetch` memoization deduplicate requests **within a single server render**, not across navigations. Each client-side navigation triggers a new server request with a fresh React render context. This means `generateMetadata` re-runs on every navigation—even for layouts whose component tree is preserved. If you need to cache expensive data fetches across multiple navigations, use [`fetch` with `revalidate`](/docs/app/guides/caching#time-based-revalidation) or [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) at the data layer.
+
+For example, to fetch the blog post information for both the metadata and the page:
 
 ```ts filename="app/lib/data.ts" highlight={5} switcher
 import { cache } from 'react'
