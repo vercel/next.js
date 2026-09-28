@@ -53,7 +53,7 @@ scattered-collect = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
-smallvec = { workspace = true }
+smallvec = { workspace = true, features = ["serde", "impl_bincode"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
@@ -73,6 +73,17 @@ unsize = { workspace = true }
 # rayon, which refuses to compile for wasi, and cargo resolves dev-dependencies even for `--lib`.
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+
+# `parking_lot_core` picks its thread parker in `thread_parker/mod.rs`. The working wasm parker
+# (`wasm_atomic.rs`, built on `memory_atomic_wait32` / `memory_atomic_notify`) is selected only under
+# `all(feature = "nightly", target_family = "wasm", target_feature = "atomics")`; otherwise it falls
+# back to `wasm.rs`, whose `park()` is `panic!("Parking not supported on this platform")`.
+#
+# `wasm32-wasip1-threads` does have `target_feature = "atomics"`, so enabling the feature here is what
+# makes contended locks block instead of panicking. Feature unification means declaring it once for
+# wasm covers the whole wasm build; the feature is not enabled for any other target.
+[target.'cfg(target_family = "wasm")'.dependencies]
+parking_lot = { workspace = true, features = ["nightly"] }
 
 [[bench]]
 name = "mod"

@@ -290,6 +290,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
       }
       break
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT: {
+      dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
     case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
@@ -301,6 +305,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
       // Is undefined when it's a 'built' event
       if ('versionInfo' in message)
         dispatcher.onVersionInfo(message.versionInfo)
+      if ('hasVulnerabilityInsight' in message) {
+        dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      }
       if ('devIndicator' in message)
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
@@ -340,6 +347,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
       return handleSuccess()
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      for (const listener of turbopackMessageListeners) {
+        listener(message)
+      }
       turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()
@@ -376,6 +386,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
         listener({
           type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
           data: message.data,
+          hmrVersion: message.hmrVersion,
         })
       }
       if (RuntimeErrorHandler.hadRuntimeError) {
@@ -397,6 +408,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
       dispatcher.onDevToolsConfig(message.data)
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS:
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:

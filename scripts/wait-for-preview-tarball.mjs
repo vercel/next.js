@@ -83,16 +83,40 @@ export function createPreviewBuildsReadTokenGetter() {
 }
 
 /**
- * URL of the `next` preview tarball for a commit. `vercel-packages` answers
- * with a redirect to Vercel Blob, which only serves the tarball once
+ * URL of the preview tarball of `packageName` for a commit. `vercel-packages`
+ * answers with a redirect to Vercel Blob, which only serves the tarball once
  * `upload-preview-tarballs` has published it.
  *
  * @param {string | undefined} baseUrl
  * @param {string} commitSha
+ * @param {string} packageName
  * @returns {string}
  */
-export function previewTarballUrl(baseUrl, commitSha) {
-  return `${baseUrl || DEFAULT_PREVIEW_BUILDS_BASE_URL}/commits/${commitSha}/next`
+export function previewTarballUrl(baseUrl, commitSha, packageName) {
+  return `${baseUrl || DEFAULT_PREVIEW_BUILDS_BASE_URL}/commits/${commitSha}/${packageName}`
+}
+
+/**
+ * The reverse of `previewTarballUrl`: the commit that a preview build URL
+ * refers to, or null when `url` was not built from `baseUrl`.
+ *
+ * @param {string | undefined} url
+ * @param {string | undefined} baseUrl
+ * @returns {string | null} the commit
+ */
+export function getCommitFromPreviewBuildUrl(url, baseUrl) {
+  if (url === undefined) {
+    return null
+  }
+  const commitsPrefix = `${baseUrl || DEFAULT_PREVIEW_BUILDS_BASE_URL}/commits/`
+  if (!url.startsWith(commitsPrefix)) {
+    return null
+  }
+  const [commitSha] = url.slice(commitsPrefix.length).split('/')
+  if (commitSha.length === 0) {
+    return null
+  }
+  return commitSha
 }
 
 /**
@@ -213,7 +237,7 @@ export async function assertPreviewTarballPublished({
   previewBuildsBaseUrl,
   getReadToken,
 }) {
-  const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
+  const url = previewTarballUrl(previewBuildsBaseUrl, commitSha, 'next')
   const { published, lastResponse, responseHeaders } = await probeTarball(
     url,
     await requestHeaders(getReadToken ?? (async () => null))
@@ -247,7 +271,7 @@ export async function waitForPreviewTarball({
   getReadToken = async () => null,
   pollIntervalMs = POLL_INTERVAL_MS,
 }) {
-  const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
+  const url = previewTarballUrl(previewBuildsBaseUrl, commitSha, 'next')
   const startedAt = Date.now()
   const deadline = startedAt + timeoutMs
   let lastProgressLogAt = startedAt

@@ -145,6 +145,28 @@ describe('PrerenderManifestMatcher', () => {
           route: genericRootRoute,
         })
       })
+
+      it('should match a pathname that was already decoded for manifest lookup', () => {
+        const route = createMockDynamicRoute({
+          fallbackSourceRoute: '/open/[...slug]',
+        })
+
+        const manifest = createMockPrerenderManifest({
+          '/open/[...slug]': route,
+        })
+
+        const matcher = new PrerenderManifestMatcher(
+          '/open/[...slug]',
+          manifest
+        )
+
+        expect(
+          matcher.match('/open/docs/space here/with%2Fslash/100%')
+        ).toEqual({
+          source: '/open/[...slug]',
+          route,
+        })
+      })
     })
 
     describe('no match scenarios', () => {

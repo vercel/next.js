@@ -141,6 +141,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
         timestamp: entry.timestamp,
         expire: entry.expire,
         revalidate,
+        stale: entry.stale,
       })
 
       return {

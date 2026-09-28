@@ -5,6 +5,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   applyOwnerStack,
+  makePrefetchHangingPromise,
   makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
   trackIncompatibleShellContent,
@@ -76,7 +77,7 @@ export function unstable_prefetch(): Promise<void> {
         // Prospective prerender
         // Make sure we don't unblock content that won't be reached in the final prerender.
         if (workUnitStore.finalStage < prefetchStage) {
-          return makeUntrackedHangingPromise(
+          return makePrefetchHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             '`unstable_prefetch()`'
@@ -97,8 +98,8 @@ export function unstable_prefetch(): Promise<void> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         // We can either recover a static shell or a runtime shell, but not both.
-        trackIncompatibleShellContent(workUnitStore)
-        const stage = workUnitStore.needsAppShell
+        trackIncompatibleShellContent(workUnitStore, '`unstable_prefetch()`')
+        const stage = workUnitStore.needsRuntimeShell
           ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData // Match the timing of 'prerender-runtime'.
           : RENDER_STAGES_BY_DATA_KIND.staticLinkData // Match the timing of 'prerender'.
 
@@ -134,9 +135,9 @@ export function unstable_prefetch(): Promise<void> {
         `Route ${workStore.route} used \`unstable_prefetch()\` inside a function cached with \`unstable_cache()\`. The \`unstable_prefetch()\` function is used to indicate the subsequent code must not run in the app shell, but \`unstable_cache()\` caches must be able to be produced before a prefetch, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
     }
-    case 'generate-static-params': {
+    case 'build-time-generator': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a prefetch. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route ${workStore.route} used \`unstable_prefetch()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without a prefetch. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
     }
     case 'prerender-client':
@@ -250,8 +251,8 @@ export function unstable_navigation(): Promise<void> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         // We can either recover a static shell or a runtime shell, but not both.
-        trackIncompatibleShellContent(workUnitStore)
-        const stage = workUnitStore.needsAppShell
+        trackIncompatibleShellContent(workUnitStore, '`unstable_navigation()`')
+        const stage = workUnitStore.needsRuntimeShell
           ? RenderStage.NavigationRuntime // Match the timing of 'prerender-runtime'.
           : RenderStage.NavigationStatic // Match the timing of 'prerender'.
 
@@ -287,9 +288,9 @@ export function unstable_navigation(): Promise<void> {
         `Route ${workStore.route} used \`unstable_navigation()\` inside a function cached with \`unstable_cache()\`. The \`unstable_navigation()\` function is used to indicate the subsequent code must only run during an actual navigation, but \`unstable_cache()\` caches must be able to be produced before a navigation, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
     }
-    case 'generate-static-params': {
+    case 'build-time-generator': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route ${workStore.route} used \`unstable_navigation()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
     }
     case 'prerender-client':

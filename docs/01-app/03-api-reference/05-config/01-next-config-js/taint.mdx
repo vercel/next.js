@@ -11,7 +11,7 @@ The `taint` option enables support for experimental React APIs for tainting obje
 - [`experimental_taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) taint objects references.
 - [`experimental_taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) to taint unique values.
 
-> **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory.
+> **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory, and taints `process.env` so it cannot be passed whole to a Client Component.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -51,6 +51,7 @@ It is recommended to model your data and APIs so that sensitive data is not retu
 ## Caveats
 
 - Tainting can only keep track of objects by reference. Copying an object creates an untainted version, which loses all guarantees given by the API. You'll need to taint the copy.
+- The built-in `process.env` taint applies to the object reference only. Reading individual variables such as `process.env.MY_VAR` and passing the resulting string to a Client Component is unaffected, as is passing a copy like `{ ...process.env }`.
 - Tainting cannot keep track of data derived from a tainted value. You also need to taint the derived value.
 - Values are tainted for as long as their lifetime reference is within scope. See the [`experimental_taintUniqueValue` parameters reference](https://react.dev/reference/react/experimental_taintUniqueValue#parameters), for more information.
 

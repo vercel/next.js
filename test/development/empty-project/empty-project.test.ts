@@ -12,7 +12,7 @@ describe('Empty Project', () => {
   })
 
   it('Should not time out and return 404', async () => {
-    const res = await next.fetch('/', { timeout: 10_000 })
+    const res = await next.fetch('/', { signal: AbortSignal.timeout(10_000) })
     expect(res.status).toBe(404)
   })
 })

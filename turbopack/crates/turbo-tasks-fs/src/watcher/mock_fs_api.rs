@@ -8,10 +8,7 @@ use rustc_hash::FxHashMap;
 use tempfile::TempDir;
 use tokio::{runtime::Handle, sync::RwLock};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    InvalidationReason, NonLocalValue, TransientInstance, TurboTasksApi,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use turbo_tasks::{InvalidationReason, NonLocalValue, TransientInstance, TurboTasksApi};
 
 use crate::{
     invalidator_map::InvalidatorMap,
@@ -36,9 +33,6 @@ pub struct MockFileSystem {
 struct MockFsHandle(Weak<MockFileSystem>);
 
 unsafe impl NonLocalValue for MockFsHandle {}
-impl TraceRawVcs for MockFsHandle {
-    fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
-}
 
 impl MockFileSystem {
     pub fn new(config: DiskWatcherConfig) -> Arc<MockFileSystem> {

@@ -322,8 +322,11 @@ impl EcmascriptExports {
 
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
-    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
-    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
+    /// Splitting is enabled for modules with re-exports (star exports or imported bindings),
+    /// allowing tree shaking to separate local definitions from re-exports. Do not split a
+    /// local-only module merely to mangle its export names: dynamic imports would resolve to the
+    /// facade while static named imports follow through to the locals module, giving a shared
+    /// module two different runtime identities.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
@@ -336,6 +339,8 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
+                // TODO: Re-enable mangling-only facade splits once remote-components consumers
+                // can share a singleton across dynamic facade and static locals imports (#99279).
                 Vc::cell(has_reexports)
             }
             _ => Vc::cell(false),

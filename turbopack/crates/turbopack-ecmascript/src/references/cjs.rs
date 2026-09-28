@@ -12,9 +12,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
@@ -29,11 +27,11 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
-        AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
         util::SpecifiedChunkingType,
     },
@@ -94,7 +92,7 @@ impl ModuleReference for CjsAssetReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("require {request}")]
 pub struct CjsRequireAssetReference {
@@ -174,9 +172,14 @@ impl ModuleReference for CjsRequireAssetReference {
 }
 
 impl IntoCodeGenReference for CjsRequireAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -189,17 +192,16 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CjsRequireAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -216,6 +218,7 @@ impl CjsRequireAssetReferenceCodeGen {
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -316,9 +319,14 @@ impl ModuleReference for CjsRequireResolveAssetReference {
 }
 
 impl IntoCodeGenReference for CjsRequireResolveAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -330,17 +338,16 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CjsRequireResolveAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -358,6 +365,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
 
         // Inline the result of the `require.resolve` call as a literal.
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -393,24 +401,24 @@ impl CjsRequireResolveAssetReferenceCodeGen {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct CjsRequireCacheAccess {
-    pub path: AstPath,
+    pub path: AstPathId,
 }
 impl CjsRequireCacheAccess {
-    pub fn new(path: AstPath) -> Self {
+    pub fn new(path: AstPathId) -> Self {
         CjsRequireCacheAccess { path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -435,9 +443,7 @@ impl From<CjsRequireCacheAccess> for CodeGen {
 /// Removes each named CommonJS export the module graph proved unused. Built by the
 /// analyzer for statically-analyzable CommonJS modules; recognition happens inline
 /// during the walk (see `analyzer::graph::visitor`).
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsExportsDropCodeGen {
     drops: Vec<DroppableCjsExportAssignment>,
     /// Writes to a discarded exports object, dropped whatever the export usage is.
@@ -448,16 +454,14 @@ pub struct CjsExportsDropCodeGen {
 }
 
 /// A recognized CommonJS export declaration, and thus how it's dropped.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub enum DroppableCjsExportAssignment {
     /// A standalone `exports.NAME = …` write or `Object.defineProperty(exports, …)`
     /// call (the assignment is replaced by its value; the define call is removed).
-    Write { name: RcStr, path: AstPath },
+    Write { name: RcStr, path: AstPathId },
     /// A `module.exports = { … }` object literal. Every recognized property name
     /// shares `path` (the assignment), so the literal is rewritten in one pass.
-    ObjectLiteral { names: Vec<RcStr>, path: AstPath },
+    ObjectLiteral { names: Vec<RcStr>, path: AstPathId },
 }
 
 impl CjsExportsDropCodeGen {
@@ -475,6 +479,7 @@ impl CjsExportsDropCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         _exports: ResolvedVc<EcmascriptExports>,
@@ -505,24 +510,29 @@ impl CjsExportsDropCodeGen {
                     if !dead && export_usage_info.is_export_used(name) {
                         continue;
                     }
-                    visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
-                        match expr {
-                            // `exports.NAME = <value>` → `<value>` (keep side effects).
-                            Expr::Assign(assign) => {
-                                let value = assign.right.take();
-                                *expr = *value;
+                    visitors.push(create_visitor!(
+                        trie,
+                        *path,
+                        visit_mut_expr,
+                        |expr: &mut Expr| {
+                            match expr {
+                                // `exports.NAME = <value>` → `<value>` (keep side effects).
+                                Expr::Assign(assign) => {
+                                    let value = assign.right.take();
+                                    *expr = *value;
+                                }
+                                // `Object.defineProperty(exports, …)`: keep an eager
+                                // `value`'s side effects; a getter is lazy, drop the call.
+                                Expr::Call(call) => {
+                                    *expr = match take_define_property_value(call) {
+                                        Some(value) => *value,
+                                        None => quote!("0" as Expr),
+                                    };
+                                }
+                                _ => {}
                             }
-                            // `Object.defineProperty(exports, …)`: keep an eager
-                            // `value`'s side effects; a getter is lazy, drop the call.
-                            Expr::Call(call) => {
-                                *expr = match take_define_property_value(call) {
-                                    Some(value) => *value,
-                                    None => quote!("0" as Expr),
-                                };
-                            }
-                            _ => {}
                         }
-                    }));
+                    ));
                 }
                 DroppableCjsExportAssignment::ObjectLiteral { names, path } => {
                     let unused = names
@@ -535,13 +545,18 @@ impl CjsExportsDropCodeGen {
                     }
                     // `module.exports = { …, NAME: v, … }` → drop each unused `NAME`,
                     // keeping a data value's side effects in place via `...(void v)`.
-                    visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
-                        if let Expr::Assign(assign) = expr
-                            && let Expr::Object(obj) = &mut *assign.right
-                        {
-                            drop_object_literal_exports(obj, &unused);
+                    visitors.push(create_visitor!(
+                        trie,
+                        *path,
+                        visit_mut_expr,
+                        |expr: &mut Expr| {
+                            if let Expr::Assign(assign) = expr
+                                && let Expr::Object(obj) = &mut *assign.right
+                            {
+                                drop_object_literal_exports(obj, &unused);
+                            }
                         }
-                    }));
+                    ));
                 }
             }
         }

@@ -21,12 +21,12 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::value::RawValue;
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::NonLocalValue;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 /// A single source map in structured form. See the module documentation.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct StructuredSourceMap {
     // Raw snippet fields hold the field's verbatim JSON value (e.g. `3`, `"..."`, `[...]`).
     // Declaration order mirrors `swc_sourcemap`'s `RawSourceMap`, which is the emission order.
@@ -50,7 +50,7 @@ pub struct StructuredSourceMap {
 
 /// The `sources` field. Kept verbatim until a rewrite actually changes an entry, so maps whose
 /// `sources` cannot be decoded (or are never rewritten) round-trip byte-for-byte.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 enum SourcesField {
     /// The field's verbatim JSON value.
     Raw(Rope),
@@ -60,7 +60,7 @@ enum SourcesField {
 }
 
 /// The `sourcesContent` field.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 enum SourcesContentField {
     /// The field's verbatim JSON value (maps parsed from external bytes). Never decoded — this
     /// tolerates content JSON that does not decode into Rust strings, e.g. lone surrogate

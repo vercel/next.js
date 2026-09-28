@@ -14,7 +14,10 @@ export function registerSuspenseBoundariesTests(
     isNextDev,
     isClientNav,
     navigateTo,
+    warmCachesAndNavigateTo,
+    restartDevServerToEnsureColdCaches,
     expectNoDevValidationErrors,
+    getInstantInsight,
     getCliOutputSinceMark,
     prerender,
   } = ctx
@@ -56,7 +59,7 @@ export function registerSuspenseBoundariesTests(
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -120,7 +123,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/missing-suspense-around-dynamic'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -179,7 +182,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -245,7 +248,7 @@ export function registerSuspenseBoundariesTests(
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -308,7 +311,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic-layout'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -371,7 +374,7 @@ export function registerSuspenseBoundariesTests(
       '/suspense-in-root/static/missing-suspense-around-params/123'
     )
     if (partialPrefetching) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -398,7 +401,7 @@ export function registerSuspenseBoundariesTests(
          }
         `)
     } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -432,7 +435,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/123'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -462,11 +465,12 @@ export function registerSuspenseBoundariesTests(
       const result = await prerender(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]'
       )
-      // TODO(app-shells): missing fallback params in build validation
-      // It seems like `workUnitStore.fallbackParams` is undefined
-      // during the validation render, which makes us treat these params as static.
-      // In partialPrefetching, static params are also delayed until the runtime stage,
-      // which ultimately makes the validation fail, but also hides the underlying issue.
+      // TODO(app-shells): Verify fallback params in build validation.
+      //
+      // This assertion can pass even if `workUnitStore.stagedFallbackParams` is
+      // missing. Without that set, validation treats these params as static.
+      // Partial Prefetching still delays them to the runtime stage, so the
+      // expected error does not detect the missing fallback params.
 
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
@@ -572,7 +576,7 @@ export function registerSuspenseBoundariesTests(
         }
       } else {
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -598,7 +602,7 @@ export function registerSuspenseBoundariesTests(
            }
           `)
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -721,7 +725,7 @@ export function registerSuspenseBoundariesTests(
          }"
         `)
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -806,7 +810,7 @@ export function registerSuspenseBoundariesTests(
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -873,7 +877,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/suspense-too-high'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -931,6 +935,114 @@ export function registerSuspenseBoundariesTests(
     }
   })
 
+  describe('excluded caches', () => {
+    // Non-prefetchable caches (`stale < MIN_PREFETCHABLE_STALE`) are not allowed
+    // without suspense regardless of Partial Prefetching.
+
+    // TODO(app-shells): We currently report these caches as uncached data.
+    // The suggested fixes might be confusing, because they don't mention
+    // that increasing `stale` would help.
+    // Also, a cache being uncached sounds like a contradiction.
+
+    describe('invalid - unguarded non-prefetchable cache (with short stale)', () => {
+      beforeEach(async () => {
+        await restartDevServerToEnsureColdCaches()
+      })
+
+      const route =
+        '/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache'
+
+      it('with cold caches', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(route)
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (4:33) @ instant
+           > 4 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (4:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "description": "Next.js encountered uncached data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9) @ DynamicContent
+           > 21 |   await nonPrefetchableCache()
+                |         ^",
+             "stack": [
+               "DynamicContent app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9)",
+               "Page app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (15:7)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(route)
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache": Next.js encountered uncached data during prerendering or a navigation.
+
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+      if (isNextDev) {
+        it('with warm caches', async () => {
+          const browser = await warmCachesAndNavigateTo(route)
+
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (4:33) @ instant
+           > 4 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (4:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "description": "Next.js encountered uncached data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9) @ DynamicContent
+           > 21 |   await nonPrefetchableCache()
+                |         ^",
+             "stack": [
+               "DynamicContent app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9)",
+               "Page app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (15:7)",
+             ],
+           }
+          `)
+        })
+      }
+    })
+  })
+
   it('valid - no suspense needed around dynamic in page if loading.js is present', async () => {
     if (isNextDev) {
       const browser = await navigateTo(
@@ -955,7 +1067,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/invalid-loading-above-route-group'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -1018,7 +1130,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/invalid-dynamic-layout-with-loading'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {

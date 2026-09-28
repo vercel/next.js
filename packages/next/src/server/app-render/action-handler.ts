@@ -44,6 +44,8 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
@@ -92,6 +94,16 @@ function hasServerActions() {
     Object.keys(serverActionsManifest.node).length > 0 ||
     Object.keys(serverActionsManifest.edge).length > 0
   )
+}
+
+function getUnrecognizedActionStatusCode(actionId: string | null): 400 | 409 {
+  return actionId !== null && !mightBeServerReferenceId(actionId) ? 400 : 409
+}
+
+function getUnrecognizedActionResponseBody(statusCode: 400 | 409): string {
+  return statusCode === 400
+    ? 'Invalid Server Action request.'
+    : 'Server Action unavailable.'
 }
 
 function nodeHeadersToRecord(
@@ -212,7 +224,8 @@ async function createForwardedActionResponse(
   res: BaseNextResponse,
   host: Host,
   workerPathname: string,
-  basePath: string
+  basePath: string,
+  actionId: string
 ) {
   if (!host) {
     throw new Error(
@@ -267,7 +280,24 @@ async function createForwardedActionResponse(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      body = req.stream()
+      // If the action body was already stashed (and consumed from the
+      // request stream) so it could be replayed for the local action
+      // handler (e.g. when resume state was read from the body first),
+      // forward that stashed body instead of re-reading the now-exhausted
+      // stream, which would otherwise hang forever. Since the forwarded
+      // body no longer starts with the postponed state, the resume headers
+      // no longer apply and must be dropped so the receiving worker doesn't
+      // try to read postponed state from it.
+      // The platform can attach the target page's postponed state, including
+      // its RDC, to the forwarded request independently of these headers.
+      const actionBody = getRequestMeta(req, 'actionBody')
+      if (actionBody) {
+        body = new Uint8Array(actionBody)
+        forwardedHeaders.delete(NEXT_RESUME_HEADER)
+        forwardedHeaders.delete(NEXT_RESUME_STATE_LENGTH_HEADER)
+      } else {
+        body = req.stream()
+      }
     } else {
       throw new Error('Invariant: Unknown request type.')
     }
@@ -306,8 +336,14 @@ async function createForwardedActionResponse(
     if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
       res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
       res.setHeader('content-type', 'text/plain')
-      res.statusCode = 404
-      return RenderResult.fromStatic('Server action not found.', 'text/plain')
+      // The marker denotes an unavailable action. Derive the status from the
+      // requested ID so mixed-version workers cannot change its semantics.
+      const statusCode = getUnrecognizedActionStatusCode(actionId)
+      res.statusCode = statusCode
+      return RenderResult.fromStatic(
+        getUnrecognizedActionResponseBody(statusCode),
+        'text/plain'
+      )
     }
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
@@ -610,7 +646,10 @@ export async function handleAction({
     isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
-  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+  const handleUnrecognizedAction = (
+    err: unknown,
+    statusCode: 400 | 409
+  ): HandleActionResult => {
     // If the deployment doesn't have skew protection, this is expected to occasionally happen,
     // so we use a warning instead of an error.
     console.warn(err)
@@ -621,10 +660,13 @@ export async function handleAction({
     // (i.e. without needing to invoke a lambda)
     res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
     res.setHeader('content-type', 'text/plain')
-    res.statusCode = 404
+    res.statusCode = statusCode
     return {
       type: 'done',
-      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
+      result: RenderResult.fromStatic(
+        getUnrecognizedActionResponseBody(statusCode),
+        'text/plain'
+      ),
     }
   }
 
@@ -648,13 +690,16 @@ export async function handleAction({
     }
   }
 
-  // If the app has no server actions at all, we can 404 early.
+  // If the app has no server actions at all, we can reject the request early.
   if (!hasServerActions()) {
     const error =
       actionId !== null && !mightBeServerReferenceId(actionId)
         ? getInvalidServerReferenceIdError(actionId)
         : getActionNotFoundError(actionId)
-    return handleUnrecognizedFetchAction(error)
+    return handleUnrecognizedAction(
+      error,
+      getUnrecognizedActionStatusCode(actionId)
+    )
   }
 
   let temporaryReferences: TemporaryReferenceSet | undefined
@@ -758,7 +803,7 @@ export async function handleAction({
   // which to resume the destination page.
   const isActionOnlyFallbackRequest =
     isFetchAction &&
-    requestStore.fallbackParams != null &&
+    ctx.fallbackRouteParams != null &&
     typeof ctx.renderOpts.postponed === 'string'
   const shouldSkipPageRendering =
     actionWasForwarded || isActionOnlyFallbackRequest
@@ -780,7 +825,8 @@ export async function handleAction({
           res,
           host,
           forwardedWorker,
-          ctx.renderOpts.basePath
+          ctx.renderOpts.basePath,
+          actionId
         ),
       }
     }
@@ -868,7 +914,10 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+                return handleUnrecognizedAction(
+                  err,
+                  getUnrecognizedActionStatusCode(actionId)
+                )
               }
 
               boundActionArguments = await decodeReply<unknown[]>(
@@ -879,12 +928,15 @@ export async function handleAction({
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
-              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+              try {
+                if (!areAllActionIdsValid(formData, serverModuleMap)) {
+                  return handleUnrecognizedAction(
+                    new Error('Invalid Server Actions request.'),
+                    400
+                  )
+                }
+              } catch (err) {
+                return handleUnrecognizedAction(err, 409)
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -932,7 +984,10 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedFetchAction(err)
+              return handleUnrecognizedAction(
+                err,
+                getUnrecognizedActionStatusCode(actionId)
+              )
             }
 
             // A fetch action with a non-multipart body.
@@ -1029,7 +1084,10 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+                return handleUnrecognizedAction(
+                  err,
+                  getUnrecognizedActionStatusCode(actionId)
+                )
               }
 
               const busboy = (
@@ -1086,12 +1144,15 @@ export async function handleAction({
                 throw err
               }
 
-              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+              try {
+                if (!areAllActionIdsValid(formData, serverModuleMap)) {
+                  return handleUnrecognizedAction(
+                    new Error('Invalid Server Actions request.'),
+                    400
+                  )
+                }
+              } catch (err) {
+                return handleUnrecognizedAction(err, 409)
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
@@ -1141,7 +1202,10 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedFetchAction(err)
+              return handleUnrecognizedAction(
+                err,
+                getUnrecognizedActionStatusCode(actionId)
+              )
             }
 
             // A fetch action with a non-multipart body.
@@ -1497,8 +1561,8 @@ function areAllActionIdsValid(
 ): boolean {
   let seenActionRefs = 0
   let hasAtLeastOneAction = false
-  // Before we attempt to decode the payload for a possible MPA action, assert that all
-  // action IDs are valid IDs. If not we should disregard the payload
+  // Before we attempt to decode the payload for a possible MPA action, assert
+  // that all action IDs are valid IDs.
   for (let key of mpaFormData.keys()) {
     if (!key.startsWith($ACTION_)) {
       // not a relevant field
@@ -1545,7 +1609,7 @@ const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
 function isInvalidStringActionDescriptor(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap
-): unknown {
+): boolean {
   if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
     return true
   }

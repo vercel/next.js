@@ -5,7 +5,14 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node"]
   },
-  "include": ["lib", "experiments"]
+  "include": [
+    "lib",
+    "experiments",
+    "next-upgrade/experiments",
+    "next-upgrade/lib",
+    "next-upgrade/security/setup.ts"
+  ]
 }

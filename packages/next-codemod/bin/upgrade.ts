@@ -113,7 +113,7 @@ function resolveSemanticRevision(
 
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean; yes?: boolean }
+  options: { verbose: boolean; yes?: boolean; skipAdoption?: boolean }
 ): Promise<void> {
   const { verbose } = options
   const nonInteractive = options.yes === true || !process.stdin.isTTY
@@ -272,7 +272,8 @@ export async function runUpgrade(
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion,
-    nonInteractive
+    nonInteractive,
+    options.skipAdoption
   )
   const packageManager: PackageManager = getPkgManager(cwd)
 
@@ -385,8 +386,14 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
+        // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
+        // eslint-plugin-react, support its API removals (e.g. context.getFilename).
+        const cappedRange = eslintRange
+          .split('||')
+          .map((range) => `${range.trim()} <10`)
+          .join(' || ')
         const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${eslintRange}`
+          `eslint@${cappedRange}`
         )
         versionMapping['eslint'] = {
           version: targetEslintVersion,
@@ -462,10 +469,21 @@ export async function runUpgrade(
     // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
     // `--allow-dirty` is required because the upgrade above modified package.json
     // and the lockfile; the recipe refuses to run on a dirty tree otherwise.
-    execSync(
-      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
-      { stdio: 'inherit' }
-    )
+    try {
+      execSync(
+        `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
+        { stdio: 'inherit' }
+      )
+    } catch (error) {
+      // TODO: Remove this fallback once codemod publishes a Linux binary that
+      // supports the glibc versions used by our upgrade environments.
+      console.warn(
+        new Error(
+          `${pc.yellow('⚠')} The React 19 codemod could not run. Continue the upgrade and review the React 19 migration guide manually.`,
+          { cause: error }
+        )
+      )
+    }
   }
 
   if (shouldRunReactTypesCodemods) {
@@ -484,7 +502,7 @@ export async function runUpgrade(
   try {
     if (refreshAgentRulesBlock(cwd) === 'refreshed') {
       console.log(
-        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md to match the upgraded Next.js.`
       )
     }
   } catch {
@@ -641,7 +659,8 @@ async function suggestTurbopack(
 async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string,
-  nonInteractive: boolean
+  nonInteractive: boolean,
+  skipAdoption = false
 ): Promise<string[]> {
   // example:
   // codemod version: 15.0.0-canary.45
@@ -670,7 +689,7 @@ async function suggestCodemods(
   const relevantCodemods = TRANSFORMER_INQUIRER_CHOICES.slice(
     initialVersionIndex,
     targetVersionIndex
-  )
+  ).filter((codemod) => !skipAdoption || !codemod.adoption)
 
   if (relevantCodemods.length === 0) {
     return []

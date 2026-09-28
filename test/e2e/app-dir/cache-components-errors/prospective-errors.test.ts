@@ -2,17 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 
 const isTurbopack = !!process.env.IS_TURBOPACK_TEST
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// Accessing cliOutput is only available on the deployment
+// @force-gate !deploy
 describe(`Cache Components Prospective Render Errors - Debug Build`, () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/prospective-render-errors',
     env: { NEXT_DEBUG_BUILD: 'true' },
-    // Accessing cliOutput is only available on the deployment
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     // In next dev there really isn't a prospective render but we still assert we error on the first visit to each page
@@ -146,13 +143,9 @@ describe(`Cache Components Prospective Render Errors - Debug Build`, () => {
 })
 
 describe(`Cache Components Prospective Render Errors - Standard Build`, () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/prospective-render-errors',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     // In next dev there really isn't a prospective render but we still assert we error on the first visit to each page

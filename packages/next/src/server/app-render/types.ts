@@ -79,7 +79,8 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
       ])
     )
   ),
-  s.optional(s.number()),
+  s.optional(s.nullable(s.number())),
+  s.optional(s.string()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -163,6 +164,7 @@ export interface RenderOptsPartial {
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     optimisticRouting: boolean
+    parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
@@ -219,6 +221,9 @@ export interface RenderOptsPartial {
    * Loaded at server startup from the build output.
    */
   prefetchHints?: Record<string, PrefetchHints>
+
+  /** Parameters whose novel values are rejected by routing. */
+  notFoundParams?: readonly string[]
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any

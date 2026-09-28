@@ -75,55 +75,81 @@ function createTrie<Value = string>({
     }
   }
 
-  function insert(value: Value) {
-    let currentNode = root
-    const segments = getCharacters(value)
+  function copyChildren(children: TrieNode<Value>['children']) {
+    return Object.assign(Object.create(null), children)
+  }
 
-    for (const segment of segments) {
-      if (!currentNode.children[segment]) {
-        currentNode.children[segment] = {
-          value: undefined,
-          // Skip value for intermediate nodes
-          children: Object.create(null),
-        }
-      }
-      currentNode = currentNode.children[segment]
+  // Snapshots must be immutable for `useSyncExternalStore` consumers, so
+  // updates copy the nodes along the mutated path instead of mutating them
+  // in place. Untouched subtrees stay shared.
+  function copyPath(segments: string[]): TrieNode<Value>[] {
+    const newRoot: TrieNode<Value> = {
+      value: root.value,
+      children: copyChildren(root.children),
     }
 
-    currentNode.value = value
+    const path: TrieNode<Value>[] = [newRoot]
+    let currentNode = newRoot
+    for (const segment of segments) {
+      const existingNode = currentNode.children[segment]
+      const copiedNode: TrieNode<Value> = {
+        value: existingNode?.value,
+        children: existingNode
+          ? copyChildren(existingNode.children)
+          : Object.create(null),
+      }
+      currentNode.children[segment] = copiedNode
+      currentNode = copiedNode
+      path.push(copiedNode)
+    }
 
-    root = { ...root }
+    return path
+  }
+
+  function insert(value: Value) {
+    const segments = getCharacters(value)
+    const path = copyPath(segments)
+
+    path[path.length - 1].value = value
+
+    root = path[0]
     markUpdated()
   }
 
   function remove(value: Value) {
-    let currentNode = root
     const segments = getCharacters(value)
 
-    const stack: TrieNode<Value>[] = []
-    let found = true
+    // Locate the node first, so a miss doesn't copy or notify.
+    let currentNode = root
     for (const segment of segments) {
-      if (!currentNode.children[segment]) {
-        found = false
-        break
+      const childNode = currentNode.children[segment]
+      if (!childNode) {
+        return
       }
-      stack.push(currentNode)
-      currentNode = currentNode.children[segment]!
+      currentNode = childNode
     }
     // If the value is not found, skip removal
-    if (!found || !compare(currentNode.value, value)) {
+    if (!compare(currentNode.value, value)) {
       return
     }
-    currentNode.value = undefined
-    for (let i = stack.length - 1; i >= 0; i--) {
-      const parentNode = stack[i]
+
+    const path = copyPath(segments)
+    path[path.length - 1].value = undefined
+
+    // Prune nodes that no longer hold a value or any children.
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const parentNode = path[i]
       const segment = segments[i]
-      if (Object.keys(parentNode.children[segment]!.children).length === 0) {
+      const childNode = parentNode.children[segment]!
+      if (
+        childNode.value === undefined &&
+        Object.keys(childNode.children).length === 0
+      ) {
         delete parentNode.children[segment]
       }
     }
 
-    root = { ...root }
+    root = path[0]
     markUpdated()
   }
 

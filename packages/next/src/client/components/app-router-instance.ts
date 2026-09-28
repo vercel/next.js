@@ -299,7 +299,7 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       url,
       currentUrl,
       state.renderedSearch,
-      state.cache,
+      state.root,
       state.tree,
       state.nextUrl,
       freshnessPolicy,

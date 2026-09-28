@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, fetchViaRawHttp } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
@@ -108,7 +108,7 @@ describe('Middleware custom matchers', () => {
       const res1 = await fetchViaHTTP(next.url, '/has-match-4')
       expect(res1.status).toBe(404)
 
-      const res = await fetchViaHTTP(next.url, '/has-match-4', undefined, {
+      const res = await fetchViaRawHttp(next.appPort, '/has-match-4', {
         headers: {
           host: 'example.com',
         },
@@ -117,7 +117,7 @@ describe('Middleware custom matchers', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-from-middleware')).toBeDefined()
 
-      const res2 = await fetchViaHTTP(next.url, '/has-match-4', undefined, {
+      const res2 = await fetchViaRawHttp(next.appPort, '/has-match-4', {
         headers: {
           host: 'example.org',
         },
@@ -159,22 +159,17 @@ describe('Middleware custom matchers', () => {
       }
     )
 
-    itif(!isModeDeploy)(
-      'should match has cookie on client routing',
-      async () => {
-        const browser = await next.browser('/routes')
-        await browser.addCookie({ name: 'loggedIn', value: 'true' })
-        await browser.refresh()
-        await browser.eval('window.__TEST_NO_RELOAD = true')
-        await browser.elementById('has-match-3').click()
-        const fromMiddleware = await browser
-          .elementById('from-middleware')
-          .text()
-        expect(fromMiddleware).toBe('true')
-        const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-        expect(noReload).toBe(true)
-      }
-    )
+    it('should match has cookie on client routing', async () => {
+      const browser = await next.browser('/routes')
+      await browser.addCookie({ name: 'loggedIn', value: 'true' })
+      await browser.refresh()
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+      await browser.elementById('has-match-3').click()
+      const fromMiddleware = await browser.elementById('from-middleware').text()
+      expect(fromMiddleware).toBe('true')
+      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+      expect(noReload).toBe(true)
+    })
   }
   runTests()
 })

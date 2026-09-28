@@ -1,12 +1,14 @@
 ---
 title: Optimizing prefetching
-description: Resolve per-link URL data with the prefetch prop, or include session data in the App Shell.
+description: Resolve per-link URL data with the prefetch prop, include session data in the App Shell, or exclude expensive content from a prefetch.
 nav_title: Optimizing prefetching
 related:
   title: Learn more
   description: Validate your structure and review the caching primitives.
   links:
     - app/api-reference/config/next-config-js/partialPrefetching
+    - app/api-reference/functions/prefetch
+    - app/api-reference/functions/navigation
     - app/api-reference/file-conventions/route-segment-config/prefetch
     - app/api-reference/file-conventions/route-segment-config/instant
     - app/api-reference/directives/use-cache-private
@@ -59,7 +61,15 @@ export default function Home() {
 }
 ```
 
-The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
+`'auto'` is equivalent to omitting `prefetch` or passing `undefined`. In a conditional expression, return `'auto'` for links that should keep the default App Shell prefetch:
+
+```tsx filename="app/page.tsx"
+<Link href={href} prefetch={isFeatured ? true : 'auto'} />
+```
+
+Use `prefetch={false}` only when you want to disable prefetching for a link.
+
+The `/search` page renders a static heading and a `<Results>` list based on the query. The `search()` function caches results by query so later requests can reuse them.
 
 ```tsx filename="app/search/page.tsx"
 import { Suspense } from 'react'
@@ -184,7 +194,68 @@ Here `cookies()` lives inside the cached function, which only works under `"use 
 
 Everything inside the scope shares the same lifetime. Colocate `"use cache: private"` as close to the runtime data access as possible.
 
-{/* TODO(optimizing-prefetching): add an "Exclude content until navigation" section once `await navigation()` (ships as `unstable_navigation`, vercel/next.js#96069) merges. This is the second direction, gating content OUT of the prefetch rather than resolving URL data into it: the prefetch stops at `await navigation()` (code after it does not run at prefetch time), and on the actual navigation (or build/ISR) it runs and streams in. Unlike `await connection()`, content below the gate stays cacheable. It can't be called inside `use cache` / `use cache: private` yet, so the pattern is `await navigation()` in an uncached wrapper with the cache directive on an inner function below the gate. Do NOT publish until merged; validate empirically against the PR branch first. */}
+## Exclude content from a prefetch
+
+Optimizing a prefetch also means excluding content from it. Some subtrees are expensive enough to produce that you would rather not pay for them on every prefetch of the route.
+
+Awaiting [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
+
+```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
+import { cookies } from 'next/headers'
+import { unstable_navigation } from 'next/cache'
+
+async function Recommendations() {
+  const session = (await cookies()).get('session')?.value
+  await unstable_navigation()
+  const items = await rank(session)
+  return <List items={items} />
+}
+
+async function rank(session?: string) {
+  'use cache: private'
+  return db.recommendations.rank({ session })
+}
+```
+
+The session is read above `unstable_navigation()`, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
+
+Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Awaiting `unstable_navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
+
+For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
+
+Unlike [`connection()`](/docs/app/api-reference/functions/connection), `unstable_navigation()` does not make the subtree request-dependent. This lets reusable content keep its cache lifetime while waiting for navigation. See [How `unstable_navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-unstable_navigation-differs-from-connection) for the full comparison.
+
+## Test prefetched and deferred content
+
+The [Instant navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) explains how to install and configure `@next/playwright`. For a client navigation, use `instant()` to inspect the destination's prefetched UI.
+
+When [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#verify-prefetched-ui-with-tests), run this test before enabling the feature and rerun the same assertions afterward. This preserves the UI selected from the legacy full prefetch while its implementation moves to the App Shell or a per-link prefetch.
+
+Inside the callback, click the link, wait for the destination URL, and assert which content is available. After the callback releases the navigation, assert that deferred content eventually renders:
+
+```ts filename="e2e/product-navigation.test.ts" highlight={8-15,17}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('prefetches the product summary but not reviews', async ({ page }) => {
+  await page.goto('/products')
+
+  await instant(page, async () => {
+    await page.click('a[href="/products/baseball-cap"]')
+    await page.waitForURL((url) => url.pathname === '/products/baseball-cap')
+
+    await expect(
+      page.getByRole('heading', { name: 'Baseball Cap' })
+    ).toBeVisible()
+    await expect(page.getByTestId('product-summary')).toBeVisible()
+    await expect(page.getByTestId('reviews')).toHaveCount(0)
+  })
+
+  await expect(page.getByTestId('reviews')).toBeVisible()
+})
+```
+
+While the `instant()` callback is running, dynamic content is paused. In this example, the product summary is part of the prefetched UI, while reviews wait for navigation. The final assertion confirms that the reviews render after the pause is released.
 
 ## Trade-offs
 
@@ -193,6 +264,8 @@ Use `prefetch={true}` on routes where:
 - Part of the component tree depends on URL data: the full URL, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
 - That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
+
+Prefetching cached data does not change its freshness behavior. If a mutation can update the data, [tag and invalidate the cached result](/docs/app/getting-started/revalidating).
 
 Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link prefetch={true}>` can wake a server, and that cost only pays off if more of the page is ready before the click:
 
@@ -211,10 +284,13 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Cost    | Bounded by route count                      | Bounded by visible-link count            |
 | Role    | Default prefetch                            | More rendered before click               |
 
+[Excluding content](#exclude-content-from-a-prefetch) is one more control on top of these. The trade is generating content for a prefetch that may never be used, against momentarily showing a `<Suspense>` fallback while that content streams in.
+
 ## Next steps
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for how `<Link>` behaves under the new model and how to migrate existing apps.
 - [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
 - [`use cache: private` reference](/docs/app/api-reference/directives/use-cache-private) for per-user caching specifics.
+- [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) for the full behavior of each prefetch stage.
 - [Instant navigation guide](/docs/app/guides/instant-navigation) for validating the route's caching structure.
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering.

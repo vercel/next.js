@@ -7,7 +7,10 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
-import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
@@ -102,6 +105,8 @@ async function exportPageImpl(
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
 
+    _notFoundParams: notFoundParams,
+
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
@@ -187,8 +192,8 @@ async function exportPageImpl(
     req.url += '/'
   }
 
-  // Set the resolved pathname without trailing slash as request metadata.
-  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
+  // Resolve the pathname without a trailing slash for app page rendering.
+  const resolvedPathname = removeTrailingSlash(updatedPath)
 
   if (
     locale &&
@@ -279,6 +284,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -288,6 +294,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
+    const routeMatch: RouteMatch = { resolvedPathname }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
@@ -307,7 +314,8 @@ async function exportPageImpl(
       debugOutput,
       isDynamicError,
       fileWriter,
-      sharedContext
+      sharedContext,
+      routeMatch
     )
   } else {
     const sharedContext: PagesSharedContext = {

@@ -13,6 +13,8 @@ async function getOuterData() {
   return getInnerData()
 }
 
+export const instant = false
+
 export default async function Page() {
   await connection()
 

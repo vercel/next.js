@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_0zs_dr_r82cwm._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_0zs_dr_r82cwm._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -49,6 +49,6 @@ const close = ()=>{
 };
 __turbopack_async_result__();
 } catch(e) { __turbopack_async_result__(e); } }, true);}),
-]);
+]);})()
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_0zs_dr_r82cwm._.js.map

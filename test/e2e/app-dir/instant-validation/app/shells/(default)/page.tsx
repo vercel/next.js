@@ -12,7 +12,7 @@ export default async function Page() {
   cacheLife('minutes')
   return (
     <main>
-      <h2>App Shells</h2>
+      <h1>App Shells</h1>
       <ul>
         <li>
           <DebugLinks href="/shells/valid-session-only" />
@@ -50,6 +50,50 @@ export default async function Page() {
         <li>
           <DebugLinks href="/shells/valid-prefetch-with-suspense" />
         </li>
+      </ul>
+
+      <h2>Excluded caches</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/shells/invalid-non-shell-cache" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-non-shell-cache" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-non-prerenderable-cache" />
+        </li>
+      </ul>
+
+      <h2>ensureStatic</h2>
+      <ul>
+        {[false, 'shell', 'prefetch'].map((ensureStaticConfig) => (
+          <li key={ensureStaticConfig + ''}>
+            <code>{`ensureStatic = ${ensureStaticConfig}`}</code>
+            <ul>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/session-data-without-suspense`}
+                />
+              </li>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/static-params-without-suspense/123`}
+                />
+              </li>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/prefetch-without-suspense`}
+                />
+              </li>
+              <li>
+                <DebugLinks
+                  href={`/shells/ensure-static/${ensureStaticConfig}/navigation-without-suspense`}
+                />
+              </li>
+            </ul>
+          </li>
+        ))}
       </ul>
     </main>
   )

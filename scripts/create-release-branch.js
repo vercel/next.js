@@ -88,7 +88,9 @@ async function main() {
   const existingLerna = JSON.parse(
     await fs.promises.readFile(lernaPath, 'utf8')
   )
-  existingLerna.command.publish.allowBranch.push(branchName)
+  // `allowBranch` gates `lerna version`, so it lives under `command.version`.
+  // Release branches need to be added here or the version bump refuses to run.
+  existingLerna.command.version.allowBranch.push(branchName)
 
   await fs.promises.writeFile(lernaPath, JSON.stringify(existingLerna, null, 2))
 
@@ -102,7 +104,11 @@ async function main() {
   const buildAndDeploy = await fs.promises.readFile(buildAndDeployPath, 'utf8')
   await fs.promises.writeFile(
     buildAndDeployPath,
-    buildAndDeploy.replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
+    buildAndDeploy
+      // The push trigger is limited to the default branch, same as
+      // build_and_test.yml below, so point it at the release branch as well.
+      .replace(`branches: ['canary']`, `branches: ['${branchName}']`)
+      .replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
   )
 
   const buildAndTestPath = path.join(

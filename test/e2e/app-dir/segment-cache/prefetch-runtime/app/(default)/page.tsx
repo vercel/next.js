@@ -214,30 +214,33 @@ export default async function Page() {
       <h2>short-lived caches</h2>
       <ul>
         <li>
-          private, short stale
-          <ul>
-            <li>
-              <DebugLinkAccordion href="/caches/private-short-stale" prefetch />
-            </li>
-          </ul>
-        </li>
-        <li>
-          public, short expire, long enough stale
+          private, non-prefetchable stale
           <ul>
             <li>
               <DebugLinkAccordion
-                href="/caches/public-short-expire-long-stale"
+                href="/caches/private-non-prefetchable-stale"
                 prefetch
               />
             </li>
           </ul>
         </li>
         <li>
-          public, short expire, short stale
+          public, short expire, prefetchable stale
           <ul>
             <li>
               <DebugLinkAccordion
-                href="/caches/public-short-expire-short-stale"
+                href="/caches/public-short-expire-prefetchable-stale"
+                prefetch
+              />
+            </li>
+          </ul>
+        </li>
+        <li>
+          public, short expire, non-prefetchable stale
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/public-short-expire-non-prefetchable-stale"
                 prefetch
               />
             </li>
@@ -256,6 +259,28 @@ export default async function Page() {
           <ul>
             <li>
               <DebugLinkAccordion href="/caches/private-seconds" prefetch />
+            </li>
+          </ul>
+        </li>
+        <li>
+          public, non-shell stale
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/public-non-shell-stale"
+                prefetch
+              />
+            </li>
+          </ul>
+        </li>
+        <li>
+          private, non-shell stale
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/private-non-shell-stale"
+                prefetch
+              />
             </li>
           </ul>
         </li>

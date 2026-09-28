@@ -9,7 +9,7 @@ use swc_core::{
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{
-            ArrowExpr, BlockStmtOrExpr, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
+            ArrowExpr, ArrowFunctionBody, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
             Stmt,
         },
         preset_env::{self, Feature, FeatureOrModule, Targets},
@@ -150,7 +150,7 @@ pub trait CustomTransformer: Debug {
 /// the turbo_task caching requirements.
 #[turbo_tasks::value(transparent, serialization = "skip", eq = "manual", cell = "new")]
 #[derive(Debug)]
-pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
+pub struct TransformPlugin(#[turbo_tasks(unsafe_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
@@ -488,7 +488,7 @@ impl Visit for ReactCompilerAnnotationFinder {
         if self.found {
             return;
         }
-        if let BlockStmtOrExpr::BlockStmt(body) = &*node.body
+        if let ArrowFunctionBody::FunctionBody(body) = &*node.body
             && has_react_compiler_opt_in_directive(&body.stmts)
         {
             self.found = true;

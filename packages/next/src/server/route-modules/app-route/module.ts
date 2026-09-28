@@ -92,6 +92,10 @@ import { trackPendingModules } from '../../app-render/module-loading/track-modul
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
+import {
+  createRouteHandlerRequestInUseCacheError,
+  createRouteHandlerRequestInUnstableCacheError,
+} from '../../use-cache/use-cache-messages'
 
 export class WrappedNextRouterError {
   constructor(
@@ -559,7 +563,7 @@ export class AppRouteRouteModule extends RouteModule<
          */
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
-        const cacheSignal = new CacheSignal()
+        const cacheSignal = new CacheSignal(null)
         let dynamicTracking = createDynamicTrackingState(undefined)
 
         // TODO: Route handlers are never resumed, so it's counter-intuitive
@@ -593,8 +597,8 @@ export class AppRouteRouteModule extends RouteModule<
             resumeDataCache: prerenderResumeDataCache,
             hmrRefreshHash: undefined,
             varyParamsAccumulator: null,
-            runtimeDataAccessed: null,
-            shouldAttemptStaticPrefetch: null,
+            ensureStaticLevel: null,
+            prerenderDataTracking: null,
             isFallbackUpgradeable: false,
           })
 
@@ -692,8 +696,8 @@ export class AppRouteRouteModule extends RouteModule<
           resumeDataCache: prerenderResumeDataCache,
           hmrRefreshHash: undefined,
           varyParamsAccumulator: null,
-          runtimeDataAccessed: null,
-          shouldAttemptStaticPrefetch: null,
+          ensureStaticLevel: null,
+          prerenderDataTracking: null,
           isFallbackUpgradeable: false,
         })
 
@@ -1041,7 +1045,7 @@ export class AppRouteRouteModule extends RouteModule<
                 break
               case 'error':
                 workStore.dynamicShouldError = true
-                request = new Proxy(req, requireStaticRequestHandlers)
+                request = new Proxy(req, ensureStaticRequestHandlers)
                 break
               case undefined:
               case 'auto':
@@ -1359,7 +1363,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
   return new Proxy(request, nextRequestHandlers)
 }
 
-const requireStaticRequestHandlers = {
+const ensureStaticRequestHandlers = {
   get(
     target: NextRequest & RequestSymbolTarget,
     prop: string | symbol,
@@ -1371,7 +1375,7 @@ const requireStaticRequestHandlers = {
           target[nextURLSymbol] ||
           (target[nextURLSymbol] = new Proxy(
             target.nextUrl,
-            requireStaticNextUrlHandlers
+            ensureStaticNextUrlHandlers
           ))
         )
       case 'headers':
@@ -1399,7 +1403,7 @@ const requireStaticRequestHandlers = {
               // to probably embed the static generation logic into the class itself removing the need
               // for any kind of proxying
               target.clone() as NextRequest,
-              requireStaticRequestHandlers
+              ensureStaticRequestHandlers
             ))
         )
       default:
@@ -1410,7 +1414,7 @@ const requireStaticRequestHandlers = {
   // and will be ignored
 }
 
-const requireStaticNextUrlHandlers = {
+const ensureStaticNextUrlHandlers = {
   get(
     target: NextURL & UrlSymbolTarget,
     prop: string | symbol,
@@ -1431,7 +1435,7 @@ const requireStaticNextUrlHandlers = {
         return (
           target[urlCloneSymbol] ||
           (target[urlCloneSymbol] = () =>
-            new Proxy(target.clone(), requireStaticNextUrlHandlers))
+            new Proxy(target.clone(), ensureStaticNextUrlHandlers))
         )
       default:
         return ReflectAdapter.get(target, prop, receiver)
@@ -1462,12 +1466,11 @@ function trackDynamic(
       case 'private-cache':
         // TODO: Should we allow reading cookies and search params from the
         // request for private caches in route handlers?
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
+        throw createRouteHandlerRequestInUseCacheError(store.route, expression)
       case 'unstable-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        throw createRouteHandlerRequestInUnstableCacheError(
+          store.route,
+          expression
         )
       case 'prerender':
         const error = new Error(
@@ -1505,7 +1508,7 @@ function trackDynamic(
           workUnitStore.usedDynamic = true
         }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

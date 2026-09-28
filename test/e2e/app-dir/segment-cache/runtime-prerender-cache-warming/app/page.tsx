@@ -29,6 +29,21 @@ export default function Page() {
             /lazy-data-in-prefetch (prefetch=true)
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/params-in-public-cache/1">
+            /params-in-public-cache/1
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/params-in-private-cache/1">
+            /params-in-private-cache/1
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/search-params-in-private-cache?foo=bar">
+            /search-params-in-private-cache?foo=bar
+          </LinkAccordion>
+        </li>
       </ul>
     </main>
   )

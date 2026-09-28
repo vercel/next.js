@@ -360,6 +360,12 @@ mod tests {
     /// Helpers must actually add parallelism when threads are available: jobs that each block
     /// briefly should complete in far less than their serial sum.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    // Node Worker startup makes the native timing bound too strict on wasm. A later layer uses a
+    // platform-aware bound that still distinguishes parallel from serial execution.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "timing bound is too strict for Node Worker startup"
+    )]
     async fn test_scope_runs_in_parallel() {
         const JOBS: usize = 16;
         const PER_JOB: Duration = Duration::from_millis(50);
@@ -443,6 +449,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_panic_in_scope_factory() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let _results = scope_bounded(1000, |scope| {
@@ -461,6 +472,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_panic_in_scope_task() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let _results = scope_bounded(1000, |scope| {

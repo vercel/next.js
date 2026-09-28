@@ -34,7 +34,7 @@ import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
 import {
-  type GenerateStaticParamsStore,
+  type BuildTimeGeneratorStore,
   workUnitAsyncStorage,
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
@@ -625,8 +625,9 @@ async function callGenerateStaticParams(
     }
   }
 
-  const workUnitStore: GenerateStaticParamsStore = {
-    type: 'generate-static-params',
+  const workUnitStore: BuildTimeGeneratorStore = {
+    type: 'build-time-generator',
+    functionName: 'generateStaticParams',
     phase: 'render',
     implicitTags,
     rootParams,

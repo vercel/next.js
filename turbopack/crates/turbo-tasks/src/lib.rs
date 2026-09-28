@@ -59,7 +59,6 @@ pub mod task;
 mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
-pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
 pub mod util;
@@ -102,7 +101,7 @@ pub use crate::{
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
-        CurrentCellRef, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
+        CurrentCellRef, GcRoot, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
         ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi,
         Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
@@ -293,7 +292,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct MyTaskInput { ... }
 /// ```
 ///
@@ -301,7 +300,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input(contains_unresolved_vcs)]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct VcCarrier { vc: Vc<...> }
 /// ```
 pub use turbo_tasks_macros::task_input;

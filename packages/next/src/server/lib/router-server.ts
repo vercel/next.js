@@ -68,6 +68,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { isCI } from '../ci-info'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
@@ -191,6 +192,7 @@ export async function initialize(opts: {
     | undefined = undefined
 
   let originalFetch = globalThis.fetch
+  let hasVulnerabilityInsight: Promise<boolean> = Promise.resolve(false)
 
   if (opts.dev) {
     const { Telemetry } =
@@ -217,6 +219,73 @@ export async function initialize(opts: {
 
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
+
+    // Check only development; production startup does not query advisories.
+    if (
+      developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
+      developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
+      developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
+      process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+    ) {
+      const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
+        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      const upgradeContext = getUpgradeContext(developmentConfig)
+      const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+      const policy = upgradeContext.experimental.agenticAutoUpgrade
+      const forced = process.env.__NEXT_AGENTIC_AUTO_UPGRADE === policy
+      const forceDevToolsForTesting =
+        process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+      const assessment: ReturnType<typeof assessUpgrade> =
+        isCI || forceDevToolsForTesting
+          ? Promise.resolve(null)
+          : assessUpgrade(
+              opts.dir,
+              upgradeContext,
+              installedVersion,
+              null,
+              forced
+            )
+      hasVulnerabilityInsight = assessment.then(
+        (result) => result?.kind === 'security' || forceDevToolsForTesting,
+        (error) => {
+          Log.warn(`Could not check the DevTools security insight: ${error}`)
+          return false
+        }
+      )
+      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        // TODO: Do not block dev startup while prompting for an upgrade.
+        // Preserve all logs for display after the prompt and stop dev before Update.
+        // The existing dev worker pauses here while its parent owns the menu.
+        await new Promise<void>((resolve) => {
+          const resume = (message: {
+            nextUpgradeContinue: boolean | undefined
+          }) => {
+            if (message.nextUpgradeContinue) {
+              process.off('message', resume)
+              resolve()
+            }
+          }
+          process.on('message', resume)
+          process.send!({
+            nextUpgradeContext: upgradeContext,
+          })
+        })
+      } else {
+        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+          const { printAndExit } =
+            require('./utils') as typeof import('./utils')
+          const exitCode =
+            error && typeof error === 'object'
+              ? Reflect.get(error, 'exitCode')
+              : undefined
+          printAndExit(
+            error instanceof Error ? error.message : String(error),
+            typeof exitCode === 'number' ? exitCode : 1
+          )
+        })
+      }
+    }
 
     // Resolve the effective serverFastRefresh value.
     // Both default to enabled (true). CLI takes precedence over config.
@@ -255,6 +324,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        hasVulnerabilityInsight,
       })
     )
 
@@ -1089,6 +1159,7 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    agentFeedback: config.experimental.agentFeedback,
     devMemoryThresholdRestart,
   }
 }

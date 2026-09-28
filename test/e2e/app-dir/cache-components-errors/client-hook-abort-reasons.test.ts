@@ -1,16 +1,14 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Cache Components Errors - Client Hook Abort Reasons', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/client-hook-abort-reasons',
     skipStart: !isNextDev,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliOutputLength: number
 

@@ -6,19 +6,21 @@ import { useState } from 'react'
 export function LinkAccordion({
   href,
   children,
-  prefetch,
+  prefetch = 'auto',
 }: {
   href: string
   children: React.ReactNode
   prefetch?: LinkProps['prefetch']
 }) {
   const [isVisible, setIsVisible] = useState(false)
+  const prefetchAttr = prefetch === null ? 'auto' : `${prefetch}`
   return (
     <>
       <input
         type="checkbox"
         checked={isVisible}
         onChange={() => setIsVisible(!isVisible)}
+        data-prefetch={prefetchAttr}
         data-link-accordion={href}
       />
       {isVisible ? (

@@ -193,12 +193,12 @@ mod tests {
     use serde::Serialize;
     use serde_json::json;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+    use turbo_tasks::NonLocalValue;
     use turbopack_core::update_instruction::UpdateInstruction;
 
     use super::{ClientUpdateInstruction, ResourceIdentifier};
 
-    #[derive(Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue)]
+    #[derive(Debug, PartialEq, Eq, Serialize, NonLocalValue)]
     struct TestInstruction(serde_json::Value);
 
     #[test]

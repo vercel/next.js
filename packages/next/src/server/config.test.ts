@@ -1,4 +1,9 @@
 import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import {
+  getStrictRouteMatchingDefaultWarning,
+  STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
+} from './lib/router-utils/strict-route-matching-config'
+import { configSchema } from './config-schema'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -194,18 +199,41 @@ describe('loadConfig', () => {
   })
 
   describe('parallel route matching flags', () => {
-    it('allows explicit children detection without strict route matching', async () => {
+    it('enables strict route matching by default and exposes the opt-out warning', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(result.experimental.strictRouteMatching).toBe(true)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBe(
+        STRICT_ROUTE_MATCHING_DEFAULT_WARNING
+      )
+    })
+
+    it('allows loose route matching through the deprecated opt-out', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
-          experimental: {
-            explicitParallelRouteChildren: true,
-            strictRouteMatching: false,
+          deprecated: {
+            looseRouteMatching: true,
           },
         },
       })
 
-      expect(result.experimental.explicitParallelRouteChildren).toBe(true)
       expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBeUndefined()
+    })
+
+    it('only accepts true for the deprecated opt-out', () => {
+      expect(
+        configSchema.safeParse({
+          deprecated: { looseRouteMatching: true },
+        }).success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({
+          deprecated: { looseRouteMatching: false },
+        }).success
+      ).toBe(false)
     })
 
     it('disables strict route matching when explicit children detection is disabled', async () => {
@@ -213,13 +241,13 @@ describe('loadConfig', () => {
         customConfig: {
           experimental: {
             explicitParallelRouteChildren: false,
-            strictRouteMatching: true,
           },
         },
       })
 
       expect(result.experimental.explicitParallelRouteChildren).toBe(false)
       expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBeUndefined()
     })
   })
 

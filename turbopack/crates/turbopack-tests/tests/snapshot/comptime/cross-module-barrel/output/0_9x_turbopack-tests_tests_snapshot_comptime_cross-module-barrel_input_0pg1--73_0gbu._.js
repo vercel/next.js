@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_comptime_cross-module-barrel_input_0pg1--73_0gbu._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_comptime_cross-module-barrel_input_0pg1--73_0gbu._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-barrel/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -28,6 +28,6 @@ function foo() {
     return 123;
 }
 }),
-]);
+]);})()
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_comptime_cross-module-barrel_input_0pg1--73_0gbu._.js.map
