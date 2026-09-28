@@ -478,12 +478,12 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
         self.persistent.entries.count() + self.transient.entries.count()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, target_pointer_width = "64"))]
     pub(crate) fn directory_entry_size() -> usize {
         std::mem::size_of::<PageDirectoryEntry<T>>()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, target_pointer_width = "64"))]
     pub(crate) fn pointer_page_size() -> usize {
         std::mem::size_of::<TaskPointerPage<T>>()
     }

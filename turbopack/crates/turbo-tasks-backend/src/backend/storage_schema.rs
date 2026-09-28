@@ -1208,10 +1208,9 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::{
-        backend::task_page_map::{BITMAP_WORDS, PAGE_SIZE, TaskMap},
-        data::{AggregationNumber, CellRef, Dirtyness, OutputValue},
-    };
+    #[cfg(target_pointer_width = "64")]
+    use crate::backend::task_page_map::{BITMAP_WORDS, PAGE_SIZE, TaskMap};
+    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
 
     #[test]
     fn test_accessors() {
