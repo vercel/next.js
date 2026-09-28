@@ -756,8 +756,9 @@ export function TreemapVisualizer({
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
 
-  // Stable chains keep the imperative canvas draw effect from re-running on
-  // unrelated renders; the focused chain also feeds the expensive layout below.
+  // React Compiler caches the selected and hovered chains below, but the
+  // focused chain needs a manual memo to keep the expensive layout and canvas
+  // draw effect stable across unrelated renders.
   const focusedAncestorChain = useMemo(() => {
     const chain: number[] = []
     let currentIndex = focusedSourceIndex
@@ -773,7 +774,7 @@ export function TreemapVisualizer({
   }, [analyzeData, focusedSourceIndex])
 
   // Build ancestor chain for selected source
-  const selectedAncestorChain = useMemo(() => {
+  const selectedAncestorChain = (() => {
     const chain: number[] = []
     let currentIndex = selectedSourceIndex
 
@@ -785,10 +786,10 @@ export function TreemapVisualizer({
     }
 
     return chain
-  }, [analyzeData, selectedSourceIndex])
+  })()
 
   // Build ancestor chain for hovered node (only used for dimming)
-  const hoveredAncestorChain = useMemo(() => {
+  const hoveredAncestorChain = (() => {
     if (
       !shouldDimOthers ||
       !hoveredNode ||
@@ -807,7 +808,7 @@ export function TreemapVisualizer({
     }
 
     return chain
-  }, [analyzeData, hoveredNode, shouldDimOthers])
+  })()
 
   useEffect(() => {
     const container = containerRef.current
