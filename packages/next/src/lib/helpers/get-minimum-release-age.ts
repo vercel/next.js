@@ -242,7 +242,10 @@ export function getMinimumReleaseAge(
       const value = readJsonConfig('yarn', 'npmMinimalAgeGate', directory, env)
       // Yarn stores duration settings in the unit specified by its definition.
       // npmMinimalAgeGate uses minutes.
-      age = parseNonNegativeNumber(value, 'npmMinimalAgeGate') * 60_000
+      age =
+        value === null
+          ? 0
+          : parseNonNegativeNumber(value, 'npmMinimalAgeGate') * 60_000
     }
     if (age === 0 || packageName === null) {
       return age

@@ -1,5 +1,37 @@
 import { getUpgradeAssessment } from './prepare-upgrade'
 
+describe('stable AI upgrade with canary tooling', () => {
+  const originalFetch = global.fetch
+
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  it('resolves the stable target instead of using the canary CLI version', async () => {
+    global.fetch = jest.fn(async (input) => {
+      const url = String(input)
+      if (url.startsWith('https://api.github.com/advisories?')) {
+        return Response.json([])
+      }
+      if (
+        url === 'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk'
+      ) {
+        return Response.json({ next: [] })
+      }
+      if (url === 'https://registry.npmjs.org/next/latest') {
+        return Response.json({ version: '16.4.0' })
+      }
+      throw new Error(`Unexpected request: ${url}`)
+    })
+
+    await expect(
+      getUpgradeAssessment('16.2.0', 'latest', false, '16.4.0-canary.1')
+    ).resolves.toMatchObject({
+      upgrade: { status: 'ready', targetVersion: '16.4.0' },
+    })
+  })
+})
+
 describe('age-gated security upgrade', () => {
   const originalFetch = global.fetch
   const now = Date.parse('2026-09-28T00:00:00.000Z')

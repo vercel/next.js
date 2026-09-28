@@ -447,7 +447,13 @@ async function fetchLatestRelease(
   reference: string
 } | null> {
   const channel = getPrereleaseChannel(installedVersion)
-  if (eligibleCanaryVersion !== null) {
+  if (
+    eligibleCanaryVersion !== null &&
+    !(
+      channel !== 'canary' &&
+      semver.prerelease(eligibleCanaryVersion)?.[0] === 'canary'
+    )
+  ) {
     if (
       !semver.valid(eligibleCanaryVersion) ||
       (channel === 'canary'

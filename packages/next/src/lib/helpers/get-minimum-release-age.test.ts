@@ -234,6 +234,13 @@ describe('getMinimumReleaseAge', () => {
 
       expect(getMinimumReleaseAge(directory, 'yarn')).toBe(24 * 60 * 60 * 1000)
     })
+    it('treats an unset age gate in Yarn 4.10 as disabled', () => {
+      mockExecFileSync
+        .mockReturnValueOnce('4.10.0' as never)
+        .mockReturnValueOnce('null' as never)
+
+      expect(getMinimumReleaseAge(directory, 'yarn')).toBe(0)
+    })
     it('uses no age gate on Yarn Classic', () => {
       mockExecFileSync.mockReturnValue('1.22.19' as never)
 
