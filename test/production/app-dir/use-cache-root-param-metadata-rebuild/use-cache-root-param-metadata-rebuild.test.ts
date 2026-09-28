@@ -26,6 +26,17 @@ describe('use-cache-root-param-metadata-rebuild', () => {
       | undefined
   }
 
+  it('omits root param dependencies by default', async () => {
+    await next.patchFile(
+      'next.config.ts',
+      `export default { cacheComponents: true }`,
+      async () => {
+        expect((await next.build()).exitCode).toBe(0)
+        expect(await getDependencies()).toBeUndefined()
+      }
+    )
+  })
+
   it('updates transitive root param dependencies after a rebuild', async () => {
     expect((await next.build()).exitCode).toBe(0)
     expect(await getDependencies()).toEqual([])

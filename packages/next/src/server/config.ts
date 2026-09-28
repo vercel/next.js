@@ -2407,16 +2407,6 @@ function enforceExperimentalFeatures(
 
   config.experimental ??= {}
 
-  // Turbopack enables static root param tracking unless the config sets it to
-  // false. The build does not report this default because the user did not
-  // select it.
-  if (
-    process.env.TURBOPACK &&
-    config.experimental.useCacheStaticRootParamTracking === undefined
-  ) {
-    config.experimental.useCacheStaticRootParamTracking = true
-  }
-
   if (
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
