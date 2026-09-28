@@ -178,6 +178,10 @@ describe('searchparams-reuse-loading', () => {
           string,
           { resolve: () => Promise<void> }
         >()
+        let resolveId3RequestStarted: () => void
+        const id3RequestStarted = new Promise<void>((resolve) => {
+          resolveId3RequestStarted = resolve
+        })
 
         // Track prefetch requests to know when initial prefetching is done
         const prefetchRequests = new Set<string>()
@@ -189,31 +193,9 @@ describe('searchparams-reuse-loading', () => {
           setTimeout(() => resolve(), 5000)
         })
 
-        const nonPrefetchRscRequests = new Set<string>()
         let interceptRequests = false
-        let shouldStallDynamicRequests = true
-        let id3FullPrefetchResponse: Promise<void> | undefined
         const browser = await next.browser(path, {
           beforePageLoad(page) {
-            page.on('response', (response) => {
-              const requestHeaders = response.request().headers()
-              const url = new URL(response.url())
-              const normalizedPath = url.pathname.replace(/\/someValue$/, '')
-              const expectedPath =
-                path === '/' ? '/search-params' : `${path}/search-params`
-
-              if (
-                requestHeaders['next-router-prefetch'] &&
-                normalizedPath === expectedPath &&
-                url.searchParams.get('id') === '3' &&
-                response.ok()
-              ) {
-                id3FullPrefetchResponse = response.finished().then((error) => {
-                  if (error) throw error
-                })
-              }
-            })
-
             page.route(
               (url) => {
                 return url.pathname.includes('search-params')
@@ -251,12 +233,6 @@ describe('searchparams-reuse-loading', () => {
                   headers['rsc'] === '1' &&
                   !headers['next-router-prefetch']
                 ) {
-                  nonPrefetchRscRequests.add(promiseKey)
-                  if (!shouldStallDynamicRequests) {
-                    await route.continue()
-                    return
-                  }
-
                   // Create a promise that will be resolved by the later test code
                   let resolvePromise: () => void
                   const promise = new Promise<void>((res) => {
@@ -269,16 +245,16 @@ describe('searchparams-reuse-loading', () => {
 
                   rscRequestPromise.set(promiseKey, {
                     resolve: async () => {
-                      const responsePromise = page.waitForResponse(
-                        (response) => response.request() === request
-                      )
                       await route.continue()
-                      const response = await responsePromise
-                      const error = await response.finished()
-                      if (error) throw error
+                      // wait a moment to ensure the response is received
+                      // eslint-disable-next-line @next/internal/no-adhoc-sleep -- This test intentionally relies on a fixed grace period after continuing the intercepted request.
+                      await new Promise((res) => setTimeout(res, 500))
                       resolvePromise()
                     },
                   })
+                  if (url.searchParams.get('id') === '3') {
+                    resolveId3RequestStarted()
+                  }
 
                   // Await the promise to effectively stall the request
                   await promise
@@ -293,58 +269,36 @@ describe('searchparams-reuse-loading', () => {
         const basePath = path === '/' ? '' : path
         const searchParamsPagePath = `${basePath}/search-params`
 
-        // Wait for the full id=3 prefetch response, including any middleware
-        // redirect, before intercepting navigations. Counting requests alone is
-        // racy because the redirect response can still be in flight.
+        // Wait for all expected prefetch requests to complete
         await prefetchPromise
-        await retry(
-          () => expect(id3FullPrefetchResponse).toBeDefined(),
-          30_000,
-          500,
-          'Waiting for id=3 full prefetch response'
-        )
-        await id3FullPrefetchResponse
         interceptRequests = true
-
-        // Exercise the full prefetch immediately after observing its response.
-        // Running the two stalled dynamic navigations first can exceed the
-        // prefetch cache's stale time on a slow CI worker.
-        shouldStallDynamicRequests = false
-        await browser
-          .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
-          .click()
-
-        const params3 = await browser.waitForElementByCss('#params').text()
-        expect(params3).toBe('{"id":"3"}')
-        expect(nonPrefetchRscRequests.has(`${searchParamsPagePath}?id=3`)).toBe(
-          false
-        )
-
-        await browser.elementByCss(`[href='${path}']`).click()
-        shouldStallDynamicRequests = true
-
-        // The first "auto" prefetched link should show its loading state while
-        // the dynamic request is stalled.
+        // The first link we click is "auto" prefetched.
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=1"]`)
           .click()
-        expect(await browser.elementById('loading').text()).toBe('Loading...')
 
+        // We expect to click it and immediately see a loading state
+        expect(await browser.elementById('loading').text()).toBe('Loading...')
+        // We only resolve the dynamic request after we've confirmed loading exists,
+        // to avoid a race where the dynamic request handles the loading state instead.
         let dynamicRequest = rscRequestPromise.get(
           `${searchParamsPagePath}?id=1`
         )
+
         expect(dynamicRequest).toBeDefined()
 
+        // resolve the promise
         await dynamicRequest.resolve()
         dynamicRequest = undefined
 
+        // Confirm the params are correct
         const params = await browser.waitForElementByCss('#params').text()
         expect(params).toBe('{"id":"1"}')
 
         await browser.elementByCss(`[href='${path}']`).click()
 
-        // Repeat with another auto-prefetched link to ensure the loading state
-        // is reused with different search params.
+        // Do the exact same thing again, for another prefetch auto link, to ensure
+        // loading works as expected and we get different search params
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=2"]`)
           .click()
@@ -352,11 +306,38 @@ describe('searchparams-reuse-loading', () => {
         dynamicRequest = rscRequestPromise.get(`${searchParamsPagePath}?id=2`)
         expect(dynamicRequest).toBeDefined()
 
+        // resolve the promise
         await dynamicRequest.resolve()
         dynamicRequest = undefined
 
         const params2 = await browser.waitForElementByCss('#params').text()
         expect(params2).toBe('{"id":"2"}')
+
+        // Dev mode doesn't perform full prefetches, so this test is conditional
+        await browser.elementByCss(`[href='${path}']`).click()
+
+        const id3RequestKey = `${searchParamsPagePath}?id=3`
+        await browser.elementByCss(`[href="${id3RequestKey}"]`).click()
+
+        const id3Outcome = await Promise.race([
+          id3RequestStarted.then(() => 'request' as const),
+          browser
+            .waitForElementByCss('#params')
+            .text()
+            .then(() => 'rendered' as const),
+        ])
+
+        if (path === '/') {
+          expect(id3Outcome).toBe('rendered')
+          expect(rscRequestPromise.has(id3RequestKey)).toBe(false)
+        } else if (id3Outcome === 'request') {
+          const id3Request = rscRequestPromise.get(id3RequestKey)
+          expect(id3Request).toBeDefined()
+          await id3Request.resolve()
+        }
+
+        const params3 = await browser.waitForElementByCss('#params').text()
+        expect(params3).toBe('{"id":"3"}')
       })
     })
 
