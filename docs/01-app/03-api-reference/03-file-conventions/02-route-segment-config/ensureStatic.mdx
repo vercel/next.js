@@ -1,6 +1,6 @@
 ---
 title: unstable_ensureStatic
-description: API reference for the unstable_ensureStatic route segment config, which requires a route's App Shell, prefetches, or whole page to be served from static, build-time generated output.
+description: API reference for the unstable_ensureStatic route segment config, which controls static rendering for a route's App Shell, prefetches, or whole page.
 version: experimental
 related:
   title: Next Steps
@@ -13,14 +13,9 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-The `unstable_ensureStatic` route segment config sets how much of a route Next.js serves from a static prerender. At `'navigation'`, the highest level, any part of the route that needs per-request work is a build error.
+The `unstable_ensureStatic` route segment config controls how much of a route Next.js serves from a static prerender. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to require static rendering for the [App Shell](/docs/app/glossary#app-shell), [prefetches](/docs/app/guides/prefetching), or the whole page.
 
-> **Good to know**:
->
-> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
-> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
-
-```tsx filename="app/blog/layout.tsx" switcher
+```tsx filename="app/blog/layout.tsx" highlight={1} switcher
 export const unstable_ensureStatic = 'navigation'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -28,7 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/blog/layout.js" switcher
+```jsx filename="app/blog/layout.js" highlight={1} switcher
 export const unstable_ensureStatic = 'navigation'
 
 export default function Layout({ children }) {
@@ -36,18 +31,26 @@ export default function Layout({ children }) {
 }
 ```
 
+> **Good to know**:
+>
+> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
+> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
+
 ## Reference
 
-The export accepts one of the following values. Each level includes the ones before it.
+The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`. The default is `'auto'`, which is equivalent to omitting the export.
 
-| Value                         | App Shell     | Per-link prefetch | Navigation and initial load |
-| ----------------------------- | ------------- | ----------------- | --------------------------- |
-| `'auto'` (default) or `false` | Default       | Default           | Default                     |
-| `'shell'`                     | Static output | Default           | Default                     |
-| `'prefetch'`                  | Static output | Static output     | Default                     |
-| `'navigation'`                | Static output | Static output     | Static output               |
+| Value              | App Shell     | Per-link prefetch | Navigation and initial load |
+| ------------------ | ------------- | ----------------- | --------------------------- |
+| `'auto'` (default) | Default       | Default           | Default                     |
+| `false`            | Default       | Default           | Default                     |
+| `'shell'`          | Static output | Default           | Default                     |
+| `'prefetch'`       | Static output | Static output     | Default                     |
+| `'navigation'`     | Static output | Static output     | Static output               |
 
-"Default" means Next.js serves the response from static output when the route allows it and renders it per request otherwise, the same as without the export. "Static output" means the response is always served from the prerender the build already generated.
+"Default" means Next.js serves the response from static output when the route allows it and renders it per request otherwise, the same as without the export. "Static output" means Next.js serves prerendered output for that stage. The output can include Suspense fallbacks for content that renders at a later stage.
+
+The static levels become progressively stricter: `'prefetch'` includes `'shell'`, and `'navigation'` includes both. Unlike `'auto'`, `false` rejects a static level set elsewhere on the route. See [Combining levels across layouts and pages](#combining-levels-across-layouts-and-pages).
 
 ### `'shell'`
 
@@ -65,22 +68,36 @@ Without Partial Prefetching, this is how Cache Components prefetches by default,
 
 ### `'navigation'`
 
-Requires every segment of the route to prerender completely at build time, so the initial page load is served as static HTML.
+Requires every segment of the route to prerender completely, so initial loads and client navigations use static output. This works with or without Partial Prefetching.
 
-Any content that would render per request fails `next build` and shows an error in the development overlay, even when it is wrapped in `<Suspense>` or the segment sets [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant#disabling-instant):
+Unlike `'shell'` and `'prefetch'`, this level does not allow server content to wait for a later rendering stage.
 
-| Fails                                                                                                                           | Allowed                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Uncached data, such as `fetch` or a database call without [`use cache`](/docs/app/api-reference/directives/use-cache)           | Data cached with `use cache`                                                                                                                    |
-| [`connection()`](/docs/app/api-reference/functions/connection)                                                                  | [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) |
-| `cookies()` and `headers()`                                                                                                     | Request-specific content loaded by a Client Component after hydration                                                                           |
-| `params` not returned by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), and `searchParams` | `params` returned by `generateStaticParams`, or read on the client with `useParams()` and `useSearchParams()`                                   |
-| A `use cache` scope whose [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes                  | A `use cache` scope with a short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time                                              |
-| A promise for any of the above passed to a Client Component, whether or not it is used                                          | `use(browser())` and client-side data loading inside `<Suspense>`                                                                               |
+Server content that requires per-request work fails `next build` and shows an error in the development overlay, even when it is wrapped in `<Suspense>` or the segment sets [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant#disabling-instant):
+
+- Uncached data, such as a `fetch` or database call without [`use cache`](/docs/app/api-reference/directives/use-cache).
+- [`connection()`](/docs/app/api-reference/functions/connection), `cookies()`, `headers()`, and server-side `searchParams`.
+- A `use cache` scope whose [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes. A short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time is allowed.
+- A promise for request-dependent server data passed to a Client Component, whether or not the component reads it.
+
+These constraints also apply to [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport).
+
+Data cached with `use cache` can be prerendered. Calling [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) also remains allowed, because these functions do not defer work during a static prerender.
+
+#### Dynamic route parameters
+
+Dynamic routes must provide [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with at least one result. Each result must include all dynamic parameters for the route, even if a parameter is only read in a Client Component or is unused.
+
+Parameters returned by `generateStaticParams` can be read during prerendering. For parameter values that were not prerendered at build time, Next.js waits for the static result to be generated before serving the response.
+
+#### Client Components
+
+Client Components can load request-specific content in the browser. Inside `<Suspense>`, `use(browser())` and [`use(io())`](/docs/app/api-reference/functions/io) are allowed. The prerender includes the fallback for the deferred content. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
+Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and fails validation.
 
 ### `false`
 
-Behaves like `'auto'`, but fails the build if any other segment on the route sets a level. Use it on a route that should not be made static, so that a level added later to a shared layout is caught instead of applied.
+Behaves like `'auto'`, but fails the build if another segment on the route sets `'shell'`, `'prefetch'`, or `'navigation'`. It is compatible with `'auto'`, `false`, and segments without the export. Use it on a route that should not be made static, so that a level added later to a shared layout is caught instead of applied.
 
 Like `'shell'`, it requires Partial Prefetching and logs a warning without it.
 
@@ -88,7 +105,7 @@ Like `'shell'`, it requires Partial Prefetching and logs a warning without it.
 
 A level set on a layout applies to every route that renders the layout, including its nested layouts, pages, and [parallel routes](/docs/app/api-reference/file-conventions/parallel-routes). Within a route, the level covers every segment, including the layouts above the one that sets it.
 
-A segment below it can set a stricter level, but not a weaker one:
+Leaving the export unset or setting it to `'auto'` is compatible with any level and does not override another segment's setting. A descendant can set a stricter static level, but not a weaker one:
 
 ```tsx filename="app/blog/layout.tsx"
 export const unstable_ensureStatic = 'prefetch'
@@ -100,24 +117,32 @@ export const unstable_ensureStatic = 'navigation' // allowed, stricter than 'pre
 
 A weaker level on a child segment fails the build:
 
-```bash filename="Terminal"
+```text filename="Terminal"
 A child segment cannot override a parent segment with a less-constrained `unstable_ensureStatic`.
 ```
 
-Mixing `false` with any other level fails the same way, with the word "incompatible" in place of "less-constrained".
+Mixing `false` with `'shell'`, `'prefetch'`, or `'navigation'` in a parent and child fails with:
 
-Parallel routes rendered together must set the same level, or leave it unset:
+```text filename="Terminal"
+A child segment cannot override a parent segment with an incompatible `unstable_ensureStatic`.
+```
 
-```bash filename="Terminal"
+Parallel routes rendered together must set the same value, leave the export unset, or use `'auto'`. Conflicting values fail with:
+
+```text filename="Terminal"
 Parallel slots cannot have incompatible `unstable_ensureStatic`.
 ```
 
 ## TypeScript
 
-```tsx
+```tsx filename="app/blog/layout.tsx"
 type EnsureStatic = 'auto' | 'shell' | 'prefetch' | 'navigation' | false
 
 export const unstable_ensureStatic: EnsureStatic = 'navigation'
 ```
 
-{/* TODO: Version History row once the release version is known. */}
+## Version History
+
+| Version   | Changes                             |
+| --------- | ----------------------------------- |
+| `v16.4.0` | `unstable_ensureStatic` introduced. |

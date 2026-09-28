@@ -12,6 +12,12 @@ The Route Segment Config options allow you to configure the behavior of a [Page]
 | [`preferredRegion`](/docs/app/api-reference/file-conventions/route-segment-config/preferredRegion) | `'auto' \| 'global' \| 'home' \| string \| string[] (deprecated)` | `'auto'`                   |
 | [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration)         | `number`                                                          | Set by deployment platform |
 
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, pages and layouts also support the following experimental option:
+
+| Option                                                                                                | Type                                                               | Default  |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------- |
+| [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) | `'auto'` \| `'shell'` \| `'prefetch'` \| `'navigation'` \| `false` | `'auto'` |
+
 ## Version History
 
 | Version      |                                                                                                                                                                                                                                                                                                |
