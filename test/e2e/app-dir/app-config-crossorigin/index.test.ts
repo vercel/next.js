@@ -37,6 +37,7 @@ if (!isNextStart) {
     describe('default output', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'default'),
+        skipDeployment: true,
       })
 
       function expectCrossOriginAttributesToBeOmitted(
@@ -67,6 +68,7 @@ if (!isNextStart) {
             NEXT_TEST_OUTPUT_EXPORT: '1',
           },
           skipStart: true,
+          skipDeployment: true,
           startCommand: 'node server.mjs',
           serverReadyPattern: /- Local:/,
         })
