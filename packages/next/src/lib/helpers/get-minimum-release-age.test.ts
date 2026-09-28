@@ -371,12 +371,19 @@ describe('getMinimumReleaseAge', () => {
       }
     })
     it('uses the registry from the environment', () => {
-      expect(
-        getAgeGateRegistry(directory, 'bun', 'next', {
-          ...process.env,
-          npm_config_registry: 'https://mirror.example/bun',
-        })
-      ).toBe('https://mirror.example/bun/')
+      const root = mkdtempSync(join(tmpdir(), 'next-bun-registry-'))
+      try {
+        expect(
+          getAgeGateRegistry(root, 'bun', 'next', {
+            ...process.env,
+            npm_config_registry: 'https://mirror.example/bun',
+            XDG_CONFIG_HOME: root,
+            HOME: root,
+          })
+        ).toBe('https://mirror.example/bun/')
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
     })
     it('reads global and project config, with project precedence', () => {
       const root = mkdtempSync(join(tmpdir(), 'next-bun-age-'))
@@ -471,7 +478,7 @@ describe('getMinimumReleaseAge', () => {
         expect(
           getAgeGateRegistry(app, 'bun', '@next/codemod', {
             ...process.env,
-            npm_config_registry: '',
+            npm_config_registry: 'https://environment.example/',
             XDG_CONFIG_HOME: join(root, 'global'),
           })
         ).toBe('https://scope.example/')
@@ -692,6 +699,33 @@ describe('resolveAgeEligibleVersion', () => {
         process.env.XDG_CONFIG_HOME = previousConfigHome
       }
     }
+  })
+
+  it('keeps registry URL credentials out of subprocess arguments', async () => {
+    mockExecFileSync.mockReset()
+    global.fetch = jest.fn(async () =>
+      Response.json(packument({ '17.1.0-canary.1': 72 }))
+    )
+
+    await expect(
+      resolveAgeEligibleVersion(
+        {
+          name: 'next',
+          minimumReleaseAge: 48 * 60 * 60 * 1000,
+          registry: 'https://user:secret@mirror.example/',
+          directory: '/app',
+          manager: 'pnpm',
+        },
+        'canary'
+      )
+    ).resolves.toBe('17.1.0-canary.1')
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://mirror.example/next',
+      expect.objectContaining({
+        headers: { Authorization: 'Basic dXNlcjpzZWNyZXQ=' },
+      })
+    )
+    expect(mockExecFileSync).toHaveBeenCalledTimes(0)
   })
 
   it('selects the newest canary old enough for the age gate', async () => {

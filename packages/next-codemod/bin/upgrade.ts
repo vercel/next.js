@@ -159,6 +159,17 @@ function bunAuthorization(registry: string, name: string): string | null {
   return null
 }
 
+function registryAccess(registry: string) {
+  const url = new URL(registry)
+  const authorization =
+    url.username || url.password
+      ? `Basic ${Buffer.from(`${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`).toString('base64')}`
+      : null
+  url.username = ''
+  url.password = ''
+  return { registry: url.toString(), authorization }
+}
+
 export async function packageInfo(
   name: string,
   version: string
@@ -166,10 +177,13 @@ export async function packageInfo(
   const manager = getPkgManager(cwd)
   const spec = `${name}@${version}`
   const registry = manager === 'bun' ? agePolicy(name).registry : null
-  const authorization = registry ? bunAuthorization(registry, name) : null
+  const access = registry ? registryAccess(registry) : null
+  const authorization =
+    access?.authorization ??
+    (registry ? bunAuthorization(registry, name) : null)
   if (authorization) {
     const response = await fetch(
-      `${registry}${encodeURIComponent(name).replace('%40', '@')}/${encodeURIComponent(version)}`,
+      `${access!.registry}${encodeURIComponent(name).replace('%40', '@')}/${encodeURIComponent(version)}`,
       {
         headers: { Authorization: authorization },
         signal: AbortSignal.timeout(10_000),
@@ -200,7 +214,7 @@ export async function packageInfo(
           'view',
           spec,
           '--json',
-          ...(registry ? [`--registry=${registry}`] : []),
+          ...(access ? [`--registry=${access.registry}`] : []),
           ...(manager === 'npm' || manager === 'bun'
             ? ['--no-workspaces']
             : []),
@@ -283,15 +297,15 @@ function agePolicy(name: string): {
       age = Number(config?.minimumReleaseAge ?? 0) * 1_000
       exclusions = config?.minimumReleaseAgeExcludes
     }
+    const scopedSetting = scope
+      ? (config?.scopes as Record<string, unknown> | undefined)?.[`@${scope}`]
+      : undefined
     const setting =
-      (scope
-        ? (config?.scopes as Record<string, unknown> | undefined)?.[`@${scope}`]
-        : undefined) ?? config?.registry
+      scopedSetting ?? process.env.npm_config_registry ?? config?.registry
     registry =
-      process.env.npm_config_registry ||
-      (typeof setting === 'string'
+      typeof setting === 'string'
         ? setting
-        : (setting as { url?: string } | undefined)?.url)
+        : (setting as { url?: string } | undefined)?.url
   }
   if (!Number.isFinite(age) || Number(age) < 0) {
     throw new Error(`Invalid minimum release age for ${name}.`)
@@ -333,13 +347,15 @@ export async function ageEligibleVersions(
   const packuments = await Promise.all(
     packages.map(async (pkg, index) => {
       const manager = getPkgManager(cwd)
+      const access = registryAccess(policies[index].registry)
       const authorization =
-        manager === 'bun'
+        access.authorization ??
+        (manager === 'bun'
           ? bunAuthorization(policies[index].registry, pkg)
-          : null
+          : null)
       if (authorization) {
         const response = await fetch(
-          `${policies[index].registry}${encodeURIComponent(pkg).replace('%40', '@')}`,
+          `${access.registry}${encodeURIComponent(pkg).replace('%40', '@')}`,
           {
             headers: { Authorization: authorization },
             signal: AbortSignal.timeout(10_000),
@@ -370,7 +386,7 @@ export async function ageEligibleVersions(
                 'versions',
                 'dist-tags',
                 '--json',
-                `--registry=${policies[index].registry}`,
+                `--registry=${access.registry}`,
                 ...(manager === 'npm' || manager === 'bun'
                   ? ['--no-workspaces']
                   : []),

@@ -189,6 +189,38 @@ describe('codemod minimum release age', () => {
         '19.2.1',
       ])
     })
+
+    it('uses embedded registry credentials without command-line arguments', async () => {
+      mockGetPkgManager.mockReturnValue('npm')
+      mockSync.mockImplementation((_command, args) => {
+        if (args[0] === '--version') {
+          return { stdout: '11.10.0' } as never
+        }
+        if (args.includes('min-release-age')) {
+          return { stdout: '2' } as never
+        }
+        if (args.includes('min-release-age-exclude')) {
+          return { stdout: '[]' } as never
+        }
+        return { stdout: '"https://user:secret@mirror.example/"' } as never
+      })
+      global.fetch = jest.fn(async () =>
+        Response.json(packument({ '19.2.1': 72 }))
+      )
+
+      await expect(ageEligibleVersions('react', 'latest')).resolves.toEqual([
+        '19.2.1',
+      ])
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://mirror.example/react',
+        expect.objectContaining({
+          headers: { Authorization: 'Basic dXNlcjpzZWNyZXQ=' },
+        })
+      )
+      expect(mockSync.mock.calls.some(([, args]) => args[0] === 'view')).toBe(
+        false
+      )
+    })
   })
 
   describe('yarn', () => {
@@ -309,8 +341,10 @@ describe('codemod minimum release age', () => {
       mockGetPkgManager.mockReturnValue('bun')
       const originalXdg = process.env.XDG_CONFIG_HOME
       const originalToken = process.env.BUN_TEST_TOKEN
+      const originalRegistry = process.env.npm_config_registry
       process.env.XDG_CONFIG_HOME = '/virtual-bun-config'
       process.env.BUN_TEST_TOKEN = 'test-token'
+      process.env.npm_config_registry = 'https://environment.example/'
       const exists = jest
         .spyOn(fs, 'existsSync')
         .mockImplementation(
@@ -376,6 +410,11 @@ describe('codemod minimum release age', () => {
           delete process.env.BUN_TEST_TOKEN
         } else {
           process.env.BUN_TEST_TOKEN = originalToken
+        }
+        if (originalRegistry === undefined) {
+          delete process.env.npm_config_registry
+        } else {
+          process.env.npm_config_registry = originalRegistry
         }
       }
     })

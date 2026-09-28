@@ -362,45 +362,48 @@ export function getAgeGateRegistry(
       registry ??= readJsonConfig('yarn', 'npmRegistryServer', directory, env)
     }
   } else if (manager === 'bun') {
-    registry = env.npm_config_registry
-    if (!registry) {
-      let scopedRegistry: unknown
-      for (const bunfig of bunConfigPaths(directory, env)) {
-        if (existsSync(bunfig)) {
-          const parsed = JSON.parse(
-            run(
-              'bun',
-              [
-                '-e',
-                'console.log(JSON.stringify(Bun.TOML.parse(await Bun.stdin.text())))',
-              ],
-              directory,
-              env,
-              readFileSync(bunfig, 'utf8')
-            )
-          ) as {
-            install?: {
-              registry?: string | { url?: string }
-              scopes?: Record<string, string | { url?: string }>
-            }
-          }
-          const setting = parsed.install?.registry
-          registry =
-            typeof setting === 'string' ? setting : (setting?.url ?? registry)
-          const scopedSetting = scope
-            ? parsed.install?.scopes?.[`@${scope}`]
-            : undefined
-          if (scopedSetting !== undefined) {
-            scopedRegistry =
-              typeof scopedSetting === 'string'
-                ? scopedSetting
-                : scopedSetting?.url
+    let scopedRegistry: unknown
+    let configuredRegistry: unknown
+    for (const bunfig of bunConfigPaths(directory, env)) {
+      if (existsSync(bunfig)) {
+        const parsed = JSON.parse(
+          run(
+            'bun',
+            [
+              '-e',
+              'console.log(JSON.stringify(Bun.TOML.parse(await Bun.stdin.text())))',
+            ],
+            directory,
+            env,
+            readFileSync(bunfig, 'utf8')
+          )
+        ) as {
+          install?: {
+            registry?: string | { url?: string }
+            scopes?: Record<string, string | { url?: string }>
           }
         }
+        const setting = parsed.install?.registry
+        configuredRegistry =
+          typeof setting === 'string'
+            ? setting
+            : (setting?.url ?? configuredRegistry)
+        const scopedSetting = scope
+          ? parsed.install?.scopes?.[`@${scope}`]
+          : undefined
+        if (scopedSetting !== undefined) {
+          scopedRegistry =
+            typeof scopedSetting === 'string'
+              ? scopedSetting
+              : scopedSetting?.url
+        }
       }
-      registry = scopedRegistry ?? registry
     }
-    registry ??= NPM_REGISTRY
+    registry =
+      scopedRegistry ??
+      env.npm_config_registry ??
+      configuredRegistry ??
+      NPM_REGISTRY
   } else {
     if (scope) {
       registry = readJsonConfig(manager, `@${scope}:registry`, directory, env)
@@ -521,14 +524,23 @@ function getBunAuthorization(
 
 async function fetchPackument(pkg: AgeGatedPackage): Promise<Packument> {
   const { name, registry = NPM_REGISTRY, directory, manager } = pkg
+  const registryUrl = new URL(registry)
+  const registryAuthorization =
+    registryUrl.username || registryUrl.password
+      ? `Basic ${Buffer.from(`${decodeURIComponent(registryUrl.username)}:${decodeURIComponent(registryUrl.password)}`).toString('base64')}`
+      : null
+  registryUrl.username = ''
+  registryUrl.password = ''
+  const safeRegistry = registryUrl.toString()
   const bunAuthorization =
     directory && manager === 'bun'
       ? getBunAuthorization(directory, registry, pkg.name, process.env)
       : null
-  if (bunAuthorization) {
+  const authorization = registryAuthorization ?? bunAuthorization
+  if (authorization) {
     const path = encodeURIComponent(name).replace('%40', '@')
-    const response = await fetch(`${registry}${path}`, {
-      headers: { Authorization: bunAuthorization },
+    const response = await fetch(`${safeRegistry}${path}`, {
+      headers: { Authorization: authorization },
       signal: AbortSignal.timeout(10_000),
       cache: 'no-store',
       redirect: 'error',
@@ -559,7 +571,7 @@ async function fetchPackument(pkg: AgeGatedPackage): Promise<Packument> {
               'versions',
               'dist-tags',
               '--json',
-              `--registry=${registry}`,
+              `--registry=${safeRegistry}`,
               ...(manager === 'npm' || manager === 'bun'
                 ? ['--no-workspaces']
                 : []),
@@ -579,7 +591,7 @@ async function fetchPackument(pkg: AgeGatedPackage): Promise<Packument> {
     return value
   }
   const path = encodeURIComponent(name).replace('%40', '@')
-  const response = await fetch(`${registry}${path}`, {
+  const response = await fetch(`${safeRegistry}${path}`, {
     signal: AbortSignal.timeout(10_000),
     cache: 'no-store',
     redirect: 'error',
