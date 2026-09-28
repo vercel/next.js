@@ -1,6 +1,5 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
 import cheerio from 'cheerio'
-import cookie from 'cookie'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
@@ -8,36 +7,43 @@ import { join } from 'path'
 describe('Preview mode with fallback pages', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      cookie: '0.7.2',
-    },
   })
 
   let previewCookie: string
 
-  it('should get preview cookie correctly', async () => {
+  it('should set and read preview cookies over HTTP', async () => {
     const res = await next.fetch('/api/enable')
     previewCookie = ''
 
+    expect(res.status).toBe(200)
     expect(res.headers.get('set-cookie')).toMatch(
       /(__prerender_bypass|__next_preview_data)/
     )
 
-    res.headers
-      .get('set-cookie')!
-      .split(',')
-      .forEach((c) => {
-        const cookies = cookie.parse(c)
-        const isBypass = cookies.__prerender_bypass
-
-        if (isBypass || cookies.__next_preview_data) {
-          if (previewCookie) previewCookie += '; '
-
-          previewCookie += `${
-            isBypass ? '__prerender_bypass' : '__next_preview_data'
-          }=${cookies[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
-        }
+    const setCookie = res.headers.get('set-cookie')!
+    previewCookie = ['__prerender_bypass', '__next_preview_data']
+      .map((name) => {
+        const value = setCookie.match(
+          new RegExp(`(?:^|,\\s*)${name}=([^;]+)`)
+        )?.[1]
+        expect(value).toBeDefined()
+        return `${name}=${value}`
       })
+      .join('; ')
+
+    const previewRes = await next.fetch('/', {
+      headers: {
+        cookie: previewCookie,
+      },
+    })
+    const previewHtml = await previewRes.text()
+    const previewProps = JSON.parse(cheerio.load(previewHtml)('#props').text())
+
+    expect(previewRes.status).toBe(200)
+    expect(previewProps).toEqual({
+      preview: true,
+      previewData: {},
+    })
   })
 
   it('should not write preview index SSG page to cache', async () => {
