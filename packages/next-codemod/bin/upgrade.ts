@@ -399,6 +399,12 @@ export async function ageEligibleVersions(
     if (valid(range)) {
       return version === range
     }
+    if (
+      taggedVersion &&
+      !['latest', 'canary', 'rc', 'beta', 'preview'].includes(range)
+    ) {
+      return version === taggedVersion
+    }
     if (taggedVersion) {
       return (
         valid(taggedVersion) &&

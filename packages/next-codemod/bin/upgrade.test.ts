@@ -51,6 +51,32 @@ describe('codemod minimum release age', () => {
   })
 
   describe('pnpm', () => {
+    it.each(['15.5.1', '15.6.0-canary.1'])(
+      'resolves a custom dist-tag to its tagged %s release',
+      async (taggedVersion) => {
+        mockGetPkgManager.mockReturnValue('pnpm')
+        mockSync.mockImplementation((_command, args) => {
+          if (args[0] === '--version') return { stdout: '10.33.0' } as never
+          if (args[0] === 'view') {
+            return {
+              stdout: viewOutput({ [taggedVersion]: 72 }, 'next-15'),
+            } as never
+          }
+          if (args.includes('minimumReleaseAge')) {
+            return { stdout: '2880' } as never
+          }
+          if (args.includes('minimumReleaseAgeExclude')) {
+            return { stdout: '[]' } as never
+          }
+          return { stdout: 'https://registry.npmjs.org/' } as never
+        })
+
+        await expect(ageEligibleVersions('next', 'next-15')).resolves.toEqual([
+          taggedVersion,
+        ])
+      }
+    )
+
     it('selects a React version eligible for React DOM too', async () => {
       mockGetPkgManager.mockReturnValue('pnpm')
       mockSync.mockImplementation((_command, args) => {

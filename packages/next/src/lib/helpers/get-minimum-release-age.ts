@@ -655,16 +655,19 @@ export async function resolveAgeEligibleVersion(
         return false
       }
 
-      const taggedVersion = packument['dist-tags'][channel]
-      if (!semver.valid(taggedVersion) || semver.gt(version, taggedVersion)) {
-        return false
+      if (!pkg.range) {
+        const taggedVersion = packument['dist-tags'][channel]
+        if (!semver.valid(taggedVersion) || semver.gt(version, taggedVersion)) {
+          return false
+        }
       }
       return (
         eligible(pkg, packument, version) &&
         (!also ||
           !alsoPackument ||
-          (semver.valid(alsoPackument['dist-tags'][channel]) &&
-            !semver.gt(version, alsoPackument['dist-tags'][channel]) &&
+          ((pkg.range ||
+            (semver.valid(alsoPackument['dist-tags'][channel]) &&
+              !semver.gt(version, alsoPackument['dist-tags'][channel]))) &&
             eligible(also, alsoPackument, version)))
       )
     })

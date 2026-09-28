@@ -802,6 +802,25 @@ describe('resolveAgeEligibleVersion', () => {
     ).resolves.toBe('16.1.2')
   })
 
+  it.each(['17.0.1', '^17.0.0'])(
+    'allows explicit %s beyond the latest tag when both packages are eligible',
+    async (range) => {
+      global.fetch = jest.fn(async () =>
+        Response.json({
+          ...packument({ '17.0.0': 72, '17.0.1': 72 }, 'latest'),
+          'dist-tags': { latest: '17.0.0' },
+        })
+      )
+      await expect(
+        resolveAgeEligibleVersion(
+          { name: 'next', minimumReleaseAge: 1, range },
+          'latest',
+          { name: '@next/codemod', minimumReleaseAge: 1 }
+        )
+      ).resolves.toBe('17.0.1')
+    }
+  )
+
   it.each(['15.5.1', '15.6.0-canary.1'])(
     'resolves a custom dist-tag to %s shared with the codemod',
     async (version) => {
