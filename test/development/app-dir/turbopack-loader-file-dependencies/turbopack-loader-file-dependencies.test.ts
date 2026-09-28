@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('turbopack-loader-file-dependencies', () => {
   const { next } = nextTestSetup({
@@ -16,11 +16,11 @@ describe('turbopack-loader-file-dependencies', () => {
       'export const magicValue = "magic-value-2";'
     )
 
-    await waitFor(1000)
-
-    const $2 = await next.render$('/')
-    const newText = await $2('p').text()
-    expect(newText).not.toBe(initialText)
+    await retry(async () => {
+      const $2 = await next.render$('/')
+      const newText = $2('p').text()
+      expect(newText).not.toBe(initialText)
+    })
   })
 
   it('should update when a missing dependency is created', async () => {
@@ -40,6 +40,7 @@ describe('turbopack-loader-file-dependencies', () => {
     )
   })
 
+  // @force-gate turbopack
   it('should update when a build dependency changes', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toContain('build dependency: build-one')
