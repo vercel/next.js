@@ -98,9 +98,11 @@ pub fn try_lock_and_remove<
 
 #[cfg(test)]
 mod tests {
+    use std::hash::BuildHasher;
+
     use turbo_tasks::FxDashMap;
 
-    use super::{TryLockAndRemove, try_lock_and_remove};
+    use super::{TryLockAndRemove, get_shard, try_lock_and_remove};
 
     #[test]
     fn try_lock_and_remove_requires_matching_values() {
@@ -116,5 +118,24 @@ mod tests {
             TryLockAndRemove::Removed
         ));
         assert!(map.get("task").is_none());
+    }
+
+    #[test]
+    fn contended_removal_rechecks_the_expected_value_after_unlocking() {
+        let map = FxDashMap::<String, u32>::default();
+        map.insert("task".to_string(), 1);
+        let hash = map.hasher().hash_one("task");
+        let shard_guard = get_shard(&map, hash).write();
+        assert!(matches!(
+            try_lock_and_remove(&map, "task", 1),
+            TryLockAndRemove::WouldBlock
+        ));
+        drop(shard_guard);
+
+        // A new mapping can be published after the contended eviction releases its other lock.
+        map.insert("task".to_string(), 2);
+        assert!(map.remove_if("task", |_, id| *id == 1).is_none());
+        assert_eq!(map.get("task").map(|id| *id), Some(2));
+        assert!(map.remove_if("task", |_, id| *id == 2).is_some());
     }
 }

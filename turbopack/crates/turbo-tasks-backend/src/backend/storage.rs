@@ -611,6 +611,12 @@ impl Storage {
         drop_contents(&self.task_cache);
     }
 
+    /// A sole Arc owner proves this type is already absent from TaskCache. Additional owners
+    /// might or might not be cache entries, so a removal must still check the TaskId.
+    fn gc_deleted_type_may_be_cached(task_type: &CachedTaskTypeArc) -> bool {
+        task_type.count() > 1
+    }
+
     /// Evict tasks from in-memory storage after a successful snapshot.
     ///
     /// Iterates all tasks and applies the eviction level returned by
@@ -675,7 +681,9 @@ impl Storage {
                 // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
                 // can drop them fully now.
                 if task.flags.deleted() {
-                    if let Some(task_type) = task.get_persistent_task_type() {
+                    if let Some(task_type) = task.get_persistent_task_type()
+                        && Self::gc_deleted_type_may_be_cached(task_type)
+                    {
                         remove_from_task_cache(
                             &mut evicted,
                             &mut deferred_task_cache_removals,
@@ -1179,10 +1187,33 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
 #[cfg(test)]
 mod tests {
     use turbo_bincode::TurboBincodeBuffer;
-    use turbo_tasks::TaskId;
+    use turbo_tasks::{
+        TaskId,
+        backend::{CachedTaskType, CachedTaskTypeArc},
+        macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
+    };
 
     use super::{SpecificTaskDataCategory, Storage, TrackOutcome};
     use crate::backing_storage::SnapshotItem;
+
+    fn dummy_fn() {}
+
+    static DUMMY_FN: NativeFunction = NativeFunction::new(
+        "task_cache_eviction_test",
+        "task_cache_eviction_test",
+        ArgMeta::new::<(i32,)>(),
+        &into_task_fn(dummy_fn),
+        false,
+        false,
+    );
+
+    fn test_cached_type() -> CachedTaskTypeArc {
+        CachedTaskTypeArc::new(CachedTaskType {
+            native_fn: &DUMMY_FN,
+            this: None,
+            arg: Box::new((42i32,)),
+        })
+    }
 
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
@@ -1199,6 +1230,58 @@ mod tests {
         let task = storage.access_mut(task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
         assert!(!task.gc_collectible());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn gc_deleted_task_with_evicted_key_preserves_newer_cache_entry() {
+        let storage = Storage::new(2, true);
+        let old_id = non_transient_task(1);
+        let new_id = non_transient_task(2);
+        storage.initialize_new_task(old_id, Some(test_cached_type()));
+        {
+            let mut task = storage.access_mut(old_id);
+            task.flags.set_new_task(false);
+            task.flags.set_deleted(true);
+            let task_type = task.get_persistent_task_type().unwrap();
+            assert_eq!(task_type.count(), 1);
+            assert!(!Storage::gc_deleted_type_may_be_cached(task_type));
+        }
+        // An earlier ordinary key eviction removed the old cache entry while retaining its
+        // TaskStorage. After the GC tombstone commits, the same type can acquire a new ID.
+        let newer_type = test_cached_type();
+        storage.initialize_new_task(new_id, Some(newer_type.clone()));
+        storage.task_cache.insert(newer_type.clone(), new_id);
+
+        let counts = storage.evict_after_snapshot(None);
+        assert_eq!(counts.full, 1);
+        assert_eq!(counts.key_evictions, 0);
+        assert!(!storage.map.contains_key(&old_id));
+        assert_eq!(
+            storage.task_cache.get(newer_type.as_ref()).map(|id| *id),
+            Some(new_id)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn gc_deleted_task_with_live_cache_key_removes_matching_id() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+        let task_type = test_cached_type();
+        storage.initialize_new_task(task_id, Some(task_type.clone()));
+        storage.task_cache.insert(task_type.clone(), task_id);
+        {
+            let mut task = storage.access_mut(task_id);
+            task.flags.set_new_task(false);
+            task.flags.set_deleted(true);
+            assert!(task.get_persistent_task_type().unwrap().count() > 1);
+            assert!(Storage::gc_deleted_type_may_be_cached(
+                task.get_persistent_task_type().unwrap()
+            ));
+        }
+        let counts = storage.evict_after_snapshot(None);
+        assert_eq!(counts.full, 1);
+        assert_eq!(counts.key_evictions, 1);
+        assert!(storage.task_cache.get(task_type.as_ref()).is_none());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't
