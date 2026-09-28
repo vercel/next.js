@@ -33,10 +33,11 @@ The CLI reads the version installed in the app. It selects a canary target only 
 
 ## Choose a policy
 
-| Policy     | Behavior                                                                                                            |
-| ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| `security` | For an affected stable version, selects the latest safe release in the earliest eligible major.                     |
-| `latest`   | Moves stable, RC, beta, and preview apps to npm's `latest` stable release, or a canary app to the `canary` release. |
+| Policy                | Behavior                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `security`            | For an affected stable version, selects the latest safe release in the earliest eligible major.                     |
+| `latest`              | Moves stable, RC, beta, and preview apps to npm's `latest` stable release, or a canary app to the `canary` release. |
+| `experimental-future` | Applies the `latest` policy, then adopts applicable [Future Defaults](#adopt-future-defaults).                      |
 
 Omit the policy to use the string value from [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade). Otherwise, the command uses `security`:
 
@@ -46,7 +47,17 @@ npx next@canary upgrade --ai
 
 `--ai` cannot be combined with `--revision`.
 
-`security` supports stable installations. Canary installations can use `latest`. RC, beta, and preview installations can use `latest` to move to a newer stable release. Other prerelease channels are not supported.
+`security` supports stable installations. Canary installations can use `latest` or `experimental-future`. RC, beta, and preview installations can use `latest` to move to a newer stable release. Other prerelease channels are not supported.
+
+### Adopt future defaults
+
+The `experimental-future` policy adopts new defaults even when the app already uses the latest Next.js version. For eligible App Router projects on Next.js 16.3 or later, the command currently prepares the [Cache Components](/docs/app/guides/migrating-to-cache-components) guide and adoption Skill:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ai=experimental-future
+```
+
+Pages Router projects can use `experimental-future` for version upgrades, but the command does not offer Cache Components until the project uses the App Router.
 
 ## What the command does
 

@@ -222,7 +222,7 @@ The following options are available for the `next upgrade` command:
 | `[directory]`                    | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                          |
 | `--revision <revision>`          | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
 | `--verbose`                      | Show verbose output during the upgrade process.                                                                                                    |
-| `--ai, --experimental-ai [type]` | Prepare a coding agent upgrade with `security` or `latest`. Cannot be combined with `--revision`.                                                  |
+| `--ai, --experimental-ai [type]` | Prepare a coding agent upgrade with `security`, `latest`, or `experimental-future`. Cannot be combined with `--revision`.                          |
 
 Without a type, `--ai` uses a string policy from `experimental.agentUpgrade`, or `security` otherwise. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for the upgrade workflow and policy behavior.
 
