@@ -27,9 +27,11 @@ describe('build trace with extra entries in monorepo', () => {
     })
   })
 
+  // This suite inspects local standalone build output, which deployment tests do not expose.
+  // @force-gate !deploy
   // @force-gate webpack
   describe('standalone output outside outputFileTracingRoot', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: {
         app: new FileRef(path.join(__dirname, 'app/app')),
         '../other': new FileRef(path.join(__dirname, 'other')),
@@ -43,9 +45,7 @@ describe('build trace with extra entries in monorepo', () => {
         },
       },
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('warns and completes the build', async () => {
       const { exitCode, cliOutput } = await next.runCommand(['build'])
