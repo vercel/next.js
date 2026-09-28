@@ -18,12 +18,16 @@ describe('app-dir - server source maps', () => {
     'internal-pkg': `link:./internal-pkg`,
     'external-pkg': `file:./external-pkg`,
   }
-  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
+  const { skipped, next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
+    // Deploy tests don't have access to runtime logs.
+    skipDeployment: true,
     // Use the declared pnpm version on Vercel to install link: dependencies.
     env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
+
+  if (skipped) return
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
     if (isNextDev) {
