@@ -4,8 +4,8 @@ const nextConfig = {
     turbopackModuleFederation: {
       name: 'nextHost',
       remotes: {
-        catalog: `catalog@${process.env.MF_REMOTE_URL}`,
-        workerCatalog: `workerCatalog@/webpack-worker-remote/remoteEntry.js`,
+        catalog: `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
+        workerCatalog: `workerCatalog@${process.env.MF_REMOTE_ORIGIN}/worker/remoteEntry.js`,
       },
       shared: {
         'shared-value': {
@@ -15,18 +15,6 @@ const nextConfig = {
         },
       },
     },
-  },
-  async rewrites() {
-    return [
-      {
-        source: '/webpack-remote/:path*',
-        destination: `${process.env.MF_REMOTE_ORIGIN}/browser/:path*`,
-      },
-      {
-        source: '/webpack-worker-remote/:path*',
-        destination: `${process.env.MF_REMOTE_ORIGIN}/worker/:path*`,
-      },
-    ]
   },
 }
 
