@@ -25,12 +25,12 @@ pub fn compute_shard_amount(num_workers: Option<usize>, small_preallocation: boo
     // for some constant `k` the probability of at least one collision for large `N` can be
     // approximated as: P = 1 - exp(-N^2 / (2*S)) = 1 - exp(-1/(2*k))
     //
-    // For `k = 16` this results in a collision probability of about 3%.
-    // For `k = 1` this results in a collision probability of about 39%.
+    // For `k = 2` this results in a collision probability of about 22%. Fine-grained task locks
+    // keep a shard collision from serializing independent task mutations, so the lower shard count
+    // saves memory without recreating the old shard-write-lock bottleneck.
     //
     // We clamp the number of shards to 1 << 16 to avoid excessive memory usage in case of a very
-    // high number of worker threads. This case is hit with more than 64 worker threads for `k =
-    // 16` and more than 256 worker threads for `k = 1`.
+    // high number of worker threads. With `k = 2`, this case is hit above roughly 181 workers.
 
     if small_preallocation {
         // We also clamp the maximum number of workers to 256 so all following multiplications can't
@@ -38,9 +38,8 @@ pub fn compute_shard_amount(num_workers: Option<usize>, small_preallocation: boo
         let num_workers = num_workers.min(256);
         (num_workers * num_workers).next_power_of_two()
     } else {
-        // We also clamp the maximum number of workers to 64 so all following multiplications can't
-        // overflow.
-        let num_workers = num_workers.min(64);
-        (num_workers * num_workers * 16).next_power_of_two()
+        // Clamp the worker count so the shard total stays at or below 1 << 16.
+        let num_workers = num_workers.min(181);
+        (num_workers * num_workers * 2).next_power_of_two()
     }
 }
